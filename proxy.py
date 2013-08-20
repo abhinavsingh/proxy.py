@@ -1,23 +1,33 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
     proxy.py
     ~~~~~~~~
     
-    HTTP proxy implementation.
+    HTTP Proxy Server in Python.
+    
+    :copyright: (c) 2013 by Abhinav Singh.
+    :license: BSD, see LICENSE for more details.
 """
+VERSION = (0, 1)
+__version__ = '.'.join(map(str, VERSION[0:2]))
+__description__ = 'HTTP Proxy Server in Python'
+__author__ = 'Abhinav Singh'
+__author_email__ = 'mailsforabhinav@gmail.com'
+__homepage__ = 'https://github.com/abhinavsingh/proxy.py'
+__license__ = 'BSD'
+
 import multiprocessing
 import datetime
 import urlparse
+import argparse
 import logging
 import socket
 import select
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger('proxy.py')
 
-CRLF = '\r\n'
-COLON = ':'
-SP = ' '
+CRLF, COLON, SP = '\r\n', ':', ' '
 
 HTTP_REQUEST_PARSER = 1
 HTTP_RESPONSE_PARSER = 2
@@ -34,6 +44,7 @@ CHUNK_PARSER_STATE_WAITING_FOR_DATA = 2
 CHUNK_PARSER_STATE_COMPLETE = 3
 
 class ChunkParser(object):
+    """HTTP chunked encoding response parser."""
     
     def __init__(self):
         self.state = CHUNK_PARSER_STATE_WAITING_FOR_SIZE
@@ -66,6 +77,7 @@ class ChunkParser(object):
         return len(data) > 0, data
 
 class HttpParser(object):
+    """HTTP request/response parser."""
     
     def __init__(self, type=None):
         self.state = HTTP_PARSER_STATE_INITIALIZED
@@ -196,14 +208,16 @@ class HttpParser(object):
         data = data[pos+len(CRLF):]
         return line, data
 
-class ProxyConnectionFailed(Exception):
+class ProxyError(Exception):
+    pass
+
+class ProxyConnectionFailed(ProxyError):
     pass
 
 class Proxy(multiprocessing.Process):
     """HTTP proxy implementation.
     
-    Accepts connection object and act as a proxy between
-    client and server.
+    Accepts connection object and act as a proxy between client and server.
     """
     
     def __init__(self, conn, addr):
@@ -247,7 +261,7 @@ class Proxy(multiprocessing.Process):
             logger.debug('rcvd %d bytes from %s' % (len(data), what))
             return data
         except Exception as e:
-            logger.debug('Exception while receiving from connection %r with reason %r' % (self.conn[what], e))
+            logger.error('Exception while receiving from connection %r with reason %r' % (self.conn[what], e))
             return None
     
     def _recv_from_client(self):
@@ -326,9 +340,9 @@ class Proxy(multiprocessing.Process):
     def _access_log(self):
         host, port = self._server_host_port()
         if self.parser['client'].method == "CONNECT":
-            logger.debug("%r %s %s:%s (%s secs)" % (self.addr, self.parser['client'].method, host, port, self._inactive_for()))
+            logger.info("%s:%s - %s %s:%s" % (self.addr[0], self.addr[1], self.parser['client'].method, host, port))
         else:
-            logger.debug("%r %s %s:%s%s %s %s %s bytes (%s secs)" % (self.addr, self.parser['client'].method, host, port, self.parser['client'].build_url(), self.parser['server'].code, self.parser['server'].reason, len(self.parser['server'].raw), self._inactive_for()))
+            logger.info("%s:%s - %s %s:%s%s - %s %s - %s bytes" % (self.addr[0], self.addr[1], self.parser['client'].method, host, port, self.parser['client'].build_url(), self.parser['server'].code, self.parser['server'].reason, len(self.parser['server'].raw)))
     
     def run(self):
         logger.debug('Proxying connection %r at address %r' % (self.conn['client'], self.addr))
@@ -386,7 +400,7 @@ class Proxy(multiprocessing.Process):
                         logger.debug('client buffer is empty and maximum inactivity has reached, breaking')
                         break
         except Exception as e:
-            logger.debug('Exception while handling connection %r with reason %r' % (self.conn['client'], e))
+            logger.error('Exception while handling connection %r with reason %r' % (self.conn['client'], e))
         finally:
             logger.debug("closing client connection with client pending buffer size %d bytes, server pending buffer size %d bytes" % (len(self.buffer['client']), len(self.buffer['server'])))
             self.conn['client'].close()
@@ -405,9 +419,9 @@ class Server(object):
         self.port = port
         self.backlog = backlog
     
-    def start(self):
+    def run(self):
         try:
-            logger.debug('Starting server on port %d' % self.port)
+            logger.info('Starting proxy server on port %d' % self.port)
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.hostname, self.port))
@@ -420,10 +434,30 @@ class Server(object):
                 proc.start()
                 logger.debug('Started process %r to handle connection %r' % (proc, conn))
         except Exception as e:
-            logger.debug('Exception while running the server %r' % e)
+            logger.error('Exception while running the server %r' % e)
         finally:
-            logger.debug('Closing server socket')
+            logger.info('Closing server socket')
             self.socket.close()
 
+def main():
+    parser = argparse.ArgumentParser(
+        description='proxy.py v%s' % __version__,
+        epilog='Having difficulty using proxy.py? Report at: %s/issues/new' % __homepage__
+    )
+    parser.add_argument('--hostname', default='127.0.0.1', help='Default: 127.0.0.1')
+    parser.add_argument('--port', default='8899', help='Default: 8899')
+    parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
+    args = parser.parse_args()
+    
+    hostname = args.hostname
+    port = int(args.port)
+    logging.basicConfig(level=getattr(logging, args.log_level), format='%(levelname)s - %(asctime)s - %(message)s')
+    
+    try:
+        server = Server(hostname, port)
+        server.run()
+    except KeyboardInterrupt:
+        pass
+
 if __name__ == '__main__':
-    Server().start()
+    main()

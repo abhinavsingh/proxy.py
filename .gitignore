@@ -1,3 +1,7 @@
 .project
 .pydevproject
 .settings
+
+*.pyc
+dist
+proxy.py.egg-info
