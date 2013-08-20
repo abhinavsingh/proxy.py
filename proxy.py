@@ -139,7 +139,7 @@ class HttpParser(object):
         self.type == HTTP_REQUEST_PARSER and \
         not self.method == "POST" and \
         self.raw.endswith(CRLF*2):
-                self.state = HTTP_PARSER_STATE_COMPLETE
+            self.state = HTTP_PARSER_STATE_COMPLETE
         
         return len(data) > 0, data
     
@@ -215,12 +215,17 @@ class Server(object):
         self.addr = (host, int(port))
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn.connect((self.addr[0], self.addr[1]))
+        self.closed = False
     
     def send(self, data):
         return self.conn.send(data)
     
     def recv(self, bytes):
         return self.conn.recv(bytes)
+    
+    def close(self):
+        self.conn.close()
+        self.closed = True
 
 class Client(object):
     """Accepted client connection."""
@@ -228,12 +233,17 @@ class Client(object):
     def __init__(self, conn, addr):
         self.conn = conn
         self.addr = addr
+        self.closed = False
     
     def send(self, data):
         return self.conn.send(data)
     
     def recv(self, bytes):
         return self.conn.recv(bytes)
+    
+    def close(self):
+        self.conn.close()
+        self.closed = True
 
 class ProxyError(Exception):
     pass
@@ -262,9 +272,6 @@ class Proxy(multiprocessing.Process):
         self.buffer = dict()
         self.buffer['client'] = ''
         self.buffer['server'] = ''
-        
-        self.host = None
-        self.port = None
     
     def _now(self):
         return datetime.datetime.utcnow()
@@ -314,22 +321,8 @@ class Proxy(multiprocessing.Process):
     def _flush_server_buffer(self):
         self._flush('server')
     
-    def _server_host_port(self):
-        if not self.host and not self.port:
-            if self.request.method == "CONNECT":
-                self.host, self.port = self.request.url.path.split(':')
-            elif self.request.url:
-                self.host, self.port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
-        return self.host, self.port
-    
-    def _connect_to_server(self):
-        host, port = self._server_host_port()
-        logger.debug('connecting to server %s:%s' % (host, port))
-        self.server = Server(host, port)
-        logger.debug('connected to server %s:%s' % (host, port))
-    
     def _process_request(self, data):
-        if self.server:
+        if self.server and not self.server.closed:
             self._send_to_server(data)
             return
         
@@ -338,15 +331,22 @@ class Proxy(multiprocessing.Process):
         if self.request.state == HTTP_PARSER_STATE_COMPLETE:
             logger.debug('request parser is in state complete')
             
+            if self.request.method == "CONNECT":
+                host, port = self.request.url.path.split(COLON)
+            elif self.request.url:
+                host, port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
+            
             try:
-                self._connect_to_server()
-            except Exception, e:
+                logger.debug('connecting to server %s:%s' % (host, port))
+                self.server = Server(host, port)
+                logger.debug('connected to server %s:%s' % (host, port))
+            except Exception as e:
                 raise ProxyConnectionFailed("%r" % e)
             
             if self.request.method == "CONNECT":
                 self._send_to_client(CRLF.join([
                     'HTTP/1.1 200 Connection established',
-                    'Proxy-agent: BroPro',
+                    'Proxy-agent: proxy.py v%s' % __version__,
                     CRLF
                 ]))
             else:
@@ -361,7 +361,7 @@ class Proxy(multiprocessing.Process):
         self._send_to_client(data)
     
     def _access_log(self):
-        host, port = self._server_host_port()
+        host, port = self.server.addr if self.server else (None, None)
         if self.request.method == "CONNECT":
             logger.info("%s:%s - %s %s:%s" % (self.client.addr[0], self.client.addr[1], self.request.method, host, port))
         else:
@@ -378,11 +378,11 @@ class Proxy(multiprocessing.Process):
                     logger.debug('pending client buffer found, watching client for write ready')
                     wlist.append(self.client.conn)
                 
-                if self.server:
+                if self.server and not self.server.closed:
                     logger.debug('connection to server exists, watching server for read ready')
                     rlist.append(self.server.conn)
                 
-                if self.server and len(self.buffer['server']) > 0:
+                if self.server and not self.server.closed and len(self.buffer['server']) > 0:
                     logger.debug('connection to server exists and pending server buffer found, watching server for write ready')
                     wlist.append(self.server.conn)
                 
@@ -392,7 +392,7 @@ class Proxy(multiprocessing.Process):
                     logger.debug('client is ready for writes, flushing client buffer')
                     self._flush_client_buffer()
                 
-                if self.server and self.server.conn in w:
+                if self.server and not self.server.closed and self.server.conn in w:
                     logger.debug('server is ready for writes, flushing server buffer')
                     self._flush_server_buffer()
                 
@@ -404,13 +404,12 @@ class Proxy(multiprocessing.Process):
                         break
                     self._process_request(data)
                 
-                if self.server and self.server.conn in r:
+                if self.server and not self.server.closed and self.server.conn in r:
                     logger.debug('server is ready for reads, reading')
                     data = self._recv_from_server()
                     if not data:
                         logger.debug('server closed connection')
-                        self.server.conn.close()
-                        self.server = None
+                        self.server.close()
                     else:
                         self._process_response(data)
                 
@@ -422,11 +421,13 @@ class Proxy(multiprocessing.Process):
                     if self._is_inactive():
                         logger.debug('client buffer is empty and maximum inactivity has reached, breaking')
                         break
+        except KeyboardInterrupt:
+            pass
         except Exception as e:
             logger.exception('Exception while handling connection %r with reason %r' % (self.client.conn, e))
         finally:
             logger.debug("closing client connection with client pending buffer size %d bytes, server pending buffer size %d bytes" % (len(self.buffer['client']), len(self.buffer['server'])))
-            self.client.conn.close()
+            self.client.close()
             self._access_log()
             logger.debug('Closing proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
 
@@ -476,7 +477,7 @@ def main():
     
     hostname = args.hostname
     port = int(args.port)
-    logging.basicConfig(level=getattr(logging, args.log_level), format='%(levelname)s - %(asctime)s - %(lineno)d - %(message)s')
+    logging.basicConfig(level=getattr(logging, args.log_level), format='%(levelname)s - %(asctime)s - %(message)s')
     
     try:
         http = Http(hostname, port)
