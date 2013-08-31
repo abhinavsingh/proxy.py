@@ -25,7 +25,7 @@ import logging
 import socket
 import select
 
-logger = logging.getLogger('proxy.py')
+logger = logging.getLogger(__name__)
 
 CRLF, COLON, SP = '\r\n', ':', ' '
 
@@ -103,7 +103,8 @@ class HttpParser(object):
         self.buffer = ''
         
         more = True if len(data) > 0 else False
-        while more: more, data = self.process(data)
+        while more: 
+            more, data = self.process(data)
         self.buffer = data
     
     def process(self, data):
@@ -209,7 +210,7 @@ class HttpParser(object):
         return line, data
 
 class Connection(object):
-    """TCP connection abstraction"""
+    """TCP connection abstraction."""
     
     def __init__(self, what):
         self.buffer = ''
