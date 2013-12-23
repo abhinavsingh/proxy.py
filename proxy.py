@@ -299,6 +299,12 @@ class Proxy(multiprocessing.Process):
         
         self.request = HttpParser()
         self.response = HttpParser(HTTP_RESPONSE_PARSER)
+        
+        self.connection_established_pkt = CRLF.join([
+            'HTTP/1.1 200 Connection established',
+            'Proxy-agent: proxy.py v%s' % __version__,
+            CRLF
+        ])
     
     def _now(self):
         return datetime.datetime.utcnow()
@@ -344,11 +350,7 @@ class Proxy(multiprocessing.Process):
             # queue appropriate response for client 
             # notifying about established connection
             if self.request.method == "CONNECT":
-                self.client.queue(CRLF.join([
-                    'HTTP/1.1 200 Connection established',
-                    'Proxy-agent: proxy.py v%s' % __version__,
-                    CRLF
-                ]))
+                self.client.queue(self.connection_established_pkt)
             # for usual http requests, re-build request packet
             # and queue for the server with appropriate headers
             else:

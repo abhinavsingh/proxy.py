@@ -1,7 +1,8 @@
 .project
 .pydevproject
 .settings
-
+.coverage
 *.pyc
+cover
 dist
 proxy.py.egg-info
