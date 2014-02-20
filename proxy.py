@@ -9,7 +9,7 @@
     :copyright: (c) 2013 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
-VERSION = (0, 1)
+VERSION = (0, 2)
 __version__ = '.'.join(map(str, VERSION[0:2]))
 __description__ = 'HTTP Proxy Server in Python'
 __author__ = 'Abhinav Singh'
