@@ -8,7 +8,7 @@ clean:
 	find . -name '*~' -exec rm -f {} +
 
 test:
-	nosetests -v --with-coverage --cover-package=proxy --cover-erase --cover-html --nocapture
+	python tests.py -v
 
 package:
 	python setup.py sdist

@@ -210,12 +210,12 @@ class HttpParser(object):
         return line, data
 
 class Connection(object):
-    """TCP connection abstraction."""
+    """TCP server/client connection abstraction."""
     
     def __init__(self, what):
         self.buffer = ''
         self.closed = False
-        self.what = what
+        self.what = what # server or client
     
     def send(self, data):
         return self.conn.send(data)
@@ -251,7 +251,7 @@ class Connection(object):
         logger.debug('flushed %d bytes to %s' % (sent, self.what))
 
 class Server(Connection):
-    """Established connection to destination server."""
+    """Establish connection to destination server."""
     
     def __init__(self, host, port):
         super(Server, self).__init__('server')
@@ -473,22 +473,20 @@ class Proxy(multiprocessing.Process):
             self._access_log()
             logger.debug('Closing proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
 
-class Http(object):
-    """HTTP server implementation.
-    
-    Listens on configured (host, port) and spawns a new process
-    for handling every accepted HTTP connection. Spawned process
-    takes care of proxying the HTTP request.
-    """
+class TCP(object):
+    """TCP server implementation."""
     
     def __init__(self, hostname='127.0.0.1', port=8899, backlog=100):
         self.hostname = hostname
         self.port = port
         self.backlog = backlog
     
+    def handle(self, client):
+        raise NotImplementedError()
+    
     def run(self):
         try:
-            logger.info('Starting proxy server on port %d' % self.port)
+            logger.info('Starting server on port %d' % self.port)
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.hostname, self.port))
@@ -497,33 +495,44 @@ class Http(object):
                 conn, addr = self.socket.accept()
                 logger.debug('Accepted connection %r at address %r' % (conn, addr))
                 client = Client(conn, addr)
-                proc = Proxy(client)
-                proc.daemon = True
-                proc.start()
-                logger.debug('Started process %r to handle connection %r' % (proc, conn))
+                self.handle(client)
         except Exception as e:
             logger.exception('Exception while running the server %r' % e)
         finally:
             logger.info('Closing server socket')
             self.socket.close()
 
+class HTTP(TCP):
+    """HTTP proxy server implementation.
+    
+    Spawns new process to proxy accepted client connection.
+    """
+    
+    def handle(self, client):
+        proc = Proxy(client)
+        proc.daemon = True
+        proc.start()
+        logger.debug('Started process %r to handle connection %r' % (proc, client.conn))
+
 def main():
     parser = argparse.ArgumentParser(
         description='proxy.py v%s' % __version__,
         epilog='Having difficulty using proxy.py? Report at: %s/issues/new' % __homepage__
     )
+    
     parser.add_argument('--hostname', default='127.0.0.1', help='Default: 127.0.0.1')
     parser.add_argument('--port', default='8899', help='Default: 8899')
     parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
     args = parser.parse_args()
     
-    hostname = args.hostname
-    port = int(args.port)
     logging.basicConfig(level=getattr(logging, args.log_level), format='%(asctime)s - %(process)d - %(message)s')
     
+    hostname = args.hostname
+    port = int(args.port)
+    
     try:
-        http = Http(hostname, port)
-        http.run()
+        proxy = HTTP(hostname, port)
+        proxy.run()
     except KeyboardInterrupt:
         pass
 
