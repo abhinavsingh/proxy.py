@@ -82,6 +82,7 @@ class HttpParser(object):
     def __init__(self, type=None):
         self.state = HTTP_PARSER_STATE_INITIALIZED
         self.type = type if type else HTTP_REQUEST_PARSER
+        print "TYPE: %s \n" % self.type
         
         self.raw = ''
         self.buffer = ''
