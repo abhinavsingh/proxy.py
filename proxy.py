@@ -300,6 +300,7 @@ class Proxy(multiprocessing.Process):
         self.server = None
         
         self.request = HttpParser()
+        print "REQUEST: %s\n" % self.request
         self.response = HttpParser(HTTP_RESPONSE_PARSER)
         
         self.connection_established_pkt = CRLF.join([
