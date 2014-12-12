@@ -125,7 +125,8 @@ class HttpParser(object):
                 if self.chunker.state == CHUNK_PARSER_STATE_COMPLETE:
                     self.body = self.chunker.body
                     self.state = HTTP_PARSER_STATE_COMPLETE
-            
+
+            print ("Response Headers: %s \n Response Body: %s" % (self.headers, self.body))
             return False, ''
         
         line, data = HttpParser.split(data)
