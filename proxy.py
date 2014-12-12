@@ -82,8 +82,7 @@ class HttpParser(object):
     def __init__(self, type=None):
         self.state = HTTP_PARSER_STATE_INITIALIZED
         self.type = type if type else HTTP_REQUEST_PARSER
-        print "TYPE: %s \n" % self.type
-        
+
         self.raw = ''
         self.buffer = ''
         
@@ -127,7 +126,8 @@ class HttpParser(object):
                     self.body = self.chunker.body
                     self.state = HTTP_PARSER_STATE_COMPLETE
 
-            print ("Response Headers: %s \n Response Body: %s" % (self.headers, self.body))
+            logging.info("RESPONSE >>")
+            logging.info("Response Headers: %s \n Response Body: %s" % (self.headers, self.body))
             return False, ''
         
         line, data = HttpParser.split(data)
@@ -301,8 +301,7 @@ class Proxy(multiprocessing.Process):
         
         self.request = HttpParser()
         self.response = HttpParser(HTTP_RESPONSE_PARSER)
-        print "RESPONSE: %s\n" % self.response
-        
+
         self.connection_established_pkt = CRLF.join([
             'HTTP/1.1 200 Connection established',
             'Proxy-agent: proxy.py v%s' % __version__,
@@ -361,9 +360,10 @@ class Proxy(multiprocessing.Process):
                     del_headers=['proxy-connection', 'connection', 'keep-alive'], 
                     add_headers=[('Connection', 'Close')]
                 ))
-        print "REQUEST METHOD: %s at %s" % (self.request.method, self.request.url)
-        print "REQUEST HEADERS: %s\n" % self.request.headers
-        print "REQUEST BODY: %s \n" % self.request.body
+        logging.info("REQUESTS >>")
+        logging.info("REQUEST METHOD: %s at %s" % (self.request.method, self.request.url))
+        logging.info("REQUEST HEADERS: %s\n" % self.request.headers)
+        logging.info("REQUEST BODY: %s \n" % self.request.body)
     
     def _process_response(self, data):
         # parse incoming response packet
