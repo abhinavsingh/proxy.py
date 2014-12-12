@@ -363,7 +363,7 @@ class Proxy(multiprocessing.Process):
                     add_headers=[('Connection', 'Close')]
                 ))
         print "REQUEST HEADERS: %s\n" % self.request.headers
-        print "REQUET BODY: %S \n" % self.request.body
+        print "REQUET BODY: %s \n" % self.request.body
     
     def _process_response(self, data):
         # parse incoming response packet
