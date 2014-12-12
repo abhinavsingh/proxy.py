@@ -300,8 +300,8 @@ class Proxy(multiprocessing.Process):
         self.server = None
         
         self.request = HttpParser()
-        print "REQUEST: %s\n" % self.request
         self.response = HttpParser(HTTP_RESPONSE_PARSER)
+        print "RESPONSE: %s\n" % self.response
         
         self.connection_established_pkt = CRLF.join([
             'HTTP/1.1 200 Connection established',
@@ -329,6 +329,7 @@ class Proxy(multiprocessing.Process):
         
         # parse http request
         self.request.parse(data)
+        # print "REQUEST: %s\n" % self.request
         
         # once http request parser has reached the state complete
         # we attempt to establish connection to destination server
@@ -361,6 +362,7 @@ class Proxy(multiprocessing.Process):
                     del_headers=['proxy-connection', 'connection', 'keep-alive'], 
                     add_headers=[('Connection', 'Close')]
                 ))
+        print "REQUEST: %s\n" % self.request
     
     def _process_response(self, data):
         # parse incoming response packet
