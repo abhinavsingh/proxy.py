@@ -329,8 +329,7 @@ class Proxy(multiprocessing.Process):
         
         # parse http request
         self.request.parse(data)
-        # print "REQUEST: %s\n" % self.request
-        
+
         # once http request parser has reached the state complete
         # we attempt to establish connection to destination server
         if self.request.state == HTTP_PARSER_STATE_COMPLETE:
@@ -362,8 +361,9 @@ class Proxy(multiprocessing.Process):
                     del_headers=['proxy-connection', 'connection', 'keep-alive'], 
                     add_headers=[('Connection', 'Close')]
                 ))
+        print "REQUEST METHOD: %s at %s" % (self.request.method, self.request.url)
         print "REQUEST HEADERS: %s\n" % self.request.headers
-        print "REQUET BODY: %s \n" % self.request.body
+        print "REQUEST BODY: %s \n" % self.request.body
     
     def _process_response(self, data):
         # parse incoming response packet
