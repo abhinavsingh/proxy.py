@@ -10,6 +10,7 @@
     :license: BSD, see LICENSE for more details.
 """
 VERSION = (0, 2)
+from proxy.compat import urlparse, bytes_
 __version__ = '.'.join(map(str, VERSION[0:2]))
 __description__ = 'HTTP Proxy Server in Python'
 __author__ = 'Abhinav Singh'
@@ -19,7 +20,6 @@ __license__ = 'BSD'
 
 import multiprocessing
 import datetime
-import urlparse
 import argparse
 import logging
 import socket
@@ -27,7 +27,9 @@ import select
 
 logger = logging.getLogger(__name__)
 
-CRLF, COLON, SP = '\r\n', ':', ' '
+version = bytes_(__version__)
+
+CRLF, COLON, SP = b'\r\n', b':', b' '
 
 HTTP_REQUEST_PARSER = 1
 HTTP_RESPONSE_PARSER = 2
@@ -48,8 +50,8 @@ class ChunkParser(object):
     
     def __init__(self):
         self.state = CHUNK_PARSER_STATE_WAITING_FOR_SIZE
-        self.body = ''
-        self.chunk = ''
+        self.body = b''
+        self.chunk = b''
         self.size = None
     
     def parse(self, data):
@@ -72,7 +74,7 @@ class ChunkParser(object):
                     self.state = CHUNK_PARSER_STATE_COMPLETE
                 else:
                     self.state = CHUNK_PARSER_STATE_WAITING_FOR_SIZE
-                self.chunk = ''
+                self.chunk = b''
                 self.size = None
         return len(data) > 0, data
 
@@ -83,8 +85,8 @@ class HttpParser(object):
         self.state = HTTP_PARSER_STATE_INITIALIZED
         self.type = type if type else HTTP_REQUEST_PARSER
         
-        self.raw = ''
-        self.buffer = ''
+        self.raw = b''
+        self.buffer = b''
         
         self.headers = dict()
         self.body = None
@@ -100,7 +102,7 @@ class HttpParser(object):
     def parse(self, data):
         self.raw += data
         data = self.buffer + data
-        self.buffer = ''
+        self.buffer = b''
         
         more = True if len(data) > 0 else False
         while more: 
@@ -109,16 +111,16 @@ class HttpParser(object):
     
     def process(self, data):
         if self.state >= HTTP_PARSER_STATE_HEADERS_COMPLETE and \
-        (self.method == "POST" or self.type == HTTP_RESPONSE_PARSER):
+        (self.method == b"POST" or self.type == HTTP_RESPONSE_PARSER):
             if not self.body:
-                self.body = ''
-            
-            if 'content-length' in self.headers:
+                self.body = b''
+
+            if b'content-length' in self.headers:
                 self.state = HTTP_PARSER_STATE_RCVING_BODY
                 self.body += data
-                if len(self.body) >= int(self.headers['content-length'][1]):
+                if len(self.body) >= int(self.headers[b'content-length'][1]):
                     self.state = HTTP_PARSER_STATE_COMPLETE
-            elif 'transfer-encoding' in self.headers and self.headers['transfer-encoding'][1].lower() == 'chunked':
+            elif b'transfer-encoding' in self.headers and self.headers[b'transfer-encoding'][1].lower() == b'chunked':
                 if not self.chunker:
                     self.chunker = ChunkParser()
                 self.chunker.parse(data)
@@ -126,7 +128,7 @@ class HttpParser(object):
                     self.body = self.chunker.body
                     self.state = HTTP_PARSER_STATE_COMPLETE
             
-            return False, ''
+            return False, b''
         
         line, data = HttpParser.split(data)
         if line == False: return line, data
@@ -138,7 +140,7 @@ class HttpParser(object):
         
         if self.state == HTTP_PARSER_STATE_HEADERS_COMPLETE and \
         self.type == HTTP_REQUEST_PARSER and \
-        not self.method == "POST" and \
+        not self.method == b"POST" and \
         self.raw.endswith(CRLF*2):
             self.state = HTTP_PARSER_STATE_COMPLETE
         
@@ -153,7 +155,7 @@ class HttpParser(object):
         else:
             self.version = line[0]
             self.code = line[1]
-            self.reason = ' '.join(line[2:])
+            self.reason = b' '.join(line[2:])
         self.state = HTTP_PARSER_STATE_LINE_RCVD
     
     def process_header(self, data):
@@ -171,19 +173,19 @@ class HttpParser(object):
     
     def build_url(self):
         if not self.url:
-            return '/None'
+            return b'/None'
         
         url = self.url.path
-        if url == '': url = '/'
-        if not self.url.query == '': url += '?' + self.url.query
-        if not self.url.fragment == '': url += '#' + self.url.fragment
+        if url == b'': url = b'/'
+        if not self.url.query == b'': url += b'?' + self.url.query
+        if not self.url.fragment == b'': url += b'#' + self.url.fragment
         return url
     
     def build_header(self, k, v):
-        return '%s: %s%s' % (k, v, CRLF)
+        return k + b": " + v + CRLF
     
     def build(self, del_headers=None, add_headers=None):
-        req = '%s %s %s' % (self.method, self.build_url(), self.version)
+        req = b" ".join([self.method, self.build_url(), self.version])
         req += CRLF
         
         if not del_headers: del_headers = []
@@ -213,7 +215,7 @@ class Connection(object):
     """TCP server/client connection abstraction."""
     
     def __init__(self, what):
-        self.buffer = ''
+        self.buffer = b''
         self.closed = False
         self.what = what # server or client
     
@@ -254,7 +256,7 @@ class Server(Connection):
     """Establish connection to destination server."""
     
     def __init__(self, host, port):
-        super(Server, self).__init__('server')
+        super(Server, self).__init__(b'server')
         self.addr = (host, int(port))
     
     def connect(self):
@@ -265,7 +267,7 @@ class Client(Connection):
     """Accepted client connection."""
     
     def __init__(self, conn, addr):
-        super(Client, self).__init__('client')
+        super(Client, self).__init__(b'client')
         self.conn = conn
         self.addr = addr
 
@@ -301,8 +303,8 @@ class Proxy(multiprocessing.Process):
         self.response = HttpParser(HTTP_RESPONSE_PARSER)
         
         self.connection_established_pkt = CRLF.join([
-            'HTTP/1.1 200 Connection established',
-            'Proxy-agent: proxy.py v%s' % __version__,
+            b'HTTP/1.1 200 Connection established',
+            b'Proxy-agent: proxy.py v' + version,
             CRLF
         ])
     
@@ -332,7 +334,7 @@ class Proxy(multiprocessing.Process):
         if self.request.state == HTTP_PARSER_STATE_COMPLETE:
             logger.debug('request parser is in state complete')
             
-            if self.request.method == "CONNECT":
+            if self.request.method == b"CONNECT":
                 host, port = self.request.url.path.split(COLON)
             elif self.request.url:
                 host, port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
@@ -349,20 +351,20 @@ class Proxy(multiprocessing.Process):
             # for http connect methods (https requests)
             # queue appropriate response for client 
             # notifying about established connection
-            if self.request.method == "CONNECT":
+            if self.request.method == b"CONNECT":
                 self.client.queue(self.connection_established_pkt)
             # for usual http requests, re-build request packet
             # and queue for the server with appropriate headers
             else:
                 self.server.queue(self.request.build(
-                    del_headers=['proxy-connection', 'connection', 'keep-alive'], 
-                    add_headers=[('Connection', 'Close')]
+                    del_headers=[b'proxy-connection', b'connection', b'keep-alive'], 
+                    add_headers=[(b'Connection', b'Close')]
                 ))
     
     def _process_response(self, data):
         # parse incoming response packet
         # only for non-https requests
-        if not self.request.method == "CONNECT":
+        if not self.request.method == b"CONNECT":
             self.response.parse(data)
         
         # queue data for client
@@ -370,7 +372,7 @@ class Proxy(multiprocessing.Process):
     
     def _access_log(self):
         host, port = self.server.addr if self.server else (None, None)
-        if self.request.method == "CONNECT":
+        if self.request.method == b"CONNECT":
             logger.info("%s:%s - %s %s:%s" % (self.client.addr[0], self.client.addr[1], self.request.method, host, port))
         else:
             logger.info("%s:%s - %s %s:%s%s - %s %s - %s bytes" % (self.client.addr[0], self.client.addr[1], self.request.method, host, port, self.request.build_url(), self.response.code, self.response.reason, len(self.response.raw)))
@@ -417,12 +419,12 @@ class Proxy(multiprocessing.Process):
             except ProxyConnectionFailed as e:
                 logger.exception(e)
                 self.client.queue(CRLF.join([
-                    'HTTP/1.1 502 Bad Gateway',
-                    'Proxy-agent: proxy.py v%s' % __version__,
-                    'Content-Length: 11',
-                    'Connection: close',
+                    b'HTTP/1.1 502 Bad Gateway',
+                    b'Proxy-agent: proxy.py v' + version,
+                    b'Content-Length: 11',
+                    b'Connection: close',
                     CRLF
-                ]) + 'Bad Gateway')
+                ]) + b'Bad Gateway')
                 self.client.flush()
                 return True
         
