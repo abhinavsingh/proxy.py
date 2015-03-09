@@ -10,7 +10,6 @@
     :license: BSD, see LICENSE for more details.
 """
 VERSION = (0, 2)
-from proxy.compat import urlparse, bytes_
 __version__ = '.'.join(map(str, VERSION[0:2]))
 __description__ = 'HTTP Proxy Server in Python'
 __author__ = 'Abhinav Singh'
@@ -18,6 +17,7 @@ __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 __license__ = 'BSD'
 
+import sys
 import multiprocessing
 import datetime
 import argparse
@@ -26,6 +26,34 @@ import socket
 import select
 
 logger = logging.getLogger(__name__)
+
+# True if we are running on Python 3.
+PY3 = sys.version_info[0] == 3
+
+if PY3:
+    text_type = str
+    binary_type = bytes
+    from urllib import parse as urlparse
+else:
+    text_type = unicode
+    binary_type = str
+    import urlparse
+
+
+def text_(s, encoding='utf-8', errors='strict'):
+    """ If ``s`` is an instance of ``binary_type``, return
+    ``s.decode(encoding, errors)``, otherwise return ``s``"""
+    if isinstance(s, binary_type):
+        return s.decode(encoding, errors)
+    return s  # pragma: no cover
+
+
+def bytes_(s, encoding='utf-8', errors='strict'):
+    """ If ``s`` is an instance of ``text_type``, return
+    ``s.encode(encoding, errors)``, otherwise return ``s``"""
+    if isinstance(s, text_type):  # pragma: no cover
+        return s.encode(encoding, errors)
+    return s
 
 version = bytes_(__version__)
 
@@ -44,6 +72,7 @@ HTTP_PARSER_STATE_COMPLETE = 6
 CHUNK_PARSER_STATE_WAITING_FOR_SIZE = 1
 CHUNK_PARSER_STATE_WAITING_FOR_DATA = 2
 CHUNK_PARSER_STATE_COMPLETE = 3
+
 
 class ChunkParser(object):
     """HTTP chunked encoding response parser."""

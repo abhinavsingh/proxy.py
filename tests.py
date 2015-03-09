@@ -1,7 +1,7 @@
 import unittest
 import proxy
 from proxy import *
-from proxy.compat import bytes_, text_
+from proxy import bytes_, text_
 
 
 class TestChunkParser(unittest.TestCase):
