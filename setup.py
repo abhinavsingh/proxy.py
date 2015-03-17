@@ -37,7 +37,7 @@ setup(
     url                 = proxy.__homepage__,
     license             = proxy.__license__,
     py_modules          = ['proxy'],
-    scripts             = ['proxy/__init__.py'],
+    scripts             = ['proxy.py'],
     install_requires    = [],
     classifiers         = classifiers
 )

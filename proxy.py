@@ -403,9 +403,9 @@ class Proxy(multiprocessing.Process):
         host, port = self.server.addr if self.server else (None, None)
         if self.request.method == b"CONNECT":
             logger.info("%s:%s - %s %s:%s" % (self.client.addr[0], self.client.addr[1], self.request.method, host, port))
-        else:
+        elif self.request.method:
             logger.info("%s:%s - %s %s:%s%s - %s %s - %s bytes" % (self.client.addr[0], self.client.addr[1], self.request.method, host, port, self.request.build_url(), self.response.code, self.response.reason, len(self.response.raw)))
-    
+        
     def _get_waitable_lists(self):
         rlist, wlist, xlist = [self.client.conn], [], []
         logger.debug('*** watching client for read ready')
@@ -556,7 +556,7 @@ def main():
     parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
     args = parser.parse_args()
     
-    logging.basicConfig(level=getattr(logging, args.log_level), format='%(asctime)s - %(process)d - %(message)s')
+    logging.basicConfig(level=getattr(logging, args.log_level), format='%(asctime)s - %(levelname)s - pid:%(process)d - %(message)s')
     
     hostname = args.hostname
     port = int(args.port)
