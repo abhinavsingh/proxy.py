@@ -289,8 +289,7 @@ class Server(Connection):
         self.addr = (host, int(port))
     
     def connect(self):
-        self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.conn.connect((self.addr[0], self.addr[1]))
+        self.conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 class Client(Connection):
     """Accepted client connection."""
