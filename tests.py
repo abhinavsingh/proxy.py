@@ -224,18 +224,18 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
 
 class MockConnection(object):
-    
+
     def __init__(self, buffer=b''):
         self.buffer = buffer
-    
+
     def recv(self, bytes=8192):
         data = self.buffer[:bytes]
         self.buffer = self.buffer[bytes:]
         return data
-    
+
     def send(self, data):
         return len(data)
-    
+
     def queue(self, data):
         self.buffer += data
 
@@ -258,14 +258,14 @@ class TestProxy(unittest.TestCase):
             b"Proxy-Connection: Keep-Alive",
             CRLF
         ]))
-        
+
         self.proxy._process_request(self.proxy.client.recv())
         self.assertEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
         self.assertEqual(self.proxy.server.addr, (b"httpbin.org", 80))
-        
+
         self.proxy.server.flush()
         self.assertEqual(self.proxy.server.buffer_size(), 0)
-        
+
         data = self.proxy.server.recv()
         while data:
             self.proxy._process_response(data)
@@ -287,15 +287,15 @@ class TestProxy(unittest.TestCase):
         self.proxy._process_request(self.proxy.client.recv())
         self.assertFalse(self.proxy.server == None)
         self.assertEqual(self.proxy.client.buffer, self.proxy.connection_established_pkt)
-        
+
         parser = HttpParser(HTTP_RESPONSE_PARSER)
         parser.parse(self.proxy.client.buffer)
         self.assertEqual(parser.state, HTTP_PARSER_STATE_HEADERS_COMPLETE)
         self.assertEqual(int(parser.code), 200)
-        
+
         self.proxy.client.flush()
         self.assertEqual(self.proxy.client.buffer_size(), 0)
-        
+
         self.proxy.client.conn.queue(CRLF.join([
             b"GET /user-agent HTTP/1.1",
             b"Host: httpbin.org",
