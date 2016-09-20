@@ -355,6 +355,7 @@ class Proxy(threading.Thread):
             return
 
         # parse http request
+        logger.debug('parsing data:\n%s' % data)
         self.request.parse(data)
 
         # once http request parser has reached the state complete
