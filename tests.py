@@ -276,6 +276,17 @@ class TestProxy(unittest.TestCase):
         self.assertEqual(self.proxy.response.state, HTTP_PARSER_STATE_COMPLETE)
         self.assertEqual(int(self.proxy.response.code), 200)
 
+    def test_https_connect(self):
+        self.proxy.client.conn.queue(CRLF.join([
+            b"CONNECT pypi.python.org:443 HTTP/1.0",
+            CRLF
+        ]))
+        self.proxy._process_request(self.proxy.client.recv())
+        self.assertFalse(self.proxy.server == None)
+        self.assertTrue(self.proxy.server.addr[0] == b"pypi.python.org")
+        self.assertTrue(self.proxy.server.addr[1] == 443)
+        self.assertEqual(self.proxy.client.buffer, self.proxy.connection_established_pkt)
+
     def test_https_get(self):
         self.proxy.client.conn.queue(CRLF.join([
             b"CONNECT httpbin.org:80 HTTP/1.1",
