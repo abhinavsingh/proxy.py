@@ -357,10 +357,12 @@ class Proxy(threading.Thread):
         # parse http request
         logger.debug('parsing data:\n%s' % data)
         self.request.parse(data)
+        logger.debug('self.request.url.path: %s' % self.request.url.path)
 
         # once http request parser has reached the state complete
         # we attempt to establish connection to destination server
-        if self.request.state == HTTP_PARSER_STATE_COMPLETE:
+        logger.debug('request state: %s' % self.request.state)
+        if self.request.state == HTTP_PARSER_STATE_COMPLETE or self.request.method == b"CONNECT" and self.request.url.path:
             logger.debug('request parser is in state complete')
 
             if self.request.method == b"CONNECT":
