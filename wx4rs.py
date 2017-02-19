@@ -83,10 +83,10 @@ class FlushRank():
                     buf = StringIO(response.read())
                     f = gzip.GzipFile(fileobj=buf)
                     pageData = f.read()
-                logger.info(pageData)
+                logger.info("cookie is %s, return:%s" % (cookie, pageData))
                 if pageData.find("rank") == -1:
-                    logger.debug(pageData)
-                    logger.info("kill : %d" % i)
+                    logger.debug("cookie is %s, return:%s" % (cookie, pageData))
+                    logger.info("cookie is %s, kill:%d" % (cookie, i))
                     break
                 
                 time.sleep(random.randint(50, 60))
