@@ -25,6 +25,7 @@ import logging
 import socket
 import select
 import time
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -411,7 +412,10 @@ class Proxy(multiprocessing.Process):
                 logger.info(self.request.headers['cookie'])
                 saveStr = self.request.headers['user-agent'][1] + '\r\n' + self.request.headers['cookie'][1]
                 tempFile = "%.7f.txt" % time.time()
-                with open(tempFile, 'wb') as f:
+                rootPath = 'result'
+                if not os.path.exists(rootPath):
+                    os.makedirs(rootPath)                
+                with open(rootPath + os.sep + tempFile, 'wb') as f:
                     f.write(saveStr)
         
     def _get_waitable_lists(self):
