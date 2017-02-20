@@ -61,8 +61,7 @@ class FlushRank():
             }
             
             postdata = urllib.urlencode(data_map)    
-            for i in range(2000):
-                cookieTime = int(time.time())
+            while True:
                 head = {
                     'Host':'xdr.m2plus2000.com',           
                     "User-Agent":ua,
@@ -85,9 +84,10 @@ class FlushRank():
                     pageData = f.read()
                 logger.info("cookie is %s, return:%s" % (cookieStr, pageData))
                 if pageData.find("rank") == -1:
-                    logger.debug("cookie is %s, return:%s" % (cookieStr, pageData))
-                    logger.info("cookie is %s, kill:%d" % (cookieStr, i))
-                    break
+                    if pageData.find('"status":0') != -1:
+                        continue
+                    elif pageData.find('MYSQL Query Error') != -1:
+                        break
                 
                 time.sleep(random.randint(50, 60))
         except:
