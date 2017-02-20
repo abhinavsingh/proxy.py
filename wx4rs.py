@@ -71,7 +71,7 @@ class FlushRank():
                     'Accept-Language': 'zh-CN,en-US;q=0.8',
                     'Accept-Encoding':'gzip, deflate',
                     'Origin': 'http://xdr.m2plus2000.com',
-                    'Referer': 'http://xdr.m2plus2000.com/xdr/index.php?logid=670898&from=singlemessage&isappinstalled=0&code=001fVzZ40Jd4kH1mQfY40zRvZ40fVzZv&state=STATE',
+                    'Referer': 'http://xdr.m2plus2000.com/xdr/index.php?logid=670898&from=singlemessage&isappinstalled=0&state=STATE',
                     "Cookie": cookieStr,
                 }           
                 loginUrl = 'http://xdr.m2plus2000.com/xdr/api/ajax.php'
@@ -120,6 +120,7 @@ def main():
                         threadItem.start()
                         os.remove(filepath)
             time.sleep(30)
+            logger.info("count thread : %d" % threading.active_count())
     except:
         logger.debug(traceback.format_exc())    
 
