@@ -60,8 +60,10 @@ class FlushRank():
                 'logid': '670898'
             }
             
-            postdata = urllib.urlencode(data_map)    
+            postdata = urllib.urlencode(data_map)  
+            i = 0
             while True:
+                time.sleep(random.randint(50, 60))
                 head = {
                     'Host':'xdr.m2plus2000.com',           
                     "User-Agent":ua,
@@ -82,14 +84,14 @@ class FlushRank():
                     buf = StringIO(response.read())
                     f = gzip.GzipFile(fileobj=buf)
                     pageData = f.read()
-                logger.info("cookie is %s, return:%s" % (cookieStr, pageData))
+                logger.info("cookie is %s, return:%s, i:%d" % (cookieStr, pageData, i))
                 if pageData.find("rank") == -1:
                     if pageData.find('"status":0') != -1:
                         continue
                     elif pageData.find('MYSQL Query Error') != -1:
                         break
-                
-                time.sleep(random.randint(50, 60))
+                else:
+                    i += 1
         except:
             logger.debug(traceback.format_exc())
             
