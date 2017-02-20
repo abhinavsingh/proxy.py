@@ -13,6 +13,7 @@ from StringIO import StringIO
 import gzip
 import logging
 import threading
+import shutil
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +110,7 @@ class WxTask(threading.Thread):
             
 def main(): 
     try:
+        bakPath = 'backup'
         logging.basicConfig(level=getattr(logging, 'DEBUG'), format='%(asctime)s - %(levelname)s - pid:%(process)d - %(message)s')
         
         while True:
@@ -120,7 +122,10 @@ def main():
                             headStr = f.read()
                         threadItem = WxTask(headStr)
                         threadItem.start()
-                        os.remove(filepath)
+                        #os.remove(filepath)
+                        if not os.path.exists(bakPath):
+                            os.makedirs(bakPath) 
+                        shutil.move(filepath, os.path.join(bakPath, filename))
             time.sleep(30)
             logger.info("count thread : %d" % threading.active_count())
     except:
