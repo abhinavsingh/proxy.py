@@ -65,6 +65,7 @@ class FlushRank():
             i = 0
             while True:
                 time.sleep(random.randint(50, 60))
+                logger.debug(cookieStr)
                 head = {
                     'Host':'xdr.m2plus2000.com',           
                     "User-Agent":ua,
@@ -80,6 +81,13 @@ class FlushRank():
                 loginUrl = 'http://xdr.m2plus2000.com/xdr/api/ajax.php'
                 req = urllib2.Request(url = loginUrl, data = postdata, headers = head)
                 response = self.opener.open(req)
+                sid = self.getCookieString()
+                cookieList = cookieStr.split(';')
+                cookieStr = ''
+                for item in cookieList:
+                    if item.find('SERVERID') == -1 and item != '' and item != ' ':
+                        cookieStr += item + ';'
+                cookieStr += sid
                 pageData = ''
                 if response.info()['content-encoding'] == 'gzip':
                     buf = StringIO(response.read())
@@ -110,6 +118,7 @@ class WxTask(threading.Thread):
             
 def main(): 
     try:
+        startedDict = {}
         bakPath = 'backup'
         logging.basicConfig(level=getattr(logging, 'DEBUG'), format='%(asctime)s - %(levelname)s - pid:%(process)d - %(message)s')
         
@@ -120,8 +129,16 @@ def main():
                         filepath = os.path.join(root, filename)   
                         with open(filepath, 'rb') as f:
                             headStr = f.read()
-                        threadItem = WxTask(headStr)
-                        threadItem.start()
+                        ua, cookieStr = headStr.split('\r\n')
+                        cookieList = cookieStr.split(';')
+                        for item in cookieList:
+                            if item.find('PHPSESSID') != -1:
+                                if item in startedDict:
+                                    break
+                                else:
+                                    startedDict[item] = 1
+                                    threadItem = WxTask(headStr)
+                                    threadItem.start()
                         #os.remove(filepath)
                         if not os.path.exists(bakPath):
                             os.makedirs(bakPath) 
