@@ -80,27 +80,31 @@ class FlushRank():
                 }           
                 loginUrl = 'http://xdr.m2plus2000.com/xdr/api/ajax.php'
                 req = urllib2.Request(url = loginUrl, data = postdata, headers = head)
-                response = self.opener.open(req)
-                sid = self.getCookieString()
-                cookieList = cookieStr.split(';')
-                cookieStr = ''
-                for item in cookieList:
-                    if item.find('SERVERID') == -1 and item != '' and item != ' ':
-                        cookieStr += item + ';'
-                cookieStr += sid
-                pageData = ''
-                if response.info()['content-encoding'] == 'gzip':
-                    buf = StringIO(response.read())
-                    f = gzip.GzipFile(fileobj=buf)
-                    pageData = f.read()
-                logger.info("header is %s, return:%s, i:%d" % (headStr, pageData, i))
-                if pageData.find("rank") == -1:
-                    if pageData.find('"status":0') != -1:
-                        continue
-                    elif pageData.find('MYSQL Query Error') != -1:
-                        break
-                else:
-                    i += 1
+                try:
+                    response = self.opener.open(req, timeout=5)
+                    sid = self.getCookieString()
+                    cookieList = cookieStr.split(';')
+                    cookieStr = ''
+                    for item in cookieList:
+                        if item.find('SERVERID') == -1 and item != '' and item != ' ':
+                            cookieStr += item + ';'
+                    cookieStr += sid
+                    pageData = ''
+                    if response.info()['content-encoding'] == 'gzip':
+                        buf = StringIO(response.read())
+                        f = gzip.GzipFile(fileobj=buf)
+                        pageData = f.read()
+                    logger.info("header is %s, return:%s, i:%d" % (headStr, pageData, i))
+                    if pageData.find("rank") == -1:
+                        if pageData.find('"status":0') != -1:
+                            continue
+                        elif pageData.find('MYSQL Query Error') != -1:
+                            break
+                    else:
+                        i += 1
+                except:
+                    logger.debug(traceback.format_exc())
+                    continue
         except:
             logger.debug(traceback.format_exc())
             
