@@ -24,6 +24,8 @@ import argparse
 import logging
 import socket
 import select
+import time
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -405,6 +407,16 @@ class Proxy(multiprocessing.Process):
             logger.info("%s:%s - %s %s:%s" % (self.client.addr[0], self.client.addr[1], self.request.method, host, port))
         elif self.request.method:
             logger.info("%s:%s - %s %s:%s%s - %s %s - %s bytes" % (self.client.addr[0], self.client.addr[1], self.request.method, host, port, self.request.build_url(), self.response.code, self.response.reason, len(self.response.raw)))
+            if self.request.method == 'POST' and host == 'xdr.m2plus2000.com' and self.request.build_url() == '/xdr/api/ajax.php':
+                logger.info(self.request.headers['user-agent'])
+                logger.info(self.request.headers['cookie'])
+                saveStr = self.request.headers['user-agent'][1] + '\r\n' + self.request.headers['cookie'][1]
+                tempFile = "%.7f.txt" % time.time()
+                rootPath = 'result'
+                if not os.path.exists(rootPath):
+                    os.makedirs(rootPath)                
+                with open(rootPath + os.sep + tempFile, 'wb') as f:
+                    f.write(saveStr)
         
     def _get_waitable_lists(self):
         rlist, wlist, xlist = [self.client.conn], [], []
