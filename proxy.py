@@ -90,6 +90,7 @@ class ChunkParser(object):
     def process(self, data):
         if self.state == CHUNK_PARSER_STATE_WAITING_FOR_SIZE:
             line, data = HttpParser.split(data)
+            if line == False: return line, data
             self.size = int(line, 16)
             self.state = CHUNK_PARSER_STATE_WAITING_FOR_DATA
         elif self.state == CHUNK_PARSER_STATE_WAITING_FOR_DATA:
