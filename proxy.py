@@ -81,11 +81,14 @@ class ChunkParser(object):
         self.state = CHUNK_PARSER_STATE_WAITING_FOR_SIZE
         self.body = b''
         self.chunk = b''
+        self.data = b''
         self.size = None
     
     def parse(self, data):
+        data = self.data + data
         more = True if len(data) > 0 else False
         while more: more, data = self.process(data)
+        self.data = data
     
     def process(self, data):
         if self.state == CHUNK_PARSER_STATE_WAITING_FOR_SIZE:
