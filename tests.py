@@ -1,5 +1,4 @@
 import unittest
-import proxy
 from proxy import *
 from proxy import bytes_, text_
 
@@ -25,6 +24,7 @@ class TestChunkParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, CHUNK_PARSER_STATE_COMPLETE)
 
+
 class TestHttpParser(unittest.TestCase):
 
     def setUp(self):
@@ -44,7 +44,8 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.version, b"HTTP/1.1")
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
         self.assertDictContainsSubset({b'host': (b'Host', b'example.com')}, self.parser.headers)
-        self.assertEqual(bytes_(raw % ('/path/dir/?a=b&c=d#p=q', 'example.com')), self.parser.build(del_headers=[b'host'], add_headers=[(b'Host', b'example.com')]))
+        self.assertEqual(bytes_(raw % ('/path/dir/?a=b&c=d#p=q', 'example.com')),
+                         self.parser.build(del_headers=[b'host'], add_headers=[(b'Host', b'example.com')]))
 
     def test_build_url_none(self):
         self.assertEqual(self.parser.build_url(), b'/None')
@@ -78,8 +79,8 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.buffer, b"Host: localhost:8080")
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_LINE_RCVD)
 
-        self.parser.parse(CRLF*2)
-        self.assertDictContainsSubset({b'host':(b'Host', b'localhost:8080')}, self.parser.headers)
+        self.parser.parse(CRLF * 2)
+        self.assertDictContainsSubset({b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
 
     def test_get_partial_parse2(self):
@@ -120,7 +121,8 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.url.hostname, b"localhost")
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b"HTTP/1.1")
-        self.assertDictContainsSubset({b'content-type': (b'Content-Type', b'application/x-www-form-urlencoded')}, self.parser.headers)
+        self.assertDictContainsSubset({b'content-type': (b'Content-Type', b'application/x-www-form-urlencoded')},
+                                      self.parser.headers)
         self.assertDictContainsSubset({b'content-length': (b'Content-Length', b'7')}, self.parser.headers)
         self.assertEqual(self.parser.body, b"a=b&c=d")
         self.assertEqual(self.parser.buffer, b"")
@@ -175,7 +177,8 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.code, b'301')
         self.assertEqual(self.parser.reason, b'Moved Permanently')
         self.assertEqual(self.parser.version, b'HTTP/1.1')
-        self.assertEqual(self.parser.body, b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
+        self.assertEqual(self.parser.body,
+                         b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
         self.assertDictContainsSubset({b'content-length': (b'Content-Length', b'219')}, self.parser.headers)
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
 
@@ -197,9 +200,11 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_RCVING_HEADERS)
         self.parser.parse(b'\r\n')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_HEADERS_COMPLETE)
-        self.parser.parse(b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n<TITLE>301 Moved</TITLE></HEAD>')
+        self.parser.parse(
+            b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n<TITLE>301 Moved</TITLE></HEAD>')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_RCVING_BODY)
-        self.parser.parse(b'<BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
+        self.parser.parse(
+            b'<BODY>\n<H1>301 Moved</H1>\nThe document has moved\n<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
 
     def test_chunked_response_parse(self):
@@ -223,21 +228,23 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
 
+
 class MockConnection(object):
-    
+
     def __init__(self, buffer=b''):
         self.buffer = buffer
-    
+
     def recv(self, bytes=8192):
         data = self.buffer[:bytes]
         self.buffer = self.buffer[bytes:]
         return data
-    
+
     def send(self, data):
         return len(data)
-    
+
     def queue(self, data):
         self.buffer += data
+
 
 class TestProxy(unittest.TestCase):
 
@@ -258,14 +265,14 @@ class TestProxy(unittest.TestCase):
             b"Proxy-Connection: Keep-Alive",
             CRLF
         ]))
-        
+
         self.proxy._process_request(self.proxy.client.recv())
         self.assertEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
         self.assertEqual(self.proxy.server.addr, (b"httpbin.org", 80))
-        
+
         self.proxy.server.flush()
         self.assertEqual(self.proxy.server.buffer_size(), 0)
-        
+
         data = self.proxy.server.recv()
         while data:
             self.proxy._process_response(data)
@@ -287,15 +294,15 @@ class TestProxy(unittest.TestCase):
         self.proxy._process_request(self.proxy.client.recv())
         self.assertFalse(self.proxy.server == None)
         self.assertEqual(self.proxy.client.buffer, self.proxy.connection_established_pkt)
-        
+
         parser = HttpParser(HTTP_RESPONSE_PARSER)
         parser.parse(self.proxy.client.buffer)
         self.assertEqual(parser.state, HTTP_PARSER_STATE_HEADERS_COMPLETE)
         self.assertEqual(int(parser.code), 200)
-        
+
         self.proxy.client.flush()
         self.assertEqual(self.proxy.client.buffer_size(), 0)
-        
+
         self.proxy.client.conn.queue(CRLF.join([
             b"GET /user-agent HTTP/1.1",
             b"Host: httpbin.org",
@@ -324,6 +331,7 @@ class TestProxy(unittest.TestCase):
                 b"Host: unknown.domain",
                 CRLF
             ]))
+
 
 if __name__ == '__main__':
     unittest.main()
