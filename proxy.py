@@ -16,6 +16,7 @@ import logging
 import socket
 import select
 import threading
+import errno
 
 VERSION = (0, 3)
 __version__ = '.'.join(map(str, VERSION[0:2]))
@@ -140,7 +141,7 @@ class HttpParser(object):
 
     def process(self, data):
         if self.state >= HTTP_PARSER_STATE_HEADERS_COMPLETE and \
-                (self.method == b"POST" or self.type == HTTP_RESPONSE_PARSER):
+                (self.method == b'POST' or self.type == HTTP_RESPONSE_PARSER):
             if not self.body:
                 self.body = b''
 
@@ -170,7 +171,7 @@ class HttpParser(object):
 
         if self.state == HTTP_PARSER_STATE_HEADERS_COMPLETE and \
                 self.type == HTTP_REQUEST_PARSER and \
-                not self.method == b"POST" and \
+                not self.method == b'POST' and \
                 self.raw.endswith(CRLF * 2):
             self.state = HTTP_PARSER_STATE_COMPLETE
 
@@ -206,13 +207,16 @@ class HttpParser(object):
             return b'/None'
 
         url = self.url.path
-        if url == b'': url = b'/'
-        if not self.url.query == b'': url += b'?' + self.url.query
-        if not self.url.fragment == b'': url += b'#' + self.url.fragment
+        if url == b'':
+            url = b'/'
+        if not self.url.query == b'':
+            url += b'?' + self.url.query
+        if not self.url.fragment == b'':
+            url += b'#' + self.url.fragment
         return url
 
     def build(self, del_headers=None, add_headers=None):
-        req = b" ".join([self.method, self.build_url(), self.version])
+        req = b' '.join([self.method, self.build_url(), self.version])
         req += CRLF
 
         if not del_headers:
@@ -234,7 +238,7 @@ class HttpParser(object):
 
     @staticmethod
     def build_header(k, v):
-        return k + b": " + v + CRLF
+        return k + b': ' + v + CRLF
 
     @staticmethod
     def split(data):
@@ -267,8 +271,11 @@ class Connection(object):
             logger.debug('rcvd %d bytes from %s' % (len(data), self.what))
             return data
         except Exception as e:
-            logger.exception(
-                'Exception while receiving from connection %s %r with reason %r' % (self.what, self.conn, e))
+            if e.errno == errno.ECONNRESET:
+                logger.debug('%r' % e)
+            else:
+                logger.exception(
+                    'Exception while receiving from connection %s %r with reason %r' % (self.what, self.conn, e))
             return None
 
     def close(self):
@@ -376,7 +383,7 @@ class Proxy(threading.Thread):
         if self.request.state == HTTP_PARSER_STATE_COMPLETE:
             logger.debug('request parser is in state complete')
 
-            if self.request.method == b"CONNECT":
+            if self.request.method == b'CONNECT':
                 host, port = self.request.url.path.split(COLON)
             elif self.request.url:
                 host, port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
@@ -396,7 +403,7 @@ class Proxy(threading.Thread):
             # for http connect methods (https requests)
             # queue appropriate response for client 
             # notifying about established connection
-            if self.request.method == b"CONNECT":
+            if self.request.method == b'CONNECT':
                 self.client.queue(self.connection_established_pkt)
             # for usual http requests, re-build request packet
             # and queue for the server with appropriate headers
@@ -409,7 +416,7 @@ class Proxy(threading.Thread):
     def _process_response(self, data):
         # parse incoming response packet
         # only for non-https requests
-        if not self.request.method == b"CONNECT":
+        if not self.request.method == b'CONNECT':
             self.response.parse(data)
 
         # queue data for client
@@ -417,11 +424,11 @@ class Proxy(threading.Thread):
 
     def _access_log(self):
         host, port = self.server.addr if self.server else (None, None)
-        if self.request.method == b"CONNECT":
+        if self.request.method == b'CONNECT':
             logger.info(
-                "%s:%s - %s %s:%s" % (self.client.addr[0], self.client.addr[1], self.request.method, host, port))
+                '%s:%s - %s %s:%s' % (self.client.addr[0], self.client.addr[1], self.request.method, host, port))
         elif self.request.method:
-            logger.info("%s:%s - %s %s:%s%s - %s %s - %s bytes" % (
+            logger.info('%s:%s - %s %s:%s%s - %s %s - %s bytes' % (
                 self.client.addr[0], self.client.addr[1], self.request.method, host, port, self.request.build_url(),
                 self.response.code, self.response.reason, len(self.response.raw)))
 
@@ -517,11 +524,11 @@ class Proxy(threading.Thread):
             logger.exception('Exception while handling connection %r with reason %r' % (self.client.conn, e))
         finally:
             logger.debug(
-                "closing client connection with pending client buffer size %d bytes" % self.client.buffer_size())
+                'closing client connection with pending client buffer size %d bytes' % self.client.buffer_size())
             self.client.close()
             if self.server:
                 logger.debug(
-                    "closed client connection with pending server buffer size %d bytes" % self.server.buffer_size())
+                    'closed client connection with pending server buffer size %d bytes' % self.server.buffer_size())
             self._access_log()
             logger.debug('Closing proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
 
