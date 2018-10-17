@@ -247,6 +247,7 @@ class Connection(object):
     """TCP server/client connection abstraction."""
 
     def __init__(self, what):
+        self.conn = None
         self.buffer = b''
         self.closed = False
         self.what = what  # server or client
@@ -294,8 +295,7 @@ class Server(Connection):
         self.addr = (host, int(port))
 
     def connect(self):
-        self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.conn.connect((self.addr[0], self.addr[1]))
+        self.conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 
 class Client(Connection):
