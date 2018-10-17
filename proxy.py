@@ -10,12 +10,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import sys
-import multiprocessing
 import datetime
 import argparse
 import logging
 import socket
 import select
+import threading
 
 VERSION = (0, 3)
 __version__ = '.'.join(map(str, VERSION[0:2]))
@@ -322,7 +322,7 @@ class ProxyConnectionFailed(ProxyError):
         return '<ProxyConnectionFailed - %s:%s - %s>' % (self.host, self.port, self.reason)
 
 
-class Proxy(multiprocessing.Process):
+class Proxy(threading.Thread):
     """HTTP proxy implementation.
     
     Accepts connection object and act as a proxy between client and server.
