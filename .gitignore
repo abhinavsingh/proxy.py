@@ -1,7 +1,8 @@
+.coverage
+.idea
 .project
 .pydevproject
 .settings
-.coverage
 *.pyc
 cover
 dist

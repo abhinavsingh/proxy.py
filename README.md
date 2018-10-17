@@ -17,7 +17,7 @@ To install proxy.py, simply:
 
 	$ pip install proxy.py
 
-This will add `proxy.py` inside your python bin folder.
+This will add `proxy.py` inside your python environment bin folder.
 
 Usage
 -----

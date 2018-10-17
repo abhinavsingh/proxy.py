@@ -28,16 +28,16 @@ classifiers = [
 ]
 
 setup(
-    name                = 'proxy.py',
-    version             = proxy.__version__,
-    description         = proxy.__description__,
-    long_description    = open('README.md').read().strip(),
-    author              = proxy.__author__,
-    author_email        = proxy.__author_email__,
-    url                 = proxy.__homepage__,
-    license             = proxy.__license__,
-    py_modules          = ['proxy'],
-    scripts             = ['proxy.py'],
-    install_requires    = [],
-    classifiers         = classifiers
+    name='proxy.py',
+    version=proxy.__version__,
+    description=proxy.__description__,
+    long_description=open('README.md').read().strip(),
+    author=proxy.__author__,
+    author_email=proxy.__author_email__,
+    url=proxy.__homepage__,
+    license=proxy.__license__,
+    py_modules=['proxy'],
+    scripts=['proxy.py'],
+    install_requires=[],
+    classifiers=classifiers
 )
