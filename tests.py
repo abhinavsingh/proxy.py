@@ -3,12 +3,12 @@ from proxy import *
 from proxy import bytes_, text_
 
 
-class TestChunkParser1(unittest.TestCase):
+class TestChunkParser(unittest.TestCase):
 
     def setUp(self):
         self.parser = ChunkParser()
 
-    def test_chunk_parse1(self):
+    def test_chunk_parse(self):
         self.parser.parse(b''.join([
             b'4\r\n',
             b'Wiki\r\n',
@@ -23,13 +23,9 @@ class TestChunkParser1(unittest.TestCase):
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, CHUNK_PARSER_STATE_COMPLETE)
+        self.assertEqual(self.parser.data, b'')
 
-class TestChunkParser2(unittest.TestCase):
-
-    def setUp(self):
-        self.parser = ChunkParser()
-
-    def test_chunk_parse2(self):
+    def test_chunk_parser_issue_27(self):
         self.parser.parse(b''.join([
             b'4\r\n',
             b'Wiki\r',
@@ -44,6 +40,7 @@ class TestChunkParser2(unittest.TestCase):
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, CHUNK_PARSER_STATE_COMPLETE)
+        self.assertEqual(self.parser.data, b'')
 
 class TestHttpParser(unittest.TestCase):
 
