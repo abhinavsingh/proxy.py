@@ -3,9 +3,9 @@
 """
     proxy.py
     ~~~~~~~~
-    
+
     HTTP Proxy Server in Python.
-    
+
     :copyright: (c) 2013 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
@@ -28,9 +28,7 @@ __license__ = 'BSD'
 logger = logging.getLogger(__name__)
 
 # True if we are running on Python 3.
-PY3 = sys.version_info[0] == 3
-
-if PY3:
+if sys.version_info[0] == 3:
     text_type = str
     binary_type = bytes
     from urllib import parse as urlparse
@@ -112,9 +110,9 @@ class ChunkParser(object):
 class HttpParser(object):
     """HTTP request/response parser."""
 
-    def __init__(self, type=None):
+    def __init__(self, typ=None):
         self.state = HTTP_PARSER_STATE_INITIALIZED
-        self.type = type if type else HTTP_REQUEST_PARSER
+        self.type = typ if typ else HTTP_REQUEST_PARSER
 
         self.raw = b''
         self.buffer = b''
@@ -128,7 +126,7 @@ class HttpParser(object):
         self.reason = None
         self.version = None
 
-        self.chunker = None
+        self.chunk_parser = None
 
     def parse(self, data):
         self.raw += data
@@ -152,17 +150,18 @@ class HttpParser(object):
                 if len(self.body) >= int(self.headers[b'content-length'][1]):
                     self.state = HTTP_PARSER_STATE_COMPLETE
             elif b'transfer-encoding' in self.headers and self.headers[b'transfer-encoding'][1].lower() == b'chunked':
-                if not self.chunker:
-                    self.chunker = ChunkParser()
-                self.chunker.parse(data)
-                if self.chunker.state == CHUNK_PARSER_STATE_COMPLETE:
-                    self.body = self.chunker.body
+                if not self.chunk_parser:
+                    self.chunk_parser = ChunkParser()
+                self.chunk_parser.parse(data)
+                if self.chunk_parser.state == CHUNK_PARSER_STATE_COMPLETE:
+                    self.body = self.chunk_parser.body
                     self.state = HTTP_PARSER_STATE_COMPLETE
 
             return False, b''
 
         line, data = HttpParser.split(data)
-        if line == False: return line, data
+        if line is False:
+            return line, data
 
         if self.state < HTTP_PARSER_STATE_LINE_RCVD:
             self.process_line(line)
@@ -212,19 +211,18 @@ class HttpParser(object):
         if not self.url.fragment == b'': url += b'#' + self.url.fragment
         return url
 
-    def build_header(self, k, v):
-        return k + b": " + v + CRLF
-
     def build(self, del_headers=None, add_headers=None):
         req = b" ".join([self.method, self.build_url(), self.version])
         req += CRLF
 
-        if not del_headers: del_headers = []
+        if not del_headers:
+            del_headers = []
         for k in self.headers:
-            if not k in del_headers:
+            if k not in del_headers:
                 req += self.build_header(self.headers[k][0], self.headers[k][1])
 
-        if not add_headers: add_headers = []
+        if not add_headers:
+            add_headers = []
         for k in add_headers:
             req += self.build_header(k[0], k[1])
 
@@ -235,9 +233,14 @@ class HttpParser(object):
         return req
 
     @staticmethod
+    def build_header(k, v):
+        return k + b": " + v + CRLF
+
+    @staticmethod
     def split(data):
         pos = data.find(CRLF)
-        if pos == -1: return False, data
+        if pos == -1:
+            return False, data
         line = data[:pos]
         data = data[pos + len(CRLF):]
         return line, data
@@ -255,9 +258,9 @@ class Connection(object):
     def send(self, data):
         return self.conn.send(data)
 
-    def recv(self, bytes=8192):
+    def recv(self, b=8192):
         try:
-            data = self.conn.recv(bytes)
+            data = self.conn.recv(b)
             if len(data) == 0:
                 logger.debug('recvd 0 bytes from %s' % self.what)
                 return None
@@ -346,7 +349,8 @@ class Proxy(threading.Thread):
             CRLF
         ])
 
-    def _now(self):
+    @staticmethod
+    def _now():
         return datetime.datetime.utcnow()
 
     def _inactive_for(self):
@@ -376,6 +380,9 @@ class Proxy(threading.Thread):
                 host, port = self.request.url.path.split(COLON)
             elif self.request.url:
                 host, port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
+            else:
+                # TODO(abhinavsingh): Gracefully return invalid request in such cases
+                pass
 
             self.server = Server(host, port)
             try:
@@ -526,6 +533,7 @@ class TCP(object):
         self.hostname = hostname
         self.port = port
         self.backlog = backlog
+        self.socket = None
 
     def handle(self, client):
         raise NotImplementedError()
