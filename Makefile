@@ -1,4 +1,4 @@
-.PHONY: all clean package test
+.PHONY: all clean test package release
 
 all: clean test
 

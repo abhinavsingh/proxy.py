@@ -29,28 +29,28 @@ __license__ = 'BSD'
 logger = logging.getLogger(__name__)
 
 # True if we are running on Python 3.
-if sys.version_info[0] == 3:
+if sys.version_info[0] == 3:    # pragma: no cover
     text_type = str
     binary_type = bytes
     from urllib import parse as urlparse
-else:
+else:   # pragma: no cover
     text_type = unicode
     binary_type = str
     import urlparse
 
 
-def text_(s, encoding='utf-8', errors='strict'):
+def text_(s, encoding='utf-8', errors='strict'):    # pragma: no cover
     """ If ``s`` is an instance of ``binary_type``, return
     ``s.decode(encoding, errors)``, otherwise return ``s``"""
     if isinstance(s, binary_type):
         return s.decode(encoding, errors)
-    return s  # pragma: no cover
+    return s
 
 
-def bytes_(s, encoding='utf-8', errors='strict'):
+def bytes_(s, encoding='utf-8', errors='strict'):   # pragma: no cover
     """ If ``s`` is an instance of ``text_type``, return
     ``s.encode(encoding, errors)``, otherwise return ``s``"""
-    if isinstance(s, text_type):  # pragma: no cover
+    if isinstance(s, text_type):
         return s.encode(encoding, errors)
     return s
 
@@ -313,6 +313,10 @@ class Server(Connection):
     def __init__(self, host, port):
         super(Server, self).__init__(b'server')
         self.addr = (host, int(port))
+
+    def __del__(self):
+        if self.conn:
+            self.close()
 
     def connect(self):
         self.conn = socket.create_connection((self.addr[0], self.addr[1]))

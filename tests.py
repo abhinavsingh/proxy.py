@@ -211,15 +211,15 @@ class TestHttpParser(unittest.TestCase):
             b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n' +
             b'<TITLE>301 Moved</TITLE></HEAD>',
             b'<BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
-            '<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n'
+            b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n'
         ]))
         self.assertEqual(self.parser.code, b'301')
         self.assertEqual(self.parser.reason, b'Moved Permanently')
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.body,
                          b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n' +
-                         '<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
-                         '<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
+                         b'<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
+                         b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
         self.assertDictContainsSubset({b'content-length': (b'Content-Length', b'219')}, self.parser.headers)
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
 
@@ -243,11 +243,11 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_HEADERS_COMPLETE)
         self.parser.parse(
             b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n' +
-            '<TITLE>301 Moved</TITLE></HEAD>')
+            b'<TITLE>301 Moved</TITLE></HEAD>')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_RCVING_BODY)
         self.parser.parse(
             b'<BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
-            '<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
+            b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
 
     def test_chunked_response_parse(self):

@@ -4,6 +4,7 @@
 .pydevproject
 .settings
 *.pyc
+venv
 cover
 dist
 proxy.py.egg-info
