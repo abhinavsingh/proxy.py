@@ -6,7 +6,7 @@
 
     HTTP Proxy Server in Python.
 
-    :copyright: (c) 2013 by Abhinav Singh.
+    :copyright: (c) 2013-2018 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
 import sys
@@ -24,6 +24,7 @@ __description__ = 'HTTP Proxy Server in Python'
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
+__download_url__ = '%s/archive/master.zip' % __homepage__
 __license__ = 'BSD'
 
 logger = logging.getLogger(__name__)
@@ -409,7 +410,7 @@ class Proxy(threading.Thread):
                 logger.debug('connecting to server %s:%s' % (host, port))
                 self.server.connect()
                 logger.debug('connected to server %s:%s' % (host, port))
-            except Exception as e:
+            except Exception as e:  # TimeoutError, socket.gaierror
                 self.server.closed = True
                 raise ProxyConnectionFailed(host, port, repr(e))
 
@@ -528,7 +529,7 @@ class Proxy(threading.Thread):
                     break
 
     def run(self):
-        logger.debug('Proxying connection %r at address %r' % (self.client.conn, self.client.addr))
+        logger.debug('Proxying connection %r' % self.client.conn)
         try:
             self._process()
         except KeyboardInterrupt:
@@ -567,7 +568,6 @@ class TCP(object):
             self.socket.listen(self.backlog)
             while True:
                 conn, addr = self.socket.accept()
-                logger.debug('Accepted connection %r at address %r' % (conn, addr))
                 client = Client(conn, addr)
                 self.handle(client)
         except Exception as e:
@@ -587,7 +587,6 @@ class HTTP(TCP):
         proc = Proxy(client)
         proc.daemon = True
         proc.start()
-        logger.debug('Started process %r to handle connection %r' % (proc, client.conn))
 
 
 def main():
@@ -602,7 +601,7 @@ def main():
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level),
-                        format='%(asctime)s - %(levelname)s - pid:%(process)d - %(message)s')
+                        format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
     hostname = args.hostname
     port = int(args.port)

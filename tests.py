@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+    proxy.py
+    ~~~~~~~~
+
+    HTTP Proxy Server in Python.
+
+    :copyright: (c) 2013-2018 by Abhinav Singh.
+    :license: BSD, see LICENSE for more details.
+"""
 import unittest
 from proxy import *
 from proxy import bytes_, text_
@@ -194,6 +204,20 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
         self.assertEqual(self.parser.body, b'a=b&c=d')
         self.assertEqual(self.parser.buffer, b'')
+
+    def test_connect_without_host_header_request_parse(self):
+        """Some clients sends CONNECT requests without a Host header field.
+        Example:
+            1. pip3 --proxy http://localhost:8899 install <package name>
+               Uses HTTP/1.0, Host header missing with CONNECT requests
+            2. Android Emulator
+               Uses HTTP/1.1, Host header missing with CONNECT requests
+        See https://github.com/abhinavsingh/proxy.py/issues/5 for details
+        """
+        self.parser.parse(b'CONNECT pypi.org:443 HTTP/1.0\r\n\r\n')
+        self.assertEqual(self.parser.method, b'CONNECT')
+        self.assertEqual(self.parser.version, b'HTTP/1.0')
+        self.assertEqual(self.parser.state, HTTP_PARSER_STATE_RCVING_HEADERS)
 
     def test_response_parse(self):
         self.parser.type = HTTP_RESPONSE_PARSER
