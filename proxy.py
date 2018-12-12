@@ -74,6 +74,20 @@ CHUNK_PARSER_STATE_WAITING_FOR_SIZE = 1
 CHUNK_PARSER_STATE_WAITING_FOR_DATA = 2
 CHUNK_PARSER_STATE_COMPLETE = 3
 
+PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = CRLF.join([
+    b'HTTP/1.1 200 Connection established',
+    b'Proxy-agent: proxy.py v' + version,
+    CRLF
+])
+
+BAD_GATEWAY_RESPONSE_PKT = CRLF.join([
+    b'HTTP/1.1 502 Bad Gateway',
+    b'Proxy-agent: proxy.py v' + version,
+    b'Content-Length: 11',
+    b'Connection: close',
+    CRLF
+]) + b'Bad Gateway'
+
 
 class ChunkParser(object):
     """HTTP chunked encoding response parser."""
@@ -365,12 +379,6 @@ class Proxy(threading.Thread):
         self.request = HttpParser()
         self.response = HttpParser(HTTP_RESPONSE_PARSER)
 
-        self.connection_established_pkt = CRLF.join([
-            b'HTTP/1.1 200 Connection established',
-            b'Proxy-agent: proxy.py v' + version,
-            CRLF
-        ])
-
     @staticmethod
     def _now():
         return datetime.datetime.utcnow()
@@ -418,7 +426,7 @@ class Proxy(threading.Thread):
             # queue appropriate response for client 
             # notifying about established connection
             if self.request.method == b'CONNECT':
-                self.client.queue(self.connection_established_pkt)
+                self.client.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # for usual http requests, re-build request packet
             # and queue for the server with appropriate headers
             else:
@@ -448,20 +456,12 @@ class Proxy(threading.Thread):
 
     def _get_waitable_lists(self):
         rlist, wlist, xlist = [self.client.conn], [], []
-        logger.debug('*** watching client for read ready')
-
         if self.client.has_buffer():
-            logger.debug('pending client buffer found, watching client for write ready')
             wlist.append(self.client.conn)
-
         if self.server and not self.server.closed:
-            logger.debug('connection to server exists, watching server for read ready')
             rlist.append(self.server.conn)
-
         if self.server and not self.server.closed and self.server.has_buffer():
-            logger.debug('connection to server exists and pending server buffer found, watching server for write ready')
             wlist.append(self.server.conn)
-
         return rlist, wlist, xlist
 
     def _process_wlist(self, w):
@@ -487,13 +487,7 @@ class Proxy(threading.Thread):
                 self._process_request(data)
             except ProxyConnectionFailed as e:
                 logger.exception(e)
-                self.client.queue(CRLF.join([
-                    b'HTTP/1.1 502 Bad Gateway',
-                    b'Proxy-agent: proxy.py v' + version,
-                    b'Content-Length: 11',
-                    b'Connection: close',
-                    CRLF
-                ]) + b'Bad Gateway')
+                self.client.queue(BAD_GATEWAY_RESPONSE_PKT)
                 self.client.flush()
                 return True
 

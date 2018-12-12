@@ -360,7 +360,7 @@ class TestProxy(unittest.TestCase):
         ]))
         self.proxy._process_request(self.proxy.client.recv())
         self.assertFalse(self.proxy.server is None)
-        self.assertEqual(self.proxy.client.buffer, self.proxy.connection_established_pkt)
+        self.assertEqual(self.proxy.client.buffer, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
 
         parser = HttpParser(HTTP_RESPONSE_PARSER)
         parser.parse(self.proxy.client.buffer)
