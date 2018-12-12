@@ -10,13 +10,14 @@
     :license: BSD, see LICENSE for more details.
 """
 import sys
-import datetime
-import argparse
-import logging
+import errno
+import base64
 import socket
 import select
+import logging
+import datetime
+import argparse
 import threading
-import errno
 
 VERSION = (0, 3)
 __version__ = '.'.join(map(str, VERSION[0:2]))
@@ -74,19 +75,27 @@ CHUNK_PARSER_STATE_WAITING_FOR_SIZE = 1
 CHUNK_PARSER_STATE_WAITING_FOR_DATA = 2
 CHUNK_PARSER_STATE_COMPLETE = 3
 
+PROXY_AGENT_HEADER = b'Proxy-agent: proxy.py v' + version
+
 PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = CRLF.join([
     b'HTTP/1.1 200 Connection established',
-    b'Proxy-agent: proxy.py v' + version,
+    PROXY_AGENT_HEADER,
     CRLF
 ])
 
 BAD_GATEWAY_RESPONSE_PKT = CRLF.join([
     b'HTTP/1.1 502 Bad Gateway',
-    b'Proxy-agent: proxy.py v' + version,
+    PROXY_AGENT_HEADER,
     b'Content-Length: 11',
     b'Connection: close',
     CRLF
 ]) + b'Bad Gateway'
+
+PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT = CRLF.join([
+    b'HTTP/1.1 407 Proxy Authentication Required',
+    PROXY_AGENT_HEADER,
+    CRLF
+]) + b'Proxy Authentication Required'
 
 
 class ChunkParser(object):
@@ -361,19 +370,24 @@ class ProxyConnectionFailed(ProxyError):
         return '<ProxyConnectionFailed - %s:%s - %s>' % (self.host, self.port, self.reason)
 
 
+class ProxyAuthenticationFailed(ProxyError):
+    pass
+
+
 class Proxy(threading.Thread):
     """HTTP proxy implementation.
     
     Accepts connection object and act as a proxy between client and server.
     """
 
-    def __init__(self, client):
+    def __init__(self, client, auth_code=None):
         super(Proxy, self).__init__()
 
         self.start_time = self._now()
         self.last_activity = self.start_time
 
         self.client = client
+        self.auth_code = auth_code
         self.server = None
 
         self.request = HttpParser()
@@ -405,6 +419,11 @@ class Proxy(threading.Thread):
         # we attempt to establish connection to destination server
         if self.request.state == HTTP_PARSER_STATE_COMPLETE:
             logger.debug('request parser is in state complete')
+
+            if self.auth_code:
+                if b'proxy-authorization' not in self.request.headers or \
+                        self.request.headers[b'proxy-authorization'][1] != self.auth_code:
+                    raise ProxyAuthenticationFailed()
 
             if self.request.method == b'CONNECT':
                 host, port = self.request.url.path.split(COLON)
@@ -474,6 +493,7 @@ class Proxy(threading.Thread):
             self.server.flush()
 
     def _process_rlist(self, r):
+        """Returns True if connection to client must be closed."""
         if self.client.conn in r:
             logger.debug('client is ready for reads, reading')
             data = self.client.recv()
@@ -485,6 +505,11 @@ class Proxy(threading.Thread):
 
             try:
                 self._process_request(data)
+            except ProxyAuthenticationFailed as e:
+                logger.exception(e)
+                self.client.queue(PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT)
+                self.client.flush()
+                return True
             except ProxyConnectionFailed as e:
                 logger.exception(e)
                 self.client.queue(BAD_GATEWAY_RESPONSE_PKT)
@@ -577,10 +602,14 @@ class HTTP(TCP):
     Spawns new process to proxy accepted client connection.
     """
 
+    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100, auth_code=None):
+        super(HTTP, self).__init__(hostname, port, backlog)
+        self.auth_code = auth_code
+
     def handle(self, client):
-        proc = Proxy(client)
-        proc.daemon = True
-        proc.start()
+        proxy = Proxy(client, self.auth_code)
+        proxy.daemon = True
+        proxy.start()
 
 
 def main():
@@ -591,17 +620,22 @@ def main():
 
     parser.add_argument('--hostname', default='127.0.0.1', help='Default: 127.0.0.1')
     parser.add_argument('--port', default='8899', help='Default: 8899')
-    parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO, WARNING, ERROR, CRITICAL')
+    parser.add_argument('--backlog', default='100', help='Default: 100. '
+                                                         'Maximum number of pending connections to proxy server')
+    parser.add_argument('--basic-auth', default=None, help='Default: No authentication. '
+                                                           'Specify colon separated user:password '
+                                                           'to enable basic authentication.')
+    parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level),
                         format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
-    hostname = args.hostname
-    port = int(args.port)
-
     try:
-        proxy = HTTP(hostname, port)
+        auth_code = None
+        if args.basic_auth:
+            auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
+        proxy = HTTP(args.hostname, int(args.port), int(args.backlog), auth_code)
         proxy.run()
     except KeyboardInterrupt:
         pass

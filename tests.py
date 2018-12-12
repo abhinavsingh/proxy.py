@@ -8,9 +8,9 @@
     :copyright: (c) 2013-2018 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
+import base64
 import unittest
 from proxy import *
-from proxy import bytes_, text_
 
 
 class TestChunkParser(unittest.TestCase):
@@ -398,6 +398,53 @@ class TestProxy(unittest.TestCase):
                 b'Host: unknown.domain',
                 CRLF
             ]))
+
+
+class TestAuthenticatedProxy(unittest.TestCase):
+
+    def setUp(self):
+        self._conn = MockConnection()
+        self._addr = ('127.0.0.1', 54382)
+        self.proxy = Proxy(Client(self._conn, self._addr), bytes_('Basic %s' % base64.b64encode('user:pass')))
+
+    def test_proxy_authentication_failed(self):
+        with self.assertRaises(ProxyAuthenticationFailed):
+            self.proxy._process_request(CRLF.join([
+                b'GET http://abhinavsingh.com HTTP/1.1',
+                b'Host: abhinavsingh.com',
+                CRLF
+            ]))
+
+    def test_http_get(self):
+        self.proxy.client.conn.queue(b'GET http://httpbin.org/get HTTP/1.1' + CRLF)
+        self.proxy._process_request(self.proxy.client.recv())
+        self.assertNotEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
+
+        self.proxy.client.conn.queue(CRLF.join([
+            b'User-Agent: curl/7.27.0',
+            b'Host: httpbin.org',
+            b'Accept: */*',
+            b'Proxy-Connection: Keep-Alive',
+            b'Proxy-Authorization: Basic dXNlcjpwYXNz',
+            CRLF
+        ]))
+
+        self.proxy._process_request(self.proxy.client.recv())
+        self.assertEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
+        self.assertEqual(self.proxy.server.addr, (b'httpbin.org', 80))
+
+        self.proxy.server.flush()
+        self.assertEqual(self.proxy.server.buffer_size(), 0)
+
+        data = self.proxy.server.recv()
+        while data:
+            self.proxy._process_response(data)
+            if self.proxy.response.state == HTTP_PARSER_STATE_COMPLETE:
+                break
+            data = self.proxy.server.recv()
+
+        self.assertEqual(self.proxy.response.state, HTTP_PARSER_STATE_COMPLETE)
+        self.assertEqual(int(self.proxy.response.code), 200)
 
 
 if __name__ == '__main__':
