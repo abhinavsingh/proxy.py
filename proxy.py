@@ -299,9 +299,9 @@ class Connection(object):
         # TODO: Gracefully handle BrokenPipeError exceptions
         return self.conn.send(data)
 
-    def recv(self, b=8192):
+    def recv(self, bufsiz=8192):
         try:
-            data = self.conn.recv(b)
+            data = self.conn.recv(bufsiz)
             if len(data) == 0:
                 logger.debug('rcvd 0 bytes from %s' % self.what)
                 return None
@@ -383,15 +383,17 @@ class Proxy(threading.Thread):
     Accepts connection object and act as a proxy between client and server.
     """
 
-    def __init__(self, client, auth_code=None):
+    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192):
         super(Proxy, self).__init__()
 
         self.start_time = self._now()
         self.last_activity = self.start_time
 
-        self.client = client
         self.auth_code = auth_code
+        self.client = client
+        self.client_recvbuf_size = client_recvbuf_size
         self.server = None
+        self.server_recvbuf_size = server_recvbuf_size
 
         self.request = HttpParser()
         self.response = HttpParser(HTTP_RESPONSE_PARSER)
@@ -499,7 +501,7 @@ class Proxy(threading.Thread):
         """Returns True if connection to client must be closed."""
         if self.client.conn in r:
             logger.debug('client is ready for reads, reading')
-            data = self.client.recv()
+            data = self.client.recv(self.client_recvbuf_size)
             self.last_activity = self._now()
 
             if not data:
@@ -516,7 +518,7 @@ class Proxy(threading.Thread):
 
         if self.server and not self.server.closed and self.server.conn in r:
             logger.debug('server is ready for reads, reading')
-            data = self.server.recv()
+            data = self.server.recv(self.server_recvbuf_size)
             self.last_activity = self._now()
 
             if not data:
@@ -607,12 +609,18 @@ class HTTP(TCP):
     Spawns new process to proxy accepted client connection.
     """
 
-    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100, auth_code=None):
+    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100,
+                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192):
         super(HTTP, self).__init__(hostname, port, backlog)
         self.auth_code = auth_code
+        self.client_recvbuf_size = client_recvbuf_size
+        self.server_recvbuf_size = server_recvbuf_size
 
     def handle(self, client):
-        proxy = Proxy(client, self.auth_code)
+        proxy = Proxy(client,
+                      auth_code=self.auth_code,
+                      server_recvbuf_size=self.server_recvbuf_size,
+                      client_recvbuf_size=self.client_recvbuf_size)
         proxy.daemon = True
         proxy.start()
 
@@ -630,6 +638,16 @@ def main():
     parser.add_argument('--basic-auth', default=None, help='Default: No authentication. '
                                                            'Specify colon separated user:password '
                                                            'to enable basic authentication.')
+    parser.add_argument('--server-recvbuf-size', default='8192', help='Default: 8 KB. '
+                                                                      'Maximum amount of data received from the '
+                                                                      'server in a single recv() operation. Bump this '
+                                                                      'value for faster downloads at the expense of '
+                                                                      'increased RAM.')
+    parser.add_argument('--client-recvbuf-size', default='8192', help='Default: 8 KB. '
+                                                                      'Maximum amount of data received from the '
+                                                                      'client in a single recv() operation. Bump this '
+                                                                      'value for faster uploads at the expense of '
+                                                                      'increased RAM.')
     parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
     args = parser.parse_args()
 

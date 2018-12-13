@@ -24,7 +24,10 @@ Usage
 ```
 $ proxy.py -h
 usage: proxy.py [-h] [--hostname HOSTNAME] [--port PORT] [--backlog BACKLOG]
-                [--basic-auth BASIC_AUTH] [--log-level LOG_LEVEL]
+                [--basic-auth BASIC_AUTH]
+                [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+                [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+                [--log-level LOG_LEVEL]
 
 proxy.py v0.3
 
@@ -37,6 +40,16 @@ optional arguments:
   --basic-auth BASIC_AUTH
                         Default: No authentication. Specify colon separated
                         user:password to enable basic authentication.
+  --server-recvbuf-size SERVER_RECVBUF_SIZE
+                        Default: 8 KB. Maximum amount of data received from
+                        the server in a single recv() operation. Bump this
+                        value for faster downloads at the expense of increased
+                        RAM.
+  --client-recvbuf-size CLIENT_RECVBUF_SIZE
+                        Default: 8 KB. Maximum amount of data received from
+                        the client in a single recv() operation. Bump this
+                        value for faster uploads at the expense of increased
+                        RAM.
   --log-level LOG_LEVEL
                         DEBUG, INFO (default), WARNING, ERROR, CRITICAL
 
