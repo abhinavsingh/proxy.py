@@ -174,7 +174,9 @@ class HttpParser(object):
         self.buffer = data
 
     def process(self, data):
-        if self.state >= HTTP_PARSER_STATE_HEADERS_COMPLETE and \
+        if self.state in (HTTP_PARSER_STATE_HEADERS_COMPLETE,
+                          HTTP_PARSER_STATE_RCVING_BODY,
+                          HTTP_PARSER_STATE_COMPLETE) and \
                 (self.method == b'POST' or self.type == HTTP_RESPONSE_PARSER):
             if not self.body:
                 self.body = b''
@@ -198,9 +200,9 @@ class HttpParser(object):
         if line is False:
             return line, data
 
-        if self.state < HTTP_PARSER_STATE_LINE_RCVD:
+        if self.state == HTTP_PARSER_STATE_INITIALIZED:
             self.process_line(line)
-        elif self.state < HTTP_PARSER_STATE_HEADERS_COMPLETE:
+        elif self.state in (HTTP_PARSER_STATE_LINE_RCVD, HTTP_PARSER_STATE_RCVING_HEADERS):
             self.process_header(line)
 
         if self.state == HTTP_PARSER_STATE_HEADERS_COMPLETE and \
