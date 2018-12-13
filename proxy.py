@@ -294,13 +294,14 @@ class Connection(object):
         self.what = what  # server or client
 
     def send(self, data):
+        # TODO: Gracefully handle BrokenPipeError exceptions
         return self.conn.send(data)
 
     def recv(self, b=8192):
         try:
             data = self.conn.recv(b)
             if len(data) == 0:
-                logger.debug('recvd 0 bytes from %s' % self.what)
+                logger.debug('rcvd 0 bytes from %s' % self.what)
                 return None
             logger.debug('rcvd %d bytes from %s' % (len(data), self.what))
             return data
@@ -505,14 +506,9 @@ class Proxy(threading.Thread):
 
             try:
                 self._process_request(data)
-            except ProxyAuthenticationFailed as e:
+            except (ProxyAuthenticationFailed, ProxyConnectionFailed) as e:
                 logger.exception(e)
-                self.client.queue(PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT)
-                self.client.flush()
-                return True
-            except ProxyConnectionFailed as e:
-                logger.exception(e)
-                self.client.queue(BAD_GATEWAY_RESPONSE_PKT)
+                self.client.queue(Proxy._get_response_pkt_by_exception(e))
                 self.client.flush()
                 return True
 
@@ -546,6 +542,13 @@ class Proxy(threading.Thread):
                 if self._is_inactive():
                     logger.debug('client buffer is empty and maximum inactivity has reached, breaking')
                     break
+
+    @staticmethod
+    def _get_response_pkt_by_exception(e):
+        if e.__class__.__name__ == 'ProxyAuthenticationFailed':
+            return PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT
+        if e.__class__.__name__ == 'ProxyConnectionFailed':
+            return BAD_GATEWAY_RESPONSE_PKT
 
     def run(self):
         logger.debug('Proxying connection %r' % self.client.conn)
