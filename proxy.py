@@ -672,7 +672,12 @@ def main():
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        proxy = HTTP(args.hostname, int(args.port), int(args.backlog), auth_code)
+        proxy = HTTP(hostname=args.hostname,
+                     port=int(args.port),
+                     backlog=int(args.backlog),
+                     auth_code=auth_code,
+                     server_recvbuf_size=int(args.server_recvbuf_size),
+                     client_recvbuf_size=int(args.client_recvbuf_size))
         proxy.run()
     except KeyboardInterrupt:
         pass
