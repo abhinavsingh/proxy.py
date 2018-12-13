@@ -15,8 +15,9 @@ import base64
 import socket
 import select
 import logging
-import datetime
 import argparse
+import datetime
+import resource
 import threading
 
 VERSION = (0, 3)
@@ -625,6 +626,13 @@ class HTTP(TCP):
         proxy.start()
 
 
+def set_open_file_limit(soft_limit):
+    curr_soft_limit, curr_hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    if curr_soft_limit < soft_limit:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit))
+        logger.info('Open file limit set to %d' % soft_limit)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='proxy.py v%s' % __version__,
@@ -648,6 +656,9 @@ def main():
                                                                       'client in a single recv() operation. Bump this '
                                                                       'value for faster uploads at the expense of '
                                                                       'increased RAM.')
+    parser.add_argument('--open-file-limit', default='1024', help='Default: 1024. '
+                                                                  'Maximum number of files (TCP connections) '
+                                                                  'that proxy.py can open concurrently.')
     parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
     args = parser.parse_args()
 
@@ -655,9 +666,12 @@ def main():
                         format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
     try:
+        set_open_file_limit(int(args.open_file_limit))
+
         auth_code = None
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
+
         proxy = HTTP(args.hostname, int(args.port), int(args.backlog), auth_code)
         proxy.run()
     except KeyboardInterrupt:

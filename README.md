@@ -10,6 +10,7 @@ Features
 - No external dependency other than standard Python library
 - Support for `http`, `https` and `websockets` request proxy
 - Basic authentication support
+- Optimize for large file uploads and downloads
 
 Install
 -------
