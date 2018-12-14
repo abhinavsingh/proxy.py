@@ -95,6 +95,8 @@ BAD_GATEWAY_RESPONSE_PKT = CRLF.join([
 PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT = CRLF.join([
     b'HTTP/1.1 407 Proxy Authentication Required',
     PROXY_AGENT_HEADER,
+    b'Content-Length: 29',
+    b'Connection: close',
     CRLF
 ]) + b'Proxy Authentication Required'
 
@@ -456,8 +458,8 @@ class Proxy(threading.Thread):
             # and queue for the server with appropriate headers
             else:
                 self.server.queue(self.request.build(
-                    del_headers=[b'proxy-connection', b'connection', b'keep-alive'],
-                    add_headers=[(b'Connection', b'Close')]
+                    del_headers=[b'proxy-authorization', b'proxy-connection', b'connection', b'keep-alive'],
+                    add_headers=[(b'Via', b'1.1 proxy.py v%s' % version), (b'Connection', b'Close')]
                 ))
 
     def _process_response(self, data):
