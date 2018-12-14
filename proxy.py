@@ -9,6 +9,7 @@
     :copyright: (c) 2013-2018 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
+import os
 import sys
 import errno
 import base64
@@ -17,8 +18,10 @@ import select
 import logging
 import argparse
 import datetime
-import resource
 import threading
+
+if os.name != 'nt':
+    import resource
 
 VERSION = (0, 3)
 __version__ = '.'.join(map(str, VERSION[0:2]))
@@ -43,7 +46,9 @@ else:   # pragma: no cover
 
 
 def text_(s, encoding='utf-8', errors='strict'):    # pragma: no cover
-    """ If ``s`` is an instance of ``binary_type``, return
+    """Utility to ensure text-like usability.
+
+    If ``s`` is an instance of ``binary_type``, return
     ``s.decode(encoding, errors)``, otherwise return ``s``"""
     if isinstance(s, binary_type):
         return s.decode(encoding, errors)
@@ -51,7 +56,9 @@ def text_(s, encoding='utf-8', errors='strict'):    # pragma: no cover
 
 
 def bytes_(s, encoding='utf-8', errors='strict'):   # pragma: no cover
-    """ If ``s`` is an instance of ``text_type``, return
+    """Utility to ensure binary-like usability.
+
+    If ``s`` is an instance of ``text_type``, return
     ``s.encode(encoding, errors)``, otherwise return ``s``"""
     if isinstance(s, text_type):
         return s.encode(encoding, errors)
@@ -668,7 +675,9 @@ def main():
                         format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
     try:
-        set_open_file_limit(int(args.open_file_limit))
+        # resource module is not available on Windows OS
+        if os.name != 'nt':
+            set_open_file_limit(int(args.open_file_limit))
 
         auth_code = None
         if args.basic_auth:
