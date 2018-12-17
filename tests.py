@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import sys
-import ssl
 import base64
 import socket
 import logging
@@ -18,7 +17,7 @@ from threading import Thread
 from contextlib import closing
 from proxy import Proxy, ChunkParser, HttpParser, Client
 from proxy import ProxyAuthenticationFailed, ProxyConnectionFailed
-from proxy import CRLF, version, text_, bytes_
+from proxy import CRLF, version
 from proxy import HTTP_PARSER_STATE_COMPLETE, CHUNK_PARSER_STATE_COMPLETE, \
     CHUNK_PARSER_STATE_WAITING_FOR_SIZE, CHUNK_PARSER_STATE_WAITING_FOR_DATA, \
     HTTP_PARSER_STATE_INITIALIZED, HTTP_PARSER_STATE_LINE_RCVD, HTTP_PARSER_STATE_RCVING_HEADERS, \
@@ -178,14 +177,14 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
 
     def test_post_full_parse(self):
-        raw = text_(CRLF).join([
-            'POST %s HTTP/1.1',
-            'Host: localhost',
-            'Content-Length: 7',
-            'Content-Type: application/x-www-form-urlencoded' + text_(CRLF, encoding='utf-8'),
-            'a=b&c=d'
+        raw = CRLF.join([
+            b'POST %s HTTP/1.1',
+            b'Host: localhost',
+            b'Content-Length: 7',
+            b'Content-Type: application/x-www-form-urlencoded' + CRLF,
+            b'a=b&c=d'
         ])
-        self.parser.parse(bytes_(raw % 'http://localhost'))
+        self.parser.parse(raw % b'http://localhost')
         self.assertEqual(self.parser.method, b'POST')
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, None)
@@ -414,7 +413,7 @@ class TestProxy(unittest.TestCase):
 
     def test_http_get(self):
         # Send request line
-        self.proxy.client.conn.queue(bytes_('GET http://localhost:%d HTTP/1.1' % self.http_server_port) + CRLF)
+        self.proxy.client.conn.queue((b'GET http://localhost:%d HTTP/1.1' % self.http_server_port) + CRLF)
         self.proxy._process_request(self.proxy.client.recv())
         self.assertNotEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
         # Send headers and blank line, thus completing HTTP request
@@ -493,7 +492,7 @@ class TestProxy(unittest.TestCase):
             ]))
 
     def test_proxy_authentication_failed(self):
-        self.proxy = Proxy(Client(self._conn, self._addr), b'Basic %s' % base64.b64encode(bytes_('user:pass')))
+        self.proxy = Proxy(Client(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
 
         with self.assertRaises(ProxyAuthenticationFailed):
             self.proxy._process_request(CRLF.join([
@@ -503,15 +502,15 @@ class TestProxy(unittest.TestCase):
             ]))
 
     def test_authenticated_proxy_http_get(self):
-        self.proxy = Proxy(Client(self._conn, self._addr), b'Basic %s' % base64.b64encode(bytes_('user:pass')))
+        self.proxy = Proxy(Client(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
 
-        self.proxy.client.conn.queue(bytes_('GET http://localhost:%d HTTP/1.1' % self.http_server_port) + CRLF)
+        self.proxy.client.conn.queue((b'GET http://localhost:%d HTTP/1.1' % self.http_server_port) + CRLF)
         self.proxy._process_request(self.proxy.client.recv())
         self.assertNotEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
 
         self.proxy.client.conn.queue(CRLF.join([
             b'User-Agent: proxy.py/%s' % version,
-            bytes_('Host: localhost:%d' % self.http_server_port),
+            b'Host: localhost:%d' % self.http_server_port,
             b'Accept: */*',
             b'Proxy-Connection: Keep-Alive',
             b'Proxy-Authorization: Basic dXNlcjpwYXNz',
@@ -536,7 +535,7 @@ class TestProxy(unittest.TestCase):
         self.assertEqual(int(self.proxy.response.code), 200)
 
     def test_authenticated_proxy_http_tunnel(self):
-        self.proxy = Proxy(Client(self._conn, self._addr), b'Basic %s' % base64.b64encode(bytes_('user:pass')))
+        self.proxy = Proxy(Client(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
 
         self.proxy.client.conn.queue(CRLF.join([
             b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
