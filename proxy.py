@@ -155,9 +155,10 @@ class ChunkParser(object):
 class HttpParser(object):
     """HTTP request/response parser."""
 
-    def __init__(self, typ=None):
+    def __init__(self, parser_type):
+        assert parser_type in (HTTP_REQUEST_PARSER, HTTP_RESPONSE_PARSER)
+        self.type = parser_type
         self.state = HTTP_PARSER_STATE_INITIALIZED
-        self.type = typ if typ else HTTP_REQUEST_PARSER
 
         self.raw = b''
         self.buffer = b''
@@ -405,7 +406,7 @@ class Proxy(threading.Thread):
         self.server = None
         self.server_recvbuf_size = server_recvbuf_size
 
-        self.request = HttpParser()
+        self.request = HttpParser(HTTP_REQUEST_PARSER)
         self.response = HttpParser(HTTP_RESPONSE_PARSER)
 
     @staticmethod

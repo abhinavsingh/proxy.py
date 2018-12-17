@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import sys
+import ssl
 import base64
 import socket
 import logging
@@ -17,11 +18,11 @@ from threading import Thread
 from contextlib import closing
 from proxy import Proxy, ChunkParser, HttpParser, Client
 from proxy import ProxyAuthenticationFailed, ProxyConnectionFailed
-from proxy import CRLF, text_, bytes_
+from proxy import CRLF, version, text_, bytes_
 from proxy import HTTP_PARSER_STATE_COMPLETE, CHUNK_PARSER_STATE_COMPLETE, \
     CHUNK_PARSER_STATE_WAITING_FOR_SIZE, CHUNK_PARSER_STATE_WAITING_FOR_DATA, \
     HTTP_PARSER_STATE_INITIALIZED, HTTP_PARSER_STATE_LINE_RCVD, HTTP_PARSER_STATE_RCVING_HEADERS, \
-    HTTP_PARSER_STATE_HEADERS_COMPLETE, HTTP_PARSER_STATE_RCVING_BODY, HTTP_RESPONSE_PARSER, \
+    HTTP_PARSER_STATE_HEADERS_COMPLETE, HTTP_PARSER_STATE_RCVING_BODY, HTTP_REQUEST_PARSER, HTTP_RESPONSE_PARSER, \
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
 # logging.basicConfig(level=logging.DEBUG,
@@ -96,15 +97,15 @@ class TestChunkParser(unittest.TestCase):
 class TestHttpParser(unittest.TestCase):
 
     def setUp(self):
-        self.parser = HttpParser()
+        self.parser = HttpParser(HTTP_REQUEST_PARSER)
 
     def test_get_full_parse(self):
-        raw = text_(CRLF, encoding='utf-8').join([
-            'GET %s HTTP/1.1',
-            'Host: %s',
-            text_(CRLF, encoding='utf-8')
+        raw = CRLF.join([
+            b'GET %s HTTP/1.1',
+            b'Host: %s',
+            CRLF
         ])
-        self.parser.parse(bytes_(raw % ('https://example.com/path/dir/?a=b&c=d#p=q', 'example.com')))
+        self.parser.parse(raw % (b'https://example.com/path/dir/?a=b&c=d#p=q', b'example.com'))
         self.assertEqual(self.parser.build_url(), b'/path/dir/?a=b&c=d#p=q')
         self.assertEqual(self.parser.method, b'GET')
         self.assertEqual(self.parser.url.hostname, b'example.com')
@@ -112,7 +113,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
         self.assertDictContainsSubset({b'host': (b'Host', b'example.com')}, self.parser.headers)
-        self.assertEqual(bytes_(raw % ('/path/dir/?a=b&c=d#p=q', 'example.com')),
+        self.assertEqual(raw % (b'/path/dir/?a=b&c=d#p=q', b'example.com'),
                          self.parser.build(del_headers=[b'host'], add_headers=[(b'Host', b'example.com')]))
 
     def test_build_url_none(self):
@@ -226,7 +227,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'a=b&c=d')
         self.assertEqual(self.parser.buffer, b'')
 
-    def test_connect_without_host_header_request_parse(self):
+    def test_connect_request_without_host_header_request_parse(self):
         """Case where clients can send CONNECT request without a Host header field.
 
         Example:
@@ -234,12 +235,24 @@ class TestHttpParser(unittest.TestCase):
                Uses HTTP/1.0, Host header missing with CONNECT requests
             2. Android Emulator
                Uses HTTP/1.1, Host header missing with CONNECT requests
-        See https://github.com/abhinavsingh/proxy.py/issues/5 for details
+
+        See https://github.com/abhinavsingh/proxy.py/issues/5 for details.
         """
         self.parser.parse(b'CONNECT pypi.org:443 HTTP/1.0\r\n\r\n')
         self.assertEqual(self.parser.method, b'CONNECT')
         self.assertEqual(self.parser.version, b'HTTP/1.0')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_RCVING_HEADERS)
+
+    def test_request_parse_without_content_length(self):
+        """Case when incoming request doesn't contain a content-length header.
+
+        From http://w3-org.9356.n7.nabble.com/POST-with-empty-body-td103965.html
+        'A POST with no content-length and no body is equivalent to a POST with Content-Length: 0
+        and nothing following, as could perfectly happen when you upload an empty file for instance.'
+
+        See https://github.com/abhinavsingh/proxy.py/issues/20 for details.
+        """
+        pass
 
     def test_response_parse_without_content_length(self):
         """Case when server response doesn't contain a content-length header for non-chunk response types.
@@ -248,6 +261,8 @@ class TestHttpParser(unittest.TestCase):
         In example below, parser reaches state HTTP_PARSER_STATE_HEADERS_COMPLETE
         and it is responsibility of callee to change state to HTTP_PARSER_STATE_COMPLETE
         when server stream closes.
+
+        See https://github.com/abhinavsingh/proxy.py/issues/20 for details.
         """
         self.parser.type = HTTP_RESPONSE_PARSER
         self.parser.parse(b'HTTP/1.0 200 OK' + CRLF)
@@ -355,21 +370,21 @@ class MockConnection(object):
         self.buffer += data
 
 
-class MockHTTPRequestHandler(BaseHTTPRequestHandler):
+class HTTPRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.send_response(200)
-        if self.path != '/no-content-length':
-            self.send_header('content-length', 2)
+        # TODO(abhinavsingh): Proxy should work just fine even without content-length header
+        self.send_header('content-length', 2)
         self.end_headers()
         self.wfile.write(b'OK')
 
 
 class TestProxy(unittest.TestCase):
 
-    mock_server = None
-    mock_server_port = None
-    mock_server_thread = None
+    http_server = None
+    http_server_port = None
+    http_server_thread = None
 
     @staticmethod
     def get_available_port():
@@ -380,17 +395,17 @@ class TestProxy(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.mock_server_port = cls.get_available_port()
-        cls.mock_server = HTTPServer(('127.0.0.1', cls.mock_server_port), MockHTTPRequestHandler)
-        cls.mock_server_thread = Thread(target=cls.mock_server.serve_forever)
-        cls.mock_server_thread.setDaemon(True)
-        cls.mock_server_thread.start()
+        cls.http_server_port = cls.get_available_port()
+        cls.http_server = HTTPServer(('127.0.0.1', cls.http_server_port), HTTPRequestHandler)
+        cls.http_server_thread = Thread(target=cls.http_server.serve_forever)
+        cls.http_server_thread.setDaemon(True)
+        cls.http_server_thread.start()
 
     @classmethod
     def tearDownClass(cls):
-        cls.mock_server.shutdown()
-        cls.mock_server.server_close()
-        cls.mock_server_thread.join()
+        cls.http_server.shutdown()
+        cls.http_server.server_close()
+        cls.http_server_thread.join()
 
     def setUp(self):
         self._conn = MockConnection()
@@ -399,20 +414,20 @@ class TestProxy(unittest.TestCase):
 
     def test_http_get(self):
         # Send request line
-        self.proxy.client.conn.queue(bytes_('GET http://localhost:%d/get HTTP/1.1' % self.mock_server_port) + CRLF)
+        self.proxy.client.conn.queue(bytes_('GET http://localhost:%d HTTP/1.1' % self.http_server_port) + CRLF)
         self.proxy._process_request(self.proxy.client.recv())
         self.assertNotEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
         # Send headers and blank line, thus completing HTTP request
         self.proxy.client.conn.queue(CRLF.join([
-            b'User-Agent: curl/7.27.0',
-            bytes_('Host: localhost:%d' % self.mock_server_port),
+            b'User-Agent: proxy.py/%s' % version,
+            b'Host: localhost:%d' % self.http_server_port,
             b'Accept: */*',
             b'Proxy-Connection: Keep-Alive',
             CRLF
         ]))
         self.proxy._process_request(self.proxy.client.recv())
         self.assertEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
-        self.assertEqual(self.proxy.server.addr, (b'localhost', self.mock_server_port))
+        self.assertEqual(self.proxy.server.addr, (b'localhost', self.http_server_port))
         # Flush data queued for server
         self.proxy.server.flush()
         self.assertEqual(self.proxy.server.buffer_size(), 0)
@@ -428,11 +443,11 @@ class TestProxy(unittest.TestCase):
         self.assertEqual(self.proxy.response.state, HTTP_PARSER_STATE_COMPLETE)
         self.assertEqual(int(self.proxy.response.code), 200)
 
-    def test_https_get(self):
+    def test_http_tunnel(self):
         self.proxy.client.conn.queue(CRLF.join([
-            b'CONNECT httpbin.org:80 HTTP/1.1',
-            b'Host: httpbin.org:80',
-            b'User-Agent: curl/7.27.0',
+            b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
+            b'Host: localhost:%d' % self.http_server_port,
+            b'User-Agent: proxy.py/%s' % version,
             b'Proxy-Connection: Keep-Alive',
             CRLF
         ]))
@@ -449,9 +464,9 @@ class TestProxy(unittest.TestCase):
         self.assertEqual(self.proxy.client.buffer_size(), 0)
 
         self.proxy.client.conn.queue(CRLF.join([
-            b'GET /user-agent HTTP/1.1',
-            b'Host: httpbin.org',
-            b'User-Agent: curl/7.27.0',
+            b'GET / HTTP/1.1',
+            b'Host: localhost:%d' % self.http_server_port,
+            b'User-Agent: proxy.py/%s' % version,
             CRLF
         ]))
         self.proxy._process_request(self.proxy.client.recv())
@@ -490,13 +505,13 @@ class TestProxy(unittest.TestCase):
     def test_authenticated_proxy_http_get(self):
         self.proxy = Proxy(Client(self._conn, self._addr), b'Basic %s' % base64.b64encode(bytes_('user:pass')))
 
-        self.proxy.client.conn.queue(bytes_('GET http://localhost:%d/get HTTP/1.1' % self.mock_server_port) + CRLF)
+        self.proxy.client.conn.queue(bytes_('GET http://localhost:%d HTTP/1.1' % self.http_server_port) + CRLF)
         self.proxy._process_request(self.proxy.client.recv())
         self.assertNotEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
 
         self.proxy.client.conn.queue(CRLF.join([
-            b'User-Agent: curl/7.27.0',
-            bytes_('Host: localhost:%d' % self.mock_server_port),
+            b'User-Agent: proxy.py/%s' % version,
+            bytes_('Host: localhost:%d' % self.http_server_port),
             b'Accept: */*',
             b'Proxy-Connection: Keep-Alive',
             b'Proxy-Authorization: Basic dXNlcjpwYXNz',
@@ -505,7 +520,7 @@ class TestProxy(unittest.TestCase):
 
         self.proxy._process_request(self.proxy.client.recv())
         self.assertEqual(self.proxy.request.state, HTTP_PARSER_STATE_COMPLETE)
-        self.assertEqual(self.proxy.server.addr, (b'localhost', self.mock_server_port))
+        self.assertEqual(self.proxy.server.addr, (b'localhost', self.http_server_port))
 
         self.proxy.server.flush()
         self.assertEqual(self.proxy.server.buffer_size(), 0)
@@ -519,6 +534,50 @@ class TestProxy(unittest.TestCase):
 
         self.assertEqual(self.proxy.response.state, HTTP_PARSER_STATE_COMPLETE)
         self.assertEqual(int(self.proxy.response.code), 200)
+
+    def test_authenticated_proxy_http_tunnel(self):
+        self.proxy = Proxy(Client(self._conn, self._addr), b'Basic %s' % base64.b64encode(bytes_('user:pass')))
+
+        self.proxy.client.conn.queue(CRLF.join([
+            b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
+            b'Host: localhost:%d' % self.http_server_port,
+            b'User-Agent: proxy.py/%s' % version,
+            b'Proxy-Connection: Keep-Alive',
+            b'Proxy-Authorization: Basic dXNlcjpwYXNz',
+            CRLF
+        ]))
+        self.proxy._process_request(self.proxy.client.recv())
+        self.assertFalse(self.proxy.server is None)
+        self.assertEqual(self.proxy.client.buffer, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+
+        parser = HttpParser(HTTP_RESPONSE_PARSER)
+        parser.parse(self.proxy.client.buffer)
+        self.assertEqual(parser.state, HTTP_PARSER_STATE_HEADERS_COMPLETE)
+        self.assertEqual(int(parser.code), 200)
+
+        self.proxy.client.flush()
+        self.assertEqual(self.proxy.client.buffer_size(), 0)
+
+        self.proxy.client.conn.queue(CRLF.join([
+            b'GET / HTTP/1.1',
+            b'Host: localhost:%d' % self.http_server_port,
+            b'User-Agent: proxy.py/%s' % version,
+            CRLF
+        ]))
+        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.server.flush()
+        self.assertEqual(self.proxy.server.buffer_size(), 0)
+
+        parser = HttpParser(HTTP_RESPONSE_PARSER)
+        data = self.proxy.server.recv()
+        while data:
+            parser.parse(data)
+            if parser.state == HTTP_PARSER_STATE_COMPLETE:
+                break
+            data = self.proxy.server.recv()
+
+        self.assertEqual(parser.state, HTTP_PARSER_STATE_COMPLETE)
+        self.assertEqual(int(parser.code), 200)
 
 
 if __name__ == '__main__':
