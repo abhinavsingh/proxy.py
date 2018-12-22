@@ -195,7 +195,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'a=b&c=d')
         self.assertEqual(self.parser.buffer, b'')
         self.assertEqual(self.parser.state, HTTP_PARSER_STATE_COMPLETE)
-        self.assertEqual(len(self.parser.build()), len(raw % '/'))
+        self.assertEqual(len(self.parser.build()), len(raw % b'/'))
 
     def test_post_partial_parse(self):
         self.parser.parse(CRLF.join([
