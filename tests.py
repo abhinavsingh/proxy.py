@@ -258,7 +258,14 @@ class TestHttpParser(unittest.TestCase):
 
         See https://github.com/abhinavsingh/proxy.py/issues/20 for details.
         """
-        pass
+        self.parser.parse(CRLF.join([
+            b'POST http://localhost HTTP/1.1',
+            b'Host: localhost',
+            b'Content-Type: application/x-www-form-urlencoded',
+            CRLF
+        ]))
+        self.assertEqual(self.parser.method, b'POST')
+        self.assertEqual(self.parser.state, HttpParser.states.COMPLETE)
 
     def test_response_parse_without_content_length(self):
         """Case when server response doesn't contain a content-length header for non-chunk response types.

@@ -6,5 +6,6 @@
 *.pyc
 venv
 cover
+htmlcov
 dist
 proxy.py.egg-info

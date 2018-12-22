@@ -179,6 +179,11 @@ class HttpParser(object):
 
         self.chunk_parser = None
 
+    def is_chunked_encoded_response(self):
+        return self.type == HttpParser.types.RESPONSE_PARSER and \
+               b'transfer-encoding' in self.headers and \
+               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+
     def parse(self, data):
         self.raw += data
         data = self.buffer + data
@@ -202,7 +207,7 @@ class HttpParser(object):
                 self.body += data
                 if len(self.body) >= int(self.headers[b'content-length'][1]):
                     self.state = HttpParser.states.COMPLETE
-            elif b'transfer-encoding' in self.headers and self.headers[b'transfer-encoding'][1].lower() == b'chunked':
+            elif self.is_chunked_encoded_response():
                 if not self.chunk_parser:
                     self.chunk_parser = ChunkParser()
                 self.chunk_parser.parse(data)
@@ -221,15 +226,28 @@ class HttpParser(object):
         elif self.state in (HttpParser.states.LINE_RCVD, HttpParser.states.RCVING_HEADERS):
             self.process_header(line)
 
+        # When connect request is received without a following host header
         # See `TestHttpParser.test_connect_request_without_host_header_request_parse` for details
         if self.state == HttpParser.states.LINE_RCVD and \
+                self.type == HttpParser.types.REQUEST_PARSER and \
                 self.method == b'CONNECT' and \
                 data == CRLF:
             self.state = HttpParser.states.COMPLETE
 
-        if self.state == HttpParser.states.HEADERS_COMPLETE and \
+        # When raw request has ended with \r\n\r\n and no more http headers are expected
+        # See `TestHttpParser.test_request_parse_without_content_length` and
+        # `TestHttpParser.test_response_parse_without_content_length` for details
+        elif self.state == HttpParser.states.HEADERS_COMPLETE and \
                 self.type == HttpParser.types.REQUEST_PARSER and \
-                not self.method == b'POST' and \
+                self.method != b'POST' and \
+                self.raw.endswith(CRLF * 2):
+            self.state = HttpParser.states.COMPLETE
+        elif self.state == HttpParser.states.HEADERS_COMPLETE and \
+                self.type == HttpParser.types.REQUEST_PARSER and \
+                self.method == b'POST' and \
+                (b'content-length' not in self.headers or
+                 (b'content-length' in self.headers and
+                  int(self.headers[b'content-length'][1]) == 0)) and \
                 self.raw.endswith(CRLF * 2):
             self.state = HttpParser.states.COMPLETE
 
