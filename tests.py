@@ -94,6 +94,17 @@ class TestHttpParser(unittest.TestCase):
     def setUp(self):
         self.parser = HttpParser(HttpParser.types.REQUEST_PARSER)
 
+    def test_build_header(self):
+        self.assertEqual(HttpParser.build_header(b'key', b'value'), b'key: value')
+
+    def test_split(self):
+        self.assertEqual(HttpParser.split(b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
+                         (b'CONNECT python.org:443 HTTP/1.0', '\r\n'))
+
+    def test_split_false_line(self):
+        self.assertEqual(HttpParser.split(b'CONNECT python.org:443 HTTP/1.0'),
+                         (False, b'CONNECT python.org:443 HTTP/1.0'))
+
     def test_get_full_parse(self):
         raw = CRLF.join([
             b'GET %s HTTP/1.1',
@@ -236,7 +247,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(b'CONNECT pypi.org:443 HTTP/1.0\r\n\r\n')
         self.assertEqual(self.parser.method, b'CONNECT')
         self.assertEqual(self.parser.version, b'HTTP/1.0')
-        self.assertEqual(self.parser.state, HttpParser.states.RCVING_HEADERS)
+        self.assertEqual(self.parser.state, HttpParser.states.COMPLETE)
 
     def test_request_parse_without_content_length(self):
         """Case when incoming request doesn't contain a content-length header.

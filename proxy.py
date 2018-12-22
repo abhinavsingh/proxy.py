@@ -221,6 +221,12 @@ class HttpParser(object):
         elif self.state in (HttpParser.states.LINE_RCVD, HttpParser.states.RCVING_HEADERS):
             self.process_header(line)
 
+        # See `TestHttpParser.test_connect_request_without_host_header_request_parse` for details
+        if self.state == HttpParser.states.RCVING_HEADERS and \
+                self.method == b'CONNECT' and \
+                self.raw.endswith(CRLF * 2):
+            self.state = HttpParser.states.COMPLETE
+
         if self.state == HttpParser.states.HEADERS_COMPLETE and \
                 self.type == HttpParser.types.REQUEST_PARSER and \
                 not self.method == b'POST' and \
@@ -275,12 +281,12 @@ class HttpParser(object):
             del_headers = []
         for k in self.headers:
             if k not in del_headers:
-                req += self.build_header(self.headers[k][0], self.headers[k][1])
+                req += self.build_header(self.headers[k][0], self.headers[k][1]) + CRLF
 
         if not add_headers:
             add_headers = []
         for k in add_headers:
-            req += self.build_header(k[0], k[1])
+            req += self.build_header(k[0], k[1]) + CRLF
 
         req += CRLF
         if self.body:
@@ -290,7 +296,7 @@ class HttpParser(object):
 
     @staticmethod
     def build_header(k, v):
-        return k + b': ' + v + CRLF
+        return k + b': ' + v
 
     @staticmethod
     def split(data):
