@@ -222,9 +222,9 @@ class HttpParser(object):
             self.process_header(line)
 
         # See `TestHttpParser.test_connect_request_without_host_header_request_parse` for details
-        if self.state == HttpParser.states.RCVING_HEADERS and \
+        if self.state == HttpParser.states.LINE_RCVD and \
                 self.method == b'CONNECT' and \
-                self.raw.endswith(CRLF * 2):
+                data == CRLF:
             self.state = HttpParser.states.COMPLETE
 
         if self.state == HttpParser.states.HEADERS_COMPLETE and \

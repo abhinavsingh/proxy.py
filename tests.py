@@ -99,7 +99,7 @@ class TestHttpParser(unittest.TestCase):
 
     def test_split(self):
         self.assertEqual(HttpParser.split(b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
-                         (b'CONNECT python.org:443 HTTP/1.0', '\r\n'))
+                         (b'CONNECT python.org:443 HTTP/1.0', b'\r\n'))
 
     def test_split_false_line(self):
         self.assertEqual(HttpParser.split(b'CONNECT python.org:443 HTTP/1.0'),
