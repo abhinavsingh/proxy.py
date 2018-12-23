@@ -423,13 +423,14 @@ class Proxy(threading.Thread):
     Accepts `Client` connection object and act as a proxy between client and server.
     """
 
-    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192):
+    def __init__(self, client, auth_code=None, disable_via_header=False, server_recvbuf_size=8192, client_recvbuf_size=8192):
         super(Proxy, self).__init__()
 
         self.start_time = self._now()
         self.last_activity = self.start_time
 
         self.auth_code = auth_code
+        self.disable_via_header = disable_via_header
         self.client = client
         self.client_recvbuf_size = client_recvbuf_size
         self.server = None
@@ -494,10 +495,16 @@ class Proxy(threading.Thread):
             # for usual http requests, re-build request packet
             # and queue for the server with appropriate headers
             else:
-                self.server.queue(self.request.build(
+                add_headers = [
+                    (b'Connection', b'Close')
+                ]
+                if not self.disable_via_header:
+                    add_headers.append((b'Via', b'1.1 proxy.py v%s' % version))
+                req = self.request.build(
                     del_headers=[b'proxy-authorization', b'proxy-connection', b'connection', b'keep-alive'],
-                    add_headers=[(b'Via', b'1.1 proxy.py v%s' % version), (b'Connection', b'Close')]
-                ))
+                    add_headers=add_headers,
+                )
+                self.server.queue(req)
 
     def _process_response(self, data):
         # parse incoming response packet
@@ -653,15 +660,18 @@ class HTTP(TCP):
     """
 
     def __init__(self, hostname='127.0.0.1', port=8899, backlog=100,
-                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192):
+                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192,
+                 disable_via_header=False):
         super(HTTP, self).__init__(hostname, port, backlog)
         self.auth_code = auth_code
         self.client_recvbuf_size = client_recvbuf_size
         self.server_recvbuf_size = server_recvbuf_size
+        self.disable_via_header = disable_via_header
 
     def handle(self, client):
         proxy = Proxy(client,
                       auth_code=self.auth_code,
+                      disable_via_header=self.disable_via_header,
                       server_recvbuf_size=self.server_recvbuf_size,
                       client_recvbuf_size=self.client_recvbuf_size)
         proxy.daemon = True
@@ -704,6 +714,11 @@ def main():
                                                                   'Maximum number of files (TCP connections) '
                                                                   'that proxy.py can open concurrently.')
     parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
+    parser.add_argument(
+        '--disable-via-header',
+        action='store_false',
+        help='Default: false. Disables including the Via header in requests sent to HTTP endpoints',
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level),
@@ -720,6 +735,7 @@ def main():
                      port=int(args.port),
                      backlog=int(args.backlog),
                      auth_code=auth_code,
+                     disable_via_header=args.disable_via_header,
                      server_recvbuf_size=int(args.server_recvbuf_size),
                      client_recvbuf_size=int(args.client_recvbuf_size))
         proxy.run()
