@@ -3,6 +3,8 @@ proxy.py
 
 Lightweight HTTP, HTTPS and WebSockets Proxy Server in Python.
 
+![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")
+
 Features
 --------
 
@@ -18,7 +20,7 @@ Install
 
 To install proxy.py, simply:
 
-	$ pip install proxy.py
+	$ pip install --upgrade proxy.py
 
 Usage
 -----
