@@ -8,4 +8,6 @@ venv
 cover
 htmlcov
 dist
+build
 proxy.py.egg-info
+proxy.py.iml

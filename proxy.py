@@ -26,7 +26,7 @@ if os.name != 'nt':
 
 VERSION = (0, 3)
 __version__ = '.'.join(map(str, VERSION[0:2]))
-__description__ = 'HTTP Proxy Server in Python'
+__description__ = 'Lightweight HTTP, HTTPS, WebSockets Proxy Server in a single Python file'
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
@@ -181,8 +181,8 @@ class HttpParser(object):
 
     def is_chunked_encoded_response(self):
         return self.type == HttpParser.types.RESPONSE_PARSER and \
-               b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+            b'transfer-encoding' in self.headers and \
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, data):
         self.raw += data
