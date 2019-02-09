@@ -8,7 +8,9 @@ python:
   - "3.7"
 os:
   - linux
-  - osx
-  - windows
+  # No support for OSX Python runtime
+  #- osx
+  # Windows Python support is currently in early access
+  #- windows
 script:
   - make
