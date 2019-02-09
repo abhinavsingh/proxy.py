@@ -9,7 +9,14 @@ python:
   #- "3.4"
   - "3.5"
   - "3.6"
-  - "3.7"
+# Enable 3.7 without globally enabling sudo and dist: xenial for other build jobs
+# This is official workaround for Python 3.7 support by Travis
+# See https://github.com/travis-ci/travis-ci/issues/9815
+matrix:
+  include:
+    - python: 3.7
+      dist: xenial
+      sudo: true
 os:
   - linux
   # No support for OSX Python runtime
