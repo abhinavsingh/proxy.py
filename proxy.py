@@ -24,7 +24,7 @@ from collections import namedtuple
 if os.name != 'nt':
     import resource
 
-VERSION = (0, 3)
+VERSION = (0, 4)
 __version__ = '.'.join(map(str, VERSION[0:2]))
 __description__ = 'Lightweight HTTP, HTTPS, WebSockets Proxy Server in a single Python file'
 __author__ = 'Abhinav Singh'

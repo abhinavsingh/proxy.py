@@ -22,6 +22,10 @@ To install proxy.py, simply:
 
 	$ pip install --upgrade proxy.py
 
+Using docker:
+
+    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py
+
 Usage
 -----
 

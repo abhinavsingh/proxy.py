@@ -2,10 +2,11 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-VERSION ?= v0.3
+VERSION ?= v0.4
+LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
-.PHONY: all clean test package test-release release coverage flake8 container
+.PHONY: all clean test package test-release release coverage flake8 container run-container release-container
 
 all: clean test
 
@@ -38,4 +39,10 @@ flake8:
 	flake8 --ignore=E501,W504 tests.py
 
 container:
-	docker build -t $(IMAGE_TAG) .
+	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .
+
+run-container:
+	docker run -it -p 8899:8899 --rm $(LATEST_TAG)
+
+release-container:
+	docker push $(IMAGE_TAG)
