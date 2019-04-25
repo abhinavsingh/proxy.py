@@ -90,6 +90,7 @@ PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT = CRLF.join([
     PROXY_AGENT_HEADER,
     b'Content-Length: 29',
     b'Connection: close',
+    b'Proxy-Authenticate: Basic',
     CRLF
 ]) + b'Proxy Authentication Required'
 
