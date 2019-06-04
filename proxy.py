@@ -94,6 +94,12 @@ PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT = CRLF.join([
     CRLF
 ]) + b'Proxy Authentication Required'
 
+PAC_FILE_RESPONSE_PREFIX = CRLF.join([
+    b'HTTP/1.1 200 OK',
+    b'Content-Type: application/x-ns-proxy-autoconfig',
+    b'Connection: close',
+    CRLF
+])
 
 class ChunkParser(object):
     """HTTP chunked encoding response parser."""
@@ -424,7 +430,7 @@ class Proxy(threading.Thread):
     Accepts `Client` connection object and act as a proxy between client and server.
     """
 
-    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192):
+    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file = None):
         super(Proxy, self).__init__()
 
         self.start_time = self._now()
@@ -438,6 +444,8 @@ class Proxy(threading.Thread):
 
         self.request = HttpParser(HttpParser.types.REQUEST_PARSER)
         self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
+
+        self.pac_file = pac_file
 
     @staticmethod
     def _now():
@@ -477,6 +485,10 @@ class Proxy(threading.Thread):
                 host, port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
             else:
                 raise Exception('Invalid request\n%s' % self.request.raw)
+
+            if host == None and self.pac_file:
+                self._serve_pac_file()
+                return True
 
             self.server = Server(host, port)
             try:
@@ -550,7 +562,7 @@ class Proxy(threading.Thread):
                 return True
 
             try:
-                self._process_request(data)
+                return self._process_request(data)
             except (ProxyAuthenticationFailed, ProxyConnectionFailed) as e:
                 logger.exception(e)
                 self.client.queue(Proxy._get_response_pkt_by_exception(e))
@@ -569,6 +581,19 @@ class Proxy(threading.Thread):
                 self._process_response(data)
 
         return False
+
+    def _serve_pac_file(self):
+        logger.debug('serving pac file')
+        self.client.queue(PAC_FILE_RESPONSE_PREFIX)
+        try:
+            with open(self.pac_file) as f:
+                for line in f:
+                    self.client.queue(line)
+        except IOError:
+            logger.debug('serving pac file directly')
+            self.client.queue(self.pac_file)
+
+        self.client.flush()
 
     def _process(self):
         while True:
@@ -654,17 +679,19 @@ class HTTP(TCP):
     """
 
     def __init__(self, hostname='127.0.0.1', port=8899, backlog=100,
-                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192):
+                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None):
         super(HTTP, self).__init__(hostname, port, backlog)
         self.auth_code = auth_code
         self.client_recvbuf_size = client_recvbuf_size
         self.server_recvbuf_size = server_recvbuf_size
+        self.pac_file = pac_file
 
     def handle(self, client):
         proxy = Proxy(client,
                       auth_code=self.auth_code,
                       server_recvbuf_size=self.server_recvbuf_size,
-                      client_recvbuf_size=self.client_recvbuf_size)
+                      client_recvbuf_size=self.client_recvbuf_size,
+                      pac_file=self.pac_file)
         proxy.daemon = True
         proxy.start()
 
@@ -705,6 +732,8 @@ def main():
                                                                   'Maximum number of files (TCP connections) '
                                                                   'that proxy.py can open concurrently.')
     parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
+    parser.add_argument('--pac-file', default='', help='A file (Proxy Auto Configuration) or string to serve when '
+                                                       'the server receives a direct file request.')
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level),
@@ -722,7 +751,8 @@ def main():
                      backlog=int(args.backlog),
                      auth_code=auth_code,
                      server_recvbuf_size=int(args.server_recvbuf_size),
-                     client_recvbuf_size=int(args.client_recvbuf_size))
+                     client_recvbuf_size=int(args.client_recvbuf_size),
+                     pac_file=args.pac_file)
         proxy.run()
     except KeyboardInterrupt:
         pass

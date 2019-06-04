@@ -14,6 +14,7 @@ Features
 - Optimize for large file uploads and downloads
 - IPv4 and IPv6 support
 - Basic authentication support
+- Can serve a PAC (Proxy Autoconfiguration) file
 
 Install
 -------
@@ -36,6 +37,7 @@ usage: proxy.py [-h] [--hostname HOSTNAME] [--port PORT] [--backlog BACKLOG]
                 [--server-recvbuf-size SERVER_RECVBUF_SIZE]
                 [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
                 [--log-level LOG_LEVEL]
+                [--pac-file AutoConfig]
 
 proxy.py v0.3
 
@@ -60,6 +62,9 @@ optional arguments:
                         RAM.
   --log-level LOG_LEVEL
                         DEBUG, INFO (default), WARNING, ERROR, CRITICAL
+  --pac-file            A file (Proxy Auto Configuration) or string to serve when
+                        the server receives a direct file request.
+                        Example: proxy.py --pac-file "function FindProxyForURL(url, host) { return 'PROXY localhost:8899; DIRECT'; }"
 
 Having difficulty using proxy.py? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
