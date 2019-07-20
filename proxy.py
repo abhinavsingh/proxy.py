@@ -748,9 +748,8 @@ class Worker(multiprocessing.Process):
                                   server_recvbuf_size=self.server_recvbuf_size,
                                   client_recvbuf_size=self.client_recvbuf_size,
                                   pac_file=self.pac_file)
-                    # proxy.daemon = True
-                    # proxy.start()
-                    proxy.run()
+                    proxy.daemon = True
+                    proxy.start()
                 elif op == Worker.operations.SHUTDOWN:
                     break
             except queue.Empty:
