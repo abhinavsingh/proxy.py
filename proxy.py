@@ -490,7 +490,7 @@ class Proxy(threading.Thread):
             else:
                 raise Exception('Invalid request\n%s' % self.request.raw)
 
-            if host == None and self.pac_file:
+            if host is None and self.pac_file:
                 self._serve_pac_file()
                 return True
 
@@ -591,12 +591,10 @@ class Proxy(threading.Thread):
         self.client.queue(PAC_FILE_RESPONSE_PREFIX)
         try:
             with open(self.pac_file) as f:
-                for line in f:
-                    self.client.queue(line)
+                self.client.queue(f.read())
         except IOError:
             logger.debug('serving pac file directly')
             self.client.queue(self.pac_file)
-
         self.client.flush()
 
     def _process(self):
@@ -813,10 +811,14 @@ def main():
                         help='Defaults to number of CPU cores.')
     args = parser.parse_args()
 
-    ll = args.log_level
-    ll = ll.upper()
-    ll = {'D': 'DEBUG', 'I': 'INFO', 'W': 'WARNING', 'E': 'ERROR', 'C': 'CRITICAL'}[ll[0]]
-    logging.basicConfig(level=getattr(logging, ll),
+    logging.basicConfig(level=getattr(logging,
+                                      {
+                                          'D': 'DEBUG',
+                                          'I': 'INFO',
+                                          'W': 'WARNING',
+                                          'E': 'ERROR',
+                                          'C': 'CRITICAL'
+                                      }[args.log_level.upper()[0]]),
                         format='%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s')
 
     try:
