@@ -14,7 +14,9 @@ import base64
 import datetime
 import errno
 import logging
+import multiprocessing
 import os
+import queue
 import select
 import socket
 import sys
@@ -653,10 +655,17 @@ class TCP(object):
         self.ipv4 = ipv4
         self.socket = None
 
+    def setup(self):
+        pass
+
     def handle(self, client):
         raise NotImplementedError()
 
+    def shutdown(self):
+        pass
+
     def run(self):
+        self.setup()
         try:
             self.socket = socket.socket(socket.AF_INET if self.ipv4 is True else socket.AF_INET6, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -670,6 +679,7 @@ class TCP(object):
         except Exception as e:
             logger.exception('Exception while running the server %r' % e)
         finally:
+            self.shutdown()
             logger.info('Closing server socket')
             self.socket.close()
 
@@ -680,7 +690,7 @@ class HTTP(TCP):
     Spawns new process which either serve local server content or proxy the accepted client connection.
     """
 
-    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100,
+    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100, num_workers=0,
                  auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None, ipv4=False):
         super(HTTP, self).__init__(hostname, port, backlog, ipv4)
         self.auth_code = auth_code
@@ -688,14 +698,68 @@ class HTTP(TCP):
         self.server_recvbuf_size = server_recvbuf_size
         self.pac_file = pac_file
 
+        self.worker_queue = multiprocessing.Queue()
+        self.num_workers = multiprocessing.cpu_count()
+        if num_workers > 0:
+            self.num_workers = num_workers
+        self.workers = []
+
+    def setup(self):
+        logger.info('Starting %d workers' % self.num_workers)
+        for worker_id in range(self.num_workers):
+            worker = Worker(self.worker_queue, auth_code=self.auth_code, server_recvbuf_size=self.server_recvbuf_size,
+                            client_recvbuf_size=self.client_recvbuf_size, pac_file=self.pac_file)
+            worker.daemon = True
+            worker.start()
+            self.workers.append(worker)
+
     def handle(self, client):
-        proxy = Proxy(client,
-                      auth_code=self.auth_code,
-                      server_recvbuf_size=self.server_recvbuf_size,
-                      client_recvbuf_size=self.client_recvbuf_size,
-                      pac_file=self.pac_file)
-        proxy.daemon = True
-        proxy.start()
+        self.worker_queue.put((Worker.operations.DEFAULT, {'client': client}))
+
+    def shutdown(self):
+        logger.info('Shutting down %d workers' % self.num_workers)
+        for worker_id in range(self.num_workers):
+            self.worker_queue.put((Worker.operations.SHUTDOWN, None))
+        for worker_id in range(self.num_workers):
+            self.workers[worker_id].join()
+
+
+class Worker(multiprocessing.Process):
+    operations = namedtuple('WorkerOperations', (
+        'DEFAULT',
+        'SHUTDOWN',
+    ))(1, 2)
+
+    def __init__(self, work_queue, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None):
+        super(Worker, self).__init__()
+        self.work_queue = work_queue
+        self.auth_code = auth_code
+        self.server_recvbuf_size = server_recvbuf_size
+        self.client_recvbuf_size = client_recvbuf_size
+        self.pac_file = pac_file
+
+    def run(self):
+        while True:
+            try:
+                op, payload = self.work_queue.get(True, 1)
+                if op == Worker.operations.DEFAULT:
+                    proxy = Proxy(payload['client'],
+                                  auth_code=self.auth_code,
+                                  server_recvbuf_size=self.server_recvbuf_size,
+                                  client_recvbuf_size=self.client_recvbuf_size,
+                                  pac_file=self.pac_file)
+                    # proxy.daemon = True
+                    # proxy.start()
+                    proxy.run()
+                elif op == Worker.operations.SHUTDOWN:
+                    break
+            except queue.Empty:
+                pass
+            # Safeguard against https://gist.github.com/abhinavsingh/b8d4266ff4f38b6057f9c50075e8cd75
+            except ConnectionRefusedError:
+                pass
+            except KeyboardInterrupt:
+                break
 
 
 def set_open_file_limit(soft_limit):
@@ -712,45 +776,48 @@ def main():
         description='proxy.py v%s' % __version__,
         epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
     )
-    parser.add_argument('--hostname', type=str, default='127.0.0.1',
-                        help='Default: 127.0.0.1. Server IP address.')
-    parser.add_argument('--port', type=int, default=8899,
-                        help='Default: 8899. Server port.')
+    # Argument names are ordered alphabetically.
     parser.add_argument('--backlog', type=int, default=100,
                         help='Default: 100. Maximum number of pending connections to proxy server')
     parser.add_argument('--basic-auth', type=str, default=None,
                         help='Default: No authentication. Specify colon separated user:password '
                              'to enable basic authentication.')
-    parser.add_argument('--server-recvbuf-size', type=int, default=8192,
-                        help='Default: 8 KB. Maximum amount of data received from the '
-                             'server in a single recv() operation. Bump this '
-                             'value for faster downloads at the expense of '
-                             'increased RAM.')
     parser.add_argument('--client-recvbuf-size', type=int, default=8192,
                         help='Default: 8 KB. Maximum amount of data received from the '
                              'client in a single recv() operation. Bump this '
                              'value for faster uploads at the expense of '
                              'increased RAM.')
-    parser.add_argument('--open-file-limit', type=int, default=1024,
-                        help='Default: 1024. Maximum number of files (TCP connections) '
-                             'that proxy.py can open concurrently.')
+    parser.add_argument('--hostname', type=str, default='127.0.0.1',
+                        help='Default: 127.0.0.1. Server IP address.')
+    parser.add_argument('--ipv4', type=bool, default=False,
+                        help='Whether to listen on IPv4 address. '
+                             'By default server only listens on IPv6.')
     parser.add_argument('--log-level', type=str, default='INFO',
                         help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
                              'Both upper and lowercase values are allowed.'
                              'You may also simply use the leading character e.g. --log-level d')
+    parser.add_argument('--open-file-limit', type=int, default=1024,
+                        help='Default: 1024. Maximum number of files (TCP connections) '
+                             'that proxy.py can open concurrently.')
+    parser.add_argument('--port', type=int, default=8899,
+                        help='Default: 8899. Server port.')
     parser.add_argument('--pac-file', type=str, default=None,
                         help='A file (Proxy Auto Configuration) or string to serve when '
                              'the server receives a direct file request.')
-    parser.add_argument('--ipv4', type=bool, default=False,
-                        help='Whether to listen on IPv4 address. '
-                             'By default server only listens on IPv6.')
+    parser.add_argument('--server-recvbuf-size', type=int, default=8192,
+                        help='Default: 8 KB. Maximum amount of data received from the '
+                             'server in a single recv() operation. Bump this '
+                             'value for faster downloads at the expense of '
+                             'increased RAM.')
+    parser.add_argument('--num-workers', type=int, default=0,
+                        help='Defaults to number of CPU cores.')
     args = parser.parse_args()
 
     ll = args.log_level
     ll = ll.upper()
     ll = {'D': 'DEBUG', 'I': 'INFO', 'W': 'WARNING', 'E': 'ERROR', 'C': 'CRITICAL'}[ll[0]]
     logging.basicConfig(level=getattr(logging, ll),
-                        format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
+                        format='%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s')
 
     try:
         set_open_file_limit(args.open_file_limit)
@@ -766,7 +833,8 @@ def main():
                      server_recvbuf_size=args.server_recvbuf_size,
                      client_recvbuf_size=args.client_recvbuf_size,
                      pac_file=args.pac_file,
-                     ipv4=args.ipv4)
+                     ipv4=args.ipv4,
+                     num_workers=args.num_workers)
         proxy.run()
     except KeyboardInterrupt:
         pass
