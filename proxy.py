@@ -646,10 +646,11 @@ class TCP(object):
     Subclass MUST implement `handle` method. It accepts an instance of accepted `Client` connection.
     """
 
-    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100):
+    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100, ipv4=False):
         self.hostname = hostname
         self.port = port
         self.backlog = backlog
+        self.ipv4 = ipv4
         self.socket = None
 
     def handle(self, client):
@@ -657,7 +658,7 @@ class TCP(object):
 
     def run(self):
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket = socket.socket(socket.AF_INET if self.ipv4 is True else socket.AF_INET6, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.hostname, self.port))
             self.socket.listen(self.backlog)
@@ -680,8 +681,8 @@ class HTTP(TCP):
     """
 
     def __init__(self, hostname='127.0.0.1', port=8899, backlog=100,
-                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None):
-        super(HTTP, self).__init__(hostname, port, backlog)
+                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None, ipv4=False):
+        super(HTTP, self).__init__(hostname, port, backlog, ipv4)
         self.auth_code = auth_code
         self.client_recvbuf_size = client_recvbuf_size
         self.server_recvbuf_size = server_recvbuf_size
@@ -740,6 +741,9 @@ def main():
     parser.add_argument('--pac-file', type=str, default=None,
                         help='A file (Proxy Auto Configuration) or string to serve when '
                              'the server receives a direct file request.')
+    parser.add_argument('--ipv4', type=bool, default=False,
+                        help='Whether to listen on IPv4 address. '
+                             'By default server only listens on IPv6.')
     args = parser.parse_args()
 
     ll = args.log_level
@@ -761,7 +765,8 @@ def main():
                      auth_code=auth_code,
                      server_recvbuf_size=args.server_recvbuf_size,
                      client_recvbuf_size=args.client_recvbuf_size,
-                     pac_file=args.pac_file)
+                     pac_file=args.pac_file,
+                     ipv4=args.ipv4)
         proxy.run()
     except KeyboardInterrupt:
         pass
