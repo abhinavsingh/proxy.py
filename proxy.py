@@ -16,7 +16,6 @@ import errno
 import logging
 import multiprocessing
 import os
-import queue
 import select
 import socket
 import sys
@@ -43,10 +42,12 @@ if PY3:  # pragma: no cover
     text_type = str
     binary_type = bytes
     from urllib import parse as urlparse
+    import queue
 else:  # pragma: no cover
     text_type = unicode
     binary_type = str
     import urlparse
+    import Queue as queue
 
 
 def text_(s, encoding='utf-8', errors='strict'):  # pragma: no cover
