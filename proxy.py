@@ -734,13 +734,18 @@ def main():
                         help='Default: 1024. Maximum number of files (TCP connections) '
                              'that proxy.py can open concurrently.')
     parser.add_argument('--log-level', type=str, default='INFO',
-                        help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
+                        help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
+                             'Both upper and lowercase values are allowed.'
+                             'You may also simply use the leading character e.g. --log-level d')
     parser.add_argument('--pac-file', type=str, default=None,
                         help='A file (Proxy Auto Configuration) or string to serve when '
                              'the server receives a direct file request.')
     args = parser.parse_args()
 
-    logging.basicConfig(level=getattr(logging, args.log_level),
+    ll = args.log_level
+    ll = ll.upper()
+    ll = {'D': 'DEBUG', 'I': 'INFO', 'W': 'WARNING', 'E': 'ERROR', 'C': 'CRITICAL'}[ll[0]]
+    logging.basicConfig(level=getattr(logging, ll),
                         format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
     try:
