@@ -643,7 +643,7 @@ class Proxy(threading.Thread):
 class TCP(object):
     """TCP server implementation.
 
-    Subclass MUST implement `handle` method. It accepts an instance of accepted `Client` connection.
+    Subclass MUST implement `handle` method which accepts an instance of accepted `Client` connection.
     """
 
     def __init__(self, hostname='127.0.0.1', port=8899, backlog=100, ipv4=False):
@@ -675,9 +675,9 @@ class TCP(object):
 
 
 class HTTP(TCP):
-    """HTTP proxy server implementation.
+    """HTTP server implementation.
 
-    Spawns new process to proxy accepted client connection.
+    Spawns new process which either serve local server content or proxy the accepted client connection.
     """
 
     def __init__(self, hostname='127.0.0.1', port=8899, backlog=100,
@@ -704,7 +704,7 @@ def set_open_file_limit(soft_limit):
         curr_soft_limit, curr_hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
         if curr_soft_limit < soft_limit < curr_hard_limit:
             resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit))
-            logger.info('Open file descriptor soft limit set to %d' % soft_limit)
+            logger.debug('Open file descriptor soft limit set to %d' % soft_limit)
 
 
 def main():
@@ -714,24 +714,24 @@ def main():
     )
     parser.add_argument('--hostname', type=str, default='127.0.0.1',
                         help='Default: 127.0.0.1. Server IP address.')
-    parser.add_argument('--port', type=int, default='8899',
+    parser.add_argument('--port', type=int, default=8899,
                         help='Default: 8899. Server port.')
-    parser.add_argument('--backlog', type=int, default='100',
+    parser.add_argument('--backlog', type=int, default=100,
                         help='Default: 100. Maximum number of pending connections to proxy server')
     parser.add_argument('--basic-auth', type=str, default=None,
                         help='Default: No authentication. Specify colon separated user:password '
                              'to enable basic authentication.')
-    parser.add_argument('--server-recvbuf-size', type=int, default='8192',
+    parser.add_argument('--server-recvbuf-size', type=int, default=8192,
                         help='Default: 8 KB. Maximum amount of data received from the '
                              'server in a single recv() operation. Bump this '
                              'value for faster downloads at the expense of '
                              'increased RAM.')
-    parser.add_argument('--client-recvbuf-size', type=int, default='8192',
+    parser.add_argument('--client-recvbuf-size', type=int, default=8192,
                         help='Default: 8 KB. Maximum amount of data received from the '
                              'client in a single recv() operation. Bump this '
                              'value for faster uploads at the expense of '
                              'increased RAM.')
-    parser.add_argument('--open-file-limit', type=int, default='1024',
+    parser.add_argument('--open-file-limit', type=int, default=1024,
                         help='Default: 1024. Maximum number of files (TCP connections) '
                              'that proxy.py can open concurrently.')
     parser.add_argument('--log-level', type=str, default='INFO',
