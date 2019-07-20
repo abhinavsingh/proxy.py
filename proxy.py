@@ -6,18 +6,18 @@
 
     HTTP Proxy Server in Python.
 
-    :copyright: (c) 2013-2018 by Abhinav Singh.
+    :copyright: (c) 2013-2020 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
-import os
-import sys
-import errno
-import base64
-import socket
-import select
-import logging
 import argparse
+import base64
 import datetime
+import errno
+import logging
+import os
+import select
+import socket
+import sys
 import threading
 from collections import namedtuple
 
@@ -37,17 +37,17 @@ logger = logging.getLogger(__name__)
 
 PY3 = sys.version_info[0] == 3
 
-if PY3:    # pragma: no cover
+if PY3:  # pragma: no cover
     text_type = str
     binary_type = bytes
     from urllib import parse as urlparse
-else:   # pragma: no cover
+else:  # pragma: no cover
     text_type = unicode
     binary_type = str
     import urlparse
 
 
-def text_(s, encoding='utf-8', errors='strict'):    # pragma: no cover
+def text_(s, encoding='utf-8', errors='strict'):  # pragma: no cover
     """Utility to ensure text-like usability.
 
     If ``s`` is an instance of ``binary_type``, return
@@ -57,7 +57,7 @@ def text_(s, encoding='utf-8', errors='strict'):    # pragma: no cover
     return s
 
 
-def bytes_(s, encoding='utf-8', errors='strict'):   # pragma: no cover
+def bytes_(s, encoding='utf-8', errors='strict'):  # pragma: no cover
     """Utility to ensure binary-like usability.
 
     If ``s`` is an instance of ``text_type``, return
@@ -101,6 +101,7 @@ PAC_FILE_RESPONSE_PREFIX = CRLF.join([
     CRLF
 ])
 
+
 class ChunkParser(object):
     """HTTP chunked encoding response parser."""
 
@@ -112,9 +113,9 @@ class ChunkParser(object):
 
     def __init__(self):
         self.state = ChunkParser.states.WAITING_FOR_SIZE
-        self.body = b''     # Parsed chunks
-        self.chunk = b''    # Partial chunk received
-        self.size = None    # Expected size of next following chunk
+        self.body = b''  # Parsed chunks
+        self.chunk = b''  # Partial chunk received
+        self.size = None  # Expected size of next following chunk
 
     def parse(self, data):
         more = True if len(data) > 0 else False
@@ -129,7 +130,7 @@ class ChunkParser(object):
             self.chunk = b''
             # Extract following chunk data size
             line, data = HttpParser.split(data)
-            if not line:    # CRLF not received
+            if not line:  # CRLF not received
                 self.chunk = data
                 data = b''
             else:
@@ -188,8 +189,8 @@ class HttpParser(object):
 
     def is_chunked_encoded_response(self):
         return self.type == HttpParser.types.RESPONSE_PARSER and \
-            b'transfer-encoding' in self.headers and \
-            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+               b'transfer-encoding' in self.headers and \
+               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, data):
         self.raw += data
@@ -430,7 +431,7 @@ class Proxy(threading.Thread):
     Accepts `Client` connection object and act as a proxy between client and server.
     """
 
-    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file = None):
+    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None):
         super(Proxy, self).__init__()
 
         self.start_time = self._now()
@@ -656,11 +657,11 @@ class TCP(object):
 
     def run(self):
         try:
-            logger.info('Starting server on port %d' % self.port)
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.hostname, self.port))
             self.socket.listen(self.backlog)
+            logger.info('Started server on port %d' % self.port)
             while True:
                 conn, addr = self.socket.accept()
                 client = Client(conn, addr)
@@ -708,50 +709,53 @@ def set_open_file_limit(soft_limit):
 def main():
     parser = argparse.ArgumentParser(
         description='proxy.py v%s' % __version__,
-        epilog='Having difficulty using proxy.py? Report at: %s/issues/new' % __homepage__
+        epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
     )
-
-    parser.add_argument('--hostname', default='127.0.0.1', help='Default: 127.0.0.1')
-    parser.add_argument('--port', default='8899', help='Default: 8899')
-    parser.add_argument('--backlog', default='100', help='Default: 100. '
-                                                         'Maximum number of pending connections to proxy server')
-    parser.add_argument('--basic-auth', default=None, help='Default: No authentication. '
-                                                           'Specify colon separated user:password '
-                                                           'to enable basic authentication.')
-    parser.add_argument('--server-recvbuf-size', default='8192', help='Default: 8 KB. '
-                                                                      'Maximum amount of data received from the '
-                                                                      'server in a single recv() operation. Bump this '
-                                                                      'value for faster downloads at the expense of '
-                                                                      'increased RAM.')
-    parser.add_argument('--client-recvbuf-size', default='8192', help='Default: 8 KB. '
-                                                                      'Maximum amount of data received from the '
-                                                                      'client in a single recv() operation. Bump this '
-                                                                      'value for faster uploads at the expense of '
-                                                                      'increased RAM.')
-    parser.add_argument('--open-file-limit', default='1024', help='Default: 1024. '
-                                                                  'Maximum number of files (TCP connections) '
-                                                                  'that proxy.py can open concurrently.')
-    parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
-    parser.add_argument('--pac-file', default='', help='A file (Proxy Auto Configuration) or string to serve when '
-                                                       'the server receives a direct file request.')
+    parser.add_argument('--hostname', type=str, default='127.0.0.1',
+                        help='Default: 127.0.0.1. Server IP address.')
+    parser.add_argument('--port', type=int, default='8899',
+                        help='Default: 8899. Server port.')
+    parser.add_argument('--backlog', type=int, default='100',
+                        help='Default: 100. Maximum number of pending connections to proxy server')
+    parser.add_argument('--basic-auth', type=str, default=None,
+                        help='Default: No authentication. Specify colon separated user:password '
+                             'to enable basic authentication.')
+    parser.add_argument('--server-recvbuf-size', type=int, default='8192',
+                        help='Default: 8 KB. Maximum amount of data received from the '
+                             'server in a single recv() operation. Bump this '
+                             'value for faster downloads at the expense of '
+                             'increased RAM.')
+    parser.add_argument('--client-recvbuf-size', type=int, default='8192',
+                        help='Default: 8 KB. Maximum amount of data received from the '
+                             'client in a single recv() operation. Bump this '
+                             'value for faster uploads at the expense of '
+                             'increased RAM.')
+    parser.add_argument('--open-file-limit', type=int, default='1024',
+                        help='Default: 1024. Maximum number of files (TCP connections) '
+                             'that proxy.py can open concurrently.')
+    parser.add_argument('--log-level', type=str, default='INFO',
+                        help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
+    parser.add_argument('--pac-file', type=str, default=None,
+                        help='A file (Proxy Auto Configuration) or string to serve when '
+                             'the server receives a direct file request.')
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level),
                         format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
     try:
-        set_open_file_limit(int(args.open_file_limit))
+        set_open_file_limit(args.open_file_limit)
 
         auth_code = None
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
         proxy = HTTP(hostname=args.hostname,
-                     port=int(args.port),
-                     backlog=int(args.backlog),
+                     port=args.port,
+                     backlog=args.backlog,
                      auth_code=auth_code,
-                     server_recvbuf_size=int(args.server_recvbuf_size),
-                     client_recvbuf_size=int(args.client_recvbuf_size),
+                     server_recvbuf_size=args.server_recvbuf_size,
+                     client_recvbuf_size=args.client_recvbuf_size,
                      pac_file=args.pac_file)
         proxy.run()
     except KeyboardInterrupt:
