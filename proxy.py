@@ -587,13 +587,13 @@ class Proxy(threading.Thread):
         return False
 
     def _serve_pac_file(self):
-        logger.debug('serving pac file')
         self.client.queue(PAC_FILE_RESPONSE_PREFIX)
         try:
-            with open(self.pac_file) as f:
+            with open(self.pac_file, 'r') as f:
+                logger.debug('serving pac file from disk')
                 self.client.queue(f.read())
         except IOError:
-            logger.debug('serving pac file directly')
+            logger.debug('serving pac file content from buffer')
             self.client.queue(self.pac_file)
         self.client.flush()
 
@@ -607,9 +607,12 @@ class Proxy(threading.Thread):
                 break
 
             if self.client.buffer_size() == 0:
-                if self.response.state == HttpParser.states.COMPLETE:
-                    logger.debug('client buffer is empty and response state is complete, breaking')
-                    break
+                # Client may use same connection for multiple request cycles,
+                # hence not appropriate to close the connection upon parser states.
+                #
+                # if self.response.state == HttpParser.states.COMPLETE:
+                #     logger.debug('client buffer is empty and response state is complete, breaking')
+                #     break
 
                 if self._is_inactive():
                     logger.debug('client buffer is empty and maximum inactivity has reached, breaking')
@@ -725,7 +728,7 @@ class HTTP(TCP):
 
 class Worker(multiprocessing.Process):
     operations = namedtuple('WorkerOperations', (
-        'DEFAULT',
+        'DEFAULT',  # Default worker action i.e. handle http request.
         'SHUTDOWN',
     ))(1, 2)
 
@@ -769,7 +772,7 @@ def set_open_file_limit(soft_limit):
             logger.debug('Open file descriptor soft limit set to %d' % soft_limit)
 
 
-def main():
+def parse_args(args):
     parser = argparse.ArgumentParser(
         description='proxy.py v%s' % __version__,
         epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
@@ -787,7 +790,7 @@ def main():
                              'increased RAM.')
     parser.add_argument('--hostname', type=str, default='127.0.0.1',
                         help='Default: 127.0.0.1. Server IP address.')
-    parser.add_argument('--ipv4', type=bool, default=False,
+    parser.add_argument('--ipv4', action='store_true', default=False,
                         help='Whether to listen on IPv4 address. '
                              'By default server only listens on IPv6.')
     parser.add_argument('--log-level', type=str, default='INFO',
@@ -809,8 +812,11 @@ def main():
                              'increased RAM.')
     parser.add_argument('--num-workers', type=int, default=0,
                         help='Defaults to number of CPU cores.')
-    args = parser.parse_args()
+    return parser.parse_args(args)
 
+
+def main():
+    args = parse_args(sys.argv[1:])
     logging.basicConfig(level=getattr(logging,
                                       {
                                           'D': 'DEBUG',
@@ -828,16 +834,16 @@ def main():
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        proxy = HTTP(hostname=args.hostname,
-                     port=args.port,
-                     backlog=args.backlog,
-                     auth_code=auth_code,
-                     server_recvbuf_size=args.server_recvbuf_size,
-                     client_recvbuf_size=args.client_recvbuf_size,
-                     pac_file=args.pac_file,
-                     ipv4=args.ipv4,
-                     num_workers=args.num_workers)
-        proxy.run()
+        server = HTTP(hostname=args.hostname,
+                      port=args.port,
+                      backlog=args.backlog,
+                      auth_code=auth_code,
+                      server_recvbuf_size=args.server_recvbuf_size,
+                      client_recvbuf_size=args.client_recvbuf_size,
+                      pac_file=args.pac_file,
+                      ipv4=args.ipv4,
+                      num_workers=args.num_workers)
+        server.run()
     except KeyboardInterrupt:
         pass
 
