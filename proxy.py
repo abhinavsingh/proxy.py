@@ -49,6 +49,20 @@ else:  # pragma: no cover
     import urlparse
     import Queue as queue
 
+# Defaults
+DEFAULT_BACKLOG = 100
+DEFAULT_BASIC_AUTH = None
+DEFAULT_BUFFER_SIZE = 8192
+DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
+DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
+DEFAULT_HOSTNAME = '127.0.0.1'
+DEFAULT_PORT = 8899
+DEFAULT_IPV4 = False
+DEFAULT_LOG_LEVEL = 'INFO'
+DEFAULT_OPEN_FILE_LIMIT = 1024
+DEFAULT_PAC_FILE = None
+DEFAULT_NUM_WORKERS = 0
+
 
 def text_(s, encoding='utf-8', errors='strict'):  # pragma: no cover
     """Utility to ensure text-like usability.
@@ -337,7 +351,7 @@ class HttpParser(object):
         return line, data
 
 
-class Connection(object):
+class TCPConnection(object):
     """TCP server/client connection abstraction."""
 
     def __init__(self, what):
@@ -350,7 +364,7 @@ class Connection(object):
         # TODO: Gracefully handle BrokenPipeError exceptions
         return self.conn.send(data)
 
-    def recv(self, bufsiz=8192):
+    def recv(self, bufsiz=DEFAULT_BUFFER_SIZE):
         try:
             data = self.conn.recv(bufsiz)
             if len(data) == 0:
@@ -385,11 +399,11 @@ class Connection(object):
         logger.debug('flushed %d bytes to %s' % (sent, self.what))
 
 
-class Server(Connection):
+class TCPServerConnection(TCPConnection):
     """Establish connection to destination server."""
 
     def __init__(self, host, port):
-        super(Server, self).__init__(b'server')
+        super(TCPServerConnection, self).__init__(b'server')
         self.addr = (host, int(port))
 
     def __del__(self):
@@ -400,11 +414,11 @@ class Server(Connection):
         self.conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 
-class Client(Connection):
+class TCPClientConnection(TCPConnection):
     """Accepted client connection."""
 
     def __init__(self, conn, addr):
-        super(Client, self).__init__(b'client')
+        super(TCPClientConnection, self).__init__(b'client')
         self.conn = conn
         self.addr = addr
 
@@ -428,14 +442,15 @@ class ProxyAuthenticationFailed(ProxyError):
     pass
 
 
-class Proxy(threading.Thread):
+class HTTPProxy(threading.Thread):
     """HTTP proxy implementation.
 
     Accepts `Client` connection object and act as a proxy between client and server.
     """
 
-    def __init__(self, client, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None):
-        super(Proxy, self).__init__()
+    def __init__(self, client, auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
+                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE):
+        super(HTTPProxy, self).__init__()
 
         self.start_time = self._now()
         self.last_activity = self.start_time
@@ -494,7 +509,7 @@ class Proxy(threading.Thread):
                 self._serve_pac_file()
                 return True
 
-            self.server = Server(host, port)
+            self.server = TCPServerConnection(host, port)
             try:
                 logger.debug('connecting to server %s:%s' % (host, port))
                 self.server.connect()
@@ -569,7 +584,7 @@ class Proxy(threading.Thread):
                 return self._process_request(data)
             except (ProxyAuthenticationFailed, ProxyConnectionFailed) as e:
                 logger.exception(e)
-                self.client.queue(Proxy._get_response_pkt_by_exception(e))
+                self.client.queue(HTTPProxy._get_response_pkt_by_exception(e))
                 self.client.flush()
                 return True
 
@@ -644,13 +659,14 @@ class Proxy(threading.Thread):
             logger.debug('Closing proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
 
 
-class TCP(object):
-    """TCP server implementation.
+class TCPServer(object):
+    """TCPServer server implementation.
 
-    Subclass MUST implement `handle` method which accepts an instance of accepted `Client` connection.
+    Inheritor MUST implement `handle` method. It accepts an instance of `TCPClientConnection`.
+    Optionally, can also implement `setup` and `shutdown` methods for custom bootstrapping and teardown.
     """
 
-    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100, ipv4=False):
+    def __init__(self, hostname=DEFAULT_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG, ipv4=DEFAULT_IPV4):
         self.hostname = hostname
         self.port = port
         self.backlog = backlog
@@ -676,7 +692,7 @@ class TCP(object):
             logger.info('Started server on port %d' % self.port)
             while True:
                 conn, addr = self.socket.accept()
-                client = Client(conn, addr)
+                client = TCPClientConnection(conn, addr)
                 self.handle(client)
         except Exception as e:
             logger.exception('Exception while running the server %r' % e)
@@ -686,15 +702,19 @@ class TCP(object):
             self.socket.close()
 
 
-class HTTP(TCP):
+class HTTPServer(TCPServer):
     """HTTP server implementation.
 
-    Spawns new process which either serve local server content or proxy the accepted client connection.
+    Pre-spawns worker process to utilize all cores available on the system.  Accepted `TCPClientConnection` is
+    dispatched over a queue to workers.  One of the worker picks up the work and starts a new thread to handle the
+    client request.
     """
 
-    def __init__(self, hostname='127.0.0.1', port=8899, backlog=100, num_workers=0,
-                 auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None, ipv4=False):
-        super(HTTP, self).__init__(hostname, port, backlog, ipv4)
+    def __init__(self, hostname=DEFAULT_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG,
+                 num_workers=DEFAULT_NUM_WORKERS,
+                 auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
+                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE, ipv4=DEFAULT_IPV4):
+        super(HTTPServer, self).__init__(hostname, port, backlog, ipv4)
         self.auth_code = auth_code
         self.client_recvbuf_size = client_recvbuf_size
         self.server_recvbuf_size = server_recvbuf_size
@@ -716,7 +736,7 @@ class HTTP(TCP):
             self.workers.append(worker)
 
     def handle(self, client):
-        self.worker_queue.put((Worker.operations.DEFAULT, {'client': client}))
+        self.worker_queue.put((Worker.operations.DEFAULT, client))
 
     def shutdown(self):
         logger.info('Shutting down %d workers' % self.num_workers)
@@ -727,12 +747,19 @@ class HTTP(TCP):
 
 
 class Worker(multiprocessing.Process):
+    """Generic worker class implementation.
+
+    Worker instance accepts (operation, payload) over work queue and
+    starts a new thread to complete the work.
+    """
+
     operations = namedtuple('WorkerOperations', (
-        'DEFAULT',  # Default worker action i.e. handle http request.
+        'DEFAULT',  # Default worker action
         'SHUTDOWN',
     ))(1, 2)
 
-    def __init__(self, work_queue, auth_code=None, server_recvbuf_size=8192, client_recvbuf_size=8192, pac_file=None):
+    def __init__(self, work_queue, auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
+                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE):
         super(Worker, self).__init__()
         self.work_queue = work_queue
         self.auth_code = auth_code
@@ -745,11 +772,11 @@ class Worker(multiprocessing.Process):
             try:
                 op, payload = self.work_queue.get(True, 1)
                 if op == Worker.operations.DEFAULT:
-                    proxy = Proxy(payload['client'],
-                                  auth_code=self.auth_code,
-                                  server_recvbuf_size=self.server_recvbuf_size,
-                                  client_recvbuf_size=self.client_recvbuf_size,
-                                  pac_file=self.pac_file)
+                    proxy = HTTPProxy(payload,
+                                      auth_code=self.auth_code,
+                                      server_recvbuf_size=self.server_recvbuf_size,
+                                      client_recvbuf_size=self.client_recvbuf_size,
+                                      pac_file=self.pac_file)
                     proxy.daemon = True
                     proxy.start()
                 elif op == Worker.operations.SHUTDOWN:
@@ -778,39 +805,39 @@ def parse_args(args):
         epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
     )
     # Argument names are ordered alphabetically.
-    parser.add_argument('--backlog', type=int, default=100,
+    parser.add_argument('--backlog', type=int, default=DEFAULT_BACKLOG,
                         help='Default: 100. Maximum number of pending connections to proxy server')
-    parser.add_argument('--basic-auth', type=str, default=None,
+    parser.add_argument('--basic-auth', type=str, default=DEFAULT_BASIC_AUTH,
                         help='Default: No authentication. Specify colon separated user:password '
                              'to enable basic authentication.')
-    parser.add_argument('--client-recvbuf-size', type=int, default=8192,
+    parser.add_argument('--client-recvbuf-size', type=int, default=DEFAULT_CLIENT_RECVBUF_SIZE,
                         help='Default: 8 KB. Maximum amount of data received from the '
                              'client in a single recv() operation. Bump this '
                              'value for faster uploads at the expense of '
                              'increased RAM.')
-    parser.add_argument('--hostname', type=str, default='127.0.0.1',
+    parser.add_argument('--hostname', type=str, default=DEFAULT_HOSTNAME,
                         help='Default: 127.0.0.1. Server IP address.')
-    parser.add_argument('--ipv4', action='store_true', default=False,
+    parser.add_argument('--ipv4', action='store_true', default=DEFAULT_IPV4,
                         help='Whether to listen on IPv4 address. '
                              'By default server only listens on IPv6.')
-    parser.add_argument('--log-level', type=str, default='INFO',
+    parser.add_argument('--log-level', type=str, default=DEFAULT_LOG_LEVEL,
                         help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
                              'Both upper and lowercase values are allowed.'
                              'You may also simply use the leading character e.g. --log-level d')
-    parser.add_argument('--open-file-limit', type=int, default=1024,
+    parser.add_argument('--open-file-limit', type=int, default=DEFAULT_OPEN_FILE_LIMIT,
                         help='Default: 1024. Maximum number of files (TCP connections) '
                              'that proxy.py can open concurrently.')
-    parser.add_argument('--port', type=int, default=8899,
+    parser.add_argument('--port', type=int, default=DEFAULT_PORT,
                         help='Default: 8899. Server port.')
-    parser.add_argument('--pac-file', type=str, default=None,
+    parser.add_argument('--pac-file', type=str, default=DEFAULT_PAC_FILE,
                         help='A file (Proxy Auto Configuration) or string to serve when '
                              'the server receives a direct file request.')
-    parser.add_argument('--server-recvbuf-size', type=int, default=8192,
+    parser.add_argument('--server-recvbuf-size', type=int, default=DEFAULT_SERVER_RECVBUF_SIZE,
                         help='Default: 8 KB. Maximum amount of data received from the '
                              'server in a single recv() operation. Bump this '
                              'value for faster downloads at the expense of '
                              'increased RAM.')
-    parser.add_argument('--num-workers', type=int, default=0,
+    parser.add_argument('--num-workers', type=int, default=DEFAULT_NUM_WORKERS,
                         help='Defaults to number of CPU cores.')
     return parser.parse_args(args)
 
@@ -834,15 +861,15 @@ def main():
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        server = HTTP(hostname=args.hostname,
-                      port=args.port,
-                      backlog=args.backlog,
-                      auth_code=auth_code,
-                      server_recvbuf_size=args.server_recvbuf_size,
-                      client_recvbuf_size=args.client_recvbuf_size,
-                      pac_file=args.pac_file,
-                      ipv4=args.ipv4,
-                      num_workers=args.num_workers)
+        server = HTTPServer(hostname=args.hostname,
+                            port=args.port,
+                            backlog=args.backlog,
+                            auth_code=auth_code,
+                            server_recvbuf_size=args.server_recvbuf_size,
+                            client_recvbuf_size=args.client_recvbuf_size,
+                            pac_file=args.pac_file,
+                            ipv4=args.ipv4,
+                            num_workers=args.num_workers)
         server.run()
     except KeyboardInterrupt:
         pass
