@@ -1,7 +1,7 @@
 proxy.py
 ========
 
-Lightweight HTTP, HTTPS and WebSockets Proxy Server in Python.
+Lightweight HTTP, HTTPS, HTTP2 and WebSockets Proxy Server in Python.
 
 ![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")
 
