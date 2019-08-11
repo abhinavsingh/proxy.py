@@ -1,7 +1,4 @@
-proxy.py
-========
-
-Lightweight HTTP, HTTPS, HTTP2 and WebSockets Proxy Server in Python.
+![Proxy.Py](ProxyPy.png)
 
 ![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")
 
