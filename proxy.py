@@ -854,6 +854,12 @@ def main():
                                       }[args.log_level.upper()[0]]),
                         format='%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s')
 
+    if not PY3:
+        logging.error('"develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
+                      'If for some reasons you cannot upgrade, consider using "master" branch or simply '
+                      '"pip install proxy.py".')
+        sys.exit(0)
+
     try:
         set_open_file_limit(args.open_file_limit)
 
