@@ -1,17 +1,17 @@
-![Proxy.Py](ProxyPy.png)
+[![Proxy.Py](ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
-![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")
+[![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")](https://travis-ci.org/abhinavsingh/proxy.py/)
 
 Features
 --------
 
 - Distributed as a single file module
 - No external dependency other than standard Python library
-- Support for `http`, `https` and `websockets` request proxy
+- Support for `http`, `https`, `http2` and `websockets` request proxy
 - Optimize for large file uploads and downloads
 - IPv4 and IPv6 support
 - Basic authentication support
-- Can serve a PAC (Proxy Autoconfiguration) file
+- Can serve a [PAC (Proxy Auto-configuration)](https://en.wikipedia.org/wiki/Proxy_auto-config) file
 
 Install
 -------
