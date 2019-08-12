@@ -8,14 +8,16 @@
     :copyright: (c) 2013-2018 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
+import multiprocessing
 import sys
 import base64
 import socket
 import logging
 import unittest
+from unittest.mock import patch, Mock
 from threading import Thread
 from contextlib import closing
-from proxy import HTTPProxy, ChunkParser, HttpParser, TCPClientConnection
+from proxy import HTTPProxy, ChunkParser, HttpParser, TCPClientConnection, HTTPServer, Worker, main
 from proxy import ProxyAuthenticationFailed, ProxyConnectionFailed
 from proxy import CRLF, version, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
@@ -591,6 +593,36 @@ class TestProxy(unittest.TestCase):
 
         self.assertEqual(parser.state, HttpParser.states.COMPLETE)
         self.assertEqual(int(parser.code), 200)
+
+
+class TestWorker(unittest.TestCase):
+
+    def setUp(self):
+        self.queue = multiprocessing.Queue()
+        self.worker = Worker(self.queue)
+
+    @patch('proxy.HTTPProxy')
+    def test_shutdown_op(self, mock_http_proxy):
+        self.queue.put((Worker.operations.SHUTDOWN, None))
+        self.worker.run()   # Worker should consume the prior shutdown operation
+        self.assertFalse(mock_http_proxy.called)
+
+    @patch('proxy.HTTPProxy')
+    def test_spawns_http_proxy_threads(self, mock_http_proxy):
+        self.queue.put((Worker.operations.DEFAULT, None))
+        self.queue.put((Worker.operations.SHUTDOWN, None))
+        self.worker.run()
+        self.assertTrue(mock_http_proxy.called)
+
+
+class TestMain(unittest.TestCase):
+
+    @patch('proxy.set_open_file_limit')
+    @patch('proxy.HTTPServer')
+    def test_http_server_called(self, mock_set_open_file_limit, mock_http_server):
+        main()
+        self.assertTrue(mock_set_open_file_limit.called)
+        self.assertTrue(mock_http_server.called)
 
 
 if __name__ == '__main__':
