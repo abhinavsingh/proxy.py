@@ -4,7 +4,7 @@
     proxy.py
     ~~~~~~~~
 
-    HTTP Proxy Server in Python.
+    HTTP, HTTPS, HTTP2 and WebSockets Proxy Server in Python.
 
     :copyright: (c) 2013-2020 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
@@ -13,6 +13,7 @@ import argparse
 import base64
 import datetime
 import errno
+import importlib
 import logging
 import multiprocessing
 import os
@@ -62,6 +63,7 @@ DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
 DEFAULT_NUM_WORKERS = 0
+DEFAULT_PLUGINS = []
 
 
 def text_(s, encoding='utf-8', errors='strict'):  # pragma: no cover
@@ -93,23 +95,6 @@ PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = CRLF.join([
     PROXY_AGENT_HEADER,
     CRLF
 ])
-
-BAD_GATEWAY_RESPONSE_PKT = CRLF.join([
-    b'HTTP/1.1 502 Bad Gateway',
-    PROXY_AGENT_HEADER,
-    b'Content-Length: 11',
-    b'Connection: close',
-    CRLF
-]) + b'Bad Gateway'
-
-PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT = CRLF.join([
-    b'HTTP/1.1 407 Proxy Authentication Required',
-    PROXY_AGENT_HEADER,
-    b'Content-Length: 29',
-    b'Connection: close',
-    b'Proxy-Authenticate: Basic',
-    CRLF
-]) + b'Proxy Authentication Required'
 
 PAC_FILE_RESPONSE_PREFIX = CRLF.join([
     b'HTTP/1.1 200 OK',
@@ -351,7 +336,7 @@ class HttpParser(object):
         return line, data
 
 
-class TCPConnection(object):
+class TcpConnection(object):
     """TCP server/client connection abstraction."""
 
     def __init__(self, what):
@@ -399,11 +384,11 @@ class TCPConnection(object):
         logger.debug('flushed %d bytes to %s' % (sent, self.what))
 
 
-class TCPServerConnection(TCPConnection):
+class TcpServerConnection(TcpConnection):
     """Establish connection to destination server."""
 
     def __init__(self, host, port):
-        super(TCPServerConnection, self).__init__(b'server')
+        super(TcpServerConnection, self).__init__(b'server')
         self.addr = (host, int(port))
 
     def __del__(self):
@@ -414,43 +399,118 @@ class TCPServerConnection(TCPConnection):
         self.conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 
-class TCPClientConnection(TCPConnection):
+class TcpClientConnection(TcpConnection):
     """Accepted client connection."""
 
     def __init__(self, conn, addr):
-        super(TCPClientConnection, self).__init__(b'client')
+        super(TcpClientConnection, self).__init__(b'client')
         self.conn = conn
         self.addr = addr
 
 
 class ProxyError(Exception):
-    pass
+    """Top level ProxyError exception class.
+
+    All exceptions raised during execution of request lifecycle MUST inherit ProxyError base class.
+
+    Implement response() method to optionally return custom response to client."""
+
+    def __init__(self):
+        pass
+
+    def response(self, request):
+        pass
 
 
 class ProxyConnectionFailed(ProxyError):
+    """Exception raised when we are unable to establish connection to upstream server."""
+
+    RESPONSE_PKT = CRLF.join([
+        b'HTTP/1.1 502 Bad Gateway',
+        PROXY_AGENT_HEADER,
+        b'Content-Length: 11',
+        b'Connection: close',
+        CRLF
+    ]) + b'Bad Gateway'
 
     def __init__(self, host, port, reason):
         self.host = host
         self.port = port
         self.reason = reason
 
+    def response(self, _request):
+        return self.RESPONSE_PKT
+
     def __str__(self):
         return '<ProxyConnectionFailed - %s:%s - %s>' % (self.host, self.port, self.reason)
 
 
 class ProxyAuthenticationFailed(ProxyError):
-    pass
+    """Exception raised when authentication is enabled and incoming request doesn't present necessary credentials."""
+
+    RESPONSE_PKT = CRLF.join([
+        b'HTTP/1.1 407 Proxy Authentication Required',
+        PROXY_AGENT_HEADER,
+        b'Content-Length: 29',
+        b'Connection: close',
+        b'Proxy-Authenticate: Basic',
+        CRLF
+    ]) + b'Proxy Authentication Required'
+
+    def response(self, _request):
+        return self.RESPONSE_PKT
 
 
-class HTTPProxy(threading.Thread):
+class ProxyRejectRequest(ProxyError):
+    """Generic exception which can be used to reject client requests.
+
+    Connections can either be dropped/closed or optionally an HTTP status code can also be returned."""
+
+    def __init__(self, status_code=None, body=None):
+        super(ProxyRejectRequest, self).__init__()
+
+        self.status_code = status_code
+        self.body = body
+
+    def response(self, _request):
+        pkt = []
+        if self.status_code:
+            pkt.append(b'HTTP/1.1 ' + self.status_code)
+            pkt.append(PROXY_AGENT_HEADER)
+        if self.body:
+            pkt.append(b'Content-Length: ' + bytes(len(self.body)))
+            pkt.append(CRLF)
+            pkt.append(self.body)
+        return CRLF.join(pkt) if len(pkt) > 0 else None
+
+
+class HttpProxyPlugin(object):
+    """Base HttpProxy Plugin class."""
+
+    def __init__(self):
+        pass
+
+    def handle_request(self, request):
+        """Handle client request (HttpParser).
+
+        Return optionally modified client request (HttpParser) object.
+        """
+        return request
+
+    def handle_response(self, data):
+        """Handle data chunks as received from the server."""
+        return data
+
+
+class HttpProxy(threading.Thread):
     """HTTP proxy implementation.
 
     Accepts `Client` connection object and act as a proxy between client and server.
     """
 
     def __init__(self, client, auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
-                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE):
-        super(HTTPProxy, self).__init__()
+                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE, plugins=DEFAULT_PLUGINS):
+        super(HttpProxy, self).__init__()
 
         self.start_time = self._now()
         self.last_activity = self.start_time
@@ -465,6 +525,7 @@ class HTTPProxy(threading.Thread):
         self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
 
         self.pac_file = pac_file
+        self.plugins = plugins
 
     @staticmethod
     def _now():
@@ -493,6 +554,10 @@ class HTTPProxy(threading.Thread):
         if self.request.state == HttpParser.states.COMPLETE:
             logger.debug('request parser is in state complete')
 
+            # Plugin handle_request
+            for plugin in self.plugins:
+                self.request = plugin.handle_request(self.request)
+
             if self.auth_code:
                 if b'proxy-authorization' not in self.request.headers or \
                         self.request.headers[b'proxy-authorization'][1] != self.auth_code:
@@ -509,7 +574,7 @@ class HTTPProxy(threading.Thread):
                 self._serve_pac_file()
                 return True
 
-            self.server = TCPServerConnection(host, port)
+            self.server = TcpServerConnection(host, port)
             try:
                 logger.debug('connecting to server %s:%s' % (host, port))
                 self.server.connect()
@@ -582,10 +647,12 @@ class HTTPProxy(threading.Thread):
 
             try:
                 return self._process_request(data)
-            except (ProxyAuthenticationFailed, ProxyConnectionFailed) as e:
+            except (ProxyAuthenticationFailed, ProxyConnectionFailed, ProxyRejectRequest) as e:
                 logger.exception(e)
-                self.client.queue(HTTPProxy._get_response_pkt_by_exception(e))
-                self.client.flush()
+                response = e.response(self.request)
+                if response:
+                    self.client.queue(response)
+                    self.client.flush()
                 return True
 
         if self.server and not self.server.closed and self.server.conn in r:
@@ -633,13 +700,6 @@ class HTTPProxy(threading.Thread):
                     logger.debug('client buffer is empty and maximum inactivity has reached, breaking')
                     break
 
-    @staticmethod
-    def _get_response_pkt_by_exception(e):
-        if e.__class__.__name__ == 'ProxyAuthenticationFailed':
-            return PROXY_AUTHENTICATION_REQUIRED_RESPONSE_PKT
-        if e.__class__.__name__ == 'ProxyConnectionFailed':
-            return BAD_GATEWAY_RESPONSE_PKT
-
     def run(self):
         logger.debug('Proxying connection %r' % self.client.conn)
         try:
@@ -659,10 +719,10 @@ class HTTPProxy(threading.Thread):
             logger.debug('Closing proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
 
 
-class TCPServer(object):
-    """TCPServer server implementation.
+class TcpServer(object):
+    """TcpServer server implementation.
 
-    Inheritor MUST implement `handle` method. It accepts an instance of `TCPClientConnection`.
+    Inheritor MUST implement `handle` method. It accepts an instance of `TcpClientConnection`.
     Optionally, can also implement `setup` and `shutdown` methods for custom bootstrapping and teardown.
     """
 
@@ -692,7 +752,7 @@ class TCPServer(object):
             logger.info('Started server on port %d' % self.port)
             while True:
                 conn, addr = self.socket.accept()
-                client = TCPClientConnection(conn, addr)
+                client = TcpClientConnection(conn, addr)
                 self.handle(client)
         except Exception as e:
             logger.exception('Exception while running the server %r' % e)
@@ -702,10 +762,10 @@ class TCPServer(object):
             self.socket.close()
 
 
-class HTTPServer(TCPServer):
+class HttpServer(TcpServer):
     """HTTP server implementation.
 
-    Pre-spawns worker process to utilize all cores available on the system.  Accepted `TCPClientConnection` is
+    Pre-spawns worker process to utilize all cores available on the system.  Accepted `TcpClientConnection` is
     dispatched over a queue to workers.  One of the worker picks up the work and starts a new thread to handle the
     client request.
     """
@@ -713,8 +773,9 @@ class HTTPServer(TCPServer):
     def __init__(self, hostname=DEFAULT_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG,
                  num_workers=DEFAULT_NUM_WORKERS,
                  auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
-                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE, ipv4=DEFAULT_IPV4):
-        super(HTTPServer, self).__init__(hostname, port, backlog, ipv4)
+                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE, ipv4=DEFAULT_IPV4,
+                 plugins=DEFAULT_PLUGINS):
+        super(HttpServer, self).__init__(hostname, port, backlog, ipv4)
         self.auth_code = auth_code
         self.client_recvbuf_size = client_recvbuf_size
         self.server_recvbuf_size = server_recvbuf_size
@@ -726,11 +787,13 @@ class HTTPServer(TCPServer):
             self.num_workers = num_workers
         self.workers = []
 
+        self.plugins = plugins
+
     def setup(self):
         logger.info('Starting %d workers' % self.num_workers)
         for worker_id in range(self.num_workers):
             worker = Worker(self.worker_queue, auth_code=self.auth_code, server_recvbuf_size=self.server_recvbuf_size,
-                            client_recvbuf_size=self.client_recvbuf_size, pac_file=self.pac_file)
+                            client_recvbuf_size=self.client_recvbuf_size, pac_file=self.pac_file, plugins=self.plugins)
             worker.daemon = True
             worker.start()
             self.workers.append(worker)
@@ -759,24 +822,26 @@ class Worker(multiprocessing.Process):
     ))(1, 2)
 
     def __init__(self, work_queue, auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
-                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE):
+                 client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE, plugins=DEFAULT_PLUGINS):
         super(Worker, self).__init__()
         self.work_queue = work_queue
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
         self.pac_file = pac_file
+        self.plugins = plugins
 
     def run(self):
         while True:
             try:
                 op, payload = self.work_queue.get(True, 1)
                 if op == Worker.operations.DEFAULT:
-                    proxy = HTTPProxy(payload,
+                    proxy = HttpProxy(payload,
                                       auth_code=self.auth_code,
                                       server_recvbuf_size=self.server_recvbuf_size,
                                       client_recvbuf_size=self.client_recvbuf_size,
-                                      pac_file=self.pac_file)
+                                      pac_file=self.pac_file,
+                                      plugins=self.plugins)
                     proxy.daemon = True
                     proxy.start()
                 elif op == Worker.operations.SHUTDOWN:
@@ -799,7 +864,7 @@ def set_open_file_limit(soft_limit):
             logger.debug('Open file descriptor soft limit set to %d' % soft_limit)
 
 
-def parse_args(args):
+def init_parser():
     parser = argparse.ArgumentParser(
         description='proxy.py v%s' % __version__,
         epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
@@ -832,6 +897,7 @@ def parse_args(args):
     parser.add_argument('--pac-file', type=str, default=DEFAULT_PAC_FILE,
                         help='A file (Proxy Auto Configuration) or string to serve when '
                              'the server receives a direct file request.')
+    parser.add_argument('--plugins', type=str, default=None, help='Comma separated plugins')
     parser.add_argument('--server-recvbuf-size', type=int, default=DEFAULT_SERVER_RECVBUF_SIZE,
                         help='Default: 8 KB. Maximum amount of data received from the '
                              'server in a single recv() operation. Bump this '
@@ -839,11 +905,25 @@ def parse_args(args):
                              'increased RAM.')
     parser.add_argument('--num-workers', type=int, default=DEFAULT_NUM_WORKERS,
                         help='Defaults to number of CPU cores.')
-    return parser.parse_args(args)
+    return parser
+
+
+def load_plugins(plugins):
+    p = []
+    plugins = plugins.split(',')
+    for plugin in plugins:
+        module_name, klass_name = plugin.rsplit('.', 1)
+        module = importlib.import_module(module_name)
+        klass = getattr(module, klass_name)
+        logging.info('%s initialized' % klass.__name__)
+        p.append(klass())
+    return p
 
 
 def main():
-    args = parse_args(sys.argv[1:])
+    parser = init_parser()
+    args = parser.parse_args(sys.argv[1:])
+
     logging.basicConfig(level=getattr(logging,
                                       {
                                           'D': 'DEBUG',
@@ -853,6 +933,8 @@ def main():
                                           'C': 'CRITICAL'
                                       }[args.log_level.upper()[0]]),
                         format='%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s')
+
+    plugins = load_plugins(args.plugins) if args.plugins else DEFAULT_PLUGINS
 
     if not PY3:
         logging.error('"develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
@@ -867,7 +949,7 @@ def main():
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        server = HTTPServer(hostname=args.hostname,
+        server = HttpServer(hostname=args.hostname,
                             port=args.port,
                             backlog=args.backlog,
                             auth_code=auth_code,
@@ -875,7 +957,8 @@ def main():
                             client_recvbuf_size=args.client_recvbuf_size,
                             pac_file=args.pac_file,
                             ipv4=args.ipv4,
-                            num_workers=args.num_workers)
+                            num_workers=args.num_workers,
+                            plugins=plugins)
         server.run()
     except KeyboardInterrupt:
         pass
