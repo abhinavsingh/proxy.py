@@ -19,7 +19,7 @@ clean:
 	rm -rf dist
 
 test:
-	python tests.py -v
+	python tests.py
 
 package: clean
 	python setup.py sdist bdist_wheel
