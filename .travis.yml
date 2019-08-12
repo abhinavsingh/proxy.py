@@ -1,6 +1,7 @@
 language: python
 python:
-  - "2.7"
+  # Disable 2.7 since proxy.py will not support this in future
+  # - "2.7"
   # Disabled due to test failures like:
   # TypeError: unsupported operand type(s) for %: 'bytes' and 'bytes'
   # Needs explicit conversion to bytes after string formatting.
