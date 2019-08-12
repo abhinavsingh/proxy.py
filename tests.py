@@ -14,10 +14,10 @@ import base64
 import socket
 import logging
 import unittest
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from threading import Thread
 from contextlib import closing
-from proxy import HTTPProxy, ChunkParser, HttpParser, TCPClientConnection, HTTPServer, Worker, main
+from proxy import HttpProxy, ChunkParser, HttpParser, TcpClientConnection, HttpServer, Worker, main
 from proxy import ProxyAuthenticationFailed, ProxyConnectionFailed
 from proxy import CRLF, version, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
@@ -425,7 +425,7 @@ class TestProxy(unittest.TestCase):
     def setUp(self):
         self._conn = MockConnection()
         self._addr = ('127.0.0.1', 54382)
-        self.proxy = HTTPProxy(TCPClientConnection(self._conn, self._addr))
+        self.proxy = HttpProxy(TcpClientConnection(self._conn, self._addr))
 
     def test_http_get(self):
         # Send request line
@@ -508,7 +508,7 @@ class TestProxy(unittest.TestCase):
             ]))
 
     def test_proxy_authentication_failed(self):
-        self.proxy = HTTPProxy(TCPClientConnection(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
+        self.proxy = HttpProxy(TcpClientConnection(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
 
         with self.assertRaises(ProxyAuthenticationFailed):
             self.proxy._process_request(CRLF.join([
@@ -518,7 +518,7 @@ class TestProxy(unittest.TestCase):
             ]))
 
     def test_authenticated_proxy_http_get(self):
-        self.proxy = HTTPProxy(TCPClientConnection(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
+        self.proxy = HttpProxy(TcpClientConnection(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
 
         self.proxy.client.conn.queue((b'GET http://localhost:%d HTTP/1.1' % self.http_server_port) + CRLF)
         self.proxy._process_request(self.proxy.client.recv())
@@ -551,7 +551,7 @@ class TestProxy(unittest.TestCase):
         self.assertEqual(int(self.proxy.response.code), 200)
 
     def test_authenticated_proxy_http_tunnel(self):
-        self.proxy = HTTPProxy(TCPClientConnection(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
+        self.proxy = HttpProxy(TcpClientConnection(self._conn, self._addr), b'Basic %s' % base64.b64encode(b'user:pass'))
 
         self.proxy.client.conn.queue(CRLF.join([
             b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
@@ -601,13 +601,13 @@ class TestWorker(unittest.TestCase):
         self.queue = multiprocessing.Queue()
         self.worker = Worker(self.queue)
 
-    @patch('proxy.HTTPProxy')
+    @patch('proxy.HttpProxy')
     def test_shutdown_op(self, mock_http_proxy):
         self.queue.put((Worker.operations.SHUTDOWN, None))
         self.worker.run()   # Worker should consume the prior shutdown operation
         self.assertFalse(mock_http_proxy.called)
 
-    @patch('proxy.HTTPProxy')
+    @patch('proxy.HttpProxy')
     def test_spawns_http_proxy_threads(self, mock_http_proxy):
         self.queue.put((Worker.operations.DEFAULT, None))
         self.queue.put((Worker.operations.SHUTDOWN, None))
@@ -618,7 +618,7 @@ class TestWorker(unittest.TestCase):
 class TestMain(unittest.TestCase):
 
     @patch('proxy.set_open_file_limit')
-    @patch('proxy.HTTPServer')
+    @patch('proxy.HttpServer')
     def test_http_server_called(self, mock_set_open_file_limit, mock_http_server):
         main()
         self.assertTrue(mock_set_open_file_limit.called)

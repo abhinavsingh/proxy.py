@@ -4,7 +4,7 @@
     proxy.py
     ~~~~~~~~
 
-    HTTP Proxy Server in Python.
+    HTTP, HTTPS, HTTP2 and WebSockets Proxy Server in Python.
 
     :copyright: (c) 2013-2020 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
@@ -351,7 +351,7 @@ class HttpParser(object):
         return line, data
 
 
-class TCPConnection(object):
+class TcpConnection(object):
     """TCP server/client connection abstraction."""
 
     def __init__(self, what):
@@ -399,11 +399,11 @@ class TCPConnection(object):
         logger.debug('flushed %d bytes to %s' % (sent, self.what))
 
 
-class TCPServerConnection(TCPConnection):
+class TcpServerConnection(TcpConnection):
     """Establish connection to destination server."""
 
     def __init__(self, host, port):
-        super(TCPServerConnection, self).__init__(b'server')
+        super(TcpServerConnection, self).__init__(b'server')
         self.addr = (host, int(port))
 
     def __del__(self):
@@ -414,11 +414,11 @@ class TCPServerConnection(TCPConnection):
         self.conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 
-class TCPClientConnection(TCPConnection):
+class TcpClientConnection(TcpConnection):
     """Accepted client connection."""
 
     def __init__(self, conn, addr):
-        super(TCPClientConnection, self).__init__(b'client')
+        super(TcpClientConnection, self).__init__(b'client')
         self.conn = conn
         self.addr = addr
 
@@ -442,7 +442,7 @@ class ProxyAuthenticationFailed(ProxyError):
     pass
 
 
-class HTTPProxy(threading.Thread):
+class HttpProxy(threading.Thread):
     """HTTP proxy implementation.
 
     Accepts `Client` connection object and act as a proxy between client and server.
@@ -450,7 +450,7 @@ class HTTPProxy(threading.Thread):
 
     def __init__(self, client, auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
                  client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE):
-        super(HTTPProxy, self).__init__()
+        super(HttpProxy, self).__init__()
 
         self.start_time = self._now()
         self.last_activity = self.start_time
@@ -509,7 +509,7 @@ class HTTPProxy(threading.Thread):
                 self._serve_pac_file()
                 return True
 
-            self.server = TCPServerConnection(host, port)
+            self.server = TcpServerConnection(host, port)
             try:
                 logger.debug('connecting to server %s:%s' % (host, port))
                 self.server.connect()
@@ -584,7 +584,7 @@ class HTTPProxy(threading.Thread):
                 return self._process_request(data)
             except (ProxyAuthenticationFailed, ProxyConnectionFailed) as e:
                 logger.exception(e)
-                self.client.queue(HTTPProxy._get_response_pkt_by_exception(e))
+                self.client.queue(HttpProxy._get_response_pkt_by_exception(e))
                 self.client.flush()
                 return True
 
@@ -659,10 +659,10 @@ class HTTPProxy(threading.Thread):
             logger.debug('Closing proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
 
 
-class TCPServer(object):
-    """TCPServer server implementation.
+class TcpServer(object):
+    """TcpServer server implementation.
 
-    Inheritor MUST implement `handle` method. It accepts an instance of `TCPClientConnection`.
+    Inheritor MUST implement `handle` method. It accepts an instance of `TcpClientConnection`.
     Optionally, can also implement `setup` and `shutdown` methods for custom bootstrapping and teardown.
     """
 
@@ -692,7 +692,7 @@ class TCPServer(object):
             logger.info('Started server on port %d' % self.port)
             while True:
                 conn, addr = self.socket.accept()
-                client = TCPClientConnection(conn, addr)
+                client = TcpClientConnection(conn, addr)
                 self.handle(client)
         except Exception as e:
             logger.exception('Exception while running the server %r' % e)
@@ -702,10 +702,10 @@ class TCPServer(object):
             self.socket.close()
 
 
-class HTTPServer(TCPServer):
+class HttpServer(TcpServer):
     """HTTP server implementation.
 
-    Pre-spawns worker process to utilize all cores available on the system.  Accepted `TCPClientConnection` is
+    Pre-spawns worker process to utilize all cores available on the system.  Accepted `TcpClientConnection` is
     dispatched over a queue to workers.  One of the worker picks up the work and starts a new thread to handle the
     client request.
     """
@@ -714,7 +714,7 @@ class HTTPServer(TCPServer):
                  num_workers=DEFAULT_NUM_WORKERS,
                  auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
                  client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE, ipv4=DEFAULT_IPV4):
-        super(HTTPServer, self).__init__(hostname, port, backlog, ipv4)
+        super(HttpServer, self).__init__(hostname, port, backlog, ipv4)
         self.auth_code = auth_code
         self.client_recvbuf_size = client_recvbuf_size
         self.server_recvbuf_size = server_recvbuf_size
@@ -772,7 +772,7 @@ class Worker(multiprocessing.Process):
             try:
                 op, payload = self.work_queue.get(True, 1)
                 if op == Worker.operations.DEFAULT:
-                    proxy = HTTPProxy(payload,
+                    proxy = HttpProxy(payload,
                                       auth_code=self.auth_code,
                                       server_recvbuf_size=self.server_recvbuf_size,
                                       client_recvbuf_size=self.client_recvbuf_size,
@@ -867,7 +867,7 @@ def main():
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        server = HTTPServer(hostname=args.hostname,
+        server = HttpServer(hostname=args.hostname,
                             port=args.port,
                             backlog=args.backlog,
                             auth_code=auth_code,
