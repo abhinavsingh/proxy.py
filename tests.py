@@ -3,9 +3,9 @@
     proxy.py
     ~~~~~~~~
 
-    HTTP Proxy Server in Python.
+    HTTP, HTTPS, HTTP2 and WebSockets Proxy Server in Python.
 
-    :copyright: (c) 2013-2018 by Abhinav Singh.
+    :copyright: (c) 2013-2020 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
 import os
@@ -21,8 +21,8 @@ from threading import Thread
 
 import proxy
 
-# logging.basicConfig(level=logging.DEBUG,
-#                     format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
 if sys.version_info[0] == 3:  # Python3 specific imports
     from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -123,7 +123,7 @@ class TestMultiCoreRequestDispatcher(unittest.TestCase):
     tcp_server = None
     tcp_thread = None
 
-    @mock.patch.object(proxy, 'HttpProxy', side_effect=mock_tcp_proxy_side_effect)
+    @mock.patch.object(proxy, 'HttpProtocolHandler', side_effect=mock_tcp_proxy_side_effect)
     def testHttpProxyConnection(self, mock_tcp_proxy):
         try:
             self.tcp_port = get_available_port()
@@ -523,6 +523,7 @@ class TestProxy(unittest.TestCase):
     http_server = None
     http_server_port = None
     http_server_thread = None
+    config = None
 
     @classmethod
     def setUpClass(cls):
@@ -531,6 +532,8 @@ class TestProxy(unittest.TestCase):
         cls.http_server_thread = Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.setDaemon(True)
         cls.http_server_thread.start()
+        cls.config = proxy.HttpProtocolConfig()
+        cls.config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
     @classmethod
     def tearDownClass(cls):
@@ -541,7 +544,7 @@ class TestProxy(unittest.TestCase):
     def setUp(self):
         self._conn = MockTcpConnection()
         self._addr = ('127.0.0.1', 54382)
-        self.proxy = proxy.HttpProxy(proxy.TcpClientConnection(self._conn, self._addr))
+        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr), config=self.config)
 
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
@@ -610,7 +613,7 @@ class TestProxy(unittest.TestCase):
             proxy.CRLF
         ]))
         self.proxy.run_once()
-        self.assertFalse(self.proxy.server is None)
+        self.assertFalse(self.proxy.plugins['HttpProxyPlugin'].server is None)
         self.assertEqual(self.proxy.client.buffer, proxy.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
@@ -659,9 +662,10 @@ class TestProxy(unittest.TestCase):
     @mock.patch('select.select')
     def test_proxy_authentication_failed(self, mock_select):
         mock_select.return_value = ([self._conn], [], [])
-        self.proxy = proxy.HttpProxy(proxy.TcpClientConnection(self._conn, self._addr),
-                                     config=proxy.HttpProxyConfig(
-                                         auth_code=b'Basic %s' % base64.b64encode(b'user:pass')))
+        config = proxy.HttpProtocolConfig(auth_code=b'Basic %s' % base64.b64encode(b'user:pass'))
+        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
+                                               config=config)
         self.proxy.client.conn.queue(proxy.CRLF.join([
             b'GET http://abhinavsingh.com HTTP/1.1',
             b'Host: abhinavsingh.com',
@@ -673,14 +677,15 @@ class TestProxy(unittest.TestCase):
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
     def test_authenticated_proxy_http_get(self, mock_server_connection, mock_select):
-        client = proxy.TcpClientConnection(self._conn, self._addr)
-        config = proxy.HttpProxyConfig(auth_code=b'Basic %s' % base64.b64encode(b'user:pass'))
-
         mock_select.return_value = ([self._conn], [], [])
         server = mock_server_connection.return_value
         server.connect.return_value = True
 
-        self.proxy = proxy.HttpProxy(client, config=config)
+        client = proxy.TcpClientConnection(self._conn, self._addr)
+        config = proxy.HttpProtocolConfig(auth_code=b'Basic %s' % base64.b64encode(b'user:pass'))
+        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+
+        self.proxy = proxy.HttpProtocolHandler(client, config=config)
         self.proxy.client.conn.queue(b'GET http://localhost:%d HTTP/1.1' % self.http_server_port)
         self.proxy.run_once()
         self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.INITIALIZED)
@@ -731,9 +736,10 @@ class TestProxy(unittest.TestCase):
         server.connect.return_value = True
         mock_select.side_effect = [([self._conn], [], []), ([self._conn], [], []), ([], [server.conn], [])]
 
-        self.proxy = proxy.HttpProxy(proxy.TcpClientConnection(self._conn, self._addr),
-                                     config=proxy.HttpProxyConfig(
-                                         auth_code=b'Basic %s' % base64.b64encode(b'user:pass')))
+        config = proxy.HttpProtocolConfig(auth_code=b'Basic %s' % base64.b64encode(b'user:pass'))
+        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
+                                               config=config)
         self.proxy.client.conn.queue(proxy.CRLF.join([
             b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
             b'Host: localhost:%d' % self.http_server_port,
@@ -743,7 +749,7 @@ class TestProxy(unittest.TestCase):
             proxy.CRLF
         ]))
         self.proxy.run_once()
-        self.assertFalse(self.proxy.server is None)
+        self.assertFalse(self.proxy.plugins['HttpProxyPlugin'].server is None)
         self.assertEqual(self.proxy.client.buffer, proxy.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
@@ -780,15 +786,15 @@ class TestWorker(unittest.TestCase):
         self.queue = multiprocessing.Queue()
         self.worker = proxy.Worker(self.queue)
 
-    @mock.patch('proxy.HttpProxy')
+    @mock.patch('proxy.HttpProtocolHandler')
     def test_shutdown_op(self, mock_http_proxy):
         self.queue.put((proxy.Worker.operations.SHUTDOWN, None))
         self.worker.run()  # Worker should consume the prior shutdown operation
         self.assertFalse(mock_http_proxy.called)
 
-    @mock.patch('proxy.HttpProxy')
+    @mock.patch('proxy.HttpProtocolHandler')
     def test_spawns_http_proxy_threads(self, mock_http_proxy):
-        self.queue.put((proxy.Worker.operations.HTTP_PROXY, None))
+        self.queue.put((proxy.Worker.operations.HTTP_PROTOCOL, None))
         self.queue.put((proxy.Worker.operations.SHUTDOWN, None))
         self.worker.run()
         self.assertTrue(mock_http_proxy.called)
