@@ -552,86 +552,6 @@ class HttpProxy(threading.Thread):
     def is_connection_inactive(self):
         return self.connection_inactive_for() > 30
 
-    def process_request(self, data):
-        """Return True to teardown proxy connection."""
-        # once we have connection to the server
-        # we don't parse the http request packets
-        # any further, instead just pipe incoming
-        # data from client to server
-        if self.server and not self.server.closed:
-            self.server.queue(data)
-            return False
-
-        # parse http request
-        self.request.parse(data)
-
-        # once http request parser has reached the state complete
-        # we attempt to establish connection to destination server
-        if self.request.state == HttpParser.states.COMPLETE:
-            logger.debug('request parser is in state complete')
-
-            # Plugin handle_request
-            for plugin in self.config.plugins:
-                self.request = plugin.handle_request(self.request)
-
-            if self.config.auth_code:
-                if b'proxy-authorization' not in self.request.headers or \
-                        self.request.headers[b'proxy-authorization'][1] != self.config.auth_code:
-                    raise ProxyAuthenticationFailed()
-
-            if self.request.method == b'CONNECT':
-                host, port = self.request.url.path.split(COLON)
-            elif self.request.url:
-                host, port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
-            else:
-                raise Exception('Invalid request\n%s' % self.request.raw)
-
-            if host is None and self.config.pac_file:
-                self.serve_pac_file()
-                return True
-
-            self.server = TcpServerConnection(host, port)
-            try:
-                logger.debug('connecting to server %s:%s' % (host, port))
-                self.server.connect()
-                logger.debug('connected to server %s:%s' % (host, port))
-            except Exception as e:  # TimeoutError, socket.gaierror
-                self.server.closed = True
-                raise ProxyConnectionFailed(host, port, repr(e))
-
-            # for http connect methods (https requests)
-            # queue appropriate response for client
-            # notifying about established connection
-            if self.request.method == b'CONNECT':
-                self.client.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-            # for usual http requests, re-build request packet
-            # and queue for the server with appropriate headers
-            else:
-                self.server.queue(self.request.build(
-                    del_headers=[b'proxy-authorization', b'proxy-connection', b'connection', b'keep-alive'],
-                    add_headers=[(b'Via', b'1.1 proxy.py v%s' % version), (b'Connection', b'Close')]
-                ))
-
-    def process_response(self, data):
-        # parse incoming response packet
-        # only for non-https requests
-        if not self.request.method == b'CONNECT':
-            self.response.parse(data)
-
-        # queue data for client
-        self.client.queue(data)
-
-    def access_log(self):
-        host, port = self.server.addr if self.server else (None, None)
-        if self.request.method == b'CONNECT':
-            logger.info(
-                '%s:%s - %s %s:%s' % (self.client.addr[0], self.client.addr[1], self.request.method, host, port))
-        elif self.request.method:
-            logger.info('%s:%s - %s %s:%s%s - %s %s - %s bytes' % (
-                self.client.addr[0], self.client.addr[1], text_(self.request.method), text_(host), port,
-                text_(self.request.build_url()), text_(self.response.code), text_(self.response.reason),
-                len(self.response.raw)))
-
     def serve_pac_file(self):
         self.client.queue(PAC_FILE_RESPONSE_PREFIX)
         try:
@@ -643,64 +563,144 @@ class HttpProxy(threading.Thread):
             self.client.queue(self.config.pac_file)
         self.client.flush()
 
+    def access_log(self):
+        host, port = self.server.addr if self.server else (None, None)
+        if self.request.method == b'CONNECT':
+            logger.info(
+                '%s:%s - %s %s:%s - %s bytes' % (self.client.addr[0], self.client.addr[1],
+                                                 text_(self.request.method), text_(host),
+                                                 text_(port), len(self.response.raw)))
+        elif self.request.method:
+            logger.info('%s:%s - %s %s:%s%s - %s %s - %s bytes' % (
+                self.client.addr[0], self.client.addr[1], text_(self.request.method), text_(host), port,
+                text_(self.request.build_url()), text_(self.response.code), text_(self.response.reason),
+                len(self.response.raw)))
+
+    def run_once(self):
+        """Returns True if proxy must teardown."""
+        # Prepare list of descriptors
+        rlist, wlist, xlist = [self.client.conn], [], []
+        if self.client.has_buffer():
+            wlist.append(self.client.conn)
+        if self.server and not self.server.closed:
+            rlist.append(self.server.conn)
+        if self.server and not self.server.closed and self.server.has_buffer():
+            wlist.append(self.server.conn)
+
+        r, w, x = select.select(rlist, wlist, xlist, 1)
+
+        # Flush buffer from ready to write sockets
+        if self.client.conn in w:
+            logger.debug('Client is ready for writes, flushing client buffer')
+            self.client.flush()
+        if self.server and not self.server.closed and self.server.conn in w:
+            logger.debug('Server is ready for writes, flushing server buffer')
+            self.server.flush()
+
+        # Read from ready to read sockets
+        if self.client.conn in r:
+            logger.debug('Client is ready for reads, reading')
+            data = self.client.recv(self.config.client_recvbuf_size)
+            self.last_activity = self.now()
+            if not data:
+                logger.debug('Client closed connection, tearing down...')
+                return True
+            try:
+                # Once we have connection to the server
+                # we don't parse the http request packets
+                # any further, instead just pipe incoming
+                # data from client to server
+                if self.server and not self.server.closed:
+                    self.server.queue(data)
+                else:
+                    # Parse http request
+                    self.request.parse(data)
+                    if self.request.state == HttpParser.states.COMPLETE:
+                        logger.debug('Request parser is in state complete')
+
+                        if self.config.auth_code:
+                            if b'proxy-authorization' not in self.request.headers or \
+                                    self.request.headers[b'proxy-authorization'][1] != self.config.auth_code:
+                                raise ProxyAuthenticationFailed()
+
+                        # Invoke HttpProxyPlugin.handle_request
+                        for plugin in self.config.plugins:
+                            self.request = plugin.handle_request(self.request)
+
+                        if self.request.method == b'CONNECT':
+                            host, port = self.request.url.path.split(COLON)
+                        elif self.request.url:
+                            host, port = self.request.url.hostname, self.request.url.port \
+                                if self.request.url.port else 80
+                        else:
+                            raise Exception('Invalid request\n%s' % self.request.raw)
+
+                        if host is None and self.config.pac_file:
+                            self.serve_pac_file()
+                            return True
+
+                        self.server = TcpServerConnection(host, port)
+                        try:
+                            logger.debug('Connecting to server %s:%s' % (host, port))
+                            self.server.connect()
+                            logger.debug('Connected to server %s:%s' % (host, port))
+                        except Exception as e:  # TimeoutError, socket.gaierror
+                            self.server.closed = True
+                            raise ProxyConnectionFailed(host, port, repr(e))
+
+                        # for http connect methods (https requests)
+                        # queue appropriate response for client
+                        # notifying about established connection
+                        if self.request.method == b'CONNECT':
+                            self.client.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+                        # for usual http requests, re-build request packet
+                        # and queue for the server with appropriate headers
+                        else:
+                            self.server.queue(self.request.build(
+                                del_headers=[b'proxy-authorization', b'proxy-connection', b'connection',
+                                             b'keep-alive'],
+                                add_headers=[(b'Via', b'1.1 proxy.py v%s' % version), (b'Connection', b'Close')]
+                            ))
+            except (ProxyAuthenticationFailed, ProxyConnectionFailed, ProxyRequestRejected) as e:
+                # logger.exception(e)
+                response = e.response(self.request)
+                if response:
+                    self.client.queue(response)
+                    # But is client also ready for writes?
+                    self.client.flush()
+                raise e
+        if self.server and not self.server.closed and self.server.conn in r:
+            logger.debug('Server is ready for reads, reading')
+            data = self.server.recv(self.config.server_recvbuf_size)
+            self.last_activity = self.now()
+            if not data:
+                logger.debug('Server closed connection, tearing down...')
+                return True
+            # parse incoming response packet
+            # only for non-https requests
+            if not self.request.method == b'CONNECT':
+                self.response.parse(data)
+            else:
+                # Only purpose of increasing memory footprint is to print response length in access log
+                # Not worth it? Optimize to only persist lengths?
+                self.response.raw += data
+            # queue data for client
+            self.client.queue(data)
+
+        # Teardown if client buffer is empty and connection is inactive
+        if self.client.buffer_size() == 0:
+            if self.is_connection_inactive():
+                logger.debug('Client buffer is empty and maximum inactivity has reached '
+                             'between client and server connection, tearing down...')
+                return True
+
     def run(self):
         logger.debug('Proxying connection %r' % self.client.conn)
         try:
             while True:
-                # Prepare list of descriptors
-                rlist, wlist, xlist = [self.client.conn], [], []
-                if self.client.has_buffer():
-                    wlist.append(self.client.conn)
-                if self.server and not self.server.closed:
-                    rlist.append(self.server.conn)
-                if self.server and not self.server.closed and self.server.has_buffer():
-                    wlist.append(self.server.conn)
-
-                r, w, x = select.select(rlist, wlist, xlist, 1)
-
-                # Process ready for writes
-                if self.client.conn in w:
-                    logger.debug('Client is ready for writes, flushing client buffer')
-                    self.client.flush()
-                if self.server and not self.server.closed and self.server.conn in w:
-                    logger.debug('Server is ready for writes, flushing server buffer')
-                    self.server.flush()
-
-                # Process ready for reads
-                if self.client.conn in r:
-                    logger.debug('Client is ready for reads, reading')
-                    data = self.client.recv(self.config.client_recvbuf_size)
-                    self.last_activity = self.now()
-                    if not data:
-                        logger.debug('Client closed connection, tearing down...')
-                        break
-                    try:
-                        teardown = self.process_request(data)
-                        if teardown:
-                            break
-                    except (ProxyAuthenticationFailed, ProxyConnectionFailed, ProxyRequestRejected) as e:
-                        logger.exception(e)
-                        response = e.response(self.request)
-                        if response:
-                            # But is client also ready for writes?
-                            self.client.queue(response)
-                            self.client.flush()
-                        break
-                if self.server and not self.server.closed and self.server.conn in r:
-                    logger.debug('Server is ready for reads, reading')
-                    data = self.server.recv(self.config.server_recvbuf_size)
-                    self.last_activity = self.now()
-                    if not data:
-                        logger.debug('Server closed connection, tearing down...')
-                        break
-                    self.process_response(data)
-
-                # Teardown if client buffer is empty and client is also inactive
-                if self.client.buffer_size() == 0:
-                    if self.is_connection_inactive():
-                        logger.debug('Client buffer is empty and maximum inactivity has reached '
-                                     'between client and server connection, tearing down...')
-                        break
+                teardown = self.run_once()
+                if teardown:
+                    break
         except KeyboardInterrupt:
             pass
         except Exception as e:
