@@ -65,6 +65,7 @@ DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_PLUGINS = []
+DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
 
 UNDER_TEST = False
 
@@ -531,7 +532,7 @@ class HttpProxy(threading.Thread):
     def __init__(self, client, config=None):
         super(HttpProxy, self).__init__()
 
-        self.start_time = self._now()
+        self.start_time = self.now()
         self.last_activity = self.start_time
 
         self.client = client
@@ -542,23 +543,24 @@ class HttpProxy(threading.Thread):
         self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
 
     @staticmethod
-    def _now():
+    def now():
         return datetime.datetime.utcnow()
 
-    def _inactive_for(self):
-        return (self._now() - self.last_activity).seconds
+    def connection_inactive_for(self):
+        return (self.now() - self.last_activity).seconds
 
-    def _is_inactive(self):
-        return self._inactive_for() > 30
+    def is_connection_inactive(self):
+        return self.connection_inactive_for() > 30
 
-    def _process_request(self, data):
+    def process_request(self, data):
+        """Return True to teardown proxy connection."""
         # once we have connection to the server
         # we don't parse the http request packets
         # any further, instead just pipe incoming
         # data from client to server
         if self.server and not self.server.closed:
             self.server.queue(data)
-            return
+            return False
 
         # parse http request
         self.request.parse(data)
@@ -585,7 +587,7 @@ class HttpProxy(threading.Thread):
                 raise Exception('Invalid request\n%s' % self.request.raw)
 
             if host is None and self.config.pac_file:
-                self._serve_pac_file()
+                self.serve_pac_file()
                 return True
 
             self.server = TcpServerConnection(host, port)
@@ -610,7 +612,7 @@ class HttpProxy(threading.Thread):
                     add_headers=[(b'Via', b'1.1 proxy.py v%s' % version), (b'Connection', b'Close')]
                 ))
 
-    def _process_response(self, data):
+    def process_response(self, data):
         # parse incoming response packet
         # only for non-https requests
         if not self.request.method == b'CONNECT':
@@ -619,7 +621,7 @@ class HttpProxy(threading.Thread):
         # queue data for client
         self.client.queue(data)
 
-    def _access_log(self):
+    def access_log(self):
         host, port = self.server.addr if self.server else (None, None)
         if self.request.method == b'CONNECT':
             logger.info(
@@ -630,108 +632,90 @@ class HttpProxy(threading.Thread):
                 text_(self.request.build_url()), text_(self.response.code), text_(self.response.reason),
                 len(self.response.raw)))
 
-    def _get_waitable_lists(self):
-        rlist, wlist, xlist = [self.client.conn], [], []
-        if self.client.has_buffer():
-            wlist.append(self.client.conn)
-        if self.server and not self.server.closed:
-            rlist.append(self.server.conn)
-        if self.server and not self.server.closed and self.server.has_buffer():
-            wlist.append(self.server.conn)
-        return rlist, wlist, xlist
-
-    def _process_wlist(self, w):
-        if self.client.conn in w:
-            logger.debug('client is ready for writes, flushing client buffer')
-            self.client.flush()
-
-        if self.server and not self.server.closed and self.server.conn in w:
-            logger.debug('server is ready for writes, flushing server buffer')
-            self.server.flush()
-
-    def _process_rlist(self, r):
-        """Returns True if connection to client must be closed."""
-        if self.client.conn in r:
-            logger.debug('client is ready for reads, reading')
-            data = self.client.recv(self.config.client_recvbuf_size)
-            self.last_activity = self._now()
-
-            if not data:
-                logger.debug('client closed connection, breaking')
-                return True
-
-            try:
-                return self._process_request(data)
-            except (ProxyAuthenticationFailed, ProxyConnectionFailed, ProxyRequestRejected) as e:
-                logger.exception(e)
-                response = e.response(self.request)
-                if response:
-                    self.client.queue(response)
-                    self.client.flush()
-                return True
-
-        if self.server and not self.server.closed and self.server.conn in r:
-            logger.debug('server is ready for reads, reading')
-            data = self.server.recv(self.config.server_recvbuf_size)
-            self.last_activity = self._now()
-
-            if not data:
-                logger.debug('server closed connection')
-                self.server.close()
-            else:
-                self._process_response(data)
-
-        return False
-
-    def _serve_pac_file(self):
+    def serve_pac_file(self):
         self.client.queue(PAC_FILE_RESPONSE_PREFIX)
         try:
             with open(self.config.pac_file, 'r') as f:
-                logger.debug('serving pac file from disk')
+                logger.debug('Serving pac file from disk')
                 self.client.queue(f.read())
         except IOError:
-            logger.debug('serving pac file content from buffer')
+            logger.debug('Serving pac file content from buffer')
             self.client.queue(self.config.pac_file)
         self.client.flush()
-
-    def _process(self):
-        while True:
-            rlist, wlist, xlist = self._get_waitable_lists()
-            r, w, x = select.select(rlist, wlist, xlist, 1)
-
-            self._process_wlist(w)
-            if self._process_rlist(r):
-                break
-
-            if self.client.buffer_size() == 0:
-                # Client may use same connection for multiple request cycles,
-                # hence not appropriate to close the connection upon parser states.
-                #
-                # if self.response.state == HttpParser.states.COMPLETE:
-                #     logger.debug('client buffer is empty and response state is complete, breaking')
-                #     break
-
-                if self._is_inactive():
-                    logger.debug('client buffer is empty and maximum inactivity has reached, breaking')
-                    break
 
     def run(self):
         logger.debug('Proxying connection %r' % self.client.conn)
         try:
-            self._process()
+            while True:
+                # Prepare list of descriptors
+                rlist, wlist, xlist = [self.client.conn], [], []
+                if self.client.has_buffer():
+                    wlist.append(self.client.conn)
+                if self.server and not self.server.closed:
+                    rlist.append(self.server.conn)
+                if self.server and not self.server.closed and self.server.has_buffer():
+                    wlist.append(self.server.conn)
+
+                r, w, x = select.select(rlist, wlist, xlist, 1)
+
+                # Process ready for writes
+                if self.client.conn in w:
+                    logger.debug('Client is ready for writes, flushing client buffer')
+                    self.client.flush()
+                if self.server and not self.server.closed and self.server.conn in w:
+                    logger.debug('Server is ready for writes, flushing server buffer')
+                    self.server.flush()
+
+                # Process ready for reads
+                if self.client.conn in r:
+                    logger.debug('Client is ready for reads, reading')
+                    data = self.client.recv(self.config.client_recvbuf_size)
+                    self.last_activity = self.now()
+                    if not data:
+                        logger.debug('Client closed connection, tearing down...')
+                        break
+                    try:
+                        teardown = self.process_request(data)
+                        if teardown:
+                            break
+                    except (ProxyAuthenticationFailed, ProxyConnectionFailed, ProxyRequestRejected) as e:
+                        logger.exception(e)
+                        response = e.response(self.request)
+                        if response:
+                            # But is client also ready for writes?
+                            self.client.queue(response)
+                            self.client.flush()
+                        break
+                if self.server and not self.server.closed and self.server.conn in r:
+                    logger.debug('Server is ready for reads, reading')
+                    data = self.server.recv(self.config.server_recvbuf_size)
+                    self.last_activity = self.now()
+                    if not data:
+                        logger.debug('Server closed connection, tearing down...')
+                        break
+                    self.process_response(data)
+
+                # Teardown if client buffer is empty and client is also inactive
+                if self.client.buffer_size() == 0:
+                    if self.is_connection_inactive():
+                        logger.debug('Client buffer is empty and maximum inactivity has reached '
+                                     'between client and server connection, tearing down...')
+                        break
         except KeyboardInterrupt:
             pass
         except Exception as e:
             logger.exception('Exception while handling connection %r with reason %r' % (self.client.conn, e))
         finally:
-            logger.debug(
-                'closing client connection with pending client buffer size %d bytes' % self.client.buffer_size())
             self.client.close()
+            logger.debug(
+                'Closed client connection with pending client buffer size %d bytes' % self.client.buffer_size())
             if self.server:
                 logger.debug(
-                    'closed client connection with pending server buffer size %d bytes' % self.server.buffer_size())
-            self._access_log()
-            logger.debug('Closing proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
+                    'Closed server connection with pending server buffer size %d bytes' % self.server.buffer_size())
+                if not self.server.closed:
+                    self.server.close()
+            self.access_log()
+            logger.debug('Closed proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
 
 
 class TcpServer(object):
@@ -785,8 +769,8 @@ class TcpServer(object):
             self.socket.close()
 
 
-class HttpServer(TcpServer):
-    """HTTP server implementation.
+class MultiCoreRequestDispatcher(TcpServer):
+    """MultiCoreRequestDispatcher.
 
     Pre-spawns worker process to utilize all cores available on the system.  Accepted `TcpClientConnection` is
     dispatched over a queue to workers.  One of the worker picks up the work and starts a new thread to handle the
@@ -795,7 +779,7 @@ class HttpServer(TcpServer):
 
     def __init__(self, hostname=DEFAULT_IPV4_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG,
                  num_workers=DEFAULT_NUM_WORKERS, ipv4=DEFAULT_IPV4, config=None):
-        super(HttpServer, self).__init__(hostname, port, backlog, ipv4)
+        super(MultiCoreRequestDispatcher, self).__init__(hostname, port, backlog, ipv4)
 
         self.worker_queue = multiprocessing.Queue()
         self.num_workers = multiprocessing.cpu_count()
@@ -827,7 +811,7 @@ class Worker(multiprocessing.Process):
     """Generic worker class implementation.
 
     Worker instance accepts (operation, payload) over work queue and
-    starts a new thread to complete the work.
+    depending upon requested operation starts a new thread to handle the work.
     """
 
     operations = namedtuple('WorkerOperations', (
@@ -893,6 +877,8 @@ def init_parser():
                         help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
                              'Both upper and lowercase values are allowed.'
                              'You may also simply use the leading character e.g. --log-level d')
+    parser.add_argument('--log-format', type=str, default=DEFAULT_LOG_FORMAT,
+                        help='Log format for Python logger.')
     parser.add_argument('--open-file-limit', type=int, default=DEFAULT_OPEN_FILE_LIMIT,
                         help='Default: 1024. Maximum number of files (TCP connections) '
                              'that proxy.py can open concurrently.')
@@ -925,6 +911,17 @@ def load_plugins(plugins):
 
 
 def main():
+    if not PY3 and not UNDER_TEST:
+        print(
+            'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
+            'If for some reasons you cannot upgrade, consider using "master" branch or simply '
+            '"pip install proxy.py".'
+            '\n\n'
+            'DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. '
+            'Please upgrade your Python as Python 2.7 won\'t be maintained after that date. '
+            'A future version of pip will drop support for Python 2.7.')
+        sys.exit(0)
+
     parser = init_parser()
     args = parser.parse_args(sys.argv[1:])
 
@@ -936,15 +933,8 @@ def main():
                                           'E': 'ERROR',
                                           'C': 'CRITICAL'
                                       }[args.log_level.upper()[0]]),
-                        format='%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s')
-
+                        format=args.log_format)
     plugins = load_plugins(args.plugins) if args.plugins else DEFAULT_PLUGINS
-
-    if not PY3 and not UNDER_TEST:
-        logging.error('"develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
-                      'If for some reasons you cannot upgrade, consider using "master" branch or simply '
-                      '"pip install proxy.py".')
-        sys.exit(0)
 
     try:
         set_open_file_limit(args.open_file_limit)
@@ -953,17 +943,16 @@ def main():
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        config = HttpProxyConfig(auth_code=auth_code,
-                                 server_recvbuf_size=args.server_recvbuf_size,
-                                 client_recvbuf_size=args.client_recvbuf_size,
-                                 pac_file=args.pac_file,
-                                 plugins=plugins)
-        server = HttpServer(hostname=args.hostname,
-                            port=args.port,
-                            backlog=args.backlog,
-                            ipv4=args.ipv4,
-                            num_workers=args.num_workers,
-                            config=config)
+        server = MultiCoreRequestDispatcher(hostname=args.hostname,
+                                            port=args.port,
+                                            backlog=args.backlog,
+                                            ipv4=args.ipv4,
+                                            num_workers=args.num_workers,
+                                            config=HttpProxyConfig(auth_code=auth_code,
+                                                                   server_recvbuf_size=args.server_recvbuf_size,
+                                                                   client_recvbuf_size=args.client_recvbuf_size,
+                                                                   pac_file=args.pac_file,
+                                                                   plugins=plugins))
         server.run()
     except KeyboardInterrupt:
         pass

@@ -110,30 +110,30 @@ class MockHttpProxy(object):
         self.client.conn.close()
 
 
-def mock_http_proxy_side_effect(client, **kwargs):
+def mock_tcp_proxy_side_effect(client, **kwargs):
     return MockHttpProxy(client, **kwargs)
 
 
 @unittest.skipIf(not proxy.PY3, "Worker testing require Python3")
-class TestHttpServer(unittest.TestCase):
-    http_port = None
-    http_server = None
-    http_thread = None
+class TestMultiCoreRequestDispatcher(unittest.TestCase):
+    tcp_port = None
+    tcp_server = None
+    tcp_thread = None
 
-    @mock.patch.object(proxy, 'HttpProxy', side_effect=mock_http_proxy_side_effect)
-    def testHttpProxyConnection(self, mock_http_proxy):
+    @mock.patch.object(proxy, 'HttpProxy', side_effect=mock_tcp_proxy_side_effect)
+    def testHttpProxyConnection(self, mock_tcp_proxy):
         try:
-            self.http_port = get_available_port()
-            self.http_server = proxy.HttpServer(hostname=proxy.DEFAULT_IPV4_HOSTNAME, port=self.http_port, ipv4=True,
-                                                num_workers=1)
-            self.http_thread = Thread(target=self.http_server.run)
-            self.http_thread.setDaemon(True)
-            self.http_thread.start()
+            self.tcp_port = get_available_port()
+            self.tcp_server = proxy.MultiCoreRequestDispatcher(hostname=proxy.DEFAULT_IPV4_HOSTNAME, port=self.tcp_port,
+                                                               ipv4=True, num_workers=1)
+            self.tcp_thread = Thread(target=self.tcp_server.run)
+            self.tcp_thread.setDaemon(True)
+            self.tcp_thread.start()
 
             while True:
                 try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-                    sock.connect((proxy.DEFAULT_IPV4_HOSTNAME, self.http_port))
+                    sock.connect((proxy.DEFAULT_IPV4_HOSTNAME, self.tcp_port))
                     sock.send(proxy.CRLF.join([
                         b'GET http://httpbin.org/get HTTP/1.1',
                         b'Host: httpbin.org',
@@ -141,15 +141,15 @@ class TestHttpServer(unittest.TestCase):
                     ]))
                     data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
                     self.assertEqual(data, proxy.CRLF.join([b'HTTP/1.1 200 OK', proxy.CRLF]))
-                    self.http_server.shutdown()  # explicit early call worker shutdown to avoid resource leak warnings
+                    self.tcp_server.shutdown()  # explicit early call worker shutdown to avoid resource leak warnings
                     break
                 except ConnectionRefusedError:
                     time.sleep(0.1)
                 finally:
                     sock.close()
         finally:
-            self.http_server.stop()
-            self.http_thread.join()
+            self.tcp_server.stop()
+            self.tcp_thread.join()
 
 
 class TestChunkParser(unittest.TestCase):
@@ -174,7 +174,7 @@ class TestChunkParser(unittest.TestCase):
         self.assertEqual(self.parser.state, proxy.ChunkParser.states.COMPLETE)
 
     def test_chunk_parse_issue_27(self):
-        """Case when data ends with the chunk size but without CRLF."""
+        """Case when data ends with the chunk size but without ending CRLF."""
         self.parser.parse(b'3')
         self.assertEqual(self.parser.chunk, b'3')
         self.assertEqual(self.parser.size, None)
@@ -543,7 +543,7 @@ class TestProxy(unittest.TestCase):
     def test_http_get(self):
         # Send request line
         self.proxy.client.conn.queue((b'GET http://localhost:%d HTTP/1.1' % self.http_server_port) + proxy.CRLF)
-        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.process_request(self.proxy.client.recv())
         self.assertNotEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
         # Send headers and blank line, thus completing HTTP request
         self.proxy.client.conn.queue(proxy.CRLF.join([
@@ -553,7 +553,7 @@ class TestProxy(unittest.TestCase):
             b'Proxy-Connection: Keep-Alive',
             proxy.CRLF
         ]))
-        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.process_request(self.proxy.client.recv())
         self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
         self.assertEqual(self.proxy.server.addr, (b'localhost', self.http_server_port))
         # Flush data queued for server
@@ -562,7 +562,7 @@ class TestProxy(unittest.TestCase):
         # Receive full response from server
         data = self.proxy.server.recv()
         while data:
-            self.proxy._process_response(data)
+            self.proxy.process_response(data)
             logging.info(self.proxy.response.state)
             if self.proxy.response.state == proxy.HttpParser.states.COMPLETE:
                 break
@@ -579,7 +579,7 @@ class TestProxy(unittest.TestCase):
             b'Proxy-Connection: Keep-Alive',
             proxy.CRLF
         ]))
-        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.process_request(self.proxy.client.recv())
         self.assertFalse(self.proxy.server is None)
         self.assertEqual(self.proxy.client.buffer, proxy.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
 
@@ -597,7 +597,7 @@ class TestProxy(unittest.TestCase):
             b'User-Agent: proxy.py/%s' % proxy.version,
             proxy.CRLF
         ]))
-        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.process_request(self.proxy.client.recv())
         self.proxy.server.flush()
         self.assertEqual(self.proxy.server.buffer_size(), 0)
 
@@ -614,7 +614,7 @@ class TestProxy(unittest.TestCase):
 
     def test_proxy_connection_failed(self):
         with self.assertRaises(proxy.ProxyConnectionFailed):
-            self.proxy._process_request(proxy.CRLF.join([
+            self.proxy.process_request(proxy.CRLF.join([
                 b'GET http://unknown.domain HTTP/1.1',
                 b'Host: unknown.domain',
                 proxy.CRLF
@@ -626,7 +626,7 @@ class TestProxy(unittest.TestCase):
                                          auth_code=b'Basic %s' % base64.b64encode(b'user:pass')))
 
         with self.assertRaises(proxy.ProxyAuthenticationFailed):
-            self.proxy._process_request(proxy.CRLF.join([
+            self.proxy.process_request(proxy.CRLF.join([
                 b'GET http://abhinavsingh.com HTTP/1.1',
                 b'Host: abhinavsingh.com',
                 proxy.CRLF
@@ -638,7 +638,7 @@ class TestProxy(unittest.TestCase):
                                          auth_code=b'Basic %s' % base64.b64encode(b'user:pass')))
 
         self.proxy.client.conn.queue((b'GET http://localhost:%d HTTP/1.1' % self.http_server_port) + proxy.CRLF)
-        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.process_request(self.proxy.client.recv())
         self.assertNotEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
 
         self.proxy.client.conn.queue(proxy.CRLF.join([
@@ -650,7 +650,7 @@ class TestProxy(unittest.TestCase):
             proxy.CRLF
         ]))
 
-        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.process_request(self.proxy.client.recv())
         self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
         self.assertEqual(self.proxy.server.addr, (b'localhost', self.http_server_port))
 
@@ -659,7 +659,7 @@ class TestProxy(unittest.TestCase):
 
         data = self.proxy.server.recv()
         while data:
-            self.proxy._process_response(data)
+            self.proxy.process_response(data)
             if self.proxy.response.state == proxy.HttpParser.states.COMPLETE:
                 break
             data = self.proxy.server.recv()
@@ -680,7 +680,7 @@ class TestProxy(unittest.TestCase):
             b'Proxy-Authorization: Basic dXNlcjpwYXNz',
             proxy.CRLF
         ]))
-        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.process_request(self.proxy.client.recv())
         self.assertFalse(self.proxy.server is None)
         self.assertEqual(self.proxy.client.buffer, proxy.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
 
@@ -698,7 +698,7 @@ class TestProxy(unittest.TestCase):
             b'User-Agent: proxy.py/%s' % proxy.version,
             proxy.CRLF
         ]))
-        self.proxy._process_request(self.proxy.client.recv())
+        self.proxy.process_request(self.proxy.client.recv())
         self.proxy.server.flush()
         self.assertEqual(self.proxy.server.buffer_size(), 0)
 
@@ -737,7 +737,7 @@ class TestWorker(unittest.TestCase):
 class TestMain(unittest.TestCase):
 
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.HttpServer')
+    @mock.patch('proxy.MultiCoreRequestDispatcher')
     def test_http_server_called(self, mock_set_open_file_limit, mock_http_server):
         proxy.main()
         self.assertTrue(mock_set_open_file_limit.called)

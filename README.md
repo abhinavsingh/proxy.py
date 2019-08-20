@@ -59,6 +59,8 @@ optional arguments ordered alphabetically:
                         CRITICAL. Both upper and lowercase values are
                         allowed.You may also simply use the leading character
                         e.g. --log-level d
+  --log-format LOG_FORMAT
+                        Log format for Python logger.
   --open-file-limit OPEN_FILE_LIMIT
                         Default: 1024. Maximum number of files (TCP
                         connections) that proxy.py can open concurrently.
