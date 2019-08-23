@@ -4,7 +4,7 @@
     proxy.py
     ~~~~~~~~
 
-    HTTP, HTTPS, HTTP2 and WebSockets Proxy Server in Python.
+    Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file.
 
     :copyright: (c) 2013-2020 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
@@ -17,19 +17,22 @@ import importlib
 import logging
 import multiprocessing
 import os
+import queue
 import select
 import socket
 import sys
 import threading
 from collections import namedtuple
-from typing import Dict, List
+from typing import Dict, List, Tuple
+from urllib import parse as urlparse
 
 if os.name != 'nt':
     import resource
 
+PY3 = sys.version_info[0] == 3
 VERSION = (0, 4)
 __version__ = '.'.join(map(str, VERSION[0:2]))
-__description__ = 'Lightweight HTTP, HTTPS, WebSockets Proxy Server in a single Python file'
+__description__ = 'Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file'
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
@@ -37,19 +40,6 @@ __download_url__ = '%s/archive/master.zip' % __homepage__
 __license__ = 'BSD'
 
 logger = logging.getLogger(__name__)
-
-PY3 = sys.version_info[0] == 3
-
-if PY3:  # pragma: no cover
-    text_type = str
-    binary_type = bytes
-    from urllib import parse as urlparse
-    import queue
-else:  # pragma: no cover
-    text_type = unicode
-    binary_type = str
-    import urlparse
-    import Queue as queue
 
 # Defaults
 DEFAULT_BACKLOG = 100
@@ -61,6 +51,8 @@ DEFAULT_IPV4_HOSTNAME = '127.0.0.1'
 DEFAULT_IPV6_HOSTNAME = '::'
 DEFAULT_PORT = 8899
 DEFAULT_IPV4 = False
+DEFAULT_ENABLE_HTTP_PROXY = True
+DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
@@ -73,22 +65,22 @@ DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName
 UNDER_TEST = False
 
 
-def text_(s, encoding='utf-8', errors='strict'):  # pragma: no cover
+def text_(s, encoding='utf-8', errors='strict') -> str:
     """Utility to ensure text-like usability.
 
     If ``s`` is an instance of ``binary_type``, return
     ``s.decode(encoding, errors)``, otherwise return ``s``"""
-    if isinstance(s, binary_type):
+    if isinstance(s, bytes):
         return s.decode(encoding, errors)
     return s
 
 
-def bytes_(s, encoding='utf-8', errors='strict'):  # pragma: no cover
+def bytes_(s, encoding='utf-8', errors='strict') -> bytes:
     """Utility to ensure binary-like usability.
 
     If ``s`` is an instance of ``text_type``, return
     ``s.encode(encoding, errors)``, otherwise return ``s``"""
-    if isinstance(s, text_type):
+    if isinstance(s, str):
         return s.encode(encoding, errors)
     return s
 
@@ -97,18 +89,219 @@ version = bytes_(__version__)
 CRLF, COLON, WHITESPACE = b'\r\n', b':', b' '
 PROXY_AGENT_HEADER = b'Proxy-agent: proxy.py v' + version
 
-PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = CRLF.join([
-    b'HTTP/1.1 200 Connection established',
-    PROXY_AGENT_HEADER,
-    CRLF
-])
 
-PAC_FILE_RESPONSE_PREFIX = CRLF.join([
-    b'HTTP/1.1 200 OK',
-    b'Content-Type: application/x-ns-proxy-autoconfig',
-    b'Connection: close',
-    CRLF
-])
+class TcpConnection(object):
+    """TCP server/client connection abstraction."""
+
+    types = namedtuple('TcpConnectionTypes', (
+        'SERVER',
+        'CLIENT',
+    ))(1, 2)
+
+    def __init__(self, what: types):
+        # Cannot for socket.socket type because initialized value needs to be None?
+        self.conn = None
+        self.buffer: bytes = b''
+        self.closed: bool = False
+        self.what: TcpConnection.types = what
+
+    def send(self, data: bytes) -> int:
+        """Users must handle BrokenPipeError exceptions"""
+        return self.conn.send(data)
+
+    def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> bytes:
+        try:
+            data = self.conn.recv(buffer_size)
+            if len(data) > 0:
+                logger.debug('received %d bytes from %s' % (len(data), self.what))
+                return data
+        except Exception as e:
+            if e.errno == errno.ECONNRESET:
+                logger.debug('%r' % e)
+            else:
+                logger.exception(
+                    'Exception while receiving from connection %s %r with reason %r' % (self.what, self.conn, e))
+
+    def close(self) -> bool:
+        self.conn.close()
+        self.closed = True
+        return self.closed
+
+    def buffer_size(self) -> int:
+        return len(self.buffer)
+
+    def has_buffer(self) -> bool:
+        return self.buffer_size() > 0
+
+    def queue(self, data) -> int:
+        self.buffer += data
+        return len(data)
+
+    def flush(self) -> int:
+        sent = self.send(self.buffer)
+        self.buffer = self.buffer[sent:]
+        logger.debug('flushed %d bytes to %s' % (sent, self.what))
+        return sent
+
+
+class TcpServerConnection(TcpConnection):
+    """Establishes connection to destination server."""
+
+    def __init__(self, host: str, port: int):
+        super(TcpServerConnection, self).__init__(b'server')
+        self.addr: Tuple[str, int] = (host, int(port))
+
+    def __del__(self):
+        if self.conn:
+            self.close()
+
+    def connect(self):
+        self.conn = socket.create_connection((self.addr[0], self.addr[1]))
+
+
+class TcpClientConnection(TcpConnection):
+    """Accepted client connection."""
+
+    def __init__(self, conn: socket.socket, addr: Tuple[str, int]):
+        super(TcpClientConnection, self).__init__(b'client')
+        self.conn: socket.socket = conn
+        self.addr: Tuple[str, int] = addr
+
+
+class TcpServer(object):
+    """TcpServer server implementation.
+
+    Inheritor MUST implement `handle` method. It accepts an instance of `TcpClientConnection`.
+    Optionally, can also implement `setup` and `shutdown` methods for custom bootstrapping and tearing
+    down internal state.
+    """
+
+    def __init__(self, hostname=DEFAULT_IPV4_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG, ipv4=DEFAULT_IPV4):
+        self.hostname: str = hostname
+        self.port: int = port
+        self.backlog: int = backlog
+        self.ipv4: bool = ipv4
+        self.socket: socket.socket = None
+        self.running: bool = False
+
+    def setup(self):
+        pass
+
+    def handle(self, client: TcpClientConnection):
+        raise NotImplementedError()
+
+    def shutdown(self):
+        pass
+
+    def stop(self):
+        self.running = False
+
+    def run(self):
+        self.running = True
+        self.setup()
+        try:
+            self.socket = socket.socket(socket.AF_INET if self.ipv4 is True else socket.AF_INET6, socket.SOCK_STREAM)
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.socket.bind((self.hostname, self.port))
+            self.socket.listen(self.backlog)
+            logger.info('Started server on %s:%d' % (self.hostname, self.port))
+            while self.running:
+                r, w, x = select.select([self.socket], [], [], 1)
+                if self.socket in r:
+                    conn, addr = self.socket.accept()
+                    client = TcpClientConnection(conn, addr)
+                    self.handle(client)
+        except Exception as e:
+            logger.exception('Exception while running the server %r' % e)
+        finally:
+            self.shutdown()
+            logger.info('Closing server socket')
+            self.socket.close()
+
+
+class MultiCoreRequestDispatcher(TcpServer):
+    """MultiCoreRequestDispatcher.
+
+    Pre-spawns worker process to utilize all cores available on the system.  Accepted `TcpClientConnection` is
+    dispatched over a queue to workers.  One of the worker picks up the work and starts a new thread to handle the
+    client request.
+    """
+
+    def __init__(self, hostname=DEFAULT_IPV4_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG,
+                 num_workers=DEFAULT_NUM_WORKERS, ipv4=DEFAULT_IPV4, config=None):
+        super(MultiCoreRequestDispatcher, self).__init__(hostname, port, backlog, ipv4)
+
+        self.num_workers: int = multiprocessing.cpu_count()
+        if num_workers > 0:
+            self.num_workers = num_workers
+        self.workers: List[Worker] = []
+        self.work_queues: List[multiprocessing.Queue] = []
+        self.current_worker_id = 0
+
+        self.config: HttpProtocolConfig = config
+
+    def setup(self):
+        logger.info('Starting %d workers' % self.num_workers)
+        for worker_id in range(self.num_workers):
+            work_queue = multiprocessing.Queue()
+
+            worker = Worker(work_queue, self.config)
+            worker.daemon = True
+            worker.start()
+
+            self.workers.append(worker)
+            self.work_queues.append(work_queue)
+
+    def handle(self, client: TcpClientConnection):
+        # Dispatch in round robin fashion
+        work_queue = self.work_queues[self.current_worker_id]
+        logging.debug('Dispatched client request to worker id %d', self.current_worker_id)
+        self.current_worker_id += 1
+        self.current_worker_id %= self.num_workers
+        work_queue.put((Worker.operations.HTTP_PROTOCOL, client))
+
+    def shutdown(self):
+        logger.info('Shutting down %d workers' % self.num_workers)
+        for work_queue in self.work_queues:
+            work_queue.put((Worker.operations.SHUTDOWN, None))
+        for worker in self.workers:
+            worker.join()
+
+
+class Worker(multiprocessing.Process):
+    """Generic worker class implementation.
+
+    Worker instance accepts (operation, payload) over work queue and
+    depending upon requested operation starts a new thread to handle the work.
+    """
+
+    operations = namedtuple('WorkerOperations', (
+        'HTTP_PROTOCOL',
+        'SHUTDOWN',
+    ))(1, 2)
+
+    def __init__(self, work_queue, config=None):
+        super(Worker, self).__init__()
+        self.work_queue: multiprocessing.Queue = work_queue
+        self.config: HttpProtocolConfig = config
+
+    def run(self):
+        while True:
+            try:
+                op, payload = self.work_queue.get(True, 1)
+                if op == Worker.operations.HTTP_PROTOCOL:
+                    proxy = HttpProtocolHandler(payload, config=self.config)
+                    proxy.setDaemon(True)
+                    proxy.start()
+                elif op == Worker.operations.SHUTDOWN:
+                    break
+            except queue.Empty:
+                pass
+            # Safeguard against https://gist.github.com/abhinavsingh/b8d4266ff4f38b6057f9c50075e8cd75
+            except ConnectionRefusedError:
+                pass
+            except KeyboardInterrupt:
+                break
 
 
 class ChunkParser(object):
@@ -122,16 +315,16 @@ class ChunkParser(object):
 
     def __init__(self):
         self.state = ChunkParser.states.WAITING_FOR_SIZE
-        self.body = b''  # Parsed chunks
-        self.chunk = b''  # Partial chunk received
-        self.size = None  # Expected size of next following chunk
+        self.body: bytes = b''  # Parsed chunks
+        self.chunk: bytes = b''  # Partial chunk received
+        self.size: int = None  # Expected size of next following chunk
 
-    def parse(self, raw):
+    def parse(self, raw: bytes):
         more = True if len(raw) > 0 else False
         while more:
             more, raw = self.process(raw)
 
-    def process(self, raw):
+    def process(self, raw: bytes):
         if self.state == ChunkParser.states.WAITING_FOR_SIZE:
             # Consume prior chunk in buffer
             # in case chunk size without CRLF was received
@@ -179,13 +372,14 @@ class HttpParser(object):
 
     def __init__(self, parser_type):
         assert parser_type in (HttpParser.types.REQUEST_PARSER, HttpParser.types.RESPONSE_PARSER)
-        self.type = parser_type
-        self.state = HttpParser.states.INITIALIZED
+        self.type: HttpParser.types = parser_type
+        self.state: HttpParser.states = HttpParser.states.INITIALIZED
 
-        self.bytes = b''
-        self.buffer = b''
+        self.bytes: bytes = b''
+        self.buffer: bytes = b''
 
-        self.headers = dict()
+        self.headers: Dict = dict()
+        # Can simply be b'', then set type as bytes?
         self.body = None
 
         self.method = None
@@ -370,84 +564,12 @@ class HttpParser(object):
         return True if self.host is not None else False
 
 
-class TcpConnection(object):
-    """TCP server/client connection abstraction."""
+class HttpProtocolException(Exception):
+    """Top level HttpProtocolException exception class.
 
-    def __init__(self, what):
-        self.conn = None
-        self.buffer = b''
-        self.closed = False
-        self.what = what  # server or client
-
-    def send(self, data):
-        # TODO: Gracefully handle BrokenPipeError exceptions
-        return self.conn.send(data)
-
-    def recv(self, bufsiz=DEFAULT_BUFFER_SIZE):
-        try:
-            data = self.conn.recv(bufsiz)
-            if len(data) == 0:
-                logger.debug('rcvd 0 bytes from %s' % self.what)
-                return None
-            logger.debug('rcvd %d bytes from %s' % (len(data), self.what))
-            return data
-        except Exception as e:
-            if e.errno == errno.ECONNRESET:
-                logger.debug('%r' % e)
-            else:
-                logger.exception(
-                    'Exception while receiving from connection %s %r with reason %r' % (self.what, self.conn, e))
-            return None
-
-    def close(self):
-        self.conn.close()
-        self.closed = True
-
-    def buffer_size(self):
-        return len(self.buffer)
-
-    def has_buffer(self):
-        return self.buffer_size() > 0
-
-    def queue(self, data):
-        self.buffer += data
-
-    def flush(self):
-        sent = self.send(self.buffer)
-        self.buffer = self.buffer[sent:]
-        logger.debug('flushed %d bytes to %s' % (sent, self.what))
-
-
-class TcpServerConnection(TcpConnection):
-    """Establish connection to destination server."""
-
-    def __init__(self, host, port):
-        super(TcpServerConnection, self).__init__(b'server')
-        self.addr = (host, int(port))
-
-    def __del__(self):
-        if self.conn:
-            self.close()
-
-    def connect(self):
-        self.conn = socket.create_connection((self.addr[0], self.addr[1]))
-
-
-class TcpClientConnection(TcpConnection):
-    """Accepted client connection."""
-
-    def __init__(self, conn, addr):
-        super(TcpClientConnection, self).__init__(b'client')
-        self.conn = conn
-        self.addr = addr
-
-
-class ProxyError(Exception):
-    """Top level ProxyError exception class.
-
-    All exceptions raised during execution of request lifecycle MUST inherit ProxyError base class.
-
-    Implement response() method to optionally return custom response to client."""
+    All exceptions raised during execution of Http request lifecycle MUST
+    inherit HttpProtocolException base class. Implement response() method
+    to optionally return custom response to client."""
 
     def __init__(self):
         pass
@@ -456,52 +578,14 @@ class ProxyError(Exception):
         pass
 
 
-class ProxyConnectionFailed(ProxyError):
-    """Exception raised when we are unable to establish connection to upstream server."""
+class HttpRequestRejected(HttpProtocolException):
+    """Generic exception that can be used to reject the client requests.
 
-    RESPONSE_PKT = CRLF.join([
-        b'HTTP/1.1 502 Bad Gateway',
-        PROXY_AGENT_HEADER,
-        b'Content-Length: 11',
-        b'Connection: close',
-        CRLF
-    ]) + b'Bad Gateway'
-
-    def __init__(self, host, port, reason):
-        self.host = host
-        self.port = port
-        self.reason = reason
-
-    def response(self, _request):
-        return self.RESPONSE_PKT
-
-    def __str__(self):
-        return '<ProxyConnectionFailed - %s:%s - %s>' % (self.host, self.port, self.reason)
-
-
-class ProxyAuthenticationFailed(ProxyError):
-    """Exception raised when authentication is enabled and incoming request doesn't present necessary credentials."""
-
-    RESPONSE_PKT = CRLF.join([
-        b'HTTP/1.1 407 Proxy Authentication Required',
-        PROXY_AGENT_HEADER,
-        b'Content-Length: 29',
-        b'Connection: close',
-        b'Proxy-Authenticate: Basic',
-        CRLF
-    ]) + b'Proxy Authentication Required'
-
-    def response(self, _request):
-        return self.RESPONSE_PKT
-
-
-class ProxyRequestRejected(ProxyError):
-    """Generic exception which can be used to reject client requests.
-
-    Connections can either be dropped/closed or optionally an HTTP status code can also be returned."""
+    Connections can either be dropped/closed or optionally an
+    HTTP status code can be returned."""
 
     def __init__(self, status_code=None, body=None):
-        super(ProxyRequestRejected, self).__init__()
+        super(HttpRequestRejected, self).__init__()
 
         self.status_code = status_code
         self.body = body
@@ -583,8 +667,54 @@ class HttpProtocolBasePlugin(object):
         pass
 
 
+class ProxyConnectionFailed(HttpProtocolException):
+    """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
+
+    RESPONSE_PKT = CRLF.join([
+        b'HTTP/1.1 502 Bad Gateway',
+        PROXY_AGENT_HEADER,
+        b'Content-Length: 11',
+        b'Connection: close',
+        CRLF
+    ]) + b'Bad Gateway'
+
+    def __init__(self, host, port, reason):
+        self.host = host
+        self.port = port
+        self.reason = reason
+
+    def response(self, _request):
+        return self.RESPONSE_PKT
+
+    def __str__(self):
+        return '<ProxyConnectionFailed - %s:%s - %s>' % (self.host, self.port, self.reason)
+
+
+class ProxyAuthenticationFailed(HttpProtocolException):
+    """Exception raised when Http Proxy auth is enabled and
+    incoming request doesn't present necessary credentials."""
+
+    RESPONSE_PKT = CRLF.join([
+        b'HTTP/1.1 407 Proxy Authentication Required',
+        PROXY_AGENT_HEADER,
+        b'Content-Length: 29',
+        b'Connection: close',
+        b'Proxy-Authenticate: Basic',
+        CRLF
+    ]) + b'Proxy Authentication Required'
+
+    def response(self, _request):
+        return self.RESPONSE_PKT
+
+
 class HttpProxyPlugin(HttpProtocolBasePlugin):
     """HttpProtocolHandler plugin which implements HttpProxy specifications."""
+
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = CRLF.join([
+        b'HTTP/1.1 200 Connection established',
+        PROXY_AGENT_HEADER,
+        CRLF
+    ])
 
     def __init__(self, config: HttpProtocolConfig, client: TcpClientConnection, request: HttpParser):
         super(HttpProxyPlugin, self).__init__(config, client, request)
@@ -662,7 +792,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         # queue appropriate response for client
         # notifying about established connection
         if self.request.method == b'CONNECT':
-            self.client.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+            self.client.queue(HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         # for general http requests, re-build request packet
         # and queue for the server with appropriate headers
         else:
@@ -708,6 +838,13 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
 class HttpWebServerPlugin(HttpProtocolBasePlugin):
     """HttpProtocolHandler plugin which handles incoming requests to local webserver."""
 
+    PAC_FILE_RESPONSE_PREFIX = CRLF.join([
+        b'HTTP/1.1 200 OK',
+        b'Content-Type: application/x-ns-proxy-autoconfig',
+        b'Connection: close',
+        CRLF
+    ])
+
     def __init__(self, config: HttpProtocolConfig, client: TcpClientConnection, request: HttpParser):
         super(HttpWebServerPlugin, self).__init__(config, client, request)
 
@@ -738,7 +875,7 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
                                        text_(self.request.method), text_(self.request.build_url())))
 
     def serve_pac_file(self):
-        self.client.queue(PAC_FILE_RESPONSE_PREFIX)
+        self.client.queue(self.PAC_FILE_RESPONSE_PREFIX)
         try:
             with open(self.config.pac_file, 'r') as f:
                 logger.debug('Serving pac file from disk')
@@ -832,7 +969,7 @@ class HttpProtocolHandler(threading.Thread):
                             plugin_response = plugin.on_request_complete()
                             if type(plugin_response) is bool:
                                 return True
-                except ProxyError as e:  # ProxyAuthenticationFailed, ProxyConnectionFailed, ProxyRequestRejected
+                except HttpProtocolException as e:  # ProxyAuthenticationFailed, ProxyConnectionFailed, HttpRequestRejected
                     # logger.exception(e)
                     response = e.response(self.request)
                     if response:
@@ -876,131 +1013,6 @@ class HttpProtocolHandler(threading.Thread):
 
             logger.debug('Closed proxy for connection %r '
                          'at address %r' % (self.client.conn, self.client.addr))
-
-
-class TcpServer(object):
-    """TcpServer server implementation.
-
-    Inheritor MUST implement `handle` method. It accepts an instance of `TcpClientConnection`.
-    Optionally, can also implement `setup` and `shutdown` methods for custom bootstrapping and tearing
-    down internal state.
-    """
-
-    def __init__(self, hostname=DEFAULT_IPV4_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG, ipv4=DEFAULT_IPV4):
-        self.hostname = hostname
-        self.port = port
-        self.backlog = backlog
-        self.ipv4 = ipv4
-        self.socket = None
-        self.running = False
-
-    def setup(self):
-        pass
-
-    def handle(self, client):
-        raise NotImplementedError()
-
-    def shutdown(self):
-        pass
-
-    def stop(self):
-        self.running = False
-
-    def run(self):
-        self.running = True
-        self.setup()
-        try:
-            self.socket = socket.socket(socket.AF_INET if self.ipv4 is True else socket.AF_INET6, socket.SOCK_STREAM)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.bind((self.hostname, self.port))
-            self.socket.listen(self.backlog)
-            logger.info('Started server on %s:%d' % (self.hostname, self.port))
-            while self.running:
-                r, w, x = select.select([self.socket], [], [], 1)
-                if self.socket in r:
-                    conn, addr = self.socket.accept()
-                    client = TcpClientConnection(conn, addr)
-                    self.handle(client)
-        except Exception as e:
-            logger.exception('Exception while running the server %r' % e)
-        finally:
-            self.shutdown()
-            logger.info('Closing server socket')
-            self.socket.close()
-
-
-class MultiCoreRequestDispatcher(TcpServer):
-    """MultiCoreRequestDispatcher.
-
-    Pre-spawns worker process to utilize all cores available on the system.  Accepted `TcpClientConnection` is
-    dispatched over a queue to workers.  One of the worker picks up the work and starts a new thread to handle the
-    client request.
-    """
-
-    def __init__(self, hostname=DEFAULT_IPV4_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG,
-                 num_workers=DEFAULT_NUM_WORKERS, ipv4=DEFAULT_IPV4, config=None):
-        super(MultiCoreRequestDispatcher, self).__init__(hostname, port, backlog, ipv4)
-
-        self.worker_queue = multiprocessing.Queue()
-        self.num_workers = multiprocessing.cpu_count()
-        if num_workers > 0:
-            self.num_workers = num_workers
-        self.workers = []
-        self.config = config
-
-    def setup(self):
-        logger.info('Starting %d workers' % self.num_workers)
-        for worker_id in range(self.num_workers):
-            worker = Worker(self.worker_queue, self.config)
-            worker.daemon = True
-            worker.start()
-            self.workers.append(worker)
-
-    def handle(self, client):
-        self.worker_queue.put((Worker.operations.HTTP_PROTOCOL, client))
-
-    def shutdown(self):
-        logger.info('Shutting down %d workers' % self.num_workers)
-        for worker_id in range(self.num_workers):
-            self.worker_queue.put((Worker.operations.SHUTDOWN, None))
-        for worker_id in range(self.num_workers):
-            self.workers[worker_id].join()
-
-
-class Worker(multiprocessing.Process):
-    """Generic worker class implementation.
-
-    Worker instance accepts (operation, payload) over work queue and
-    depending upon requested operation starts a new thread to handle the work.
-    """
-
-    operations = namedtuple('WorkerOperations', (
-        'HTTP_PROTOCOL',
-        'SHUTDOWN',
-    ))(1, 2)
-
-    def __init__(self, work_queue, config=None):
-        super(Worker, self).__init__()
-        self.work_queue = work_queue
-        self.config = config
-
-    def run(self):
-        while True:
-            try:
-                op, payload = self.work_queue.get(True, 1)
-                if op == Worker.operations.HTTP_PROTOCOL:
-                    proxy = HttpProtocolHandler(payload, config=self.config)
-                    proxy.setDaemon(True)
-                    proxy.start()
-                elif op == Worker.operations.SHUTDOWN:
-                    break
-            except queue.Empty:
-                pass
-            # Safeguard against https://gist.github.com/abhinavsingh/b8d4266ff4f38b6057f9c50075e8cd75
-            except ConnectionRefusedError:
-                pass
-            except KeyboardInterrupt:
-                break
 
 
 def set_open_file_limit(soft_limit):
@@ -1049,6 +1061,10 @@ def init_parser():
     parser.add_argument('--ipv4', action='store_true', default=DEFAULT_IPV4,
                         help='Whether to listen on IPv4 address. '
                              'By default server only listens on IPv6.')
+    parser.add_argument('--enable-http-proxy', type=bool, default=DEFAULT_ENABLE_HTTP_PROXY,
+                        help='Default: True.  Whether to enable proxy.HttpProxyPlugin.')
+    parser.add_argument('--enable-web-server', type=bool, default=DEFAULT_ENABLE_WEB_SERVER,
+                        help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.')
     parser.add_argument('--log-level', type=str, default=DEFAULT_LOG_LEVEL,
                         help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
                              'Both upper and lowercase values are allowed.'
@@ -1112,7 +1128,14 @@ def main():
                                     client_recvbuf_size=args.client_recvbuf_size,
                                     pac_file=args.pac_file,
                                     pac_file_url_path=args.pac_file_url_path)
-        config.plugins = load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin,%s' % args.plugins)
+
+        default_plugins = ''
+        if args.enable_http_proxy:
+            default_plugins += 'proxy.HttpProxyPlugin,'
+        if args.enable_web_server:
+            default_plugins += 'proxy.HttpWebServerPlugin,'
+        config.plugins = load_plugins('%s%s' % (default_plugins, args.plugins))
+
         server = MultiCoreRequestDispatcher(hostname=args.hostname,
                                             port=args.port,
                                             backlog=args.backlog,

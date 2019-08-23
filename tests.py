@@ -8,28 +8,22 @@
     :copyright: (c) 2013-2020 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
-import os
 import base64
 import logging
 import multiprocessing
+import os
 import socket
-import sys
 import time
 import unittest
 from contextlib import closing
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
+from unittest import mock
 
 import proxy
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
-
-if sys.version_info[0] == 3:  # Python3 specific imports
-    from http.server import HTTPServer, BaseHTTPRequestHandler
-    from unittest import mock
-else:  # Python2 specific imports
-    import mock
-    from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
 
 def get_available_port():
@@ -117,7 +111,6 @@ def mock_tcp_proxy_side_effect(client, **kwargs):
 
 
 @unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0), 'Opening sockets not allowed on Travis')
-@unittest.skipIf(not proxy.PY3, "Worker testing require Python3")
 class TestMultiCoreRequestDispatcher(unittest.TestCase):
     tcp_port = None
     tcp_server = None
@@ -572,26 +565,15 @@ class TestProxy(unittest.TestCase):
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
         server.closed = False
-        if proxy.PY3:
-            server.queue.assert_called_once_with(proxy.CRLF.join([
-                b'GET / HTTP/1.1',
-                b'User-Agent: proxy.py/%s' % proxy.version,
-                b'Host: localhost:%d' % self.http_server_port,
-                b'Accept: */*',
-                b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
-                b'Connection: Close',
-                proxy.CRLF
-            ]))
-        else:
-            server.queue.assert_called_once_with(proxy.CRLF.join([
-                b'GET / HTTP/1.1',
-                b'Host: localhost:%d' % self.http_server_port,
-                b'Accept: */*',
-                b'User-Agent: proxy.py/%s' % proxy.version,
-                b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
-                b'Connection: Close',
-                proxy.CRLF
-            ]))
+        server.queue.assert_called_once_with(proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            b'Host: localhost:%d' % self.http_server_port,
+            b'Accept: */*',
+            b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
+            b'Connection: Close',
+            proxy.CRLF
+        ]))
 
         self.proxy.run_once()
         server.flush.assert_called_once()
@@ -614,7 +596,7 @@ class TestProxy(unittest.TestCase):
         ]))
         self.proxy.run_once()
         self.assertFalse(self.proxy.plugins['HttpProxyPlugin'].server is None)
-        self.assertEqual(self.proxy.client.buffer, proxy.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+        self.assertEqual(self.proxy.client.buffer, proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
         server.queue.assert_not_called()
@@ -708,26 +690,15 @@ class TestProxy(unittest.TestCase):
         server.connect.assert_called_once()
         server.closed = False
 
-        if proxy.PY3:
-            server.queue.assert_called_once_with(proxy.CRLF.join([
-                b'GET / HTTP/1.1',
-                b'User-Agent: proxy.py/%s' % proxy.version,
-                b'Host: localhost:%d' % self.http_server_port,
-                b'Accept: */*',
-                b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
-                b'Connection: Close',
-                proxy.CRLF
-            ]))
-        else:
-            server.queue.assert_called_once_with(proxy.CRLF.join([
-                b'GET / HTTP/1.1',
-                b'Host: localhost:%d' % self.http_server_port,
-                b'Accept: */*',
-                b'User-Agent: proxy.py/%s' % proxy.version,
-                b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
-                b'Connection: Close',
-                proxy.CRLF
-            ]))
+        server.queue.assert_called_once_with(proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            b'Host: localhost:%d' % self.http_server_port,
+            b'Accept: */*',
+            b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
+            b'Connection: Close',
+            proxy.CRLF
+        ]))
 
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
@@ -750,7 +721,7 @@ class TestProxy(unittest.TestCase):
         ]))
         self.proxy.run_once()
         self.assertFalse(self.proxy.plugins['HttpProxyPlugin'].server is None)
-        self.assertEqual(self.proxy.client.buffer, proxy.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+        self.assertEqual(self.proxy.client.buffer, proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
         server.closed = False
@@ -808,6 +779,12 @@ class TestMain(unittest.TestCase):
         proxy.main()
         self.assertTrue(mock_set_open_file_limit.called)
         self.assertTrue(mock_http_server.called)
+
+    def test_text(self):
+        self.assertEqual(proxy.text_(b'hello'), 'hello')
+
+    def test_bytes(self):
+        self.assertEqual(proxy.bytes_('hello'), b'hello')
 
 
 if __name__ == '__main__':
