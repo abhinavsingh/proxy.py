@@ -33,14 +33,13 @@ Usage
 $ proxy.py -h
 usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
-                [--hostname HOSTNAME] [--ipv4]
-                [--enable-http-proxy ENABLE_HTTP_PROXY]
-                [--enable-web-server ENABLE_WEB_SERVER]
-                [--log-level LOG_LEVEL] [--log-format LOG_FORMAT]
+                [--hostname HOSTNAME] [--ipv4] [--enable-http-proxy]
+                [--enable-web-server] [--log-level LOG_LEVEL]
+                [--log-format LOG_FORMAT] [--num-workers NUM_WORKERS]
                 [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
                 [--pac-file-url-path PAC_FILE_URL_PATH] [--plugins PLUGINS]
                 [--port PORT] [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-                [--num-workers NUM_WORKERS]
+                [--version]
 
 proxy.py v0.4
 
@@ -59,11 +58,9 @@ optional arguments:
   --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
   --ipv4                Whether to listen on IPv4 address. By default server
                         only listens on IPv6.
-  --enable-http-proxy ENABLE_HTTP_PROXY
-                        Default: True. Whether to enable
+  --enable-http-proxy   Default: True. Whether to enable
                         proxy.HttpProxyPlugin.
-  --enable-web-server ENABLE_WEB_SERVER
-                        Default: False. Whether to enable
+  --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
   --log-level LOG_LEVEL
                         Valid options: DEBUG, INFO (default), WARNING, ERROR,
@@ -72,6 +69,8 @@ optional arguments:
                         e.g. --log-level d
   --log-format LOG_FORMAT
                         Log format for Python logger.
+  --num-workers NUM_WORKERS
+                        Defaults to number of CPU cores.
   --open-file-limit OPEN_FILE_LIMIT
                         Default: 1024. Maximum number of files (TCP
                         connections) that proxy.py can open concurrently.
@@ -86,8 +85,7 @@ optional arguments:
                         the server in a single recv() operation. Bump this
                         value for faster downloads at the expense of increased
                         RAM.
-  --num-workers NUM_WORKERS
-                        Defaults to number of CPU cores.
+  --version             Prints proxy.py version.
 
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new

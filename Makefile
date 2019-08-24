@@ -2,13 +2,16 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-VERSION ?= v0.4
+VERSION ?= v$(shell python proxy.py --version)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
 .PHONY: all clean test package test-release release coverage flake8 container run-container release-container
 
 all: clean test
+
+version:
+	@echo $(VERSION)
 
 clean:
 	find . -name '*.pyc' -exec rm -f {} +

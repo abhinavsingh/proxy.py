@@ -58,6 +58,7 @@ DEFAULT_PAC_FILE = None
 DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_PLUGINS = {}
+DEFAULT_VERSION = False
 DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
 
 # Set to True if under test
@@ -1060,9 +1061,9 @@ def init_parser():
     parser.add_argument('--ipv4', action='store_true', default=DEFAULT_IPV4,
                         help='Whether to listen on IPv4 address. '
                              'By default server only listens on IPv6.')
-    parser.add_argument('--enable-http-proxy', type=bool, default=DEFAULT_ENABLE_HTTP_PROXY,
+    parser.add_argument('--enable-http-proxy', action='store_true', default=DEFAULT_ENABLE_HTTP_PROXY,
                         help='Default: True.  Whether to enable proxy.HttpProxyPlugin.')
-    parser.add_argument('--enable-web-server', type=bool, default=DEFAULT_ENABLE_WEB_SERVER,
+    parser.add_argument('--enable-web-server', action='store_true', default=DEFAULT_ENABLE_WEB_SERVER,
                         help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.')
     parser.add_argument('--log-level', type=str, default=DEFAULT_LOG_LEVEL,
                         help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
@@ -1070,6 +1071,8 @@ def init_parser():
                              'You may also simply use the leading character e.g. --log-level d')
     parser.add_argument('--log-format', type=str, default=DEFAULT_LOG_FORMAT,
                         help='Log format for Python logger.')
+    parser.add_argument('--num-workers', type=int, default=DEFAULT_NUM_WORKERS,
+                        help='Defaults to number of CPU cores.')
     parser.add_argument('--open-file-limit', type=int, default=DEFAULT_OPEN_FILE_LIMIT,
                         help='Default: 1024. Maximum number of files (TCP connections) '
                              'that proxy.py can open concurrently.')
@@ -1086,8 +1089,8 @@ def init_parser():
                              'server in a single recv() operation. Bump this '
                              'value for faster downloads at the expense of '
                              'increased RAM.')
-    parser.add_argument('--num-workers', type=int, default=DEFAULT_NUM_WORKERS,
-                        help='Defaults to number of CPU cores.')
+    parser.add_argument('--version', action='store_true', default=DEFAULT_VERSION,
+                        help='Prints proxy.py version.')
     return parser
 
 
@@ -1105,17 +1108,21 @@ def main():
 
     parser = init_parser()
     args = parser.parse_args(sys.argv[1:])
-    logging.basicConfig(level=getattr(logging,
-                                      {
-                                          'D': 'DEBUG',
-                                          'I': 'INFO',
-                                          'W': 'WARNING',
-                                          'E': 'ERROR',
-                                          'C': 'CRITICAL'
-                                      }[args.log_level.upper()[0]]),
-                        format=args.log_format)
+
+    if args.version:
+        print(text_(version))
+        sys.exit(0)
 
     try:
+        logging.basicConfig(level=getattr(
+            logging,
+            {'D': 'DEBUG',
+             'I': 'INFO',
+             'W': 'WARNING',
+             'E': 'ERROR',
+             'C': 'CRITICAL'}[args.log_level.upper()[0]]),
+            format=args.log_format)
+
         set_open_file_limit(args.open_file_limit)
 
         auth_code = None
