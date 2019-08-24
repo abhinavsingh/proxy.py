@@ -1,28 +1,21 @@
 language: python
-python:
-  # Disable 2.7 since proxy.py will not support this in future
-  # - "2.7"
-  # Disabled due to test failures like:
-  # TypeError: unsupported operand type(s) for %: 'bytes' and 'bytes'
-  # Needs explicit conversion to bytes after string formatting.
-  # Example, see https://travis-ci.org/abhinavsingh/proxy.py/jobs/490855017
-  #- "3.3"
-  #- "3.4"
-  - "3.5"
-  - "3.6"
-# Enable 3.7 without globally enabling sudo and dist: xenial for other build jobs
-# This is official workaround for Python 3.7 support by Travis
-# See https://github.com/travis-ci/travis-ci/issues/9815
+env:
+  - TESTING_ON_TRAVIS=1
 matrix:
   include:
-    - python: 3.7
-      dist: xenial
-      sudo: true
-os:
-  - linux
-  # No support for OSX Python runtime
-  #- osx
-  # Windows Python support is currently in early access
-  #- windows
-script:
-  - make
+    - name: "Python 3.7 on Xenial Linux"
+      python: 3.7
+    - name: "Python 3.7 on macOS"
+      os: osx
+      osx_image: xcode11
+      language: shell
+    - name: "Python 3.7 on Windows"
+      os: windows
+      language: shell
+      before_install:
+        - choco install python
+        - python -m pip install --upgrade pip
+      env:
+        - PATH=/c/Python37:/c/Python37/Scripts:$PATH
+        - TESTING_ON_TRAVIS=1
+script: python3 tests.py || python tests.py
