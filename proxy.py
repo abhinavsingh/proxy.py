@@ -596,9 +596,12 @@ class HttpRequestRejected(HttpProtocolException):
             pkt.append(b'HTTP/1.1 ' + self.status_code)
             pkt.append(PROXY_AGENT_HEADER)
         if self.body:
-            pkt.append(b'Content-Length: ' + bytes(len(self.body)))
+            pkt.append(b'Content-Length: ' + bytes_(str(len(self.body))))
             pkt.append(CRLF)
             pkt.append(self.body)
+        else:
+            if len(pkt) > 0:
+                pkt.append(CRLF)
         return CRLF.join(pkt) if len(pkt) > 0 else None
 
 
@@ -738,7 +741,11 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
 
         if self.server and not self.server.closed and self.server.conn in w:
             logger.debug('Server is ready for writes, flushing server buffer')
-            self.server.flush()
+            try:
+                self.server.flush()
+            except BrokenPipeError:
+                logging.error('BrokenPipeError when flushing buffer for server')
+                return True
 
     def read_from_descriptors(self, r):
         if not self.request.has_upstream_server():
@@ -889,7 +896,7 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
 class HttpProtocolHandler(threading.Thread):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
-    Accepts `Client` connection object, manages plugin invocations.
+    Accepts `Client` connection object and manages HttpProtocolBasePlugin invocations.
     """
 
     def __init__(self, client, config=None):
@@ -923,6 +930,7 @@ class HttpProtocolHandler(threading.Thread):
         if self.client.has_buffer():
             write_desc.append(self.client.conn)
 
+        # HttpProtocolBasePlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc, plugin_err_desc = plugin.get_descriptors()
             read_desc += plugin_read_desc
@@ -952,6 +960,7 @@ class HttpProtocolHandler(threading.Thread):
                 logger.debug('Client closed connection, tearing down...')
                 return True
 
+            # HttpProtocolBasePlugin.on_client_data
             plugin_index = 0
             plugins = list(self.plugins.values())
             while plugin_index < len(plugins) and client_data:
@@ -963,6 +972,7 @@ class HttpProtocolHandler(threading.Thread):
                     # Parse http request
                     self.request.parse(client_data)
                     if self.request.state == HttpParser.states.COMPLETE:
+                        # HttpProtocolBasePlugin.on_request_complete
                         for plugin in self.plugins.values():
                             # TODO: Cleanup by not returning True for teardown cases
                             plugin_response = plugin.on_request_complete()
@@ -978,6 +988,7 @@ class HttpProtocolHandler(threading.Thread):
                         self.client.flush()
                     raise e
 
+        # HttpProtocolBasePlugin.read_from_descriptors
         for plugin in self.plugins.values():
             teardown = plugin.read_from_descriptors(readable)
             if teardown:
@@ -1024,10 +1035,11 @@ def set_open_file_limit(soft_limit):
             logger.debug('Open file descriptor soft limit set to %d' % soft_limit)
 
 
-def load_plugins(plugins) -> List:
+def load_plugins(plugins: str) -> List:
+    """Accepts a comma separated list of Python modules and returns
+    a list of respective Python classes."""
     p = []
-    plugins = plugins.split(',')
-    for plugin in plugins:
+    for plugin in plugins.split(','):
         plugin = plugin.strip()
         if plugin == '':
             continue
@@ -1040,7 +1052,8 @@ def load_plugins(plugins) -> List:
     return p
 
 
-def init_parser():
+def init_parser() -> argparse.ArgumentParser:
+    """Initializes and returns argument parser."""
     parser = argparse.ArgumentParser(
         description='proxy.py v%s' % __version__,
         epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__

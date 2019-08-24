@@ -10,9 +10,6 @@ IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
 all: clean test
 
-version:
-	@echo $(VERSION)
-
 clean:
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
@@ -36,6 +33,7 @@ release: package
 coverage:
 	coverage run tests.py
 	coverage html
+	open htmlcov/index.html
 
 flake8:
 	flake8 --ignore=E501,W504 --builtins="unicode" proxy.py

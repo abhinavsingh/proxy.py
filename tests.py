@@ -19,6 +19,7 @@ from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from unittest import mock
+import resource
 
 import proxy
 
@@ -775,16 +776,57 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
-    def test_http_server_called(self, mock_set_open_file_limit, mock_http_server):
+    def test_http_server_called(self, mock_set_open_file_limit, mock_multicore_dispatcher):
         proxy.main()
         self.assertTrue(mock_set_open_file_limit.called)
-        self.assertTrue(mock_http_server.called)
+        self.assertTrue(mock_multicore_dispatcher.called)
 
     def test_text(self):
         self.assertEqual(proxy.text_(b'hello'), 'hello')
 
+    def test_text_nochange(self):
+        self.assertEqual(proxy.text_('hello'), 'hello')
+
     def test_bytes(self):
         self.assertEqual(proxy.bytes_('hello'), b'hello')
+
+    def test_bytes_nochange(self):
+        self.assertEqual(proxy.bytes_(b'hello'), b'hello')
+
+    @mock.patch('resource.getrlimit', return_value=(128, 1024))
+    @mock.patch('resource.setrlimit', return_value=None)
+    def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit):
+        proxy.set_open_file_limit(256)
+        mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
+        mock_set_rlimit.assert_called_with(resource.RLIMIT_NOFILE, (256, 1024))
+
+
+class TestHttpRequestRejected(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.request = proxy.HttpParser(proxy.HttpParser.types.REQUEST_PARSER)
+
+    def test_empty_response(self):
+        e = proxy.HttpRequestRejected()
+        self.assertEqual(e.response(self.request), None)
+
+    def test_status_code_response(self):
+        e = proxy.HttpRequestRejected(status_code=b'200 OK')
+        self.assertEqual(e.response(self.request), proxy.CRLF.join([
+            b'HTTP/1.1 200 OK',
+            proxy.PROXY_AGENT_HEADER,
+            proxy.CRLF
+        ]))
+
+    def test_body_response(self):
+        e = proxy.HttpRequestRejected(status_code=b'404 NOT FOUND', body=b'Nothing here')
+        self.assertEqual(e.response(self.request), proxy.CRLF.join([
+            b'HTTP/1.1 404 NOT FOUND',
+            proxy.PROXY_AGENT_HEADER,
+            b'Content-Length: 12',
+            proxy.CRLF,
+            b'Nothing here'
+        ]))
 
 
 if __name__ == '__main__':
