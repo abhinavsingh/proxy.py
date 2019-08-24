@@ -776,12 +776,70 @@ class TestWorker(unittest.TestCase):
 
 class TestMain(unittest.TestCase):
 
+    @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
-    def test_http_server_called(self, mock_set_open_file_limit, mock_multicore_dispatcher):
-        proxy.main()
+    def test_main(self, mock_multicore_dispatcher, mock_set_open_file_limit, mock_config):
+        proxy.main(['--basic-auth', 'user:pass'])
         self.assertTrue(mock_set_open_file_limit.called)
-        self.assertTrue(mock_multicore_dispatcher.called)
+        mock_multicore_dispatcher.assert_called_with(
+            hostname=proxy.DEFAULT_IPV4_HOSTNAME,
+            port=proxy.DEFAULT_PORT,
+            ipv4=proxy.DEFAULT_IPV4,
+            backlog=proxy.DEFAULT_BACKLOG,
+            num_workers=proxy.DEFAULT_NUM_WORKERS,
+            config=mock_config.return_value)
+        mock_config.assert_called_with(
+            auth_code=b'Basic dXNlcjpwYXNz',
+            client_recvbuf_size=proxy.DEFAULT_CLIENT_RECVBUF_SIZE,
+            server_recvbuf_size=proxy.DEFAULT_SERVER_RECVBUF_SIZE,
+            pac_file=proxy.DEFAULT_PAC_FILE,
+            pac_file_url_path=proxy.DEFAULT_PAC_FILE_URL_PATH
+        )
+
+    @mock.patch('builtins.print')
+    @mock.patch('proxy.HttpProtocolConfig')
+    @mock.patch('proxy.set_open_file_limit')
+    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    def test_main_version(self, mock_multicore_dispatcher, mock_set_open_file_limit, mock_config, mock_print):
+        with self.assertRaises(SystemExit):
+            proxy.main(['--version'])
+            mock_print.assert_called_with(proxy.text_(proxy.version))
+        mock_multicore_dispatcher.assert_not_called()
+        mock_set_open_file_limit.assert_not_called()
+        mock_config.assert_not_called()
+
+    @unittest.skipIf(True, 'For some reason this test passes when running in Intellij but fails via CLI :(')
+    @mock.patch('builtins.print')
+    @mock.patch('proxy.HttpProtocolConfig')
+    @mock.patch('proxy.set_open_file_limit')
+    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.is_py3')
+    def test_main_py2_exit(self, mock_version, mock_multicore_dispatcher, mock_set_open_file_limit,
+                           mock_config, mock_print):
+        mock_version.return_value = False
+        with self.assertRaises(SystemExit):
+            proxy.main([])
+            mock_version.assert_called()
+            logging.info(mock_print.call_args.startswith('DEPRECATION'))
+        mock_multicore_dispatcher.assert_not_called()
+        mock_set_open_file_limit.assert_not_called()
+        mock_config.assert_not_called()
+
+    @mock.patch('builtins.print')
+    @mock.patch('proxy.HttpProtocolConfig')
+    @mock.patch('proxy.set_open_file_limit')
+    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.is_py3')
+    def test_main_py3_runs(self, mock_version, mock_multicore_dispatcher, mock_set_open_file_limit,
+                           mock_config, mock_print):
+        mock_version.return_value = True
+        proxy.main([])
+        mock_version.assert_called()
+        mock_print.assert_not_called()
+        mock_multicore_dispatcher.assert_called()
+        mock_set_open_file_limit.assert_called()
+        mock_config.assert_called()
 
     def test_text(self):
         self.assertEqual(proxy.text_(b'hello'), 'hello')
@@ -806,7 +864,7 @@ class TestMain(unittest.TestCase):
     @unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
     @mock.patch('resource.getrlimit', return_value=(256, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
-    def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit):
+    def test_set_open_file_limit_not_called(self, mock_set_rlimit, mock_get_rlimit):
         proxy.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
@@ -814,7 +872,7 @@ class TestMain(unittest.TestCase):
     @unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
     @mock.patch('resource.getrlimit', return_value=(256, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
-    def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit):
+    def test_set_open_file_limit_not_called1(self, mock_set_rlimit, mock_get_rlimit):
         proxy.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()

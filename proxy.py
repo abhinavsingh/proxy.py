@@ -13,6 +13,7 @@ import base64
 import datetime
 import errno
 import importlib
+import inspect
 import logging
 import multiprocessing
 import os
@@ -24,12 +25,10 @@ import threading
 from collections import namedtuple
 from typing import Dict, List, Tuple
 from urllib import parse as urlparse
-import inspect
 
 if os.name != 'nt':
     import resource
 
-PY3 = sys.version_info[0] == 3
 VERSION = (0, 4)
 __version__ = '.'.join(map(str, VERSION[0:2]))
 __description__ = 'Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file'
@@ -1078,6 +1077,11 @@ class HttpProtocolHandler(threading.Thread):
                          'at address %r' % (self.client.conn, self.client.addr))
 
 
+def is_py3() -> bool:
+    """Exists only to avoid mocking sys.version_info in tests."""
+    return sys.version_info[0] == 3
+
+
 def set_open_file_limit(soft_limit):
     """Configure open file description soft limit on supported OS."""
     if os.name != 'nt':  # resource module not available on Windows OS
@@ -1162,8 +1166,8 @@ def init_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main():
-    if not PY3 and not UNDER_TEST:
+def main(args):
+    if not is_py3() and not UNDER_TEST:
         print(
             'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
             'If for some reasons you cannot upgrade, consider using "master" branch or simply '
@@ -1175,7 +1179,7 @@ def main():
         sys.exit(0)
 
     parser = init_parser()
-    args = parser.parse_args(sys.argv[1:])
+    args = parser.parse_args(args)
 
     if args.version:
         print(text_(version))
@@ -1225,4 +1229,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
