@@ -19,7 +19,9 @@ from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from unittest import mock
-import resource
+
+if os.name != 'nt':
+    import resource
 
 import proxy
 
@@ -793,12 +795,29 @@ class TestMain(unittest.TestCase):
     def test_bytes_nochange(self):
         self.assertEqual(proxy.bytes_(b'hello'), b'hello')
 
+    @unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
     @mock.patch('resource.getrlimit', return_value=(128, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
     def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit):
         proxy.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_called_with(resource.RLIMIT_NOFILE, (256, 1024))
+
+    @unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
+    @mock.patch('resource.getrlimit', return_value=(256, 1024))
+    @mock.patch('resource.setrlimit', return_value=None)
+    def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit):
+        proxy.set_open_file_limit(256)
+        mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
+        mock_set_rlimit.assert_not_called()
+
+    @unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
+    @mock.patch('resource.getrlimit', return_value=(256, 1024))
+    @mock.patch('resource.setrlimit', return_value=None)
+    def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit):
+        proxy.set_open_file_limit(1024)
+        mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
+        mock_set_rlimit.assert_not_called()
 
 
 class TestHttpRequestRejected(unittest.TestCase):

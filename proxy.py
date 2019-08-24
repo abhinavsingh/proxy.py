@@ -24,6 +24,7 @@ import threading
 from collections import namedtuple
 from typing import Dict, List, Tuple
 from urllib import parse as urlparse
+import inspect
 
 if os.name != 'nt':
     import resource
@@ -710,6 +711,41 @@ class ProxyAuthenticationFailed(HttpProtocolException):
         return self.RESPONSE_PKT
 
 
+class HttpProxyBasePlugin(object):
+    """Base HttpProxyPlugin Plugin class.
+
+    Implement various lifecycle event methods to customize behavior."""
+
+    def __init__(self, config: HttpProtocolConfig, client: TcpClientConnection, request: HttpParser):
+        self.config = config
+        self.client = client
+        self.request = request
+
+    def name(self) -> str:
+        """A unique name for your plugin.
+
+        Defaults to name of the class. This helps plugin developers to directly
+        access a specific plugin by its name."""
+        return self.__class__.__name__
+
+    def before_upstream_connection(self):
+        """Handler called just before Proxy upstream connection is established.
+
+        Raise HttpRequestRejected to drop the connection."""
+        pass
+
+    def on_upstream_connection(self):
+        """Handler called right after upstream connection has been established."""
+        pass
+
+    def handle_upstream_response(self, raw):
+        """Handled called right after reading response from upstream server and
+        before queuing that response to client.
+
+        Optionally return modified response to queue for client."""
+        return raw
+
+
 class HttpProxyPlugin(HttpProtocolBasePlugin):
     """HttpProtocolHandler plugin which implements HttpProxy specifications."""
 
@@ -723,6 +759,11 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         super(HttpProxyPlugin, self).__init__(config, client, request)
         self.server = None
         self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
+
+        self.plugins: Dict[str, HttpProxyBasePlugin] = {}
+        for klass in self.config.plugins['HttpProxyBasePlugin']:
+            instance = klass(self.config, self.client, self.request)
+            self.plugins[instance.name()] = instance
 
     def get_descriptors(self):
         if not self.request.has_upstream_server():
@@ -758,6 +799,10 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             if not raw:
                 logger.debug('Server closed connection, tearing down...')
                 return True
+
+            for plugin in self.plugins.values():
+                raw = plugin.handle_upstream_response(raw)
+
             # parse incoming response packet
             # only for non-https requests
             if not self.request.method == b'CONNECT':
@@ -793,8 +838,15 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         if not self.request.has_upstream_server():
             return
 
+        for plugin in self.plugins.values():
+            plugin.before_upstream_connection()
+
         self.authenticate(self.request.headers)
         self.connect_upstream(self.request.host, self.request.port)
+
+        for plugin in self.plugins.values():
+            plugin.on_upstream_connection()
+
         # for http connect methods (https requests)
         # queue appropriate response for client
         # notifying about established connection
@@ -909,7 +961,7 @@ class HttpProtocolHandler(threading.Thread):
         self.request = HttpParser(HttpParser.types.REQUEST_PARSER)
 
         self.plugins: Dict[str, HttpProtocolBasePlugin] = {}
-        for klass in self.config.plugins:
+        for klass in self.config.plugins['HttpProtocolBasePlugin']:
             instance = klass(self.config, self.client, self.request)
             self.plugins[instance.name()] = instance
 
@@ -1035,20 +1087,23 @@ def set_open_file_limit(soft_limit):
             logger.debug('Open file descriptor soft limit set to %d' % soft_limit)
 
 
-def load_plugins(plugins: str) -> List:
+def load_plugins(plugins: str) -> Dict:
     """Accepts a comma separated list of Python modules and returns
     a list of respective Python classes."""
-    p = []
+    p = {
+        'HttpProtocolBasePlugin': [],
+        'HttpProxyBasePlugin': []
+    }
     for plugin in plugins.split(','):
         plugin = plugin.strip()
         if plugin == '':
             continue
-        logging.debug('Loading plugin %s', plugin)
         module_name, klass_name = plugin.rsplit('.', 1)
         module = importlib.import_module(module_name)
         klass = getattr(module, klass_name)
-        logging.info('%s initialized' % klass.__name__)
-        p.append(klass)
+        base_klass = inspect.getmro(klass)[::-1][1:][0]
+        p[base_klass.__name__].append(klass)
+        logging.info('Loaded plugin %s', klass)
     return p
 
 
