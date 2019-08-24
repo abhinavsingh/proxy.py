@@ -55,7 +55,7 @@ DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
-DEFAULT_PAC_FILE_URL_PATH = '/'
+DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_PLUGINS = {}
 DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
@@ -122,8 +122,9 @@ class TcpConnection(object):
                     'Exception while receiving from connection %s %r with reason %r' % (self.what, self.conn, e))
 
     def close(self) -> bool:
-        self.conn.close()
-        self.closed = True
+        if not self.closed:
+            self.conn.close()
+            self.closed = True
         return self.closed
 
     def buffer_size(self) -> int:
@@ -854,14 +855,14 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
                 self.request.url.path == self.config.pac_file_url_path:
             self.serve_pac_file()
         else:
+            # Catch all unhandled web server requests, return 404
             self.client.queue(CRLF.join([
-                b'HTTP/1.1 200 OK',
+                b'HTTP/1.1 404 NOT FOUND',
                 b'Server: proxy.py v%s' % version,
-                b'Content-Length: 42',
                 b'Connection: Close',
-                CRLF,
-                b'https://github.com/abhinavsingh/proxy.py'
+                CRLF
             ]))
+            # But is client ready for flush?
             self.client.flush()
 
         return True
@@ -875,7 +876,7 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
     def serve_pac_file(self):
         self.client.queue(self.PAC_FILE_RESPONSE_PREFIX)
         try:
-            with open(self.config.pac_file, 'r') as f:
+            with open(self.config.pac_file, 'rb') as f:
                 logger.debug('Serving pac file from disk')
                 self.client.queue(f.read())
         except IOError:
@@ -966,7 +967,8 @@ class HttpProtocolHandler(threading.Thread):
                             plugin_response = plugin.on_request_complete()
                             if type(plugin_response) is bool:
                                 return True
-                except HttpProtocolException as e:  # ProxyAuthenticationFailed, ProxyConnectionFailed, HttpRequestRejected
+                # ProxyAuthenticationFailed, ProxyConnectionFailed, HttpRequestRejected
+                except HttpProtocolException as e:
                     # logger.exception(e)
                     response = e.response(self.request)
                     if response:
@@ -1125,6 +1127,8 @@ def main():
                                     client_recvbuf_size=args.client_recvbuf_size,
                                     pac_file=args.pac_file,
                                     pac_file_url_path=args.pac_file_url_path)
+        if config.pac_file is not None:
+            args.enable_web_server = True
 
         default_plugins = ''
         if args.enable_http_proxy:
