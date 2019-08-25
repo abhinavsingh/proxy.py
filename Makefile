@@ -31,8 +31,8 @@ release: package
 	twine upload dist/*
 
 coverage:
-	coverage run tests.py
-	coverage html
+	coverage3 run tests.py
+	coverage3 html
 	open htmlcov/index.html
 
 flake8:
