@@ -880,7 +880,7 @@ class TestMain(unittest.TestCase):
 
 class TestHttpRequestRejected(unittest.TestCase):
 
-    def setUp(self) -> None:
+    def setUp(self):
         self.request = proxy.HttpParser(proxy.HttpParser.types.REQUEST_PARSER)
 
     def test_empty_response(self):

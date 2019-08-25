@@ -1,6 +1,6 @@
 [![Proxy.Py](ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
-[![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")](https://travis-ci.org/abhinavsingh/proxy.py/)
+[![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")](https://travis-ci.org/abhinavsingh/proxy.py/) [![Coverage Status](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
 
 Features
 --------
