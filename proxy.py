@@ -29,8 +29,8 @@ from urllib import parse as urlparse
 if os.name != 'nt':
     import resource
 
-VERSION = (0, 4)
-__version__ = '.'.join(map(str, VERSION[0:2]))
+VERSION = (1, 0, 'alpha')
+__version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = 'Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file'
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'

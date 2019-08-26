@@ -3,9 +3,9 @@
     proxy.py
     ~~~~~~~~
     
-    HTTP Proxy Server in Python.
+    Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file.
     
-    :copyright: (c) 2013-2018 by Abhinav Singh.
+    :copyright: (c) 2013-2020 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
 from setuptools import setup
