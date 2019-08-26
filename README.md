@@ -38,9 +38,9 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--log-file LOG_FILE] [--log-format LOG_FORMAT]
                 [--num-workers NUM_WORKERS]
                 [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
-                [--pac-file-url-path PAC_FILE_URL_PATH] [--plugins PLUGINS]
-                [--port PORT] [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-                [--version]
+                [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
+                [--plugins PLUGINS] [--port PORT]
+                [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--version]
 
 proxy.py v0.4
 
@@ -80,6 +80,7 @@ optional arguments:
                         when the server receives a direct file request.
   --pac-file-url-path PAC_FILE_URL_PATH
                         Web server path to serve the PAC file.
+  --pid-file PID_FILE   Default: None. Save parent process ID to a file.
   --plugins PLUGINS     Comma separated plugins
   --port PORT           Default: 8899. Server port.
   --server-recvbuf-size SERVER_RECVBUF_SIZE

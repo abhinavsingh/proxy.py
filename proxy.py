@@ -50,12 +50,13 @@ DEFAULT_IPV4_HOSTNAME = '127.0.0.1'
 DEFAULT_IPV6_HOSTNAME = '::'
 DEFAULT_PORT = 8899
 DEFAULT_IPV4 = False
-DEFAULT_ENABLE_HTTP_PROXY = True
+DEFAULT_DISABLE_HTTP_PROXY = False
 DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
 DEFAULT_PAC_FILE_URL_PATH = b'/'
+DEFAULT_PID_FILE = None
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_PLUGINS = {}
 DEFAULT_VERSION = False
@@ -1112,6 +1113,20 @@ def load_plugins(plugins: str) -> Dict:
     return p
 
 
+def setup_logger(log_file=DEFAULT_LOG_FILE, log_level=DEFAULT_LOG_LEVEL, log_format=DEFAULT_LOG_FORMAT):
+    ll = getattr(
+        logging,
+        {'D': 'DEBUG',
+         'I': 'INFO',
+         'W': 'WARNING',
+         'E': 'ERROR',
+         'C': 'CRITICAL'}[log_level.upper()[0]])
+    if log_file:
+        logging.basicConfig(filename=log_file, filemode='a', level=ll, format=log_format)
+    else:
+        logging.basicConfig(level=log_level, format=log_format)
+
+
 def init_parser() -> argparse.ArgumentParser:
     """Initializes and returns argument parser."""
     parser = argparse.ArgumentParser(
@@ -1129,13 +1144,13 @@ def init_parser() -> argparse.ArgumentParser:
                              'client in a single recv() operation. Bump this '
                              'value for faster uploads at the expense of '
                              'increased RAM.')
+    parser.add_argument('--disable-http-proxy', action='store_true', default=DEFAULT_DISABLE_HTTP_PROXY,
+                        help='Default: False.  Whether to disable proxy.HttpProxyPlugin.')
     parser.add_argument('--hostname', type=str, default=DEFAULT_IPV4_HOSTNAME,
                         help='Default: 127.0.0.1. Server IP address.')
     parser.add_argument('--ipv4', action='store_true', default=DEFAULT_IPV4,
                         help='Whether to listen on IPv4 address. '
                              'By default server only listens on IPv6.')
-    parser.add_argument('--enable-http-proxy', action='store_true', default=DEFAULT_ENABLE_HTTP_PROXY,
-                        help='Default: True.  Whether to enable proxy.HttpProxyPlugin.')
     parser.add_argument('--enable-web-server', action='store_true', default=DEFAULT_ENABLE_WEB_SERVER,
                         help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.')
     parser.add_argument('--log-level', type=str, default=DEFAULT_LOG_LEVEL,
@@ -1156,6 +1171,8 @@ def init_parser() -> argparse.ArgumentParser:
                              'the server receives a direct file request.')
     parser.add_argument('--pac-file-url-path', type=str, default=DEFAULT_PAC_FILE_URL_PATH,
                         help='Web server path to serve the PAC file.')
+    parser.add_argument('--pid-file', type=str, default=DEFAULT_PID_FILE,
+                        help='Default: None.  Save parent process ID to a file.')
     parser.add_argument('--plugins', type=str, default='', help='Comma separated plugins')
     parser.add_argument('--port', type=int, default=DEFAULT_PORT,
                         help='Default: 8899. Server port.')
@@ -1183,24 +1200,12 @@ def main(args):
 
     parser = init_parser()
     args = parser.parse_args(args)
-
     if args.version:
         print(text_(version))
         sys.exit(0)
 
     try:
-        log_level = getattr(
-            logging,
-            {'D': 'DEBUG',
-             'I': 'INFO',
-             'W': 'WARNING',
-             'E': 'ERROR',
-             'C': 'CRITICAL'}[args.log_level.upper()[0]])
-        if args.log_file:
-            logging.basicConfig(filename=args.log_file, filemode='a', level=log_level, format=args.log_format)
-        else:
-            logging.basicConfig(level=log_level, format=args.log_format)
-
+        setup_logger(args.log_file, args.log_level, args.log_format)
         set_open_file_limit(args.open_file_limit)
 
         auth_code = None
@@ -1216,7 +1221,7 @@ def main(args):
             args.enable_web_server = True
 
         default_plugins = ''
-        if args.enable_http_proxy:
+        if not args.disable_http_proxy:
             default_plugins += 'proxy.HttpProxyPlugin,'
         if args.enable_web_server:
             default_plugins += 'proxy.HttpWebServerPlugin,'
@@ -1228,10 +1233,16 @@ def main(args):
                                             ipv4=args.ipv4,
                                             num_workers=args.num_workers,
                                             config=config)
-
+        if args.pid_file:
+            with open(args.pid_file, 'wb') as pid_file:
+                pid_file.write(bytes_(str(os.getpid())))
         server.run()
     except KeyboardInterrupt:
         pass
+    finally:
+        if args.pid_file:
+            if os.path.exists(args.pid_file):
+                os.remove(args.pid_file)
 
 
 if __name__ == '__main__':
