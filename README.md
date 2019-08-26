@@ -1,6 +1,6 @@
 [![Proxy.Py](ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
-[![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")](https://travis-ci.org/abhinavsingh/proxy.py/) [![Coverage Status](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")](https://travis-ci.org/abhinavsingh/proxy.py/) [![Coverage Status](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
 
 Features
 --------
@@ -35,7 +35,8 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
                 [--hostname HOSTNAME] [--ipv4] [--enable-http-proxy]
                 [--enable-web-server] [--log-level LOG_LEVEL]
-                [--log-format LOG_FORMAT] [--num-workers NUM_WORKERS]
+                [--log-file LOG_FILE] [--log-format LOG_FORMAT]
+                [--num-workers NUM_WORKERS]
                 [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
                 [--pac-file-url-path PAC_FILE_URL_PATH] [--plugins PLUGINS]
                 [--port PORT] [--server-recvbuf-size SERVER_RECVBUF_SIZE]
@@ -51,7 +52,7 @@ optional arguments:
                         Default: No authentication. Specify colon separated
                         user:password to enable basic authentication.
   --client-recvbuf-size CLIENT_RECVBUF_SIZE
-                        Default: 8 KB. Maximum amount of data received from
+                        Default: 1 MB. Maximum amount of data received from
                         the client in a single recv() operation. Bump this
                         value for faster uploads at the expense of increased
                         RAM.
@@ -67,6 +68,7 @@ optional arguments:
                         CRITICAL. Both upper and lowercase values are
                         allowed.You may also simply use the leading character
                         e.g. --log-level d
+  --log-file LOG_FILE   Default: sys.stdout. Log file destination.
   --log-format LOG_FORMAT
                         Log format for Python logger.
   --num-workers NUM_WORKERS
@@ -81,7 +83,7 @@ optional arguments:
   --plugins PLUGINS     Comma separated plugins
   --port PORT           Default: 8899. Server port.
   --server-recvbuf-size SERVER_RECVBUF_SIZE
-                        Default: 8 KB. Maximum amount of data received from
+                        Default: 1 MB. Maximum amount of data received from
                         the server in a single recv() operation. Bump this
                         value for faster downloads at the expense of increased
                         RAM.

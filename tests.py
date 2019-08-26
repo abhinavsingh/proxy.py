@@ -15,6 +15,8 @@ import os
 import socket
 import time
 import unittest
+import errno
+import proxy
 from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
@@ -22,8 +24,6 @@ from unittest import mock
 
 if os.name != 'nt':
     import resource
-
-import proxy
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
@@ -34,6 +34,58 @@ def get_available_port():
         sock.bind(('', 0))
         _, port = sock.getsockname()
         return port
+
+
+class TestTcpConnection(unittest.TestCase):
+
+    def testHandlesIOError(self):
+        self.conn = proxy.TcpConnection(proxy.TcpConnection.types.CLIENT)
+        _conn = mock.MagicMock()
+        _conn.recv.side_effect = IOError()
+        self.conn.conn = _conn
+        with mock.patch('proxy.logger') as mock_logger:
+            self.conn.recv()
+            mock_logger.exception.assert_called()
+            logging.info(mock_logger.exception.call_args[0][0].startswith('Exception while receiving from connection'))
+
+    def testHandlesConnReset(self):
+        self.conn = proxy.TcpConnection(proxy.TcpConnection.types.CLIENT)
+        _conn = mock.MagicMock()
+        e = IOError()
+        e.errno = errno.ECONNRESET
+        _conn.recv.side_effect = e
+        self.conn.conn = _conn
+        with mock.patch('proxy.logger') as mock_logger:
+            self.conn.recv()
+            mock_logger.exception.assert_not_called()
+            mock_logger.debug.assert_called()
+            self.assertEqual(mock_logger.debug.call_args[0][0], '%r' % e)
+
+    def testClosesIfNotClosed(self):
+        self.conn = proxy.TcpConnection(proxy.TcpConnection.types.CLIENT)
+        _conn = mock.MagicMock()
+        self.conn.conn = _conn
+        self.conn.close()
+        _conn.close.assert_called()
+        self.assertTrue(self.conn.closed)
+
+    def testNoOpIfAlreadyClosed(self):
+        self.conn = proxy.TcpConnection(proxy.TcpConnection.types.CLIENT)
+        _conn = mock.MagicMock()
+        self.conn.conn = _conn
+        self.conn.closed = True
+        self.conn.close()
+        _conn.close.assert_not_called()
+        self.assertTrue(self.conn.closed)
+
+    @mock.patch('socket.create_connection')
+    def testTcpServerClosesConnOnGC(self, mock_create_connection):
+        conn = mock.MagicMock()
+        mock_create_connection.return_value = conn
+        self.conn = proxy.TcpServerConnection(proxy.DEFAULT_IPV4_HOSTNAME, proxy.DEFAULT_PORT)
+        self.conn.connect()
+        del self.conn
+        conn.close.assert_called()
 
 
 @unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0), 'Opening sockets not allowed on Travis')
@@ -774,6 +826,34 @@ class TestWorker(unittest.TestCase):
         self.assertTrue(mock_http_proxy.called)
 
 
+class TestHttpRequestRejected(unittest.TestCase):
+
+    def setUp(self):
+        self.request = proxy.HttpParser(proxy.HttpParser.types.REQUEST_PARSER)
+
+    def test_empty_response(self):
+        e = proxy.HttpRequestRejected()
+        self.assertEqual(e.response(self.request), None)
+
+    def test_status_code_response(self):
+        e = proxy.HttpRequestRejected(status_code=b'200 OK')
+        self.assertEqual(e.response(self.request), proxy.CRLF.join([
+            b'HTTP/1.1 200 OK',
+            proxy.PROXY_AGENT_HEADER,
+            proxy.CRLF
+        ]))
+
+    def test_body_response(self):
+        e = proxy.HttpRequestRejected(status_code=b'404 NOT FOUND', body=b'Nothing here')
+        self.assertEqual(e.response(self.request), proxy.CRLF.join([
+            b'HTTP/1.1 404 NOT FOUND',
+            proxy.PROXY_AGENT_HEADER,
+            b'Content-Length: 12',
+            proxy.CRLF,
+            b'Nothing here'
+        ]))
+
+
 class TestMain(unittest.TestCase):
 
     @mock.patch('proxy.HttpProtocolConfig')
@@ -809,7 +889,7 @@ class TestMain(unittest.TestCase):
         mock_set_open_file_limit.assert_not_called()
         mock_config.assert_not_called()
 
-    @unittest.skipIf(True, 'For some reason this test passes when running in Intellij but fails via CLI :(')
+    @unittest.skipIf(False, 'For some reason this test passes when running with Intellij but fails via CLI :(')
     @mock.patch('builtins.print')
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
@@ -821,7 +901,7 @@ class TestMain(unittest.TestCase):
         with self.assertRaises(SystemExit):
             proxy.main([])
             mock_version.assert_called()
-            logging.info(mock_print.call_args.startswith('DEPRECATION'))
+            self.assertTrue(mock_print.call_args.startswith('DEPRECATION'))
         mock_multicore_dispatcher.assert_not_called()
         mock_set_open_file_limit.assert_not_called()
         mock_config.assert_not_called()
@@ -876,34 +956,6 @@ class TestMain(unittest.TestCase):
         proxy.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
-
-
-class TestHttpRequestRejected(unittest.TestCase):
-
-    def setUp(self):
-        self.request = proxy.HttpParser(proxy.HttpParser.types.REQUEST_PARSER)
-
-    def test_empty_response(self):
-        e = proxy.HttpRequestRejected()
-        self.assertEqual(e.response(self.request), None)
-
-    def test_status_code_response(self):
-        e = proxy.HttpRequestRejected(status_code=b'200 OK')
-        self.assertEqual(e.response(self.request), proxy.CRLF.join([
-            b'HTTP/1.1 200 OK',
-            proxy.PROXY_AGENT_HEADER,
-            proxy.CRLF
-        ]))
-
-    def test_body_response(self):
-        e = proxy.HttpRequestRejected(status_code=b'404 NOT FOUND', body=b'Nothing here')
-        self.assertEqual(e.response(self.request), proxy.CRLF.join([
-            b'HTTP/1.1 404 NOT FOUND',
-            proxy.PROXY_AGENT_HEADER,
-            b'Content-Length: 12',
-            proxy.CRLF,
-            b'Nothing here'
-        ]))
 
 
 if __name__ == '__main__':

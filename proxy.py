@@ -60,6 +60,7 @@ DEFAULT_NUM_WORKERS = 0
 DEFAULT_PLUGINS = {}
 DEFAULT_VERSION = False
 DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
+DEFAULT_LOG_FILE = None
 
 # Set to True if under test
 UNDER_TEST = False
@@ -1124,7 +1125,7 @@ def init_parser() -> argparse.ArgumentParser:
                         help='Default: No authentication. Specify colon separated user:password '
                              'to enable basic authentication.')
     parser.add_argument('--client-recvbuf-size', type=int, default=DEFAULT_CLIENT_RECVBUF_SIZE,
-                        help='Default: 8 KB. Maximum amount of data received from the '
+                        help='Default: 1 MB. Maximum amount of data received from the '
                              'client in a single recv() operation. Bump this '
                              'value for faster uploads at the expense of '
                              'increased RAM.')
@@ -1141,6 +1142,8 @@ def init_parser() -> argparse.ArgumentParser:
                         help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
                              'Both upper and lowercase values are allowed.'
                              'You may also simply use the leading character e.g. --log-level d')
+    parser.add_argument('--log-file', type=str, default=DEFAULT_LOG_FILE,
+                        help='Default: sys.stdout. Log file destination.')
     parser.add_argument('--log-format', type=str, default=DEFAULT_LOG_FORMAT,
                         help='Log format for Python logger.')
     parser.add_argument('--num-workers', type=int, default=DEFAULT_NUM_WORKERS,
@@ -1157,7 +1160,7 @@ def init_parser() -> argparse.ArgumentParser:
     parser.add_argument('--port', type=int, default=DEFAULT_PORT,
                         help='Default: 8899. Server port.')
     parser.add_argument('--server-recvbuf-size', type=int, default=DEFAULT_SERVER_RECVBUF_SIZE,
-                        help='Default: 8 KB. Maximum amount of data received from the '
+                        help='Default: 1 MB. Maximum amount of data received from the '
                              'server in a single recv() operation. Bump this '
                              'value for faster downloads at the expense of '
                              'increased RAM.')
@@ -1186,14 +1189,17 @@ def main(args):
         sys.exit(0)
 
     try:
-        logging.basicConfig(level=getattr(
+        log_level = getattr(
             logging,
             {'D': 'DEBUG',
              'I': 'INFO',
              'W': 'WARNING',
              'E': 'ERROR',
-             'C': 'CRITICAL'}[args.log_level.upper()[0]]),
-            format=args.log_format)
+             'C': 'CRITICAL'}[args.log_level.upper()[0]])
+        if args.log_file:
+            logging.basicConfig(filename=args.log_file, filemode='a', level=log_level, format=args.log_format)
+        else:
+            logging.basicConfig(level=log_level, format=args.log_format)
 
         set_open_file_limit(args.open_file_limit)
 
