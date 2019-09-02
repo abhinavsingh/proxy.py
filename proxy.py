@@ -180,12 +180,15 @@ class TcpServer(object):
     """
 
     def __init__(self, hostname=DEFAULT_IPV4_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG, ipv4=DEFAULT_IPV4):
-        self.hostname: str = hostname
         self.port: int = port
         self.backlog: int = backlog
         self.ipv4: bool = ipv4
         self.socket: socket.socket = None
         self.running: bool = False
+        self.family = socket.AF_INET if self.ipv4 else socket.AF_INET6
+        self.hostname: str = hostname if hostname not in [DEFAULT_IPV4_HOSTNAME,
+                                                          DEFAULT_IPV6_HOSTNAME] \
+            else DEFAULT_IPV4_HOSTNAME if self.ipv4 else DEFAULT_IPV6_HOSTNAME
 
     def setup(self):
         pass
@@ -203,7 +206,7 @@ class TcpServer(object):
         self.running = True
         self.setup()
         try:
-            self.socket = socket.socket(socket.AF_INET if self.ipv4 is True else socket.AF_INET6, socket.SOCK_STREAM)
+            self.socket = socket.socket(self.family, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.hostname, self.port))
             self.socket.listen(self.backlog)

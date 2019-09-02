@@ -889,37 +889,36 @@ class TestMain(unittest.TestCase):
         mock_set_open_file_limit.assert_not_called()
         mock_config.assert_not_called()
 
-    @unittest.skipIf(True, 'For some reason this test passes when running with Intellij but fails via CLI :(')
     @mock.patch('builtins.print')
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     @mock.patch('proxy.is_py3')
-    def test_main_py2_exit(self, mock_version, mock_multicore_dispatcher, mock_set_open_file_limit,
+    def test_main_py3_runs(self, mock_is_py3, mock_multicore_dispatcher, mock_set_open_file_limit,
                            mock_config, mock_print):
-        mock_version.return_value = False
-        with self.assertRaises(SystemExit):
-            proxy.main([])
-            mock_version.assert_called()
-            self.assertTrue(mock_print.call_args.startswith('DEPRECATION'))
-        mock_multicore_dispatcher.assert_not_called()
-        mock_set_open_file_limit.assert_not_called()
-        mock_config.assert_not_called()
+        mock_is_py3.return_value = True
+        proxy.main([])
+        mock_is_py3.assert_called()
+        mock_print.assert_not_called()
+        mock_multicore_dispatcher.assert_called()
+        mock_set_open_file_limit.assert_called()
+        mock_config.assert_called()
 
     @mock.patch('builtins.print')
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     @mock.patch('proxy.is_py3')
-    def test_main_py3_runs(self, mock_version, mock_multicore_dispatcher, mock_set_open_file_limit,
+    def test_main_py2_exit(self, mock_is_py3, mock_multicore_dispatcher, mock_set_open_file_limit,
                            mock_config, mock_print):
-        mock_version.return_value = True
-        proxy.main([])
-        mock_version.assert_called()
-        mock_print.assert_not_called()
-        mock_multicore_dispatcher.assert_called()
-        mock_set_open_file_limit.assert_called()
-        mock_config.assert_called()
+        mock_is_py3.return_value = False
+        with self.assertRaises(SystemExit):
+            proxy.main([])
+            mock_print.assert_called_with('DEPRECATION')
+            mock_is_py3.assert_called()
+        mock_multicore_dispatcher.assert_not_called()
+        mock_set_open_file_limit.assert_not_called()
+        mock_config.assert_not_called()
 
     def test_text(self):
         self.assertEqual(proxy.text_(b'hello'), 'hello')

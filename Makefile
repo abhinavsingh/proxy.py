@@ -19,7 +19,7 @@ clean:
 	rm -rf dist
 
 test:
-	python tests.py
+	python -m unittest tests
 
 package: clean
 	python setup.py sdist bdist_wheel
