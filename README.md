@@ -33,16 +33,16 @@ Usage
 $ proxy.py -h
 usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
-                [--hostname HOSTNAME] [--ipv4] [--enable-http-proxy]
-                [--enable-web-server] [--log-level LOG_LEVEL]
-                [--log-file LOG_FILE] [--log-format LOG_FORMAT]
-                [--num-workers NUM_WORKERS]
+                [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
+                [--hostname HOSTNAME] [--ipv4] [--enable-web-server]
+                [--log-level LOG_LEVEL] [--log-file LOG_FILE]
+                [--log-format LOG_FORMAT] [--num-workers NUM_WORKERS]
                 [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
                 [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
                 [--plugins PLUGINS] [--port PORT]
                 [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--version]
 
-proxy.py v0.4
+proxy.py v1.0
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -56,11 +56,15 @@ optional arguments:
                         the client in a single recv() operation. Bump this
                         value for faster uploads at the expense of increased
                         RAM.
+  --disable-headers DISABLE_HEADERS
+                        Default: None. Comma separated list of headers to
+                        remove beforedispatching client request to upstream
+                        server.
+  --disable-http-proxy  Default: False. Whether to disable
+                        proxy.HttpProxyPlugin.
   --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
   --ipv4                Whether to listen on IPv4 address. By default server
                         only listens on IPv6.
-  --enable-http-proxy   Default: True. Whether to enable
-                        proxy.HttpProxyPlugin.
   --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
   --log-level LOG_LEVEL

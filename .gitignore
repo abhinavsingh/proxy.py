@@ -11,3 +11,4 @@ dist
 build
 proxy.py.egg-info
 proxy.py.iml
+.mypy_cache
