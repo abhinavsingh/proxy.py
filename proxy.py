@@ -406,7 +406,8 @@ class HttpParser(object):
     def set_host_port(self):
         if self.type == HttpParser.types.REQUEST_PARSER:
             if self.method == b'CONNECT':
-                self.host, self.port = self.url.path.split(COLON)
+                u = urlparse.urlsplit(b'//' + self.url.path)
+                self.host, self.port = u.hostname, u.port
             elif self.url:
                 self.host, self.port = self.url.hostname, self.url.port \
                     if self.url.port else 80
@@ -1139,7 +1140,7 @@ def setup_logger(log_file=DEFAULT_LOG_FILE, log_level=DEFAULT_LOG_LEVEL, log_for
     if log_file:
         logging.basicConfig(filename=log_file, filemode='a', level=ll, format=log_format)
     else:
-        logging.basicConfig(level=log_level, format=log_format)
+        logging.basicConfig(level=ll, format=log_format)
 
 
 def init_parser() -> argparse.ArgumentParser:
