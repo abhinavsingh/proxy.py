@@ -1,25 +1,5 @@
-.coverage
-.dockerignore
-.git
-.gitignore
-.idea
-.project
-.settings
-.pydevproject
+# Ignore everything
+**
 
-__pycache__
-*.pem
-*.pyc
-venv
-cover
-dist
-proxy.py.egg-info
-
-LICENSE
-MANIFEST.in
-README.md
-Makefile
-setup.py
-tests.py
-ProxyPy.png
-requirements-testing.txt
+# Except proxy.py
+!proxy.py

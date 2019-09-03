@@ -9,19 +9,20 @@
     :license: BSD, see LICENSE for more details.
 """
 import base64
+import errno
 import logging
 import multiprocessing
 import os
 import socket
 import time
 import unittest
-import errno
-import proxy
-from typing import Dict
 from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
+from typing import Dict
 from unittest import mock
+
+import proxy
 
 if os.name != 'nt':
     import resource
@@ -148,7 +149,7 @@ class TestTcpServer(unittest.TestCase):
         self.baseTestCase(ipv4=False)
 
 
-class MockHttpProxy(object):
+class MockHttpProxy:
 
     def __init__(self, client, **kwargs):
         self.client = client
@@ -548,21 +549,27 @@ class TestHttpParser(unittest.TestCase):
             self.assertTrue(k in dictionary)
 
 
-class MockTcpConnection(object):
+class MockTcpConnection:
 
     def __init__(self, b=b''):
         self.buffer = b
+        self.received = b''
+        self.closed = False
 
-    def recv(self, b=8192):
+    def recv(self, b=8192) -> bytes:
         data = self.buffer[:b]
         self.buffer = self.buffer[b:]
         return data
 
-    def send(self, data):
+    def send(self, data: bytes) -> int:
+        self.received += data
         return len(data)
 
-    def queue(self, data):
+    def queue(self, data: bytes):
         self.buffer += data
+
+    def close(self):
+        self.closed = True
 
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):
@@ -575,7 +582,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(b'OK')
 
 
-class TestProxy(unittest.TestCase):
+class TestHttpProtocolHandler(unittest.TestCase):
     http_server = None
     http_server_port = None
     http_server_thread = None
@@ -723,22 +730,6 @@ class TestProxy(unittest.TestCase):
         ]))
         self.assert_data_queued(mock_server_connection, server)
 
-    def assert_data_queued(self, mock_server_connection, server):
-        self.proxy.run_once()
-        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
-        mock_server_connection.assert_called_once()
-        server.connect.assert_called_once()
-        server.closed = False
-        server.queue.assert_called_once_with(proxy.CRLF.join([
-            b'GET / HTTP/1.1',
-            b'User-Agent: proxy.py/%s' % proxy.version,
-            b'Host: localhost:%d' % self.http_server_port,
-            b'Accept: */*',
-            b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
-            b'Connection: Close',
-            proxy.CRLF
-        ]))
-
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
     def test_authenticated_proxy_http_tunnel(self, mock_server_connection, mock_select):
@@ -764,6 +755,82 @@ class TestProxy(unittest.TestCase):
 
         self.proxy.run_once()
         server.flush.assert_called_once()
+
+    @mock.patch('select.select')
+    def test_pac_file_served_from_disk(self, mock_select):
+        mock_select.return_value = [self._conn], [], []
+        config = proxy.HttpProtocolConfig(pac_file='proxy.pac')
+        self.init_and_make_pac_file_request(config)
+        self.proxy.run_once()
+        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
+        with open('proxy.pac', 'rb') as pac_file:
+            self.assertEqual(self._conn.received, proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX + pac_file.read())
+
+    @mock.patch('select.select')
+    def test_pac_file_served_from_buffer(self, mock_select):
+        pac_file_content = b'function FindProxyForURL(url, host) { return "PROXY localhost:8899; DIRECT"; }'
+        mock_select.return_value = [self._conn], [], []
+        config = proxy.HttpProtocolConfig(pac_file=pac_file_content)
+        self.init_and_make_pac_file_request(config)
+        self.proxy.run_once()
+        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
+        self.assertEqual(self._conn.received, proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX + pac_file_content)
+
+    @mock.patch('select.select')
+    def test_default_web_server_returns_404(self, mock_select):
+        mock_select.return_value = [self._conn], [], []
+        config = proxy.HttpProtocolConfig()
+        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
+                                               config=config)
+        self.proxy.client.conn.queue(proxy.CRLF.join([
+            b'GET /hello HTTP/1.1',
+            proxy.CRLF,
+            proxy.CRLF
+        ]))
+        self.proxy.run_once()
+        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
+        self.assertEqual(self._conn.received, proxy.HttpWebServerPlugin.DEFAULT_404_RESPONSE)
+
+    def test_on_client_connection_called_on_teardown(self):
+        config = proxy.HttpProtocolConfig()
+        plugin = mock.MagicMock()
+        config.plugins = {'HttpProtocolBasePlugin': [plugin]}
+        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
+                                               config=config)
+        plugin.assert_called()
+        with mock.patch.object(self.proxy, 'run_once') as mock_run_once:
+            mock_run_once.return_value = True
+            self.proxy.run()
+        self.assertTrue(self._conn.closed)
+        plugin.return_value.access_log.assert_called()
+        plugin.return_value.on_client_connection_close.assert_called()
+
+    def init_and_make_pac_file_request(self, config):
+        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
+                                               config=config)
+        self.proxy.client.conn.queue(proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            proxy.CRLF,
+            proxy.CRLF
+        ]))
+
+    def assert_data_queued(self, mock_server_connection, server):
+        self.proxy.run_once()
+        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
+        mock_server_connection.assert_called_once()
+        server.connect.assert_called_once()
+        server.closed = False
+        server.queue.assert_called_once_with(proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            b'Host: localhost:%d' % self.http_server_port,
+            b'Accept: */*',
+            b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
+            b'Connection: Close',
+            proxy.CRLF
+        ]))
 
     def assert_data_queued_to_server(self, server):
         self.assertEqual(self.proxy.client.buffer_size(), 0)
@@ -834,6 +901,40 @@ class TestHttpRequestRejected(unittest.TestCase):
 
 class TestMain(unittest.TestCase):
 
+    @mock.patch('proxy.set_open_file_limit')
+    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.logging.basicConfig')
+    def test_log_file_setup(self, mock_config, mock_multicore_dispatcher, mock_set_open_file_limit):
+        log_file = '/tmp/proxy.log'
+        proxy.main(['--log-file', log_file])
+        mock_set_open_file_limit.assert_called()
+        mock_multicore_dispatcher.assert_called()
+        mock_multicore_dispatcher.return_value.run.assert_called()
+        mock_config.assert_called_with(
+            filename=log_file,
+            filemode='a',
+            level=proxy.logging.INFO,
+            format=proxy.DEFAULT_LOG_FORMAT
+        )
+
+    @mock.patch('os.remove')
+    @mock.patch('os.path.exists')
+    @mock.patch('builtins.open')
+    @mock.patch('proxy.set_open_file_limit')
+    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @unittest.skipIf(True, 'This test passes while development on Intellij but fails via CLI :(')
+    def test_pid_file_is_written_and_removed(self, mock_multicore_dispatcher, mock_set_open_file_limit,
+                                             mock_open, mock_exists, mock_remove):
+        pid_file = '/tmp/proxy.pid'
+        proxy.main(['--pid-file', pid_file])
+        mock_set_open_file_limit.assert_called()
+        mock_multicore_dispatcher.assert_called()
+        mock_multicore_dispatcher.return_value.run.assert_called()
+        mock_open.assert_called_with(pid_file, 'wb')
+        mock_open.return_value.__enter__.return_value.write.assert_called_with(proxy.bytes_(str(os.getpid())))
+        mock_exists.assert_called_with(pid_file)
+        mock_remove.assert_called_with(pid_file)
+
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
@@ -888,7 +989,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     @mock.patch('proxy.is_py3')
-    @unittest.skipIf(True, 'For some reason this test passes when running with Intellij but fails via CLI :(')
+    @unittest.skipIf(True, 'This test passes while development on Intellij but fails via CLI :(')
     def test_main_py2_exit(self, mock_is_py3, mock_multicore_dispatcher, mock_set_open_file_limit,
                            mock_config, mock_print):
         mock_is_py3.return_value = False

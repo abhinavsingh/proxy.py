@@ -631,7 +631,7 @@ class HttpProtocolConfig:
 
     def __init__(self, auth_code=DEFAULT_BASIC_AUTH, server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
                  client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE, pac_file=DEFAULT_PAC_FILE,
-                 pac_file_url_path=DEFAULT_PAC_FILE_URL_PATH, plugins=None, disable_headers=DEFAULT_DISABLE_HEADERS):
+                 pac_file_url_path=DEFAULT_PAC_FILE_URL_PATH, plugins=None, disable_headers=None):
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -639,7 +639,9 @@ class HttpProtocolConfig:
         self.pac_file_url_path = pac_file_url_path
         if plugins is None:
             plugins = {}
-        self.plugins: Dict = plugins
+        self.plugins: Dict[str, List] = plugins
+        if disable_headers is None:
+            disable_headers = DEFAULT_DISABLE_HEADERS
         self.disable_headers = disable_headers
 
 
@@ -779,9 +781,10 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
 
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
-        for klass in self.config.plugins['HttpProxyBasePlugin']:
-            instance = klass(self.config, self.client, self.request)
-            self.plugins[instance.name()] = instance
+        if 'HttpProxyBasePlugin' in self.config.plugins:
+            for klass in self.config.plugins['HttpProxyBasePlugin']:
+                instance = klass(self.config, self.client, self.request)
+                self.plugins[instance.name()] = instance
 
     def get_descriptors(self):
         if not self.request.has_upstream_server():
@@ -914,6 +917,13 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
 class HttpWebServerPlugin(HttpProtocolBasePlugin):
     """HttpProtocolHandler plugin which handles incoming requests to local webserver."""
 
+    DEFAULT_404_RESPONSE = CRLF.join([
+        b'HTTP/1.1 404 NOT FOUND',
+        b'Server: proxy.py v%s' % version,
+        b'Connection: Close',
+        CRLF
+    ])
+
     PAC_FILE_RESPONSE_PREFIX = CRLF.join([
         b'HTTP/1.1 200 OK',
         b'Content-Type: application/x-ns-proxy-autoconfig',
@@ -923,6 +933,14 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
 
     def __init__(self, config: HttpProtocolConfig, client: TcpClientConnection, request: HttpParser):
         super(HttpWebServerPlugin, self).__init__(config, client, request)
+        if self.config.pac_file:
+            try:
+                with open(self.config.pac_file, 'rb') as f:
+                    logger.debug('Will serve pac file from disk')
+                    self.pac_file_content = f.read()
+            except IOError:
+                logger.debug('Will serve pac file content from buffer')
+                self.pac_file_content = self.config.pac_file
 
     def on_request_complete(self):
         if self.request.has_upstream_server():
@@ -930,15 +948,12 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
 
         if self.config.pac_file and \
                 self.request.url.path == self.config.pac_file_url_path:
-            self.serve_pac_file()
+            self.client.queue(self.PAC_FILE_RESPONSE_PREFIX)
+            self.client.queue(self.pac_file_content)
+            self.client.flush()
         else:
             # Catch all unhandled web server requests, return 404
-            self.client.queue(CRLF.join([
-                b'HTTP/1.1 404 NOT FOUND',
-                b'Server: proxy.py v%s' % version,
-                b'Connection: Close',
-                CRLF
-            ]))
+            self.client.queue(self.DEFAULT_404_RESPONSE)
             # But is client ready for flush?
             self.client.flush()
 
@@ -949,17 +964,6 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
             return
         logger.info('%s:%s - %s %s' % (self.client.addr[0], self.client.addr[1],
                                        text_(self.request.method), text_(self.request.build_url())))
-
-    def serve_pac_file(self):
-        self.client.queue(self.PAC_FILE_RESPONSE_PREFIX)
-        try:
-            with open(self.config.pac_file, 'rb') as f:
-                logger.debug('Serving pac file from disk')
-                self.client.queue(f.read())
-        except IOError:
-            logger.debug('Serving pac file content from buffer')
-            self.client.queue(self.config.pac_file)
-        self.client.flush()
 
 
 class HttpProtocolHandler(threading.Thread):
@@ -978,9 +982,10 @@ class HttpProtocolHandler(threading.Thread):
         self.request = HttpParser(HttpParser.types.REQUEST_PARSER)
 
         self.plugins: Dict[str, HttpProtocolBasePlugin] = {}
-        for klass in self.config.plugins['HttpProtocolBasePlugin']:
-            instance = klass(self.config, self.client, self.request)
-            self.plugins[instance.name()] = instance
+        if 'HttpProtocolBasePlugin' in self.config.plugins:
+            for klass in self.config.plugins['HttpProtocolBasePlugin']:
+                instance = klass(self.config, self.client, self.request)
+                self.plugins[instance.name()] = instance
 
     @staticmethod
     def now():
@@ -1109,7 +1114,7 @@ def set_open_file_limit(soft_limit):
             logger.debug('Open file descriptor soft limit set to %d' % soft_limit)
 
 
-def load_plugins(plugins: str) -> Dict:
+def load_plugins(plugins: str) -> Dict[str, List]:
     """Accepts a comma separated list of Python modules and returns
     a list of respective Python classes."""
     p: Dict[str, List] = {

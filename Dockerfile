@@ -11,4 +11,4 @@ EXPOSE 8899/tcp
 WORKDIR /app
 ENTRYPOINT [ "./proxy.py" ]
 CMD [ "--host=0.0.0.0", \
-      "--ipv4" ]
+      "--port=8899" ]
