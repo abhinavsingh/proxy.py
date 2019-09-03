@@ -93,7 +93,7 @@ CRLF, COLON, WHITESPACE, COMMA = b'\r\n', b':', b' ', ','
 PROXY_AGENT_HEADER = b'Proxy-agent: proxy.py v' + version
 
 
-class TcpConnection(object):
+class TcpConnection:
     """TCP server/client connection abstraction."""
 
     types = namedtuple('TcpConnectionTypes', (
@@ -171,7 +171,7 @@ class TcpClientConnection(TcpConnection):
         self.addr: Tuple[str, int] = addr
 
 
-class TcpServer(object):
+class TcpServer:
     """TcpServer server implementation.
 
     Inheritor MUST implement `handle` method. It accepts an instance of `TcpClientConnection`.
@@ -311,7 +311,7 @@ class Worker(multiprocessing.Process):
                 break
 
 
-class ChunkParser(object):
+class ChunkParser:
     """HTTP chunked encoding response parser."""
 
     states = namedtuple('ChunkParserStates', (
@@ -361,7 +361,7 @@ class ChunkParser(object):
         return len(raw) > 0, raw
 
 
-class HttpParser(object):
+class HttpParser:
     """HTTP request/response parser."""
 
     states = namedtuple('HttpParserStates', (
@@ -623,7 +623,7 @@ class HttpRequestRejected(HttpProtocolException):
         return CRLF.join(pkt) if len(pkt) > 0 else None
 
 
-class HttpProtocolConfig(object):
+class HttpProtocolConfig:
     """Holds various configuration values applicable to HttpProtocolHandler.
 
     This config class helps us avoid passing around bunch of key/value pairs across methods.
@@ -643,7 +643,7 @@ class HttpProtocolConfig(object):
         self.disable_headers = disable_headers
 
 
-class HttpProtocolBasePlugin(object):
+class HttpProtocolBasePlugin:
     """Base HttpProtocolHandler Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
@@ -729,7 +729,7 @@ class ProxyAuthenticationFailed(HttpProtocolException):
         return self.RESPONSE_PKT
 
 
-class HttpProxyBasePlugin(object):
+class HttpProxyBasePlugin:
     """Base HttpProxyPlugin Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
