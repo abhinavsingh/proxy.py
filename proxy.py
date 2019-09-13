@@ -18,13 +18,14 @@ import logging
 import multiprocessing
 import os
 import queue
-import select
 import socket
 import sys
 import threading
 from collections import namedtuple
 from typing import Dict, List, Tuple
 from urllib import parse as urlparse
+
+import select
 
 if os.name != 'nt':
     import resource
@@ -382,10 +383,15 @@ class HttpParser:
         self.type: HttpParser.types = parser_type
         self.state: HttpParser.states = HttpParser.states.INITIALIZED
 
+        # Raw bytes as passed to parse(raw) method and its total size
         self.bytes: bytes = b''
+        self.total_size: int = 0
+
+        # Buffer to hold unprocessed bytes
         self.buffer: bytes = b''
 
         self.headers: Dict[bytes, Tuple[bytes, bytes]] = dict()
+
         # Can simply be b'', then set type as bytes?
         self.body = None
 
@@ -415,12 +421,14 @@ class HttpParser:
                 raise Exception('Invalid request\n%s' % self.bytes)
 
     def is_chunked_encoded_response(self):
-        return self.type == HttpParser.types.RESPONSE_PARSER and \
-               b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+        return self.type == HttpParser.types.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw):
         self.bytes += raw
+        self.total_size += len(raw)
+
+        # Prepend past buffer
         raw = self.buffer + raw
         self.buffer = b''
 
@@ -829,9 +837,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             if not self.request.method == b'CONNECT':
                 self.response.parse(raw)
             else:
-                # Only purpose of increasing memory footprint is to print response length in access log
-                # Not worth it? Optimize to only persist lengths?
-                self.response.bytes += raw
+                self.response.total_size += len(raw)
             # queue raw data for client
             self.client.queue(raw)
 
@@ -890,12 +896,12 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             logger.info(
                 '%s:%s - %s %s:%s - %s bytes' % (self.client.addr[0], self.client.addr[1],
                                                  text_(self.request.method), text_(host),
-                                                 text_(port), len(self.response.bytes)))
+                                                 text_(port), self.response.total_size))
         elif self.request.method:
             logger.info('%s:%s - %s %s:%s%s - %s %s - %s bytes' % (
                 self.client.addr[0], self.client.addr[1], text_(self.request.method), text_(host), port,
                 text_(self.request.build_url()), text_(self.response.code), text_(self.response.reason),
-                len(self.response.bytes)))
+                self.response.total_size))
 
     def authenticate(self, headers):
         if self.config.auth_code:
@@ -1242,7 +1248,7 @@ def main(args) -> None:
                                     pac_file=args.pac_file,
                                     pac_file_url_path=args.pac_file_url_path,
                                     disable_headers=[header.lower() for header in args.disable_headers.split(COMMA) if
-                                                     header.strip() is not ''])
+                                                     header.strip() != ''])
         if config.pac_file is not None:
             args.enable_web_server = True
 

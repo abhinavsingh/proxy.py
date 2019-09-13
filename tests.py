@@ -287,7 +287,9 @@ class TestHttpParser(unittest.TestCase):
             b'Host: %s',
             proxy.CRLF
         ])
-        self.parser.parse(raw % (b'https://example.com/path/dir/?a=b&c=d#p=q', b'example.com'))
+        pkt = raw % (b'https://example.com/path/dir/?a=b&c=d#p=q', b'example.com')
+        self.parser.parse(pkt)
+        self.assertEqual(self.parser.total_size, len(pkt))
         self.assertEqual(self.parser.build_url(), b'/path/dir/?a=b&c=d#p=q')
         self.assertEqual(self.parser.method, b'GET')
         self.assertEqual(self.parser.url.hostname, b'example.com')
@@ -303,33 +305,41 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.build_url(), b'/None')
 
     def test_line_rcvd_to_rcving_headers_state_change(self):
-        self.parser.parse(b'GET http://localhost HTTP/1.1')
+        pkt = b'GET http://localhost HTTP/1.1'
+        self.parser.parse(pkt)
+        self.assertEqual(self.parser.total_size, len(pkt))
         self.assert_state_change_with_crlf(proxy.HttpParser.states.INITIALIZED,
                                            proxy.HttpParser.states.LINE_RCVD,
                                            proxy.HttpParser.states.RCVING_HEADERS)
 
     def test_get_partial_parse1(self):
-        self.parser.parse(proxy.CRLF.join([
+        pkt = proxy.CRLF.join([
             b'GET http://localhost:8080 HTTP/1.1'
-        ]))
+        ])
+        self.parser.parse(pkt)
+        self.assertEqual(self.parser.total_size, len(pkt))
         self.assertEqual(self.parser.method, None)
         self.assertEqual(self.parser.url, None)
         self.assertEqual(self.parser.version, None)
         self.assertEqual(self.parser.state, proxy.HttpParser.states.INITIALIZED)
 
         self.parser.parse(proxy.CRLF)
+        self.assertEqual(self.parser.total_size, len(pkt) + len(proxy.CRLF))
         self.assertEqual(self.parser.method, b'GET')
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, 8080)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, proxy.HttpParser.states.LINE_RCVD)
 
-        self.parser.parse(b'Host: localhost:8080')
+        host_hdr = b'Host: localhost:8080'
+        self.parser.parse(host_hdr)
+        self.assertEqual(self.parser.total_size, len(pkt) + len(proxy.CRLF) + len(host_hdr))
         self.assertDictEqual(self.parser.headers, dict())
         self.assertEqual(self.parser.buffer, b'Host: localhost:8080')
         self.assertEqual(self.parser.state, proxy.HttpParser.states.LINE_RCVD)
 
         self.parser.parse(proxy.CRLF * 2)
+        self.assertEqual(self.parser.total_size, len(pkt) + (3 * len(proxy.CRLF)) + len(host_hdr))
         self.assertDictContainsSubset({b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
         self.assertEqual(self.parser.state, proxy.HttpParser.states.COMPLETE)
 
