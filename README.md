@@ -42,7 +42,7 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--plugins PLUGINS] [--port PORT]
                 [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--version]
 
-proxy.py v1.0
+proxy.py v1.0.0
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -58,7 +58,7 @@ optional arguments:
                         RAM.
   --disable-headers DISABLE_HEADERS
                         Default: None. Comma separated list of headers to
-                        remove beforedispatching client request to upstream
+                        remove before dispatching client request to upstream
                         server.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
@@ -69,9 +69,9 @@ optional arguments:
                         proxy.HttpWebServerPlugin.
   --log-level LOG_LEVEL
                         Valid options: DEBUG, INFO (default), WARNING, ERROR,
-                        CRITICAL. Both upper and lowercase values are
-                        allowed.You may also simply use the leading character
-                        e.g. --log-level d
+                        CRITICAL. Both upper and lowercase values are allowed.
+                        You may also simply use the leading character e.g.
+                        --log-level d
   --log-file LOG_FILE   Default: sys.stdout. Log file destination.
   --log-format LOG_FORMAT
                         Log format for Python logger.
@@ -81,9 +81,10 @@ optional arguments:
                         Default: 1024. Maximum number of files (TCP
                         connections) that proxy.py can open concurrently.
   --pac-file PAC_FILE   A file (Proxy Auto Configuration) or string to serve
-                        when the server receives a direct file request.
+                        when the server receives a direct file request. Using
+                        this option enables proxy.HttpWebServerPlugin.
   --pac-file-url-path PAC_FILE_URL_PATH
-                        Web server path to serve the PAC file.
+                        Default: /. Web server path to serve the PAC file.
   --pid-file PID_FILE   Default: None. Save parent process ID to a file.
   --plugins PLUGINS     Comma separated plugins
   --port PORT           Default: 8899. Server port.
@@ -92,7 +93,7 @@ optional arguments:
                         the server in a single recv() operation. Bump this
                         value for faster downloads at the expense of increased
                         RAM.
-  --version             Prints proxy.py version.
+  --version, -v         Prints proxy.py version.
 
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new

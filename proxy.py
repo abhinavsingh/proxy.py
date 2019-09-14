@@ -5,7 +5,7 @@
     ~~~~~~~~
     Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file.
 
-    :copyright: (c) 2013-2020 by Abhinav Singh.
+    :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
 import argparse
@@ -22,7 +22,7 @@ import socket
 import sys
 import threading
 from collections import namedtuple
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from urllib import parse as urlparse
 
 import select
@@ -30,7 +30,7 @@ import select
 if os.name != 'nt':
     import resource
 
-VERSION = (1, 0, 'alpha')
+VERSION = (1, 0, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = 'Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file'
 __author__ = 'Abhinav Singh'
@@ -47,7 +47,7 @@ DEFAULT_BASIC_AUTH = None
 DEFAULT_BUFFER_SIZE = 1024 * 1024
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
-DEFAULT_DISABLE_HEADERS = []
+DEFAULT_DISABLE_HEADERS: List[str] = []
 DEFAULT_IPV4_HOSTNAME = '127.0.0.1'
 DEFAULT_IPV6_HOSTNAME = '::'
 DEFAULT_PORT = 8899
@@ -103,7 +103,7 @@ class TcpConnection:
     ))(1, 2)
 
     def __init__(self, what: types):
-        self.conn = None
+        self.conn: Optional[socket.socket] = None
         self.buffer: bytes = b''
         self.closed: bool = False
         self.what: TcpConnection.types = what
@@ -112,18 +112,19 @@ class TcpConnection:
         """Users must handle BrokenPipeError exceptions"""
         return self.conn.send(data)
 
-    def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> bytes:
+    def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[bytes]:
         try:
             data: bytes = self.conn.recv(buffer_size)
             if len(data) > 0:
                 logger.debug('received %d bytes from %s' % (len(data), self.what))
                 return data
-        except Exception as e:
+        except socket.error as e:
             if e.errno == errno.ECONNRESET:
                 logger.debug('%r' % e)
             else:
                 logger.exception(
                     'Exception while receiving from connection %s %r with reason %r' % (self.what, self.conn, e))
+        return None
 
     def close(self) -> bool:
         if not self.closed:
@@ -184,8 +185,7 @@ class TcpServer:
         self.port: int = port
         self.backlog: int = backlog
         self.ipv4: bool = ipv4
-        # Cannot force socket.socket type here.
-        self.socket = None
+        self.socket: Optional[socket.socket] = None
         self.running: bool = False
         self.family = socket.AF_INET if self.ipv4 else socket.AF_INET6
         self.hostname: str = hostname if hostname not in [DEFAULT_IPV4_HOSTNAME,
@@ -422,7 +422,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self):
         return self.type == HttpParser.types.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw):
         self.bytes += raw
@@ -1172,7 +1172,7 @@ def init_parser() -> argparse.ArgumentParser:
                              'value for faster uploads at the expense of '
                              'increased RAM.')
     parser.add_argument('--disable-headers', type=str, default=COMMA.join(DEFAULT_DISABLE_HEADERS),
-                        help='Default: None.  Comma separated list of headers to remove before'
+                        help='Default: None.  Comma separated list of headers to remove before '
                              'dispatching client request to upstream server.')
     parser.add_argument('--disable-http-proxy', action='store_true', default=DEFAULT_DISABLE_HTTP_PROXY,
                         help='Default: False.  Whether to disable proxy.HttpProxyPlugin.')
@@ -1185,7 +1185,7 @@ def init_parser() -> argparse.ArgumentParser:
                         help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.')
     parser.add_argument('--log-level', type=str, default=DEFAULT_LOG_LEVEL,
                         help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
-                             'Both upper and lowercase values are allowed.'
+                             'Both upper and lowercase values are allowed. '
                              'You may also simply use the leading character e.g. --log-level d')
     parser.add_argument('--log-file', type=str, default=DEFAULT_LOG_FILE,
                         help='Default: sys.stdout. Log file destination.')
@@ -1198,11 +1198,12 @@ def init_parser() -> argparse.ArgumentParser:
                              'that proxy.py can open concurrently.')
     parser.add_argument('--pac-file', type=str, default=DEFAULT_PAC_FILE,
                         help='A file (Proxy Auto Configuration) or string to serve when '
-                             'the server receives a direct file request.')
+                             'the server receives a direct file request. '
+                             'Using this option enables proxy.HttpWebServerPlugin.')
     parser.add_argument('--pac-file-url-path', type=str, default=DEFAULT_PAC_FILE_URL_PATH,
-                        help='Web server path to serve the PAC file.')
+                        help='Default: %s. Web server path to serve the PAC file.' % text_(DEFAULT_PAC_FILE_URL_PATH))
     parser.add_argument('--pid-file', type=str, default=DEFAULT_PID_FILE,
-                        help='Default: None.  Save parent process ID to a file.')
+                        help='Default: None. Save parent process ID to a file.')
     parser.add_argument('--plugins', type=str, default=DEFAULT_PLUGINS, help='Comma separated plugins')
     parser.add_argument('--port', type=int, default=DEFAULT_PORT,
                         help='Default: 8899. Server port.')
@@ -1211,7 +1212,7 @@ def init_parser() -> argparse.ArgumentParser:
                              'server in a single recv() operation. Bump this '
                              'value for faster downloads at the expense of '
                              'increased RAM.')
-    parser.add_argument('--version', action='store_true', default=DEFAULT_VERSION,
+    parser.add_argument('--version', '-v', action='store_true', default=DEFAULT_VERSION,
                         help='Prints proxy.py version.')
     return parser
 

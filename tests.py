@@ -2,10 +2,9 @@
 """
     proxy.py
     ~~~~~~~~
+    Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file.
 
-    HTTP, HTTPS, HTTP2 and WebSockets Proxy Server in Python.
-
-    :copyright: (c) 2013-2020 by Abhinav Singh.
+    :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
 import base64
