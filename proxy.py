@@ -486,7 +486,10 @@ class HttpParser:
                 self.method == b'CONNECT' and \
                 raw == CRLF:
             self.state = HttpParser.states.COMPLETE
-
+        elif self.state == HttpParser.states.LINE_RCVD and \
+                self.type == HttpParser.types.RESPONSE_PARSER and \
+                raw == CRLF:
+            self.state = HttpParser.states.COMPLETE
         # When raw request has ended with \r\n\r\n and no more http headers are expected
         # See `TestHttpParser.test_request_parse_without_content_length` and
         # `TestHttpParser.test_response_parse_without_content_length` for details

@@ -654,7 +654,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         parser = proxy.HttpParser(proxy.HttpParser.types.RESPONSE_PARSER)
         parser.parse(self.proxy.client.buffer)
-        self.assertEqual(parser.state, proxy.HttpParser.states.HEADERS_COMPLETE)
+        self.assertEqual(parser.state, proxy.HttpParser.states.COMPLETE)
         self.assertEqual(int(parser.code), 200)
 
     @mock.patch('select.select')
