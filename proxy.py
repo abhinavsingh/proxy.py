@@ -21,6 +21,7 @@ import queue
 import socket
 import sys
 import threading
+import ipaddress
 from collections import namedtuple
 from typing import Dict, List, Tuple, Optional
 from urllib import parse as urlparse
@@ -161,7 +162,16 @@ class TcpServerConnection(TcpConnection):
             self.close()
 
     def connect(self) -> None:
-        self.conn = socket.create_connection((self.addr[0], self.addr[1]))
+        try:
+            ip = ipaddress.ip_address(text_(self.addr[0]))
+            if ip.version == 4:
+                self.conn = socket.create_connection((self.addr[0], self.addr[1]))
+            else:
+                self.conn = socket.socket(socket.AF_INET6, socket.SOCK_STREAM, 0)
+                self.conn.connect((self.addr[0], self.addr[1], 0, 0))
+        except ValueError:
+            # Not a valid IP address, most likely its a domain name.
+            self.conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 
 class TcpClientConnection(TcpConnection):
@@ -779,7 +789,6 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
 
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = CRLF.join([
         b'HTTP/1.1 200 Connection established',
-        PROXY_AGENT_HEADER,
         CRLF
     ])
 
