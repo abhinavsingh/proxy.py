@@ -14,15 +14,15 @@ import datetime
 import errno
 import importlib
 import inspect
+import ipaddress
 import logging
 import multiprocessing
 import os
-import queue
 import socket
 import sys
 import threading
-import ipaddress
 from collections import namedtuple
+from multiprocessing import connection
 from typing import Dict, List, Tuple, Optional
 from urllib import parse as urlparse
 
@@ -253,7 +253,7 @@ class MultiCoreRequestDispatcher(TcpServer):
         if num_workers > 0:
             self.num_workers = num_workers
         self.workers: List[Worker] = []
-        self.work_queues: List[multiprocessing.Queue] = []
+        self.work_queues: List[multiprocessing.Pipe] = []
         self.current_worker_id = 0
 
         self.config: HttpProtocolConfig = config
@@ -261,9 +261,9 @@ class MultiCoreRequestDispatcher(TcpServer):
     def setup(self):
         logger.info('Starting %d workers' % self.num_workers)
         for worker_id in range(self.num_workers):
-            work_queue = multiprocessing.Queue()
+            work_queue = multiprocessing.Pipe()
 
-            worker = Worker(work_queue, self.config)
+            worker = Worker(work_queue[1], self.config)
             worker.daemon = True
             worker.start()
 
@@ -276,12 +276,12 @@ class MultiCoreRequestDispatcher(TcpServer):
         logging.debug('Dispatched client request to worker id %d', self.current_worker_id)
         self.current_worker_id += 1
         self.current_worker_id %= self.num_workers
-        work_queue.put((Worker.operations.HTTP_PROTOCOL, client))
+        work_queue[0].send((Worker.operations.HTTP_PROTOCOL, client))
 
     def shutdown(self):
         logger.info('Shutting down %d workers' % self.num_workers)
         for work_queue in self.work_queues:
-            work_queue.put((Worker.operations.SHUTDOWN, None))
+            work_queue[0].send((Worker.operations.SHUTDOWN, None))
         for worker in self.workers:
             worker.join()
 
@@ -298,26 +298,21 @@ class Worker(multiprocessing.Process):
         'SHUTDOWN',
     ))(1, 2)
 
-    def __init__(self, work_queue, config=None):
+    def __init__(self, work_queue: connection.Connection, config=None):
         super(Worker, self).__init__()
-        self.work_queue: multiprocessing.Queue = work_queue
+        self.work_queue: connection.Connection = work_queue
         self.config: HttpProtocolConfig = config
 
     def run(self):
         while True:
             try:
-                op, payload = self.work_queue.get(True, 1)
+                op, payload = self.work_queue.recv()
                 if op == Worker.operations.HTTP_PROTOCOL:
                     proxy = HttpProtocolHandler(payload, config=self.config)
                     proxy.setDaemon(True)
                     proxy.start()
                 elif op == Worker.operations.SHUTDOWN:
                     break
-            except queue.Empty:
-                pass
-            # Safeguard against https://gist.github.com/abhinavsingh/b8d4266ff4f38b6057f9c50075e8cd75
-            except ConnectionRefusedError:
-                pass
             except KeyboardInterrupt:
                 break
 
@@ -990,14 +985,14 @@ class HttpProtocolHandler(threading.Thread):
     Accepts `Client` connection object and manages HttpProtocolBasePlugin invocations.
     """
 
-    def __init__(self, client, config=None):
+    def __init__(self, client: TcpClientConnection, config: HttpProtocolConfig = None):
         super(HttpProtocolHandler, self).__init__()
-        self.start_time = self.now()
-        self.last_activity = self.start_time
+        self.start_time: datetime.datetime = self.now()
+        self.last_activity: datetime.datetime = self.start_time
 
-        self.client = client
-        self.config = config if config else HttpProtocolConfig()
-        self.request = HttpParser(HttpParser.types.REQUEST_PARSER)
+        self.client: TcpClientConnection = client
+        self.config: HttpProtocolConfig = config if config else HttpProtocolConfig()
+        self.request: HttpParser = HttpParser(HttpParser.types.REQUEST_PARSER)
 
         self.plugins: Dict[str, HttpProtocolBasePlugin] = {}
         if 'HttpProtocolBasePlugin' in self.config.plugins:
@@ -1006,7 +1001,7 @@ class HttpProtocolHandler(threading.Thread):
                 self.plugins[instance.name()] = instance
 
     @staticmethod
-    def now():
+    def now() -> datetime.datetime:
         return datetime.datetime.utcnow()
 
     def connection_inactive_for(self):

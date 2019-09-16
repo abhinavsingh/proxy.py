@@ -863,19 +863,19 @@ class TestHttpProtocolHandler(unittest.TestCase):
 class TestWorker(unittest.TestCase):
 
     def setUp(self):
-        self.queue = multiprocessing.Queue()
-        self.worker = proxy.Worker(self.queue)
+        self.pipe = multiprocessing.Pipe()
+        self.worker = proxy.Worker(self.pipe[1])
 
     @mock.patch('proxy.HttpProtocolHandler')
     def test_shutdown_op(self, mock_http_proxy):
-        self.queue.put((proxy.Worker.operations.SHUTDOWN, None))
+        self.pipe[0].send((proxy.Worker.operations.SHUTDOWN, None))
         self.worker.run()  # Worker should consume the prior shutdown operation
         self.assertFalse(mock_http_proxy.called)
 
     @mock.patch('proxy.HttpProtocolHandler')
     def test_spawns_http_proxy_threads(self, mock_http_proxy):
-        self.queue.put((proxy.Worker.operations.HTTP_PROTOCOL, None))
-        self.queue.put((proxy.Worker.operations.SHUTDOWN, None))
+        self.pipe[0].send((proxy.Worker.operations.HTTP_PROTOCOL, None))
+        self.pipe[0].send((proxy.Worker.operations.SHUTDOWN, None))
         self.worker.run()
         self.assertTrue(mock_http_proxy.called)
 
