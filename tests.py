@@ -106,6 +106,12 @@ class TestTcpServer(unittest.TestCase):
             client.conn.sendall(b'WORLD')
             client.close()
 
+        def setup(self) -> None:
+            pass
+
+        def shutdown(self) -> None:
+            pass
+
     @classmethod
     def setUpClass(cls):
         cls.ipv4_port = get_available_port()
@@ -183,22 +189,19 @@ class TestMultiCoreRequestDispatcher(unittest.TestCase):
             self.tcp_thread.start()
 
             while True:
-                try:
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-                    sock.connect((proxy.DEFAULT_IPV4_HOSTNAME, self.tcp_port))
-                    sock.send(proxy.CRLF.join([
-                        b'GET http://httpbin.org/get HTTP/1.1',
-                        b'Host: httpbin.org',
-                        proxy.CRLF
-                    ]))
-                    data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
-                    self.assertEqual(data, proxy.CRLF.join([b'HTTP/1.1 200 OK', proxy.CRLF]))
-                    self.tcp_server.shutdown()  # explicit early call worker shutdown to avoid resource leak warnings
-                    break
-                except ConnectionRefusedError:
-                    time.sleep(0.1)
-                finally:
-                    sock.close()
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
+                    try:
+                        sock.connect((proxy.DEFAULT_IPV4_HOSTNAME, self.tcp_port))
+                        sock.send(proxy.CRLF.join([
+                            b'GET http://httpbin.org/get HTTP/1.1',
+                            b'Host: httpbin.org',
+                            proxy.CRLF
+                        ]))
+                        data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
+                        self.assertEqual(data, proxy.CRLF.join([b'HTTP/1.1 200 OK', proxy.CRLF]))
+                        break
+                    except ConnectionRefusedError:
+                        time.sleep(0.1)
         finally:
             self.tcp_server.stop()
             self.tcp_thread.join()

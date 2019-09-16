@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
+from abc import ABC, abstractmethod
 import argparse
 import base64
 import datetime
@@ -23,7 +24,7 @@ import sys
 import threading
 from collections import namedtuple
 from multiprocessing import connection
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 from urllib import parse as urlparse
 
 import select
@@ -154,7 +155,7 @@ class TcpServerConnection(TcpConnection):
     """Establishes connection to destination server."""
 
     def __init__(self, host: str, port: int):
-        super(TcpServerConnection, self).__init__(b'server')
+        super().__init__(b'server')
         self.addr: Tuple[str, int] = (host, int(port))
 
     def __del__(self):
@@ -178,12 +179,12 @@ class TcpClientConnection(TcpConnection):
     """Accepted client connection."""
 
     def __init__(self, conn: socket.socket, addr: Tuple[str, int]):
-        super(TcpClientConnection, self).__init__(b'client')
+        super().__init__(b'client')
         self.conn: socket.socket = conn
         self.addr: Tuple[str, int] = addr
 
 
-class TcpServer:
+class TcpServer(ABC):
     """TcpServer server implementation.
 
     Inheritor MUST implement `handle` method. It accepts an instance of `TcpClientConnection`.
@@ -202,12 +203,15 @@ class TcpServer:
                                                           DEFAULT_IPV6_HOSTNAME] \
             else DEFAULT_IPV4_HOSTNAME if self.ipv4 else DEFAULT_IPV6_HOSTNAME
 
+    @abstractmethod
     def setup(self) -> None:
         pass
 
+    @abstractmethod
     def handle(self, client: TcpClientConnection):
         raise NotImplementedError()
 
+    @abstractmethod
     def shutdown(self) -> None:
         pass
 
@@ -247,7 +251,7 @@ class MultiCoreRequestDispatcher(TcpServer):
 
     def __init__(self, hostname=DEFAULT_IPV4_HOSTNAME, port=DEFAULT_PORT, backlog=DEFAULT_BACKLOG,
                  num_workers=DEFAULT_NUM_WORKERS, ipv4=DEFAULT_IPV4, config=None):
-        super(MultiCoreRequestDispatcher, self).__init__(hostname, port, backlog, ipv4)
+        super().__init__(hostname, port, backlog, ipv4)
 
         self.num_workers: int = multiprocessing.cpu_count()
         if num_workers > 0:
@@ -300,7 +304,7 @@ class Worker(multiprocessing.Process):
     ))(1, 2)
 
     def __init__(self, work_queue: connection.Connection, config=None):
-        super(Worker, self).__init__()
+        super().__init__()
         self.work_queue: connection.Connection = work_queue
         self.config: HttpProtocolConfig = config
 
@@ -313,6 +317,7 @@ class Worker(multiprocessing.Process):
                     proxy.setDaemon(True)
                     proxy.start()
                 elif op == Worker.operations.SHUTDOWN:
+                    logging.debug('Worker shutting down....')
                     self.work_queue.close()
                     break
             except ConnectionRefusedError:
@@ -334,7 +339,7 @@ class ChunkParser:
         self.state = ChunkParser.states.WAITING_FOR_SIZE
         self.body: bytes = b''  # Parsed chunks
         self.chunk: bytes = b''  # Partial chunk received
-        self.size: int = None  # Expected size of next following chunk
+        self.size: Optional[int] = None  # Expected size of next following chunk
 
     def parse(self, raw: bytes):
         more = True if len(raw) > 0 else False
@@ -431,7 +436,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self):
         return self.type == HttpParser.types.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw):
         self.bytes += raw
@@ -623,8 +628,8 @@ class HttpRequestRejected(HttpProtocolException):
     Connections can either be dropped/closed or optionally an
     HTTP status code can be returned."""
 
-    def __init__(self, status_code: bytes = None, body: bytes = None):
-        super(HttpRequestRejected, self).__init__()
+    def __init__(self, status_code: Union[bytes, int] = None, body: bytes = None):
+        super().__init__()
         self.status_code: bytes = status_code
         self.body: bytes = body
 
@@ -665,7 +670,7 @@ class HttpProtocolConfig:
         self.disable_headers = disable_headers
 
 
-class HttpProtocolBasePlugin:
+class HttpProtocolBasePlugin(ABC):
     """Base HttpProtocolHandler Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
@@ -674,6 +679,7 @@ class HttpProtocolBasePlugin:
         self.config: HttpProtocolConfig = config
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
+        super().__init__()
 
     def name(self) -> str:
         """A unique name for your plugin.
@@ -682,31 +688,39 @@ class HttpProtocolBasePlugin:
         access a specific plugin by its name."""
         return self.__class__.__name__
 
+    @abstractmethod
     def get_descriptors(self) -> Tuple[List, List, List]:
         return [], [], []
 
+    @abstractmethod
     def flush_to_descriptors(self, w) -> None:
         pass
 
+    @abstractmethod
     def read_from_descriptors(self, r) -> None:
         pass
 
+    @abstractmethod
     def on_client_data(self, raw: bytes) -> bytes:
         return raw
 
+    @abstractmethod
     def on_request_complete(self) -> None:
         """Called right after client request parser has reached COMPLETE state."""
         pass
 
+    @abstractmethod
     def handle_response_chunk(self, chunk: bytes) -> bytes:
         """Handle data chunks as received from the server.
 
         Return optionally modified chunk to return back to client."""
         return chunk
 
+    @abstractmethod
     def access_log(self) -> None:
         pass
 
+    @abstractmethod
     def on_client_connection_close(self) -> None:
         pass
 
@@ -751,7 +765,7 @@ class ProxyAuthenticationFailed(HttpProtocolException):
         return self.RESPONSE_PKT
 
 
-class HttpProxyBasePlugin:
+class HttpProxyBasePlugin(ABC):
     """Base HttpProxyPlugin Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
@@ -768,16 +782,19 @@ class HttpProxyBasePlugin:
         access a specific plugin by its name."""
         return self.__class__.__name__
 
+    @abstractmethod
     def before_upstream_connection(self):
         """Handler called just before Proxy upstream connection is established.
 
         Raise HttpRequestRejected to drop the connection."""
         pass
 
+    @abstractmethod
     def on_upstream_connection(self):
         """Handler called right after upstream connection has been established."""
         pass
 
+    @abstractmethod
     def handle_upstream_response(self, raw):
         """Handled called right after reading response from upstream server and
         before queuing that response to client.
@@ -795,7 +812,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
     ])
 
     def __init__(self, config: HttpProtocolConfig, client: TcpClientConnection, request: HttpParser):
-        super(HttpProxyPlugin, self).__init__(config, client, request)
+        super().__init__(config, client, request)
         self.server = None
         self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
 
@@ -861,6 +878,9 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 'Closed server connection with pending server buffer size %d bytes' % self.server.buffer_size())
             if not self.server.closed:
                 self.server.close()
+
+    def handle_response_chunk(self, chunk: bytes) -> bytes:
+        return chunk
 
     def on_client_data(self, raw):
         if not self.request.has_upstream_server():
@@ -949,7 +969,7 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
     ])
 
     def __init__(self, config: HttpProtocolConfig, client: TcpClientConnection, request: HttpParser):
-        super(HttpWebServerPlugin, self).__init__(config, client, request)
+        super().__init__(config, client, request)
         if self.config.pac_file:
             try:
                 with open(self.config.pac_file, 'rb') as f:
@@ -982,6 +1002,24 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
         logger.info('%s:%s - %s %s' % (self.client.addr[0], self.client.addr[1],
                                        text_(self.request.method), text_(self.request.build_url())))
 
+    def flush_to_descriptors(self, w) -> None:
+        pass
+
+    def read_from_descriptors(self, r) -> None:
+        pass
+
+    def on_client_data(self, raw: bytes) -> bytes:
+        return raw
+
+    def handle_response_chunk(self, chunk: bytes) -> bytes:
+        return chunk
+
+    def on_client_connection_close(self) -> None:
+        pass
+
+    def get_descriptors(self) -> Tuple[List, List, List]:
+        return [], [], []
+
 
 class HttpProtocolHandler(threading.Thread):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
@@ -990,7 +1028,7 @@ class HttpProtocolHandler(threading.Thread):
     """
 
     def __init__(self, client: TcpClientConnection, config: HttpProtocolConfig = None):
-        super(HttpProtocolHandler, self).__init__()
+        super().__init__()
         self.start_time: datetime.datetime = self.now()
         self.last_activity: datetime.datetime = self.start_time
 
@@ -1145,7 +1183,7 @@ def load_plugins(plugins: str) -> Dict[str, List]:
         module_name, klass_name = plugin.rsplit('.', 1)
         module = importlib.import_module(module_name)
         klass = getattr(module, klass_name)
-        base_klass = inspect.getmro(klass)[::-1][1:][0]
+        base_klass = inspect.getmro(klass)[::-1][2:][0]
         p[base_klass.__name__].append(klass)
         logging.info('Loaded plugin %s', klass)
     return p

@@ -13,6 +13,12 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
             # Redirect all non-https requests to inbuilt WebServer.
             self.request.url = urlparse.urlsplit(b'http://localhost:8899')
 
+    def on_upstream_connection(self):
+        pass
+
+    def handle_upstream_response(self, raw):
+        return raw
+
 
 class FilterByTargetDomainPlugin(proxy.HttpProxyBasePlugin):
     """Only accepts specific requests dropping all other requests."""
@@ -26,7 +32,13 @@ class FilterByTargetDomainPlugin(proxy.HttpProxyBasePlugin):
         # are not consistent between CONNECT and non-CONNECT requests.
         if (self.request.method != b'CONNECT' and self.filtered_domain in self.request.url.hostname) or \
                 (self.request.method == b'CONNECT' and self.filtered_domain in self.request.url.path):
-            raise proxy.HttpRequestRejected(status_code=418, body='I\'m a tea pot')
+            raise proxy.HttpRequestRejected(status_code=418, body=b'I\'m a tea pot')
+
+    def on_upstream_connection(self):
+        pass
+
+    def handle_upstream_response(self, raw):
+        return raw
 
 
 class SaveHttpResponses(proxy.HttpProxyBasePlugin):
@@ -37,3 +49,9 @@ class SaveHttpResponses(proxy.HttpProxyBasePlugin):
 
     def handle_upstream_response(self, chunk):
         return chunk
+
+    def before_upstream_connection(self):
+        pass
+
+    def on_upstream_connection(self):
+        pass
