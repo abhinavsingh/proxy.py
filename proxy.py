@@ -313,6 +313,8 @@ class Worker(multiprocessing.Process):
                     proxy.start()
                 elif op == Worker.operations.SHUTDOWN:
                     break
+            except ConnectionRefusedError:
+                pass
             except KeyboardInterrupt:
                 break
 
