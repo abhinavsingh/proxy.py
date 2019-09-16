@@ -282,6 +282,7 @@ class MultiCoreRequestDispatcher(TcpServer):
         logger.info('Shutting down %d workers' % self.num_workers)
         for work_queue in self.work_queues:
             work_queue[0].send((Worker.operations.SHUTDOWN, None))
+            work_queue[0].close()
         for worker in self.workers:
             worker.join()
 
@@ -312,6 +313,7 @@ class Worker(multiprocessing.Process):
                     proxy.setDaemon(True)
                     proxy.start()
                 elif op == Worker.operations.SHUTDOWN:
+                    self.work_queue.close()
                     break
             except ConnectionRefusedError:
                 pass
