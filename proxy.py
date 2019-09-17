@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
-from abc import ABC, abstractmethod
 import argparse
 import base64
 import datetime
@@ -22,6 +21,7 @@ import os
 import socket
 import sys
 import threading
+from abc import ABC, abstractmethod
 from collections import namedtuple
 from multiprocessing import connection
 from typing import Dict, List, Tuple, Optional, Union
@@ -436,7 +436,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self):
         return self.type == HttpParser.types.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw):
         self.bytes += raw
