@@ -27,4 +27,4 @@ jobs:
           flake8 proxy.py tests.py --count --exit-zero --max-line-length=127 --statistics
       - name: Run Tests
         run: |
-          make
+          pytest tests.py
