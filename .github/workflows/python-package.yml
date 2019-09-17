@@ -6,10 +6,11 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
-      max-parallel: 4
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
-        python: [3.5, 3.6, 3.7]
+        python: [3.6, 3.7]
+      max-parallel: 4
+      fail-fast: false
     steps:
       - uses: actions/checkout@v1
       - name: Set up Python ${{ matrix.python }}
