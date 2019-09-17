@@ -1,28 +1,37 @@
 [![Proxy.Py](ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![alt text](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop "Build Status")](https://travis-ci.org/abhinavsingh/proxy.py/) [![Coverage Status](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![PyPi Downloads](https://img.shields.io/pypi/dm/proxy.py.svg)](https://pypi.org/project/proxy.py/)
+[![Build Status](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop)](https://travis-ci.org/abhinavsingh/proxy.py/)
+[![Coverage](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
+
+[![Twitter](https://img.shields.io/twitter/follow/imoracle?label=Follow%20on%20Twitter&style=social)](https://twitter.com/imoracle)
 
 Features
 --------
 
 - Distributed as a single file module
-- Optionally enable builtin Web Server
-- Customize proxy and http routing via plugins
 - No external dependency other than standard Python library
 - Support for `http`, `https`, `http2` and `websockets` request proxy
 - Optimized for large file uploads and downloads
 - IPv4 and IPv6 support
 - Basic authentication support
 - Can serve a [PAC (Proxy Auto-configuration)](https://en.wikipedia.org/wiki/Proxy_auto-config) file
+- Optionally enable builtin Web Server
+- Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
 
 Install
 -------
 
-To install proxy.py, simply:
+#### Stable version
 
 	$ pip install --upgrade proxy.py
 
-Using docker:
+#### Development version
+
+    $ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
+
+#### Docker image
 
     $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py
 
