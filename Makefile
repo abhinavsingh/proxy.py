@@ -6,7 +6,7 @@ VERSION ?= v$(shell python proxy.py --version)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
-.PHONY: all clean test package test-release release coverage flake8 container run-container release-container
+.PHONY: all clean test package test-release release coverage lint container run-container release-container
 
 all: clean test
 
@@ -35,9 +35,11 @@ coverage:
 	coverage3 html
 	open htmlcov/index.html
 
-flake8:
+lint:
 	flake8 --ignore=E501,W504 --builtins="unicode" proxy.py
 	flake8 --ignore=E501,W504 tests.py
+	autopep8 --recursive --in-place --aggressive --aggressive proxy.py
+	autopep8 --recursive --in-place --aggressive --aggressive tests.py
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .

@@ -26,8 +26,9 @@ import proxy
 if os.name != 'nt':
     import resource
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
 
 def get_available_port():
@@ -47,7 +48,8 @@ class TestTcpConnection(unittest.TestCase):
         with mock.patch('proxy.logger') as mock_logger:
             self.conn.recv()
             mock_logger.exception.assert_called()
-            logging.info(mock_logger.exception.call_args[0][0].startswith('Exception while receiving from connection'))
+            logging.info(mock_logger.exception.call_args[0][0].startswith(
+                'Exception while receiving from connection'))
 
     def testHandlesConnReset(self):
         self.conn = proxy.TcpConnection(proxy.TcpConnection.types.CLIENT)
@@ -83,13 +85,15 @@ class TestTcpConnection(unittest.TestCase):
     def testTcpServerClosesConnOnGC(self, mock_create_connection):
         conn = mock.MagicMock()
         mock_create_connection.return_value = conn
-        self.conn = proxy.TcpServerConnection(proxy.DEFAULT_IPV4_HOSTNAME, proxy.DEFAULT_PORT)
+        self.conn = proxy.TcpServerConnection(
+            proxy.DEFAULT_IPV4_HOSTNAME, proxy.DEFAULT_PORT)
         self.conn.connect()
         del self.conn
         conn.close.assert_called()
 
 
-@unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0), 'Opening sockets not allowed on Travis')
+@unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
+                 'Opening sockets not allowed on Travis')
 class TestTcpServer(unittest.TestCase):
     ipv4_port = None
     ipv6_port = None
@@ -116,9 +120,10 @@ class TestTcpServer(unittest.TestCase):
     def setUpClass(cls):
         cls.ipv4_port = get_available_port()
         cls.ipv6_port = get_available_port()
-        cls.ipv4_server = TestTcpServer._TestTcpServer(port=cls.ipv4_port, ipv4=True)
-        cls.ipv6_server = TestTcpServer._TestTcpServer(hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=cls.ipv6_port,
-                                                       ipv4=False)
+        cls.ipv4_server = TestTcpServer._TestTcpServer(
+            port=cls.ipv4_port, ipv4=True)
+        cls.ipv6_server = TestTcpServer._TestTcpServer(
+            hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=cls.ipv6_port, ipv4=False)
         cls.ipv4_thread = Thread(target=cls.ipv4_server.run)
         cls.ipv6_thread = Thread(target=cls.ipv6_server.run)
         cls.ipv4_thread.setDaemon(True)
@@ -135,9 +140,13 @@ class TestTcpServer(unittest.TestCase):
         while True:
             sock = None
             try:
-                sock = socket.socket(socket.AF_INET if ipv4 else socket.AF_INET6, socket.SOCK_STREAM, 0)
-                sock.connect((proxy.DEFAULT_IPV4_HOSTNAME if ipv4 else proxy.DEFAULT_IPV6_HOSTNAME,
-                              self.ipv4_port if ipv4 else self.ipv6_port))
+                sock = socket.socket(
+                    socket.AF_INET if ipv4 else socket.AF_INET6,
+                    socket.SOCK_STREAM,
+                    0)
+                sock.connect(
+                    (proxy.DEFAULT_IPV4_HOSTNAME if ipv4 else proxy.DEFAULT_IPV6_HOSTNAME,
+                     self.ipv4_port if ipv4 else self.ipv6_port))
                 sock.sendall(b'HELLO')
                 data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
                 self.assertEqual(data, b'WORLD')
@@ -164,7 +173,8 @@ class MockHttpProxy:
         pass
 
     def start(self):
-        self.client.conn.sendall(proxy.CRLF.join([b'HTTP/1.1 200 OK', proxy.CRLF]))
+        self.client.conn.sendall(proxy.CRLF.join(
+            [b'HTTP/1.1 200 OK', proxy.CRLF]))
         self.client.conn.close()
 
 
@@ -172,18 +182,25 @@ def mock_tcp_proxy_side_effect(client, **kwargs):
     return MockHttpProxy(client, **kwargs)
 
 
-@unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0), 'Opening sockets not allowed on Travis')
+@unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
+                 'Opening sockets not allowed on Travis')
 class TestMultiCoreRequestDispatcher(unittest.TestCase):
     tcp_port = None
     tcp_server = None
     tcp_thread = None
 
-    @mock.patch.object(proxy, 'HttpProtocolHandler', side_effect=mock_tcp_proxy_side_effect)
+    @mock.patch.object(
+        proxy,
+        'HttpProtocolHandler',
+        side_effect=mock_tcp_proxy_side_effect)
     def testHttpProxyConnection(self, mock_tcp_proxy):
         try:
             self.tcp_port = get_available_port()
-            self.tcp_server = proxy.MultiCoreRequestDispatcher(hostname=proxy.DEFAULT_IPV4_HOSTNAME, port=self.tcp_port,
-                                                               ipv4=True, num_workers=1)
+            self.tcp_server = proxy.MultiCoreRequestDispatcher(
+                hostname=proxy.DEFAULT_IPV4_HOSTNAME,
+                port=self.tcp_port,
+                ipv4=True,
+                num_workers=1)
             self.tcp_thread = Thread(target=self.tcp_server.run)
             self.tcp_thread.setDaemon(True)
             self.tcp_thread.start()
@@ -191,14 +208,16 @@ class TestMultiCoreRequestDispatcher(unittest.TestCase):
             while True:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
                     try:
-                        sock.connect((proxy.DEFAULT_IPV4_HOSTNAME, self.tcp_port))
+                        sock.connect(
+                            (proxy.DEFAULT_IPV4_HOSTNAME, self.tcp_port))
                         sock.send(proxy.CRLF.join([
                             b'GET http://httpbin.org/get HTTP/1.1',
                             b'Host: httpbin.org',
                             proxy.CRLF
                         ]))
                         data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
-                        self.assertEqual(data, proxy.CRLF.join([b'HTTP/1.1 200 OK', proxy.CRLF]))
+                        self.assertEqual(data, proxy.CRLF.join(
+                            [b'HTTP/1.1 200 OK', proxy.CRLF]))
                         break
                     except ConnectionRefusedError:
                         time.sleep(0.1)
@@ -234,32 +253,44 @@ class TestChunkParser(unittest.TestCase):
         self.assertEqual(self.parser.chunk, b'3')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'')
-        self.assertEqual(self.parser.state, proxy.ChunkParser.states.WAITING_FOR_SIZE)
+        self.assertEqual(
+            self.parser.state,
+            proxy.ChunkParser.states.WAITING_FOR_SIZE)
         self.parser.parse(b'\r\n')
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, 3)
         self.assertEqual(self.parser.body, b'')
-        self.assertEqual(self.parser.state, proxy.ChunkParser.states.WAITING_FOR_DATA)
+        self.assertEqual(
+            self.parser.state,
+            proxy.ChunkParser.states.WAITING_FOR_DATA)
         self.parser.parse(b'abc')
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'abc')
-        self.assertEqual(self.parser.state, proxy.ChunkParser.states.WAITING_FOR_SIZE)
+        self.assertEqual(
+            self.parser.state,
+            proxy.ChunkParser.states.WAITING_FOR_SIZE)
         self.parser.parse(b'\r\n')
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'abc')
-        self.assertEqual(self.parser.state, proxy.ChunkParser.states.WAITING_FOR_SIZE)
+        self.assertEqual(
+            self.parser.state,
+            proxy.ChunkParser.states.WAITING_FOR_SIZE)
         self.parser.parse(b'4\r\n')
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, 4)
         self.assertEqual(self.parser.body, b'abc')
-        self.assertEqual(self.parser.state, proxy.ChunkParser.states.WAITING_FOR_DATA)
+        self.assertEqual(
+            self.parser.state,
+            proxy.ChunkParser.states.WAITING_FOR_DATA)
         self.parser.parse(b'defg\r\n0')
         self.assertEqual(self.parser.chunk, b'0')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'abcdefg')
-        self.assertEqual(self.parser.state, proxy.ChunkParser.states.WAITING_FOR_SIZE)
+        self.assertEqual(
+            self.parser.state,
+            proxy.ChunkParser.states.WAITING_FOR_SIZE)
         self.parser.parse(b'\r\n\r\n')
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, None)
@@ -273,15 +304,21 @@ class TestHttpParser(unittest.TestCase):
         self.parser = proxy.HttpParser(proxy.HttpParser.types.REQUEST_PARSER)
 
     def test_build_header(self):
-        self.assertEqual(proxy.HttpParser.build_header(b'key', b'value'), b'key: value')
+        self.assertEqual(
+            proxy.HttpParser.build_header(
+                b'key', b'value'), b'key: value')
 
     def test_split(self):
-        self.assertEqual(proxy.HttpParser.split(b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
-                         (b'CONNECT python.org:443 HTTP/1.0', b'\r\n'))
+        self.assertEqual(
+            proxy.HttpParser.split(b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
+            (b'CONNECT python.org:443 HTTP/1.0',
+             b'\r\n'))
 
     def test_split_false_line(self):
-        self.assertEqual(proxy.HttpParser.split(b'CONNECT python.org:443 HTTP/1.0'),
-                         (False, b'CONNECT python.org:443 HTTP/1.0'))
+        self.assertEqual(
+            proxy.HttpParser.split(b'CONNECT python.org:443 HTTP/1.0'),
+            (False,
+             b'CONNECT python.org:443 HTTP/1.0'))
 
     def test_get_full_parse(self):
         raw = proxy.CRLF.join([
@@ -289,7 +326,8 @@ class TestHttpParser(unittest.TestCase):
             b'Host: %s',
             proxy.CRLF
         ])
-        pkt = raw % (b'https://example.com/path/dir/?a=b&c=d#p=q', b'example.com')
+        pkt = raw % (b'https://example.com/path/dir/?a=b&c=d#p=q',
+                     b'example.com')
         self.parser.parse(pkt)
         self.assertEqual(self.parser.total_size, len(pkt))
         self.assertEqual(self.parser.build_url(), b'/path/dir/?a=b&c=d#p=q')
@@ -298,10 +336,15 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, proxy.HttpParser.states.COMPLETE)
-        self.assertDictContainsSubset({b'host': (b'Host', b'example.com')}, self.parser.headers)
+        self.assertDictContainsSubset(
+            {b'host': (b'Host', b'example.com')}, self.parser.headers)
         self.parser.del_headers([b'host'])
         self.parser.add_headers([(b'Host', b'example.com')])
-        self.assertEqual(raw % (b'/path/dir/?a=b&c=d#p=q', b'example.com'), self.parser.build())
+        self.assertEqual(
+            raw %
+            (b'/path/dir/?a=b&c=d#p=q',
+             b'example.com'),
+            self.parser.build())
 
     def test_build_url_none(self):
         self.assertEqual(self.parser.build_url(), b'/None')
@@ -310,9 +353,10 @@ class TestHttpParser(unittest.TestCase):
         pkt = b'GET http://localhost HTTP/1.1'
         self.parser.parse(pkt)
         self.assertEqual(self.parser.total_size, len(pkt))
-        self.assert_state_change_with_crlf(proxy.HttpParser.states.INITIALIZED,
-                                           proxy.HttpParser.states.LINE_RCVD,
-                                           proxy.HttpParser.states.RCVING_HEADERS)
+        self.assert_state_change_with_crlf(
+            proxy.HttpParser.states.INITIALIZED,
+            proxy.HttpParser.states.LINE_RCVD,
+            proxy.HttpParser.states.RCVING_HEADERS)
 
     def test_get_partial_parse1(self):
         pkt = proxy.CRLF.join([
@@ -323,7 +367,9 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.method, None)
         self.assertEqual(self.parser.url, None)
         self.assertEqual(self.parser.version, None)
-        self.assertEqual(self.parser.state, proxy.HttpParser.states.INITIALIZED)
+        self.assertEqual(
+            self.parser.state,
+            proxy.HttpParser.states.INITIALIZED)
 
         self.parser.parse(proxy.CRLF)
         self.assertEqual(self.parser.total_size, len(pkt) + len(proxy.CRLF))
@@ -335,14 +381,17 @@ class TestHttpParser(unittest.TestCase):
 
         host_hdr = b'Host: localhost:8080'
         self.parser.parse(host_hdr)
-        self.assertEqual(self.parser.total_size, len(pkt) + len(proxy.CRLF) + len(host_hdr))
+        self.assertEqual(self.parser.total_size,
+                         len(pkt) + len(proxy.CRLF) + len(host_hdr))
         self.assertDictEqual(self.parser.headers, dict())
         self.assertEqual(self.parser.buffer, b'Host: localhost:8080')
         self.assertEqual(self.parser.state, proxy.HttpParser.states.LINE_RCVD)
 
         self.parser.parse(proxy.CRLF * 2)
-        self.assertEqual(self.parser.total_size, len(pkt) + (3 * len(proxy.CRLF)) + len(host_hdr))
-        self.assertDictContainsSubset({b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
+        self.assertEqual(self.parser.total_size, len(pkt) +
+                         (3 * len(proxy.CRLF)) + len(host_hdr))
+        self.assertDictContainsSubset(
+            {b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
         self.assertEqual(self.parser.state, proxy.HttpParser.states.COMPLETE)
 
     def test_get_partial_parse2(self):
@@ -358,14 +407,20 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, proxy.HttpParser.states.LINE_RCVD)
 
         self.parser.parse(b'localhost:8080' + proxy.CRLF)
-        self.assertDictContainsSubset({b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
+        self.assertDictContainsSubset(
+            {b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
         self.assertEqual(self.parser.buffer, b'')
-        self.assertEqual(self.parser.state, proxy.HttpParser.states.RCVING_HEADERS)
+        self.assertEqual(
+            self.parser.state,
+            proxy.HttpParser.states.RCVING_HEADERS)
 
         self.parser.parse(b'Content-Type: text/plain' + proxy.CRLF)
         self.assertEqual(self.parser.buffer, b'')
-        self.assertDictContainsSubset({b'content-type': (b'Content-Type', b'text/plain')}, self.parser.headers)
-        self.assertEqual(self.parser.state, proxy.HttpParser.states.RCVING_HEADERS)
+        self.assertDictContainsSubset(
+            {b'content-type': (b'Content-Type', b'text/plain')}, self.parser.headers)
+        self.assertEqual(
+            self.parser.state,
+            proxy.HttpParser.states.RCVING_HEADERS)
 
         self.parser.parse(proxy.CRLF)
         self.assertEqual(self.parser.state, proxy.HttpParser.states.COMPLETE)
@@ -383,16 +438,19 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
-        self.assertDictContainsSubset({b'content-type': (b'Content-Type', b'application/x-www-form-urlencoded')},
-                                      self.parser.headers)
-        self.assertDictContainsSubset({b'content-length': (b'Content-Length', b'7')}, self.parser.headers)
+        self.assertDictContainsSubset(
+            {b'content-type': (b'Content-Type', b'application/x-www-form-urlencoded')}, self.parser.headers)
+        self.assertDictContainsSubset(
+            {b'content-length': (b'Content-Length', b'7')}, self.parser.headers)
         self.assertEqual(self.parser.body, b'a=b&c=d')
         self.assertEqual(self.parser.buffer, b'')
         self.assertEqual(self.parser.state, proxy.HttpParser.states.COMPLETE)
         self.assertEqual(len(self.parser.build()), len(raw % b'/'))
 
-    def assert_state_change_with_crlf(self, initial_state: proxy.HttpParser.states,
-                                      next_state: proxy.HttpParser.states, final_state: proxy.HttpParser.states):
+    def assert_state_change_with_crlf(self,
+                                      initial_state: proxy.HttpParser.states,
+                                      next_state: proxy.HttpParser.states,
+                                      final_state: proxy.HttpParser.states):
         self.assertEqual(self.parser.state, initial_state)
         self.parser.parse(proxy.CRLF)
         self.assertEqual(self.parser.state, next_state)
@@ -410,12 +468,15 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
-        self.assert_state_change_with_crlf(proxy.HttpParser.states.RCVING_HEADERS,
-                                           proxy.HttpParser.states.RCVING_HEADERS,
-                                           proxy.HttpParser.states.HEADERS_COMPLETE)
+        self.assert_state_change_with_crlf(
+            proxy.HttpParser.states.RCVING_HEADERS,
+            proxy.HttpParser.states.RCVING_HEADERS,
+            proxy.HttpParser.states.HEADERS_COMPLETE)
 
         self.parser.parse(b'a=b')
-        self.assertEqual(self.parser.state, proxy.HttpParser.states.RCVING_BODY)
+        self.assertEqual(
+            self.parser.state,
+            proxy.HttpParser.states.RCVING_BODY)
         self.assertEqual(self.parser.body, b'a=b')
         self.assertEqual(self.parser.buffer, b'')
 
@@ -478,7 +539,9 @@ class TestHttpParser(unittest.TestCase):
             b'Date: Thu, 13 Dec 2018 16:24:09 GMT',
             proxy.CRLF
         ]))
-        self.assertEqual(self.parser.state, proxy.HttpParser.states.HEADERS_COMPLETE)
+        self.assertEqual(
+            self.parser.state,
+            proxy.HttpParser.states.HEADERS_COMPLETE)
 
     def test_response_parse(self):
         self.parser.type = proxy.HttpParser.types.RESPONSE_PARSER
@@ -501,11 +564,13 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.code, b'301')
         self.assertEqual(self.parser.reason, b'Moved Permanently')
         self.assertEqual(self.parser.version, b'HTTP/1.1')
-        self.assertEqual(self.parser.body,
-                         b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n' +
-                         b'<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
-                         b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
-        self.assertDictContainsSubset({b'content-length': (b'Content-Length', b'219')}, self.parser.headers)
+        self.assertEqual(
+            self.parser.body,
+            b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n' +
+            b'<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
+            b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
+        self.assertDictContainsSubset(
+            {b'content-length': (b'Content-Length', b'219')}, self.parser.headers)
         self.assertEqual(self.parser.state, proxy.HttpParser.states.COMPLETE)
 
     def test_response_partial_parse(self):
@@ -522,14 +587,21 @@ class TestHttpParser(unittest.TestCase):
             b'X-XSS-Protection: 1; mode=block\r\n',
             b'X-Frame-Options: SAMEORIGIN\r\n'
         ]))
-        self.assertDictContainsSubset({b'x-frame-options': (b'X-Frame-Options', b'SAMEORIGIN')}, self.parser.headers)
-        self.assertEqual(self.parser.state, proxy.HttpParser.states.RCVING_HEADERS)
+        self.assertDictContainsSubset(
+            {b'x-frame-options': (b'X-Frame-Options', b'SAMEORIGIN')}, self.parser.headers)
+        self.assertEqual(
+            self.parser.state,
+            proxy.HttpParser.states.RCVING_HEADERS)
         self.parser.parse(b'\r\n')
-        self.assertEqual(self.parser.state, proxy.HttpParser.states.HEADERS_COMPLETE)
+        self.assertEqual(
+            self.parser.state,
+            proxy.HttpParser.states.HEADERS_COMPLETE)
         self.parser.parse(
             b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n' +
             b'<TITLE>301 Moved</TITLE></HEAD>')
-        self.assertEqual(self.parser.state, proxy.HttpParser.states.RCVING_BODY)
+        self.assertEqual(
+            self.parser.state,
+            proxy.HttpParser.states.RCVING_BODY)
         self.parser.parse(
             b'<BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
             b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
@@ -588,7 +660,8 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.send_response(200)
-        # TODO(abhinavsingh): Proxy should work just fine even without content-length header
+        # TODO(abhinavsingh): Proxy should work just fine even without
+        # content-length header
         self.send_header('content-length', 2)
         self.end_headers()
         self.wfile.write(b'OK')
@@ -603,12 +676,14 @@ class TestHttpProtocolHandler(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.http_server_port = get_available_port()
-        cls.http_server = HTTPServer(('127.0.0.1', cls.http_server_port), HTTPRequestHandler)
+        cls.http_server = HTTPServer(
+            ('127.0.0.1', cls.http_server_port), HTTPRequestHandler)
         cls.http_server_thread = Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.setDaemon(True)
         cls.http_server_thread.start()
         cls.config = proxy.HttpProtocolConfig()
-        cls.config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        cls.config.plugins = proxy.load_plugins(
+            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
     @classmethod
     def tearDownClass(cls):
@@ -619,20 +694,29 @@ class TestHttpProtocolHandler(unittest.TestCase):
     def setUp(self):
         self._conn = MockTcpConnection()
         self._addr = ('127.0.0.1', 54382)
-        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr), config=self.config)
+        self.proxy = proxy.HttpProtocolHandler(
+            proxy.TcpClientConnection(
+                self._conn, self._addr), config=self.config)
 
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
     def test_http_get(self, mock_server_connection, mock_select):
         server = mock_server_connection.return_value
         server.connect.return_value = True
-        mock_select.side_effect = [([self._conn], [], []), ([self._conn], [], []), ([], [server.conn], [])]
+        mock_select.side_effect = [
+            ([self._conn], [], []), ([self._conn], [], []), ([], [server.conn], [])]
 
         # Send request line
-        self.proxy.client.conn.queue((b'GET http://localhost:%d HTTP/1.1' % self.http_server_port) + proxy.CRLF)
+        self.proxy.client.conn.queue(
+            (b'GET http://localhost:%d HTTP/1.1' %
+             self.http_server_port) + proxy.CRLF)
         self.proxy.run_once()
-        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.LINE_RCVD)
-        self.assertNotEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.HttpParser.states.LINE_RCVD)
+        self.assertNotEqual(
+            self.proxy.request.state,
+            proxy.HttpParser.states.COMPLETE)
 
         # Send headers and blank line, thus completing HTTP request
         self.proxy.client.conn.queue(proxy.CRLF.join([
@@ -649,7 +733,9 @@ class TestHttpProtocolHandler(unittest.TestCase):
     def assert_tunnel_response(self, mock_server_connection, server):
         self.proxy.run_once()
         self.assertFalse(self.proxy.plugins['HttpProxyPlugin'].server is None)
-        self.assertEqual(self.proxy.client.buffer, proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+        self.assertEqual(
+            self.proxy.client.buffer,
+            proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
         server.queue.assert_not_called()
@@ -700,10 +786,14 @@ class TestHttpProtocolHandler(unittest.TestCase):
     @mock.patch('select.select')
     def test_proxy_authentication_failed(self, mock_select):
         mock_select.return_value = ([self._conn], [], [])
-        config = proxy.HttpProtocolConfig(auth_code=b'Basic %s' % base64.b64encode(b'user:pass'))
-        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
-        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
-                                               config=config)
+        config = proxy.HttpProtocolConfig(
+            auth_code=b'Basic %s' %
+            base64.b64encode(b'user:pass'))
+        config.plugins = proxy.load_plugins(
+            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.HttpProtocolHandler(
+            proxy.TcpClientConnection(
+                self._conn, self._addr), config=config)
         self.proxy.client.conn.queue(proxy.CRLF.join([
             b'GET http://abhinavsingh.com HTTP/1.1',
             b'Host: abhinavsingh.com',
@@ -714,23 +804,33 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
-    def test_authenticated_proxy_http_get(self, mock_server_connection, mock_select):
+    def test_authenticated_proxy_http_get(
+            self, mock_server_connection, mock_select):
         mock_select.return_value = ([self._conn], [], [])
         server = mock_server_connection.return_value
         server.connect.return_value = True
 
         client = proxy.TcpClientConnection(self._conn, self._addr)
-        config = proxy.HttpProtocolConfig(auth_code=b'Basic %s' % base64.b64encode(b'user:pass'))
-        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        config = proxy.HttpProtocolConfig(
+            auth_code=b'Basic %s' %
+            base64.b64encode(b'user:pass'))
+        config.plugins = proxy.load_plugins(
+            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
         self.proxy = proxy.HttpProtocolHandler(client, config=config)
-        self.proxy.client.conn.queue(b'GET http://localhost:%d HTTP/1.1' % self.http_server_port)
+        self.proxy.client.conn.queue(
+            b'GET http://localhost:%d HTTP/1.1' %
+            self.http_server_port)
         self.proxy.run_once()
-        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.INITIALIZED)
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.HttpParser.states.INITIALIZED)
 
         self.proxy.client.conn.queue(proxy.CRLF)
         self.proxy.run_once()
-        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.LINE_RCVD)
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.HttpParser.states.LINE_RCVD)
 
         self.proxy.client.conn.queue(proxy.CRLF.join([
             b'User-Agent: proxy.py/%s' % proxy.version,
@@ -744,15 +844,21 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
-    def test_authenticated_proxy_http_tunnel(self, mock_server_connection, mock_select):
+    def test_authenticated_proxy_http_tunnel(
+            self, mock_server_connection, mock_select):
         server = mock_server_connection.return_value
         server.connect.return_value = True
-        mock_select.side_effect = [([self._conn], [], []), ([self._conn], [], []), ([], [server.conn], [])]
+        mock_select.side_effect = [
+            ([self._conn], [], []), ([self._conn], [], []), ([], [server.conn], [])]
 
-        config = proxy.HttpProtocolConfig(auth_code=b'Basic %s' % base64.b64encode(b'user:pass'))
-        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
-        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
-                                               config=config)
+        config = proxy.HttpProtocolConfig(
+            auth_code=b'Basic %s' %
+            base64.b64encode(b'user:pass'))
+        config.plugins = proxy.load_plugins(
+            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.HttpProtocolHandler(
+            proxy.TcpClientConnection(
+                self._conn, self._addr), config=config)
         self.proxy.client.conn.queue(proxy.CRLF.join([
             b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
             b'Host: localhost:%d' % self.http_server_port,
@@ -774,9 +880,14 @@ class TestHttpProtocolHandler(unittest.TestCase):
         config = proxy.HttpProtocolConfig(pac_file='proxy.pac')
         self.init_and_make_pac_file_request(config)
         self.proxy.run_once()
-        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.HttpParser.states.COMPLETE)
         with open('proxy.pac', 'rb') as pac_file:
-            self.assertEqual(self._conn.received, proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX + pac_file.read())
+            self.assertEqual(
+                self._conn.received,
+                proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX +
+                pac_file.read())
 
     @mock.patch('select.select')
     def test_pac_file_served_from_buffer(self, mock_select):
@@ -785,31 +896,43 @@ class TestHttpProtocolHandler(unittest.TestCase):
         config = proxy.HttpProtocolConfig(pac_file=pac_file_content)
         self.init_and_make_pac_file_request(config)
         self.proxy.run_once()
-        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
-        self.assertEqual(self._conn.received, proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX + pac_file_content)
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.HttpParser.states.COMPLETE)
+        self.assertEqual(
+            self._conn.received,
+            proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX +
+            pac_file_content)
 
     @mock.patch('select.select')
     def test_default_web_server_returns_404(self, mock_select):
         mock_select.return_value = [self._conn], [], []
         config = proxy.HttpProtocolConfig()
-        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
-        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
-                                               config=config)
+        config.plugins = proxy.load_plugins(
+            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.HttpProtocolHandler(
+            proxy.TcpClientConnection(
+                self._conn, self._addr), config=config)
         self.proxy.client.conn.queue(proxy.CRLF.join([
             b'GET /hello HTTP/1.1',
             proxy.CRLF,
             proxy.CRLF
         ]))
         self.proxy.run_once()
-        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
-        self.assertEqual(self._conn.received, proxy.HttpWebServerPlugin.DEFAULT_404_RESPONSE)
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.HttpParser.states.COMPLETE)
+        self.assertEqual(
+            self._conn.received,
+            proxy.HttpWebServerPlugin.DEFAULT_404_RESPONSE)
 
     def test_on_client_connection_called_on_teardown(self):
         config = proxy.HttpProtocolConfig()
         plugin = mock.MagicMock()
         config.plugins = {'HttpProtocolBasePlugin': [plugin]}
-        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
-                                               config=config)
+        self.proxy = proxy.HttpProtocolHandler(
+            proxy.TcpClientConnection(
+                self._conn, self._addr), config=config)
         plugin.assert_called()
         with mock.patch.object(self.proxy, 'run_once') as mock_run_once:
             mock_run_once.return_value = True
@@ -819,9 +942,11 @@ class TestHttpProtocolHandler(unittest.TestCase):
         plugin.return_value.on_client_connection_close.assert_called()
 
     def init_and_make_pac_file_request(self, config):
-        config.plugins = proxy.load_plugins('proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
-        self.proxy = proxy.HttpProtocolHandler(proxy.TcpClientConnection(self._conn, self._addr),
-                                               config=config)
+        config.plugins = proxy.load_plugins(
+            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.HttpProtocolHandler(
+            proxy.TcpClientConnection(
+                self._conn, self._addr), config=config)
         self.proxy.client.conn.queue(proxy.CRLF.join([
             b'GET / HTTP/1.1',
             proxy.CRLF,
@@ -830,7 +955,9 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     def assert_data_queued(self, mock_server_connection, server):
         self.proxy.run_once()
-        self.assertEqual(self.proxy.request.state, proxy.HttpParser.states.COMPLETE)
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.HttpParser.states.COMPLETE)
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
         server.closed = False
@@ -901,7 +1028,9 @@ class TestHttpRequestRejected(unittest.TestCase):
         ]))
 
     def test_body_response(self):
-        e = proxy.HttpRequestRejected(status_code=b'404 NOT FOUND', body=b'Nothing here')
+        e = proxy.HttpRequestRejected(
+            status_code=b'404 NOT FOUND',
+            body=b'Nothing here')
         self.assertEqual(e.response(self.request), proxy.CRLF.join([
             b'HTTP/1.1 404 NOT FOUND',
             proxy.PROXY_AGENT_HEADER,
@@ -916,7 +1045,11 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     @mock.patch('proxy.logging.basicConfig')
-    def test_log_file_setup(self, mock_config, mock_multicore_dispatcher, mock_set_open_file_limit):
+    def test_log_file_setup(
+            self,
+            mock_config,
+            mock_multicore_dispatcher,
+            mock_set_open_file_limit):
         log_file = '/tmp/proxy.log'
         proxy.main(['--log-file', log_file])
         mock_set_open_file_limit.assert_called()
@@ -934,23 +1067,35 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.open')
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
-    @unittest.skipIf(True, 'This test passes while development on Intellij but fails via CLI :(')
-    def test_pid_file_is_written_and_removed(self, mock_multicore_dispatcher, mock_set_open_file_limit,
-                                             mock_open, mock_exists, mock_remove):
+    @unittest.skipIf(
+        True,
+        'This test passes while development on Intellij but fails via CLI :(')
+    def test_pid_file_is_written_and_removed(
+            self,
+            mock_multicore_dispatcher,
+            mock_set_open_file_limit,
+            mock_open,
+            mock_exists,
+            mock_remove):
         pid_file = '/tmp/proxy.pid'
         proxy.main(['--pid-file', pid_file])
         mock_set_open_file_limit.assert_called()
         mock_multicore_dispatcher.assert_called()
         mock_multicore_dispatcher.return_value.run.assert_called()
         mock_open.assert_called_with(pid_file, 'wb')
-        mock_open.return_value.__enter__.return_value.write.assert_called_with(proxy.bytes_(str(os.getpid())))
+        mock_open.return_value.__enter__.return_value.write.assert_called_with(
+            proxy.bytes_(str(os.getpid())))
         mock_exists.assert_called_with(pid_file)
         mock_remove.assert_called_with(pid_file)
 
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
-    def test_main(self, mock_multicore_dispatcher, mock_set_open_file_limit, mock_config):
+    def test_main(
+            self,
+            mock_multicore_dispatcher,
+            mock_set_open_file_limit,
+            mock_config):
         proxy.main(['--basic-auth', 'user:pass'])
         self.assertTrue(mock_set_open_file_limit.called)
         mock_multicore_dispatcher.assert_called_with(
@@ -973,7 +1118,12 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
-    def test_main_version(self, mock_multicore_dispatcher, mock_set_open_file_limit, mock_config, mock_print):
+    def test_main_version(
+            self,
+            mock_multicore_dispatcher,
+            mock_set_open_file_limit,
+            mock_config,
+            mock_print):
         with self.assertRaises(SystemExit):
             proxy.main(['--version'])
             mock_print.assert_called_with(proxy.text_(proxy.version))
@@ -986,8 +1136,13 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     @mock.patch('proxy.is_py3')
-    def test_main_py3_runs(self, mock_is_py3, mock_multicore_dispatcher, mock_set_open_file_limit,
-                           mock_config, mock_print):
+    def test_main_py3_runs(
+            self,
+            mock_is_py3,
+            mock_multicore_dispatcher,
+            mock_set_open_file_limit,
+            mock_config,
+            mock_print):
         mock_is_py3.return_value = True
         proxy.main([])
         mock_is_py3.assert_called()
@@ -1001,9 +1156,16 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     @mock.patch('proxy.is_py3')
-    @unittest.skipIf(True, 'This test passes while development on Intellij but fails via CLI :(')
-    def test_main_py2_exit(self, mock_is_py3, mock_multicore_dispatcher, mock_set_open_file_limit,
-                           mock_config, mock_print):
+    @unittest.skipIf(
+        True,
+        'This test passes while development on Intellij but fails via CLI :(')
+    def test_main_py2_exit(
+            self,
+            mock_is_py3,
+            mock_multicore_dispatcher,
+            mock_set_open_file_limit,
+            mock_config,
+            mock_print):
         mock_is_py3.return_value = False
         with self.assertRaises(SystemExit):
             proxy.main([])
@@ -1025,7 +1187,9 @@ class TestMain(unittest.TestCase):
     def test_bytes_nochange(self):
         self.assertEqual(proxy.bytes_(b'hello'), b'hello')
 
-    @unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
+    @unittest.skipIf(
+        os.name == 'nt',
+        'Open file limit tests disabled for Windows')
     @mock.patch('resource.getrlimit', return_value=(128, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
     def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit):
@@ -1033,18 +1197,24 @@ class TestMain(unittest.TestCase):
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_called_with(resource.RLIMIT_NOFILE, (256, 1024))
 
-    @unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
+    @unittest.skipIf(
+        os.name == 'nt',
+        'Open file limit tests disabled for Windows')
     @mock.patch('resource.getrlimit', return_value=(256, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
-    def test_set_open_file_limit_not_called(self, mock_set_rlimit, mock_get_rlimit):
+    def test_set_open_file_limit_not_called(
+            self, mock_set_rlimit, mock_get_rlimit):
         proxy.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
 
-    @unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
+    @unittest.skipIf(
+        os.name == 'nt',
+        'Open file limit tests disabled for Windows')
     @mock.patch('resource.getrlimit', return_value=(256, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
-    def test_set_open_file_limit_not_called1(self, mock_set_rlimit, mock_get_rlimit):
+    def test_set_open_file_limit_not_called1(
+            self, mock_set_rlimit, mock_get_rlimit):
         proxy.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
