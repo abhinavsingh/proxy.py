@@ -193,7 +193,7 @@ class TestMultiCoreRequestDispatcher(unittest.TestCase):
         proxy,
         'HttpProtocolHandler',
         side_effect=mock_tcp_proxy_side_effect)
-    def testHttpProxyConnection(self, mock_tcp_proxy):
+    def testHttpProxyConnection(self, _mock_tcp_proxy):
         try:
             self.tcp_port = get_available_port()
             self.tcp_server = proxy.MultiCoreRequestDispatcher(
@@ -308,17 +308,24 @@ class TestHttpParser(unittest.TestCase):
             proxy.HttpParser.build_header(
                 b'key', b'value'), b'key: value')
 
-    def test_split(self):
+    def test_find_line(self):
         self.assertEqual(
-            proxy.HttpParser.split(b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
+            proxy.HttpParser.find_line(b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
             (b'CONNECT python.org:443 HTTP/1.0',
              b'\r\n'))
 
-    def test_split_false_line(self):
+    def test_find_line_returns_None(self):
         self.assertEqual(
-            proxy.HttpParser.split(b'CONNECT python.org:443 HTTP/1.0'),
-            (False,
+            proxy.HttpParser.find_line(b'CONNECT python.org:443 HTTP/1.0'),
+            (None,
              b'CONNECT python.org:443 HTTP/1.0'))
+
+    def test_pip_connect(self):
+        raw = b'CONNECT pypi.org:443 HTTP/1.0\r\n'
+        self.parser.parse(raw)
+        self.assertEqual(self.parser.state, proxy.HttpParser.states.LINE_RCVD)
+        self.parser.parse(proxy.CRLF)
+        self.assertEqual(self.parser.state, proxy.HttpParser.states.COMPLETE)
 
     def test_get_full_parse(self):
         raw = proxy.CRLF.join([
@@ -356,7 +363,7 @@ class TestHttpParser(unittest.TestCase):
         self.assert_state_change_with_crlf(
             proxy.HttpParser.states.INITIALIZED,
             proxy.HttpParser.states.LINE_RCVD,
-            proxy.HttpParser.states.RCVING_HEADERS)
+            proxy.HttpParser.states.COMPLETE)
 
     def test_get_partial_parse1(self):
         pkt = proxy.CRLF.join([
