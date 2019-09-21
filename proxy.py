@@ -372,8 +372,9 @@ class ChunkParser:
             raw = self.chunk + raw
             self.chunk = b''
             # Extract following chunk data size
-            line, raw = HttpParser.split(raw)
-            if not line:  # CRLF not received
+            line, raw = HttpParser.find_line(raw)
+            # CRLF not received or Blank line was received.
+            if line is None or line.strip() == b'':
                 self.chunk = raw
                 raw = b''
             else:
@@ -459,7 +460,10 @@ class HttpParser:
         return self.type == HttpParser.types.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
             self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
-    def parse(self, raw):
+    def parse(self, raw) -> None:
+        """Parses Http request out of raw bytes.
+
+        Check HttpParser state after parse has successfully returned."""
         self.bytes += raw
         self.total_size += len(raw)
 
@@ -469,52 +473,57 @@ class HttpParser:
 
         more = True if len(raw) > 0 else False
         while more:
-            more, raw = self.process(raw)
+            if self.state in (
+                    HttpParser.states.HEADERS_COMPLETE,
+                    HttpParser.states.RCVING_BODY,
+                    HttpParser.states.COMPLETE) and (
+                    self.method == b'POST' or self.type == HttpParser.types.RESPONSE_PARSER):
+                if not self.body:
+                    self.body = b''
+
+                if b'content-length' in self.headers:
+                    self.state = HttpParser.states.RCVING_BODY
+                    self.body += raw
+                    if len(
+                            self.body) >= int(
+                            self.headers[b'content-length'][1]):
+                        self.state = HttpParser.states.COMPLETE
+                elif self.is_chunked_encoded_response():
+                    if not self.chunk_parser:
+                        self.chunk_parser = ChunkParser()
+                    self.chunk_parser.parse(raw)
+                    if self.chunk_parser.state == ChunkParser.states.COMPLETE:
+                        self.body = self.chunk_parser.body
+                        self.state = HttpParser.states.COMPLETE
+
+                more, raw = False, b''
+            else:
+                more, raw = self.process(raw)
         self.buffer = raw
 
-    def process(self, raw):
-        if self.state in (
-                HttpParser.states.HEADERS_COMPLETE,
-                HttpParser.states.RCVING_BODY,
-                HttpParser.states.COMPLETE) and (
-                self.method == b'POST' or self.type == HttpParser.types.RESPONSE_PARSER):
-            if not self.body:
-                self.body = b''
-
-            if b'content-length' in self.headers:
-                self.state = HttpParser.states.RCVING_BODY
-                self.body += raw
-                if len(self.body) >= int(self.headers[b'content-length'][1]):
-                    self.state = HttpParser.states.COMPLETE
-            elif self.is_chunked_encoded_response():
-                if not self.chunk_parser:
-                    self.chunk_parser = ChunkParser()
-                self.chunk_parser.parse(raw)
-                if self.chunk_parser.state == ChunkParser.states.COMPLETE:
-                    self.body = self.chunk_parser.body
-                    self.state = HttpParser.states.COMPLETE
-
-            return False, b''
-
-        line, raw = HttpParser.split(raw)
-        if line is False:
-            return line, raw
+    def process(self, raw) -> Tuple[bool, bytes]:
+        """Returns False when no CRLF could be found in received bytes."""
+        line, raw = HttpParser.find_line(raw)
+        if line is None:
+            return False, raw
 
         if self.state == HttpParser.states.INITIALIZED:
             self.process_line(line)
+            self.state = HttpParser.states.LINE_RCVD
         elif self.state in (HttpParser.states.LINE_RCVD, HttpParser.states.RCVING_HEADERS):
-            self.process_header(line)
+            if self.state == HttpParser.states.LINE_RCVD:
+                # LINE_RCVD state is equivalent to RCVING_HEADERS
+                self.state = HttpParser.states.RCVING_HEADERS
+            if line.strip() == b'':  # Blank line received.
+                self.state = HttpParser.states.HEADERS_COMPLETE
+            else:
+                self.process_header(line)
 
         # When connect request is received without a following host header
         # See
         # `TestHttpParser.test_connect_request_without_host_header_request_parse`
         # for details
         if self.state == HttpParser.states.LINE_RCVD and \
-                self.type == HttpParser.types.REQUEST_PARSER and \
-                self.method == b'CONNECT' and \
-                raw == CRLF:
-            self.state = HttpParser.states.COMPLETE
-        elif self.state == HttpParser.states.LINE_RCVD and \
                 self.type == HttpParser.types.RESPONSE_PARSER and \
                 raw == CRLF:
             self.state = HttpParser.states.COMPLETE
@@ -548,20 +557,12 @@ class HttpParser:
             self.code = line[1]
             self.reason = b' '.join(line[2:])
         self.set_host_port()
-        self.state = HttpParser.states.LINE_RCVD
 
     def process_header(self, raw):
-        if len(raw) == 0:
-            if self.state == HttpParser.states.RCVING_HEADERS:
-                self.state = HttpParser.states.HEADERS_COMPLETE
-            elif self.state == HttpParser.states.LINE_RCVD:
-                self.state = HttpParser.states.RCVING_HEADERS
-        else:
-            self.state = HttpParser.states.RCVING_HEADERS
-            parts = raw.split(COLON)
-            key = parts[0].strip()
-            value = COLON.join(parts[1:]).strip()
-            self.headers[key.lower()] = (key, value)
+        parts = raw.split(COLON)
+        key = parts[0].strip()
+        value = COLON.join(parts[1:]).strip()
+        self.headers[key.lower()] = (key, value)
 
     def build_url(self):
         if not self.url:
@@ -599,13 +600,17 @@ class HttpParser:
         return k + b': ' + v
 
     @staticmethod
-    def split(raw):
+    def find_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
+        """Finds first line of request ending in CRLF.
+
+        If no CRLF is found, line is None.
+        Also returns pending buffer after received line of request."""
         pos = raw.find(CRLF)
         if pos == -1:
-            return False, raw
+            return None, raw
         line = raw[:pos]
-        raw = raw[pos + len(CRLF):]
-        return line, raw
+        rest = raw[pos + len(CRLF):]
+        return line, rest
 
     ##########################################################################
     # HttpParser was originally written to parse the incoming raw Http requests.
