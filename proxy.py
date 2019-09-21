@@ -373,7 +373,8 @@ class ChunkParser:
             self.chunk = b''
             # Extract following chunk data size
             line, raw = HttpParser.find_line(raw)
-            if line is None or line.strip() is b'':  # CRLF not received or Blank line was received.
+            # CRLF not received or Blank line was received.
+            if line is None or line.strip() == b'':
                 self.chunk = raw
                 raw = b''
             else:
@@ -483,7 +484,9 @@ class HttpParser:
                 if b'content-length' in self.headers:
                     self.state = HttpParser.states.RCVING_BODY
                     self.body += raw
-                    if len(self.body) >= int(self.headers[b'content-length'][1]):
+                    if len(
+                            self.body) >= int(
+                            self.headers[b'content-length'][1]):
                         self.state = HttpParser.states.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
@@ -511,7 +514,7 @@ class HttpParser:
             if self.state == HttpParser.states.LINE_RCVD:
                 # LINE_RCVD state is equivalent to RCVING_HEADERS
                 self.state = HttpParser.states.RCVING_HEADERS
-            if line.strip() is b'':  # Blank line received.
+            if line.strip() == b'':  # Blank line received.
                 self.state = HttpParser.states.HEADERS_COMPLETE
             else:
                 self.process_header(line)
