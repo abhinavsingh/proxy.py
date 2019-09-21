@@ -1107,7 +1107,7 @@ class TestMain(unittest.TestCase):
         proxy.main(['--basic-auth', 'user:pass'])
         self.assertTrue(mock_set_open_file_limit.called)
         mock_multicore_dispatcher.assert_called_with(
-            hostname=proxy.DEFAULT_IPV4_HOSTNAME,
+            hostname=proxy.DEFAULT_IPV6_HOSTNAME,
             port=proxy.DEFAULT_PORT,
             ipv4=proxy.DEFAULT_IPV4,
             backlog=proxy.DEFAULT_BACKLOG,
