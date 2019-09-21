@@ -50,8 +50,8 @@ DEFAULT_BUFFER_SIZE = 1024 * 1024
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_DISABLE_HEADERS: List[str] = []
-DEFAULT_IPV4_HOSTNAME = '127.0.0.1'
-DEFAULT_IPV6_HOSTNAME = '::'
+DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
+DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_PORT = 8899
 DEFAULT_IPV4 = False
 DEFAULT_DISABLE_HTTP_PROXY = False
@@ -209,8 +209,9 @@ class TcpServer(ABC):
         self.socket: Optional[socket.socket] = None
         self.running: bool = False
         self.family = socket.AF_INET if self.ipv4 else socket.AF_INET6
-        self.hostname: str = hostname if hostname not in [DEFAULT_IPV4_HOSTNAME,
-                                                          DEFAULT_IPV6_HOSTNAME] \
+        self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = \
+            hostname if hostname not in [DEFAULT_IPV4_HOSTNAME,
+                                         DEFAULT_IPV6_HOSTNAME] \
             else DEFAULT_IPV4_HOSTNAME if self.ipv4 else DEFAULT_IPV6_HOSTNAME
 
     @abstractmethod
@@ -234,7 +235,7 @@ class TcpServer(ABC):
         try:
             self.socket = socket.socket(self.family, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.bind((self.hostname, self.port))
+            self.socket.bind((str(self.hostname), self.port))
             self.socket.listen(self.backlog)
             logger.info('Started server on %s:%d' % (self.hostname, self.port))
             while self.running:
@@ -485,7 +486,7 @@ class HttpParser:
                     self.state = HttpParser.states.RCVING_BODY
                     self.body += raw
                     if len(
-                            self.body) >= int(
+                        self.body) >= int(
                             self.headers[b'content-length'][1]):
                         self.state = HttpParser.states.COMPLETE
                 elif self.is_chunked_encoded_response():
@@ -562,7 +563,7 @@ class HttpParser:
         parts = raw.split(COLON)
         key = parts[0].strip()
         value = COLON.join(parts[1:]).strip()
-        self.headers[key.lower()] = (key, value)
+        self.add_headers([(key, value)])
 
     def build_url(self):
         if not self.url:
@@ -623,19 +624,19 @@ class HttpParser:
         return True if self.host is not None else False
 
     def add_header(self, key: bytes, value: bytes) -> None:
-        self.headers[key] = (key, value)
+        self.headers[key.lower()] = (key, value)
 
     def add_headers(self, headers: List[Tuple[bytes, bytes]]) -> None:
         for (key, value) in headers:
             self.add_header(key, value)
 
     def del_header(self, header: bytes) -> None:
-        if header in self.headers:
-            del self.headers[header]
+        if header.lower() in self.headers:
+            del self.headers[header.lower()]
 
     def del_headers(self, headers: List[bytes]) -> None:
         for key in headers:
-            self.del_header(key)
+            self.del_header(key.lower())
 
 
 class HttpProtocolException(Exception):
@@ -968,11 +969,17 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         # for general http requests, re-build request packet
         # and queue for the server with appropriate headers
         else:
-            # remove args.disable_headers before dispatching to upstream
-            self.request.add_headers(
-                [(b'Via', b'1.1 proxy.py v%s' % version), (b'Connection', b'Close')])
+            # - proxy-connection header is a mistake, it doesn't seem to be
+            #   officially documented in any specification, drop it.
+            # - proxy-authorization is of no use for upstream, remove it.
             self.request.del_headers(
-                [b'proxy-authorization', b'proxy-connection', b'connection', b'keep-alive'])
+                [b'proxy-authorization', b'proxy-connection'])
+            # - For HTTP/1.0, connection header defaults to close
+            # - For HTTP/1.1, connection header defaults to keep-alive
+            # b'connection', b'keep-alive'])
+            # (b'Connection', b'Close')
+            self.request.add_headers([(b'Via', b'1.1 proxy.py v%s' % version)])
+            # remove args.disable_headers before dispatching to upstream
             self.server.queue(
                 self.request.build(
                     disable_headers=self.config.disable_headers))
@@ -988,10 +995,10 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 (self.client.addr[0],
                  self.client.addr[1],
                  text_(
-                    self.request.method),
-                    text_(host),
-                    text_(port),
-                    self.response.total_size))
+                     self.request.method),
+                 text_(host),
+                 text_(port),
+                 self.response.total_size))
         elif self.request.method:
             logger.info(
                 '%s:%s - %s %s:%s%s - %s %s - %s bytes' %
@@ -1316,28 +1323,30 @@ def init_parser() -> argparse.ArgumentParser:
         type=str,
         default=DEFAULT_BASIC_AUTH,
         help='Default: No authentication. Specify colon separated user:password '
-        'to enable basic authentication.')
+             'to enable basic authentication.')
     parser.add_argument(
         '--client-recvbuf-size',
         type=int,
         default=DEFAULT_CLIENT_RECVBUF_SIZE,
         help='Default: 1 MB. Maximum amount of data received from the '
-        'client in a single recv() operation. Bump this '
-        'value for faster uploads at the expense of '
-        'increased RAM.')
+             'client in a single recv() operation. Bump this '
+             'value for faster uploads at the expense of '
+             'increased RAM.')
     parser.add_argument(
         '--disable-headers',
         type=str,
         default=COMMA.join(DEFAULT_DISABLE_HEADERS),
         help='Default: None.  Comma separated list of headers to remove before '
-        'dispatching client request to upstream server.')
+             'dispatching client request to upstream server.')
     parser.add_argument(
         '--disable-http-proxy',
         action='store_true',
         default=DEFAULT_DISABLE_HTTP_PROXY,
         help='Default: False.  Whether to disable proxy.HttpProxyPlugin.')
-    parser.add_argument('--hostname', type=str, default=DEFAULT_IPV4_HOSTNAME,
-                        help='Default: 127.0.0.1. Server IP address.')
+    parser.add_argument('--hostname',
+                        type=str,
+                        default=str(DEFAULT_IPV6_HOSTNAME),
+                        help='Default: ::1. Server IP address.')
     parser.add_argument('--ipv4', action='store_true', default=DEFAULT_IPV4,
                         help='Whether to listen on IPv4 address. '
                              'By default server only listens on IPv6.')
@@ -1351,8 +1360,8 @@ def init_parser() -> argparse.ArgumentParser:
         type=str,
         default=DEFAULT_LOG_LEVEL,
         help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
-        'Both upper and lowercase values are allowed. '
-        'You may also simply use the leading character e.g. --log-level d')
+             'Both upper and lowercase values are allowed. '
+             'You may also simply use the leading character e.g. --log-level d')
     parser.add_argument('--log-file', type=str, default=DEFAULT_LOG_FILE,
                         help='Default: sys.stdout. Log file destination.')
     parser.add_argument('--log-format', type=str, default=DEFAULT_LOG_FORMAT,
@@ -1364,20 +1373,20 @@ def init_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_OPEN_FILE_LIMIT,
         help='Default: 1024. Maximum number of files (TCP connections) '
-        'that proxy.py can open concurrently.')
+             'that proxy.py can open concurrently.')
     parser.add_argument(
         '--pac-file',
         type=str,
         default=DEFAULT_PAC_FILE,
         help='A file (Proxy Auto Configuration) or string to serve when '
-        'the server receives a direct file request. '
-        'Using this option enables proxy.HttpWebServerPlugin.')
+             'the server receives a direct file request. '
+             'Using this option enables proxy.HttpWebServerPlugin.')
     parser.add_argument(
         '--pac-file-url-path',
         type=str,
         default=DEFAULT_PAC_FILE_URL_PATH,
         help='Default: %s. Web server path to serve the PAC file.' %
-        text_(DEFAULT_PAC_FILE_URL_PATH))
+             text_(DEFAULT_PAC_FILE_URL_PATH))
     parser.add_argument(
         '--pid-file',
         type=str,
@@ -1395,9 +1404,9 @@ def init_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_SERVER_RECVBUF_SIZE,
         help='Default: 1 MB. Maximum amount of data received from the '
-        'server in a single recv() operation. Bump this '
-        'value for faster downloads at the expense of '
-        'increased RAM.')
+             'server in a single recv() operation. Bump this '
+             'value for faster downloads at the expense of '
+             'increased RAM.')
     parser.add_argument(
         '--version',
         '-v',
@@ -1451,12 +1460,14 @@ def main(args) -> None:
             default_plugins += 'proxy.HttpWebServerPlugin,'
         config.plugins = load_plugins('%s%s' % (default_plugins, args.plugins))
 
-        server = MultiCoreRequestDispatcher(hostname=args.hostname,
-                                            port=args.port,
-                                            backlog=args.backlog,
-                                            ipv4=args.ipv4,
-                                            num_workers=args.num_workers,
-                                            config=config)
+        server = MultiCoreRequestDispatcher(
+            hostname=ipaddress.ip_address(
+                args.hostname),
+            port=args.port,
+            backlog=args.backlog,
+            ipv4=args.ipv4,
+            num_workers=args.num_workers,
+            config=config)
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(str(os.getpid())))

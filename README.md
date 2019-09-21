@@ -3,6 +3,7 @@
 [![License](https://img.shields.io/github/license/abhinavsingh/proxy.py.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![PyPi Downloads](https://img.shields.io/pypi/dm/proxy.py.svg)](https://pypi.org/project/proxy.py/)
 [![Build Status](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop)](https://travis-ci.org/abhinavsingh/proxy.py/)
+[![No Dependencies](https://david-dm.org/dwyl/esta.svg)](https://github.com/abhinavsingh/proxy.py)
 [![Coverage](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
 
 [![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)](https://www.python.org/downloads/release/python-350/)
@@ -10,6 +11,7 @@
 [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/abhinavsingh/proxy.py/issues)
 [![Ask Me Anything](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://twitter.com/imoracle)
 
 Features
@@ -17,7 +19,7 @@ Features
 
 - Lightweight
     - Distributed as a single file module `~50KB`
-    - Uses only `RAM <20MB` for general use cases
+    - Uses only `~5-20MB` RAM
     - No external dependency other than standard Python library
 - Programmable
     - Optionally enable builtin Web Server
