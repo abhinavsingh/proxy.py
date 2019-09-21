@@ -1,24 +1,34 @@
 [![Proxy.Py](ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![License](https://img.shields.io/github/license/abhinavsingh/proxy.py.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![PyPi Downloads](https://img.shields.io/pypi/dm/proxy.py.svg)](https://pypi.org/project/proxy.py/)
 [![Build Status](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop)](https://travis-ci.org/abhinavsingh/proxy.py/)
 [![Coverage](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
 
-[![Twitter](https://img.shields.io/twitter/follow/imoracle?label=Follow%20on%20Twitter&style=social)](https://twitter.com/imoracle)
+[![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)](https://www.python.org/downloads/release/python-350/)
+[![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)](https://www.python.org/downloads/release/python-360/)
+[![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
+
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
+[![Ask Me Anything](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://twitter.com/imoracle)
 
 Features
 --------
 
-- Distributed as a single file module
-- No external dependency other than standard Python library
-- Support for `http`, `https`, `http2` and `websockets` request proxy
+- Lightweight
+    - Distributed as a single file module `~50KB`
+    - Uses only `RAM <20MB` for general use cases
+    - No external dependency other than standard Python library
+- Programmable
+    - Optionally enable builtin Web Server
+    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
+    - Enable plugin using command line option e.g. `--plugins plugin_examples.SaveHttpResponses`
+    - Plugin API is currently in development state, expect breaking changes.
+- Supports `http`, `https`, `http2` and `websockets` request proxy
 - Optimized for large file uploads and downloads
 - IPv4 and IPv6 support
 - Basic authentication support
 - Can serve a [PAC (Proxy Auto-configuration)](https://en.wikipedia.org/wiki/Proxy_auto-config) file
-- Optionally enable builtin Web Server
-- Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
 
 Install
 -------
