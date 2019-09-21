@@ -320,7 +320,8 @@ class TestHttpParser(unittest.TestCase):
             (None,
              b'CONNECT python.org:443 HTTP/1.0'))
 
-    def test_pip_connect(self):
+    def test_connect_request_with_crlf_as_separate_chunk(self):
+        """See https://github.com/abhinavsingh/proxy.py/issues/70 for background."""
         raw = b'CONNECT pypi.org:443 HTTP/1.0\r\n'
         self.parser.parse(raw)
         self.assertEqual(self.parser.state, proxy.HttpParser.states.LINE_RCVD)

@@ -373,7 +373,7 @@ class ChunkParser:
             self.chunk = b''
             # Extract following chunk data size
             line, raw = HttpParser.find_line(raw)
-            if line is None or line is b'':  # CRLF not received
+            if line is None or line.strip() is b'':  # CRLF not received or Blank line was received.
                 self.chunk = raw
                 raw = b''
             else:
@@ -507,15 +507,11 @@ class HttpParser:
         if self.state == HttpParser.states.INITIALIZED:
             self.process_line(line)
             self.state = HttpParser.states.LINE_RCVD
-        elif self.state == HttpParser.states.LINE_RCVD:
-            # LINE_RCVD state is equivalent to RCVING_HEADERS
-            self.state = HttpParser.states.RCVING_HEADERS
-            if len(line) == 0:  # Blank line received.
-                self.state = HttpParser.states.HEADERS_COMPLETE
-            else:
-                self.process_header(line)
-        elif self.state == HttpParser.states.RCVING_HEADERS:
-            if len(line) == 0:  # Blank line received.
+        elif self.state in (HttpParser.states.LINE_RCVD, HttpParser.states.RCVING_HEADERS):
+            if self.state == HttpParser.states.LINE_RCVD:
+                # LINE_RCVD state is equivalent to RCVING_HEADERS
+                self.state = HttpParser.states.RCVING_HEADERS
+            if line.strip() is b'':  # Blank line received.
                 self.state = HttpParser.states.HEADERS_COMPLETE
             else:
                 self.process_header(line)
@@ -525,11 +521,6 @@ class HttpParser:
         # `TestHttpParser.test_connect_request_without_host_header_request_parse`
         # for details
         if self.state == HttpParser.states.LINE_RCVD and \
-                self.type == HttpParser.types.REQUEST_PARSER and \
-                self.method == b'CONNECT' and \
-                raw == CRLF:
-            self.state = HttpParser.states.COMPLETE
-        elif self.state == HttpParser.states.LINE_RCVD and \
                 self.type == HttpParser.types.RESPONSE_PARSER and \
                 raw == CRLF:
             self.state = HttpParser.states.COMPLETE
