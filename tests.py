@@ -13,6 +13,7 @@ import logging
 import multiprocessing
 import os
 import socket
+import tempfile
 import time
 import unittest
 from contextlib import closing
@@ -29,6 +30,10 @@ if os.name != 'nt':
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
+
+
+def get_temp_file(name):
+    return os.path.join(tempfile.gettempdir(), name)
 
 
 def get_available_port():
@@ -106,7 +111,8 @@ class TestTcpServer(unittest.TestCase):
 
         def handle(self, client):
             data = client.recv(proxy.DEFAULT_BUFFER_SIZE)
-            assert data == b'HELLO'
+            if data != b'HELLO':
+                raise ValueError('Expected HELLO')
             client.conn.sendall(b'WORLD')
             client.close()
 
@@ -147,7 +153,7 @@ class TestTcpServer(unittest.TestCase):
                 sock.connect(
                     (str(
                         proxy.DEFAULT_IPV4_HOSTNAME if ipv4 else proxy.DEFAULT_IPV6_HOSTNAME),
-                        self.ipv4_port if ipv4 else self.ipv6_port))
+                     self.ipv4_port if ipv4 else self.ipv6_port))
                 sock.sendall(b'HELLO')
                 data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
                 self.assertEqual(data, b'WORLD')
@@ -797,7 +803,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         mock_select.return_value = ([self._conn], [], [])
         config = proxy.HttpProtocolConfig(
             auth_code=b'Basic %s' %
-            base64.b64encode(b'user:pass'))
+                      base64.b64encode(b'user:pass'))
         config.plugins = proxy.load_plugins(
             'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.HttpProtocolHandler(
@@ -822,7 +828,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         client = proxy.TcpClientConnection(self._conn, self._addr)
         config = proxy.HttpProtocolConfig(
             auth_code=b'Basic %s' %
-            base64.b64encode(b'user:pass'))
+                      base64.b64encode(b'user:pass'))
         config.plugins = proxy.load_plugins(
             'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
@@ -862,7 +868,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         config = proxy.HttpProtocolConfig(
             auth_code=b'Basic %s' %
-            base64.b64encode(b'user:pass'))
+                      base64.b64encode(b'user:pass'))
         config.plugins = proxy.load_plugins(
             'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.HttpProtocolHandler(
@@ -1058,7 +1064,7 @@ class TestMain(unittest.TestCase):
             mock_config,
             mock_multicore_dispatcher,
             mock_set_open_file_limit):
-        log_file = '/tmp/proxy.log'
+        log_file = get_temp_file('proxy.log')
         proxy.main(['--log-file', log_file])
         mock_set_open_file_limit.assert_called()
         mock_multicore_dispatcher.assert_called()
@@ -1085,7 +1091,7 @@ class TestMain(unittest.TestCase):
             mock_open,
             mock_exists,
             mock_remove):
-        pid_file = '/tmp/proxy.pid'
+        pid_file = get_temp_file('proxy.pid')
         proxy.main(['--pid-file', pid_file])
         mock_set_open_file_limit.assert_called()
         mock_multicore_dispatcher.assert_called()

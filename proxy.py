@@ -414,9 +414,10 @@ class HttpParser:
     ))(1, 2)
 
     def __init__(self, parser_type):
-        assert parser_type in (
-            HttpParser.types.REQUEST_PARSER,
-            HttpParser.types.RESPONSE_PARSER)
+        if parser_type not in (
+                HttpParser.types.REQUEST_PARSER,
+                HttpParser.types.RESPONSE_PARSER):
+            raise ValueError('Invalid parser type')
         self.type: HttpParser.types = parser_type
         self.state: HttpParser.states = HttpParser.states.INITIALIZED
 
