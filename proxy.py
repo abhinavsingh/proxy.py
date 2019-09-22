@@ -22,9 +22,8 @@ import socket
 import sys
 import threading
 from abc import ABC, abstractmethod
-from collections import namedtuple
 from multiprocessing import connection
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Tuple, Optional, Union, NamedTuple
 from urllib import parse as urlparse
 
 import select
@@ -95,26 +94,31 @@ version = bytes_(__version__)
 CRLF, COLON, WHITESPACE, COMMA = b'\r\n', b':', b' ', ','
 PROXY_AGENT_HEADER = b'Proxy-agent: proxy.py v' + version
 
+_TcpConnectionTypes = NamedTuple('TcpConnectionTypes', [
+    ('SERVER', int),
+    ('CLIENT', int),
+])
+TcpConnectionTypes = _TcpConnectionTypes(1, 2)
+
 
 class TcpConnection:
     """TCP server/client connection abstraction."""
 
-    types = namedtuple('TcpConnectionTypes', (
-        'SERVER',
-        'CLIENT',
-    ))(1, 2)
-
-    def __init__(self, what: types):
+    def __init__(self, what: int):
         self.conn: Optional[socket.socket] = None
         self.buffer: bytes = b''
         self.closed: bool = False
-        self.what: TcpConnection.types = what
+        self.what: int = what
 
     def send(self, data: bytes) -> int:
         """Users must handle BrokenPipeError exceptions"""
+        if not self.conn:
+            raise KeyError('conn is None')
         return self.conn.send(data)
 
     def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[bytes]:
+        if not self.conn:
+            raise KeyError('conn is None')
         try:
             data: bytes = self.conn.recv(buffer_size)
             if len(data) > 0:
@@ -132,6 +136,8 @@ class TcpConnection:
         return None
 
     def close(self) -> bool:
+        if not self.conn:
+            raise KeyError('conn is None')
         if not self.closed:
             self.conn.close()
             self.closed = True
@@ -158,7 +164,7 @@ class TcpServerConnection(TcpConnection):
     """Establishes connection to destination server."""
 
     def __init__(self, host: str, port: int):
-        super().__init__(b'server')
+        super().__init__(TcpConnectionTypes.SERVER)
         self.addr: Tuple[str, int] = (host, int(port))
 
     def __del__(self):
@@ -184,7 +190,7 @@ class TcpClientConnection(TcpConnection):
     """Accepted client connection."""
 
     def __init__(self, conn: socket.socket, addr: Tuple[str, int]):
-        super().__init__(b'client')
+        super().__init__(TcpConnectionTypes.CLIENT)
         self.conn: socket.socket = conn
         self.addr: Tuple[str, int] = addr
 
@@ -252,6 +258,13 @@ class TcpServer(ABC):
             self.socket.close()
 
 
+_WorkerOperations = NamedTuple('WorkerOperations', [
+    ('HTTP_PROTOCOL', int),
+    ('SHUTDOWN', int),
+])
+WorkerOperations = _WorkerOperations(1, 2)
+
+
 class MultiCoreRequestDispatcher(TcpServer):
     """MultiCoreRequestDispatcher.
 
@@ -274,7 +287,8 @@ class MultiCoreRequestDispatcher(TcpServer):
         if num_workers > 0:
             self.num_workers = num_workers
         self.workers: List[Worker] = []
-        self.work_queues: List[multiprocessing.Pipe] = []
+        self.work_queues: List[Tuple[connection.Connection,
+                                     connection.Connection]] = []
         self.current_worker_id = 0
 
         self.config: HttpProtocolConfig = config
@@ -299,12 +313,12 @@ class MultiCoreRequestDispatcher(TcpServer):
             self.current_worker_id)
         self.current_worker_id += 1
         self.current_worker_id %= self.num_workers
-        work_queue[0].send((Worker.operations.HTTP_PROTOCOL, client))
+        work_queue[0].send((WorkerOperations.HTTP_PROTOCOL, client))
 
     def shutdown(self):
         logger.info('Shutting down %d workers' % self.num_workers)
         for work_queue in self.work_queues:
-            work_queue[0].send((Worker.operations.SHUTDOWN, None))
+            work_queue[0].send((WorkerOperations.SHUTDOWN, None))
             work_queue[0].close()
         for worker in self.workers:
             worker.join()
@@ -317,11 +331,6 @@ class Worker(multiprocessing.Process):
     depending upon requested operation starts a new thread to handle the work.
     """
 
-    operations = namedtuple('WorkerOperations', (
-        'HTTP_PROTOCOL',
-        'SHUTDOWN',
-    ))(1, 2)
-
     def __init__(self, work_queue: connection.Connection, config=None):
         super().__init__()
         self.work_queue: connection.Connection = work_queue
@@ -331,11 +340,11 @@ class Worker(multiprocessing.Process):
         while True:
             try:
                 op, payload = self.work_queue.recv()
-                if op == Worker.operations.HTTP_PROTOCOL:
+                if op == WorkerOperations.HTTP_PROTOCOL:
                     proxy = HttpProtocolHandler(payload, config=self.config)
                     proxy.setDaemon(True)
                     proxy.start()
-                elif op == Worker.operations.SHUTDOWN:
+                elif op == WorkerOperations.SHUTDOWN:
                     logging.debug('Worker shutting down....')
                     self.work_queue.close()
                     break
@@ -345,17 +354,19 @@ class Worker(multiprocessing.Process):
                 break
 
 
+_ChunkParserStates = NamedTuple('ChunkParserStates', [
+    ('WAITING_FOR_SIZE', int),
+    ('WAITING_FOR_DATA', int),
+    ('COMPLETE', int),
+])
+ChunkParserStates = _ChunkParserStates(1, 2, 3)
+
+
 class ChunkParser:
     """HTTP chunked encoding response parser."""
 
-    states = namedtuple('ChunkParserStates', (
-        'WAITING_FOR_SIZE',
-        'WAITING_FOR_DATA',
-        'COMPLETE'
-    ))(1, 2, 3)
-
     def __init__(self):
-        self.state = ChunkParser.states.WAITING_FOR_SIZE
+        self.state = ChunkParserStates.WAITING_FOR_SIZE
         self.body: bytes = b''  # Parsed chunks
         self.chunk: bytes = b''  # Partial chunk received
         # Expected size of next following chunk
@@ -367,7 +378,7 @@ class ChunkParser:
             more, raw = self.process(raw)
 
     def process(self, raw: bytes):
-        if self.state == ChunkParser.states.WAITING_FOR_SIZE:
+        if self.state == ChunkParserStates.WAITING_FOR_SIZE:
             # Consume prior chunk in buffer
             # in case chunk size without CRLF was received
             raw = self.chunk + raw
@@ -380,8 +391,9 @@ class ChunkParser:
                 raw = b''
             else:
                 self.size = int(line, 16)
-                self.state = ChunkParser.states.WAITING_FOR_DATA
-        elif self.state == ChunkParser.states.WAITING_FOR_DATA:
+                self.state = ChunkParserStates.WAITING_FOR_DATA
+        elif self.state == ChunkParserStates.WAITING_FOR_DATA:
+            assert self.size is not None
             remaining = self.size - len(self.chunk)
             self.chunk += raw[:remaining]
             raw = raw[remaining:]
@@ -389,37 +401,41 @@ class ChunkParser:
                 raw = raw[len(CRLF):]
                 self.body += self.chunk
                 if self.size == 0:
-                    self.state = ChunkParser.states.COMPLETE
+                    self.state = ChunkParserStates.COMPLETE
                 else:
-                    self.state = ChunkParser.states.WAITING_FOR_SIZE
+                    self.state = ChunkParserStates.WAITING_FOR_SIZE
                 self.chunk = b''
                 self.size = None
         return len(raw) > 0, raw
 
 
+_HttpParserStates = NamedTuple('HttpParserStates', [
+    ('INITIALIZED', int),
+    ('LINE_RCVD', int),
+    ('RCVING_HEADERS', int),
+    ('HEADERS_COMPLETE', int),
+    ('RCVING_BODY', int),
+    ('COMPLETE', int),
+])
+HttpParserStates = _HttpParserStates(1, 2, 3, 4, 5, 6)
+
+_HttpParserTypes = NamedTuple('HttpParserTypes', [
+    ('REQUEST_PARSER', int),
+    ('RESPONSE_PARSER', int),
+])
+HttpParserTypes = _HttpParserTypes(1, 2)
+
+
 class HttpParser:
     """HTTP request/response parser."""
 
-    states = namedtuple('HttpParserStates', (
-        'INITIALIZED',
-        'LINE_RCVD',
-        'RCVING_HEADERS',
-        'HEADERS_COMPLETE',
-        'RCVING_BODY',
-        'COMPLETE'))(1, 2, 3, 4, 5, 6)
-
-    types = namedtuple('HttpParserTypes', (
-        'REQUEST_PARSER',
-        'RESPONSE_PARSER'
-    ))(1, 2)
-
     def __init__(self, parser_type):
         if parser_type not in (
-                HttpParser.types.REQUEST_PARSER,
-                HttpParser.types.RESPONSE_PARSER):
+                HttpParserTypes.REQUEST_PARSER,
+                HttpParserTypes.RESPONSE_PARSER):
             raise ValueError('Invalid parser type')
-        self.type: HttpParser.types = parser_type
-        self.state: HttpParser.states = HttpParser.states.INITIALIZED
+        self.type: HttpParserTypes = parser_type
+        self.state: HttpParserStates = HttpParserStates.INITIALIZED
 
         # Raw bytes as passed to parse(raw) method and its total size
         self.bytes: bytes = b''
@@ -448,7 +464,7 @@ class HttpParser:
         self.port = None
 
     def set_host_port(self):
-        if self.type == HttpParser.types.REQUEST_PARSER:
+        if self.type == HttpParserTypes.REQUEST_PARSER:
             if self.method == b'CONNECT':
                 u = urlparse.urlsplit(b'//' + self.url.path)
                 self.host, self.port = u.hostname, u.port
@@ -459,7 +475,7 @@ class HttpParser:
                 raise Exception('Invalid request\n%s' % self.bytes)
 
     def is_chunked_encoded_response(self):
-        return self.type == HttpParser.types.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
+        return self.type == HttpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
             self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw) -> None:
@@ -476,27 +492,27 @@ class HttpParser:
         more = True if len(raw) > 0 else False
         while more:
             if self.state in (
-                    HttpParser.states.HEADERS_COMPLETE,
-                    HttpParser.states.RCVING_BODY,
-                    HttpParser.states.COMPLETE) and (
-                    self.method == b'POST' or self.type == HttpParser.types.RESPONSE_PARSER):
+                    HttpParserStates.HEADERS_COMPLETE,
+                    HttpParserStates.RCVING_BODY,
+                    HttpParserStates.COMPLETE) and (
+                    self.method == b'POST' or self.type == HttpParserTypes.RESPONSE_PARSER):
                 if not self.body:
                     self.body = b''
 
                 if b'content-length' in self.headers:
-                    self.state = HttpParser.states.RCVING_BODY
+                    self.state = HttpParserStates.RCVING_BODY
                     self.body += raw
                     if len(
                         self.body) >= int(
                             self.headers[b'content-length'][1]):
-                        self.state = HttpParser.states.COMPLETE
+                        self.state = HttpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
                         self.chunk_parser = ChunkParser()
                     self.chunk_parser.parse(raw)
-                    if self.chunk_parser.state == ChunkParser.states.COMPLETE:
+                    if self.chunk_parser.state == ChunkParserStates.COMPLETE:
                         self.body = self.chunk_parser.body
-                        self.state = HttpParser.states.COMPLETE
+                        self.state = HttpParserStates.COMPLETE
 
                 more, raw = False, b''
             else:
@@ -509,15 +525,15 @@ class HttpParser:
         if line is None:
             return False, raw
 
-        if self.state == HttpParser.states.INITIALIZED:
+        if self.state == HttpParserStates.INITIALIZED:
             self.process_line(line)
-            self.state = HttpParser.states.LINE_RCVD
-        elif self.state in (HttpParser.states.LINE_RCVD, HttpParser.states.RCVING_HEADERS):
-            if self.state == HttpParser.states.LINE_RCVD:
+            self.state = HttpParserStates.LINE_RCVD
+        elif self.state in (HttpParserStates.LINE_RCVD, HttpParserStates.RCVING_HEADERS):
+            if self.state == HttpParserStates.LINE_RCVD:
                 # LINE_RCVD state is equivalent to RCVING_HEADERS
-                self.state = HttpParser.states.RCVING_HEADERS
+                self.state = HttpParserStates.RCVING_HEADERS
             if line.strip() == b'':  # Blank line received.
-                self.state = HttpParser.states.HEADERS_COMPLETE
+                self.state = HttpParserStates.HEADERS_COMPLETE
             else:
                 self.process_header(line)
 
@@ -525,32 +541,32 @@ class HttpParser:
         # See
         # `TestHttpParser.test_connect_request_without_host_header_request_parse`
         # for details
-        if self.state == HttpParser.states.LINE_RCVD and \
-                self.type == HttpParser.types.RESPONSE_PARSER and \
+        if self.state == HttpParserStates.LINE_RCVD and \
+                self.type == HttpParserTypes.RESPONSE_PARSER and \
                 raw == CRLF:
-            self.state = HttpParser.states.COMPLETE
+            self.state = HttpParserStates.COMPLETE
         # When raw request has ended with \r\n\r\n and no more http headers are expected
         # See `TestHttpParser.test_request_parse_without_content_length` and
         # `TestHttpParser.test_response_parse_without_content_length` for details
-        elif self.state == HttpParser.states.HEADERS_COMPLETE and \
-                self.type == HttpParser.types.REQUEST_PARSER and \
+        elif self.state == HttpParserStates.HEADERS_COMPLETE and \
+                self.type == HttpParserTypes.REQUEST_PARSER and \
                 self.method != b'POST' and \
                 self.bytes.endswith(CRLF * 2):
-            self.state = HttpParser.states.COMPLETE
-        elif self.state == HttpParser.states.HEADERS_COMPLETE and \
-                self.type == HttpParser.types.REQUEST_PARSER and \
+            self.state = HttpParserStates.COMPLETE
+        elif self.state == HttpParserStates.HEADERS_COMPLETE and \
+                self.type == HttpParserTypes.REQUEST_PARSER and \
                 self.method == b'POST' and \
                 (b'content-length' not in self.headers or
                  (b'content-length' in self.headers and
                   int(self.headers[b'content-length'][1]) == 0)) and \
                 self.bytes.endswith(CRLF * 2):
-            self.state = HttpParser.states.COMPLETE
+            self.state = HttpParserStates.COMPLETE
 
         return len(raw) > 0, raw
 
     def process_line(self, raw):
         line = raw.split(WHITESPACE)
-        if self.type == HttpParser.types.REQUEST_PARSER:
+        if self.type == HttpParserTypes.REQUEST_PARSER:
             self.method = line[0].upper()
             self.url = urlparse.urlsplit(line[1])
             self.version = line[2]
@@ -650,7 +666,7 @@ class HttpProtocolException(Exception):
     def __init__(self):
         pass
 
-    def response(self, request: HttpParser) -> bytes:
+    def response(self, request: HttpParser) -> Optional[bytes]:
         pass
 
 
@@ -661,17 +677,21 @@ class HttpRequestRejected(HttpProtocolException):
     HTTP status code can be returned."""
 
     def __init__(self,
-                 status_code: Union[bytes,
-                                    int] = None,
+                 status_code: int = None,
+                 reason: bytes = None,
                  body: bytes = None):
         super().__init__()
-        self.status_code: bytes = status_code
-        self.body: bytes = body
+        self.status_code: Optional[int] = status_code
+        self.reason: Optional[bytes] = reason
+        self.body: Optional[bytes] = body
 
-    def response(self, _request: HttpParser) -> bytes:
+    def response(self, _request: HttpParser) -> Optional[bytes]:
         pkt = []
-        if self.status_code:
-            pkt.append(b'HTTP/1.1 ' + self.status_code)
+        if self.status_code is not None:
+            line = b'HTTP/1.1 ' + bytes_(str(self.status_code))
+            if self.reason:
+                line += b' ' + self.reason
+            pkt.append(line)
             pkt.append(PROXY_AGENT_HEADER)
         if self.body:
             pkt.append(b'Content-Length: ' + bytes_(str(len(self.body))))
@@ -868,7 +888,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             request: HttpParser):
         super().__init__(config, client, request)
         self.server = None
-        self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
+        self.response = HttpParser(HttpParserTypes.RESPONSE_PARSER)
 
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
         if 'HttpProxyBasePlugin' in self.config.plugins:
@@ -1120,7 +1140,7 @@ class HttpProtocolHandler(threading.Thread):
 
         self.client: TcpClientConnection = client
         self.config: HttpProtocolConfig = config if config else HttpProtocolConfig()
-        self.request: HttpParser = HttpParser(HttpParser.types.REQUEST_PARSER)
+        self.request: HttpParser = HttpParser(HttpParserTypes.REQUEST_PARSER)
 
         self.plugins: Dict[str, HttpProtocolBasePlugin] = {}
         if 'HttpProtocolBasePlugin' in self.config.plugins:
@@ -1188,7 +1208,7 @@ class HttpProtocolHandler(threading.Thread):
                 try:
                     # Parse http request
                     self.request.parse(client_data)
-                    if self.request.state == HttpParser.states.COMPLETE:
+                    if self.request.state == HttpParserStates.COMPLETE:
                         # HttpProtocolBasePlugin.on_request_complete
                         for plugin in self.plugins.values():
                             # TODO: Cleanup by not returning True for teardown
