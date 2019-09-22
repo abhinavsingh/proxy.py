@@ -32,7 +32,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
 
-def get_temp_file(self, name):
+def get_temp_file(name):
     return os.path.join(tempfile.gettempdir(), name)
 
 
