@@ -976,10 +976,13 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 [b'proxy-authorization', b'proxy-connection'])
             # - For HTTP/1.0, connection header defaults to close
             # - For HTTP/1.1, connection header defaults to keep-alive
-            # b'connection', b'keep-alive'])
-            # (b'Connection', b'Close')
+            # Respect headers sent by client instead of manipulating
+            # Connection or Keep-Alive header.  However, note that per
+            # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection
+            # connection headers are meant for communication between client and
+            # first intercepting proxy.
             self.request.add_headers([(b'Via', b'1.1 proxy.py v%s' % version)])
-            # remove args.disable_headers before dispatching to upstream
+            # Disable args.disable_headers before dispatching to upstream
             self.server.queue(
                 self.request.build(
                     disable_headers=self.config.disable_headers))
@@ -1022,7 +1025,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             logger.debug('Connected to upstream %s:%s' % (host, port))
         except Exception as e:  # TimeoutError, socket.gaierror
             self.server.closed = True
-            raise ProxyConnectionFailed(host, port, repr(e))
+            raise ProxyConnectionFailed(host, port, repr(e)) from e
 
 
 class HttpWebServerPlugin(HttpProtocolBasePlugin):
