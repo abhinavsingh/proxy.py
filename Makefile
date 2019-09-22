@@ -36,10 +36,10 @@ coverage:
 	open htmlcov/index.html
 
 lint:
-	flake8 --ignore=E501,W504 --builtins="unicode" proxy.py
-	flake8 --ignore=E501,W504 tests.py
 	autopep8 --recursive --in-place --aggressive --aggressive proxy.py
 	autopep8 --recursive --in-place --aggressive --aggressive tests.py
+	flake8 --ignore=E501,W504 --builtins="unicode" proxy.py
+	flake8 --ignore=E501,W504 tests.py
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .

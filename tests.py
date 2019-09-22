@@ -145,8 +145,9 @@ class TestTcpServer(unittest.TestCase):
                     socket.SOCK_STREAM,
                     0)
                 sock.connect(
-                    (proxy.DEFAULT_IPV4_HOSTNAME if ipv4 else proxy.DEFAULT_IPV6_HOSTNAME,
-                     self.ipv4_port if ipv4 else self.ipv6_port))
+                    (str(
+                        proxy.DEFAULT_IPV4_HOSTNAME if ipv4 else proxy.DEFAULT_IPV6_HOSTNAME),
+                        self.ipv4_port if ipv4 else self.ipv6_port))
                 sock.sendall(b'HELLO')
                 data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
                 self.assertEqual(data, b'WORLD')
@@ -209,7 +210,7 @@ class TestMultiCoreRequestDispatcher(unittest.TestCase):
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0) as sock:
                     try:
                         sock.connect(
-                            (proxy.DEFAULT_IPV4_HOSTNAME, self.tcp_port))
+                            (str(proxy.DEFAULT_IPV4_HOSTNAME), self.tcp_port))
                         sock.send(proxy.CRLF.join([
                             b'GET http://httpbin.org/get HTTP/1.1',
                             b'Host: httpbin.org',
@@ -975,7 +976,6 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'Host: localhost:%d' % self.http_server_port,
             b'Accept: */*',
             b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
-            b'Connection: Close',
             proxy.CRLF
         ]))
 
@@ -1107,7 +1107,7 @@ class TestMain(unittest.TestCase):
         proxy.main(['--basic-auth', 'user:pass'])
         self.assertTrue(mock_set_open_file_limit.called)
         mock_multicore_dispatcher.assert_called_with(
-            hostname=proxy.DEFAULT_IPV4_HOSTNAME,
+            hostname=proxy.DEFAULT_IPV6_HOSTNAME,
             port=proxy.DEFAULT_PORT,
             ipv4=proxy.DEFAULT_IPV4,
             backlog=proxy.DEFAULT_BACKLOG,
