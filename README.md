@@ -1,19 +1,20 @@
 [![Proxy.Py](ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
 [![License](https://img.shields.io/github/license/abhinavsingh/proxy.py.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![PyPi Downloads](https://img.shields.io/pypi/dm/proxy.py.svg)](https://pypi.org/project/proxy.py/)
+[![PyPi Downloads](https://img.shields.io/pypi/dm/proxy.py.svg?color=green)](https://pypi.org/project/proxy.py/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/abhinavsingh/proxy.py?color=green)](https://hub.docker.com/r/abhinavsingh/proxy.py)
 [![Build Status](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop)](https://travis-ci.org/abhinavsingh/proxy.py/)
-[![No Dependencies](https://david-dm.org/dwyl/esta.svg)](https://github.com/abhinavsingh/proxy.py)
+[![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=none&color=green)](https://github.com/abhinavsingh/proxy.py)
 [![Coverage](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
 
 [![Python 3.5](https://img.shields.io/badge/python-3.5-blue.svg)](https://www.python.org/downloads/release/python-350/)
 [![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)](https://www.python.org/downloads/release/python-360/)
 [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
-[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
+[![Checked with mypy](https://img.shields.io/static/v1?label=mypy&message=checked&color=blue)](http://mypy-lang.org/)
 
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/abhinavsingh/proxy.py/issues)
-[![Ask Me Anything](https://img.shields.io/badge/Ask%20me-anything-1abc9c.svg)](https://twitter.com/imoracle)
+[![Maintenance](https://img.shields.io/static/v1?label=maintained%3F&message=yes&color=green)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
+[![Ask Me Anything](https://img.shields.io/static/v1?label=need%20help%3F&message=ask&color=green)](https://twitter.com/imoracle)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-green.svg)](https://github.com/abhinavsingh/proxy.py/issues)
 
 Features
 --------
@@ -46,7 +47,23 @@ Install
 
 #### Docker image
 
-    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py
+    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:v1.0.0
+
+By default `docker` binary is started with following flags:
+
+    --hostname 0.0.0.0 --port 8899 --ipv4
+
+To override input flags, start docker image as follows.
+For example, to check `proxy.py --version`:
+
+    $ docker run -it \
+        -p 8899:8899 \
+        --entrypoint /app/proxy.py \
+        --rm abhinavsingh/proxy.py:v1.0.0 \
+        --version
+
+[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/moby/vpnkit/issues/469)
+`docker` support is currently BROKEN on `macOS` due to incompatibility with [vpnkit](https://github.com/moby/vpnkit/issues/469).
 
 Usage
 -----
