@@ -698,7 +698,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         cls.http_server_thread.start()
         cls.config = proxy.HttpProtocolConfig()
         cls.config.plugins = proxy.load_plugins(
-            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
     @classmethod
     def tearDownClass(cls):
@@ -805,7 +805,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         config.plugins = proxy.load_plugins(
-            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
@@ -830,7 +830,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         config.plugins = proxy.load_plugins(
-            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
         self.proxy = proxy.HttpProtocolHandler(client, config=config)
         self.proxy.client.conn.queue(
@@ -870,7 +870,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         config.plugins = proxy.load_plugins(
-            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
@@ -892,7 +892,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
     @mock.patch('select.select')
     def test_pac_file_served_from_disk(self, mock_select):
         mock_select.return_value = [self._conn], [], []
-        config = proxy.HttpProtocolConfig(pac_file='proxy.pac')
+        config = proxy.HttpProtocolConfig(pac_file=b'proxy.pac')
         self.init_and_make_pac_file_request(config)
         self.proxy.run_once()
         self.assertEqual(
@@ -924,7 +924,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         mock_select.return_value = [self._conn], [], []
         config = proxy.HttpProtocolConfig()
         config.plugins = proxy.load_plugins(
-            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
@@ -944,7 +944,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
     def test_on_client_connection_called_on_teardown(self):
         config = proxy.HttpProtocolConfig()
         plugin = mock.MagicMock()
-        config.plugins = {'HttpProtocolBasePlugin': [plugin]}
+        config.plugins = {b'HttpProtocolBasePlugin': [plugin]}
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
@@ -958,7 +958,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     def init_and_make_pac_file_request(self, config):
         config.plugins = proxy.load_plugins(
-            'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
