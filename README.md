@@ -14,7 +14,7 @@
 
 [![Maintenance](https://img.shields.io/static/v1?label=maintained%3F&message=yes&color=green)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
 [![Ask Me Anything](https://img.shields.io/static/v1?label=need%20help%3F&message=ask&color=green)](https://twitter.com/imoracle)
-[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-green.svg)](https://github.com/abhinavsingh/proxy.py/issues)
+[![Contributions Welcome](https://img.shields.io/static/v1?label=contributions&message=welcome%20%F0%9F%91%8D&color=green)](https://github.com/abhinavsingh/proxy.py/issues)
 
 Features
 --------
