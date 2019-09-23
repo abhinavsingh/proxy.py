@@ -22,9 +22,8 @@ import socket
 import sys
 import threading
 from abc import ABC, abstractmethod
-from collections import namedtuple
 from multiprocessing import connection
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple
 from urllib import parse as urlparse
 
 import select
@@ -49,7 +48,7 @@ DEFAULT_BASIC_AUTH = None
 DEFAULT_BUFFER_SIZE = 1024 * 1024
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
-DEFAULT_DISABLE_HEADERS: List[str] = []
+DEFAULT_DISABLE_HEADERS: List[bytes] = []
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_PORT = 8899
@@ -71,7 +70,7 @@ DEFAULT_LOG_FILE = None
 UNDER_TEST = False
 
 
-def text_(s, encoding='utf-8', errors='strict') -> str:
+def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
     """Utility to ensure text-like usability.
 
     If ``s`` is an instance of ``binary_type``, return
@@ -81,7 +80,7 @@ def text_(s, encoding='utf-8', errors='strict') -> str:
     return s
 
 
-def bytes_(s, encoding='utf-8', errors='strict') -> bytes:
+def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
     """Utility to ensure binary-like usability.
 
     If ``s`` is an instance of ``text_type``, return
@@ -92,29 +91,71 @@ def bytes_(s, encoding='utf-8', errors='strict') -> bytes:
 
 
 version = bytes_(__version__)
-CRLF, COLON, WHITESPACE, COMMA = b'\r\n', b':', b' ', ','
+CRLF, COLON, WHITESPACE, COMMA, DOT = b'\r\n', b':', b' ', b',', b'.'
 PROXY_AGENT_HEADER = b'Proxy-agent: proxy.py v' + version
+
+##
+# Various NamedTuples
+#
+# collections.namedtuple were replaced with typing.NamedTuple
+# for mypy compliance. Unfortunately, we can't seem to use
+# a NamedTuple as a type.
+##
+
+TcpConnectionTypes = NamedTuple('TcpConnectionTypes', [
+    ('SERVER', int),
+    ('CLIENT', int),
+])
+tcpConnectionTypes = TcpConnectionTypes(1, 2)
+
+WorkerOperations = NamedTuple('WorkerOperations', [
+    ('HTTP_PROTOCOL', int),
+    ('SHUTDOWN', int),
+])
+workerOperations = WorkerOperations(1, 2)
+
+ChunkParserStates = NamedTuple('ChunkParserStates', [
+    ('WAITING_FOR_SIZE', int),
+    ('WAITING_FOR_DATA', int),
+    ('COMPLETE', int),
+])
+chunkParserStates = ChunkParserStates(1, 2, 3)
+
+HttpParserStates = NamedTuple('HttpParserStates', [
+    ('INITIALIZED', int),
+    ('LINE_RCVD', int),
+    ('RCVING_HEADERS', int),
+    ('HEADERS_COMPLETE', int),
+    ('RCVING_BODY', int),
+    ('COMPLETE', int),
+])
+httpParserStates = HttpParserStates(1, 2, 3, 4, 5, 6)
+
+HttpParserTypes = NamedTuple('HttpParserTypes', [
+    ('REQUEST_PARSER', int),
+    ('RESPONSE_PARSER', int),
+])
+httpParserTypes = HttpParserTypes(1, 2)
 
 
 class TcpConnection:
     """TCP server/client connection abstraction."""
 
-    types = namedtuple('TcpConnectionTypes', (
-        'SERVER',
-        'CLIENT',
-    ))(1, 2)
-
-    def __init__(self, what: types):
+    def __init__(self, what: int):
         self.conn: Optional[socket.socket] = None
         self.buffer: bytes = b''
         self.closed: bool = False
-        self.what: TcpConnection.types = what
+        self.what: int = what
 
     def send(self, data: bytes) -> int:
         """Users must handle BrokenPipeError exceptions"""
+        if not self.conn:
+            raise KeyError('conn is None')
         return self.conn.send(data)
 
     def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[bytes]:
+        if not self.conn:
+            raise KeyError('conn is None')
         try:
             data: bytes = self.conn.recv(buffer_size)
             if len(data) > 0:
@@ -132,6 +173,8 @@ class TcpConnection:
         return None
 
     def close(self) -> bool:
+        if not self.conn:
+            raise KeyError('conn is None')
         if not self.closed:
             self.conn.close()
             self.closed = True
@@ -143,7 +186,7 @@ class TcpConnection:
     def has_buffer(self) -> bool:
         return self.buffer_size() > 0
 
-    def queue(self, data) -> int:
+    def queue(self, data: bytes) -> int:
         self.buffer += data
         return len(data)
 
@@ -158,10 +201,10 @@ class TcpServerConnection(TcpConnection):
     """Establishes connection to destination server."""
 
     def __init__(self, host: str, port: int):
-        super().__init__(b'server')
+        super().__init__(tcpConnectionTypes.SERVER)
         self.addr: Tuple[str, int] = (host, int(port))
 
-    def __del__(self):
+    def __del__(self) -> None:
         if self.conn:
             self.close()
 
@@ -184,7 +227,7 @@ class TcpClientConnection(TcpConnection):
     """Accepted client connection."""
 
     def __init__(self, conn: socket.socket, addr: Tuple[str, int]):
-        super().__init__(b'client')
+        super().__init__(tcpConnectionTypes.CLIENT)
         self.conn: socket.socket = conn
         self.addr: Tuple[str, int] = addr
 
@@ -197,12 +240,12 @@ class TcpServer(ABC):
     down internal state.
     """
 
-    def __init__(
-            self,
-            hostname=DEFAULT_IPV4_HOSTNAME,
-            port=DEFAULT_PORT,
-            backlog=DEFAULT_BACKLOG,
-            ipv4=DEFAULT_IPV4):
+    def __init__(self,
+                 hostname: Union[ipaddress.IPv4Address,
+                                 ipaddress.IPv6Address] = DEFAULT_IPV4_HOSTNAME,
+                 port: int = DEFAULT_PORT,
+                 backlog: int = DEFAULT_BACKLOG,
+                 ipv4: bool = DEFAULT_IPV4):
         self.port: int = port
         self.backlog: int = backlog
         self.ipv4: bool = ipv4
@@ -219,7 +262,7 @@ class TcpServer(ABC):
         pass
 
     @abstractmethod
-    def handle(self, client: TcpClientConnection):
+    def handle(self, client: TcpClientConnection) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -229,7 +272,7 @@ class TcpServer(ABC):
     def stop(self) -> None:
         self.running = False
 
-    def run(self):
+    def run(self) -> None:
         self.running = True
         self.setup()
         try:
@@ -249,7 +292,36 @@ class TcpServer(ABC):
         finally:
             self.shutdown()
             logger.info('Closing server socket')
-            self.socket.close()
+            if self.socket:
+                self.socket.close()
+
+
+class HttpProtocolConfig:
+    """Holds various configuration values applicable to HttpProtocolHandler.
+
+    This config class helps us avoid passing around bunch of key/value pairs across methods.
+    """
+
+    def __init__(
+            self,
+            auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
+            server_recvbuf_size: int = DEFAULT_SERVER_RECVBUF_SIZE,
+            client_recvbuf_size: int = DEFAULT_CLIENT_RECVBUF_SIZE,
+            pac_file: Optional[bytes] = DEFAULT_PAC_FILE,
+            pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
+            plugins: Optional[Dict[bytes, List[type]]] = None,
+            disable_headers: Optional[List[bytes]] = None) -> None:
+        self.auth_code = auth_code
+        self.server_recvbuf_size = server_recvbuf_size
+        self.client_recvbuf_size = client_recvbuf_size
+        self.pac_file = pac_file
+        self.pac_file_url_path = pac_file_url_path
+        if plugins is None:
+            plugins = {}
+        self.plugins: Dict[bytes, List[type]] = plugins
+        if disable_headers is None:
+            disable_headers = DEFAULT_DISABLE_HEADERS
+        self.disable_headers = disable_headers
 
 
 class MultiCoreRequestDispatcher(TcpServer):
@@ -260,26 +332,27 @@ class MultiCoreRequestDispatcher(TcpServer):
     client request.
     """
 
-    def __init__(
-            self,
-            hostname=DEFAULT_IPV4_HOSTNAME,
-            port=DEFAULT_PORT,
-            backlog=DEFAULT_BACKLOG,
-            num_workers=DEFAULT_NUM_WORKERS,
-            ipv4=DEFAULT_IPV4,
-            config=None):
-        super().__init__(hostname, port, backlog, ipv4)
+    def __init__(self,
+                 config: Optional[HttpProtocolConfig] = None,
+                 num_workers: int = 0,
+                 hostname: Union[ipaddress.IPv4Address,
+                                 ipaddress.IPv6Address] = DEFAULT_IPV4_HOSTNAME,
+                 port: int = DEFAULT_PORT,
+                 backlog: int = DEFAULT_BACKLOG,
+                 ipv4: bool = DEFAULT_IPV4) -> None:
+        super().__init__(hostname=hostname, port=port, backlog=backlog, ipv4=ipv4)
 
         self.num_workers: int = multiprocessing.cpu_count()
         if num_workers > 0:
             self.num_workers = num_workers
         self.workers: List[Worker] = []
-        self.work_queues: List[multiprocessing.Pipe] = []
+        self.work_queues: List[Tuple[connection.Connection,
+                                     connection.Connection]] = []
         self.current_worker_id = 0
 
-        self.config: HttpProtocolConfig = config
+        self.config: Optional[HttpProtocolConfig] = config
 
-    def setup(self):
+    def setup(self) -> None:
         logger.info('Starting %d workers' % self.num_workers)
         for worker_id in range(self.num_workers):
             work_queue = multiprocessing.Pipe()
@@ -291,7 +364,7 @@ class MultiCoreRequestDispatcher(TcpServer):
             self.workers.append(worker)
             self.work_queues.append(work_queue)
 
-    def handle(self, client: TcpClientConnection):
+    def handle(self, client: TcpClientConnection) -> None:
         # Dispatch in round robin fashion
         work_queue = self.work_queues[self.current_worker_id]
         logging.debug(
@@ -299,12 +372,12 @@ class MultiCoreRequestDispatcher(TcpServer):
             self.current_worker_id)
         self.current_worker_id += 1
         self.current_worker_id %= self.num_workers
-        work_queue[0].send((Worker.operations.HTTP_PROTOCOL, client))
+        work_queue[0].send((workerOperations.HTTP_PROTOCOL, client))
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.num_workers)
         for work_queue in self.work_queues:
-            work_queue[0].send((Worker.operations.SHUTDOWN, None))
+            work_queue[0].send((workerOperations.SHUTDOWN, None))
             work_queue[0].close()
         for worker in self.workers:
             worker.join()
@@ -317,25 +390,21 @@ class Worker(multiprocessing.Process):
     depending upon requested operation starts a new thread to handle the work.
     """
 
-    operations = namedtuple('WorkerOperations', (
-        'HTTP_PROTOCOL',
-        'SHUTDOWN',
-    ))(1, 2)
-
-    def __init__(self, work_queue: connection.Connection, config=None):
+    def __init__(self, work_queue: connection.Connection,
+                 config: Optional[HttpProtocolConfig] = None):
         super().__init__()
         self.work_queue: connection.Connection = work_queue
-        self.config: HttpProtocolConfig = config
+        self.config: Optional[HttpProtocolConfig] = config
 
-    def run(self):
+    def run(self) -> None:
         while True:
             try:
                 op, payload = self.work_queue.recv()
-                if op == Worker.operations.HTTP_PROTOCOL:
+                if op == workerOperations.HTTP_PROTOCOL:
                     proxy = HttpProtocolHandler(payload, config=self.config)
                     proxy.setDaemon(True)
                     proxy.start()
-                elif op == Worker.operations.SHUTDOWN:
+                elif op == workerOperations.SHUTDOWN:
                     logging.debug('Worker shutting down....')
                     self.work_queue.close()
                     break
@@ -348,26 +417,20 @@ class Worker(multiprocessing.Process):
 class ChunkParser:
     """HTTP chunked encoding response parser."""
 
-    states = namedtuple('ChunkParserStates', (
-        'WAITING_FOR_SIZE',
-        'WAITING_FOR_DATA',
-        'COMPLETE'
-    ))(1, 2, 3)
-
-    def __init__(self):
-        self.state = ChunkParser.states.WAITING_FOR_SIZE
+    def __init__(self) -> None:
+        self.state = chunkParserStates.WAITING_FOR_SIZE
         self.body: bytes = b''  # Parsed chunks
         self.chunk: bytes = b''  # Partial chunk received
         # Expected size of next following chunk
         self.size: Optional[int] = None
 
-    def parse(self, raw: bytes):
+    def parse(self, raw: bytes) -> None:
         more = True if len(raw) > 0 else False
         while more:
             more, raw = self.process(raw)
 
-    def process(self, raw: bytes):
-        if self.state == ChunkParser.states.WAITING_FOR_SIZE:
+    def process(self, raw: bytes) -> Tuple[bool, bytes]:
+        if self.state == chunkParserStates.WAITING_FOR_SIZE:
             # Consume prior chunk in buffer
             # in case chunk size without CRLF was received
             raw = self.chunk + raw
@@ -380,8 +443,9 @@ class ChunkParser:
                 raw = b''
             else:
                 self.size = int(line, 16)
-                self.state = ChunkParser.states.WAITING_FOR_DATA
-        elif self.state == ChunkParser.states.WAITING_FOR_DATA:
+                self.state = chunkParserStates.WAITING_FOR_DATA
+        elif self.state == chunkParserStates.WAITING_FOR_DATA:
+            assert self.size is not None
             remaining = self.size - len(self.chunk)
             self.chunk += raw[:remaining]
             raw = raw[remaining:]
@@ -389,9 +453,9 @@ class ChunkParser:
                 raw = raw[len(CRLF):]
                 self.body += self.chunk
                 if self.size == 0:
-                    self.state = ChunkParser.states.COMPLETE
+                    self.state = chunkParserStates.COMPLETE
                 else:
-                    self.state = ChunkParser.states.WAITING_FOR_SIZE
+                    self.state = chunkParserStates.WAITING_FOR_SIZE
                 self.chunk = b''
                 self.size = None
         return len(raw) > 0, raw
@@ -400,26 +464,9 @@ class ChunkParser:
 class HttpParser:
     """HTTP request/response parser."""
 
-    states = namedtuple('HttpParserStates', (
-        'INITIALIZED',
-        'LINE_RCVD',
-        'RCVING_HEADERS',
-        'HEADERS_COMPLETE',
-        'RCVING_BODY',
-        'COMPLETE'))(1, 2, 3, 4, 5, 6)
-
-    types = namedtuple('HttpParserTypes', (
-        'REQUEST_PARSER',
-        'RESPONSE_PARSER'
-    ))(1, 2)
-
-    def __init__(self, parser_type):
-        if parser_type not in (
-                HttpParser.types.REQUEST_PARSER,
-                HttpParser.types.RESPONSE_PARSER):
-            raise ValueError('Invalid parser type')
-        self.type: HttpParser.types = parser_type
-        self.state: HttpParser.states = HttpParser.states.INITIALIZED
+    def __init__(self, parser_type: int) -> None:
+        self.type: int = parser_type
+        self.state: int = httpParserStates.INITIALIZED
 
         # Raw bytes as passed to parse(raw) method and its total size
         self.bytes: bytes = b''
@@ -431,25 +478,25 @@ class HttpParser:
         self.headers: Dict[bytes, Tuple[bytes, bytes]] = dict()
 
         # Can simply be b'', then set type as bytes?
-        self.body = None
+        self.body: Optional[bytes] = None
 
-        self.method = None
-        self.url = None
-        self.code = None
-        self.reason = None
-        self.version = None
+        self.method: Optional[bytes] = None
+        self.url: Optional[urlparse.SplitResultBytes] = None
+        self.code: Optional[bytes] = None
+        self.reason: Optional[bytes] = None
+        self.version: Optional[bytes] = None
 
-        self.chunk_parser = None
+        self.chunk_parser: Optional[ChunkParser] = None
 
         # This cleans up developer APIs as Python urlparse.urlsplit behaves differently
         # for incoming proxy request and incoming web request.  Web request is the one
         # which is broken.
-        self.host = None
-        self.port = None
+        self.host: Optional[bytes] = None
+        self.port: Optional[int] = None
 
-    def set_host_port(self):
-        if self.type == HttpParser.types.REQUEST_PARSER:
-            if self.method == b'CONNECT':
+    def set_host_port(self) -> None:
+        if self.type == httpParserTypes.REQUEST_PARSER:
+            if self.method == b'CONNECT' and self.url:
                 u = urlparse.urlsplit(b'//' + self.url.path)
                 self.host, self.port = u.hostname, u.port
             elif self.url:
@@ -458,11 +505,11 @@ class HttpParser:
             else:
                 raise Exception('Invalid request\n%s' % self.bytes)
 
-    def is_chunked_encoded_response(self):
-        return self.type == HttpParser.types.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
+    def is_chunked_encoded_response(self) -> bool:
+        return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
             self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
-    def parse(self, raw) -> None:
+    def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
 
         Check HttpParser state after parse has successfully returned."""
@@ -476,48 +523,48 @@ class HttpParser:
         more = True if len(raw) > 0 else False
         while more:
             if self.state in (
-                    HttpParser.states.HEADERS_COMPLETE,
-                    HttpParser.states.RCVING_BODY,
-                    HttpParser.states.COMPLETE) and (
-                    self.method == b'POST' or self.type == HttpParser.types.RESPONSE_PARSER):
+                    httpParserStates.HEADERS_COMPLETE,
+                    httpParserStates.RCVING_BODY,
+                    httpParserStates.COMPLETE) and (
+                    self.method == b'POST' or self.type == httpParserTypes.RESPONSE_PARSER):
                 if not self.body:
                     self.body = b''
 
                 if b'content-length' in self.headers:
-                    self.state = HttpParser.states.RCVING_BODY
+                    self.state = httpParserStates.RCVING_BODY
                     self.body += raw
-                    if len(
-                        self.body) >= int(
+                    if self.body and len(
+                            self.body) >= int(
                             self.headers[b'content-length'][1]):
-                        self.state = HttpParser.states.COMPLETE
+                        self.state = httpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
                         self.chunk_parser = ChunkParser()
                     self.chunk_parser.parse(raw)
-                    if self.chunk_parser.state == ChunkParser.states.COMPLETE:
+                    if self.chunk_parser.state == chunkParserStates.COMPLETE:
                         self.body = self.chunk_parser.body
-                        self.state = HttpParser.states.COMPLETE
+                        self.state = httpParserStates.COMPLETE
 
                 more, raw = False, b''
             else:
                 more, raw = self.process(raw)
         self.buffer = raw
 
-    def process(self, raw) -> Tuple[bool, bytes]:
+    def process(self, raw: bytes) -> Tuple[bool, bytes]:
         """Returns False when no CRLF could be found in received bytes."""
         line, raw = HttpParser.find_line(raw)
         if line is None:
             return False, raw
 
-        if self.state == HttpParser.states.INITIALIZED:
+        if self.state == httpParserStates.INITIALIZED:
             self.process_line(line)
-            self.state = HttpParser.states.LINE_RCVD
-        elif self.state in (HttpParser.states.LINE_RCVD, HttpParser.states.RCVING_HEADERS):
-            if self.state == HttpParser.states.LINE_RCVD:
+            self.state = httpParserStates.LINE_RCVD
+        elif self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
+            if self.state == httpParserStates.LINE_RCVD:
                 # LINE_RCVD state is equivalent to RCVING_HEADERS
-                self.state = HttpParser.states.RCVING_HEADERS
+                self.state = httpParserStates.RCVING_HEADERS
             if line.strip() == b'':  # Blank line received.
-                self.state = HttpParser.states.HEADERS_COMPLETE
+                self.state = httpParserStates.HEADERS_COMPLETE
             else:
                 self.process_header(line)
 
@@ -525,32 +572,32 @@ class HttpParser:
         # See
         # `TestHttpParser.test_connect_request_without_host_header_request_parse`
         # for details
-        if self.state == HttpParser.states.LINE_RCVD and \
-                self.type == HttpParser.types.RESPONSE_PARSER and \
+        if self.state == httpParserStates.LINE_RCVD and \
+                self.type == httpParserTypes.RESPONSE_PARSER and \
                 raw == CRLF:
-            self.state = HttpParser.states.COMPLETE
+            self.state = httpParserStates.COMPLETE
         # When raw request has ended with \r\n\r\n and no more http headers are expected
         # See `TestHttpParser.test_request_parse_without_content_length` and
         # `TestHttpParser.test_response_parse_without_content_length` for details
-        elif self.state == HttpParser.states.HEADERS_COMPLETE and \
-                self.type == HttpParser.types.REQUEST_PARSER and \
+        elif self.state == httpParserStates.HEADERS_COMPLETE and \
+                self.type == httpParserTypes.REQUEST_PARSER and \
                 self.method != b'POST' and \
                 self.bytes.endswith(CRLF * 2):
-            self.state = HttpParser.states.COMPLETE
-        elif self.state == HttpParser.states.HEADERS_COMPLETE and \
-                self.type == HttpParser.types.REQUEST_PARSER and \
+            self.state = httpParserStates.COMPLETE
+        elif self.state == httpParserStates.HEADERS_COMPLETE and \
+                self.type == httpParserTypes.REQUEST_PARSER and \
                 self.method == b'POST' and \
                 (b'content-length' not in self.headers or
                  (b'content-length' in self.headers and
                   int(self.headers[b'content-length'][1]) == 0)) and \
                 self.bytes.endswith(CRLF * 2):
-            self.state = HttpParser.states.COMPLETE
+            self.state = httpParserStates.COMPLETE
 
         return len(raw) > 0, raw
 
-    def process_line(self, raw):
+    def process_line(self, raw: bytes) -> None:
         line = raw.split(WHITESPACE)
-        if self.type == HttpParser.types.REQUEST_PARSER:
+        if self.type == httpParserTypes.REQUEST_PARSER:
             self.method = line[0].upper()
             self.url = urlparse.urlsplit(line[1])
             self.version = line[2]
@@ -560,13 +607,13 @@ class HttpParser:
             self.reason = b' '.join(line[2:])
         self.set_host_port()
 
-    def process_header(self, raw):
+    def process_header(self, raw: bytes) -> None:
         parts = raw.split(COLON)
         key = parts[0].strip()
         value = COLON.join(parts[1:]).strip()
         self.add_headers([(key, value)])
 
-    def build_url(self):
+    def build_url(self) -> bytes:
         if not self.url:
             return b'/None'
 
@@ -579,10 +626,11 @@ class HttpParser:
             url += b'#' + self.url.fragment
         return url
 
-    def build(self, disable_headers=None):
+    def build(self, disable_headers: Optional[List[bytes]] = None) -> bytes:
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
 
+        assert self.method and self.version
         req = b' '.join([self.method, self.build_url(), self.version])
         req += CRLF
 
@@ -598,7 +646,7 @@ class HttpParser:
         return req
 
     @staticmethod
-    def build_header(k, v):
+    def build_header(k: bytes, v: bytes) -> bytes:
         return k + b': ' + v
 
     @staticmethod
@@ -620,7 +668,7 @@ class HttpParser:
     # are also HttpParser objects, methods below were added to simplify developer API.
     ##########################################################################
 
-    def has_upstream_server(self):
+    def has_upstream_server(self) -> bool:
         """Host field SHOULD be None for incoming local WebServer requests."""
         return True if self.host is not None else False
 
@@ -647,10 +695,7 @@ class HttpProtocolException(Exception):
     inherit HttpProtocolException base class. Implement response() method
     to optionally return custom response to client."""
 
-    def __init__(self):
-        pass
-
-    def response(self, request: HttpParser) -> bytes:
+    def response(self, request: HttpParser) -> Optional[bytes]:
         pass
 
 
@@ -661,17 +706,21 @@ class HttpRequestRejected(HttpProtocolException):
     HTTP status code can be returned."""
 
     def __init__(self,
-                 status_code: Union[bytes,
-                                    int] = None,
-                 body: bytes = None):
+                 status_code: Optional[int] = None,
+                 reason: Optional[bytes] = None,
+                 body: Optional[bytes] = None):
         super().__init__()
-        self.status_code: bytes = status_code
-        self.body: bytes = body
+        self.status_code: Optional[int] = status_code
+        self.reason: Optional[bytes] = reason
+        self.body: Optional[bytes] = body
 
-    def response(self, _request: HttpParser) -> bytes:
+    def response(self, _request: HttpParser) -> Optional[bytes]:
         pkt = []
-        if self.status_code:
-            pkt.append(b'HTTP/1.1 ' + self.status_code)
+        if self.status_code is not None:
+            line = b'HTTP/1.1 ' + bytes_(str(self.status_code))
+            if self.reason:
+                line += b' ' + self.reason
+            pkt.append(line)
             pkt.append(PROXY_AGENT_HEADER)
         if self.body:
             pkt.append(b'Content-Length: ' + bytes_(str(len(self.body))))
@@ -681,34 +730,6 @@ class HttpRequestRejected(HttpProtocolException):
             if len(pkt) > 0:
                 pkt.append(CRLF)
         return CRLF.join(pkt) if len(pkt) > 0 else None
-
-
-class HttpProtocolConfig:
-    """Holds various configuration values applicable to HttpProtocolHandler.
-
-    This config class helps us avoid passing around bunch of key/value pairs across methods.
-    """
-
-    def __init__(
-            self,
-            auth_code=DEFAULT_BASIC_AUTH,
-            server_recvbuf_size=DEFAULT_SERVER_RECVBUF_SIZE,
-            client_recvbuf_size=DEFAULT_CLIENT_RECVBUF_SIZE,
-            pac_file=DEFAULT_PAC_FILE,
-            pac_file_url_path=DEFAULT_PAC_FILE_URL_PATH,
-            plugins=None,
-            disable_headers=None):
-        self.auth_code = auth_code
-        self.server_recvbuf_size = server_recvbuf_size
-        self.client_recvbuf_size = client_recvbuf_size
-        self.pac_file = pac_file
-        self.pac_file_url_path = pac_file_url_path
-        if plugins is None:
-            plugins = {}
-        self.plugins: Dict[str, List] = plugins
-        if disable_headers is None:
-            disable_headers = DEFAULT_DISABLE_HEADERS
-        self.disable_headers = disable_headers
 
 
 class HttpProtocolBasePlugin(ABC):
@@ -734,23 +755,24 @@ class HttpProtocolBasePlugin(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def get_descriptors(self) -> Tuple[List, List, List]:
+    def get_descriptors(
+            self) -> Tuple[List[socket.socket], List[socket.socket], List[socket.socket]]:
         return [], [], []
 
     @abstractmethod
-    def flush_to_descriptors(self, w) -> None:
+    def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
         pass
 
     @abstractmethod
-    def read_from_descriptors(self, r) -> None:
+    def read_from_descriptors(self, r: List[socket.socket]) -> bool:
         pass
 
     @abstractmethod
-    def on_client_data(self, raw: bytes) -> bytes:
+    def on_client_data(self, raw: bytes) -> Optional[bytes]:
         return raw
 
     @abstractmethod
-    def on_request_complete(self) -> None:
+    def on_request_complete(self) -> bool:
         """Called right after client request parser has reached COMPLETE state."""
         pass
 
@@ -833,19 +855,19 @@ class HttpProxyBasePlugin(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def before_upstream_connection(self):
+    def before_upstream_connection(self) -> None:
         """Handler called just before Proxy upstream connection is established.
 
         Raise HttpRequestRejected to drop the connection."""
         pass
 
     @abstractmethod
-    def on_upstream_connection(self):
+    def on_upstream_connection(self) -> None:
         """Handler called right after upstream connection has been established."""
         pass
 
     @abstractmethod
-    def handle_upstream_response(self, raw):
+    def handle_upstream_response(self, raw: bytes) -> bytes:
         """Handled called right after reading response from upstream server and
         before queuing that response to client.
 
@@ -867,31 +889,31 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
-        self.server = None
-        self.response = HttpParser(HttpParser.types.RESPONSE_PARSER)
+        self.server: Optional[TcpServerConnection] = None
+        self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
 
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
-        if 'HttpProxyBasePlugin' in self.config.plugins:
-            for klass in self.config.plugins['HttpProxyBasePlugin']:
+        if b'HttpProxyBasePlugin' in self.config.plugins:
+            for klass in self.config.plugins[b'HttpProxyBasePlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
 
-    def get_descriptors(self):
+    def get_descriptors(
+            self) -> Tuple[List[socket.socket], List[socket.socket], List[socket.socket]]:
         if not self.request.has_upstream_server():
             return [], [], []
 
-        r, w, x = [], [], []
-        if self.server and not self.server.closed:
+        r: List[socket.socket] = []
+        w: List[socket.socket] = []
+        if self.server and not self.server.closed and self.server.conn:
             r.append(self.server.conn)
-        if self.server and not self.server.closed and self.server.has_buffer():
+        if self.server and not self.server.closed and self.server.has_buffer() and self.server.conn:
             w.append(self.server.conn)
-        return r, w, x
+        return r, w, []
 
-    def flush_to_descriptors(self, w):
-        if not self.request.has_upstream_server():
-            return
-
-        if self.server and not self.server.closed and self.server.conn in w:
+    def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
+        if self.request.has_upstream_server(
+        ) and self.server and not self.server.closed and self.server.conn in w:
             logger.debug('Server is ready for writes, flushing server buffer')
             try:
                 self.server.flush()
@@ -899,12 +921,11 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 logging.error(
                     'BrokenPipeError when flushing buffer for server')
                 return True
+        return False
 
-    def read_from_descriptors(self, r):
-        if not self.request.has_upstream_server():
-            return
-
-        if self.server and not self.server.closed and self.server.conn in r:
+    def read_from_descriptors(self, r: List[socket.socket]) -> bool:
+        if self.request.has_upstream_server(
+        ) and self.server and not self.server.closed and self.server.conn in r:
             logger.debug('Server is ready for reads, reading')
             raw = self.server.recv(self.config.server_recvbuf_size)
             # self.last_activity = HttpProtocolHandler.now()
@@ -923,12 +944,10 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 self.response.total_size += len(raw)
             # queue raw data for client
             self.client.queue(raw)
+        return False
 
-    def on_client_connection_close(self):
-        if not self.request.has_upstream_server():
-            return
-
-        if self.server:
+    def on_client_connection_close(self) -> None:
+        if self.request.has_upstream_server() and self.server:
             logger.debug(
                 'Closed server connection with pending server buffer size %d bytes' %
                 self.server.buffer_size())
@@ -938,7 +957,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
     def handle_response_chunk(self, chunk: bytes) -> bytes:
         return chunk
 
-    def on_client_data(self, raw):
+    def on_client_data(self, raw: bytes) -> Optional[bytes]:
         if not self.request.has_upstream_server():
             return raw
 
@@ -948,15 +967,15 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         else:
             return raw
 
-    def on_request_complete(self):
+    def on_request_complete(self) -> bool:
         if not self.request.has_upstream_server():
-            return
+            return False
 
         for plugin in self.plugins.values():
             plugin.before_upstream_connection()
 
-        self.authenticate(self.request.headers)
-        self.connect_upstream(self.request.host, self.request.port)
+        self.authenticate()
+        self.connect_upstream()
 
         for plugin in self.plugins.values():
             plugin.on_upstream_connection()
@@ -969,7 +988,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         # for general http requests, re-build request packet
         # and queue for the server with appropriate headers
-        else:
+        elif self.server:
             # - proxy-connection header is a mistake, it doesn't seem to be
             #   officially documented in any specification, drop it.
             # - proxy-authorization is of no use for upstream, remove it.
@@ -987,8 +1006,9 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             self.server.queue(
                 self.request.build(
                     disable_headers=self.config.disable_headers))
+        return False
 
-    def access_log(self):
+    def access_log(self) -> None:
         if not self.request.has_upstream_server():
             return
 
@@ -1012,21 +1032,26 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                     self.response.code), text_(
                     self.response.reason), self.response.total_size))
 
-    def authenticate(self, headers):
+    def authenticate(self) -> None:
         if self.config.auth_code:
-            if b'proxy-authorization' not in headers or \
-                    headers[b'proxy-authorization'][1] != self.config.auth_code:
+            if b'proxy-authorization' not in self.request.headers or \
+                    self.request.headers[b'proxy-authorization'][1] != self.config.auth_code:
                 raise ProxyAuthenticationFailed()
 
-    def connect_upstream(self, host, port):
-        self.server = TcpServerConnection(host, port)
-        try:
-            logger.debug('Connecting to upstream %s:%s' % (host, port))
-            self.server.connect()
-            logger.debug('Connected to upstream %s:%s' % (host, port))
-        except Exception as e:  # TimeoutError, socket.gaierror
-            self.server.closed = True
-            raise ProxyConnectionFailed(host, port, repr(e)) from e
+    def connect_upstream(self) -> None:
+        host, port = self.request.host, self.request.port
+        if host and port:
+            self.server = TcpServerConnection(text_(host), port)
+            try:
+                logger.debug('Connecting to upstream %s:%s' % (host, port))
+                self.server.connect()
+                logger.debug('Connected to upstream %s:%s' % (host, port))
+            except Exception as e:  # TimeoutError, socket.gaierror
+                self.server.closed = True
+                raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
+        else:
+            logger.exception('Both host and port must exist')
+            raise HttpProtocolException()
 
 
 class HttpWebServerPlugin(HttpProtocolBasePlugin):
@@ -1061,11 +1086,11 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
                 logger.debug('Will serve pac file content from buffer')
                 self.pac_file_content = self.config.pac_file
 
-    def on_request_complete(self):
+    def on_request_complete(self) -> bool:
         if self.request.has_upstream_server():
-            return
+            return False
 
-        if self.config.pac_file and \
+        if self.config.pac_file and self.request.url and \
                 self.request.url.path == self.config.pac_file_url_path:
             self.client.queue(self.PAC_FILE_RESPONSE_PREFIX)
             self.client.queue(self.pac_file_content)
@@ -1078,7 +1103,7 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
 
         return True
 
-    def access_log(self):
+    def access_log(self) -> None:
         if self.request.has_upstream_server():
             return
         logger.info(
@@ -1087,13 +1112,13 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
                 self.request.method), text_(
                 self.request.build_url())))
 
-    def flush_to_descriptors(self, w) -> None:
+    def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
         pass
 
-    def read_from_descriptors(self, r) -> None:
+    def read_from_descriptors(self, r: List[socket.socket]) -> bool:
         pass
 
-    def on_client_data(self, raw: bytes) -> bytes:
+    def on_client_data(self, raw: bytes) -> Optional[bytes]:
         return raw
 
     def handle_response_chunk(self, chunk: bytes) -> bytes:
@@ -1102,7 +1127,8 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
     def on_client_connection_close(self) -> None:
         pass
 
-    def get_descriptors(self) -> Tuple[List, List, List]:
+    def get_descriptors(
+            self) -> Tuple[List[socket.socket], List[socket.socket], List[socket.socket]]:
         return [], [], []
 
 
@@ -1113,18 +1139,18 @@ class HttpProtocolHandler(threading.Thread):
     """
 
     def __init__(self, client: TcpClientConnection,
-                 config: HttpProtocolConfig = None):
+                 config: Optional[HttpProtocolConfig] = None):
         super().__init__()
         self.start_time: datetime.datetime = self.now()
         self.last_activity: datetime.datetime = self.start_time
 
         self.client: TcpClientConnection = client
         self.config: HttpProtocolConfig = config if config else HttpProtocolConfig()
-        self.request: HttpParser = HttpParser(HttpParser.types.REQUEST_PARSER)
+        self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
         self.plugins: Dict[str, HttpProtocolBasePlugin] = {}
-        if 'HttpProtocolBasePlugin' in self.config.plugins:
-            for klass in self.config.plugins['HttpProtocolBasePlugin']:
+        if b'HttpProtocolBasePlugin' in self.config.plugins:
+            for klass in self.config.plugins[b'HttpProtocolBasePlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
 
@@ -1132,16 +1158,19 @@ class HttpProtocolHandler(threading.Thread):
     def now() -> datetime.datetime:
         return datetime.datetime.utcnow()
 
-    def connection_inactive_for(self):
+    def connection_inactive_for(self) -> int:
         return (self.now() - self.last_activity).seconds
 
-    def is_connection_inactive(self):
+    def is_connection_inactive(self) -> bool:
+        # TODO: Add input argument option for timeout
         return self.connection_inactive_for() > 30
 
-    def run_once(self):
+    def run_once(self) -> bool:
         """Returns True if proxy must teardown."""
         # Prepare list of descriptors
-        read_desc, write_desc, err_desc = [self.client.conn], [], []
+        read_desc: List[socket.socket] = [self.client.conn]
+        write_desc: List[socket.socket] = []
+        err_desc: List[socket.socket] = []
         if self.client.has_buffer():
             write_desc.append(self.client.conn)
 
@@ -1166,7 +1195,9 @@ class HttpProtocolHandler(threading.Thread):
                 return True
 
         for plugin in self.plugins.values():
-            plugin.flush_to_descriptors(writable)
+            teardown = plugin.flush_to_descriptors(writable)
+            if teardown:
+                return True
 
         # Read from ready to read sockets
         if self.client.conn in readable:
@@ -1188,13 +1219,11 @@ class HttpProtocolHandler(threading.Thread):
                 try:
                     # Parse http request
                     self.request.parse(client_data)
-                    if self.request.state == HttpParser.states.COMPLETE:
+                    if self.request.state == httpParserStates.COMPLETE:
                         # HttpProtocolBasePlugin.on_request_complete
                         for plugin in self.plugins.values():
-                            # TODO: Cleanup by not returning True for teardown
-                            # cases
-                            plugin_response = plugin.on_request_complete()
-                            if isinstance(plugin_response, bool):
+                            teardown = plugin.on_request_complete()
+                            if teardown:
                                 return True
                 # ProxyAuthenticationFailed, ProxyConnectionFailed, HttpRequestRejected
                 except HttpProtocolException as e:
@@ -1220,7 +1249,9 @@ class HttpProtocolHandler(threading.Thread):
                     'between client and server connection, tearing down...')
                 return True
 
-    def run(self):
+        return False
+
+    def run(self) -> None:
         logger.debug('Proxying connection %r' % self.client.conn)
         try:
             while True:
@@ -1256,7 +1287,7 @@ def is_py3() -> bool:
     return sys.version_info[0] == 3
 
 
-def set_open_file_limit(soft_limit):
+def set_open_file_limit(soft_limit: int) -> None:
     """Configure open file description soft limit on supported OS."""
     if os.name != 'nt':  # resource module not available on Windows OS
         curr_soft_limit, curr_hard_limit = resource.getrlimit(
@@ -1269,30 +1300,30 @@ def set_open_file_limit(soft_limit):
                 soft_limit)
 
 
-def load_plugins(plugins: str) -> Dict[str, List]:
+def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
     """Accepts a comma separated list of Python modules and returns
     a list of respective Python classes."""
-    p: Dict[str, List] = {
-        'HttpProtocolBasePlugin': [],
-        'HttpProxyBasePlugin': []
+    p: Dict[bytes, List[type]] = {
+        b'HttpProtocolBasePlugin': [],
+        b'HttpProxyBasePlugin': []
     }
     for plugin in plugins.split(COMMA):
         plugin = plugin.strip()
-        if plugin == '':
+        if plugin == b'':
             continue
-        module_name, klass_name = plugin.rsplit('.', 1)
-        module = importlib.import_module(module_name)
-        klass = getattr(module, klass_name)
+        module_name, klass_name = plugin.rsplit(DOT, 1)
+        module = importlib.import_module(text_(module_name))
+        klass = getattr(module, text_(klass_name))
         base_klass = inspect.getmro(klass)[::-1][2:][0]
-        p[base_klass.__name__].append(klass)
+        p[bytes_(base_klass.__name__)].append(klass)
         logging.info('Loaded plugin %s', klass)
     return p
 
 
 def setup_logger(
-        log_file=DEFAULT_LOG_FILE,
-        log_level=DEFAULT_LOG_LEVEL,
-        log_format=DEFAULT_LOG_FORMAT):
+        log_file: Optional[str] = DEFAULT_LOG_FILE,
+        log_level: str = DEFAULT_LOG_LEVEL,
+        log_format: str = DEFAULT_LOG_FORMAT) -> None:
     ll = getattr(
         logging,
         {'D': 'DEBUG',
@@ -1420,7 +1451,7 @@ def init_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(args) -> None:
+def main(input_args: List[str]) -> None:
     if not is_py3() and not UNDER_TEST:
         print(
             'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
@@ -1433,7 +1464,7 @@ def main(args) -> None:
         sys.exit(0)
 
     parser = init_parser()
-    args = parser.parse_args(args)
+    args = parser.parse_args(input_args)
     if args.version:
         print(text_(version))
         sys.exit(0)
@@ -1453,7 +1484,8 @@ def main(args) -> None:
             pac_file=args.pac_file,
             pac_file_url_path=args.pac_file_url_path,
             disable_headers=[
-                header.lower() for header in args.disable_headers.split(COMMA) if header.strip() != ''])
+                header.lower() for header in bytes_(
+                    args.disable_headers).split(COMMA) if header.strip() != b''])
         if config.pac_file is not None:
             args.enable_web_server = True
 
@@ -1462,7 +1494,10 @@ def main(args) -> None:
             default_plugins += 'proxy.HttpProxyPlugin,'
         if args.enable_web_server:
             default_plugins += 'proxy.HttpWebServerPlugin,'
-        config.plugins = load_plugins('%s%s' % (default_plugins, args.plugins))
+        config.plugins = load_plugins(
+            bytes_(
+                '%s%s' %
+                (default_plugins, args.plugins)))
 
         server = MultiCoreRequestDispatcher(
             hostname=ipaddress.ip_address(

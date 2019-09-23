@@ -22,12 +22,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-testing.txt
-      - name: Lint Checker
+      - name: Quality Check
         run: |
           # stop the build if there are Python syntax errors or undefined names
           flake8 proxy.py tests.py --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 proxy.py tests.py --count --exit-zero --max-line-length=127 --statistics
+          # mypy compliance check
+          mypy --strict proxy.py
+          mypy tests.py
       - name: Run Tests
         run: |
           pytest tests.py
