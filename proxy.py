@@ -1636,6 +1636,12 @@ def main(input_args: List[str]) -> None:
     if args.version:
         print(text_(version))
         sys.exit(0)
+    
+    # HTTPS interception currently not supported if proxy.py is running on HTTPS itself
+    if (args.cert_file and args.key_file) and \
+            (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
+        print('HTTPS interception not supported when proxy.py is serving over HTTPS')
+        sys.exit(0)
 
     try:
         setup_logger(args.log_file, args.log_level, args.log_format)
