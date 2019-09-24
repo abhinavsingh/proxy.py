@@ -31,6 +31,7 @@ jobs:
           # mypy compliance check
           mypy --strict --ignore-missing-imports proxy.py
           mypy --ignore-missing-imports tests.py
+          mypy --strict --ignore-missing-imports plugin_examples.py
       - name: Run Tests
         run: |
           pytest tests.py

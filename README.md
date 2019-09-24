@@ -34,7 +34,7 @@ Features
 - Programmable
     - Optionally enable builtin Web Server
     - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
-    - Enable plugin using command line option e.g. `--plugins plugin_examples.SaveHttpResponses`
+    - Enable plugin using command line option e.g. `--plugins plugin_examples.CacheHttpResponses`
     - Plugin API is currently in development state, expect breaking changes.
 - Secure
     - Enable end-to-end encryption between clients and `proxy.py` using TLS
