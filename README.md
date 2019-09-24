@@ -36,11 +36,19 @@ Features
     - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
     - Enable plugin using command line option e.g. `--plugins plugin_examples.SaveHttpResponses`
     - Plugin API is currently in development state, expect breaking changes.
-- Supports `http`, `https`, `http2` and `websockets` request proxy
+- Secure
+    - Enable end-to-end encryption using TLS
+    - See `--certfile` and `--keyfile` flags
+- Supported proxy protocols
+    - `http`
+    - `https`
+    - `http2`
+    - `websockets`
 - Optimized for large file uploads and downloads
 - IPv4 and IPv6 support
 - Basic authentication support
 - Can serve a [PAC (Proxy Auto-configuration)](https://en.wikipedia.org/wiki/Proxy_auto-config) file
+    - See `--pac-file` and `--pac-file-url-path` flags
 
 Install
 -------
@@ -66,7 +74,6 @@ For example, to check `proxy.py --version`:
 
     $ docker run -it \
         -p 8899:8899 \
-        --entrypoint /app/proxy.py \
         --rm abhinavsingh/proxy.py:v1.0.0 \
         --version
 
@@ -98,6 +105,8 @@ optional arguments:
   --basic-auth BASIC_AUTH
                         Default: No authentication. Specify colon separated
                         user:password to enable basic authentication.
+  --certfile CERTFILE   Default: None. Server certificate. If used, you must
+                        also pass --keyfile.
   --client-recvbuf-size CLIENT_RECVBUF_SIZE
                         Default: 1 MB. Maximum amount of data received from
                         the client in a single recv() operation. Bump this
@@ -109,11 +118,11 @@ optional arguments:
                         server.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
-  --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
-  --ipv4                Whether to listen on IPv4 address. By default server
-                        only listens on IPv6.
+  --hostname HOSTNAME   Default: ::1. Server IP address.
   --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
+  --keyfile KEYFILE     Default: None. Server key file. If used, you must also
+                        pass --certfile.
   --log-level LOG_LEVEL
                         Valid options: DEBUG, INFO (default), WARNING, ERROR,
                         CRITICAL. Both upper and lowercase values are allowed.

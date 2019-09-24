@@ -3,7 +3,7 @@
 .project
 .pydevproject
 .settings
-*.pyc
+.mypy_cache
 venv
 cover
 htmlcov
@@ -11,4 +11,5 @@ dist
 build
 proxy.py.egg-info
 proxy.py.iml
-.mypy_cache
+*.pyc
+*.pem
