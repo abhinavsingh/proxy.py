@@ -39,6 +39,7 @@ Features
 - Secure
     - Enable end-to-end encryption using TLS
     - See `--certfile` and `--keyfile` flags
+    - Run `make server-cert` to generate a self-signed certificated for testing
 - Supported proxy protocols
     - `http`
     - `https`
