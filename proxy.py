@@ -1103,14 +1103,16 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                     # We could unwrap, but then we can't maintain our https
                     # connection to the client. Below we handle the scenario
                     # when client is communicating to proxy.py using http.
-                    if not (self.config.keyfile and self.config.certfile):
+                    if not (self.config.keyfile and self.config.certfile) and \
+                            self.server and isinstance(self.server.conn, socket.socket):
                         self.client.conn = ssl.wrap_socket(self.client.conn,
                                                            server_side=True,
                                                            keyfile=self.config.ca_signing_key_file,
                                                            certfile=generated_cert)
                         # Wrap our connection to upstream server connection
-                        self.server.conn = ssl.wrap_socket(
-                            self.server.conn, ssl_version=ssl.PROTOCOL_TLSv1_2)
+                        ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+                        self.server.conn = ctx.wrap_socket(self.server.conn, server_hostname=text_(self.request.host))
                         logger.info(
                             'Intercepting traffic using %s', generated_cert)
                         return self.client.conn
@@ -1354,12 +1356,12 @@ class HttpProtocolHandler(threading.Thread):
                     if self.request.state == httpParserStates.COMPLETE:
                         # HttpProtocolBasePlugin.on_request_complete
                         for plugin in self.plugins.values():
-                            teardown = plugin.on_request_complete()
-                            if isinstance(teardown, ssl.SSLSocket):
+                            upgraded_sock = plugin.on_request_complete()
+                            if isinstance(upgraded_sock, ssl.SSLSocket):
                                 logger.debug(
-                                    'Setting client conn to %s', teardown)
-                                self.client.conn = teardown
-                            elif teardown:
+                                    'Setting client conn to %s', upgraded_sock)
+                                self.client.conn = upgraded_sock
+                            elif isinstance(upgraded_sock, bool) and upgraded_sock:
                                 return True
                 # ProxyAuthenticationFailed, ProxyConnectionFailed, HttpRequestRejected
                 except HttpProtocolException as e:
