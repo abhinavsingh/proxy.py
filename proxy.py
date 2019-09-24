@@ -1035,7 +1035,8 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             # 3) Accept client connection
             # 4) Wrap client connection socket using generated certificate
             # 5) Send incoming encrypted traffic over to wrapped client connection
-            # 6) On server side, receive decrypted traffic and send to upstream server connection
+            # 6) On server side, receive decrypted traffic and send to upstream
+            # server connection
             pass
 
         if self.server and not self.server.closed:
@@ -1065,7 +1066,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                          self.config.ca_key_file, '-set_serial', str(int(time.time() * 1000)), '-out', cert_file_path],
                         stdin=gen_cert.stdout,
                         stderr=subprocess.PIPE)
-                    _sign_cert_response = sign_cert.communicate(timeout=10)
+                    sign_cert.communicate(timeout=10)
                 return cert_file_path
         else:
             return None
@@ -1092,7 +1093,8 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled, generate server certificates
             if self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file:
-                # Flush client buffer before wrapping, but is client ready for writes?
+                # Flush client buffer before wrapping, but is client ready for
+                # writes?
                 self.client.flush()
                 generated_cert = self.generate_upstream_certificate()
                 if generated_cert:
@@ -1109,7 +1111,8 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                         # Wrap our connection to upstream server connection
                         self.server.conn = ssl.wrap_socket(
                             self.server.conn, ssl_version=ssl.PROTOCOL_TLSv1_2)
-                        logger.info('Intercepting traffic using %s', generated_cert)
+                        logger.info(
+                            'Intercepting traffic using %s', generated_cert)
                         return self.client.conn
         # for general http requests, re-build request packet
         # and queue for the server with appropriate headers
@@ -1168,9 +1171,13 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         if host and port:
             self.server = TcpServerConnection(text_(host), port)
             try:
-                logger.debug('Connecting to upstream %s:%s' % (text_(host), port))
+                logger.debug(
+                    'Connecting to upstream %s:%s' %
+                    (text_(host), port))
                 self.server.connect()
-                logger.debug('Connected to upstream %s:%s' % (text_(host), port))
+                logger.debug(
+                    'Connected to upstream %s:%s' %
+                    (text_(host), port))
             except Exception as e:  # TimeoutError, socket.gaierror
                 self.server.closed = True
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
@@ -1636,8 +1643,9 @@ def main(input_args: List[str]) -> None:
     if args.version:
         print(text_(version))
         sys.exit(0)
-    
-    # HTTPS interception currently not supported if proxy.py is running on HTTPS itself
+
+    # HTTPS interception currently not supported if proxy.py is running on
+    # HTTPS itself
     if (args.cert_file and args.key_file) and \
             (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
         print('HTTPS interception not supported when proxy.py is serving over HTTPS')
