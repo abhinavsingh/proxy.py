@@ -6,7 +6,8 @@ VERSION ?= v$(shell python proxy.py --version)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
-.PHONY: all clean test package test-release release coverage lint container run-container release-container
+.PHONY: all clean test package test-release release coverage lint
+.PHONY: container run-container release-container server-cert
 
 all: clean test
 
@@ -49,3 +50,6 @@ run-container:
 
 release-container:
 	docker push $(IMAGE_TAG)
+
+server-cert:
+	openssl req -newkey rsa:2048 -nodes -keyout server-key.pem -x509 -days 365 -out server-cert.pem
