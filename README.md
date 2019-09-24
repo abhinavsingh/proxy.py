@@ -36,11 +36,19 @@ Features
     - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
     - Enable plugin using command line option e.g. `--plugins plugin_examples.SaveHttpResponses`
     - Plugin API is currently in development state, expect breaking changes.
-- Supports `http`, `https`, `http2` and `websockets` request proxy
+- Secure
+    - Can serve encrypted proxy traffic using `https`
+    - See `--certfile` and `--keyfile` flags
+- Supported proxy protocols
+    - `http`
+    - `https`
+    - `http2`
+    - `websockets`
 - Optimized for large file uploads and downloads
 - IPv4 and IPv6 support
 - Basic authentication support
 - Can serve a [PAC (Proxy Auto-configuration)](https://en.wikipedia.org/wiki/Proxy_auto-config) file
+    - See `--pac-file` and `--pac-file-url-path` flags
 
 Install
 -------
@@ -66,7 +74,6 @@ For example, to check `proxy.py --version`:
 
     $ docker run -it \
         -p 8899:8899 \
-        --entrypoint /app/proxy.py \
         --rm abhinavsingh/proxy.py:v1.0.0 \
         --version
 
