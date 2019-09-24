@@ -89,8 +89,9 @@ Usage
 -----
 
 ```
+$ proxy.py -h
 usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
-                [--ca-key-key CA_KEY_KEY] [--ca-cert-dir CA_CERT_DIR]
+                [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
                 [--ca-cert-file CA_CERT_FILE]
                 [--ca-signing-key-file CA_SIGNING_KEY_FILE]
                 [--cert-file CERT_FILE]
@@ -114,14 +115,14 @@ optional arguments:
   --basic-auth BASIC_AUTH
                         Default: No authentication. Specify colon separated
                         user:password to enable basic authentication.
-  --ca-key-key CA_KEY_KEY
+  --ca-key-file CA_KEY_FILE
                         Default: None. CA key to use for signing dynamically
                         generated HTTPS certificates. If used, must also pass
                         --ca-cert-file and --ca-signing-key-file
   --ca-cert-dir CA_CERT_DIR
                         Default: ~/.proxy.py. Directory to store dynamically
-                        generated certificates. If used, must also pass --ca-
-                        key-file, --ca-cert-file and --ca-signing-key-file
+                        generated certificates. Also see --ca-key-file, --ca-
+                        cert-file and --ca-signing-key-file
   --ca-cert-file CA_CERT_FILE
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,

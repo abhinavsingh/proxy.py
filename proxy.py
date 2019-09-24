@@ -308,6 +308,9 @@ class HttpProtocolConfig:
     This config class helps us avoid passing around bunch of key/value pairs across methods.
     """
 
+    ROOT_DATA_DIR_NAME = '.proxy.py'
+    GENERATED_CERTS_DIR_NAME = 'certificates'
+
     def __init__(
             self,
             auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
@@ -352,13 +355,13 @@ class HttpProtocolConfig:
         self.family: socket.AddressFamily = socket.AF_INET if hostname.version == 4 else socket.AF_INET6
 
         self.proxy_py_data_dir = os.path.join(
-            str(pathlib.Path.home()), '.proxy.py')
+            str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
         os.makedirs(self.proxy_py_data_dir, exist_ok=True)
 
         self.ca_cert_dir: Optional[str] = ca_cert_dir
         if self.ca_cert_dir is None:
             self.ca_cert_dir = os.path.join(
-                self.proxy_py_data_dir, 'generated')
+                self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
             os.makedirs(self.ca_cert_dir, exist_ok=True)
 
 
@@ -450,7 +453,9 @@ class Worker(multiprocessing.Process):
                             conn = ssl.wrap_socket(conn,
                                                    server_side=True,
                                                    certfile=self.config.certfile,
-                                                   keyfile=self.config.keyfile)
+                                                   keyfile=self.config.keyfile,
+                                                   cert_reqs=ssl.CERT_OPTIONAL,
+                                                   ca_certs=None)
                         except OSError as e:
                             logger.exception(
                                 'OSError encountered while ssl wrapping the client socket', exc_info=e)
@@ -1022,23 +1027,6 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         if not self.request.has_upstream_server():
             return raw
 
-        # If client is communicating with upstream using https, and
-        # If client is communicating to proxy.py over https, and
-        # If https interception is enabled
-        if (self.request.method == b'CONNECT') and \
-                (self.config.keyfile and self.config.certfile) and \
-                (self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file):
-            # Options:
-            # 0) Wrap upstream server connection
-            # 1) Create a unix socket server
-            # 2) Make client connection to unix socket server
-            # 3) Accept client connection
-            # 4) Wrap client connection socket using generated certificate
-            # 5) Send incoming encrypted traffic over to wrapped client connection
-            # 6) On server side, receive decrypted traffic and send to upstream
-            # server connection
-            pass
-
         if self.server and not self.server.closed:
             self.server.queue(raw)
             return None
@@ -1056,6 +1044,8 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                         self.request.host))
                 if not os.path.isfile(cert_file_path):
                     logger.debug('Generating certificates %s', cert_file_path)
+                    # TODO: Use ssl.get_server_certificate to populate generated certificate metadata
+                    # Currently we only set CN=example.org on the generated certificates.
                     gen_cert = subprocess.Popen(
                         ['/usr/bin/openssl', 'req', '-new', '-key', self.config.ca_signing_key_file, '-subj',
                          '/CN=%s' % text_(self.request.host)],
@@ -1108,7 +1098,9 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                         self.client.conn = ssl.wrap_socket(self.client.conn,
                                                            server_side=True,
                                                            keyfile=self.config.ca_signing_key_file,
-                                                           certfile=generated_cert)
+                                                           certfile=generated_cert,
+                                                           cert_reqs=ssl.CERT_OPTIONAL,
+                                                           ca_certs=None)
                         # Wrap our connection to upstream server connection
                         ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
                         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
@@ -1299,6 +1291,64 @@ class HttpProtocolHandler(threading.Thread):
         # TODO: Add input argument option for timeout
         return self.connection_inactive_for() > 30
 
+    def handle_writables(self, writables: List[socket.socket]) -> bool:
+        if self.client.conn in writables:
+            logger.debug('Client is ready for writes, flushing client buffer')
+            try:
+                self.client.flush()
+            except BrokenPipeError:
+                logger.error(
+                    'BrokenPipeError when flushing buffer for client')
+                return True
+        return False
+
+    def handle_readables(self, readables: List[socket.socket]) -> bool:
+        if self.client.conn in readables:
+            logger.debug('Client is ready for reads, reading')
+            client_data = self.client.recv(self.config.client_recvbuf_size)
+            self.last_activity = self.now()
+            if not client_data:
+                logger.debug('Client closed connection, tearing down...')
+                self.client.closed = True
+                return True
+
+            # HttpProtocolBasePlugin.on_client_data
+            plugin_index = 0
+            plugins = list(self.plugins.values())
+            while plugin_index < len(plugins) and client_data:
+                client_data = plugins[plugin_index].on_client_data(client_data)
+                plugin_index += 1
+
+            if client_data:
+                try:
+                    # Parse http request
+                    self.request.parse(client_data)
+                    if self.request.state == httpParserStates.COMPLETE:
+                        # Invoke plugin.on_request_complete
+                        for plugin in self.plugins.values():
+                            upgraded_sock = plugin.on_request_complete()
+                            if isinstance(upgraded_sock, ssl.SSLSocket):
+                                logger.debug(
+                                    'Updated client conn to %s', upgraded_sock)
+                                self.client.conn = upgraded_sock
+                                # Update self.client.conn references for all plugins
+                                for plugin_ in self.plugins.values():
+                                    if plugin_ != plugin:
+                                        plugin_.client.conn = upgraded_sock
+                                        logger.debug('Upgraded client conn for plugin %s', str(plugin_))
+                            elif isinstance(upgraded_sock, bool) and upgraded_sock:
+                                return True
+                # ProxyAuthenticationFailed, ProxyConnectionFailed, HttpRequestRejected
+                except HttpProtocolException as e:
+                    # logger.exception(e)
+                    response = e.response(self.request)
+                    if response:
+                        self.client.queue(response)
+                        # But is client also ready for writes?
+                        self.client.flush()
+                    raise e
+        return False
+
     def run_once(self) -> bool:
         """Returns True if proxy must teardown."""
         # Prepare list of descriptors
@@ -1315,67 +1365,28 @@ class HttpProtocolHandler(threading.Thread):
             write_desc += plugin_write_desc
             err_desc += plugin_err_desc
 
-        readable, writable, errored = select.select(
+        readables, writables, errored = select.select(
             read_desc, write_desc, err_desc, 1)
 
         # Flush buffer for ready to write sockets
-        if self.client.conn in writable:
-            logger.debug('Client is ready for writes, flushing client buffer')
-            try:
-                self.client.flush()
-            except BrokenPipeError:
-                logger.error(
-                    'BrokenPipeError when flushing buffer for client')
-                return True
+        teardown = self.handle_writables(writables)
+        if teardown:
+            return True
 
+        # Invoke plugin.flush_to_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.flush_to_descriptors(writable)
+            teardown = plugin.flush_to_descriptors(writables)
             if teardown:
                 return True
 
         # Read from ready to read sockets
-        if self.client.conn in readable:
-            logger.debug('Client is ready for reads, reading')
-            client_data = self.client.recv(self.config.client_recvbuf_size)
-            self.last_activity = self.now()
-            if not client_data:
-                logger.debug('Client closed connection, tearing down...')
-                return True
+        teardown = self.handle_readables(readables)
+        if teardown:
+            return True
 
-            # HttpProtocolBasePlugin.on_client_data
-            plugin_index = 0
-            plugins = list(self.plugins.values())
-            while plugin_index < len(plugins) and client_data:
-                client_data = plugins[plugin_index].on_client_data(client_data)
-                plugin_index += 1
-
-            if client_data:
-                try:
-                    # Parse http request
-                    self.request.parse(client_data)
-                    if self.request.state == httpParserStates.COMPLETE:
-                        # HttpProtocolBasePlugin.on_request_complete
-                        for plugin in self.plugins.values():
-                            upgraded_sock = plugin.on_request_complete()
-                            if isinstance(upgraded_sock, ssl.SSLSocket):
-                                logger.debug(
-                                    'Setting client conn to %s', upgraded_sock)
-                                self.client.conn = upgraded_sock
-                            elif isinstance(upgraded_sock, bool) and upgraded_sock:
-                                return True
-                # ProxyAuthenticationFailed, ProxyConnectionFailed, HttpRequestRejected
-                except HttpProtocolException as e:
-                    # logger.exception(e)
-                    response = e.response(self.request)
-                    if response:
-                        self.client.queue(response)
-                        # But is client also ready for writes?
-                        self.client.flush()
-                    raise e
-
-        # HttpProtocolBasePlugin.read_from_descriptors
+        # Invoke plugin.read_from_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.read_from_descriptors(readable)
+            teardown = plugin.read_from_descriptors(readables)
             if teardown:
                 return True
 
@@ -1403,21 +1414,22 @@ class HttpProtocolHandler(threading.Thread):
                 'Exception while handling connection %r with reason %r' %
                 (self.client.conn, e))
         finally:
+            # Invoke plugin.access_log
             for plugin in self.plugins.values():
                 plugin.access_log()
 
-            self.client.close()
-            logger.debug(
-                'Closed client connection with pending '
-                'client buffer size %d bytes' %
-                self.client.buffer_size())
+            if not self.client.closed:
+                self.client.conn.shutdown(socket.SHUT_RDWR)
+                self.client.close()
+
+            # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()
 
             logger.debug(
                 'Closed proxy for connection %r '
-                'at address %r' %
-                (self.client.conn, self.client.addr))
+                'at address %r with pending client buffer size %d bytes' %
+                (self.client.conn, self.client.addr, self.client.buffer_size()))
 
 
 def is_py3() -> bool:
@@ -1509,7 +1521,7 @@ def init_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help='Default: ~/.proxy.py. Directory to store dynamically generated certificates. '
-             'If used, must also pass --ca-key-file, --ca-cert-file and --ca-signing-key-file'
+             'Also see --ca-key-file, --ca-cert-file and --ca-signing-key-file'
     )
     parser.add_argument(
         '--ca-cert-file',
@@ -1640,14 +1652,12 @@ def main(input_args: List[str]) -> None:
             'A future version of pip will drop support for Python 2.7.')
         sys.exit(0)
 
-    parser = init_parser()
-    args = parser.parse_args(input_args)
+    args = init_parser().parse_args(input_args)
+
     if args.version:
         print(text_(version))
         sys.exit(0)
 
-    # HTTPS interception currently not supported if proxy.py is running on
-    # HTTPS itself
     if (args.cert_file and args.key_file) and \
             (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
         print('HTTPS interception not supported when proxy.py is serving over HTTPS')

@@ -675,6 +675,9 @@ class MockTcpConnection:
     def close(self):
         self.closed = True
 
+    def shutdown(self, _how):
+        pass
+
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):
 
