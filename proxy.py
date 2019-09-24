@@ -422,10 +422,15 @@ class Worker(multiprocessing.Process):
                     conn = socket.fromfd(
                         fileno, family=self.config.family, type=socket.SOCK_STREAM)
                     if self.config.certfile and self.config.keyfile:
-                        conn = ssl.wrap_socket(conn,
-                                               server_side=True,
-                                               certfile=self.config.certfile,
-                                               keyfile=self.config.keyfile)
+                        try:
+                            conn = ssl.wrap_socket(conn,
+                                                   server_side=True,
+                                                   certfile=self.config.certfile,
+                                                   keyfile=self.config.keyfile)
+                        except OSError as e:
+                            logging.exception('OSError encountered while ssl wrapping the client socket', exc_info=e)
+                            conn.close()
+                            continue
                     proxy = HttpProtocolHandler(
                         TcpClientConnection(conn=conn, addr=payload),
                         config=self.config)
