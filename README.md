@@ -37,9 +37,13 @@ Features
     - Enable plugin using command line option e.g. `--plugins plugin_examples.SaveHttpResponses`
     - Plugin API is currently in development state, expect breaking changes.
 - Secure
-    - Enable end-to-end encryption using TLS
-    - See `--certfile` and `--keyfile` flags
-    - Run `make server-cert` to generate a self-signed certificated for testing
+    - Enable end-to-end encryption between clients and `proxy.py` using TLS
+    - See `--key-file` and `--cert-file` flags
+    - Generate self-signed certificates locally by running `make https-certificates`
+- Man-In-The-Middle
+    - Can decrypt TLS traffic between clients and upstream servers
+    - See `--ca-key-file`, `--ca-cert-key`, `--ca-signing-key`, `--ca-cert-dir` flags
+    - Generate CA certificates locally using `make ca-certificates`
 - Supported proxy protocols
     - `http`
     - `https`
@@ -85,13 +89,17 @@ Usage
 -----
 
 ```
-$ proxy.py -h
 usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
+                [--ca-key-key CA_KEY_KEY] [--ca-cert-dir CA_CERT_DIR]
+                [--ca-cert-file CA_CERT_FILE]
+                [--ca-signing-key-file CA_SIGNING_KEY_FILE]
+                [--cert-file CERT_FILE]
                 [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
                 [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
-                [--hostname HOSTNAME] [--ipv4] [--enable-web-server]
-                [--log-level LOG_LEVEL] [--log-file LOG_FILE]
-                [--log-format LOG_FORMAT] [--num-workers NUM_WORKERS]
+                [--enable-web-server] [--hostname HOSTNAME]
+                [--key-file KEY_FILE] [--log-level LOG_LEVEL]
+                [--log-file LOG_FILE] [--log-format LOG_FORMAT]
+                [--num-workers NUM_WORKERS]
                 [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
                 [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
                 [--plugins PLUGINS] [--port PORT]
@@ -106,8 +114,26 @@ optional arguments:
   --basic-auth BASIC_AUTH
                         Default: No authentication. Specify colon separated
                         user:password to enable basic authentication.
-  --certfile CERTFILE   Default: None. Server certificate. If used, you must
-                        also pass --keyfile.
+  --ca-key-key CA_KEY_KEY
+                        Default: None. CA key to use for signing dynamically
+                        generated HTTPS certificates. If used, must also pass
+                        --ca-cert-file and --ca-signing-key-file
+  --ca-cert-dir CA_CERT_DIR
+                        Default: ~/.proxy.py. Directory to store dynamically
+                        generated certificates. If used, must also pass --ca-
+                        key-file, --ca-cert-file and --ca-signing-key-file
+  --ca-cert-file CA_CERT_FILE
+                        Default: None. Signing certificate to use for signing
+                        dynamically generated HTTPS certificates. If used,
+                        must also pass --ca-key-file and --ca-signing-key-file
+  --ca-signing-key-file CA_SIGNING_KEY_FILE
+                        Default: None. CA signing key to use for dynamic
+                        generation of HTTPS certificates. If used, must also
+                        pass --ca-key-file and --ca-cert-file
+  --cert-file CERT_FILE
+                        Default: None. Server certificate to enable end-to-end
+                        TLS encryption with clients. If used, must also pass
+                        --key-file.
   --client-recvbuf-size CLIENT_RECVBUF_SIZE
                         Default: 1 MB. Maximum amount of data received from
                         the client in a single recv() operation. Bump this
@@ -119,11 +145,12 @@ optional arguments:
                         server.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
-  --hostname HOSTNAME   Default: ::1. Server IP address.
   --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
-  --keyfile KEYFILE     Default: None. Server key file. If used, you must also
-                        pass --certfile.
+  --hostname HOSTNAME   Default: ::1. Server IP address.
+  --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
+                        TLS encryption with clients. If used, must also pass
+                        --cert-file.
   --log-level LOG_LEVEL
                         Valid options: DEBUG, INFO (default), WARNING, ERROR,
                         CRITICAL. Both upper and lowercase values are allowed.
