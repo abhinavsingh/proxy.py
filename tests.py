@@ -1140,6 +1140,10 @@ class TestMain(unittest.TestCase):
             num_workers=multiprocessing.cpu_count(),
             keyfile=None,
             certfile=None,
+            ca_cert_file=None,
+            ca_key_file=None,
+            ca_signing_key_file=None,
+            ca_cert_dir=None
         )
 
     @mock.patch('builtins.print')
