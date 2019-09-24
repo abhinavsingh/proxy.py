@@ -37,7 +37,7 @@ Features
     - Enable plugin using command line option e.g. `--plugins plugin_examples.SaveHttpResponses`
     - Plugin API is currently in development state, expect breaking changes.
 - Secure
-    - Can serve encrypted proxy traffic using `https`
+    - Enable end-to-end encryption using TLS encryption
     - See `--certfile` and `--keyfile` flags
 - Supported proxy protocols
     - `http`
