@@ -351,12 +351,14 @@ class HttpProtocolConfig:
         self.backlog: int = backlog
         self.family: socket.AddressFamily = socket.AF_INET if hostname.version == 4 else socket.AF_INET6
 
-        self.proxy_py_data_dir = os.path.join(str(pathlib.Path.home()), '.proxy.py')
+        self.proxy_py_data_dir = os.path.join(
+            str(pathlib.Path.home()), '.proxy.py')
         os.makedirs(self.proxy_py_data_dir, exist_ok=True)
 
         self.ca_cert_dir: Optional[str] = ca_cert_dir
         if self.ca_cert_dir is None:
-            self.ca_cert_dir = os.path.join(self.proxy_py_data_dir, 'generated')
+            self.ca_cert_dir = os.path.join(
+                self.proxy_py_data_dir, 'generated')
             os.makedirs(self.ca_cert_dir, exist_ok=True)
 
 
@@ -450,7 +452,8 @@ class Worker(multiprocessing.Process):
                                                    certfile=self.config.certfile,
                                                    keyfile=self.config.keyfile)
                         except OSError as e:
-                            logger.exception('OSError encountered while ssl wrapping the client socket', exc_info=e)
+                            logger.exception(
+                                'OSError encountered while ssl wrapping the client socket', exc_info=e)
                             conn.close()
                             continue
                     proxy = HttpProtocolHandler(
@@ -561,7 +564,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -588,8 +591,8 @@ class HttpParser:
                     self.state = httpParserStates.RCVING_BODY
                     self.body += raw
                     if self.body and len(
-                            self.body) >= int(
-                        self.headers[b'content-length'][1]):
+                        self.body) >= int(
+                            self.headers[b'content-length'][1]):
                         self.state = httpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
@@ -937,7 +940,8 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         CRLF
     ])
 
-    # Used to synchronize with other HttpProxyPlugin instances while generating certificates
+    # Used to synchronize with other HttpProxyPlugin instances while
+    # generating certificates
     lock = threading.Lock()
 
     def __init__(
@@ -1018,6 +1022,22 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         if not self.request.has_upstream_server():
             return raw
 
+        # If client is communicating with upstream using https, and
+        # If client is communicating to proxy.py over https, and
+        # If https interception is enabled
+        if (self.request.method == b'CONNECT') and \
+                (self.config.keyfile and self.config.certfile) and \
+                (self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file):
+            # Options:
+            # 0) Wrap upstream server connection
+            # 1) Create a unix socket server
+            # 2) Make client connection to unix socket server
+            # 3) Accept client connection
+            # 4) Wrap client connection socket using generated certificate
+            # 5) Send incoming encrypted traffic over to wrapped client connection
+            # 6) On server side, receive decrypted traffic and send to upstream server connection
+            pass
+
         if self.server and not self.server.closed:
             self.server.queue(raw)
             return None
@@ -1028,9 +1048,13 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         if self.config.ca_cert_dir and self.config.ca_signing_key_file and \
                 self.config.ca_cert_file and self.config.ca_key_file:
             with self.lock:
-                cert_file_path = os.path.join(self.config.ca_cert_dir, '%s.pem' % text_(self.request.host))
+                cert_file_path = os.path.join(
+                    self.config.ca_cert_dir,
+                    '%s.pem' %
+                    text_(
+                        self.request.host))
                 if not os.path.isfile(cert_file_path):
-                    logging.debug('Generating certificates %s', cert_file_path)
+                    logger.debug('Generating certificates %s', cert_file_path)
                     gen_cert = subprocess.Popen(
                         ['/usr/bin/openssl', 'req', '-new', '-key', self.config.ca_signing_key_file, '-subj',
                          '/CN=%s' % text_(self.request.host)],
@@ -1068,21 +1092,25 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled, generate server certificates
             if self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file:
-                # Flush client buffer before wrapping
+                # Flush client buffer before wrapping, but is client ready for writes?
                 self.client.flush()
                 generated_cert = self.generate_upstream_certificate()
                 if generated_cert:
-                    logging.debug('Wrapping with generated certificate %s', generated_cert)
-                    self.client.conn = ssl.wrap_socket(self.client.conn,
-                                                       server_side=True,
-                                                       keyfile=self.config.ca_signing_key_file,
-                                                       certfile=generated_cert)
-                    # TODO: Upload self.client.conn references for all other plugins too
-                    logging.debug('Wrapped with generated certificate %s', generated_cert)
-                    # Wrap server connection to make it https
-                    logging.debug('Wrapping upstream server socket')
-                    self.server.conn = ssl.wrap_socket(self.server.conn, ssl_version=ssl.PROTOCOL_TLSv1_2)
-                    return self.client.conn
+                    # If client is communicating over https,
+                    # self.client.conn has already been wrapped before.
+                    # We could unwrap, but then we can't maintain our https
+                    # connection to the client. Below we handle the scenario
+                    # when client is communicating to proxy.py using http.
+                    if not (self.config.keyfile and self.config.certfile):
+                        self.client.conn = ssl.wrap_socket(self.client.conn,
+                                                           server_side=True,
+                                                           keyfile=self.config.ca_signing_key_file,
+                                                           certfile=generated_cert)
+                        # Wrap our connection to upstream server connection
+                        self.server.conn = ssl.wrap_socket(
+                            self.server.conn, ssl_version=ssl.PROTOCOL_TLSv1_2)
+                        logger.info('Intercepting traffic using %s', generated_cert)
+                        return self.client.conn
         # for general http requests, re-build request packet
         # and queue for the server with appropriate headers
         elif self.server:
@@ -1140,9 +1168,9 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         if host and port:
             self.server = TcpServerConnection(text_(host), port)
             try:
-                logger.debug('Connecting to upstream %s:%s' % (host, port))
+                logger.debug('Connecting to upstream %s:%s' % (text_(host), port))
                 self.server.connect()
-                logger.debug('Connected to upstream %s:%s' % (host, port))
+                logger.debug('Connected to upstream %s:%s' % (text_(host), port))
             except Exception as e:  # TimeoutError, socket.gaierror
                 self.server.closed = True
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
@@ -1287,7 +1315,7 @@ class HttpProtocolHandler(threading.Thread):
             try:
                 self.client.flush()
             except BrokenPipeError:
-                logging.error(
+                logger.error(
                     'BrokenPipeError when flushing buffer for client')
                 return True
 
@@ -1320,8 +1348,9 @@ class HttpProtocolHandler(threading.Thread):
                         # HttpProtocolBasePlugin.on_request_complete
                         for plugin in self.plugins.values():
                             teardown = plugin.on_request_complete()
-                            if type(teardown) == ssl.SSLSocket:
-                                logging.debug('Setting client conn to %s', teardown)
+                            if isinstance(teardown, ssl.SSLSocket):
+                                logger.debug(
+                                    'Setting client conn to %s', teardown)
                                 self.client.conn = teardown
                             elif teardown:
                                 return True
@@ -1416,7 +1445,7 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
         klass = getattr(module, text_(klass_name))
         base_klass = inspect.getmro(klass)[::-1][2:][0]
         p[bytes_(base_klass.__name__)].append(klass)
-        logging.info('Loaded plugin %s', klass)
+        logger.info('Loaded plugin %s', klass)
     return p
 
 

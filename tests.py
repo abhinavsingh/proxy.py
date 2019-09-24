@@ -321,7 +321,8 @@ class TestHttpParser(unittest.TestCase):
 
     def test_find_line(self):
         self.assertEqual(
-            proxy.HttpParser.find_line(b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
+            proxy.HttpParser.find_line(
+                b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
             (b'CONNECT python.org:443 HTTP/1.0',
              b'\r\n'))
 
@@ -1031,7 +1032,8 @@ class TestWorker(unittest.TestCase):
         self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
         self.worker.run()
         self.assertTrue(mock_fromfd.called)
-        mock_fromfd.assert_called_with(fileno, family=socket.AF_INET6, type=socket.SOCK_STREAM)
+        mock_fromfd.assert_called_with(
+            fileno, family=socket.AF_INET6, type=socket.SOCK_STREAM)
         self.assertTrue(mock_http_proxy.called)
 
 
