@@ -127,9 +127,13 @@ class TestTcpServer(unittest.TestCase):
         cls.ipv4_port = get_available_port()
         cls.ipv6_port = get_available_port()
         cls.ipv4_server = TestTcpServer._TestTcpServer(
-            port=cls.ipv4_port, ipv4=True)
+            hostname=proxy.DEFAULT_IPV4_HOSTNAME,
+            port=cls.ipv4_port,
+            family=socket.AF_INET)
         cls.ipv6_server = TestTcpServer._TestTcpServer(
-            hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=cls.ipv6_port, ipv4=False)
+            hostname=proxy.DEFAULT_IPV6_HOSTNAME,
+            port=cls.ipv6_port,
+            family=socket.AF_INET6)
         cls.ipv4_thread = Thread(target=cls.ipv4_server.run)
         cls.ipv6_thread = Thread(target=cls.ipv6_server.run)
         cls.ipv4_thread.setDaemon(True)
@@ -204,10 +208,10 @@ class TestMultiCoreRequestDispatcher(unittest.TestCase):
         try:
             self.tcp_port = get_available_port()
             self.tcp_server = proxy.MultiCoreRequestDispatcher(
-                hostname=proxy.DEFAULT_IPV4_HOSTNAME,
-                port=self.tcp_port,
-                ipv4=True,
-                num_workers=1)
+                proxy.HttpProtocolConfig(
+                    hostname=proxy.DEFAULT_IPV4_HOSTNAME,
+                    port=self.tcp_port,
+                    num_workers=1))
             self.tcp_thread = Thread(target=self.tcp_server.run)
             self.tcp_thread.setDaemon(True)
             self.tcp_thread.start()
@@ -1008,16 +1012,19 @@ class TestWorker(unittest.TestCase):
 
     def setUp(self):
         self.pipe = multiprocessing.Pipe()
-        self.worker = proxy.Worker(self.pipe[1])
+        self.worker = proxy.Worker(self.pipe[1], proxy.HttpProtocolConfig())
 
     @mock.patch('proxy.HttpProtocolHandler')
     def test_shutdown_op(self, mock_http_proxy):
         self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
-        self.worker.run()  # Worker should consume the prior shutdown operation
+        self.worker.run()
         self.assertFalse(mock_http_proxy.called)
 
+    @mock.patch('proxy.recv_handle')
     @mock.patch('proxy.HttpProtocolHandler')
-    def test_spawns_http_proxy_threads(self, mock_http_proxy):
+    def test_spawns_http_proxy_threads(
+            self, mock_http_proxy, mock_recv_handle):
+        mock_recv_handle.return_value = 0
         self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
         self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
         self.worker.run()
@@ -1113,11 +1120,6 @@ class TestMain(unittest.TestCase):
         proxy.main(['--basic-auth', 'user:pass'])
         self.assertTrue(mock_set_open_file_limit.called)
         mock_multicore_dispatcher.assert_called_with(
-            hostname=proxy.DEFAULT_IPV6_HOSTNAME,
-            port=proxy.DEFAULT_PORT,
-            ipv4=proxy.DEFAULT_IPV4,
-            backlog=proxy.DEFAULT_BACKLOG,
-            num_workers=proxy.DEFAULT_NUM_WORKERS,
             config=mock_config.return_value)
         mock_config.assert_called_with(
             auth_code=b'Basic dXNlcjpwYXNz',
@@ -1125,7 +1127,13 @@ class TestMain(unittest.TestCase):
             server_recvbuf_size=proxy.DEFAULT_SERVER_RECVBUF_SIZE,
             pac_file=proxy.DEFAULT_PAC_FILE,
             pac_file_url_path=proxy.DEFAULT_PAC_FILE_URL_PATH,
-            disable_headers=proxy.DEFAULT_DISABLE_HEADERS
+            disable_headers=proxy.DEFAULT_DISABLE_HEADERS,
+            hostname=proxy.DEFAULT_IPV6_HOSTNAME,
+            port=proxy.DEFAULT_PORT,
+            backlog=proxy.DEFAULT_BACKLOG,
+            num_workers=multiprocessing.cpu_count(),
+            keyfile=None,
+            certfile=None,
         )
 
     @mock.patch('builtins.print')

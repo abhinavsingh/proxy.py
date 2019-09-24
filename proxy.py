@@ -19,10 +19,12 @@ import logging
 import multiprocessing
 import os
 import socket
+import ssl
 import sys
 import threading
 from abc import ABC, abstractmethod
 from multiprocessing import connection
+from multiprocessing.reduction import send_handle, recv_handle
 from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple
 from urllib import parse as urlparse
 
@@ -52,7 +54,6 @@ DEFAULT_DISABLE_HEADERS: List[bytes] = []
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_PORT = 8899
-DEFAULT_IPV4 = False
 DEFAULT_DISABLE_HTTP_PROXY = False
 DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_LOG_LEVEL = 'INFO'
@@ -141,11 +142,11 @@ httpParserTypes = HttpParserTypes(1, 2)
 class TcpConnection:
     """TCP server/client connection abstraction."""
 
-    def __init__(self, what: int):
-        self.conn: Optional[socket.socket] = None
+    def __init__(self, tag: int):
+        self.conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
         self.buffer: bytes = b''
         self.closed: bool = False
-        self.what: int = what
+        self.tag: str = 'server' if tag == tcpConnectionTypes.SERVER else 'client'
 
     def send(self, data: bytes) -> int:
         """Users must handle BrokenPipeError exceptions"""
@@ -161,7 +162,7 @@ class TcpConnection:
             if len(data) > 0:
                 logger.debug(
                     'received %d bytes from %s' %
-                    (len(data), self.what))
+                    (len(data), self.tag))
                 return data
         except socket.error as e:
             if e.errno == errno.ECONNRESET:
@@ -169,7 +170,7 @@ class TcpConnection:
             else:
                 logger.exception(
                     'Exception while receiving from connection %s %r with reason %r' %
-                    (self.what, self.conn, e))
+                    (self.tag, self.conn, e))
         return None
 
     def close(self) -> bool:
@@ -193,7 +194,7 @@ class TcpConnection:
     def flush(self) -> int:
         sent: int = self.send(self.buffer)
         self.buffer = self.buffer[sent:]
-        logger.debug('flushed %d bytes to %s' % (sent, self.what))
+        logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
 
 
@@ -226,9 +227,10 @@ class TcpServerConnection(TcpConnection):
 class TcpClientConnection(TcpConnection):
     """Accepted client connection."""
 
-    def __init__(self, conn: socket.socket, addr: Tuple[str, int]):
+    def __init__(self, conn: Union[ssl.SSLSocket,
+                                   socket.socket], addr: Tuple[str, int]):
         super().__init__(tcpConnectionTypes.CLIENT)
-        self.conn: socket.socket = conn
+        self.conn: Union[ssl.SSLSocket, socket.socket] = conn
         self.addr: Tuple[str, int] = addr
 
 
@@ -242,20 +244,17 @@ class TcpServer(ABC):
 
     def __init__(self,
                  hostname: Union[ipaddress.IPv4Address,
-                                 ipaddress.IPv6Address] = DEFAULT_IPV4_HOSTNAME,
+                                 ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
                  port: int = DEFAULT_PORT,
                  backlog: int = DEFAULT_BACKLOG,
-                 ipv4: bool = DEFAULT_IPV4):
+                 family: socket.AddressFamily = socket.AF_INET6):
         self.port: int = port
         self.backlog: int = backlog
-        self.ipv4: bool = ipv4
         self.socket: Optional[socket.socket] = None
         self.running: bool = False
-        self.family = socket.AF_INET if self.ipv4 else socket.AF_INET6
-        self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = \
-            hostname if hostname not in [DEFAULT_IPV4_HOSTNAME,
-                                         DEFAULT_IPV6_HOSTNAME] \
-            else DEFAULT_IPV4_HOSTNAME if self.ipv4 else DEFAULT_IPV6_HOSTNAME
+        self.family: socket.AddressFamily = family
+        self.hostname: Union[ipaddress.IPv4Address,
+                             ipaddress.IPv6Address] = hostname
 
     @abstractmethod
     def setup(self) -> None:
@@ -284,9 +283,13 @@ class TcpServer(ABC):
             while self.running:
                 r, w, x = select.select([self.socket], [], [], 1)
                 if self.socket in r:
-                    conn, addr = self.socket.accept()
-                    client = TcpClientConnection(conn, addr)
-                    self.handle(client)
+                    try:
+                        conn, addr = self.socket.accept()
+                        client = TcpClientConnection(conn, addr)
+                        self.handle(client)
+                    except ssl.SSLError as e:
+                        logging.exception('SSLError encountered', exc_info=e)
+
         except Exception as e:
             logger.exception('Exception while running the server %r' % e)
         finally:
@@ -310,7 +313,14 @@ class HttpProtocolConfig:
             pac_file: Optional[bytes] = DEFAULT_PAC_FILE,
             pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
             plugins: Optional[Dict[bytes, List[type]]] = None,
-            disable_headers: Optional[List[bytes]] = None) -> None:
+            disable_headers: Optional[List[bytes]] = None,
+            certfile: Optional[str] = None,
+            keyfile: Optional[str] = None,
+            num_workers: int = 0,
+            hostname: Union[ipaddress.IPv4Address,
+                            ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
+            port: int = DEFAULT_PORT,
+            backlog: int = DEFAULT_BACKLOG) -> None:
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -322,6 +332,14 @@ class HttpProtocolConfig:
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
         self.disable_headers = disable_headers
+        self.certfile = certfile
+        self.keyfile = keyfile
+        self.num_workers: int = num_workers
+        self.hostname: Union[ipaddress.IPv4Address,
+                             ipaddress.IPv6Address] = hostname
+        self.port: int = port
+        self.backlog: int = backlog
+        self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
 
 
 class MultiCoreRequestDispatcher(TcpServer):
@@ -332,29 +350,21 @@ class MultiCoreRequestDispatcher(TcpServer):
     client request.
     """
 
-    def __init__(self,
-                 config: Optional[HttpProtocolConfig] = None,
-                 num_workers: int = 0,
-                 hostname: Union[ipaddress.IPv4Address,
-                                 ipaddress.IPv6Address] = DEFAULT_IPV4_HOSTNAME,
-                 port: int = DEFAULT_PORT,
-                 backlog: int = DEFAULT_BACKLOG,
-                 ipv4: bool = DEFAULT_IPV4) -> None:
-        super().__init__(hostname=hostname, port=port, backlog=backlog, ipv4=ipv4)
-
-        self.num_workers: int = multiprocessing.cpu_count()
-        if num_workers > 0:
-            self.num_workers = num_workers
+    def __init__(self, config: HttpProtocolConfig) -> None:
+        super().__init__(
+            hostname=config.hostname,
+            port=config.port,
+            backlog=config.backlog,
+            family=config.family)
         self.workers: List[Worker] = []
         self.work_queues: List[Tuple[connection.Connection,
                                      connection.Connection]] = []
         self.current_worker_id = 0
-
-        self.config: Optional[HttpProtocolConfig] = config
+        self.config: HttpProtocolConfig = config
 
     def setup(self) -> None:
-        logger.info('Starting %d workers' % self.num_workers)
-        for worker_id in range(self.num_workers):
+        logger.info('Starting %d workers' % self.config.num_workers)
+        for worker_id in range(self.config.num_workers):
             work_queue = multiprocessing.Pipe()
 
             worker = Worker(work_queue[1], self.config)
@@ -370,12 +380,17 @@ class MultiCoreRequestDispatcher(TcpServer):
         logging.debug(
             'Dispatched client request to worker id %d',
             self.current_worker_id)
+        # Dispatch non-socket data first, followed by fileno using reduction
+        work_queue[0].send((workerOperations.HTTP_PROTOCOL, client.addr))
+        send_handle(work_queue[0], client.conn.fileno(),
+                    self.workers[self.current_worker_id].pid)
+        # Close parent handler
+        client.close()
         self.current_worker_id += 1
-        self.current_worker_id %= self.num_workers
-        work_queue[0].send((workerOperations.HTTP_PROTOCOL, client))
+        self.current_worker_id %= self.config.num_workers
 
     def shutdown(self) -> None:
-        logger.info('Shutting down %d workers' % self.num_workers)
+        logger.info('Shutting down %d workers' % self.config.num_workers)
         for work_queue in self.work_queues:
             work_queue[0].send((workerOperations.SHUTDOWN, None))
             work_queue[0].close()
@@ -390,18 +405,30 @@ class Worker(multiprocessing.Process):
     depending upon requested operation starts a new thread to handle the work.
     """
 
-    def __init__(self, work_queue: connection.Connection,
-                 config: Optional[HttpProtocolConfig] = None):
+    def __init__(
+            self,
+            work_queue: connection.Connection,
+            config: HttpProtocolConfig):
         super().__init__()
         self.work_queue: connection.Connection = work_queue
-        self.config: Optional[HttpProtocolConfig] = config
+        self.config: HttpProtocolConfig = config
 
     def run(self) -> None:
         while True:
             try:
                 op, payload = self.work_queue.recv()
                 if op == workerOperations.HTTP_PROTOCOL:
-                    proxy = HttpProtocolHandler(payload, config=self.config)
+                    fileno = recv_handle(self.work_queue)
+                    conn = socket.fromfd(
+                        fileno, family=self.config.family, type=socket.SOCK_STREAM)
+                    if self.config.certfile and self.config.keyfile:
+                        conn = ssl.wrap_socket(conn,
+                                               server_side=True,
+                                               certfile=self.config.certfile,
+                                               keyfile=self.config.keyfile)
+                    proxy = HttpProtocolHandler(
+                        TcpClientConnection(conn=conn, addr=payload),
+                        config=self.config)
                     proxy.setDaemon(True)
                     proxy.start()
                 elif op == workerOperations.SHUTDOWN:
@@ -534,7 +561,7 @@ class HttpParser:
                     self.state = httpParserStates.RCVING_BODY
                     self.body += raw
                     if self.body and len(
-                            self.body) >= int(
+                        self.body) >= int(
                             self.headers[b'content-length'][1]):
                         self.state = httpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
@@ -1360,6 +1387,12 @@ def init_parser() -> argparse.ArgumentParser:
         help='Default: No authentication. Specify colon separated user:password '
              'to enable basic authentication.')
     parser.add_argument(
+        '--certfile',
+        type=str,
+        default=None,
+        help='Default: None. Server certificate. If used, you must also pass --keyfile.'
+    )
+    parser.add_argument(
         '--client-recvbuf-size',
         type=int,
         default=DEFAULT_CLIENT_RECVBUF_SIZE,
@@ -1382,14 +1415,17 @@ def init_parser() -> argparse.ArgumentParser:
                         type=str,
                         default=str(DEFAULT_IPV6_HOSTNAME),
                         help='Default: ::1. Server IP address.')
-    parser.add_argument('--ipv4', action='store_true', default=DEFAULT_IPV4,
-                        help='Whether to listen on IPv4 address. '
-                             'By default server only listens on IPv6.')
     parser.add_argument(
         '--enable-web-server',
         action='store_true',
         default=DEFAULT_ENABLE_WEB_SERVER,
         help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.')
+    parser.add_argument(
+        '--keyfile',
+        type=str,
+        default=None,
+        help='Default: None. Server key file. If used, you must also pass --certfile.'
+    )
     parser.add_argument(
         '--log-level',
         type=str,
@@ -1485,7 +1521,13 @@ def main(input_args: List[str]) -> None:
             pac_file_url_path=args.pac_file_url_path,
             disable_headers=[
                 header.lower() for header in bytes_(
-                    args.disable_headers).split(COMMA) if header.strip() != b''])
+                    args.disable_headers).split(COMMA) if header.strip() != b''],
+            certfile=args.certfile,
+            keyfile=args.keyfile,
+            hostname=ipaddress.ip_address(args.hostname),
+            port=args.port,
+            backlog=args.backlog,
+            num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count())
         if config.pac_file is not None:
             args.enable_web_server = True
 
@@ -1499,14 +1541,7 @@ def main(input_args: List[str]) -> None:
                 '%s%s' %
                 (default_plugins, args.plugins)))
 
-        server = MultiCoreRequestDispatcher(
-            hostname=ipaddress.ip_address(
-                args.hostname),
-            port=args.port,
-            backlog=args.backlog,
-            ipv4=args.ipv4,
-            num_workers=args.num_workers,
-            config=config)
+        server = MultiCoreRequestDispatcher(config=config)
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(str(os.getpid())))
