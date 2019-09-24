@@ -1020,14 +1020,18 @@ class TestWorker(unittest.TestCase):
         self.worker.run()
         self.assertFalse(mock_http_proxy.called)
 
+    @mock.patch('socket.fromfd')
     @mock.patch('proxy.recv_handle')
     @mock.patch('proxy.HttpProtocolHandler')
     def test_spawns_http_proxy_threads(
-            self, mock_http_proxy, mock_recv_handle):
-        mock_recv_handle.return_value = 0
+            self, mock_http_proxy, mock_recv_handle, mock_fromfd):
+        fileno = 10
+        mock_recv_handle.return_value = fileno
         self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
         self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
         self.worker.run()
+        self.assertTrue(mock_fromfd.called)
+        mock_fromfd.assert_called_with(fileno, family=socket.AF_INET6, type=socket.SOCK_STREAM)
         self.assertTrue(mock_http_proxy.called)
 
 

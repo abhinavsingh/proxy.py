@@ -339,7 +339,7 @@ class HttpProtocolConfig:
                              ipaddress.IPv6Address] = hostname
         self.port: int = port
         self.backlog: int = backlog
-        self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
+        self.family: socket.AddressFamily = socket.AF_INET if hostname.version == 4 else socket.AF_INET6
 
 
 class MultiCoreRequestDispatcher(TcpServer):
