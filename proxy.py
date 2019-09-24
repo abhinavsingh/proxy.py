@@ -444,18 +444,14 @@ class Worker(multiprocessing.Process):
                     fileno = recv_handle(self.work_queue)
                     conn = socket.fromfd(
                         fileno, family=self.config.family, type=socket.SOCK_STREAM)
-                    # TODO(abhinavsingh): Ideally wrapping logic must reside within plugins.
-                    # Worker doesn't know the context of incoming request, which can be a
-                    # http/https request to internal web server or a http/https request to
-                    # proxy a protocol to upstream server.
+                    # TODO(abhinavsingh): Move handshake logic within HttpProtocolHandler.
                     if self.config.certfile and self.config.keyfile:
                         try:
-                            conn = ssl.wrap_socket(conn,
-                                                   server_side=True,
-                                                   certfile=self.config.certfile,
-                                                   keyfile=self.config.keyfile,
-                                                   cert_reqs=ssl.CERT_OPTIONAL,
-                                                   ca_certs=None)
+                            ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                            ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+                            ctx.verify_mode = ssl.CERT_NONE
+                            ctx.load_cert_chain(certfile=self.config.certfile, keyfile=self.config.keyfile)
+                            conn = ctx.wrap_socket(conn, server_side=True)
                         except OSError as e:
                             logger.exception(
                                 'OSError encountered while ssl wrapping the client socket', exc_info=e)
@@ -1098,9 +1094,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                         self.client.conn = ssl.wrap_socket(self.client.conn,
                                                            server_side=True,
                                                            keyfile=self.config.ca_signing_key_file,
-                                                           certfile=generated_cert,
-                                                           cert_reqs=ssl.CERT_OPTIONAL,
-                                                           ca_certs=None)
+                                                           certfile=generated_cert)
                         # Wrap our connection to upstream server connection
                         ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
                         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
@@ -1419,8 +1413,11 @@ class HttpProtocolHandler(threading.Thread):
                 plugin.access_log()
 
             if not self.client.closed:
-                self.client.conn.shutdown(socket.SHUT_RDWR)
-                self.client.close()
+                try:
+                    self.client.conn.shutdown(socket.SHUT_RDWR)
+                    self.client.close()
+                except OSError as e:
+                    logger.exception('OSError while trying to shutdown client connection', exc_info=e)
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
