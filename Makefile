@@ -13,7 +13,7 @@ CA_KEY_FILE_PATH := ca-key.pem
 CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
-.PHONY: all clean test package test-release release coverage lint
+.PHONY: all clean test package test-release release coverage lint autopep8
 .PHONY: container run-container release-container https-certificates ca-certificates
 
 all: clean test
@@ -44,11 +44,14 @@ coverage:
 	open htmlcov/index.html
 
 lint:
+	mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py
+	flake8 --ignore=E501,W504 proxy.py
+	flake8 --ignore=E501,W504 tests.py
+
+autopep8:
 	autopep8 --recursive --in-place --aggressive proxy.py
 	autopep8 --recursive --in-place --aggressive tests.py
 	autopep8 --recursive --in-place --aggressive plugin_examples.py
-	flake8 --ignore=E501,W504 proxy.py
-	flake8 --ignore=E501,W504 tests.py
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .
@@ -60,7 +63,7 @@ release-container:
 	docker push $(IMAGE_TAG)
 
 https-certificates:
-    # Generate server key
+	# Generate server key
 	openssl genrsa -out $(HTTPS_KEY_FILE_PATH) 2048
 	# Generate server certificate
 	openssl req -new -x509 -days 3650 -key $(HTTPS_KEY_FILE_PATH) -out $(HTTPS_CERT_FILE_PATH)

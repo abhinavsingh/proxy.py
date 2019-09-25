@@ -571,7 +571,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -597,9 +597,8 @@ class HttpParser:
                 if b'content-length' in self.headers:
                     self.state = httpParserStates.RCVING_BODY
                     self.body += raw
-                    if self.body and len(
-                            self.body) >= int(
-                        self.headers[b'content-length'][1]):
+                    if self.body and \
+                            len(self.body) >= int(self.headers[b'content-length'][1]):
                         self.state = httpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
@@ -1067,6 +1066,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                          self.config.ca_key_file, '-set_serial', str(int(time.time() * 1000)), '-out', cert_file_path],
                         stdin=gen_cert.stdout,
                         stderr=subprocess.PIPE)
+                    # TODO: Ensure sign_cert success.
                     sign_cert.communicate(timeout=10)
                 return cert_file_path
         else:
