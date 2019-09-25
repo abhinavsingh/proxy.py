@@ -238,7 +238,7 @@ Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
     "Host": "httpbin.org", 
     "User-Agent": "curl/7.54.0"
   }, 
-  "origin": "73.202.54.219, 73.202.54.219", 
+  "origin": "1.2.3.4, 5.6.7.8", 
   "url": "https://httpbin.org/get"
 }
 * Connection #0 to host localhost left intact
@@ -274,7 +274,7 @@ Connection: keep-alive
     "Host": "httpbin.org", 
     "User-Agent": "curl/7.54.0"
   }, 
-  "origin": "73.202.54.219, 73.202.54.219", 
+  "origin": "1.2.3.4, 5.6.7.8", 
   "url": "https://httpbin.org/get"
 }
 ```
@@ -342,7 +342,13 @@ End-to-End Encryption
 ---------------------
 
 By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`. 
-For enabling end-to-end encrypting using `TLS` / `HTTPS` start `proxy.py` as:
+For enabling end-to-end encrypting using `TLS` / `HTTPS` first generate certificates using:
+
+```
+make https-certificates
+```
+
+Start `proxy.py` as:
 
 ```
 $ proxy.py \
@@ -350,17 +356,32 @@ $ proxy.py \
     --key-file https-key.pem
 ```
 
-Generate self-signed certificates locally using:
+Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https://httpbin.org/get`:
 
 ```
-make https-certificates
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "httpbin.org", 
+    "User-Agent": "curl/7.54.0"
+  }, 
+  "origin": "1.2.3.4, 5.6.7.8", 
+  "url": "https://httpbin.org/get"
+}
 ```
 
 TLS Interception
 ----------------
 
 By default, `proxy.py` doesn't tries to decrypt `https` traffic between client and server. 
-To enable TLS interception start `proxy.py` as:
+To enable TLS interception first generate CA certificates:
+
+```
+make ca-certificates
+```
+
+Start `proxy.py` as:
 
 ```
 $ proxy.py \
@@ -369,10 +390,19 @@ $ proxy.py \
     --ca-signing-key-file ca-signing-key.pem
 ```
 
-Generate self-signed CA certificates and signing key locally using:
+Verify using `curl -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`
 
 ```
-make ca-certificates
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "httpbin.org", 
+    "User-Agent": "curl/7.54.0"
+  }, 
+  "origin": "1.2.3.4, 5.6.7.8", 
+  "url": "https://httpbin.org/get"
+}
 ```
 
 Use CA flags with [plugin examples](#plugin-examples) to make them work with 
