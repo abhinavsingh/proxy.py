@@ -38,9 +38,9 @@ Table of Contents
     * [CacheResponsesPlugin](#cacheresponsesplugin)
     * [ManInTheMiddlePlugin](#maninthemiddleplugin)
     * [Plugin Ordering](#plugin-ordering)
-* [Plugin Developer Guide](#plugin-developer-guide)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Encryption](#tls-interception)
+* [Plugin Developer Guide](#plugin-developer-guide)
 * [Usage](#usage)
 
 Features
@@ -294,21 +294,14 @@ requests for `google.com` and `www.google.com` and redirect other
 Hence, in this scenario it is important to use 
 `FilterByUpstreamHostPlugin` before `RedirectToCustomServerPlugin`. 
 If we enable `RedirectToCustomServerPlugin` before `FilterByUpstreamHostPlugin`,
-`google` requests will also get redirected to inbuilt web server.
-
-Plugin Developer Guide
-======================
-
-TODO, meanwhile read [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) 
-code. Most of the plugin hook names are self explanatory e.g. `handle_upstream_response`.
-
-Also, see documentation for `HttpProxyBasePlugin` abstract class for some insights.
+`google` requests will also get redirected to inbuilt web server, 
+instead of being dropped.
 
 End-to-End Encryption
 =====================
 
 By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`. 
-For enabling end-to-end encrypting using `TLS` / `HTTPS` first generate certificates using:
+For enabling end-to-end encrypting using `tls` / `https` first generate certificates:
 
 ```
 make https-certificates
@@ -340,7 +333,7 @@ Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https
 TLS Interception
 =================
 
-By default, `proxy.py` doesn't tries to decrypt `https` traffic between client and server. 
+By default, `proxy.py` doesn't decrypt `https` traffic between client and server. 
 To enable TLS interception first generate CA certificates:
 
 ```
@@ -371,8 +364,16 @@ Verify using `curl -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/ge
 }
 ```
 
-Use CA flags with [plugin examples](#plugin-examples) to make them work with 
-`https` traffic.
+Now you can use CA flags with 
+[plugin examples](#plugin-examples) to make them work for `https` traffic.
+
+Plugin Developer Guide
+======================
+
+TODO, meanwhile read [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) 
+code. Most of the plugin hook names are self explanatory e.g. `handle_upstream_response`.
+
+Also, see documentation for `HttpProxyBasePlugin` abstract class for some insights.
 
 Usage
 =====
