@@ -803,8 +803,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'Host: unknown.domain',
             proxy.CRLF
         ]))
-        with self.assertRaises(proxy.ProxyConnectionFailed):
-            self.proxy.run_once()
+        self.proxy.run_once()
+        self.assertEqual(self.proxy.client.conn.received, proxy.ProxyConnectionFailed.RESPONSE_PKT)
 
     @mock.patch('select.select')
     def test_proxy_authentication_failed(self, mock_select):
@@ -822,8 +822,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'Host: abhinavsingh.com',
             proxy.CRLF
         ]))
-        with self.assertRaises(proxy.ProxyAuthenticationFailed):
-            self.proxy.run_once()
+        self.proxy.run_once()
+        self.assertEqual(self.proxy.client.conn.received, proxy.ProxyAuthenticationFailed.RESPONSE_PKT)
 
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')

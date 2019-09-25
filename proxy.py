@@ -1345,9 +1345,8 @@ class HttpProtocolHandler(threading.Thread):
                             ProxyAuthenticationFailed.__name__, ProxyConnectionFailed.__name__,
                             HttpRequestRejected.__name__):
                         logger.exception('HttpProtocolException type raised', exc_info=e)
-                        response = HttpProtocolException(e).response(self.request)
+                        response = e.response(self.request)     # type: ignore
                         if response:
-                            logger.debug(response)
                             self.client.queue(response)
                             # But is client also ready for writes?
                             self.client.flush()
