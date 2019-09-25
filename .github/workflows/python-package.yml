@@ -29,7 +29,7 @@ jobs:
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 proxy.py tests.py --count --exit-zero --max-line-length=127 --statistics
           # mypy compliance check
-          mypy --strict --ignore-missing-imports proxy.py
+          mypy --strict --ignore-missing-imports proxy.py plugin_examples.py
           mypy --ignore-missing-imports tests.py
       - name: Run Tests
         run: |
