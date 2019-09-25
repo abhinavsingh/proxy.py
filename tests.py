@@ -7,6 +7,7 @@
     :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
+import ssl
 import base64
 import errno
 import logging
@@ -125,28 +126,30 @@ class TestTcpConnection(unittest.TestCase):
             (str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT))
 
 
+class BasicTcpServer(proxy.TcpServer):
+
+    def handle(self, client: proxy.TcpClientConnection) -> None:
+        data = client.recv(proxy.DEFAULT_BUFFER_SIZE)
+        if data != b'HELLO':
+            raise ValueError('Expected HELLO')
+        client.conn.sendall(b'WORLD')
+        client.close()
+
+    def setup(self) -> None:
+        pass
+
+    def shutdown(self) -> None:
+        pass
+
+
 @unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
                  'Opening sockets not allowed on Travis')
-class TestTcpServer(unittest.TestCase):
-    class _TestTcpServer(proxy.TcpServer):
-
-        def handle(self, client: proxy.TcpClientConnection) -> None:
-            data = client.recv(proxy.DEFAULT_BUFFER_SIZE)
-            if data != b'HELLO':
-                raise ValueError('Expected HELLO')
-            client.conn.sendall(b'WORLD')
-            client.close()
-
-        def setup(self) -> None:
-            pass
-
-        def shutdown(self) -> None:
-            pass
+class TestTcpServerIntegration(unittest.TestCase):
 
     ipv4_port: Optional[int] = None
     ipv6_port: Optional[int] = None
-    ipv4_server: Optional[_TestTcpServer] = None
-    ipv6_server: Optional[_TestTcpServer] = None
+    ipv4_server: Optional[BasicTcpServer] = None
+    ipv6_server: Optional[BasicTcpServer] = None
     ipv4_thread: Optional[Thread] = None
     ipv6_thread: Optional[Thread] = None
 
@@ -154,11 +157,11 @@ class TestTcpServer(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.ipv4_port = get_available_port()
         cls.ipv6_port = get_available_port()
-        cls.ipv4_server = TestTcpServer._TestTcpServer(
+        cls.ipv4_server = BasicTcpServer(
             hostname=proxy.DEFAULT_IPV4_HOSTNAME,
             port=cls.ipv4_port,
             family=socket.AF_INET)
-        cls.ipv6_server = TestTcpServer._TestTcpServer(
+        cls.ipv6_server = BasicTcpServer(
             hostname=proxy.DEFAULT_IPV6_HOSTNAME,
             port=cls.ipv6_port,
             family=socket.AF_INET6)
@@ -209,6 +212,23 @@ class TestTcpServer(unittest.TestCase):
         self.baseTestCase(ipv4=False)
 
 
+class TestTcpServer(unittest.TestCase):
+
+    # Can happen if client is sending invalid https request to our SSL server.
+    # Example, simply sending http traffic to HTTPS server.
+    @mock.patch('select.select')
+    @mock.patch('socket.socket')
+    def testAcceptSSLErrorsSilentlyIgnored(self, mock_socket, mock_select):
+        mock_socket.accept.side_effect = ssl.SSLError()
+        mock_select.return_value = ([mock_socket], [], [])
+        server = BasicTcpServer(hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=1234)
+        server.socket = mock_socket
+        with mock.patch('proxy.logger') as mock_logger:
+            server.run_once()
+            mock_logger.exception.assert_called()
+            self.assertTrue(mock_logger.exception.call_args[0][0], 'SSLError encountered')
+
+
 class MockHttpProxy:
 
     def __init__(self, client: proxy.TcpClientConnection, **kwargs) -> None:  # type: ignore
@@ -230,7 +250,7 @@ def mock_tcp_proxy_side_effect(client: proxy.TcpClientConnection, **kwargs) -> M
 
 @unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
                  'Opening sockets not allowed on Travis')
-class TestMultiCoreRequestDispatcher(unittest.TestCase):
+class TestMultiCoreRequestDispatcherIntegration(unittest.TestCase):
     tcp_port = None
     tcp_server = None
     tcp_thread = None
@@ -1090,7 +1110,10 @@ class TestWorker(unittest.TestCase):
     @mock.patch('proxy.recv_handle')
     @mock.patch('proxy.HttpProtocolHandler')
     def test_spawns_http_proxy_threads(
-            self, mock_http_proxy: mock.Mock, mock_recv_handle: mock.Mock, mock_fromfd: mock.Mock) -> None:
+            self,
+            mock_http_proxy: mock.Mock,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock) -> None:
         fileno = 10
         mock_recv_handle.return_value = fileno
         self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
@@ -1100,6 +1123,66 @@ class TestWorker(unittest.TestCase):
         mock_fromfd.assert_called_with(
             fileno, family=socket.AF_INET6, type=socket.SOCK_STREAM)
         self.assertTrue(mock_http_proxy.called)
+
+    def test_handles_work_queue_recv_connection_refused(self):
+        with mock.patch.object(self.worker.work_queue, 'recv') as mock_recv:
+            mock_recv.side_effect = ConnectionRefusedError()
+            self.assertFalse(self.worker.run_once())  # doesn't teardown
+
+
+class TestWorkerSSLWrap(unittest.TestCase):
+
+    CERTFILE = 'my-https-cert.pem'
+    KEYFILE = 'my-https-key.pem'
+
+    def setUp(self) -> None:
+        self.pipe = multiprocessing.Pipe()
+        self.worker = proxy.Worker(self.pipe[1],
+                                   proxy.HttpProtocolConfig(certfile=self.CERTFILE, keyfile=self.KEYFILE))
+
+    @mock.patch('ssl.create_default_context')
+    @mock.patch('socket.fromfd')
+    @mock.patch('proxy.recv_handle')
+    @mock.patch('proxy.HttpProtocolHandler')
+    def test_worker_performs_ssl_wrap(
+            self,
+            mock_http_proxy: mock.Mock,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock,
+            mock_context: mock.Mock) -> None:
+        fileno = 10
+        mock_recv_handle.return_value = fileno
+        self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
+        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
+        self.worker.run()
+        mock_fromfd.assert_called()
+        mock_context.assert_called_with(ssl.Purpose.CLIENT_AUTH)
+        mock_context.return_value.load_cert_chain.assert_called_with(certfile=self.CERTFILE, keyfile=self.KEYFILE)
+        mock_http_proxy.assert_called()
+
+    @mock.patch('ssl.create_default_context')
+    @mock.patch('socket.fromfd')
+    @mock.patch('proxy.recv_handle')
+    @mock.patch('proxy.HttpProtocolHandler')
+    def test_client_conn_closed_on_os_error(
+            self,
+            mock_http_proxy: mock.Mock,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock,
+            mock_context: mock.Mock) -> None:
+        fileno = 10
+        mock_recv_handle.return_value = fileno
+        mock_context.return_value.wrap_socket.side_effect = OSError()
+        self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
+        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
+        with mock.patch('proxy.logger') as mock_logger:
+            self.worker.run()
+            mock_logger.exception.assert_called()
+            self.assertEqual(mock_logger.exception.call_args[0][0],
+                             'OSError encountered while ssl wrapping the client socket')
+        mock_fromfd.assert_called()
+        mock_fromfd.return_value.close.assert_called()
+        mock_http_proxy.assert_not_called()
 
 
 class TestHttpRequestRejected(unittest.TestCase):

@@ -276,6 +276,16 @@ class TcpServer(ABC):
     def stop(self) -> None:
         self.running = False
 
+    def run_once(self) -> None:
+        r, w, x = select.select([self.socket], [], [], 1)
+        if self.socket in r:
+            try:
+                conn, addr = self.socket.accept()
+                client = TcpClientConnection(conn, addr)
+                self.handle(client)
+            except ssl.SSLError as e:
+                logger.exception('SSLError encountered', exc_info=e)
+
     def run(self) -> None:
         self.running = True
         self.setup()
@@ -286,17 +296,7 @@ class TcpServer(ABC):
             self.socket.listen(self.backlog)
             logger.info('Started server on %s:%d' % (self.hostname, self.port))
             while self.running:
-                r, w, x = select.select([self.socket], [], [], 1)
-                if self.socket in r:
-                    try:
-                        conn, addr = self.socket.accept()
-                        client = TcpClientConnection(conn, addr)
-                        self.handle(client)
-                    except ssl.SSLError as e:
-                        logger.exception('SSLError encountered', exc_info=e)
-
-        except Exception as e:
-            logger.exception('Exception while running the server %r' % e)
+                self.run_once()
         finally:
             self.shutdown()
             logger.info('Closing server socket')
@@ -438,43 +438,49 @@ class Worker(multiprocessing.Process):
         self.work_queue: connection.Connection = work_queue
         self.config: HttpProtocolConfig = config
 
+    def run_once(self) -> bool:
+        try:
+            op, payload = self.work_queue.recv()
+            if op == workerOperations.HTTP_PROTOCOL:
+                fileno = recv_handle(self.work_queue)
+                conn = socket.fromfd(
+                    fileno, family=self.config.family, type=socket.SOCK_STREAM)
+                # TODO(abhinavsingh): Move handshake logic within
+                # HttpProtocolHandler.
+                if self.config.certfile and self.config.keyfile:
+                    try:
+                        ctx = ssl.create_default_context(
+                            ssl.Purpose.CLIENT_AUTH)
+                        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+                        ctx.verify_mode = ssl.CERT_NONE
+                        ctx.load_cert_chain(
+                            certfile=self.config.certfile,
+                            keyfile=self.config.keyfile)
+                        conn = ctx.wrap_socket(conn, server_side=True)
+                    except OSError as e:
+                        logger.exception(
+                            'OSError encountered while ssl wrapping the client socket', exc_info=e)
+                        conn.close()
+                        return False
+                proxy = HttpProtocolHandler(
+                    TcpClientConnection(conn=conn, addr=payload),
+                    config=self.config)
+                proxy.setDaemon(True)
+                proxy.start()
+            elif op == workerOperations.SHUTDOWN:
+                logger.debug('Worker shutting down....')
+                self.work_queue.close()
+                return True
+        except ConnectionRefusedError:
+            return False
+        except KeyboardInterrupt:  # pragma: no cover
+            return True
+        return False
+
     def run(self) -> None:
         while True:
-            try:
-                op, payload = self.work_queue.recv()
-                if op == workerOperations.HTTP_PROTOCOL:
-                    fileno = recv_handle(self.work_queue)
-                    conn = socket.fromfd(
-                        fileno, family=self.config.family, type=socket.SOCK_STREAM)
-                    # TODO(abhinavsingh): Move handshake logic within
-                    # HttpProtocolHandler.
-                    if self.config.certfile and self.config.keyfile:
-                        try:
-                            ctx = ssl.create_default_context(
-                                ssl.Purpose.CLIENT_AUTH)
-                            ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                            ctx.verify_mode = ssl.CERT_NONE
-                            ctx.load_cert_chain(
-                                certfile=self.config.certfile,
-                                keyfile=self.config.keyfile)
-                            conn = ctx.wrap_socket(conn, server_side=True)
-                        except OSError as e:
-                            logger.exception(
-                                'OSError encountered while ssl wrapping the client socket', exc_info=e)
-                            conn.close()
-                            continue
-                    proxy = HttpProtocolHandler(
-                        TcpClientConnection(conn=conn, addr=payload),
-                        config=self.config)
-                    proxy.setDaemon(True)
-                    proxy.start()
-                elif op == workerOperations.SHUTDOWN:
-                    logger.debug('Worker shutting down....')
-                    self.work_queue.close()
-                    break
-            except ConnectionRefusedError:
-                pass
-            except KeyboardInterrupt:  # pragma: no cover
+            teardown = self.run_once()
+            if teardown:
                 break
 
 
