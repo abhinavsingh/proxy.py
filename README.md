@@ -57,12 +57,10 @@ Features
     - Plugin API is currently in development state, expect breaking changes.
 - Secure
     - Enable end-to-end encryption between clients and `proxy.py` using TLS
-    - See `--key-file` and `--cert-file` flags
-    - Generate self-signed certificates locally by running `make https-certificates`
+    - See [End-to-End Encryption](#end-to-end-encryption)
 - Man-In-The-Middle
     - Can decrypt TLS traffic between clients and upstream servers
-    - See `--ca-key-file`, `--ca-cert-key`, `--ca-signing-key`, `--ca-cert-dir` flags
-    - Generate CA certificates locally using `make ca-certificates`
+    - See [TLS Encryption](#tls-interception)
 - Supported proxy protocols
     - `http`
     - `https`
