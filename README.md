@@ -44,7 +44,7 @@ Table of Contents
 * [Usage](#usage)
 
 Features
---------
+========
 
 - Lightweight
     - Distributed as a single file module `~50KB`
@@ -73,7 +73,7 @@ Features
     - See `--pac-file` and `--pac-file-url-path` flags
 
 Install
--------
+=======
 
 #### Stable version
 
@@ -103,14 +103,14 @@ For example, to check `proxy.py --version`:
 `docker` image is currently broken on `macOS` due to incompatibility with [vpnkit](https://github.com/moby/vpnkit/issues/469).
 
 Plugin Examples
----------------
+===============
 
 See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) for full code.
 
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
 See [TLS Interception](#tls-interception).
 
-#### RedirectToCustomServerPlugin
+### RedirectToCustomServerPlugin
 
 Redirects all incoming `http` requests to custom web server. 
 By default, it redirects client requests to inbuilt web server, 
@@ -154,7 +154,7 @@ Along with the proxy request log, you must also see a http web server request lo
 2019-09-24 19:09:33,603 - INFO - pid:49995 - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
 ```
 
-#### FilterByUpstreamHostPlugin
+### FilterByUpstreamHostPlugin
 
 Drops traffic by inspecting upstream host. 
 By default, plugin drops traffic for `google.com` and `www.google.com`.
@@ -203,7 +203,7 @@ proxy.HttpRequestRejected
 2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
 ```
 
-#### CacheResponsesPlugin
+### CacheResponsesPlugin
 
 Caches Upstream Server Responses.
 
@@ -279,7 +279,7 @@ Connection: keep-alive
 }
 ```
 
-#### ManInTheMiddlePlugin
+### ManInTheMiddlePlugin
 
 Modifies upstream server responses.
 
@@ -331,7 +331,7 @@ If we enable `RedirectToCustomServerPlugin` before `FilterByUpstreamHostPlugin`,
 `google` requests will also get redirected to inbuilt web server.
 
 Plugin Developer Guide
-----------------------
+======================
 
 TODO, meanwhile read [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) 
 code. Most of the plugin hook names are self explanatory e.g. `handle_upstream_response`.
@@ -339,7 +339,7 @@ code. Most of the plugin hook names are self explanatory e.g. `handle_upstream_r
 Also, see documentation for `HttpProxyBasePlugin` abstract class for some insights.
 
 End-to-End Encryption
----------------------
+=====================
 
 By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`. 
 For enabling end-to-end encrypting using `TLS` / `HTTPS` first generate certificates using:
@@ -372,7 +372,7 @@ Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https
 ```
 
 TLS Interception
-----------------
+=================
 
 By default, `proxy.py` doesn't tries to decrypt `https` traffic between client and server. 
 To enable TLS interception first generate CA certificates:
@@ -409,7 +409,7 @@ Use CA flags with [plugin examples](#plugin-examples) to make them work with
 `https` traffic.
 
 Usage
------
+=====
 
 ```
 $ proxy.py -h
