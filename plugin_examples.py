@@ -41,7 +41,7 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
 
 
 class FilterByUpstreamHostPlugin(proxy.HttpProxyBasePlugin):
-    """Drop traffic by inspecting upstream domain name."""
+    """Drop traffic by inspecting upstream host."""
 
     FILTERED_DOMAINS = [b'google.com', b'www.google.com']
 
@@ -95,7 +95,7 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
 
 
 class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
-    """Modifies outgoing response to clients."""
+    """Modifies upstream server responses."""
 
     def before_upstream_connection(self) -> None:
         pass
