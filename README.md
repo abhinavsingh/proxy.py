@@ -24,8 +24,27 @@
 [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=mypy&message=checked&color=blue)](http://mypy-lang.org/)
 
+Table of Contents
+=================
+
+* [Features](#features)
+* [Install](#install)
+    * [Stable version](#stable-version)
+    * [Development version](#development-version)
+    * [Docker](#docker-image)
+* [Plugin Examples](#plugin-examples)
+    * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
+    * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
+    * [CacheResponsesPlugin](#cacheresponsesplugin)
+    * [ManInTheMiddlePlugin](#maninthemiddleplugin)
+    * [Plugin Ordering](#plugin-ordering)
+* [Plugin Developer Guide](#plugin-developer-guide)
+* [End-to-End Encryption](#end-to-end-encryption)
+* [TLS Encryption](#tls-interception)
+* [Usage](#usage)
+
 Features
---------
+========
 
 - Lightweight
     - Distributed as a single file module `~50KB`
@@ -38,12 +57,10 @@ Features
     - Plugin API is currently in development state, expect breaking changes.
 - Secure
     - Enable end-to-end encryption between clients and `proxy.py` using TLS
-    - See `--key-file` and `--cert-file` flags
-    - Generate self-signed certificates locally by running `make https-certificates`
+    - See [End-to-End Encryption](#end-to-end-encryption)
 - Man-In-The-Middle
     - Can decrypt TLS traffic between clients and upstream servers
-    - See `--ca-key-file`, `--ca-cert-key`, `--ca-signing-key`, `--ca-cert-dir` flags
-    - Generate CA certificates locally using `make ca-certificates`
+    - See [TLS Encryption](#tls-interception)
 - Supported proxy protocols
     - `http`
     - `https`
@@ -56,7 +73,7 @@ Features
     - See `--pac-file` and `--pac-file-url-path` flags
 
 Install
--------
+=======
 
 #### Stable version
 
@@ -72,7 +89,7 @@ Install
 
 By default `docker` binary is started with following flags:
 
-    --hostname 0.0.0.0 --port 8899 --ipv4
+    --hostname 0.0.0.0 --port 8899
 
 To override input flags, start docker image as follows.
 For example, to check `proxy.py --version`:
@@ -85,8 +102,280 @@ For example, to check `proxy.py --version`:
 [![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/moby/vpnkit/issues/469)
 `docker` image is currently broken on `macOS` due to incompatibility with [vpnkit](https://github.com/moby/vpnkit/issues/469).
 
+Plugin Examples
+===============
+
+See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) for full code.
+
+All the examples below also works with `https` traffic but require additional flags and certificate generation. 
+See [TLS Interception](#tls-interception).
+
+### RedirectToCustomServerPlugin
+
+Redirects all incoming `http` requests to custom web server. 
+By default, it redirects client requests to inbuilt web server, 
+also running on `8899` port.
+
+Start `proxy.py` and enable inbuilt web server:
+
+```
+$ proxy.py \
+    --enable-web-server \
+    --plugins plugin_examples.RedirectToCustomServerPlugin
+```
+
+Verify using `curl -v -x localhost:8899 http://google.com`
+
+```
+... [redacted] ...
+< HTTP/1.1 404 NOT FOUND
+< Server: proxy.py v1.0.0
+< Connection: Close
+< 
+* Closing connection 0
+```
+
+Above `404` response was returned from `proxy.py` web server. 
+
+Verify the same by inspecting the logs for `proxy.py`. 
+Along with the proxy request log, you must also see a http web server request log.
+
+```
+2019-09-24 19:09:33,602 - INFO - pid:49996 - access_log:1241 - ::1:49525 - GET /
+2019-09-24 19:09:33,603 - INFO - pid:49995 - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
+```
+
+### FilterByUpstreamHostPlugin
+
+Drops traffic by inspecting upstream host. 
+By default, plugin drops traffic for `google.com` and `www.google.com`.
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --plugins plugin_examples.FilterByUpstreamHostPlugin
+```
+
+Verify using `curl -v -x localhost:8899 http://google.com`:
+
+```
+... [redacted] ...
+< HTTP/1.1 418 I'm a tea pot
+< Proxy-agent: proxy.py v1.0.0
+* no chunk, no close, no size. Assume close to signal end
+< 
+* Closing connection 0
+```
+
+Above `418 I'm a tea pot` is sent by our plugin.
+
+Verify the same by inspecting logs for `proxy.py`:
+
+```
+2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
+Traceback (most recent call last):
+... [redacted] ...
+2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
+```
+
+### CacheResponsesPlugin
+
+Caches Upstream Server Responses.
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --plugins plugin_examples.CacheResponsesPlugin
+```
+
+Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
+
+```
+... [redacted] ...
+< HTTP/1.1 200 OK
+< Access-Control-Allow-Credentials: true
+< Access-Control-Allow-Origin: *
+< Content-Type: application/json
+< Date: Wed, 25 Sep 2019 02:24:25 GMT
+< Referrer-Policy: no-referrer-when-downgrade
+< Server: nginx
+< X-Content-Type-Options: nosniff
+< X-Frame-Options: DENY
+< X-XSS-Protection: 1; mode=block
+< Content-Length: 202
+< Connection: keep-alive
+< 
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "httpbin.org", 
+    "User-Agent": "curl/7.54.0"
+  }, 
+  "origin": "1.2.3.4, 5.6.7.8", 
+  "url": "https://httpbin.org/get"
+}
+* Connection #0 to host localhost left intact
+```
+
+Get path to the cache file from `proxy.py` logs:
+
+```
+... [redacted] ... - GET httpbin.org:80/get - 200 OK - 556 bytes
+... [redacted] ... - Cached response at /var/folders/k9/x93q0_xn1ls9zy76m2mf2k_00000gn/T/httpbin.org-1569378301.407512.txt
+```
+
+Verify contents of the cache file `cat /path/to/your/cache/httpbin.org.txt`
+
+```
+HTTP/1.1 200 OK
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Wed, 25 Sep 2019 02:24:25 GMT
+Referrer-Policy: no-referrer-when-downgrade
+Server: nginx
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Content-Length: 202
+Connection: keep-alive
+
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "httpbin.org", 
+    "User-Agent": "curl/7.54.0"
+  }, 
+  "origin": "1.2.3.4, 5.6.7.8", 
+  "url": "https://httpbin.org/get"
+}
+```
+
+### ManInTheMiddlePlugin
+
+Modifies upstream server responses.
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --plugins plugin_examples.ManInTheMiddlePlugin
+```
+
+Verify using `curl -v -x localhost:8899 http://google.com`:
+
+```
+... [redacted] ...
+< HTTP/1.1 200 OK
+< Content-Length: 28
+< 
+* Connection #0 to host localhost left intact
+Hello from man in the middle
+```
+
+Response body `Hello from man in the middle` is sent by our plugin.
+
+### Plugin Ordering
+
+When using multiple plugins, depending upon plugin functionality, 
+it might be worth considering the order in which plugins are passed 
+on the command line.
+
+Plugins are called in the same order as they are passed. Example, 
+say we are using both `FilterByUpstreamHostPlugin` and 
+`RedirectToCustomServerPlugin`. Idea is to drop all incoming `http` 
+requests for `google.com` and `www.google.com` and redirect other 
+`http` requests to our inbuilt web server.
+
+Hence, in this scenario it is important to use 
+`FilterByUpstreamHostPlugin` before `RedirectToCustomServerPlugin`. 
+If we enable `RedirectToCustomServerPlugin` before `FilterByUpstreamHostPlugin`,
+`google` requests will also get redirected to inbuilt web server.
+
+Plugin Developer Guide
+======================
+
+TODO, meanwhile read [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) 
+code. Most of the plugin hook names are self explanatory e.g. `handle_upstream_response`.
+
+Also, see documentation for `HttpProxyBasePlugin` abstract class for some insights.
+
+End-to-End Encryption
+=====================
+
+By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`. 
+For enabling end-to-end encrypting using `TLS` / `HTTPS` first generate certificates using:
+
+```
+make https-certificates
+```
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --cert-file https-cert.pem \
+    --key-file https-key.pem
+```
+
+Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https://httpbin.org/get`:
+
+```
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "httpbin.org", 
+    "User-Agent": "curl/7.54.0"
+  }, 
+  "origin": "1.2.3.4, 5.6.7.8", 
+  "url": "https://httpbin.org/get"
+}
+```
+
+TLS Interception
+=================
+
+By default, `proxy.py` doesn't tries to decrypt `https` traffic between client and server. 
+To enable TLS interception first generate CA certificates:
+
+```
+make ca-certificates
+```
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --ca-key-file ca-key.pem \
+    --ca-cert-file ca-cert.pem \
+    --ca-signing-key-file ca-signing-key.pem
+```
+
+Verify using `curl -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`
+
+```
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "httpbin.org", 
+    "User-Agent": "curl/7.54.0"
+  }, 
+  "origin": "1.2.3.4, 5.6.7.8", 
+  "url": "https://httpbin.org/get"
+}
+```
+
+Use CA flags with [plugin examples](#plugin-examples) to make them work with 
+`https` traffic.
+
 Usage
------
+=====
 
 ```
 $ proxy.py -h
