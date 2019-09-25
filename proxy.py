@@ -565,7 +565,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -592,8 +592,8 @@ class HttpParser:
                     self.state = httpParserStates.RCVING_BODY
                     self.body += raw
                     if self.body and len(
-                        self.body) >= int(
-                            self.headers[b'content-length'][1]):
+                            self.body) >= int(
+                        self.headers[b'content-length'][1]):
                         self.state = httpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
@@ -932,6 +932,11 @@ class HttpProxyBasePlugin(ABC):
         Optionally return modified response to queue for client."""
         return raw
 
+    @abstractmethod
+    def on_upstream_connection_close(self) -> None:
+        """Handler called right after upstream connection has been closed."""
+        pass
+
 
 class HttpProxyPlugin(HttpProtocolBasePlugin):
     """HttpProtocolHandler plugin which implements HttpProxy specifications."""
@@ -1014,6 +1019,9 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 'Closed server connection with pending server buffer size %d bytes' %
                 self.server.buffer_size())
             if not self.server.closed:
+                # Invoke plugin.on_upstream_connection_close
+                for plugin in self.plugins.values():
+                    plugin.on_upstream_connection_close()
                 self.server.close()
 
     def handle_response_chunk(self, chunk: bytes) -> bytes:
@@ -1332,14 +1340,18 @@ class HttpProtocolHandler(threading.Thread):
                                         logger.debug('Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock:
                                 return True
-                # ProxyAuthenticationFailed, ProxyConnectionFailed, HttpRequestRejected
-                except HttpProtocolException as e:
-                    # logger.exception(e)
-                    response = e.response(self.request)
-                    if response:
-                        self.client.queue(response)
-                        # But is client also ready for writes?
-                        self.client.flush()
+                except Exception as e:
+                    if e.__class__.__name__ in (
+                            ProxyAuthenticationFailed.__name__, ProxyConnectionFailed.__name__,
+                            HttpRequestRejected.__name__):
+                        logger.exception('HttpProtocolException type raised', exc_info=e)
+                        response = HttpProtocolException(e).response(self.request)
+                        if response:
+                            logger.debug(response)
+                            self.client.queue(response)
+                            # But is client also ready for writes?
+                            self.client.flush()
+                        return True
                     raise e
         return False
 
@@ -1417,7 +1429,7 @@ class HttpProtocolHandler(threading.Thread):
                     self.client.conn.shutdown(socket.SHUT_RDWR)
                     self.client.close()
                 except OSError as e:
-                    logger.exception('OSError while trying to shutdown client connection', exc_info=e)
+                    logger.warning('OSError: %s', str(e))
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
