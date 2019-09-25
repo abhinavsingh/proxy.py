@@ -216,14 +216,16 @@ class TcpServerConnection(TcpConnection):
         try:
             ip = ipaddress.ip_address(text_(self.addr[0]))
             if ip.version == 4:
-                self.conn = socket.create_connection(
-                    (self.addr[0], self.addr[1]))
+                self.conn = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM, 0)
+                self.conn.connect((self.addr[0], self.addr[1]))
             else:
                 self.conn = socket.socket(
                     socket.AF_INET6, socket.SOCK_STREAM, 0)
                 self.conn.connect((self.addr[0], self.addr[1], 0, 0))
         except ValueError:
-            # Not a valid IP address, most likely its a domain name.
+            # Not a valid IP address, most likely its a domain name,
+            # try to establish dual stack IPv4/IPv6 connection.
             self.conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 
