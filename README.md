@@ -45,6 +45,7 @@ Table of Contents
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [proxy.py Internals](#proxypy-internals)
+    * [Pull Request](#pull-request)
 * [Flags](#flags)
 
 Features
@@ -472,6 +473,21 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
   abstract class. `TcpServer` accepts `TcpClientConnection`. `MultiCoreRequestDispatcher` 
   ensures full utilization of available CPU cores, for which it dispatches 
   accepted `TcpClientConnection` to `Worker` processes in a round-robin fashion.
+
+## Pull Request
+
+Every pull request goes through set of tests which must pass:
+
+- `mypy`: Run `make lint` locally for compliance check. 
+  Fix all warnings and errors before sending out a PR.
+
+- `coverage`: Run `make coverage` for coverage report.
+  Its ideal to add tests for any critical change. Depending upon
+  the change, it's ok if test coverage falls by `<0.5%`.
+
+- `formatting`: Run `make autopep8` locally to format the code in-place.
+  `autopep8` is run with `--aggresive` flag.  Sometimes it _may_ result in
+  weird formatting.
 
 Flags
 =====

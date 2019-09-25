@@ -7,6 +7,7 @@
     :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
+import ssl
 import base64
 import errno
 import logging
@@ -19,7 +20,7 @@ import unittest
 from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Dict
+from typing import Dict, Optional, Tuple
 from unittest import mock
 
 import proxy
@@ -32,20 +33,30 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
 
 
-def get_temp_file(name):
+def get_temp_file(name: str) -> str:
     return os.path.join(tempfile.gettempdir(), name)
 
 
-def get_available_port():
+def get_available_port() -> int:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
         sock.bind(('', 0))
         _, port = sock.getsockname()
-        return port
+        return int(port)
 
 
 class TestTcpConnection(unittest.TestCase):
 
-    def testHandlesIOError(self):
+    def testThrowsKeyErrorIfNoConn(self) -> None:
+        self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
+        self.conn.conn = None
+        with self.assertRaises(KeyError):
+            self.conn.send(b'dummy')
+        with self.assertRaises(KeyError):
+            self.conn.recv()
+        with self.assertRaises(KeyError):
+            self.conn.close()
+
+    def testHandlesIOError(self) -> None:
         self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
         _conn = mock.MagicMock()
         _conn.recv.side_effect = IOError()
@@ -56,7 +67,7 @@ class TestTcpConnection(unittest.TestCase):
             logging.info(mock_logger.exception.call_args[0][0].startswith(
                 'Exception while receiving from connection'))
 
-    def testHandlesConnReset(self):
+    def testHandlesConnReset(self) -> None:
         self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
         _conn = mock.MagicMock()
         e = IOError()
@@ -69,7 +80,7 @@ class TestTcpConnection(unittest.TestCase):
             mock_logger.debug.assert_called()
             self.assertEqual(mock_logger.debug.call_args[0][0], '%r' % e)
 
-    def testClosesIfNotClosed(self):
+    def testClosesIfNotClosed(self) -> None:
         self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
         _conn = mock.MagicMock()
         self.conn.conn = _conn
@@ -77,7 +88,7 @@ class TestTcpConnection(unittest.TestCase):
         _conn.close.assert_called()
         self.assertTrue(self.conn.closed)
 
-    def testNoOpIfAlreadyClosed(self):
+    def testNoOpIfAlreadyClosed(self) -> None:
         self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
         _conn = mock.MagicMock()
         self.conn.conn = _conn
@@ -86,51 +97,71 @@ class TestTcpConnection(unittest.TestCase):
         _conn.close.assert_not_called()
         self.assertTrue(self.conn.closed)
 
-    @mock.patch('socket.create_connection')
-    def testTcpServerClosesConnOnGC(self, mock_create_connection):
+    @mock.patch('socket.socket')
+    def testTcpServerClosesConnOnGC(self, mock_socket: mock.Mock) -> None:
         conn = mock.MagicMock()
-        mock_create_connection.return_value = conn
+        mock_socket.return_value = conn
         self.conn = proxy.TcpServerConnection(
-            proxy.DEFAULT_IPV4_HOSTNAME, proxy.DEFAULT_PORT)
+            str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT)
         self.conn.connect()
         del self.conn
         conn.close.assert_called()
 
+    @mock.patch('socket.socket')
+    def testTcpServerEstablishesIPv6Connection(self, mock_socket: mock.Mock) -> None:
+        self.conn = proxy.TcpServerConnection(
+            str(proxy.DEFAULT_IPV6_HOSTNAME), proxy.DEFAULT_PORT)
+        self.conn.connect()
+        mock_socket.assert_called()
+        mock_socket.return_value.connect.assert_called_with(
+            (str(proxy.DEFAULT_IPV6_HOSTNAME), proxy.DEFAULT_PORT, 0, 0))
+
+    @mock.patch('socket.socket')
+    def testTcpServerEstablishesIPv4Connection(self, mock_socket: mock.Mock) -> None:
+        self.conn = proxy.TcpServerConnection(
+            str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT)
+        self.conn.connect()
+        mock_socket.assert_called()
+        mock_socket.return_value.connect.assert_called_with(
+            (str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT))
+
+
+class BasicTcpServer(proxy.TcpServer):
+
+    def handle(self, client: proxy.TcpClientConnection) -> None:
+        data = client.recv(proxy.DEFAULT_BUFFER_SIZE)
+        if data != b'HELLO':
+            raise ValueError('Expected HELLO')
+        client.conn.sendall(b'WORLD')
+        client.close()
+
+    def setup(self) -> None:
+        pass
+
+    def shutdown(self) -> None:
+        pass
+
 
 @unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
                  'Opening sockets not allowed on Travis')
-class TestTcpServer(unittest.TestCase):
-    ipv4_port = None
-    ipv6_port = None
-    ipv4_server = None
-    ipv6_server = None
-    ipv4_thread = None
-    ipv6_thread = None
+class TestTcpServerIntegration(unittest.TestCase):
 
-    class _TestTcpServer(proxy.TcpServer):
-
-        def handle(self, client):
-            data = client.recv(proxy.DEFAULT_BUFFER_SIZE)
-            if data != b'HELLO':
-                raise ValueError('Expected HELLO')
-            client.conn.sendall(b'WORLD')
-            client.close()
-
-        def setup(self) -> None:
-            pass
-
-        def shutdown(self) -> None:
-            pass
+    ipv4_port: Optional[int] = None
+    ipv6_port: Optional[int] = None
+    ipv4_server: Optional[BasicTcpServer] = None
+    ipv6_server: Optional[BasicTcpServer] = None
+    ipv4_thread: Optional[Thread] = None
+    ipv6_thread: Optional[Thread] = None
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         cls.ipv4_port = get_available_port()
         cls.ipv6_port = get_available_port()
-        cls.ipv4_server = TestTcpServer._TestTcpServer(
+        cls.ipv4_server = BasicTcpServer(
             hostname=proxy.DEFAULT_IPV4_HOSTNAME,
             port=cls.ipv4_port,
             family=socket.AF_INET)
-        cls.ipv6_server = TestTcpServer._TestTcpServer(
+        cls.ipv6_server = BasicTcpServer(
             hostname=proxy.DEFAULT_IPV6_HOSTNAME,
             port=cls.ipv6_port,
             family=socket.AF_INET6)
@@ -142,11 +173,17 @@ class TestTcpServer(unittest.TestCase):
         cls.ipv6_thread.start()
 
     @classmethod
-    def tearDownClass(cls):
-        cls.ipv4_server.stop()
-        cls.ipv4_thread.join()
+    def tearDownClass(cls) -> None:
+        if cls.ipv4_server:
+            cls.ipv4_server.stop()
+        if cls.ipv4_thread:
+            cls.ipv4_thread.join()
+        if cls.ipv6_server:
+            cls.ipv6_server.stop()
+        if cls.ipv6_thread:
+            cls.ipv6_thread.join()
 
-    def baseTestCase(self, ipv4=True):
+    def baseTestCase(self, ipv4: bool = True) -> None:
         while True:
             sock = None
             try:
@@ -165,43 +202,61 @@ class TestTcpServer(unittest.TestCase):
             except ConnectionRefusedError:
                 time.sleep(0.1)
             finally:
-                sock.close()
+                if sock:
+                    sock.close()
 
-    def testIpv4ClientConnection(self):
+    def testIpv4ClientConnection(self) -> None:
         self.baseTestCase()
 
-    def testIpv6ClientConnection(self):
+    def testIpv6ClientConnection(self) -> None:
         self.baseTestCase(ipv4=False)
+
+
+class TestTcpServer(unittest.TestCase):
+
+    # Can happen if client is sending invalid https request to our SSL server.
+    # Example, simply sending http traffic to HTTPS server.
+    @mock.patch('select.select')
+    @mock.patch('socket.socket')
+    def testAcceptSSLErrorsSilentlyIgnored(self, mock_socket: mock.Mock, mock_select: mock.Mock) -> None:
+        mock_socket.accept.side_effect = ssl.SSLError()
+        mock_select.return_value = ([mock_socket], [], [])
+        server = BasicTcpServer(hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=1234)
+        server.socket = mock_socket
+        with mock.patch('proxy.logger') as mock_logger:
+            server.run_once()
+            mock_logger.exception.assert_called()
+            self.assertTrue(mock_logger.exception.call_args[0][0], 'SSLError encountered')
 
 
 class MockHttpProxy:
 
-    def __init__(self, client, **kwargs):
+    def __init__(self, client: proxy.TcpClientConnection, **kwargs) -> None:  # type: ignore
         self.client = client
         self.kwargs = kwargs
 
-    def setDaemon(self, _val):
+    def setDaemon(self, _val: bool) -> None:
         pass
 
-    def start(self):
+    def start(self) -> None:
         self.client.conn.sendall(proxy.CRLF.join(
             [b'HTTP/1.1 200 OK', proxy.CRLF]))
         self.client.conn.close()
 
 
-def mock_tcp_proxy_side_effect(client, **kwargs):
+def mock_tcp_proxy_side_effect(client: proxy.TcpClientConnection, **kwargs) -> MockHttpProxy:  # type: ignore
     return MockHttpProxy(client, **kwargs)
 
 
 @unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
                  'Opening sockets not allowed on Travis')
-class TestMultiCoreRequestDispatcher(unittest.TestCase):
+class TestMultiCoreRequestDispatcherIntegration(unittest.TestCase):
     tcp_port = None
     tcp_server = None
     tcp_thread = None
 
     @mock.patch.object(
-        proxy,
+        proxy,  # type: ignore
         'HttpProtocolHandler',
         side_effect=mock_tcp_proxy_side_effect)
     def testHttpProxyConnection(self, _mock_tcp_proxy):
@@ -239,10 +294,10 @@ class TestMultiCoreRequestDispatcher(unittest.TestCase):
 
 class TestChunkParser(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.parser = proxy.ChunkParser()
 
-    def test_chunk_parse_basic(self):
+    def test_chunk_parse_basic(self) -> None:
         self.parser.parse(b''.join([
             b'4\r\n',
             b'Wiki\r\n',
@@ -258,7 +313,7 @@ class TestChunkParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, proxy.chunkParserStates.COMPLETE)
 
-    def test_chunk_parse_issue_27(self):
+    def test_chunk_parse_issue_27(self) -> None:
         """Case when data ends with the chunk size but without ending CRLF."""
         self.parser.parse(b'3')
         self.assertEqual(self.parser.chunk, b'3')
@@ -311,28 +366,28 @@ class TestChunkParser(unittest.TestCase):
 
 class TestHttpParser(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.parser = proxy.HttpParser(proxy.httpParserTypes.REQUEST_PARSER)
 
-    def test_build_header(self):
+    def test_build_header(self) -> None:
         self.assertEqual(
             proxy.HttpParser.build_header(
                 b'key', b'value'), b'key: value')
 
-    def test_find_line(self):
+    def test_find_line(self) -> None:
         self.assertEqual(
             proxy.HttpParser.find_line(
                 b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
             (b'CONNECT python.org:443 HTTP/1.0',
              b'\r\n'))
 
-    def test_find_line_returns_None(self):
+    def test_find_line_returns_None(self) -> None:
         self.assertEqual(
             proxy.HttpParser.find_line(b'CONNECT python.org:443 HTTP/1.0'),
             (None,
              b'CONNECT python.org:443 HTTP/1.0'))
 
-    def test_connect_request_with_crlf_as_separate_chunk(self):
+    def test_connect_request_with_crlf_as_separate_chunk(self) -> None:
         """See https://github.com/abhinavsingh/proxy.py/issues/70 for background."""
         raw = b'CONNECT pypi.org:443 HTTP/1.0\r\n'
         self.parser.parse(raw)
@@ -340,7 +395,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(proxy.CRLF)
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
-    def test_get_full_parse(self):
+    def test_get_full_parse(self) -> None:
         raw = proxy.CRLF.join([
             b'GET %s HTTP/1.1',
             b'Host: %s',
@@ -352,6 +407,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.total_size, len(pkt))
         self.assertEqual(self.parser.build_url(), b'/path/dir/?a=b&c=d#p=q')
         self.assertEqual(self.parser.method, b'GET')
+        assert self.parser.url
         self.assertEqual(self.parser.url.hostname, b'example.com')
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
@@ -366,10 +422,10 @@ class TestHttpParser(unittest.TestCase):
              b'example.com'),
             self.parser.build())
 
-    def test_build_url_none(self):
+    def test_build_url_none(self) -> None:
         self.assertEqual(self.parser.build_url(), b'/None')
 
-    def test_line_rcvd_to_rcving_headers_state_change(self):
+    def test_line_rcvd_to_rcving_headers_state_change(self) -> None:
         pkt = b'GET http://localhost HTTP/1.1'
         self.parser.parse(pkt)
         self.assertEqual(self.parser.total_size, len(pkt))
@@ -378,7 +434,7 @@ class TestHttpParser(unittest.TestCase):
             proxy.httpParserStates.LINE_RCVD,
             proxy.httpParserStates.COMPLETE)
 
-    def test_get_partial_parse1(self):
+    def test_get_partial_parse1(self) -> None:
         pkt = proxy.CRLF.join([
             b'GET http://localhost:8080 HTTP/1.1'
         ])
@@ -394,6 +450,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(proxy.CRLF)
         self.assertEqual(self.parser.total_size, len(pkt) + len(proxy.CRLF))
         self.assertEqual(self.parser.method, b'GET')
+        assert self.parser.url
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, 8080)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
@@ -414,12 +471,13 @@ class TestHttpParser(unittest.TestCase):
             {b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
-    def test_get_partial_parse2(self):
+    def test_get_partial_parse2(self) -> None:
         self.parser.parse(proxy.CRLF.join([
             b'GET http://localhost:8080 HTTP/1.1',
             b'Host: '
         ]))
         self.assertEqual(self.parser.method, b'GET')
+        assert self.parser.url
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, 8080)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
@@ -445,7 +503,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(proxy.CRLF)
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
-    def test_post_full_parse(self):
+    def test_post_full_parse(self) -> None:
         raw = proxy.CRLF.join([
             b'POST %s HTTP/1.1',
             b'Host: localhost',
@@ -455,6 +513,7 @@ class TestHttpParser(unittest.TestCase):
         ])
         self.parser.parse(raw % b'http://localhost')
         self.assertEqual(self.parser.method, b'POST')
+        assert self.parser.url
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
@@ -468,16 +527,16 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(len(self.parser.build()), len(raw % b'/'))
 
     def assert_state_change_with_crlf(self,
-                                      initial_state: proxy.HttpParserStates,
-                                      next_state: proxy.HttpParserStates,
-                                      final_state: proxy.HttpParserStates):
+                                      initial_state: int,
+                                      next_state: int,
+                                      final_state: int) -> None:
         self.assertEqual(self.parser.state, initial_state)
         self.parser.parse(proxy.CRLF)
         self.assertEqual(self.parser.state, next_state)
         self.parser.parse(proxy.CRLF)
         self.assertEqual(self.parser.state, final_state)
 
-    def test_post_partial_parse(self):
+    def test_post_partial_parse(self) -> None:
         self.parser.parse(proxy.CRLF.join([
             b'POST http://localhost HTTP/1.1',
             b'Host: localhost',
@@ -485,6 +544,7 @@ class TestHttpParser(unittest.TestCase):
             b'Content-Type: application/x-www-form-urlencoded'
         ]))
         self.assertEqual(self.parser.method, b'POST')
+        assert self.parser.url
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
@@ -505,7 +565,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'a=b&c=d')
         self.assertEqual(self.parser.buffer, b'')
 
-    def test_connect_request_without_host_header_request_parse(self):
+    def test_connect_request_without_host_header_request_parse(self) -> None:
         """Case where clients can send CONNECT request without a Host header field.
 
         Example:
@@ -521,7 +581,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.version, b'HTTP/1.0')
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
-    def test_request_parse_without_content_length(self):
+    def test_request_parse_without_content_length(self) -> None:
         """Case when incoming request doesn't contain a content-length header.
 
         From http://w3-org.9356.n7.nabble.com/POST-with-empty-body-td103965.html
@@ -539,7 +599,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.method, b'POST')
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
-    def test_response_parse_without_content_length(self):
+    def test_response_parse_without_content_length(self) -> None:
         """Case when server response doesn't contain a content-length header for non-chunk response types.
 
         HttpParser by itself has no way to know if more data should be expected.
@@ -563,7 +623,7 @@ class TestHttpParser(unittest.TestCase):
             self.parser.state,
             proxy.httpParserStates.HEADERS_COMPLETE)
 
-    def test_response_parse(self):
+    def test_response_parse(self) -> None:
         self.parser.type = proxy.httpParserTypes.RESPONSE_PARSER
         self.parser.parse(b''.join([
             b'HTTP/1.1 301 Moved Permanently\r\n',
@@ -593,7 +653,7 @@ class TestHttpParser(unittest.TestCase):
             {b'content-length': (b'Content-Length', b'219')}, self.parser.headers)
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
-    def test_response_partial_parse(self):
+    def test_response_partial_parse(self) -> None:
         self.parser.type = proxy.httpParserTypes.RESPONSE_PARSER
         self.parser.parse(b''.join([
             b'HTTP/1.1 301 Moved Permanently\r\n',
@@ -627,7 +687,7 @@ class TestHttpParser(unittest.TestCase):
             b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
-    def test_chunked_response_parse(self):
+    def test_chunked_response_parse(self) -> None:
         self.parser.type = proxy.httpParserTypes.RESPONSE_PARSER
         self.parser.parse(b''.join([
             b'HTTP/1.1 200 OK\r\n',
@@ -648,44 +708,48 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
-    def assertDictContainsSubset(self, subset: Dict, dictionary: Dict):
+    def assertDictContainsSubset(self, subset: Dict[bytes, Tuple[bytes, bytes]],
+                                 dictionary: Dict[bytes, Tuple[bytes, bytes]]) -> None:
         for k in subset.keys():
             self.assertTrue(k in dictionary)
 
 
-class MockTcpConnection:
+# TODO: Replace MockTcpSocket with mock.MagicMock instances.
+class MockTcpSocket(socket.socket):
 
-    def __init__(self, b=b''):
-        self.buffer = b
+    def __init__(self, buf: bytes = b'') -> None:
+        self.buffer = buf
         self.received = b''
         self.closed = False
+        super().__init__()
 
-    def recv(self, b=8192) -> bytes:
+    def recv(self, b: int = 8192, flags: Optional[int] = None) -> bytes:
         data = self.buffer[:b]
         self.buffer = self.buffer[b:]
         return data
 
-    def send(self, data: bytes) -> int:
+    def send(self, data: bytes, flags: Optional[int] = None) -> int:
         self.received += data
         return len(data)
 
-    def queue(self, data: bytes):
+    def queue(self, data: bytes) -> None:
         self.buffer += data
 
-    def close(self):
+    def close(self) -> None:
         self.closed = True
+        super().close()
 
-    def shutdown(self, _how):
+    def shutdown(self, _how: int) -> None:
         pass
 
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):
 
-    def do_GET(self):
+    def do_GET(self) -> None:
         self.send_response(200)
         # TODO(abhinavsingh): Proxy should work just fine even without
         # content-length header
-        self.send_header('content-length', 2)
+        self.send_header('content-length', '2')
         self.end_headers()
         self.wfile.write(b'OK')
 
@@ -697,7 +761,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
     config = None
 
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         cls.http_server_port = get_available_port()
         cls.http_server = HTTPServer(
             ('127.0.0.1', cls.http_server_port), HTTPRequestHandler)
@@ -709,28 +773,34 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
     @classmethod
-    def tearDownClass(cls):
-        cls.http_server.shutdown()
-        cls.http_server.server_close()
-        cls.http_server_thread.join()
+    def tearDownClass(cls) -> None:
+        if cls.http_server:
+            cls.http_server.shutdown()
+            cls.http_server.server_close()
+        if cls.http_server_thread:
+            cls.http_server_thread.join()
 
-    def setUp(self):
-        self._conn = MockTcpConnection()
+    def setUp(self) -> None:
+        self._conn = MockTcpSocket()
         self._addr = ('127.0.0.1', 54382)
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=self.config)
 
+    def tearDown(self) -> None:
+        self._conn.close()
+
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
-    def test_http_get(self, mock_server_connection, mock_select):
+    def test_http_get(self, mock_server_connection: mock.Mock, mock_select: mock.Mock) -> None:
         server = mock_server_connection.return_value
         server.connect.return_value = True
         mock_select.side_effect = [
             ([self._conn], [], []), ([self._conn], [], []), ([], [server.conn], [])]
 
         # Send request line
-        self.proxy.client.conn.queue(
+        assert self.http_server_port is not None
+        self.proxy.client.conn.queue(   # type: ignore
             (b'GET http://localhost:%d HTTP/1.1' %
              self.http_server_port) + proxy.CRLF)
         self.proxy.run_once()
@@ -742,7 +812,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
             proxy.httpParserStates.COMPLETE)
 
         # Send headers and blank line, thus completing HTTP request
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        assert self.http_server_port is not None
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'User-Agent: proxy.py/%s' % proxy.version,
             b'Host: localhost:%d' % self.http_server_port,
             b'Accept: */*',
@@ -753,9 +824,9 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.proxy.run_once()
         server.flush.assert_called_once()
 
-    def assert_tunnel_response(self, mock_server_connection, server):
+    def assert_tunnel_response(self, mock_server_connection: mock.Mock, server: mock.Mock) -> None:
         self.proxy.run_once()
-        self.assertFalse(self.proxy.plugins['HttpProxyPlugin'].server is None)
+        self.assertFalse(self.proxy.plugins['HttpProxyPlugin'].server is None)  # type: ignore
         self.assertEqual(
             self.proxy.client.buffer,
             proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
@@ -767,18 +838,20 @@ class TestHttpProtocolHandler(unittest.TestCase):
         parser = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
         parser.parse(self.proxy.client.buffer)
         self.assertEqual(parser.state, proxy.httpParserStates.COMPLETE)
+        assert parser.code is not None
         self.assertEqual(int(parser.code), 200)
 
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
-    def test_http_tunnel(self, mock_server_connection, mock_select):
+    def test_http_tunnel(self, mock_server_connection: mock.Mock, mock_select: mock.Mock) -> None:
         server = mock_server_connection.return_value
         server.connect.return_value = True
         server.has_buffer.side_effect = [False, False, False, True]
         mock_select.side_effect = [([self._conn], [], []), ([], [self._conn], []),
                                    ([self._conn], [], []), ([], [server.conn], [])]
 
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        assert self.http_server_port is not None
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
             b'Host: localhost:%d' % self.http_server_port,
             b'User-Agent: proxy.py/%s' % proxy.version,
@@ -796,20 +869,20 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.flush.assert_called_once()
 
     @mock.patch('select.select')
-    def test_proxy_connection_failed(self, mock_select):
+    def test_proxy_connection_failed(self, mock_select: mock.Mock) -> None:
         mock_select.return_value = ([self._conn], [], [])
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'GET http://unknown.domain HTTP/1.1',
             b'Host: unknown.domain',
             proxy.CRLF
         ]))
         self.proxy.run_once()
         self.assertEqual(
-            self.proxy.client.conn.received,
+            self.proxy.client.conn.received,    # type: ignore
             proxy.ProxyConnectionFailed.RESPONSE_PKT)
 
     @mock.patch('select.select')
-    def test_proxy_authentication_failed(self, mock_select):
+    def test_proxy_authentication_failed(self, mock_select: mock.Mock) -> None:
         mock_select.return_value = ([self._conn], [], [])
         config = proxy.HttpProtocolConfig(
             auth_code=b'Basic %s' %
@@ -819,20 +892,20 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'GET http://abhinavsingh.com HTTP/1.1',
             b'Host: abhinavsingh.com',
             proxy.CRLF
         ]))
         self.proxy.run_once()
         self.assertEqual(
-            self.proxy.client.conn.received,
+            self.proxy.client.conn.received,    # type: ignore
             proxy.ProxyAuthenticationFailed.RESPONSE_PKT)
 
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
     def test_authenticated_proxy_http_get(
-            self, mock_server_connection, mock_select):
+            self, mock_server_connection: mock.Mock, mock_select: mock.Mock) -> None:
         mock_select.return_value = ([self._conn], [], [])
         server = mock_server_connection.return_value
         server.connect.return_value = True
@@ -845,7 +918,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
         self.proxy = proxy.HttpProtocolHandler(client, config=config)
-        self.proxy.client.conn.queue(
+        assert self.http_server_port is not None
+        self.proxy.client.conn.queue(   # type: ignore
             b'GET http://localhost:%d HTTP/1.1' %
             self.http_server_port)
         self.proxy.run_once()
@@ -853,13 +927,14 @@ class TestHttpProtocolHandler(unittest.TestCase):
             self.proxy.request.state,
             proxy.httpParserStates.INITIALIZED)
 
-        self.proxy.client.conn.queue(proxy.CRLF)
+        self.proxy.client.conn.queue(proxy.CRLF)    # type: ignore
         self.proxy.run_once()
         self.assertEqual(
             self.proxy.request.state,
             proxy.httpParserStates.LINE_RCVD)
 
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        assert self.http_server_port is not None
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'User-Agent: proxy.py/%s' % proxy.version,
             b'Host: localhost:%d' % self.http_server_port,
             b'Accept: */*',
@@ -872,7 +947,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
     @mock.patch('select.select')
     @mock.patch('proxy.TcpServerConnection')
     def test_authenticated_proxy_http_tunnel(
-            self, mock_server_connection, mock_select):
+            self, mock_server_connection: mock.Mock, mock_select: mock.Mock) -> None:
         server = mock_server_connection.return_value
         server.connect.return_value = True
         mock_select.side_effect = [
@@ -886,7 +961,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        assert self.http_server_port is not None
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
             b'Host: localhost:%d' % self.http_server_port,
             b'User-Agent: proxy.py/%s' % proxy.version,
@@ -902,7 +978,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.flush.assert_called_once()
 
     @mock.patch('select.select')
-    def test_pac_file_served_from_disk(self, mock_select):
+    def test_pac_file_served_from_disk(self, mock_select: mock.Mock) -> None:
         mock_select.return_value = [self._conn], [], []
         config = proxy.HttpProtocolConfig(pac_file=b'proxy.pac')
         self.init_and_make_pac_file_request(config)
@@ -917,7 +993,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
                 pac_file.read())
 
     @mock.patch('select.select')
-    def test_pac_file_served_from_buffer(self, mock_select):
+    def test_pac_file_served_from_buffer(self, mock_select: mock.Mock) -> None:
         pac_file_content = b'function FindProxyForURL(url, host) { return "PROXY localhost:8899; DIRECT"; }'
         mock_select.return_value = [self._conn], [], []
         config = proxy.HttpProtocolConfig(pac_file=pac_file_content)
@@ -932,7 +1008,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             pac_file_content)
 
     @mock.patch('select.select')
-    def test_default_web_server_returns_404(self, mock_select):
+    def test_default_web_server_returns_404(self, mock_select: mock.Mock) -> None:
         mock_select.return_value = [self._conn], [], []
         config = proxy.HttpProtocolConfig()
         config.plugins = proxy.load_plugins(
@@ -940,7 +1016,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'GET /hello HTTP/1.1',
             proxy.CRLF,
             proxy.CRLF
@@ -953,7 +1029,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             self._conn.received,
             proxy.HttpWebServerPlugin.DEFAULT_404_RESPONSE)
 
-    def test_on_client_connection_called_on_teardown(self):
+    def test_on_client_connection_called_on_teardown(self) -> None:
         config = proxy.HttpProtocolConfig()
         plugin = mock.MagicMock()
         config.plugins = {b'HttpProtocolBasePlugin': [plugin]}
@@ -968,19 +1044,19 @@ class TestHttpProtocolHandler(unittest.TestCase):
         plugin.return_value.access_log.assert_called()
         plugin.return_value.on_client_connection_close.assert_called()
 
-    def init_and_make_pac_file_request(self, config):
+    def init_and_make_pac_file_request(self, config: proxy.HttpProtocolConfig) -> None:
         config.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'GET / HTTP/1.1',
             proxy.CRLF,
             proxy.CRLF
         ]))
 
-    def assert_data_queued(self, mock_server_connection, server):
+    def assert_data_queued(self, mock_server_connection: mock.Mock, server: mock.Mock) -> None:
         self.proxy.run_once()
         self.assertEqual(
             self.proxy.request.state,
@@ -988,6 +1064,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
         server.closed = False
+        assert self.http_server_port is not None
         server.queue.assert_called_once_with(proxy.CRLF.join([
             b'GET / HTTP/1.1',
             b'User-Agent: proxy.py/%s' % proxy.version,
@@ -997,10 +1074,11 @@ class TestHttpProtocolHandler(unittest.TestCase):
             proxy.CRLF
         ]))
 
-    def assert_data_queued_to_server(self, server):
+    def assert_data_queued_to_server(self, server: mock.Mock) -> None:
+        assert self.http_server_port is not None
         self.assertEqual(self.proxy.client.buffer_size(), 0)
 
-        self.proxy.client.conn.queue(proxy.CRLF.join([
+        self.proxy.client.conn.queue(proxy.CRLF.join([  # type: ignore
             b'GET / HTTP/1.1',
             b'Host: localhost:%d' % self.http_server_port,
             b'User-Agent: proxy.py/%s' % proxy.version,
@@ -1018,12 +1096,12 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
 class TestWorker(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.pipe = multiprocessing.Pipe()
         self.worker = proxy.Worker(self.pipe[1], proxy.HttpProtocolConfig())
 
     @mock.patch('proxy.HttpProtocolHandler')
-    def test_shutdown_op(self, mock_http_proxy):
+    def test_shutdown_op(self, mock_http_proxy: mock.Mock) -> None:
         self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
         self.worker.run()
         self.assertFalse(mock_http_proxy.called)
@@ -1032,7 +1110,10 @@ class TestWorker(unittest.TestCase):
     @mock.patch('proxy.recv_handle')
     @mock.patch('proxy.HttpProtocolHandler')
     def test_spawns_http_proxy_threads(
-            self, mock_http_proxy, mock_recv_handle, mock_fromfd):
+            self,
+            mock_http_proxy: mock.Mock,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock) -> None:
         fileno = 10
         mock_recv_handle.return_value = fileno
         self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
@@ -1043,17 +1124,77 @@ class TestWorker(unittest.TestCase):
             fileno, family=socket.AF_INET6, type=socket.SOCK_STREAM)
         self.assertTrue(mock_http_proxy.called)
 
+    def test_handles_work_queue_recv_connection_refused(self) -> None:
+        with mock.patch.object(self.worker.work_queue, 'recv') as mock_recv:
+            mock_recv.side_effect = ConnectionRefusedError()
+            self.assertFalse(self.worker.run_once())  # doesn't teardown
+
+
+class TestWorkerSSLWrap(unittest.TestCase):
+
+    CERTFILE = 'my-https-cert.pem'
+    KEYFILE = 'my-https-key.pem'
+
+    def setUp(self) -> None:
+        self.pipe = multiprocessing.Pipe()
+        self.worker = proxy.Worker(self.pipe[1],
+                                   proxy.HttpProtocolConfig(certfile=self.CERTFILE, keyfile=self.KEYFILE))
+
+    @mock.patch('ssl.create_default_context')
+    @mock.patch('socket.fromfd')
+    @mock.patch('proxy.recv_handle')
+    @mock.patch('proxy.HttpProtocolHandler')
+    def test_worker_performs_ssl_wrap(
+            self,
+            mock_http_proxy: mock.Mock,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock,
+            mock_context: mock.Mock) -> None:
+        fileno = 10
+        mock_recv_handle.return_value = fileno
+        self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
+        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
+        self.worker.run()
+        mock_fromfd.assert_called()
+        mock_context.assert_called_with(ssl.Purpose.CLIENT_AUTH)
+        mock_context.return_value.load_cert_chain.assert_called_with(certfile=self.CERTFILE, keyfile=self.KEYFILE)
+        mock_http_proxy.assert_called()
+
+    @mock.patch('ssl.create_default_context')
+    @mock.patch('socket.fromfd')
+    @mock.patch('proxy.recv_handle')
+    @mock.patch('proxy.HttpProtocolHandler')
+    def test_client_conn_closed_on_os_error(
+            self,
+            mock_http_proxy: mock.Mock,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock,
+            mock_context: mock.Mock) -> None:
+        fileno = 10
+        mock_recv_handle.return_value = fileno
+        mock_context.return_value.wrap_socket.side_effect = OSError()
+        self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
+        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
+        with mock.patch('proxy.logger') as mock_logger:
+            self.worker.run()
+            mock_logger.exception.assert_called()
+            self.assertEqual(mock_logger.exception.call_args[0][0],
+                             'OSError encountered while ssl wrapping the client socket')
+        mock_fromfd.assert_called()
+        mock_fromfd.return_value.close.assert_called()
+        mock_http_proxy.assert_not_called()
+
 
 class TestHttpRequestRejected(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.request = proxy.HttpParser(proxy.httpParserTypes.REQUEST_PARSER)
 
-    def test_empty_response(self):
+    def test_empty_response(self) -> None:
         e = proxy.HttpRequestRejected()
         self.assertEqual(e.response(self.request), None)
 
-    def test_status_code_response(self):
+    def test_status_code_response(self) -> None:
         e = proxy.HttpRequestRejected(status_code=200, reason=b'OK')
         self.assertEqual(e.response(self.request), proxy.CRLF.join([
             b'HTTP/1.1 200 OK',
@@ -1061,7 +1202,7 @@ class TestHttpRequestRejected(unittest.TestCase):
             proxy.CRLF
         ]))
 
-    def test_body_response(self):
+    def test_body_response(self) -> None:
         e = proxy.HttpRequestRejected(
             status_code=404, reason=b'NOT FOUND',
             body=b'Nothing here')
@@ -1081,9 +1222,9 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.logging.basicConfig')
     def test_log_file_setup(
             self,
-            mock_config,
-            mock_multicore_dispatcher,
-            mock_set_open_file_limit):
+            mock_config: mock.Mock,
+            mock_multicore_dispatcher: mock.Mock,
+            mock_set_open_file_limit: mock.Mock) -> None:
         log_file = get_temp_file('proxy.log')
         proxy.main(['--log-file', log_file])
         mock_set_open_file_limit.assert_called()
@@ -1092,7 +1233,7 @@ class TestMain(unittest.TestCase):
         mock_config.assert_called_with(
             filename=log_file,
             filemode='a',
-            level=proxy.logging.INFO,
+            level=logging.INFO,
             format=proxy.DEFAULT_LOG_FORMAT
         )
 
@@ -1102,7 +1243,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     @unittest.skipIf(
-        True,
+        True,  # type: ignore
         'This test passes while development on Intellij but fails via CLI :(')
     def test_pid_file_is_written_and_removed(
             self,
@@ -1110,7 +1251,7 @@ class TestMain(unittest.TestCase):
             mock_set_open_file_limit,
             mock_open,
             mock_exists,
-            mock_remove):
+            mock_remove) -> None:
         pid_file = get_temp_file('proxy.pid')
         proxy.main(['--pid-file', pid_file])
         mock_set_open_file_limit.assert_called()
@@ -1127,9 +1268,9 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     def test_main(
             self,
-            mock_multicore_dispatcher,
-            mock_set_open_file_limit,
-            mock_config):
+            mock_multicore_dispatcher: mock.Mock,
+            mock_set_open_file_limit: mock.Mock,
+            mock_config: mock.Mock) -> None:
         proxy.main(['--basic-auth', 'user:pass'])
         self.assertTrue(mock_set_open_file_limit.called)
         mock_multicore_dispatcher.assert_called_with(
@@ -1159,10 +1300,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     def test_main_version(
             self,
-            mock_multicore_dispatcher,
-            mock_set_open_file_limit,
-            mock_config,
-            mock_print):
+            mock_multicore_dispatcher: mock.Mock,
+            mock_set_open_file_limit: mock.Mock,
+            mock_config: mock.Mock,
+            mock_print: mock.Mock) -> None:
         with self.assertRaises(SystemExit):
             proxy.main(['--version'])
             mock_print.assert_called_with(proxy.text_(proxy.version))
@@ -1177,11 +1318,11 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.is_py3')
     def test_main_py3_runs(
             self,
-            mock_is_py3,
-            mock_multicore_dispatcher,
-            mock_set_open_file_limit,
-            mock_config,
-            mock_print):
+            mock_is_py3: mock.Mock,
+            mock_multicore_dispatcher: mock.Mock,
+            mock_set_open_file_limit: mock.Mock,
+            mock_config: mock.Mock,
+            mock_print: mock.Mock) -> None:
         mock_is_py3.return_value = True
         proxy.main([])
         mock_is_py3.assert_called()
@@ -1196,7 +1337,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.MultiCoreRequestDispatcher')
     @mock.patch('proxy.is_py3')
     @unittest.skipIf(
-        True,
+        True,  # type: ignore
         'This test passes while development on Intellij but fails via CLI :(')
     def test_main_py2_exit(
             self,
@@ -1204,7 +1345,7 @@ class TestMain(unittest.TestCase):
             mock_multicore_dispatcher,
             mock_set_open_file_limit,
             mock_config,
-            mock_print):
+            mock_print) -> None:
         mock_is_py3.return_value = False
         with self.assertRaises(SystemExit):
             proxy.main([])
@@ -1214,24 +1355,24 @@ class TestMain(unittest.TestCase):
         mock_set_open_file_limit.assert_not_called()
         mock_config.assert_not_called()
 
-    def test_text(self):
+    def test_text(self) -> None:
         self.assertEqual(proxy.text_(b'hello'), 'hello')
 
-    def test_text_nochange(self):
+    def test_text_nochange(self) -> None:
         self.assertEqual(proxy.text_('hello'), 'hello')
 
-    def test_bytes(self):
+    def test_bytes(self) -> None:
         self.assertEqual(proxy.bytes_('hello'), b'hello')
 
-    def test_bytes_nochange(self):
+    def test_bytes_nochange(self) -> None:
         self.assertEqual(proxy.bytes_(b'hello'), b'hello')
 
     @unittest.skipIf(
         os.name == 'nt',
         'Open file limit tests disabled for Windows')
-    @mock.patch('resource.getrlimit', return_value=(128, 1024))
+    @mock.patch('resource.getrlimit', return_value=(128, 1024))  # type: ignore
     @mock.patch('resource.setrlimit', return_value=None)
-    def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit):
+    def test_set_open_file_limit(self, mock_set_rlimit, mock_get_rlimit) -> None:
         proxy.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_called_with(resource.RLIMIT_NOFILE, (256, 1024))
@@ -1239,10 +1380,10 @@ class TestMain(unittest.TestCase):
     @unittest.skipIf(
         os.name == 'nt',
         'Open file limit tests disabled for Windows')
-    @mock.patch('resource.getrlimit', return_value=(256, 1024))
+    @mock.patch('resource.getrlimit', return_value=(256, 1024))  # type: ignore
     @mock.patch('resource.setrlimit', return_value=None)
     def test_set_open_file_limit_not_called(
-            self, mock_set_rlimit, mock_get_rlimit):
+            self, mock_set_rlimit, mock_get_rlimit) -> None:
         proxy.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
@@ -1250,10 +1391,10 @@ class TestMain(unittest.TestCase):
     @unittest.skipIf(
         os.name == 'nt',
         'Open file limit tests disabled for Windows')
-    @mock.patch('resource.getrlimit', return_value=(256, 1024))
+    @mock.patch('resource.getrlimit', return_value=(256, 1024))  # type: ignore
     @mock.patch('resource.setrlimit', return_value=None)
     def test_set_open_file_limit_not_called1(
-            self, mock_set_rlimit, mock_get_rlimit):
+            self, mock_set_rlimit, mock_get_rlimit) -> None:
         proxy.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()

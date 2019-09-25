@@ -216,14 +216,16 @@ class TcpServerConnection(TcpConnection):
         try:
             ip = ipaddress.ip_address(text_(self.addr[0]))
             if ip.version == 4:
-                self.conn = socket.create_connection(
-                    (self.addr[0], self.addr[1]))
+                self.conn = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM, 0)
+                self.conn.connect((self.addr[0], self.addr[1]))
             else:
                 self.conn = socket.socket(
                     socket.AF_INET6, socket.SOCK_STREAM, 0)
                 self.conn.connect((self.addr[0], self.addr[1], 0, 0))
         except ValueError:
-            # Not a valid IP address, most likely its a domain name.
+            # Not a valid IP address, most likely its a domain name,
+            # try to establish dual stack IPv4/IPv6 connection.
             self.conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 
@@ -261,18 +263,29 @@ class TcpServer(ABC):
 
     @abstractmethod
     def setup(self) -> None:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def handle(self, client: TcpClientConnection) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def shutdown(self) -> None:
-        pass
+        pass  # pragma: no cover
 
     def stop(self) -> None:
         self.running = False
+
+    def run_once(self) -> None:
+        if self.socket:
+            r, w, x = select.select([self.socket], [], [], 1)
+            if self.socket in r:
+                try:
+                    conn, addr = self.socket.accept()
+                    client = TcpClientConnection(conn, addr)
+                    self.handle(client)
+                except ssl.SSLError as e:
+                    logger.exception('SSLError encountered', exc_info=e)
 
     def run(self) -> None:
         self.running = True
@@ -284,17 +297,9 @@ class TcpServer(ABC):
             self.socket.listen(self.backlog)
             logger.info('Started server on %s:%d' % (self.hostname, self.port))
             while self.running:
-                r, w, x = select.select([self.socket], [], [], 1)
-                if self.socket in r:
-                    try:
-                        conn, addr = self.socket.accept()
-                        client = TcpClientConnection(conn, addr)
-                        self.handle(client)
-                    except ssl.SSLError as e:
-                        logger.exception('SSLError encountered', exc_info=e)
-
+                self.run_once()
         except Exception as e:
-            logger.exception('Exception while running the server %r' % e)
+            logger.exception('Unexpected error, tearing down server.', exc_info=e)
         finally:
             self.shutdown()
             logger.info('Closing server socket')
@@ -436,43 +441,49 @@ class Worker(multiprocessing.Process):
         self.work_queue: connection.Connection = work_queue
         self.config: HttpProtocolConfig = config
 
+    def run_once(self) -> bool:
+        try:
+            op, payload = self.work_queue.recv()
+            if op == workerOperations.HTTP_PROTOCOL:
+                fileno = recv_handle(self.work_queue)
+                conn = socket.fromfd(
+                    fileno, family=self.config.family, type=socket.SOCK_STREAM)
+                # TODO(abhinavsingh): Move handshake logic within
+                # HttpProtocolHandler.
+                if self.config.certfile and self.config.keyfile:
+                    try:
+                        ctx = ssl.create_default_context(
+                            ssl.Purpose.CLIENT_AUTH)
+                        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+                        ctx.verify_mode = ssl.CERT_NONE
+                        ctx.load_cert_chain(
+                            certfile=self.config.certfile,
+                            keyfile=self.config.keyfile)
+                        conn = ctx.wrap_socket(conn, server_side=True)
+                    except OSError as e:
+                        logger.exception(
+                            'OSError encountered while ssl wrapping the client socket', exc_info=e)
+                        conn.close()
+                        return False
+                proxy = HttpProtocolHandler(
+                    TcpClientConnection(conn=conn, addr=payload),
+                    config=self.config)
+                proxy.setDaemon(True)
+                proxy.start()
+            elif op == workerOperations.SHUTDOWN:
+                logger.debug('Worker shutting down....')
+                self.work_queue.close()
+                return True
+        except ConnectionRefusedError:
+            return False
+        except KeyboardInterrupt:  # pragma: no cover
+            return True
+        return False
+
     def run(self) -> None:
         while True:
-            try:
-                op, payload = self.work_queue.recv()
-                if op == workerOperations.HTTP_PROTOCOL:
-                    fileno = recv_handle(self.work_queue)
-                    conn = socket.fromfd(
-                        fileno, family=self.config.family, type=socket.SOCK_STREAM)
-                    # TODO(abhinavsingh): Move handshake logic within
-                    # HttpProtocolHandler.
-                    if self.config.certfile and self.config.keyfile:
-                        try:
-                            ctx = ssl.create_default_context(
-                                ssl.Purpose.CLIENT_AUTH)
-                            ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                            ctx.verify_mode = ssl.CERT_NONE
-                            ctx.load_cert_chain(
-                                certfile=self.config.certfile,
-                                keyfile=self.config.keyfile)
-                            conn = ctx.wrap_socket(conn, server_side=True)
-                        except OSError as e:
-                            logger.exception(
-                                'OSError encountered while ssl wrapping the client socket', exc_info=e)
-                            conn.close()
-                            continue
-                    proxy = HttpProtocolHandler(
-                        TcpClientConnection(conn=conn, addr=payload),
-                        config=self.config)
-                    proxy.setDaemon(True)
-                    proxy.start()
-                elif op == workerOperations.SHUTDOWN:
-                    logger.debug('Worker shutting down....')
-                    self.work_queue.close()
-                    break
-            except ConnectionRefusedError:
-                pass
-            except KeyboardInterrupt:
+            teardown = self.run_once()
+            if teardown:
                 break
 
 
@@ -595,9 +606,8 @@ class HttpParser:
                 if b'content-length' in self.headers:
                     self.state = httpParserStates.RCVING_BODY
                     self.body += raw
-                    if self.body and len(
-                        self.body) >= int(
-                            self.headers[b'content-length'][1]):
+                    if self.body and \
+                            len(self.body) >= int(self.headers[b'content-length'][1]):
                         self.state = httpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
@@ -758,7 +768,7 @@ class HttpProtocolException(Exception):
     to optionally return custom response to client."""
 
     def response(self, request: HttpParser) -> Optional[bytes]:
-        pass
+        pass  # pragma: no cover
 
 
 class HttpRequestRejected(HttpProtocolException):
@@ -819,39 +829,39 @@ class HttpProtocolBasePlugin(ABC):
     @abstractmethod
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket], List[socket.socket]]:
-        return [], [], []
+        return [], [], []  # pragma: no cover
 
     @abstractmethod
     def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def read_from_descriptors(self, r: List[socket.socket]) -> bool:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
-        return raw
+        return raw  # pragma: no cover
 
     @abstractmethod
     def on_request_complete(self) -> Union[socket.socket, bool]:
         """Called right after client request parser has reached COMPLETE state."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def handle_response_chunk(self, chunk: bytes) -> bytes:
         """Handle data chunks as received from the server.
 
         Return optionally modified chunk to return back to client."""
-        return chunk
+        return chunk  # pragma: no cover
 
     @abstractmethod
     def access_log(self) -> None:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def on_client_connection_close(self) -> None:
-        pass
+        pass  # pragma: no cover
 
 
 class ProxyConnectionFailed(HttpProtocolException):
@@ -921,12 +931,12 @@ class HttpProxyBasePlugin(ABC):
         """Handler called just before Proxy upstream connection is established.
 
         Raise HttpRequestRejected to drop the connection."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def on_upstream_connection(self) -> None:
         """Handler called right after upstream connection has been established."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def handle_upstream_response(self, raw: bytes) -> bytes:
@@ -934,12 +944,12 @@ class HttpProxyBasePlugin(ABC):
         before queuing that response to client.
 
         Optionally return modified response to queue for client."""
-        return raw
+        return raw  # pragma: no cover
 
     @abstractmethod
     def on_upstream_connection_close(self) -> None:
         """Handler called right after upstream connection has been closed."""
-        pass
+        pass  # pragma: no cover
 
 
 class HttpProxyPlugin(HttpProtocolBasePlugin):
@@ -1065,6 +1075,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                          self.config.ca_key_file, '-set_serial', str(int(time.time() * 1000)), '-out', cert_file_path],
                         stdin=gen_cert.stdout,
                         stderr=subprocess.PIPE)
+                    # TODO: Ensure sign_cert success.
                     sign_cert.communicate(timeout=10)
                 return cert_file_path
         else:
@@ -1356,7 +1367,7 @@ class HttpProtocolHandler(threading.Thread):
                             HttpRequestRejected.__name__):
                         logger.exception(
                             'HttpProtocolException type raised', exc_info=e)
-                        response = e.response(self.request)     # type: ignore
+                        response = e.response(self.request)  # type: ignore
                         if response:
                             self.client.queue(response)
                             # But is client also ready for writes?
@@ -1423,7 +1434,7 @@ class HttpProtocolHandler(threading.Thread):
                 teardown = self.run_once()
                 if teardown:
                     break
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # pragma: no cover
             pass
         except Exception as e:
             logger.exception(
@@ -1727,7 +1738,7 @@ def main(input_args: List[str]) -> None:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(str(os.getpid())))
         server.run()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         pass
     finally:
         if args.pid_file:
@@ -1736,4 +1747,4 @@ def main(input_args: List[str]) -> None:
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main(sys.argv[1:])  # pragma: no cover
