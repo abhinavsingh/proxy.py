@@ -24,6 +24,25 @@
 [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=mypy&message=checked&color=blue)](http://mypy-lang.org/)
 
+Table of Contents
+=================
+
+* [Features](#features)
+* [Install](#install)
+    * [Stable version](#stable-version)
+    * [Development version](#development-version)
+    * [Docker](#docker-image)
+* [Plugin Examples](#plugin-examples)
+    * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
+    * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
+    * [CacheResponsesPlugin](#cacheresponsesplugin)
+    * [ManInTheMiddlePlugin](#maninthemiddleplugin)
+    * [Plugin Ordering](#plugin-ordering)
+* [Plugin Developer Guide](#plugin-developer-guide)
+* [End-to-End Encryption](#end-to-end-encryption)
+* [TLS Encryption](#tls-interception)
+* [Usage](#usage)
+
 Features
 --------
 
@@ -91,7 +110,7 @@ Plugin Examples
 See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) for full code.
 
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
-See [TLS Interception]().
+See [TLS Interception](#tls-interception).
 
 #### RedirectToCustomServerPlugin
 
@@ -358,7 +377,8 @@ Generate self-signed CA certificates and signing key locally using:
 make ca-certificates
 ```
 
-Use CA flags with our examples to make them work with `https` traffic.
+Use CA flags with [plugin examples](#plugin-examples) to make them work with 
+`https` traffic.
 
 Usage
 -----
