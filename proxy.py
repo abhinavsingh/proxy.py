@@ -277,14 +277,15 @@ class TcpServer(ABC):
         self.running = False
 
     def run_once(self) -> None:
-        r, w, x = select.select([self.socket], [], [], 1)
-        if self.socket in r:
-            try:
-                conn, addr = self.socket.accept()
-                client = TcpClientConnection(conn, addr)
-                self.handle(client)
-            except ssl.SSLError as e:
-                logger.exception('SSLError encountered', exc_info=e)
+        if self.socket:
+            r, w, x = select.select([self.socket], [], [], 1)
+            if self.socket in r:
+                try:
+                    conn, addr = self.socket.accept()
+                    client = TcpClientConnection(conn, addr)
+                    self.handle(client)
+                except ssl.SSLError as e:
+                    logger.exception('SSLError encountered', exc_info=e)
 
     def run(self) -> None:
         self.running = True
@@ -297,6 +298,8 @@ class TcpServer(ABC):
             logger.info('Started server on %s:%d' % (self.hostname, self.port))
             while self.running:
                 self.run_once()
+        except Exception as e:
+            logger.exception('Unexpected error, tearing down server.', exc_info=e)
         finally:
             self.shutdown()
             logger.info('Closing server socket')

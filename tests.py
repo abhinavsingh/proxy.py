@@ -218,7 +218,7 @@ class TestTcpServer(unittest.TestCase):
     # Example, simply sending http traffic to HTTPS server.
     @mock.patch('select.select')
     @mock.patch('socket.socket')
-    def testAcceptSSLErrorsSilentlyIgnored(self, mock_socket, mock_select):
+    def testAcceptSSLErrorsSilentlyIgnored(self, mock_socket: mock.Mock, mock_select: mock.Mock) -> None:
         mock_socket.accept.side_effect = ssl.SSLError()
         mock_select.return_value = ([mock_socket], [], [])
         server = BasicTcpServer(hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=1234)
@@ -1124,7 +1124,7 @@ class TestWorker(unittest.TestCase):
             fileno, family=socket.AF_INET6, type=socket.SOCK_STREAM)
         self.assertTrue(mock_http_proxy.called)
 
-    def test_handles_work_queue_recv_connection_refused(self):
+    def test_handles_work_queue_recv_connection_refused(self) -> None:
         with mock.patch.object(self.worker.work_queue, 'recv') as mock_recv:
             mock_recv.side_effect = ConnectionRefusedError()
             self.assertFalse(self.worker.run_once())  # doesn't teardown
