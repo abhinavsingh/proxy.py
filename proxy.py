@@ -263,15 +263,15 @@ class TcpServer(ABC):
 
     @abstractmethod
     def setup(self) -> None:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def handle(self, client: TcpClientConnection) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def shutdown(self) -> None:
-        pass
+        pass  # pragma: no cover
 
     def stop(self) -> None:
         self.running = False
@@ -474,7 +474,7 @@ class Worker(multiprocessing.Process):
                     break
             except ConnectionRefusedError:
                 pass
-            except KeyboardInterrupt:
+            except KeyboardInterrupt:  # pragma: no cover
                 break
 
 
@@ -571,7 +571,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -598,8 +598,8 @@ class HttpParser:
                     self.state = httpParserStates.RCVING_BODY
                     self.body += raw
                     if self.body and len(
-                        self.body) >= int(
-                            self.headers[b'content-length'][1]):
+                            self.body) >= int(
+                        self.headers[b'content-length'][1]):
                         self.state = httpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
@@ -760,7 +760,7 @@ class HttpProtocolException(Exception):
     to optionally return custom response to client."""
 
     def response(self, request: HttpParser) -> Optional[bytes]:
-        pass
+        pass  # pragma: no cover
 
 
 class HttpRequestRejected(HttpProtocolException):
@@ -821,39 +821,39 @@ class HttpProtocolBasePlugin(ABC):
     @abstractmethod
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket], List[socket.socket]]:
-        return [], [], []
+        return [], [], []  # pragma: no cover
 
     @abstractmethod
     def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def read_from_descriptors(self, r: List[socket.socket]) -> bool:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
-        return raw
+        return raw  # pragma: no cover
 
     @abstractmethod
     def on_request_complete(self) -> Union[socket.socket, bool]:
         """Called right after client request parser has reached COMPLETE state."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def handle_response_chunk(self, chunk: bytes) -> bytes:
         """Handle data chunks as received from the server.
 
         Return optionally modified chunk to return back to client."""
-        return chunk
+        return chunk  # pragma: no cover
 
     @abstractmethod
     def access_log(self) -> None:
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def on_client_connection_close(self) -> None:
-        pass
+        pass  # pragma: no cover
 
 
 class ProxyConnectionFailed(HttpProtocolException):
@@ -923,12 +923,12 @@ class HttpProxyBasePlugin(ABC):
         """Handler called just before Proxy upstream connection is established.
 
         Raise HttpRequestRejected to drop the connection."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def on_upstream_connection(self) -> None:
         """Handler called right after upstream connection has been established."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def handle_upstream_response(self, raw: bytes) -> bytes:
@@ -936,12 +936,12 @@ class HttpProxyBasePlugin(ABC):
         before queuing that response to client.
 
         Optionally return modified response to queue for client."""
-        return raw
+        return raw  # pragma: no cover
 
     @abstractmethod
     def on_upstream_connection_close(self) -> None:
         """Handler called right after upstream connection has been closed."""
-        pass
+        pass  # pragma: no cover
 
 
 class HttpProxyPlugin(HttpProtocolBasePlugin):
@@ -1358,7 +1358,7 @@ class HttpProtocolHandler(threading.Thread):
                             HttpRequestRejected.__name__):
                         logger.exception(
                             'HttpProtocolException type raised', exc_info=e)
-                        response = e.response(self.request)     # type: ignore
+                        response = e.response(self.request)  # type: ignore
                         if response:
                             self.client.queue(response)
                             # But is client also ready for writes?
@@ -1425,7 +1425,7 @@ class HttpProtocolHandler(threading.Thread):
                 teardown = self.run_once()
                 if teardown:
                     break
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # pragma: no cover
             pass
         except Exception as e:
             logger.exception(
@@ -1729,7 +1729,7 @@ def main(input_args: List[str]) -> None:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(str(os.getpid())))
         server.run()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         pass
     finally:
         if args.pid_file:
@@ -1738,4 +1738,4 @@ def main(input_args: List[str]) -> None:
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main(sys.argv[1:])  # pragma: no cover
