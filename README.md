@@ -31,7 +31,9 @@ Table of Contents
 * [Install](#install)
     * [Stable version](#stable-version)
     * [Development version](#development-version)
-    * [Docker](#docker-image)
+* [Start proxy.py](#start-proxypy)
+    * [Command Line](#command-line)
+    * [Docker Image](#docker-image)
 * [Plugin Examples](#plugin-examples)
     * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
     * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
@@ -77,19 +79,70 @@ Features
 Install
 =======
 
-#### Stable version
+## Stable version
 
 	$ pip install --upgrade proxy.py
 
-#### Development version
+## Development version
 
     $ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
 
-#### Docker image
+For `Docker` usage see [Docker Image](#docker-image).
+
+Start proxy.py
+==============
+
+## Command line
+
+Simply type `proxy.py` on command line to start it with default configuration.
+
+```
+$ proxy.py
+...[redacted]... - Loaded plugin <class 'proxy.HttpProxyPlugin'>
+...[redacted]... - Starting 8 workers
+...[redacted]... - Started server on ::1:8899
+```
+
+Things to notice from above logs:
+
+- `Loaded plugin` - `proxy.py` will load `HttpProxyPlugin` by default. It adds `http(s)` 
+  proxy server capabilities to `proxy.py`
+
+- `Started N workers` - Use `--num-workers` flag to customize number of `Worker` processes. 
+  By default, `proxy.py` will start as many workers as there are CPU cores on the machine.
+
+- `Started server on ::1:8899` - By default, `proxy.py` listens on IPv6 `::1`, which 
+  is equivalent of IPv4 `127.0.0.1`.  If you want to access `proxy.py` externally, 
+  use `--hostname ::` or `--hostname 0.0.0.0` or bind to any other interface available 
+  on your machine.
+
+- `Port 8899` - Use `--port` flag to customize default TCP port.
+
+All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`. 
+
+Lets start `proxy.py` with `DEBUG` level logging:
+
+```
+$ proxy.py --log-level d
+...[redacted]... - Open file descriptor soft limit set to 1024
+...[redacted]... - Loaded plugin <class 'proxy.HttpProxyPlugin'>
+...[redacted]... - Started 8 workers
+...[redacted]... - Started server on ::1:8899
+```
+
+As we can see, before starting up:
+
+- `proxy.py` also tried to set open file limit `ulimit` on the system.
+- Default value for `--open-file-limit` used is `1024`.
+- `--open-file-limit` flag is a no-op on `Windows` operating systems.
+
+See [flags](#flags) for full list of available configuration options.
+
+## Docker image
 
     $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:v1.0.0
 
-By default `docker` binary is started with following flags:
+By default `docker` binary is started with IPv4 networking flags:
 
     --hostname 0.0.0.0 --port 8899
 

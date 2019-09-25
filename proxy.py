@@ -386,7 +386,6 @@ class MultiCoreRequestDispatcher(TcpServer):
         self.config: HttpProtocolConfig = config
 
     def setup(self) -> None:
-        logger.info('Starting %d workers' % self.config.num_workers)
         for worker_id in range(self.config.num_workers):
             work_queue = multiprocessing.Pipe()
 
@@ -396,6 +395,7 @@ class MultiCoreRequestDispatcher(TcpServer):
 
             self.workers.append(worker)
             self.work_queues.append(work_queue)
+        logger.info('Started %d workers' % self.config.num_workers)
 
     def handle(self, client: TcpClientConnection) -> None:
         # Dispatch in round robin fashion
