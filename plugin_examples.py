@@ -9,7 +9,7 @@
 import os
 import tempfile
 import time
-from typing import Optional
+from typing import Optional, BinaryIO
 from urllib import parse as urlparse
 
 import proxy
@@ -72,7 +72,7 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
                  request: proxy.HttpParser) -> None:
         super().__init__(config, client, request)
         self.cache_file_path: Optional[str] = None
-        self.cache_file = None
+        self.cache_file: Optional[BinaryIO] = None
 
     def before_upstream_connection(self) -> None:
         pass
@@ -84,11 +84,13 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
         self.cache_file = open(self.cache_file_path, "wb")
 
     def handle_upstream_response(self, chunk: bytes) -> bytes:
-        self.cache_file.write(chunk)
+        if self.cache_file:
+            self.cache_file.write(chunk)
         return chunk
 
     def on_upstream_connection_close(self) -> None:
-        self.cache_file.close()
+        if self.cache_file:
+            self.cache_file.close()
         proxy.logger.info('Cached response at %s', self.cache_file_path)
 
 
