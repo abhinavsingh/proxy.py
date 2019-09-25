@@ -47,7 +47,7 @@ lint:
 	autopep8 --recursive --in-place --aggressive proxy.py
 	autopep8 --recursive --in-place --aggressive tests.py
 	autopep8 --recursive --in-place --aggressive plugin_examples.py
-	flake8 --ignore=E501,W504 --builtins="unicode" proxy.py
+	flake8 --ignore=E501,W504 proxy.py
 	flake8 --ignore=E501,W504 tests.py
 
 container:

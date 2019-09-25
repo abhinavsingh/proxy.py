@@ -38,10 +38,12 @@ Table of Contents
     * [CacheResponsesPlugin](#cacheresponsesplugin)
     * [ManInTheMiddlePlugin](#maninthemiddleplugin)
     * [Plugin Ordering](#plugin-ordering)
-* [Plugin Developer Guide](#plugin-developer-guide)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Encryption](#tls-interception)
-* [Usage](#usage)
+* [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
+    * [Everything is a plugin](#everything-is-a-plugin)
+    * [proxy.py Internals](#proxypy-internals)
+* [Flags](#flags)
 
 Features
 ========
@@ -110,7 +112,7 @@ See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/p
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
 See [TLS Interception](#tls-interception).
 
-### RedirectToCustomServerPlugin
+## RedirectToCustomServerPlugin
 
 Redirects all incoming `http` requests to custom web server. 
 By default, it redirects client requests to inbuilt web server, 
@@ -145,7 +147,7 @@ Along with the proxy request log, you must also see a http web server request lo
 2019-09-24 19:09:33,603 - INFO - pid:49995 - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
 ```
 
-### FilterByUpstreamHostPlugin
+## FilterByUpstreamHostPlugin
 
 Drops traffic by inspecting upstream host. 
 By default, plugin drops traffic for `google.com` and `www.google.com`.
@@ -179,7 +181,7 @@ Traceback (most recent call last):
 2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
 ```
 
-### CacheResponsesPlugin
+## CacheResponsesPlugin
 
 Caches Upstream Server Responses.
 
@@ -255,7 +257,7 @@ Connection: keep-alive
 }
 ```
 
-### ManInTheMiddlePlugin
+## ManInTheMiddlePlugin
 
 Modifies upstream server responses.
 
@@ -279,7 +281,7 @@ Hello from man in the middle
 
 Response body `Hello from man in the middle` is sent by our plugin.
 
-### Plugin Ordering
+## Plugin Ordering
 
 When using multiple plugins, depending upon plugin functionality, 
 it might be worth considering the order in which plugins are passed 
@@ -294,21 +296,14 @@ requests for `google.com` and `www.google.com` and redirect other
 Hence, in this scenario it is important to use 
 `FilterByUpstreamHostPlugin` before `RedirectToCustomServerPlugin`. 
 If we enable `RedirectToCustomServerPlugin` before `FilterByUpstreamHostPlugin`,
-`google` requests will also get redirected to inbuilt web server.
-
-Plugin Developer Guide
-======================
-
-TODO, meanwhile read [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) 
-code. Most of the plugin hook names are self explanatory e.g. `handle_upstream_response`.
-
-Also, see documentation for `HttpProxyBasePlugin` abstract class for some insights.
+`google` requests will also get redirected to inbuilt web server, 
+instead of being dropped.
 
 End-to-End Encryption
 =====================
 
 By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`. 
-For enabling end-to-end encrypting using `TLS` / `HTTPS` first generate certificates using:
+For enabling end-to-end encrypting using `tls` / `https` first generate certificates:
 
 ```
 make https-certificates
@@ -340,7 +335,7 @@ Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https
 TLS Interception
 =================
 
-By default, `proxy.py` doesn't tries to decrypt `https` traffic between client and server. 
+By default, `proxy.py` doesn't decrypt `https` traffic between client and server. 
 To enable TLS interception first generate CA certificates:
 
 ```
@@ -371,10 +366,61 @@ Verify using `curl -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/ge
 }
 ```
 
-Use CA flags with [plugin examples](#plugin-examples) to make them work with 
-`https` traffic.
+Now you can use CA flags with 
+[plugin examples](#plugin-examples) to make them work for `https` traffic.
 
-Usage
+Plugin Developer and Contributor Guide
+======================================
+
+## Everything is a plugin
+
+As you might have guessed by now, in `proxy.py` everything is a plugin.
+
+- We enabled proxy server plugins using `--plugins` flag.
+  All the [plugin examples](#plugin-examples) were implementing 
+  `HttpProxyBasePlugin`.  See documentation of 
+  [HttpProxyBasePlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L894-L938) 
+  for available lifecycle hooks. Use `HttpProxyBasePlugin` to modify 
+  behavior of http(s) proxy protocol between client and upstream server. 
+  Example, [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
+
+- We also enabled inbuilt web server using `--enable-web-server`. 
+  Inbuilt web server implements `HttpProtocolBasePlugin` plugin. 
+  See documentation of [HttpProtocolBasePlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L793-L850) 
+  for available lifecycle hooks. Use `HttpProtocolBasePlugin` to add 
+  new features for http(s) clients. Example, 
+  [HttpWebServerPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1185-L1260).
+
+- There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
+  Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
+  http(s) server. [HttpProxyPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L941-L1182) 
+  also implements `HttpProtocolBasePlugin`.
+
+## proxy.py Internals
+
+- [HttpProtocolHandler](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1263-L1440) 
+thread is started with the accepted [TcpClientConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L230-L237).
+`HttpProtocolHandler` is responsible for parsing incoming client request and invoking
+`HttpProtocolBasePlugin` lifecycle hooks.
+
+- `HttpProxyPlugin` which implements `HttpProtocolBasePlugin` also has its own plugin 
+mechanism. Its responsibility is to establish connection between client and 
+upstream [TcpServerConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L204-L227)
+and invoke `HttpProxyBasePlugin` lifecycle hooks.
+
+- `HttpProtocolHandler` threads are started by [Worker](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
+  processes.
+
+- `--num-workers` `Worker` processes are started by 
+  [MultiCoreRequestDispatcher](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L368-L421) 
+  on start-up.  `Worker` processes receives `TcpClientConnection` over a pipe from `MultiCoreRequestDispatcher`.
+
+- `MultiCoreRequestDispatcher` implements [TcpServer](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L240-L302) 
+  abstract class. `TcpServer` accepts `TcpClientConnection`. `MultiCoreRequestDispatcher` 
+  ensures full utilization of available CPU cores, for which it dispatches 
+  accepted `TcpClientConnection` to `Worker` processes in a round-robin fashion.
+
+Flags
 =====
 
 ```

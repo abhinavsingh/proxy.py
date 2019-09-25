@@ -20,10 +20,6 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
 
     UPSTREAM_SERVER = b'http://localhost:8899'
 
-    def __init__(self, config: proxy.HttpProtocolConfig, client: proxy.TcpClientConnection,
-                 request: proxy.HttpParser) -> None:
-        super().__init__(config, client, request)
-
     def before_upstream_connection(self) -> None:
         # Redirect all non-https requests to inbuilt WebServer.
         if self.request.method != b'CONNECT':
@@ -45,13 +41,10 @@ class FilterByUpstreamHostPlugin(proxy.HttpProxyBasePlugin):
 
     FILTERED_DOMAINS = [b'google.com', b'www.google.com']
 
-    def __init__(self, config: proxy.HttpProtocolConfig, client: proxy.TcpClientConnection,
-                 request: proxy.HttpParser) -> None:
-        super().__init__(config, client, request)
-
     def before_upstream_connection(self) -> None:
         if self.request.host in self.FILTERED_DOMAINS:
-            raise proxy.HttpRequestRejected(status_code=418, reason=b'I\'m a tea pot')
+            raise proxy.HttpRequestRejected(
+                status_code=418, reason=b'I\'m a tea pot')
 
     def on_upstream_connection(self) -> None:
         pass
