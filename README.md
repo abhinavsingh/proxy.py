@@ -416,9 +416,9 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
   on start-up.  `Worker` processes receives `TcpClientConnection` over a pipe from `MultiCoreRequestDispatcher`.
 
 - `MultiCoreRequestDispatcher` implements [TcpServer](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L240-L302) 
-  abstract class. `TcpServer` accepts `TcpClientConnection` while `MultiCoreRequestDispatcher` 
-  is responsible for ensuring full utilization of all CPU cores.  `MultiCoreRequestDispatcher` 
-  dispatches accepted `TcpClientConnection` in a round-robin fashion to `Worker` processes.
+  abstract class. `TcpServer` accepts `TcpClientConnection`. `MultiCoreRequestDispatcher` 
+  ensures full utilization of available CPU cores, for which it dispatches 
+  accepted `TcpClientConnection` to `Worker` processes in a round-robin fashion.
 
 Flags
 =====
