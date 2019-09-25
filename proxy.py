@@ -444,13 +444,17 @@ class Worker(multiprocessing.Process):
                     fileno = recv_handle(self.work_queue)
                     conn = socket.fromfd(
                         fileno, family=self.config.family, type=socket.SOCK_STREAM)
-                    # TODO(abhinavsingh): Move handshake logic within HttpProtocolHandler.
+                    # TODO(abhinavsingh): Move handshake logic within
+                    # HttpProtocolHandler.
                     if self.config.certfile and self.config.keyfile:
                         try:
-                            ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                            ctx = ssl.create_default_context(
+                                ssl.Purpose.CLIENT_AUTH)
                             ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
                             ctx.verify_mode = ssl.CERT_NONE
-                            ctx.load_cert_chain(certfile=self.config.certfile, keyfile=self.config.keyfile)
+                            ctx.load_cert_chain(
+                                certfile=self.config.certfile,
+                                keyfile=self.config.keyfile)
                             conn = ctx.wrap_socket(conn, server_side=True)
                         except OSError as e:
                             logger.exception(
@@ -565,7 +569,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -592,8 +596,8 @@ class HttpParser:
                     self.state = httpParserStates.RCVING_BODY
                     self.body += raw
                     if self.body and len(
-                            self.body) >= int(
-                        self.headers[b'content-length'][1]):
+                        self.body) >= int(
+                            self.headers[b'content-length'][1]):
                         self.state = httpParserStates.COMPLETE
                 elif self.is_chunked_encoded_response():
                     if not self.chunk_parser:
@@ -1049,7 +1053,8 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 if not os.path.isfile(cert_file_path):
                     logger.debug('Generating certificates %s', cert_file_path)
                     # TODO: Use ssl.get_server_certificate to populate generated certificate metadata
-                    # Currently we only set CN=example.org on the generated certificates.
+                    # Currently we only set CN=example.org on the generated
+                    # certificates.
                     gen_cert = subprocess.Popen(
                         ['/usr/bin/openssl', 'req', '-new', '-key', self.config.ca_signing_key_file, '-subj',
                          '/CN=%s' % text_(self.request.host)],
@@ -1104,9 +1109,12 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                                                            keyfile=self.config.ca_signing_key_file,
                                                            certfile=generated_cert)
                         # Wrap our connection to upstream server connection
-                        ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                        ctx = ssl.create_default_context(
+                            ssl.Purpose.SERVER_AUTH)
                         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                        self.server.conn = ctx.wrap_socket(self.server.conn, server_hostname=text_(self.request.host))
+                        self.server.conn = ctx.wrap_socket(
+                            self.server.conn, server_hostname=text_(
+                                self.request.host))
                         logger.info(
                             'Intercepting traffic using %s', generated_cert)
                         return self.client.conn
@@ -1333,18 +1341,21 @@ class HttpProtocolHandler(threading.Thread):
                                 logger.debug(
                                     'Updated client conn to %s', upgraded_sock)
                                 self.client.conn = upgraded_sock
-                                # Update self.client.conn references for all plugins
+                                # Update self.client.conn references for all
+                                # plugins
                                 for plugin_ in self.plugins.values():
                                     if plugin_ != plugin:
                                         plugin_.client.conn = upgraded_sock
-                                        logger.debug('Upgraded client conn for plugin %s', str(plugin_))
+                                        logger.debug(
+                                            'Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock:
                                 return True
                 except Exception as e:
                     if e.__class__.__name__ in (
                             ProxyAuthenticationFailed.__name__, ProxyConnectionFailed.__name__,
                             HttpRequestRejected.__name__):
-                        logger.exception('HttpProtocolException type raised', exc_info=e)
+                        logger.exception(
+                            'HttpProtocolException type raised', exc_info=e)
                         response = e.response(self.request)     # type: ignore
                         if response:
                             self.client.queue(response)

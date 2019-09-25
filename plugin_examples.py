@@ -43,7 +43,8 @@ class FilterByUpstreamHostPlugin(proxy.HttpProxyBasePlugin):
 
     def before_upstream_connection(self) -> None:
         if self.request.host in self.FILTERED_DOMAINS:
-            raise proxy.HttpRequestRejected(status_code=418, reason=b'I\'m a tea pot')
+            raise proxy.HttpRequestRejected(
+                status_code=418, reason=b'I\'m a tea pot')
 
     def on_upstream_connection(self) -> None:
         pass
