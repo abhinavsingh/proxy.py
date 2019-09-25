@@ -127,16 +127,7 @@ $ proxy.py \
 Verify using `curl -v -x localhost:8899 http://google.com`
 
 ```
-* Rebuilt URL to: http://google.com/
-*   Trying ::1...
-* TCP_NODELAY set
-* Connected to localhost (::1) port 8899 (#0)
-> GET http://google.com/ HTTP/1.1
-> Host: google.com
-> User-Agent: curl/7.54.0
-> Accept: */*
-> Proxy-Connection: Keep-Alive
-> 
+... [redacted] ...
 < HTTP/1.1 404 NOT FOUND
 < Server: proxy.py v1.0.0
 < Connection: Close
@@ -169,16 +160,7 @@ $ proxy.py \
 Verify using `curl -v -x localhost:8899 http://google.com`:
 
 ```
-* Rebuilt URL to: http://google.com/
-*   Trying ::1...
-* TCP_NODELAY set
-* Connected to localhost (::1) port 8899 (#0)
-> GET http://google.com/ HTTP/1.1
-> Host: google.com
-> User-Agent: curl/7.54.0
-> Accept: */*
-> Proxy-Connection: Keep-Alive
-> 
+... [redacted] ...
 < HTTP/1.1 418 I'm a tea pot
 < Proxy-agent: proxy.py v1.0.0
 * no chunk, no close, no size. Assume close to signal end
@@ -193,13 +175,7 @@ Verify the same by inspecting logs for `proxy.py`:
 ```
 2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
 Traceback (most recent call last):
-  File "./proxy.py", line 1331, in handle_readables
-    upgraded_sock = plugin.on_request_complete()
-  File "/Users/abhinav/Dev/proxy.py/proxy.py", line 1074, in on_request_complete
-    plugin.before_upstream_connection()
-  File "/Users/abhinav/Dev/proxy.py/plugin_examples.py", line 54, in before_upstream_connection
-    raise proxy.HttpRequestRejected(status_code=418, reason=b'I\'m a tea pot')
-proxy.HttpRequestRejected
+... [redacted] ...
 2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
 ```
 
@@ -290,20 +266,10 @@ $ proxy.py \
     --plugins plugin_examples.ManInTheMiddlePlugin
 ```
 
-Verify using `curl`:
+Verify using `curl -v -x localhost:8899 http://google.com`:
 
 ```
-$ curl -v -x localhost:8899 http://google.com
-* Rebuilt URL to: http://google.com/
-*   Trying ::1...
-* TCP_NODELAY set
-* Connected to localhost (::1) port 8899 (#0)
-> GET http://google.com/ HTTP/1.1
-> Host: google.com
-> User-Agent: curl/7.54.0
-> Accept: */*
-> Proxy-Connection: Keep-Alive
-> 
+... [redacted] ...
 < HTTP/1.1 200 OK
 < Content-Length: 28
 < 
