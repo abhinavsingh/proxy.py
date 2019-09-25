@@ -346,8 +346,8 @@ For enabling end-to-end encrypting using `TLS` / `HTTPS` start `proxy.py` as:
 
 ```
 $ proxy.py \
-    --certfile https-cert.pem \
-    --keyfile https-key.pem
+    --cert-file https-cert.pem \
+    --key-file https-key.pem
 ```
 
 Generate self-signed certificates locally using:
