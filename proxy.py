@@ -28,7 +28,7 @@ import time
 from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable
 from urllib import parse as urlparse
 
 import select
@@ -1235,7 +1235,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             raise HttpProtocolException()
 
 
-class HttpWebServerHandlerPlugin(ABC):
+class HttpWebServerRoutePlugin(ABC):
     """Web Server Route Plugin."""
 
     def __init__(
@@ -1254,7 +1254,28 @@ class HttpWebServerHandlerPlugin(ABC):
         raise NotImplementedError()
 
 
-class HttpWebServerPacFilePlugin(HttpWebServerHandlerPlugin):
+def route(path: bytes, protocols: Optional[List[int]] = None) -> \
+        Callable[[Callable[[HttpParser], bytes]], Type[HttpWebServerRoutePlugin]]:
+    def decorator(func: Callable[[HttpParser], bytes]) -> Type[HttpWebServerRoutePlugin]:
+        class HttpWebServerRouteHandler(HttpWebServerRoutePlugin):
+            @staticmethod
+            def name() -> str:
+                return func.__name__
+
+            def routes(self) -> List[Tuple[int, bytes]]:
+                p = protocols
+                if p is None:
+                    p = [httpProtocolTypes.HTTP, httpProtocolTypes.HTTPS]
+                return [(protocol, path) for protocol in p]
+
+            def handle_request(self, request: HttpParser) -> None:
+                self.client.queue(func(request))
+                self.client.flush()
+        return HttpWebServerRouteHandler
+    return decorator
+
+
+class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
 
     def __init__(
             self,
@@ -1307,13 +1328,13 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
             request: HttpParser):
         super().__init__(config, client, request)
 
-        self.routes: Dict[int, Dict[bytes, HttpWebServerHandlerPlugin]] = {
+        self.routes: Dict[int, Dict[bytes, HttpWebServerRoutePlugin]] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
         }
 
-        if b'HttpWebServerHandlerPlugin' in self.config.plugins:
-            for klass in self.config.plugins[b'HttpWebServerHandlerPlugin']:
+        if b'HttpWebServerRoutePlugin' in self.config.plugins:
+            for klass in self.config.plugins[b'HttpWebServerRoutePlugin']:
                 instance = klass(self.config, self.client)
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
@@ -1329,9 +1350,9 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
             registered_routes = self.routes[httpProtocolTypes.HTTP]
         else:
             registered_routes = self.routes[httpProtocolTypes.HTTPS]
-        for route in registered_routes:
-            if url == route:
-                registered_routes[route].handle_request(self.request)
+        for route_ in registered_routes:
+            if url == route_:
+                registered_routes[route_].handle_request(self.request)
                 # But is client ready for flush?
                 self.client.flush()
                 return True
@@ -1542,7 +1563,7 @@ class HttpProtocolHandler(threading.Thread):
                     self.client.conn.shutdown(socket.SHUT_RDWR)
                     self.client.close()
                 except OSError as e:
-                    logger.warning('OSError: %s', str(e))
+                    pass
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
@@ -1578,18 +1599,27 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
     p: Dict[bytes, List[type]] = {
         b'HttpProtocolBasePlugin': [],
         b'HttpProxyBasePlugin': [],
-        b'HttpWebServerHandlerPlugin': [],
+        b'HttpWebServerRoutePlugin': [],
     }
     for plugin in plugins.split(COMMA):
         plugin = plugin.strip()
         if plugin == b'':
             continue
         module_name, klass_name = plugin.rsplit(DOT, 1)
-        module = importlib.import_module(text_(module_name))
-        klass = getattr(module, text_(klass_name))
-        base_klass = inspect.getmro(klass)[::-1][2:][0]
+        module_name = text_(module_name)
+        klass_name = text_(klass_name)
+        if module_name == 'proxy':
+            klass = getattr(sys.modules[__name__], klass_name)
+        else:
+            klass = getattr(importlib.import_module(module_name), klass_name)
+        base_klass = inspect.getmro(klass)[1]
         p[bytes_(base_klass.__name__)].append(klass)
-        logger.info('Loaded plugin %s', klass)
+        logger.info(
+            'Loaded %s %s.%s',
+            'plugin' if klass.__name__ != 'HttpWebServerRouteHandler' else 'route',
+            module_name,
+            # HttpWebServerRouteHandler route decorator adds a special staticmethod to return decorated function name
+            klass.__name__ if klass.__name__ != 'HttpWebServerRouteHandler' else klass.name())
     return p
 
 
