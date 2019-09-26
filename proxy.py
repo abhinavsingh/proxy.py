@@ -1391,18 +1391,16 @@ class HttpProtocolHandler(threading.Thread):
                                             'Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock:
                                 return True
+                except HttpProtocolException as e:
+                    logger.exception(
+                        'HttpProtocolException type raised', exc_info=e)
+                    response = e.response(self.request)
+                    if response:
+                        self.client.queue(response)
+                        # But is client also ready for writes?
+                        self.client.flush()
+                    return True
                 except Exception as e:
-                    if e.__class__.__name__ in (
-                            ProxyAuthenticationFailed.__name__, ProxyConnectionFailed.__name__,
-                            HttpRequestRejected.__name__):
-                        logger.exception(
-                            'HttpProtocolException type raised', exc_info=e)
-                        response = e.response(self.request)  # type: ignore
-                        if response:
-                            self.client.queue(response)
-                            # But is client also ready for writes?
-                            self.client.flush()
-                        return True
                     raise e
         return False
 
@@ -1522,7 +1520,8 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
         if plugin == b'':
             continue
         module_name, klass_name = plugin.rsplit(DOT, 1)
-        module = importlib.import_module(text_(module_name))
+        module_name = __name__ if module_name == b'proxy' else text_(module_name)
+        module = importlib.import_module(__name__)
         klass = getattr(module, text_(klass_name))
         base_klass = inspect.getmro(klass)[::-1][2:][0]
         p[bytes_(base_klass.__name__)].append(klass)
