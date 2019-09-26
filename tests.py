@@ -241,6 +241,7 @@ class MockHttpProxy:
     def start(self) -> None:
         self.client.conn.sendall(proxy.CRLF.join(
             [b'HTTP/1.1 200 OK', proxy.CRLF]))
+        self.client.conn.shutdown(socket.SHUT_RDWR)
         self.client.conn.close()
 
 
