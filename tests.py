@@ -1034,7 +1034,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
     @mock.patch('select.select')
     def test_pac_file_served_from_disk(self, mock_select: mock.Mock) -> None:
         mock_select.return_value = [self._conn], [], []
-        config = proxy.HttpProtocolConfig(pac_file=b'proxy.pac')
+        config = proxy.HttpProtocolConfig(pac_file='proxy.pac')
         self.init_and_make_pac_file_request(config)
         self.proxy.run_once()
         self.assertEqual(
@@ -1054,7 +1054,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
     def test_pac_file_served_from_buffer(self, mock_select: mock.Mock) -> None:
         pac_file_content = b'function FindProxyForURL(url, host) { return "PROXY localhost:8899; DIRECT"; }'
         mock_select.return_value = [self._conn], [], []
-        config = proxy.HttpProtocolConfig(pac_file=pac_file_content)
+        config = proxy.HttpProtocolConfig(pac_file=proxy.text_(pac_file_content))
         self.init_and_make_pac_file_request(config)
         self.proxy.run_once()
         self.assertEqual(
@@ -1108,7 +1108,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     def init_and_make_pac_file_request(self, config: proxy.HttpProtocolConfig) -> None:
         config.plugins = proxy.load_plugins(
-            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin,proxy.HttpWebServerPacFilePlugin')
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)

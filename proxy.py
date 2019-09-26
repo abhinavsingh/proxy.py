@@ -143,6 +143,12 @@ HttpParserTypes = NamedTuple('HttpParserTypes', [
 ])
 httpParserTypes = HttpParserTypes(1, 2)
 
+HttpProtocolTypes = NamedTuple('HttpProtocolTypes', [
+    ('HTTP', int),
+    ('HTTPS', int),
+])
+httpProtocolTypes = HttpProtocolTypes(1, 2)
+
 
 class TcpConnection:
     """TCP server/client connection abstraction."""
@@ -323,7 +329,7 @@ class HttpProtocolConfig:
             auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
             server_recvbuf_size: int = DEFAULT_SERVER_RECVBUF_SIZE,
             client_recvbuf_size: int = DEFAULT_CLIENT_RECVBUF_SIZE,
-            pac_file: Optional[bytes] = DEFAULT_PAC_FILE,
+            pac_file: Optional[str] = DEFAULT_PAC_FILE,
             pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
             plugins: Optional[Dict[bytes, List[type]]] = None,
             disable_headers: Optional[List[bytes]] = None,
@@ -1229,26 +1235,44 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
             raise HttpProtocolException()
 
 
-class HttpWebServerPlugin(HttpProtocolBasePlugin):
-    """HttpProtocolHandler plugin which handles incoming requests to local webserver."""
-
-    DEFAULT_404_RESPONSE = HttpParser.build_response(
-        404, reason=b'NOT FOUND',
-        headers={b'Server': PROXY_AGENT_HEADER_VALUE,
-                 b'Connection': b'close'}
-    )
-
-    # Used for synchronization
-    lock = threading.Lock()
+class HttpWebServerHandlerPlugin(ABC):
+    """Web Server Route Plugin."""
 
     def __init__(
             self,
             config: HttpProtocolConfig,
-            client: TcpClientConnection,
-            request: HttpParser):
-        super().__init__(config, client, request)
+            client: TcpClientConnection):
+        self.config = config
+        self.client = client
+
+    def routes(self) -> List[Tuple[int, bytes]]:
+        """Return List(protocol, path) that this plugin handles."""
+        raise NotImplementedError()
+
+    def handle_request(self, request: HttpParser) -> None:
+        """Handle the request and serve response."""
+        raise NotImplementedError()
+
+
+class HttpWebServerPacFilePlugin(HttpWebServerHandlerPlugin):
+
+    def __init__(
+            self,
+            config: HttpProtocolConfig,
+            client: TcpClientConnection):
+        super().__init__(config, client)
         self.pac_file_response: Optional[bytes] = None
         self.cache_pac_file_response()
+
+    def routes(self) -> List[Tuple[int, bytes]]:
+        if self.config.pac_file_url_path:
+            return [(httpProtocolTypes.HTTP, bytes_(self.config.pac_file_url_path))]
+        return []
+
+    def handle_request(self, request: HttpParser) -> None:
+        if self.config.pac_file and self.pac_file_response:
+            self.client.queue(self.pac_file_response)
+            self.client.flush()
 
     def cache_pac_file_response(self) -> None:
         if self.config.pac_file:
@@ -1258,7 +1282,7 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
                     content = f.read()
             except IOError:
                 logger.debug('Will serve pac file content from buffer')
-                content = self.config.pac_file
+                content = bytes_(self.config.pac_file)
             self.pac_file_response = HttpParser.build_response(
                 200, reason=b'OK', headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
@@ -1266,21 +1290,56 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
                 }, body=content
             )
 
+
+class HttpWebServerPlugin(HttpProtocolBasePlugin):
+    """HttpProtocolHandler plugin which handles incoming requests to local webserver."""
+
+    DEFAULT_404_RESPONSE = HttpParser.build_response(
+        404, reason=b'NOT FOUND',
+        headers={b'Server': PROXY_AGENT_HEADER_VALUE,
+                 b'Connection': b'close'}
+    )
+
+    def __init__(
+            self,
+            config: HttpProtocolConfig,
+            client: TcpClientConnection,
+            request: HttpParser):
+        super().__init__(config, client, request)
+
+        self.routes: Dict[int, Dict[bytes, HttpWebServerHandlerPlugin]] = {
+            httpProtocolTypes.HTTP: {},
+            httpProtocolTypes.HTTPS: {},
+        }
+
+        if b'HttpWebServerHandlerPlugin' in self.config.plugins:
+            for klass in self.config.plugins[b'HttpWebServerHandlerPlugin']:
+                instance = klass(self.config, self.client)
+                for (protocol, path) in instance.routes():
+                    self.routes[protocol][path] = instance
+
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if self.request.has_upstream_server():
             return False
 
-        if self.config.pac_file and self.request.url and \
-                self.request.url.path == self.config.pac_file_url_path and \
-                self.pac_file_response:
-            self.client.queue(self.pac_file_response)
-            self.client.flush()
-        else:
-            # Catch all unhandled web server requests, return 404
-            self.client.queue(self.DEFAULT_404_RESPONSE)
-            # But is client ready for flush?
-            self.client.flush()
+        url = self.request.build_url()
 
+        # Routing
+        if self.request.method != b'CONNECT':
+            registered_routes = self.routes[httpProtocolTypes.HTTP]
+        else:
+            registered_routes = self.routes[httpProtocolTypes.HTTPS]
+        for route in registered_routes:
+            if url == route:
+                registered_routes[route].handle_request(self.request)
+                # But is client ready for flush?
+                self.client.flush()
+                return True
+
+        # Catch all unhandled web server requests, return 404
+        self.client.queue(self.DEFAULT_404_RESPONSE)
+        # But is client ready for flush?
+        self.client.flush()
         return True
 
     def access_log(self) -> None:
@@ -1483,7 +1542,7 @@ class HttpProtocolHandler(threading.Thread):
                     self.client.conn.shutdown(socket.SHUT_RDWR)
                     self.client.close()
                 except OSError as e:
-                    logger.exception('OSError: %s', str(e), exc_info=e)
+                    logger.warning('OSError: %s', str(e))
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
@@ -1518,7 +1577,8 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
     a list of respective Python classes."""
     p: Dict[bytes, List[type]] = {
         b'HttpProtocolBasePlugin': [],
-        b'HttpProxyBasePlugin': []
+        b'HttpProxyBasePlugin': [],
+        b'HttpWebServerHandlerPlugin': [],
     }
     for plugin in plugins.split(COMMA):
         plugin = plugin.strip()
@@ -1671,7 +1731,7 @@ def init_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--pac-file-url-path',
         type=str,
-        default=DEFAULT_PAC_FILE_URL_PATH,
+        default=text_(DEFAULT_PAC_FILE_URL_PATH),
         help='Default: %s. Web server path to serve the PAC file.' %
              text_(DEFAULT_PAC_FILE_URL_PATH))
     parser.add_argument(
@@ -1738,8 +1798,8 @@ def main(input_args: List[str]) -> None:
             auth_code=auth_code,
             server_recvbuf_size=args.server_recvbuf_size,
             client_recvbuf_size=args.client_recvbuf_size,
-            pac_file=args.pac_file,
-            pac_file_url_path=args.pac_file_url_path,
+            pac_file=bytes_(args.pac_file),
+            pac_file_url_path=bytes_(args.pac_file_url_path),
             disable_headers=[
                 header.lower() for header in bytes_(
                     args.disable_headers).split(COMMA) if header.strip() != b''],
@@ -1753,14 +1813,15 @@ def main(input_args: List[str]) -> None:
             port=args.port,
             backlog=args.backlog,
             num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count())
-        if config.pac_file is not None:
-            args.enable_web_server = True
 
         default_plugins = ''
         if not args.disable_http_proxy:
             default_plugins += 'proxy.HttpProxyPlugin,'
-        if args.enable_web_server:
+        if args.enable_web_server or config.pac_file is not None:
             default_plugins += 'proxy.HttpWebServerPlugin,'
+        if config.pac_file is not None:
+            default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
+
         config.plugins = load_plugins(
             bytes_(
                 '%s%s' %
