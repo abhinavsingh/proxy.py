@@ -1562,7 +1562,7 @@ class HttpProtocolHandler(threading.Thread):
                 try:
                     self.client.conn.shutdown(socket.SHUT_RDWR)
                     self.client.close()
-                except OSError as e:
+                except OSError:
                     pass
 
             # Invoke plugin.on_client_connection_close
@@ -1606,18 +1606,16 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
         if plugin == b'':
             continue
         module_name, klass_name = plugin.rsplit(DOT, 1)
-        module_name = text_(module_name)
-        klass_name = text_(klass_name)
         if module_name == 'proxy':
-            klass = getattr(sys.modules[__name__], klass_name)
+            klass = getattr(sys.modules[__name__], text_(klass_name))
         else:
-            klass = getattr(importlib.import_module(module_name), klass_name)
+            klass = getattr(importlib.import_module(text_(module_name)), text_(klass_name))
         base_klass = inspect.getmro(klass)[1]
         p[bytes_(base_klass.__name__)].append(klass)
         logger.info(
             'Loaded %s %s.%s',
             'plugin' if klass.__name__ != 'HttpWebServerRouteHandler' else 'route',
-            module_name,
+            text_(module_name),
             # HttpWebServerRouteHandler route decorator adds a special staticmethod to return decorated function name
             klass.__name__ if klass.__name__ != 'HttpWebServerRouteHandler' else klass.name())
     return p
