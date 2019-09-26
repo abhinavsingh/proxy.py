@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: [macOS-latest, ubuntu-latest, windows-latest]
-        python: [3.5, 3.6, 3.7, 3.8.0-b2, 3.9.0-a0]
+        python: [3.5, 3.6, 3.7]
       max-parallel: 4
       fail-fast: false
     steps:
