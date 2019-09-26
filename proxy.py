@@ -449,7 +449,9 @@ class Worker(multiprocessing.Process):
                 conn = socket.fromfd(
                     fileno, family=self.config.family, type=socket.SOCK_STREAM)
                 # TODO(abhinavsingh): Move handshake logic within
-                # HttpProtocolHandler.
+                # HttpProtocolHandler or should this go under TcpServer directly?
+                # Rationale behind deferring ssl wrap is that plugins can custom wrap
+                # sockets if necessary.
                 if self.config.certfile and self.config.keyfile:
                     try:
                         ctx = ssl.create_default_context(
@@ -566,6 +568,21 @@ class HttpParser:
         # which is broken.
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
+
+    def add_header(self, key: bytes, value: bytes) -> None:
+        self.headers[key.lower()] = (key, value)
+
+    def add_headers(self, headers: List[Tuple[bytes, bytes]]) -> None:
+        for (key, value) in headers:
+            self.add_header(key, value)
+
+    def del_header(self, header: bytes) -> None:
+        if header.lower() in self.headers:
+            del self.headers[header.lower()]
+
+    def del_headers(self, headers: List[bytes]) -> None:
+        for key in headers:
+            self.del_header(key.lower())
 
     def set_host_port(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
@@ -699,27 +716,55 @@ class HttpParser:
         return url
 
     def build(self, disable_headers: Optional[List[bytes]] = None) -> bytes:
+        assert self.method and self.version
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
+        return HttpParser.build_request(
+            self.method, self.build_url(), self.version,
+            headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
+                                                 k.lower() not in disable_headers},
+            body=self.body
+        )
 
-        assert self.method and self.version
-        req = b' '.join([self.method, self.build_url(), self.version])
+    @staticmethod
+    def build_request(method: bytes, url: bytes, protocol_version: bytes,
+                      headers: Optional[Dict[bytes, bytes]] = None,
+                      body: Optional[bytes] = None) -> bytes:
+        if headers is None:
+            headers = {}
+        return HttpParser.build_pkt([method, url, protocol_version], headers, body)
+
+    @staticmethod
+    def build_response(status_code: int,
+                       protocol_version: bytes = b'HTTP/1.1',
+                       reason: Optional[bytes] = None,
+                       headers: Optional[Dict[bytes, bytes]] = None,
+                       body: Optional[bytes] = None) -> bytes:
+        line = [protocol_version, bytes_(str(status_code))]
+        if reason:
+            line.append(reason)
+        if headers is None:
+            headers = {}
+        if body is not None and not any(k.lower() == b'content-length' for k in headers):
+            headers[b'Content-Length'] = bytes_(str(len(body)))
+        return HttpParser.build_pkt(line, headers, body)
+
+    @staticmethod
+    def build_pkt(line: List[bytes],
+                  headers: Optional[Dict[bytes, bytes]] = None,
+                  body: Optional[bytes] = None) -> bytes:
+        req = WHITESPACE.join(line) + CRLF
+        if headers is not None:
+            for k in headers:
+                req += HttpParser.build_header(k, headers[k]) + CRLF
         req += CRLF
-
-        for k in self.headers:
-            if k.lower() not in disable_headers:
-                req += self.build_header(self.headers[k]
-                                         [0], self.headers[k][1]) + CRLF
-
-        req += CRLF
-        if self.body:
-            req += self.body
-
+        if body:
+            req += body
         return req
 
     @staticmethod
     def build_header(k: bytes, v: bytes) -> bytes:
-        return k + b': ' + v
+        return k + COLON + WHITESPACE + v
 
     @staticmethod
     def find_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
@@ -743,21 +788,6 @@ class HttpParser:
     def has_upstream_server(self) -> bool:
         """Host field SHOULD be None for incoming local WebServer requests."""
         return True if self.host is not None else False
-
-    def add_header(self, key: bytes, value: bytes) -> None:
-        self.headers[key.lower()] = (key, value)
-
-    def add_headers(self, headers: List[Tuple[bytes, bytes]]) -> None:
-        for (key, value) in headers:
-            self.add_header(key, value)
-
-    def del_header(self, header: bytes) -> None:
-        if header.lower() in self.headers:
-            del self.headers[header.lower()]
-
-    def del_headers(self, headers: List[bytes]) -> None:
-        for key in headers:
-            self.del_header(key.lower())
 
 
 class HttpProtocolException(Exception):
@@ -1127,7 +1157,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                             self.server.conn, server_hostname=text_(
                                 self.request.host))
                         logger.info(
-                            'Intercepting traffic using %s', generated_cert)
+                            'TLS interception using %s', generated_cert)
                         return self.client.conn
         # for general http requests, re-build request packet
         # and queue for the server with appropriate headers
@@ -1450,7 +1480,7 @@ class HttpProtocolHandler(threading.Thread):
                     self.client.conn.shutdown(socket.SHUT_RDWR)
                     self.client.close()
                 except OSError as e:
-                    logger.warning('OSError: %s', str(e))
+                    logger.exception('OSError: %s', str(e), exc_info=e)
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():

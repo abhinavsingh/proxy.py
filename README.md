@@ -15,6 +15,7 @@
 [![Tested With Ubuntu](https://img.shields.io/static/v1?label=tested%20with&message=Ubuntu%20%F0%9F%96%A5&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
 [![Tested With Windows](https://img.shields.io/static/v1?label=tested%20with&message=Windows%20%F0%9F%92%BB&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
 
+[![Gitter](https://badges.gitter.im/proxy-py/community.svg)](https://gitter.im/proxy-py/community)
 [![Maintenance](https://img.shields.io/static/v1?label=maintained%3F&message=yes&color=green)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
 [![Ask Me Anything](https://img.shields.io/static/v1?label=need%20help%3F&message=ask&color=green)](https://twitter.com/imoracle)
 [![Contributions Welcome](https://img.shields.io/static/v1?label=contributions&message=welcome%20%F0%9F%91%8D&color=green)](https://github.com/abhinavsingh/proxy.py/issues)
@@ -396,18 +397,26 @@ To enable TLS interception first generate CA certificates:
 make ca-certificates
 ```
 
-Start `proxy.py` as:
+Lets also enable `CacheResponsePlugin` so that we can verify decrypted
+response from the server. Start `proxy.py` as:
 
 ```
 $ proxy.py \
+    --plugins plugin_examples.CacheResponsesPlugin \
     --ca-key-file ca-key.pem \
     --ca-cert-file ca-cert.pem \
     --ca-signing-key-file ca-signing-key.pem
 ```
 
-Verify using `curl -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`
+Verify using `curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`
 
 ```
+*  issuer: C=US; ST=CA; L=SanFrancisco; O=proxy.py; OU=CA; CN=Proxy PY CA; emailAddress=proxyca@mailserver.com
+*  SSL certificate verify ok.
+> GET /get HTTP/1.1
+... [redacted] ...
+< Connection: keep-alive
+< 
 {
   "args": {}, 
   "headers": {
@@ -420,7 +429,44 @@ Verify using `curl -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/ge
 }
 ```
 
-Now you can use CA flags with 
+The `issuer` line confirms that response was intercepted.
+
+Also verify the contents of cached response file.  Get path to the cache
+file from `proxy.py` logs.
+
+`$ cat /path/to/your/tmp/directory/httpbin.org-1569452863.924174.txt`
+
+```
+HTTP/1.1 200 OK
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Wed, 25 Sep 2019 23:07:05 GMT
+Referrer-Policy: no-referrer-when-downgrade
+Server: nginx
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Content-Length: 202
+Connection: keep-alive
+
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "httpbin.org", 
+    "User-Agent": "curl/7.54.0"
+  }, 
+  "origin": "1.2.3.4, 5.6.7.8", 
+  "url": "https://httpbin.org/get"
+}
+
+```
+
+Viola!!!  If you remove CA flags, encrypted data will be found in the
+cached file instead of plain text.
+
+Now use CA flags other 
 [plugin examples](#plugin-examples) to make them work for `https` traffic.
 
 Plugin Developer and Contributor Guide

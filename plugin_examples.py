@@ -97,13 +97,7 @@ class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
         pass
 
     def handle_upstream_response(self, raw: bytes) -> bytes:
-        body = b'Hello from man in the middle'
-        response = proxy.CRLF.join([
-            b'HTTP/1.1 200 OK',
-            b'Content-Length: ' + proxy.bytes_(str(len(body))),
-            proxy.CRLF,
-        ]) + body
-        return response
+        return proxy.HttpParser.build_response(200, reason=b'OK', body=b'Hello from man in the middle')
 
     def on_upstream_connection_close(self) -> None:
         pass
