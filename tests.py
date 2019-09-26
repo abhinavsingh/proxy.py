@@ -241,6 +241,7 @@ class MockHttpProxy:
     def start(self) -> None:
         self.client.conn.sendall(proxy.CRLF.join(
             [b'HTTP/1.1 200 OK', proxy.CRLF]))
+        self.client.conn.shutdown(socket.SHUT_RDWR)
         self.client.conn.close()
 
 
@@ -250,6 +251,8 @@ def mock_tcp_proxy_side_effect(client: proxy.TcpClientConnection, **kwargs) -> M
 
 @unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
                  'Opening sockets not allowed on Travis')
+@unittest.skipIf(os.getenv('GITHUB_WORKFLOW', 0),
+                 'This test fails on GitHub Windows environment')
 class TestMultiCoreRequestDispatcherIntegration(unittest.TestCase):
     tcp_port = None
     tcp_server = None
@@ -276,11 +279,10 @@ class TestMultiCoreRequestDispatcherIntegration(unittest.TestCase):
                     try:
                         sock.connect(
                             (str(proxy.DEFAULT_IPV4_HOSTNAME), self.tcp_port))
-                        sock.send(proxy.CRLF.join([
-                            b'GET http://httpbin.org/get HTTP/1.1',
-                            b'Host: httpbin.org',
-                            proxy.CRLF
-                        ]))
+                        sock.send(proxy.HttpParser.build_request(
+                            b'GET', b'http://httpbin.org/get', b'HTTP/1.1',
+                            headers={b'Host': b'httpbin.org'})
+                        )
                         data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
                         self.assertEqual(data, proxy.CRLF.join(
                             [b'HTTP/1.1 200 OK', proxy.CRLF]))
@@ -1034,7 +1036,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
     @mock.patch('select.select')
     def test_pac_file_served_from_disk(self, mock_select: mock.Mock) -> None:
         mock_select.return_value = [self._conn], [], []
-        config = proxy.HttpProtocolConfig(pac_file=b'proxy.pac')
+        config = proxy.HttpProtocolConfig(pac_file='proxy.pac')
         self.init_and_make_pac_file_request(config)
         self.proxy.run_once()
         self.assertEqual(
@@ -1043,14 +1045,18 @@ class TestHttpProtocolHandler(unittest.TestCase):
         with open('proxy.pac', 'rb') as pac_file:
             self.assertEqual(
                 self._conn.received,
-                proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX +
-                pac_file.read())
+                proxy.HttpParser.build_response(
+                    200, reason=b'OK', headers={
+                        b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                        b'Connection': b'close'
+                    }, body=pac_file.read()
+                ))
 
     @mock.patch('select.select')
     def test_pac_file_served_from_buffer(self, mock_select: mock.Mock) -> None:
         pac_file_content = b'function FindProxyForURL(url, host) { return "PROXY localhost:8899; DIRECT"; }'
         mock_select.return_value = [self._conn], [], []
-        config = proxy.HttpProtocolConfig(pac_file=pac_file_content)
+        config = proxy.HttpProtocolConfig(pac_file=proxy.text_(pac_file_content))
         self.init_and_make_pac_file_request(config)
         self.proxy.run_once()
         self.assertEqual(
@@ -1058,8 +1064,12 @@ class TestHttpProtocolHandler(unittest.TestCase):
             proxy.httpParserStates.COMPLETE)
         self.assertEqual(
             self._conn.received,
-            proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX +
-            pac_file_content)
+            proxy.HttpParser.build_response(
+                200, reason=b'OK', headers={
+                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                    b'Connection': b'close'
+                }, body=pac_file_content
+            ))
 
     @mock.patch('select.select')
     def test_default_web_server_returns_404(self, mock_select: mock.Mock) -> None:
@@ -1100,7 +1110,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     def init_and_make_pac_file_request(self, config: proxy.HttpProtocolConfig) -> None:
         config.plugins = proxy.load_plugins(
-            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin,proxy.HttpWebServerPacFilePlugin')
         self.proxy = proxy.HttpProtocolHandler(
             proxy.TcpClientConnection(
                 self._conn, self._addr), config=config)

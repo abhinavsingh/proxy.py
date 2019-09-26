@@ -15,6 +15,11 @@ from urllib import parse as urlparse
 import proxy
 
 
+@proxy.route(b'/hello-world')
+def hello_world(_request: proxy.HttpParser) -> bytes:
+    return proxy.HttpParser.build_response(200, body=b'Hello World')
+
+
 class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
     """Modifies client request to redirect all incoming requests to a fixed server address."""
 
