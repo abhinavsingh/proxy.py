@@ -277,11 +277,10 @@ class TestMultiCoreRequestDispatcherIntegration(unittest.TestCase):
                     try:
                         sock.connect(
                             (str(proxy.DEFAULT_IPV4_HOSTNAME), self.tcp_port))
-                        sock.send(proxy.CRLF.join([
-                            b'GET http://httpbin.org/get HTTP/1.1',
-                            b'Host: httpbin.org',
-                            proxy.CRLF
-                        ]))
+                        sock.send(proxy.HttpParser.build_request(
+                            b'GET', b'http://httpbin.org/get', b'HTTP/1.1',
+                            headers={b'Host': b'httpbin.org'})
+                        )
                         data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
                         self.assertEqual(data, proxy.CRLF.join(
                             [b'HTTP/1.1 200 OK', proxy.CRLF]))
@@ -1044,8 +1043,12 @@ class TestHttpProtocolHandler(unittest.TestCase):
         with open('proxy.pac', 'rb') as pac_file:
             self.assertEqual(
                 self._conn.received,
-                proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX +
-                pac_file.read())
+                proxy.HttpParser.build_response(
+                    200, reason=b'OK', headers={
+                        b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                        b'Connection': b'close'
+                    }, body=pac_file.read()
+                ))
 
     @mock.patch('select.select')
     def test_pac_file_served_from_buffer(self, mock_select: mock.Mock) -> None:
@@ -1059,8 +1062,12 @@ class TestHttpProtocolHandler(unittest.TestCase):
             proxy.httpParserStates.COMPLETE)
         self.assertEqual(
             self._conn.received,
-            proxy.HttpWebServerPlugin.PAC_FILE_RESPONSE_PREFIX +
-            pac_file_content)
+            proxy.HttpParser.build_response(
+                200, reason=b'OK', headers={
+                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                    b'Connection': b'close'
+                }, body=pac_file_content
+            ))
 
     @mock.patch('select.select')
     def test_default_web_server_returns_404(self, mock_select: mock.Mock) -> None:

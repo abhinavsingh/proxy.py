@@ -96,7 +96,9 @@ def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
 
 version = bytes_(__version__)
 CRLF, COLON, WHITESPACE, COMMA, DOT = b'\r\n', b':', b' ', b',', b'.'
-PROXY_AGENT_HEADER = b'Proxy-agent: proxy.py v' + version
+PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
+PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
+PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 
 ##
 # Various NamedTuples
@@ -897,13 +899,12 @@ class HttpProtocolBasePlugin(ABC):
 class ProxyConnectionFailed(HttpProtocolException):
     """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
 
-    RESPONSE_PKT = CRLF.join([
-        b'HTTP/1.1 502 Bad Gateway',
-        PROXY_AGENT_HEADER,
-        b'Content-Length: 11',
-        b'Connection: close',
-        CRLF
-    ]) + b'Bad Gateway'
+    RESPONSE_PKT = HttpParser.build_response(
+        502, reason=b'Bad Gateway',
+        headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
+                 b'Connection': b'close'},
+        body=b'Bad Gateway'
+    )
 
     def __init__(self, host: str, port: int, reason: str):
         self.host: str = host
@@ -922,14 +923,12 @@ class ProxyAuthenticationFailed(HttpProtocolException):
     """Exception raised when Http Proxy auth is enabled and
     incoming request doesn't present necessary credentials."""
 
-    RESPONSE_PKT = CRLF.join([
-        b'HTTP/1.1 407 Proxy Authentication Required',
-        PROXY_AGENT_HEADER,
-        b'Content-Length: 29',
-        b'Connection: close',
-        b'Proxy-Authenticate: Basic',
-        CRLF
-    ]) + b'Proxy Authentication Required'
+    RESPONSE_PKT = HttpParser.build_response(
+        407, reason=b'Proxy Authentication Required',
+        headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
+                 b'Connection': b'close',
+                 b'Proxy-Authenticate': b'Basic'},
+        body=b'Proxy Authentication Required')
 
     def response(self, _request: HttpParser) -> bytes:
         return self.RESPONSE_PKT
@@ -985,10 +984,9 @@ class HttpProxyBasePlugin(ABC):
 class HttpProxyPlugin(HttpProtocolBasePlugin):
     """HttpProtocolHandler plugin which implements HttpProxy specifications."""
 
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = CRLF.join([
-        b'HTTP/1.1 200 Connection established',
-        CRLF
-    ])
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = HttpParser.build_response(
+        200, reason=b'Connection established'
+    )
 
     # Used to synchronize with other HttpProxyPlugin instances while
     # generating certificates
@@ -1234,19 +1232,14 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
 class HttpWebServerPlugin(HttpProtocolBasePlugin):
     """HttpProtocolHandler plugin which handles incoming requests to local webserver."""
 
-    DEFAULT_404_RESPONSE = CRLF.join([
-        b'HTTP/1.1 404 NOT FOUND',
-        b'Server: proxy.py v%s' % version,
-        b'Connection: Close',
-        CRLF
-    ])
+    DEFAULT_404_RESPONSE = HttpParser.build_response(
+        404, reason=b'NOT FOUND',
+        headers={b'Server': PROXY_AGENT_HEADER_VALUE,
+                 b'Connection': b'close'}
+    )
 
-    PAC_FILE_RESPONSE_PREFIX = CRLF.join([
-        b'HTTP/1.1 200 OK',
-        b'Content-Type: application/x-ns-proxy-autoconfig',
-        b'Connection: close',
-        CRLF
-    ])
+    # Used for synchronization
+    lock = threading.Lock()
 
     def __init__(
             self,
@@ -1254,23 +1247,33 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
+        self.pac_file_response: Optional[bytes] = None
+        self.cache_pac_file_response()
+
+    def cache_pac_file_response(self) -> None:
         if self.config.pac_file:
             try:
                 with open(self.config.pac_file, 'rb') as f:
                     logger.debug('Will serve pac file from disk')
-                    self.pac_file_content = f.read()
+                    content = f.read()
             except IOError:
                 logger.debug('Will serve pac file content from buffer')
-                self.pac_file_content = self.config.pac_file
+                content = self.config.pac_file
+            self.pac_file_response = HttpParser.build_response(
+                200, reason=b'OK', headers={
+                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                    b'Connection': b'close'
+                }, body=content
+            )
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if self.request.has_upstream_server():
             return False
 
         if self.config.pac_file and self.request.url and \
-                self.request.url.path == self.config.pac_file_url_path:
-            self.client.queue(self.PAC_FILE_RESPONSE_PREFIX)
-            self.client.queue(self.pac_file_content)
+                self.request.url.path == self.config.pac_file_url_path and \
+                self.pac_file_response:
+            self.client.queue(self.pac_file_response)
             self.client.flush()
         else:
             # Catch all unhandled web server requests, return 404
