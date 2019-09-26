@@ -1474,18 +1474,16 @@ class HttpProtocolHandler(threading.Thread):
                                             'Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock:
                                 return True
+                except HttpProtocolException as e:
+                    logger.exception(
+                        'HttpProtocolException type raised', exc_info=e)
+                    response = e.response(self.request)
+                    if response:
+                        self.client.queue(response)
+                        # But is client also ready for writes?
+                        self.client.flush()
+                    return True
                 except Exception as e:
-                    if e.__class__.__name__ in (
-                            ProxyAuthenticationFailed.__name__, ProxyConnectionFailed.__name__,
-                            HttpRequestRejected.__name__):
-                        logger.exception(
-                            'HttpProtocolException type raised', exc_info=e)
-                        response = e.response(self.request)  # type: ignore
-                        if response:
-                            self.client.queue(response)
-                            # But is client also ready for writes?
-                            self.client.flush()
-                        return True
                     raise e
         return False
 
