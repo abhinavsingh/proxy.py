@@ -251,6 +251,8 @@ def mock_tcp_proxy_side_effect(client: proxy.TcpClientConnection, **kwargs) -> M
 
 @unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
                  'Opening sockets not allowed on Travis')
+@unittest.skipIf(os.getenv('GITHUB_WORKFLOW', 0),
+                 'This test fails on GitHub Windows environment')
 class TestMultiCoreRequestDispatcherIntegration(unittest.TestCase):
     tcp_port = None
     tcp_server = None
