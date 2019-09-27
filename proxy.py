@@ -1025,7 +1025,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
         if self.request.has_upstream_server() and \
                 self.server and not self.server.closed and self.server.connection in w:
-            logger.debug('Server is ready for writes, flushing server buffer')
+            logger.debug('Server is write ready, flushing buffer')
             try:
                 self.server.flush()
             except BrokenPipeError:
@@ -1458,7 +1458,7 @@ class ProtocolHandler(threading.Thread):
 
     def handle_writables(self, writables: List[socket.socket]) -> bool:
         if self.client.connection in writables:
-            logger.debug('Client is ready for writes, flushing client buffer')
+            logger.debug('Client is write, flushing buffer')
             try:
                 self.client.flush()
             except BrokenPipeError:
