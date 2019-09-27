@@ -62,7 +62,8 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
                 self.client.send(proxy.HttpParser.build_response(
                     200, reason=b'OK',
                     headers={b'Content-Type': b'application/json'},
-                    body=proxy.bytes_(json.dumps(self.REST_API_SPEC[self.request.url.path]))
+                    body=proxy.bytes_(json.dumps(
+                        self.REST_API_SPEC[self.request.url.path]))
                 ))
             else:
                 self.client.send(proxy.HttpParser.build_response(
@@ -165,7 +166,8 @@ class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
         pass
 
     def handle_upstream_response(self, raw: bytes) -> bytes:
-        return proxy.HttpParser.build_response(200, reason=b'OK', body=b'Hello from man in the middle')
+        return proxy.HttpParser.build_response(
+            200, reason=b'OK', body=b'Hello from man in the middle')
 
     def on_upstream_connection_close(self) -> None:
         pass
