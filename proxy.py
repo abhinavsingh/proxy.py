@@ -36,7 +36,7 @@ import select
 if os.name != 'nt':
     import resource
 
-VERSION = (1, 0, 0)
+VERSION = (1, 0, 1)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = 'Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, ' \
                   'WebSockets protocols in a single Python file.'
@@ -78,8 +78,10 @@ UNDER_TEST = False
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
     """Utility to ensure text-like usability.
 
-    If ``s`` is an instance of ``binary_type``, return
-    ``s.decode(encoding, errors)``, otherwise return ``s``"""
+    If s is of type bytes or int, return s.decode(encoding, errors),
+    otherwise return s as it is."""
+    if isinstance(s, int):
+        return str(s)
     if isinstance(s, bytes):
         return s.decode(encoding, errors)
     return s
@@ -88,8 +90,10 @@ def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
 def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
     """Utility to ensure binary-like usability.
 
-    If ``s`` is an instance of ``text_type``, return
-    ``s.encode(encoding, errors)``, otherwise return ``s``"""
+    If s is type str or int, return s.encode(encoding, errors),
+    otherwise return s as it is."""
+    if isinstance(s, int):
+        s = str(s)
     if isinstance(s, str):
         return s.encode(encoding, errors)
     return s
@@ -99,7 +103,8 @@ version = bytes_(__version__)
 CRLF, COLON, WHITESPACE, COMMA, DOT = b'\r\n', b':', b' ', b',', b'.'
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
-PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
+PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
+    COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 
 ##
 # Various NamedTuples
@@ -322,7 +327,9 @@ class TcpServer(ABC):
             while self.running:
                 self.run_once()
         except Exception as e:
-            logger.exception('Unexpected error, tearing down server.', exc_info=e)
+            logger.exception(
+                'Unexpected error, tearing down server.',
+                exc_info=e)
         finally:
             self.shutdown()
             logger.info('Closing server socket')
@@ -675,7 +682,8 @@ class HttpParser:
                       body: Optional[bytes] = None) -> bytes:
         if headers is None:
             headers = {}
-        return HttpParser.build_pkt([method, url, protocol_version], headers, body)
+        return HttpParser.build_pkt(
+            [method, url, protocol_version], headers, body)
 
     @staticmethod
     def build_response(status_code: int,
@@ -683,13 +691,14 @@ class HttpParser:
                        reason: Optional[bytes] = None,
                        headers: Optional[Dict[bytes, bytes]] = None,
                        body: Optional[bytes] = None) -> bytes:
-        line = [protocol_version, bytes_(str(status_code))]
+        line = [protocol_version, bytes_(status_code)]
         if reason:
             line.append(reason)
         if headers is None:
             headers = {}
-        if body is not None and not any(k.lower() == b'content-length' for k in headers):
-            headers[b'Content-Length'] = bytes_(str(len(body)))
+        if body is not None and not any(
+                k.lower() == b'content-length' for k in headers):
+            headers[b'Content-Length'] = bytes_(len(body))
         return HttpParser.build_pkt(line, headers, body)
 
     @staticmethod
@@ -762,13 +771,13 @@ class HttpRequestRejected(ProtocolException):
     def response(self, _request: HttpParser) -> Optional[bytes]:
         pkt = []
         if self.status_code is not None:
-            line = b'HTTP/1.1 ' + bytes_(str(self.status_code))
+            line = b'HTTP/1.1 ' + bytes_(self.status_code)
             if self.reason:
                 line += WHITESPACE + self.reason
             pkt.append(line)
             pkt.append(PROXY_AGENT_HEADER)
         if self.body:
-            pkt.append(b'Content-Length: ' + bytes_(str(len(self.body))))
+            pkt.append(b'Content-Length: ' + bytes_(len(self.body)))
             pkt.append(CRLF)
             pkt.append(self.body)
         else:
@@ -1019,7 +1028,8 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         w: List[socket.socket] = []
         if self.server and not self.server.closed and self.server.connection:
             r.append(self.server.connection)
-        if self.server and not self.server.closed and self.server.has_buffer() and self.server.connection:
+        if self.server and not self.server.closed and \
+                self.server.has_buffer() and self.server.connection:
             w.append(self.server.connection)
         return r, w, []
 
@@ -1158,8 +1168,8 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                             ssl.Purpose.SERVER_AUTH)
                         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
                         self.server._conn = ctx.wrap_socket(
-                            self.server.connection, server_hostname=text_(
-                                self.request.host))
+                            self.server.connection,
+                            server_hostname=text_(self.request.host))
                         logger.info(
                             'TLS interception using %s', generated_cert)
                         return self.client.connection
@@ -1189,7 +1199,8 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if not self.request.has_upstream_server():
             return
 
-        server_host, server_port = self.server.addr if self.server else (None, None)
+        server_host, server_port = self.server.addr if self.server else (
+            None, None)
         if self.request.method == b'CONNECT':
             logger.info(
                 '%s:%s - %s %s:%s - %s bytes' %
@@ -1203,8 +1214,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         elif self.request.method:
             logger.info(
                 '%s:%s - %s %s:%s%s - %s %s - %s bytes' %
-                (self.client.addr[0], self.client.addr[1], text_(
-                    self.request.method), text_(server_host), server_port,
+                (self.client.addr[0], self.client.addr[1],
+                    text_(self.request.method),
+                    text_(server_host), server_port,
                     text_(self.request.build_url()),
                     text_(self.response.code),
                     text_(self.response.reason),
@@ -1257,7 +1269,8 @@ class HttpWebServerRoutePlugin(ABC):
 
 def route(path: bytes, protocols: Optional[List[int]] = None) -> \
         Callable[[Callable[[HttpParser], bytes]], Type[HttpWebServerRoutePlugin]]:
-    def decorator(func: Callable[[HttpParser], bytes]) -> Type[HttpWebServerRoutePlugin]:
+    def decorator(func: Callable[[HttpParser], bytes]
+                  ) -> Type[HttpWebServerRoutePlugin]:
         class HttpWebServerRouteHandler(HttpWebServerRoutePlugin):
             @staticmethod
             def name() -> str:
@@ -1288,7 +1301,8 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
 
     def routes(self) -> List[Tuple[int, bytes]]:
         if self.config.pac_file_url_path:
-            return [(httpProtocolTypes.HTTP, bytes_(self.config.pac_file_url_path))]
+            return [(httpProtocolTypes.HTTP, bytes_(
+                self.config.pac_file_url_path))]
         return []
 
     def handle_request(self, request: HttpParser) -> None:
@@ -1411,9 +1425,8 @@ class ProtocolHandler(threading.Thread):
         conn = self.optionally_wrap_socket(self.fromfd(fileno))
         if conn is None:
             raise TcpConnectionUninitializedException()
-        self.client: TcpClientConnection = TcpClientConnection(
-            conn=conn,
-            addr=addr)
+        self.client: TcpClientConnection = \
+            TcpClientConnection(conn=conn, addr=addr)
 
         self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
         if b'ProtocolHandlerPlugin' in self.config.plugins:
@@ -1426,7 +1439,8 @@ class ProtocolHandler(threading.Thread):
             fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM)
 
-    def optionally_wrap_socket(self, conn: socket.socket) -> Optional[Union[ssl.SSLSocket, socket.socket]]:
+    def optionally_wrap_socket(
+            self, conn: socket.socket) -> Optional[Union[ssl.SSLSocket, socket.socket]]:
         """Attempts to wrap accepted client connection using provided certificates.
 
         Shutdown and closes client connection upon error.
@@ -1642,14 +1656,18 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
         if module_name == 'proxy':
             klass = getattr(sys.modules[__name__], text_(klass_name))
         else:
-            klass = getattr(importlib.import_module(text_(module_name)), text_(klass_name))
+            klass = getattr(
+                importlib.import_module(
+                    text_(module_name)),
+                text_(klass_name))
         base_klass = inspect.getmro(klass)[1]
         p[bytes_(base_klass.__name__)].append(klass)
         logger.info(
             'Loaded %s %s.%s',
             'plugin' if klass.__name__ != 'HttpWebServerRouteHandler' else 'route',
             text_(module_name),
-            # HttpWebServerRouteHandler route decorator adds a special staticmethod to return decorated function name
+            # HttpWebServerRouteHandler route decorator adds a special
+            # staticmethod to return decorated function name
             klass.__name__ if klass.__name__ != 'HttpWebServerRouteHandler' else klass.name())
     return p
 
@@ -1897,7 +1915,7 @@ def main(input_args: List[str]) -> None:
             config=config)
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
-                pid_file.write(bytes_(str(os.getpid())))
+                pid_file.write(bytes_(os.getpid()))
         server.run()
     except KeyboardInterrupt:  # pragma: no cover
         pass

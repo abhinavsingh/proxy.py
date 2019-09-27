@@ -23,7 +23,7 @@ clean:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 	rm -f .coverage
-	rm -rf htmlcov dist build
+	rm -rf htmlcov dist build .pytest_cache proxy.py.egg-info
 
 test:
 	python -m unittest tests
