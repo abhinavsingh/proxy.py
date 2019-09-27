@@ -66,7 +66,7 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
 
     CACHE_DIR = tempfile.gettempdir()
 
-    def __init__(self, config: proxy.HttpProtocolConfig, client: proxy.TcpClientConnection,
+    def __init__(self, config: proxy.ProtocolConfig, client: proxy.TcpClientConnection,
                  request: proxy.HttpParser) -> None:
         super().__init__(config, client, request)
         self.cache_file_path: Optional[str] = None

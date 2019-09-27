@@ -42,7 +42,7 @@ Table of Contents
     * [ManInTheMiddlePlugin](#maninthemiddleplugin)
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
-* [TLS Encryption](#tls-interception)
+* [TLS Interception](#tls-interception)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [proxy.py Internals](#proxypy-internals)
@@ -230,7 +230,7 @@ Above `418 I'm a tea pot` is sent by our plugin.
 Verify the same by inspecting logs for `proxy.py`:
 
 ```
-2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
+2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - ProtocolException type raised
 Traceback (most recent call last):
 ... [redacted] ...
 2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
@@ -485,38 +485,38 @@ As you might have guessed by now, in `proxy.py` everything is a plugin.
   Example, [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
 
 - We also enabled inbuilt web server using `--enable-web-server`. 
-  Inbuilt web server implements `HttpProtocolBasePlugin` plugin. 
-  See documentation of [HttpProtocolBasePlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L793-L850) 
-  for available lifecycle hooks. Use `HttpProtocolBasePlugin` to add 
+  Inbuilt web server implements `ProtocolHandlerPlugin` plugin. 
+  See documentation of [ProtocolHandlerPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L793-L850) 
+  for available lifecycle hooks. Use `ProtocolHandlerPlugin` to add 
   new features for http(s) clients. Example, 
   [HttpWebServerPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1185-L1260).
 
 - There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
   Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
   http(s) server. [HttpProxyPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L941-L1182) 
-  also implements `HttpProtocolBasePlugin`.
+  also implements `ProtocolHandlerPlugin`.
 
 ## proxy.py Internals
 
-- [HttpProtocolHandler](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1263-L1440) 
+- [ProtocolHandler](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1263-L1440) 
 thread is started with the accepted [TcpClientConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L230-L237).
-`HttpProtocolHandler` is responsible for parsing incoming client request and invoking
-`HttpProtocolBasePlugin` lifecycle hooks.
+`ProtocolHandler` is responsible for parsing incoming client request and invoking
+`ProtocolHandlerPlugin` lifecycle hooks.
 
-- `HttpProxyPlugin` which implements `HttpProtocolBasePlugin` also has its own plugin 
+- `HttpProxyPlugin` which implements `ProtocolHandlerPlugin` also has its own plugin 
 mechanism. Its responsibility is to establish connection between client and 
 upstream [TcpServerConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L204-L227)
 and invoke `HttpProxyBasePlugin` lifecycle hooks.
 
-- `HttpProtocolHandler` threads are started by [Worker](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
+- `ProtocolHandler` threads are started by [Worker](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
   processes.
 
 - `--num-workers` `Worker` processes are started by 
-  [MultiCoreRequestDispatcher](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L368-L421) 
-  on start-up.  `Worker` processes receives `TcpClientConnection` over a pipe from `MultiCoreRequestDispatcher`.
+  [WorkerPool](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L368-L421) 
+  on start-up.  `Worker` processes receives `TcpClientConnection` over a pipe from `WorkerPool`.
 
-- `MultiCoreRequestDispatcher` implements [TcpServer](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L240-L302) 
-  abstract class. `TcpServer` accepts `TcpClientConnection`. `MultiCoreRequestDispatcher` 
+- `WorkerPool` implements [TcpServer](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L240-L302) 
+  abstract class. `TcpServer` accepts `TcpClientConnection`. `WorkerPool` 
   ensures full utilization of available CPU cores, for which it dispatches 
   accepted `TcpClientConnection` to `Worker` processes in a round-robin fashion.
 
