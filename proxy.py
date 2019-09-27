@@ -958,7 +958,7 @@ class HttpProxyBasePlugin(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def before_upstream_connection(self) -> None:
+    def before_upstream_connection(self) -> bool:
         """Handler called just before Proxy upstream connection is established.
 
         Raise HttpRequestRejected to drop the connection."""
@@ -1117,7 +1117,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
 
         # Note: can raise HttpRequestRejected exception
         for plugin in self.plugins.values():
-            plugin.before_upstream_connection()
+            teardown = plugin.before_upstream_connection()
+            if teardown:
+                return teardown
 
         self.authenticate()
         self.connect_upstream()
@@ -1186,7 +1188,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if not self.request.has_upstream_server():
             return
 
-        host, port = self.server.addr if self.server else (None, None)
+        server_host, server_port = self.server.addr if self.server else (None, None)
         if self.request.method == b'CONNECT':
             logger.info(
                 '%s:%s - %s %s:%s - %s bytes' %
@@ -1194,17 +1196,18 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                  self.client.addr[1],
                  text_(
                      self.request.method),
-                 text_(host),
-                 text_(port),
+                 text_(server_host),
+                 text_(server_port),
                  self.response.total_size))
         elif self.request.method:
             logger.info(
                 '%s:%s - %s %s:%s%s - %s %s - %s bytes' %
                 (self.client.addr[0], self.client.addr[1], text_(
-                    self.request.method), text_(host), port, text_(
-                    self.request.build_url()), text_(
-                    self.response.code), text_(
-                    self.response.reason), self.response.total_size))
+                    self.request.method), text_(server_host), server_port,
+                    text_(self.request.build_url()),
+                    text_(self.response.code),
+                    text_(self.response.reason),
+                    self.response.total_size))
 
     def authenticate(self) -> None:
         if self.config.auth_code:

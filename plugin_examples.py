@@ -6,6 +6,7 @@
     :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
+import json
 import os
 import tempfile
 import time
@@ -17,7 +18,67 @@ import proxy
 
 @proxy.route(b'/hello-world')
 def hello_world(_request: proxy.HttpParser) -> bytes:
+    """A HttpWebServerRoutePlugin plugin for inbuilt web server."""
     return proxy.HttpParser.build_response(200, body=b'Hello World')
+
+
+class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
+    """Mock responses for your upstream REST API.
+
+    Used to test and develop client side applications
+    without need of an actual upstream REST API server.
+
+    Returns proposed REST API mock responses to the client."""
+
+    API_SERVER = b'api.example.com'
+
+    REST_API_SPEC = {
+        b'/v1/users/': {
+            'count': 2,
+            'next': None,
+            'previous': None,
+            'results': [
+                {
+                    'email': 'you@example.com',
+                    'groups': [],
+                    'url': proxy.text_(API_SERVER) + '/v1/users/1/',
+                    'username': 'admin',
+                },
+                {
+                    'email': 'someone@example.com',
+                    'groups': [],
+                    'url': proxy.text_(API_SERVER) + '/v1/users/2/',
+                    'username': 'someone',
+                },
+            ]
+        },
+    }
+
+    def before_upstream_connection(self) -> bool:
+        """Called after client request is received and
+        before connecting to upstream server."""
+        if self.request.host == self.API_SERVER and self.request.url:
+            if self.request.url.path in self.REST_API_SPEC:
+                self.client.send(proxy.HttpParser.build_response(
+                    200, reason=b'OK',
+                    headers={b'Content-Type': b'application/json'},
+                    body=proxy.bytes_(json.dumps(self.REST_API_SPEC[self.request.url.path]))
+                ))
+            else:
+                self.client.send(proxy.HttpParser.build_response(
+                    404, reason=b'NOT FOUND', body=b'Not Found'
+                ))
+            return True
+        return False
+
+    def on_upstream_connection(self) -> None:
+        pass
+
+    def handle_upstream_response(self, raw: bytes) -> bytes:
+        return raw
+
+    def on_upstream_connection_close(self) -> None:
+        pass
 
 
 class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
@@ -25,11 +86,12 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
 
     UPSTREAM_SERVER = b'http://localhost:8899'
 
-    def before_upstream_connection(self) -> None:
+    def before_upstream_connection(self) -> bool:
         # Redirect all non-https requests to inbuilt WebServer.
         if self.request.method != b'CONNECT':
             self.request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
             self.request.set_host_port()
+        return False
 
     def on_upstream_connection(self) -> None:
         pass
@@ -46,10 +108,11 @@ class FilterByUpstreamHostPlugin(proxy.HttpProxyBasePlugin):
 
     FILTERED_DOMAINS = [b'google.com', b'www.google.com']
 
-    def before_upstream_connection(self) -> None:
+    def before_upstream_connection(self) -> bool:
         if self.request.host in self.FILTERED_DOMAINS:
             raise proxy.HttpRequestRejected(
                 status_code=418, reason=b'I\'m a tea pot')
+        return False
 
     def on_upstream_connection(self) -> None:
         pass
@@ -72,8 +135,8 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 
-    def before_upstream_connection(self) -> None:
-        pass
+    def before_upstream_connection(self) -> bool:
+        return False
 
     def on_upstream_connection(self) -> None:
         self.cache_file_path = os.path.join(
@@ -95,8 +158,8 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
 class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
     """Modifies upstream server responses."""
 
-    def before_upstream_connection(self) -> None:
-        pass
+    def before_upstream_connection(self) -> bool:
+        return False
 
     def on_upstream_connection(self) -> None:
         pass

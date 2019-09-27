@@ -36,6 +36,7 @@ Table of Contents
     * [Command Line](#command-line)
     * [Docker Image](#docker-image)
 * [Plugin Examples](#plugin-examples)
+    * [ProposedRestApiPlugin](#proposedrestapiplugin)
     * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
     * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
     * [CacheResponsesPlugin](#cacheresponsesplugin)
@@ -166,6 +167,37 @@ See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/p
 
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
 See [TLS Interception](#tls-interception).
+
+## ProposedRestApiPlugin
+
+Mock responses for your server REST API.
+Use to test and develop client side applications
+without need of an actual upstream REST API server.
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --plugins plugin_examples.ProposedRestApiPlugin
+```
+
+Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1/users/`
+
+```
+{"count": 2, "next": null, "previous": null, "results": [{"email": "you@example.com", "groups": [], "url": "api.example.com/v1/users/1/", "username": "admin"}, {"email": "someone@example.com", "groups": [], "url": "api.example.com/v1/users/2/", "username": "admin"}]}
+```
+
+Verify the same by inspecting `proxy.py` logs:
+
+```
+2019-09-27 12:44:02,212 - INFO - pid:7077 - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
+```
+
+Access log shows `None:None` as server `ip:port`.  `None` simply means that
+the server connection was never made, since response was returned by our plugin.
+
+Now modify `ProposedRestApiPlugin` to returns REST API mock 
+responses as expected by your clients.
 
 ## RedirectToCustomServerPlugin
 
