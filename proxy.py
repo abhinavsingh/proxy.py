@@ -329,8 +329,8 @@ class TcpServer(ABC):
                 self.socket.close()
 
 
-class HttpProtocolConfig:
-    """Holds various configuration values applicable to HttpProtocolHandler.
+class ProtocolConfig:
+    """Holds various configuration values applicable to ProtocolHandler.
 
     This config class helps us avoid passing around bunch of key/value pairs across methods.
     """
@@ -399,7 +399,7 @@ class WorkerPool(TcpServer):
     client request.
     """
 
-    def __init__(self, config: HttpProtocolConfig) -> None:
+    def __init__(self, config: ProtocolConfig) -> None:
         super().__init__(
             hostname=config.hostname,
             port=config.port,
@@ -408,7 +408,7 @@ class WorkerPool(TcpServer):
         self.work_queues: List[Tuple[connection.Connection,
                                      connection.Connection]] = []
         self.current_worker_id = 0
-        self.config: HttpProtocolConfig = config
+        self.config: ProtocolConfig = config
 
     def setup(self) -> None:
         for worker_id in range(self.config.num_workers):
@@ -456,10 +456,10 @@ class Worker(multiprocessing.Process):
     def __init__(
             self,
             work_queue: connection.Connection,
-            config: HttpProtocolConfig):
+            config: ProtocolConfig):
         super().__init__()
         self.work_queue: connection.Connection = work_queue
-        self.config: HttpProtocolConfig = config
+        self.config: ProtocolConfig = config
 
     def run_once(self) -> bool:
         try:
@@ -470,7 +470,7 @@ class Worker(multiprocessing.Process):
                     fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
                     type=socket.SOCK_STREAM)
                 # TODO(abhinavsingh): Move handshake logic within
-                # HttpProtocolHandler or should this go under TcpServer directly?
+                # ProtocolHandler or should this go under TcpServer directly?
                 # Rationale behind deferring ssl wrap is that plugins can custom wrap
                 # sockets if necessary.
                 if self.config.certfile and self.config.keyfile:
@@ -488,7 +488,7 @@ class Worker(multiprocessing.Process):
                             'OSError encountered while ssl wrapping the client socket', exc_info=e)
                         conn.close()
                         return False
-                proxy = HttpProtocolHandler(
+                proxy = ProtocolHandler(
                     TcpClientConnection(conn=conn, addr=payload),
                     config=self.config)
                 proxy.setDaemon(True)
@@ -811,18 +811,18 @@ class HttpParser:
         return True if self.host is not None else False
 
 
-class HttpProtocolException(Exception):
-    """Top level HttpProtocolException exception class.
+class ProtocolException(Exception):
+    """Top level ProtocolException exception class.
 
     All exceptions raised during execution of Http request lifecycle MUST
-    inherit HttpProtocolException base class. Implement response() method
+    inherit ProtocolException base class. Implement response() method
     to optionally return custom response to client."""
 
     def response(self, request: HttpParser) -> Optional[bytes]:
         pass  # pragma: no cover
 
 
-class HttpRequestRejected(HttpProtocolException):
+class HttpRequestRejected(ProtocolException):
     """Generic exception that can be used to reject the client requests.
 
     Connections can either be dropped/closed or optionally an
@@ -856,16 +856,16 @@ class HttpRequestRejected(HttpProtocolException):
 
 
 class HttpProtocolBasePlugin(ABC):
-    """Base HttpProtocolHandler Plugin class.
+    """Base ProtocolHandler Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
 
     def __init__(
             self,
-            config: HttpProtocolConfig,
+            config: ProtocolConfig,
             client: TcpClientConnection,
             request: HttpParser):
-        self.config: HttpProtocolConfig = config
+        self.config: ProtocolConfig = config
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
         super().__init__()
@@ -915,7 +915,7 @@ class HttpProtocolBasePlugin(ABC):
         pass  # pragma: no cover
 
 
-class ProxyConnectionFailed(HttpProtocolException):
+class ProxyConnectionFailed(ProtocolException):
     """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
 
     RESPONSE_PKT = HttpParser.build_response(
@@ -938,7 +938,7 @@ class ProxyConnectionFailed(HttpProtocolException):
             self.host, self.port, self.reason)
 
 
-class ProxyAuthenticationFailed(HttpProtocolException):
+class ProxyAuthenticationFailed(ProtocolException):
     """Exception raised when Http Proxy auth is enabled and
     incoming request doesn't present necessary credentials."""
 
@@ -960,7 +960,7 @@ class HttpProxyBasePlugin(ABC):
 
     def __init__(
             self,
-            config: HttpProtocolConfig,
+            config: ProtocolConfig,
             client: TcpClientConnection,
             request: HttpParser):
         self.config = config
@@ -1001,7 +1001,7 @@ class HttpProxyBasePlugin(ABC):
 
 
 class HttpProxyPlugin(HttpProtocolBasePlugin):
-    """HttpProtocolHandler plugin which implements HttpProxy specifications."""
+    """ProtocolHandler plugin which implements HttpProxy specifications."""
 
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = HttpParser.build_response(
         200, reason=b'Connection established'
@@ -1013,7 +1013,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
 
     def __init__(
             self,
-            config: HttpProtocolConfig,
+            config: ProtocolConfig,
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
@@ -1056,7 +1056,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading')
             raw = self.server.recv(self.config.server_recvbuf_size)
-            # self.last_activity = HttpProtocolHandler.now()
+            # self.last_activity = ProtocolHandler.now()
             if not raw:
                 logger.debug('Server closed connection, tearing down...')
                 return True
@@ -1246,7 +1246,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
         else:
             logger.exception('Both host and port must exist')
-            raise HttpProtocolException()
+            raise ProtocolException()
 
 
 class HttpWebServerRoutePlugin(ABC):
@@ -1254,7 +1254,7 @@ class HttpWebServerRoutePlugin(ABC):
 
     def __init__(
             self,
-            config: HttpProtocolConfig,
+            config: ProtocolConfig,
             client: TcpClientConnection):
         self.config = config
         self.client = client
@@ -1293,7 +1293,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
 
     def __init__(
             self,
-            config: HttpProtocolConfig,
+            config: ProtocolConfig,
             client: TcpClientConnection):
         super().__init__(config, client)
         self.pac_file_response: Optional[bytes] = None
@@ -1327,7 +1327,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
 
 
 class HttpWebServerPlugin(HttpProtocolBasePlugin):
-    """HttpProtocolHandler plugin which handles incoming requests to local webserver."""
+    """ProtocolHandler plugin which handles incoming requests to local webserver."""
 
     DEFAULT_404_RESPONSE = HttpParser.build_response(
         404, reason=b'NOT FOUND',
@@ -1337,7 +1337,7 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
 
     def __init__(
             self,
-            config: HttpProtocolConfig,
+            config: ProtocolConfig,
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
@@ -1406,20 +1406,20 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
         return [], [], []
 
 
-class HttpProtocolHandler(threading.Thread):
+class ProtocolHandler(threading.Thread):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection object and manages HttpProtocolBasePlugin invocations.
     """
 
     def __init__(self, client: TcpClientConnection,
-                 config: Optional[HttpProtocolConfig] = None):
+                 config: Optional[ProtocolConfig] = None):
         super().__init__()
         self.start_time: datetime.datetime = self.now()
         self.last_activity: datetime.datetime = self.start_time
 
         self.client: TcpClientConnection = client
-        self.config: HttpProtocolConfig = config if config else HttpProtocolConfig()
+        self.config: ProtocolConfig = config if config else ProtocolConfig()
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
         self.plugins: Dict[str, HttpProtocolBasePlugin] = {}
@@ -1488,9 +1488,9 @@ class HttpProtocolHandler(threading.Thread):
                                             'Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock:
                                 return True
-                except HttpProtocolException as e:
+                except ProtocolException as e:
                     logger.exception(
-                        'HttpProtocolException type raised', exc_info=e)
+                        'ProtocolException type raised', exc_info=e)
                     response = e.response(self.request)
                     if response:
                         self.client.queue(response)
@@ -1834,7 +1834,7 @@ def main(input_args: List[str]) -> None:
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        config = HttpProtocolConfig(
+        config = ProtocolConfig(
             auth_code=auth_code,
             server_recvbuf_size=args.server_recvbuf_size,
             client_recvbuf_size=args.client_recvbuf_size,
