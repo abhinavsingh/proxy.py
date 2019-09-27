@@ -329,68 +329,6 @@ class TcpServer(ABC):
                 self.socket.close()
 
 
-class ProtocolConfig:
-    """Holds various configuration values applicable to ProtocolHandler.
-
-    This config class helps us avoid passing around bunch of key/value pairs across methods.
-    """
-
-    ROOT_DATA_DIR_NAME = '.proxy.py'
-    GENERATED_CERTS_DIR_NAME = 'certificates'
-
-    def __init__(
-            self,
-            auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
-            server_recvbuf_size: int = DEFAULT_SERVER_RECVBUF_SIZE,
-            client_recvbuf_size: int = DEFAULT_CLIENT_RECVBUF_SIZE,
-            pac_file: Optional[str] = DEFAULT_PAC_FILE,
-            pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
-            plugins: Optional[Dict[bytes, List[type]]] = None,
-            disable_headers: Optional[List[bytes]] = None,
-            certfile: Optional[str] = None,
-            keyfile: Optional[str] = None,
-            ca_cert_dir: Optional[str] = None,
-            ca_key_file: Optional[str] = None,
-            ca_cert_file: Optional[str] = None,
-            ca_signing_key_file: Optional[str] = None,
-            num_workers: int = 0,
-            hostname: Union[ipaddress.IPv4Address,
-                            ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
-            port: int = DEFAULT_PORT,
-            backlog: int = DEFAULT_BACKLOG) -> None:
-        self.auth_code = auth_code
-        self.server_recvbuf_size = server_recvbuf_size
-        self.client_recvbuf_size = client_recvbuf_size
-        self.pac_file = pac_file
-        self.pac_file_url_path = pac_file_url_path
-        if plugins is None:
-            plugins = {}
-        self.plugins: Dict[bytes, List[type]] = plugins
-        if disable_headers is None:
-            disable_headers = DEFAULT_DISABLE_HEADERS
-        self.disable_headers = disable_headers
-        self.certfile: Optional[str] = certfile
-        self.keyfile: Optional[str] = keyfile
-        self.ca_key_file: Optional[str] = ca_key_file
-        self.ca_cert_file: Optional[str] = ca_cert_file
-        self.ca_signing_key_file: Optional[str] = ca_signing_key_file
-        self.num_workers: int = num_workers
-        self.hostname: Union[ipaddress.IPv4Address,
-                             ipaddress.IPv6Address] = hostname
-        self.port: int = port
-        self.backlog: int = backlog
-
-        self.proxy_py_data_dir = os.path.join(
-            str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
-        os.makedirs(self.proxy_py_data_dir, exist_ok=True)
-
-        self.ca_cert_dir: Optional[str] = ca_cert_dir
-        if self.ca_cert_dir is None:
-            self.ca_cert_dir = os.path.join(
-                self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
-            os.makedirs(self.ca_cert_dir, exist_ok=True)
-
-
 class WorkerPool(TcpServer):
     """WorkerPool.
 
@@ -399,28 +337,32 @@ class WorkerPool(TcpServer):
     client request.
     """
 
-    def __init__(self, config: ProtocolConfig) -> None:
-        super().__init__(
-            hostname=config.hostname,
-            port=config.port,
-            backlog=config.backlog)
+    def __init__(self, hostname: Union[ipaddress.IPv4Address,
+                                       ipaddress.IPv6Address],
+                 port: int, backlog: int, num_workers: int,
+                 work_klass: type, **kwargs: Any) -> None:
+        super().__init__(hostname=hostname, port=port, backlog=backlog)
+        self.num_workers = num_workers
+
         self.workers: List[Worker] = []
         self.work_queues: List[Tuple[connection.Connection,
                                      connection.Connection]] = []
         self.current_worker_id = 0
-        self.config: ProtocolConfig = config
+
+        self.work_klass = work_klass
+        self.kwargs = kwargs
 
     def setup(self) -> None:
-        for worker_id in range(self.config.num_workers):
+        for worker_id in range(self.num_workers):
             work_queue = multiprocessing.Pipe()
 
-            worker = Worker(work_queue[1], self.config)
+            worker = Worker(work_queue[1], self.work_klass, **self.kwargs)
             worker.daemon = True
             worker.start()
 
             self.workers.append(worker)
             self.work_queues.append(work_queue)
-        logger.info('Started %d workers' % self.config.num_workers)
+        logger.info('Started %d workers' % self.num_workers)
 
     def handle(self, client: TcpClientConnection) -> None:
         # Dispatch in round robin fashion
@@ -435,10 +377,10 @@ class WorkerPool(TcpServer):
         # Close parent handler
         client.close()
         self.current_worker_id += 1
-        self.current_worker_id %= self.config.num_workers
+        self.current_worker_id %= self.num_workers
 
     def shutdown(self) -> None:
-        logger.info('Shutting down %d workers' % self.config.num_workers)
+        logger.info('Shutting down %d workers' % self.num_workers)
         for work_queue in self.work_queues:
             work_queue[0].send((workerOperations.SHUTDOWN, None))
             work_queue[0].close()
@@ -456,41 +398,20 @@ class Worker(multiprocessing.Process):
     def __init__(
             self,
             work_queue: connection.Connection,
-            config: ProtocolConfig):
+            work_klass: type,
+            **kwargs: Any):
         super().__init__()
         self.work_queue: connection.Connection = work_queue
-        self.config: ProtocolConfig = config
+        self.work_klass = work_klass
+        self.kwargs = kwargs
 
     def run_once(self) -> bool:
         try:
             op, payload = self.work_queue.recv()
             if op == workerOperations.HTTP_PROTOCOL:
                 fileno = recv_handle(self.work_queue)
-                conn = socket.fromfd(
-                    fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
-                    type=socket.SOCK_STREAM)
-                # TODO(abhinavsingh): Move handshake logic within
-                # ProtocolHandler or should this go under TcpServer directly?
-                # Rationale behind deferring ssl wrap is that plugins can custom wrap
-                # sockets if necessary.
-                if self.config.certfile and self.config.keyfile:
-                    try:
-                        ctx = ssl.create_default_context(
-                            ssl.Purpose.CLIENT_AUTH)
-                        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                        ctx.verify_mode = ssl.CERT_NONE
-                        ctx.load_cert_chain(
-                            certfile=self.config.certfile,
-                            keyfile=self.config.keyfile)
-                        conn = ctx.wrap_socket(conn, server_side=True)
-                    except OSError as e:
-                        logger.exception(
-                            'OSError encountered while ssl wrapping the client socket', exc_info=e)
-                        conn.close()
-                        return False
-                proxy = ProtocolHandler(
-                    TcpClientConnection(conn=conn, addr=payload),
-                    config=self.config)
+                proxy = self.work_klass(
+                    fileno=fileno, addr=payload, **self.kwargs)
                 proxy.setDaemon(True)
                 proxy.start()
             elif op == workerOperations.SHUTDOWN:
@@ -853,6 +774,68 @@ class HttpRequestRejected(ProtocolException):
             if len(pkt) > 0:
                 pkt.append(CRLF)
         return CRLF.join(pkt) if len(pkt) > 0 else None
+
+
+class ProtocolConfig:
+    """Holds various configuration values applicable to ProtocolHandler.
+
+    This config class helps us avoid passing around bunch of key/value pairs across methods.
+    """
+
+    ROOT_DATA_DIR_NAME = '.proxy.py'
+    GENERATED_CERTS_DIR_NAME = 'certificates'
+
+    def __init__(
+            self,
+            auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
+            server_recvbuf_size: int = DEFAULT_SERVER_RECVBUF_SIZE,
+            client_recvbuf_size: int = DEFAULT_CLIENT_RECVBUF_SIZE,
+            pac_file: Optional[str] = DEFAULT_PAC_FILE,
+            pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
+            plugins: Optional[Dict[bytes, List[type]]] = None,
+            disable_headers: Optional[List[bytes]] = None,
+            certfile: Optional[str] = None,
+            keyfile: Optional[str] = None,
+            ca_cert_dir: Optional[str] = None,
+            ca_key_file: Optional[str] = None,
+            ca_cert_file: Optional[str] = None,
+            ca_signing_key_file: Optional[str] = None,
+            num_workers: int = 0,
+            hostname: Union[ipaddress.IPv4Address,
+                            ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
+            port: int = DEFAULT_PORT,
+            backlog: int = DEFAULT_BACKLOG) -> None:
+        self.auth_code = auth_code
+        self.server_recvbuf_size = server_recvbuf_size
+        self.client_recvbuf_size = client_recvbuf_size
+        self.pac_file = pac_file
+        self.pac_file_url_path = pac_file_url_path
+        if plugins is None:
+            plugins = {}
+        self.plugins: Dict[bytes, List[type]] = plugins
+        if disable_headers is None:
+            disable_headers = DEFAULT_DISABLE_HEADERS
+        self.disable_headers = disable_headers
+        self.certfile: Optional[str] = certfile
+        self.keyfile: Optional[str] = keyfile
+        self.ca_key_file: Optional[str] = ca_key_file
+        self.ca_cert_file: Optional[str] = ca_cert_file
+        self.ca_signing_key_file: Optional[str] = ca_signing_key_file
+        self.num_workers: int = num_workers
+        self.hostname: Union[ipaddress.IPv4Address,
+                             ipaddress.IPv6Address] = hostname
+        self.port: int = port
+        self.backlog: int = backlog
+
+        self.proxy_py_data_dir = os.path.join(
+            str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
+        os.makedirs(self.proxy_py_data_dir, exist_ok=True)
+
+        self.ca_cert_dir: Optional[str] = ca_cert_dir
+        if self.ca_cert_dir is None:
+            self.ca_cert_dir = os.path.join(
+                self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
+            os.makedirs(self.ca_cert_dir, exist_ok=True)
 
 
 class HttpProtocolBasePlugin(ABC):
@@ -1412,21 +1395,55 @@ class ProtocolHandler(threading.Thread):
     Accepts `Client` connection object and manages HttpProtocolBasePlugin invocations.
     """
 
-    def __init__(self, client: TcpClientConnection,
+    def __init__(self, fileno: int, addr: Tuple[str, int],
                  config: Optional[ProtocolConfig] = None):
         super().__init__()
         self.start_time: datetime.datetime = self.now()
         self.last_activity: datetime.datetime = self.start_time
 
-        self.client: TcpClientConnection = client
         self.config: ProtocolConfig = config if config else ProtocolConfig()
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
-        self.plugins: Dict[str, HttpProtocolBasePlugin] = {}
+        conn = self.optionally_wrap_socket(self.fromfd(fileno))
+        if conn is None:
+            raise TcpConnectionUninitializedException()
+        self.client: TcpClientConnection = TcpClientConnection(
+            conn=conn,
+            addr=addr)
+
+        self.plugins: Dict[str, Type[HttpProtocolBasePlugin]] = {}
         if b'HttpProtocolBasePlugin' in self.config.plugins:
             for klass in self.config.plugins[b'HttpProtocolBasePlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
+
+    def fromfd(self, fileno: int) -> socket.socket:
+        return socket.fromfd(
+            fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
+            type=socket.SOCK_STREAM)
+
+    def optionally_wrap_socket(self, conn: socket.socket) -> Optional[Union[ssl.SSLSocket, socket.socket]]:
+        """Attempts to wrap accepted client connection using provided certificates.
+
+        Shutdown and closes client connection upon error.
+        """
+        if self.config.certfile and self.config.keyfile:
+            try:
+                ctx = ssl.create_default_context(
+                    ssl.Purpose.CLIENT_AUTH)
+                ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+                ctx.verify_mode = ssl.CERT_NONE
+                ctx.load_cert_chain(
+                    certfile=self.config.certfile,
+                    keyfile=self.config.keyfile)
+                conn = ctx.wrap_socket(conn, server_side=True)
+                return conn
+            except Exception as e:
+                logger.exception('Error encountered', exc_info=e)
+                conn.shutdown(socket.SHUT_RDWR)
+                conn.close()
+                return None
+        return conn
 
     @staticmethod
     def now() -> datetime.datetime:
@@ -1867,7 +1884,13 @@ def main(input_args: List[str]) -> None:
                 '%s%s' %
                 (default_plugins, args.plugins)))
 
-        server = WorkerPool(config=config)
+        server = WorkerPool(
+            hostname=config.hostname,
+            port=config.port,
+            backlog=config.backlog,
+            num_workers=config.num_workers,
+            work_klass=ProtocolHandler,
+            config=config)
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(str(os.getpid())))
