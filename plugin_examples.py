@@ -57,7 +57,7 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     def before_upstream_connection(self) -> bool:
         """Called after client request is received and
         before connecting to upstream server."""
-        if self.request.host == self.API_SERVER:
+        if self.request.host == self.API_SERVER and self.request.url:
             if self.request.url.path in self.REST_API_SPEC:
                 self.client.send(proxy.HttpParser.build_response(
                     200, reason=b'OK',
