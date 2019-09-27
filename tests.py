@@ -44,24 +44,23 @@ def get_available_port() -> int:
         return int(port)
 
 
-class TcpConnectionToTest(proxy.TcpConnection):
-
-    def __init__(self, conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None,
-                 tag: int = proxy.tcpConnectionTypes.CLIENT) -> None:
-        super().__init__(tag)
-        self._conn = conn
-
-    @property
-    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
-        if self._conn is None:
-            raise proxy.TcpConnectionUninitializedException()
-        return self._conn
-
-
 class TestTcpConnection(unittest.TestCase):
 
+    class TcpConnectionToTest(proxy.TcpConnection):
+
+        def __init__(self, conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None,
+                     tag: int = proxy.tcpConnectionTypes.CLIENT) -> None:
+            super().__init__(tag)
+            self._conn = conn
+
+        @property
+        def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+            if self._conn is None:
+                raise proxy.TcpConnectionUninitializedException()
+            return self._conn
+
     def testThrowsKeyErrorIfNoConn(self) -> None:
-        self.conn = TcpConnectionToTest()
+        self.conn = TestTcpConnection.TcpConnectionToTest()
         with self.assertRaises(proxy.TcpConnectionUninitializedException):
             self.conn.send(b'dummy')
         with self.assertRaises(proxy.TcpConnectionUninitializedException):
@@ -72,7 +71,7 @@ class TestTcpConnection(unittest.TestCase):
     def testHandlesIOError(self) -> None:
         _conn = mock.MagicMock()
         _conn.recv.side_effect = IOError()
-        self.conn = TcpConnectionToTest(_conn)
+        self.conn = TestTcpConnection.TcpConnectionToTest(_conn)
         with mock.patch('proxy.logger') as mock_logger:
             self.conn.recv()
             mock_logger.exception.assert_called()
@@ -84,7 +83,7 @@ class TestTcpConnection(unittest.TestCase):
         e = IOError()
         e.errno = errno.ECONNRESET
         _conn.recv.side_effect = e
-        self.conn = TcpConnectionToTest(_conn)
+        self.conn = TestTcpConnection.TcpConnectionToTest(_conn)
         with mock.patch('proxy.logger') as mock_logger:
             self.conn.recv()
             mock_logger.exception.assert_not_called()
@@ -93,14 +92,14 @@ class TestTcpConnection(unittest.TestCase):
 
     def testClosesIfNotClosed(self) -> None:
         _conn = mock.MagicMock()
-        self.conn = TcpConnectionToTest(_conn)
+        self.conn = TestTcpConnection.TcpConnectionToTest(_conn)
         self.conn.close()
         _conn.close.assert_called()
         self.assertTrue(self.conn.closed)
 
     def testNoOpIfAlreadyClosed(self) -> None:
         _conn = mock.MagicMock()
-        self.conn = TcpConnectionToTest(_conn)
+        self.conn = TestTcpConnection.TcpConnectionToTest(_conn)
         self.conn.closed = True
         self.conn.close()
         _conn.close.assert_not_called()
@@ -125,7 +124,7 @@ class TestTcpConnection(unittest.TestCase):
             (str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT))
 
 
-class BasicTcpServer(proxy.TcpServer):
+class TcpServerUnderTest(proxy.TcpServer):
 
     def handle(self, client: proxy.TcpClientConnection) -> None:
         data = client.recv(proxy.DEFAULT_BUFFER_SIZE)
@@ -147,8 +146,8 @@ class TestTcpServerIntegration(unittest.TestCase):
 
     ipv4_port: Optional[int] = None
     ipv6_port: Optional[int] = None
-    ipv4_server: Optional[BasicTcpServer] = None
-    ipv6_server: Optional[BasicTcpServer] = None
+    ipv4_server: Optional[TcpServerUnderTest] = None
+    ipv6_server: Optional[TcpServerUnderTest] = None
     ipv4_thread: Optional[Thread] = None
     ipv6_thread: Optional[Thread] = None
 
@@ -156,10 +155,10 @@ class TestTcpServerIntegration(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.ipv4_port = get_available_port()
         cls.ipv6_port = get_available_port()
-        cls.ipv4_server = BasicTcpServer(
+        cls.ipv4_server = TcpServerUnderTest(
             hostname=proxy.DEFAULT_IPV4_HOSTNAME,
             port=cls.ipv4_port)
-        cls.ipv6_server = BasicTcpServer(
+        cls.ipv6_server = TcpServerUnderTest(
             hostname=proxy.DEFAULT_IPV6_HOSTNAME,
             port=cls.ipv6_port)
         cls.ipv4_thread = Thread(target=cls.ipv4_server.run)
@@ -218,7 +217,7 @@ class TestTcpServer(unittest.TestCase):
     def testAcceptSSLErrorsSilentlyIgnored(self, mock_socket: mock.Mock, mock_select: mock.Mock) -> None:
         mock_socket.accept.side_effect = ssl.SSLError()
         mock_select.return_value = ([mock_socket], [], [])
-        server = BasicTcpServer(hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=1234)
+        server = TcpServerUnderTest(hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=1234)
         server.socket = mock_socket
         with mock.patch('proxy.logger') as mock_logger:
             server.run_once()
@@ -702,28 +701,27 @@ class TestHttpParser(unittest.TestCase):
             self.assertTrue(k in dictionary)
 
 
-class HTTPRequestHandler(BaseHTTPRequestHandler):
-
-    def do_GET(self) -> None:
-        self.send_response(200)
-        # TODO(abhinavsingh): Proxy should work just fine even without
-        # content-length header
-        self.send_header('content-length', '2')
-        self.end_headers()
-        self.wfile.write(b'OK')
-
-
 class TestHttpProtocolHandler(unittest.TestCase):
     http_server = None
     http_server_port = None
     http_server_thread = None
     config = None
 
+    class HTTPRequestHandler(BaseHTTPRequestHandler):
+
+        def do_GET(self) -> None:
+            self.send_response(200)
+            # TODO(abhinavsingh): Proxy should work just fine even without
+            # content-length header
+            self.send_header('content-length', '2')
+            self.end_headers()
+            self.wfile.write(b'OK')
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.http_server_port = get_available_port()
         cls.http_server = HTTPServer(
-            ('127.0.0.1', cls.http_server_port), HTTPRequestHandler)
+            ('127.0.0.1', cls.http_server_port), TestHttpProtocolHandler.HTTPRequestHandler)
         cls.http_server_thread = Thread(target=cls.http_server.serve_forever)
         cls.http_server_thread.setDaemon(True)
         cls.http_server_thread.start()

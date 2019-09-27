@@ -42,7 +42,7 @@ Table of Contents
     * [ManInTheMiddlePlugin](#maninthemiddleplugin)
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
-* [TLS Encryption](#tls-interception)
+* [TLS Interception](#tls-interception)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [proxy.py Internals](#proxypy-internals)
