@@ -723,7 +723,7 @@ class HttpParser:
 
     ##########################################################################
     # HttpParser was originally written to parse the incoming raw Http requests.
-    # Since request / response objects passed to HttpProtocolBasePlugin methods
+    # Since request / response objects passed to ProtocolHandlerPlugin methods
     # are also HttpParser objects, methods below were added to simplify developer API.
     ##########################################################################
 
@@ -838,7 +838,7 @@ class ProtocolConfig:
             os.makedirs(self.ca_cert_dir, exist_ok=True)
 
 
-class HttpProtocolBasePlugin(ABC):
+class ProtocolHandlerPlugin(ABC):
     """Base ProtocolHandler Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
@@ -983,7 +983,7 @@ class HttpProxyBasePlugin(ABC):
         pass  # pragma: no cover
 
 
-class HttpProxyPlugin(HttpProtocolBasePlugin):
+class HttpProxyPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which implements HttpProxy specifications."""
 
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = HttpParser.build_response(
@@ -1309,7 +1309,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
             )
 
 
-class HttpWebServerPlugin(HttpProtocolBasePlugin):
+class HttpWebServerPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which handles incoming requests to local webserver."""
 
     DEFAULT_404_RESPONSE = HttpParser.build_response(
@@ -1392,7 +1392,7 @@ class HttpWebServerPlugin(HttpProtocolBasePlugin):
 class ProtocolHandler(threading.Thread):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
-    Accepts `Client` connection object and manages HttpProtocolBasePlugin invocations.
+    Accepts `Client` connection object and manages ProtocolHandlerPlugin invocations.
     """
 
     def __init__(self, fileno: int, addr: Tuple[str, int],
@@ -1411,9 +1411,9 @@ class ProtocolHandler(threading.Thread):
             conn=conn,
             addr=addr)
 
-        self.plugins: Dict[str, Type[HttpProtocolBasePlugin]] = {}
-        if b'HttpProtocolBasePlugin' in self.config.plugins:
-            for klass in self.config.plugins[b'HttpProtocolBasePlugin']:
+        self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
+        if b'ProtocolHandlerPlugin' in self.config.plugins:
+            for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
 
@@ -1477,7 +1477,7 @@ class ProtocolHandler(threading.Thread):
                 self.client.closed = True
                 return True
 
-            # HttpProtocolBasePlugin.on_client_data
+            # ProtocolHandlerPlugin.on_client_data
             plugin_index = 0
             plugins = list(self.plugins.values())
             while plugin_index < len(plugins) and client_data:
@@ -1527,7 +1527,7 @@ class ProtocolHandler(threading.Thread):
         if self.client.has_buffer():
             write_desc.append(self.client.connection)
 
-        # HttpProtocolBasePlugin.get_descriptors
+        # ProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc, plugin_err_desc = plugin.get_descriptors()
             read_desc += plugin_read_desc
@@ -1626,7 +1626,7 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
     """Accepts a comma separated list of Python modules and returns
     a list of respective Python classes."""
     p: Dict[bytes, List[type]] = {
-        b'HttpProtocolBasePlugin': [],
+        b'ProtocolHandlerPlugin': [],
         b'HttpProxyBasePlugin': [],
         b'HttpWebServerRoutePlugin': [],
     }
