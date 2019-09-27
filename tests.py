@@ -1003,11 +1003,13 @@ class TestHttpProtocolHandler(unittest.TestCase):
             self._conn.send.call_args[0][0],
             proxy.HttpWebServerPlugin.DEFAULT_404_RESPONSE)
 
-    def test_on_client_connection_called_on_teardown(self) -> None:
+    @mock.patch('socket.fromfd')
+    def test_on_client_connection_called_on_teardown(self, mock_fromfd: mock.Mock) -> None:
         config = proxy.ProtocolConfig()
         plugin = mock.MagicMock()
         config.plugins = {b'ProtocolHandlerPlugin': [plugin]}
-        self.proxy = proxy.ProtocolHandler(self._conn, self._addr, config=config)
+        self._conn = mock_fromfd.return_value
+        self.proxy = proxy.ProtocolHandler(self.fileno, self._addr, config=config)
         plugin.assert_called()
         with mock.patch.object(self.proxy, 'run_once') as mock_run_once:
             mock_run_once.return_value = True
