@@ -262,7 +262,7 @@ class TestMultiCoreRequestDispatcherIntegration(unittest.TestCase):
     def testHttpProxyConnection(self, _mock_tcp_proxy):
         try:
             self.tcp_port = get_available_port()
-            self.tcp_server = proxy.MultiCoreRequestDispatcher(
+            self.tcp_server = proxy.WorkerPool(
                 proxy.HttpProtocolConfig(
                     hostname=proxy.DEFAULT_IPV4_HOSTNAME,
                     port=self.tcp_port,
@@ -1279,7 +1279,7 @@ class TestHttpRequestRejected(unittest.TestCase):
 class TestMain(unittest.TestCase):
 
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.WorkerPool')
     @mock.patch('proxy.logging.basicConfig')
     def test_log_file_setup(
             self,
@@ -1302,7 +1302,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.WorkerPool')
     @unittest.skipIf(
         True,  # type: ignore
         'This test passes while development on Intellij but fails via CLI :(')
@@ -1326,7 +1326,7 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.WorkerPool')
     def test_main(
             self,
             mock_multicore_dispatcher: mock.Mock,
@@ -1358,7 +1358,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.print')
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.WorkerPool')
     def test_main_version(
             self,
             mock_multicore_dispatcher: mock.Mock,
@@ -1375,7 +1375,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.print')
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.WorkerPool')
     @mock.patch('proxy.is_py3')
     def test_main_py3_runs(
             self,
@@ -1395,7 +1395,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.print')
     @mock.patch('proxy.HttpProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.MultiCoreRequestDispatcher')
+    @mock.patch('proxy.WorkerPool')
     @mock.patch('proxy.is_py3')
     @unittest.skipIf(
         True,  # type: ignore

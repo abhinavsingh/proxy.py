@@ -391,8 +391,8 @@ class HttpProtocolConfig:
             os.makedirs(self.ca_cert_dir, exist_ok=True)
 
 
-class MultiCoreRequestDispatcher(TcpServer):
-    """MultiCoreRequestDispatcher.
+class WorkerPool(TcpServer):
+    """WorkerPool.
 
     Pre-spawns worker process to utilize all cores available on the system.  Accepted `TcpClientConnection` is
     dispatched over a queue to workers.  One of the worker picks up the work and starts a new thread to handle the
@@ -1867,7 +1867,7 @@ def main(input_args: List[str]) -> None:
                 '%s%s' %
                 (default_plugins, args.plugins)))
 
-        server = MultiCoreRequestDispatcher(config=config)
+        server = WorkerPool(config=config)
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(str(os.getpid())))
