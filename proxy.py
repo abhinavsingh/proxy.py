@@ -210,7 +210,7 @@ class TcpConnection:
 
 
 class TcpServerConnection(TcpConnection):
-    """Establishes connection to destination server."""
+    """Establishes connection to upstream server."""
 
     def __init__(self, host: str, port: int):
         super().__init__(tcpConnectionTypes.SERVER)
@@ -259,13 +259,12 @@ class TcpServer(ABC):
                  hostname: Union[ipaddress.IPv4Address,
                                  ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
                  port: int = DEFAULT_PORT,
-                 backlog: int = DEFAULT_BACKLOG,
-                 family: socket.AddressFamily = socket.AF_INET6):
+                 backlog: int = DEFAULT_BACKLOG):
         self.port: int = port
         self.backlog: int = backlog
         self.socket: Optional[socket.socket] = None
         self.running: bool = False
-        self.family: socket.AddressFamily = family
+        self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
         self.hostname: Union[ipaddress.IPv4Address,
                              ipaddress.IPv6Address] = hostname
 
@@ -365,7 +364,6 @@ class HttpProtocolConfig:
                              ipaddress.IPv6Address] = hostname
         self.port: int = port
         self.backlog: int = backlog
-        self.family: socket.AddressFamily = socket.AF_INET if hostname.version == 4 else socket.AF_INET6
 
         self.proxy_py_data_dir = os.path.join(
             str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
@@ -390,8 +388,7 @@ class MultiCoreRequestDispatcher(TcpServer):
         super().__init__(
             hostname=config.hostname,
             port=config.port,
-            backlog=config.backlog,
-            family=config.family)
+            backlog=config.backlog)
         self.workers: List[Worker] = []
         self.work_queues: List[Tuple[connection.Connection,
                                      connection.Connection]] = []
@@ -455,7 +452,8 @@ class Worker(multiprocessing.Process):
             if op == workerOperations.HTTP_PROTOCOL:
                 fileno = recv_handle(self.work_queue)
                 conn = socket.fromfd(
-                    fileno, family=self.config.family, type=socket.SOCK_STREAM)
+                    fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
+                    type=socket.SOCK_STREAM)
                 # TODO(abhinavsingh): Move handshake logic within
                 # HttpProtocolHandler or should this go under TcpServer directly?
                 # Rationale behind deferring ssl wrap is that plugins can custom wrap
@@ -701,7 +699,7 @@ class HttpParser:
         else:
             self.version = line[0]
             self.code = line[1]
-            self.reason = b' '.join(line[2:])
+            self.reason = WHITESPACE.join(line[2:])
         self.set_host_port()
 
     def process_header(self, raw: bytes) -> None:
@@ -829,7 +827,7 @@ class HttpRequestRejected(HttpProtocolException):
         if self.status_code is not None:
             line = b'HTTP/1.1 ' + bytes_(str(self.status_code))
             if self.reason:
-                line += b' ' + self.reason
+                line += WHITESPACE + self.reason
             pkt.append(line)
             pkt.append(PROXY_AGENT_HEADER)
         if self.body:

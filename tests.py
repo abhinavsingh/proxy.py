@@ -159,12 +159,10 @@ class TestTcpServerIntegration(unittest.TestCase):
         cls.ipv6_port = get_available_port()
         cls.ipv4_server = BasicTcpServer(
             hostname=proxy.DEFAULT_IPV4_HOSTNAME,
-            port=cls.ipv4_port,
-            family=socket.AF_INET)
+            port=cls.ipv4_port)
         cls.ipv6_server = BasicTcpServer(
             hostname=proxy.DEFAULT_IPV6_HOSTNAME,
-            port=cls.ipv6_port,
-            family=socket.AF_INET6)
+            port=cls.ipv6_port)
         cls.ipv4_thread = Thread(target=cls.ipv4_server.run)
         cls.ipv6_thread = Thread(target=cls.ipv6_server.run)
         cls.ipv4_thread.setDaemon(True)
