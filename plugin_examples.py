@@ -48,10 +48,10 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
                     'email': 'someone@example.com',
                     'groups': [],
                     'url': proxy.text_(API_SERVER) + '/v1/users/2/',
-                    'username': 'admin',
+                    'username': 'someone',
                 },
             ]
-        }
+        },
     }
 
     def before_upstream_connection(self) -> bool:

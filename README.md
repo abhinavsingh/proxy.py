@@ -171,7 +171,6 @@ See [TLS Interception](#tls-interception).
 ## ProposedRestApiPlugin
 
 Mock responses for your server REST API.
-
 Use to test and develop client side applications
 without need of an actual upstream REST API server.
 
