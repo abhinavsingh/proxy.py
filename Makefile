@@ -23,8 +23,7 @@ clean:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 	rm -f .coverage
-	rm -rf htmlcov
-	rm -rf dist
+	rm -rf htmlcov dist build
 
 test:
 	python -m unittest tests
@@ -33,7 +32,7 @@ package: clean
 	python setup.py sdist bdist_wheel
 
 test-release: package
-	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
 
 release: package
 	twine upload dist/*

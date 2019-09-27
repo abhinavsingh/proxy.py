@@ -3,7 +3,7 @@
     proxy.py
     ~~~~~~~~
     
-    Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file.
+    Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
     
     :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
@@ -27,9 +27,8 @@ classifiers = [
     'Operating System :: Unix',
     'Operating System :: Microsoft',
     'Operating System :: OS Independent',
-    'Programming Language :: Python :: 2',
-    'Programming Language :: Python :: 2.7',
     'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.6',
     'Programming Language :: Python :: 3.7',
     'Topic :: Internet :: Proxy Servers',
     'Topic :: Internet :: WWW/HTTP',
@@ -47,6 +46,7 @@ setup(
     url=proxy.__homepage__,
     description=proxy.__description__,
     long_description=open('README.md').read().strip(),
+    long_description_content_type='text/markdown',
     download_url=proxy.__download_url__,
     classifiers=classifiers,
     license=proxy.__license__,

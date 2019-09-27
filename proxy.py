@@ -3,7 +3,7 @@
 """
     proxy.py
     ~~~~~~~~
-    Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file.
+    Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
 
     :copyright: (c) 2013-present by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
@@ -38,7 +38,8 @@ if os.name != 'nt':
 
 VERSION = (1, 0, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
-__description__ = 'Lightweight Programmable HTTP, HTTPS, WebSockets Proxy Server in a single Python file'
+__description__ = 'Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, ' \
+                  'WebSockets protocols in a single Python file.'
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
