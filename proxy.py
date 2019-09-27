@@ -430,7 +430,7 @@ class MultiCoreRequestDispatcher(TcpServer):
             self.current_worker_id)
         # Dispatch non-socket data first, followed by fileno using reduction
         work_queue[0].send((workerOperations.HTTP_PROTOCOL, client.addr))
-        send_handle(work_queue[0], client.conn.fileno(),
+        send_handle(work_queue[0], client.connection.fileno(),
                     self.workers[self.current_worker_id].pid)
         # Close parent handler
         client.close()
@@ -1033,15 +1033,15 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
 
         r: List[socket.socket] = []
         w: List[socket.socket] = []
-        if self.server and not self.server.closed and self.server.conn:
-            r.append(self.server.conn)
-        if self.server and not self.server.closed and self.server.has_buffer() and self.server.conn:
-            w.append(self.server.conn)
+        if self.server and not self.server.closed and self.server.connection:
+            r.append(self.server.connection)
+        if self.server and not self.server.closed and self.server.has_buffer() and self.server.connection:
+            w.append(self.server.connection)
         return r, w, []
 
     def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
         if self.request.has_upstream_server() and \
-                self.server and not self.server.closed and self.server.conn in w:
+                self.server and not self.server.closed and self.server.connection in w:
             logger.debug('Server is ready for writes, flushing server buffer')
             try:
                 self.server.flush()
@@ -1053,7 +1053,7 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
 
     def read_from_descriptors(self, r: List[socket.socket]) -> bool:
         if self.request.has_upstream_server(
-        ) and self.server and not self.server.closed and self.server.conn in r:
+        ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading')
             raw = self.server.recv(self.config.server_recvbuf_size)
             # self.last_activity = HttpProtocolHandler.now()
@@ -1161,21 +1161,22 @@ class HttpProxyPlugin(HttpProtocolBasePlugin):
                     # connection to the client. Below we handle the scenario
                     # when client is communicating to proxy.py using http.
                     if not (self.config.keyfile and self.config.certfile) and \
-                            self.server and isinstance(self.server.conn, socket.socket):
-                        self.client.conn = ssl.wrap_socket(self.client.conn,
-                                                           server_side=True,
-                                                           keyfile=self.config.ca_signing_key_file,
-                                                           certfile=generated_cert)
+                            self.server and isinstance(self.server.connection, socket.socket):
+                        self.client._conn = ssl.wrap_socket(
+                            self.client.connection,
+                            server_side=True,
+                            keyfile=self.config.ca_signing_key_file,
+                            certfile=generated_cert)
                         # Wrap our connection to upstream server connection
                         ctx = ssl.create_default_context(
                             ssl.Purpose.SERVER_AUTH)
                         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                        self.server.conn = ctx.wrap_socket(
-                            self.server.conn, server_hostname=text_(
+                        self.server._conn = ctx.wrap_socket(
+                            self.server.connection, server_hostname=text_(
                                 self.request.host))
                         logger.info(
                             'TLS interception using %s', generated_cert)
-                        return self.client.conn
+                        return self.client.connection
         # for general http requests, re-build request packet
         # and queue for the server with appropriate headers
         elif self.server:
@@ -1439,7 +1440,7 @@ class HttpProtocolHandler(threading.Thread):
         return self.connection_inactive_for() > 30
 
     def handle_writables(self, writables: List[socket.socket]) -> bool:
-        if self.client.conn in writables:
+        if self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing client buffer')
             try:
                 self.client.flush()
@@ -1450,7 +1451,7 @@ class HttpProtocolHandler(threading.Thread):
         return False
 
     def handle_readables(self, readables: List[socket.socket]) -> bool:
-        if self.client.conn in readables:
+        if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
             client_data = self.client.recv(self.config.client_recvbuf_size)
             self.last_activity = self.now()
@@ -1477,12 +1478,12 @@ class HttpProtocolHandler(threading.Thread):
                             if isinstance(upgraded_sock, ssl.SSLSocket):
                                 logger.debug(
                                     'Updated client conn to %s', upgraded_sock)
-                                self.client.conn = upgraded_sock
+                                self.client._conn = upgraded_sock
                                 # Update self.client.conn references for all
                                 # plugins
                                 for plugin_ in self.plugins.values():
                                     if plugin_ != plugin:
-                                        plugin_.client.conn = upgraded_sock
+                                        plugin_.client._conn = upgraded_sock
                                         logger.debug(
                                             'Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock:
@@ -1503,11 +1504,11 @@ class HttpProtocolHandler(threading.Thread):
     def run_once(self) -> bool:
         """Returns True if proxy must teardown."""
         # Prepare list of descriptors
-        read_desc: List[socket.socket] = [self.client.conn]
+        read_desc: List[socket.socket] = [self.client.connection]
         write_desc: List[socket.socket] = []
         err_desc: List[socket.socket] = []
         if self.client.has_buffer():
-            write_desc.append(self.client.conn)
+            write_desc.append(self.client.connection)
 
         # HttpProtocolBasePlugin.get_descriptors
         for plugin in self.plugins.values():
@@ -1552,7 +1553,7 @@ class HttpProtocolHandler(threading.Thread):
         return False
 
     def run(self) -> None:
-        logger.debug('Proxying connection %r' % self.client.conn)
+        logger.debug('Proxying connection %r' % self.client.connection)
         try:
             while True:
                 teardown = self.run_once()
@@ -1563,7 +1564,7 @@ class HttpProtocolHandler(threading.Thread):
         except Exception as e:
             logger.exception(
                 'Exception while handling connection %r with reason %r' %
-                (self.client.conn, e))
+                (self.client.connection, e))
         finally:
             # Invoke plugin.access_log
             for plugin in self.plugins.values():
@@ -1571,7 +1572,7 @@ class HttpProtocolHandler(threading.Thread):
 
             if not self.client.closed:
                 try:
-                    self.client.conn.shutdown(socket.SHUT_RDWR)
+                    self.client.connection.shutdown(socket.SHUT_RDWR)
                     self.client.close()
                 except OSError:
                     pass
@@ -1583,7 +1584,7 @@ class HttpProtocolHandler(threading.Thread):
             logger.debug(
                 'Closed proxy for connection %r '
                 'at address %r with pending client buffer size %d bytes' %
-                (self.client.conn, self.client.addr, self.client.buffer_size()))
+                (self.client.connection, self.client.addr, self.client.buffer_size()))
 
 
 def is_py3() -> bool:
