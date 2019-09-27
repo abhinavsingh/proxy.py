@@ -78,8 +78,10 @@ UNDER_TEST = False
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
     """Utility to ensure text-like usability.
 
-    If ``s`` is an instance of ``binary_type``, return
-    ``s.decode(encoding, errors)``, otherwise return ``s``"""
+    If s is of type bytes or int, return s.decode(encoding, errors),
+    otherwise return s as it is."""
+    if isinstance(s, int):
+        return str(s)
     if isinstance(s, bytes):
         return s.decode(encoding, errors)
     return s
@@ -88,8 +90,10 @@ def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
 def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
     """Utility to ensure binary-like usability.
 
-    If ``s`` is an instance of ``text_type``, return
-    ``s.encode(encoding, errors)``, otherwise return ``s``"""
+    If s is type str or int, return s.encode(encoding, errors),
+    otherwise return s as it is."""
+    if isinstance(s, int):
+        s = str(s)
     if isinstance(s, str):
         return s.encode(encoding, errors)
     return s
@@ -687,14 +691,14 @@ class HttpParser:
                        reason: Optional[bytes] = None,
                        headers: Optional[Dict[bytes, bytes]] = None,
                        body: Optional[bytes] = None) -> bytes:
-        line = [protocol_version, bytes_(str(status_code))]
+        line = [protocol_version, bytes_(status_code)]
         if reason:
             line.append(reason)
         if headers is None:
             headers = {}
         if body is not None and not any(
                 k.lower() == b'content-length' for k in headers):
-            headers[b'Content-Length'] = bytes_(str(len(body)))
+            headers[b'Content-Length'] = bytes_(len(body))
         return HttpParser.build_pkt(line, headers, body)
 
     @staticmethod
@@ -767,13 +771,13 @@ class HttpRequestRejected(ProtocolException):
     def response(self, _request: HttpParser) -> Optional[bytes]:
         pkt = []
         if self.status_code is not None:
-            line = b'HTTP/1.1 ' + bytes_(str(self.status_code))
+            line = b'HTTP/1.1 ' + bytes_(self.status_code)
             if self.reason:
                 line += WHITESPACE + self.reason
             pkt.append(line)
             pkt.append(PROXY_AGENT_HEADER)
         if self.body:
-            pkt.append(b'Content-Length: ' + bytes_(str(len(self.body))))
+            pkt.append(b'Content-Length: ' + bytes_(len(self.body)))
             pkt.append(CRLF)
             pkt.append(self.body)
         else:
@@ -1164,8 +1168,8 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                             ssl.Purpose.SERVER_AUTH)
                         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
                         self.server._conn = ctx.wrap_socket(
-                            self.server.connection, server_hostname=text_(
-                                self.request.host))
+                            self.server.connection,
+                            server_hostname=text_(self.request.host))
                         logger.info(
                             'TLS interception using %s', generated_cert)
                         return self.client.connection
@@ -1421,9 +1425,8 @@ class ProtocolHandler(threading.Thread):
         conn = self.optionally_wrap_socket(self.fromfd(fileno))
         if conn is None:
             raise TcpConnectionUninitializedException()
-        self.client: TcpClientConnection = TcpClientConnection(
-            conn=conn,
-            addr=addr)
+        self.client: TcpClientConnection = \
+            TcpClientConnection(conn=conn, addr=addr)
 
         self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
         if b'ProtocolHandlerPlugin' in self.config.plugins:
@@ -1912,7 +1915,7 @@ def main(input_args: List[str]) -> None:
             config=config)
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
-                pid_file.write(bytes_(str(os.getpid())))
+                pid_file.write(bytes_(os.getpid()))
         server.run()
     except KeyboardInterrupt:  # pragma: no cover
         pass

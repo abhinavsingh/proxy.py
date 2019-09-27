@@ -360,7 +360,7 @@ class TestHttpParser(unittest.TestCase):
             proxy.CRLF.join([
                 b'HTTP/1.1 200 OK',
                 b'key: value',
-                b'Content-Length: ' + proxy.bytes_(str(len(body))),
+                b'Content-Length: ' + proxy.bytes_(len(body)),
                 proxy.CRLF
             ]) + body)
 
@@ -1198,7 +1198,7 @@ class TestMain(unittest.TestCase):
         mock_multicore_dispatcher.return_value.run.assert_called()
         mock_open.assert_called_with(pid_file, 'wb')
         mock_open.return_value.__enter__.return_value.write.assert_called_with(
-            proxy.bytes_(str(os.getpid())))
+            proxy.bytes_(os.getpid()))
         mock_exists.assert_called_with(pid_file)
         mock_remove.assert_called_with(pid_file)
 
@@ -1303,11 +1303,17 @@ class TestMain(unittest.TestCase):
     def test_text(self) -> None:
         self.assertEqual(proxy.text_(b'hello'), 'hello')
 
+    def test_text_int(self) -> None:
+        self.assertEqual(proxy.text_(1), '1')
+
     def test_text_nochange(self) -> None:
         self.assertEqual(proxy.text_('hello'), 'hello')
 
     def test_bytes(self) -> None:
         self.assertEqual(proxy.bytes_('hello'), b'hello')
+
+    def test_bytes_int(self) -> None:
+        self.assertEqual(proxy.bytes_(1), b'1')
 
     def test_bytes_nochange(self) -> None:
         self.assertEqual(proxy.bytes_(b'hello'), b'hello')
