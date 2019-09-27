@@ -150,26 +150,31 @@ HttpProtocolTypes = NamedTuple('HttpProtocolTypes', [
 httpProtocolTypes = HttpProtocolTypes(1, 2)
 
 
-class TcpConnection:
+class TcpConnectionUninitializedException(Exception):
+    pass
+
+
+class TcpConnection(ABC):
     """TCP server/client connection abstraction."""
 
     def __init__(self, tag: int):
-        self.conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
         self.buffer: bytes = b''
         self.closed: bool = False
         self.tag: str = 'server' if tag == tcpConnectionTypes.SERVER else 'client'
 
+    @property
+    @abstractmethod
+    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+        """Must return the socket connection to use in this class."""
+        raise TcpConnectionUninitializedException()
+
     def send(self, data: bytes) -> int:
         """Users must handle BrokenPipeError exceptions"""
-        if not self.conn:
-            raise KeyError('conn is None')
-        return self.conn.send(data)
+        return self.connection.send(data)
 
     def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[bytes]:
-        if not self.conn:
-            raise KeyError('conn is None')
         try:
-            data: bytes = self.conn.recv(buffer_size)
+            data: bytes = self.connection.recv(buffer_size)
             if len(data) > 0:
                 logger.debug(
                     'received %d bytes from %s' %
@@ -181,14 +186,12 @@ class TcpConnection:
             else:
                 logger.exception(
                     'Exception while receiving from connection %s %r with reason %r' %
-                    (self.tag, self.conn, e))
+                    (self.tag, self.connection, e))
         return None
 
     def close(self) -> bool:
-        if not self.conn:
-            raise KeyError('conn is None')
         if not self.closed:
-            self.conn.close()
+            self.connection.close()
             self.closed = True
         return self.closed
 
@@ -215,26 +218,32 @@ class TcpServerConnection(TcpConnection):
     def __init__(self, host: str, port: int):
         super().__init__(tcpConnectionTypes.SERVER)
         self.addr: Tuple[str, int] = (host, int(port))
+        self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
 
-    def __del__(self) -> None:
-        if self.conn:
-            self.close()
+    @property
+    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+        if self._conn is None:
+            raise TcpConnectionUninitializedException()
+        return self._conn
 
     def connect(self) -> None:
+        if self._conn is not None:
+            return
+
         try:
             ip = ipaddress.ip_address(text_(self.addr[0]))
             if ip.version == 4:
-                self.conn = socket.socket(
+                self._conn = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM, 0)
-                self.conn.connect((self.addr[0], self.addr[1]))
+                self._conn.connect((self.addr[0], self.addr[1]))
             else:
-                self.conn = socket.socket(
+                self._conn = socket.socket(
                     socket.AF_INET6, socket.SOCK_STREAM, 0)
-                self.conn.connect((self.addr[0], self.addr[1], 0, 0))
+                self._conn.connect((self.addr[0], self.addr[1], 0, 0))
         except ValueError:
             # Not a valid IP address, most likely its a domain name,
             # try to establish dual stack IPv4/IPv6 connection.
-            self.conn = socket.create_connection((self.addr[0], self.addr[1]))
+            self._conn = socket.create_connection((self.addr[0], self.addr[1]))
 
 
 class TcpClientConnection(TcpConnection):
@@ -243,8 +252,14 @@ class TcpClientConnection(TcpConnection):
     def __init__(self, conn: Union[ssl.SSLSocket,
                                    socket.socket], addr: Tuple[str, int]):
         super().__init__(tcpConnectionTypes.CLIENT)
-        self.conn: Union[ssl.SSLSocket, socket.socket] = conn
+        self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
         self.addr: Tuple[str, int] = addr
+
+    @property
+    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+        if self._conn is None:
+            raise TcpConnectionUninitializedException()
+        return self._conn
 
 
 class TcpServer(ABC):

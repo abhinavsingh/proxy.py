@@ -20,7 +20,7 @@ import unittest
 from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 from unittest import mock
 
 import proxy
@@ -44,23 +44,34 @@ def get_available_port() -> int:
         return int(port)
 
 
+class TcpConnectionToTest(proxy.TcpConnection):
+
+    def __init__(self, conn=None):
+        super().__init__(proxy.tcpConnectionTypes.CLIENT)
+        self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
+
+    @property
+    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+        if self._conn is None:
+            raise proxy.TcpConnectionUninitializedException()
+        return self._conn
+
+
 class TestTcpConnection(unittest.TestCase):
 
     def testThrowsKeyErrorIfNoConn(self) -> None:
-        self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
-        self.conn.conn = None
-        with self.assertRaises(KeyError):
+        self.conn = TcpConnectionToTest()
+        with self.assertRaises(proxy.TcpConnectionUninitializedException):
             self.conn.send(b'dummy')
-        with self.assertRaises(KeyError):
+        with self.assertRaises(proxy.TcpConnectionUninitializedException):
             self.conn.recv()
-        with self.assertRaises(KeyError):
+        with self.assertRaises(proxy.TcpConnectionUninitializedException):
             self.conn.close()
 
     def testHandlesIOError(self) -> None:
-        self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
         _conn = mock.MagicMock()
         _conn.recv.side_effect = IOError()
-        self.conn.conn = _conn
+        self.conn = TcpConnectionToTest(_conn)
         with mock.patch('proxy.logger') as mock_logger:
             self.conn.recv()
             mock_logger.exception.assert_called()
@@ -68,12 +79,11 @@ class TestTcpConnection(unittest.TestCase):
                 'Exception while receiving from connection'))
 
     def testHandlesConnReset(self) -> None:
-        self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
         _conn = mock.MagicMock()
         e = IOError()
         e.errno = errno.ECONNRESET
         _conn.recv.side_effect = e
-        self.conn.conn = _conn
+        self.conn = TcpConnectionToTest(_conn)
         with mock.patch('proxy.logger') as mock_logger:
             self.conn.recv()
             mock_logger.exception.assert_not_called()
@@ -81,31 +91,19 @@ class TestTcpConnection(unittest.TestCase):
             self.assertEqual(mock_logger.debug.call_args[0][0], '%r' % e)
 
     def testClosesIfNotClosed(self) -> None:
-        self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
         _conn = mock.MagicMock()
-        self.conn.conn = _conn
+        self.conn = TcpConnectionToTest(_conn)
         self.conn.close()
         _conn.close.assert_called()
         self.assertTrue(self.conn.closed)
 
     def testNoOpIfAlreadyClosed(self) -> None:
-        self.conn = proxy.TcpConnection(proxy.TcpConnectionTypes.CLIENT)
         _conn = mock.MagicMock()
-        self.conn.conn = _conn
+        self.conn = TcpConnectionToTest(_conn)
         self.conn.closed = True
         self.conn.close()
         _conn.close.assert_not_called()
         self.assertTrue(self.conn.closed)
-
-    @mock.patch('socket.socket')
-    def testTcpServerClosesConnOnGC(self, mock_socket: mock.Mock) -> None:
-        conn = mock.MagicMock()
-        mock_socket.return_value = conn
-        self.conn = proxy.TcpServerConnection(
-            str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT)
-        self.conn.connect()
-        del self.conn
-        conn.close.assert_called()
 
     @mock.patch('socket.socket')
     def testTcpServerEstablishesIPv6Connection(self, mock_socket: mock.Mock) -> None:
