@@ -880,8 +880,8 @@ class ProtocolHandlerPlugin(ABC):
 
     @abstractmethod
     def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket], List[socket.socket]]:
-        return [], [], []  # pragma: no cover
+            self) -> Tuple[List[socket.socket], List[socket.socket]]:
+        return [], []   # pragma: no cover
 
     @abstractmethod
     def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
@@ -1028,9 +1028,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 self.plugins[instance.name()] = instance
 
     def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket], List[socket.socket]]:
+            self) -> Tuple[List[socket.socket], List[socket.socket]]:
         if not self.request.has_upstream_server():
-            return [], [], []
+            return [], []
 
         r: List[socket.socket] = []
         w: List[socket.socket] = []
@@ -1039,7 +1039,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if self.server and not self.server.closed and \
                 self.server.has_buffer() and self.server.connection:
             w.append(self.server.connection)
-        return r, w, []
+        return r, w
 
     def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server() and \
@@ -1413,8 +1413,8 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         pass
 
     def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket], List[socket.socket]]:
-        return [], [], []
+            self) -> Tuple[List[socket.socket], List[socket.socket]]:
+        return [], []
 
 
 class ProtocolHandler(threading.Thread):
@@ -1447,8 +1447,6 @@ class ProtocolHandler(threading.Thread):
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
-
-        self.events: Dict[socket.socket, int] = {}
 
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
@@ -1552,18 +1550,28 @@ class ProtocolHandler(threading.Thread):
                     raise e
         return False
 
-    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        # Prepare list of descriptors
-        read_desc: List[socket.socket] = [self.client.connection]
-        write_desc: List[socket.socket] = []
+    def get_events(self) -> Dict[socket.socket, int]:
+        events: Dict[socket.socket, int] = {}
+
+        events[self.client.connection] = selectors.EVENT_READ
         if self.client.has_buffer():
-            write_desc.append(self.client.connection)
+            events[self.client.connection] |= selectors.EVENT_WRITE
+
         # ProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
-            plugin_read_desc, plugin_write_desc, _ = plugin.get_descriptors()
-            read_desc += plugin_read_desc
-            write_desc += plugin_write_desc
-        return read_desc, write_desc
+            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
+            for r in plugin_read_desc:
+                if r not in events:
+                    events[r] = selectors.EVENT_READ
+                else:
+                    events[r] |= selectors.EVENT_READ
+            for w in plugin_write_desc:
+                if w not in events:
+                    events[w] = selectors.EVENT_WRITE
+                else:
+                    events[w] |= selectors.EVENT_WRITE
+
+        return events
 
     def run_once(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
         """Returns True if proxy must teardown."""
@@ -1601,32 +1609,18 @@ class ProtocolHandler(threading.Thread):
 
     def run(self) -> None:
         logger.debug('Proxying connection %r' % self.client.connection)
+        events: Dict[socket.socket, int] = {}
         try:
             while True:
-                read_desc, write_desc = self.get_descriptors()
-                # Register
-                for r in read_desc:
-                    if r not in self.events:
-                        self.events[r] = selectors.EVENT_READ
-                        self.selector.register(r, selectors.EVENT_READ)
-                        logger.debug('Registered %s for reads', r)
-                    elif self.events[r] & selectors.EVENT_WRITE:
-                        self.selector.unregister(r)
-                        self.selector.register(r, selectors.EVENT_READ | selectors.EVENT_WRITE)
-                for w in write_desc:
-                    if w not in self.events:
-                        self.events[w] = selectors.EVENT_WRITE
-                        self.selector.register(w, selectors.EVENT_WRITE)
-                        logger.debug('Registered %s for writes', w)
-                    elif self.events[w] & selectors.EVENT_READ:
-                        self.selector.unregister(w)
-                        self.selector.register(w, selectors.EVENT_READ | selectors.EVENT_WRITE)
+                events = self.get_events()
+                for fd in events:
+                    self.selector.register(fd, events[fd])
 
                 # Select
-                events = self.selector.select(timeout=1)
+                e = self.selector.select(timeout=1)
                 readables = []
                 writables = []
-                for key, mask in events:
+                for key, mask in e:
                     if mask & selectors.EVENT_READ:
                         readables.append(key.fileobj)
                     if mask & selectors.EVENT_WRITE:
@@ -1637,9 +1631,8 @@ class ProtocolHandler(threading.Thread):
                     break
 
                 # Unregister
-                for fd in self.events.keys():
+                for fd in events.keys():
                     self.selector.unregister(fd)
-                self.events = {}
         except KeyboardInterrupt:  # pragma: no cover
             pass
         except Exception as e:
@@ -1647,9 +1640,8 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
-            for fd in self.events.keys():
+            for fd in events.keys():
                 self.selector.unregister(fd)
-            self.events = {}
 
             # Invoke plugin.access_log
             for plugin in self.plugins.values():
