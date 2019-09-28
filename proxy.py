@@ -1551,9 +1551,9 @@ class ProtocolHandler(threading.Thread):
         return False
 
     def get_events(self) -> Dict[socket.socket, int]:
-        events: Dict[socket.socket, int] = {}
-
-        events[self.client.connection] = selectors.EVENT_READ
+        events: Dict[socket.socket, int] = {
+            self.client.connection: selectors.EVENT_READ
+        }
         if self.client.has_buffer():
             events[self.client.connection] |= selectors.EVENT_WRITE
 
@@ -1573,7 +1573,7 @@ class ProtocolHandler(threading.Thread):
 
         return events
 
-    def run_once(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
+    def handle_events(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
         """Returns True if proxy must teardown."""
         # Flush buffer for ready to write sockets
         teardown = self.handle_writables(writables)
@@ -1607,32 +1607,39 @@ class ProtocolHandler(threading.Thread):
 
         return False
 
+    def run_once(self) -> bool:
+        events = self.get_events()
+        for fd in events:
+            self.selector.register(fd, events[fd])
+
+        # Select
+        e = self.selector.select(timeout=1)
+        readables = []
+        writables = []
+        for key, mask in e:
+            if mask & selectors.EVENT_READ:
+                readables.append(key.fileobj)
+            if mask & selectors.EVENT_WRITE:
+                writables.append(key.fileobj)
+
+        teardown = self.handle_events(readables, writables)
+        if teardown:
+            return True
+
+        # Unregister
+        for fd in events.keys():
+            self.selector.unregister(fd)
+
+        return False
+
     def run(self) -> None:
         logger.debug('Proxying connection %r' % self.client.connection)
         events: Dict[socket.socket, int] = {}
         try:
             while True:
-                events = self.get_events()
-                for fd in events:
-                    self.selector.register(fd, events[fd])
-
-                # Select
-                e = self.selector.select(timeout=1)
-                readables = []
-                writables = []
-                for key, mask in e:
-                    if mask & selectors.EVENT_READ:
-                        readables.append(key.fileobj)
-                    if mask & selectors.EVENT_WRITE:
-                        writables.append(key.fileobj)
-
-                teardown = self.run_once(readables, writables)
+                teardown = self.run_once()
                 if teardown:
                     break
-
-                # Unregister
-                for fd in events.keys():
-                    self.selector.unregister(fd)
         except KeyboardInterrupt:  # pragma: no cover
             pass
         except Exception as e:
