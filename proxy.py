@@ -29,14 +29,12 @@ import time
 from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable, Protocol
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable
+from typing_extensions import Protocol
 from urllib import parse as urlparse
 
 if os.name != 'nt':
     import resource
-
-class _HasFileno(Protocol):
-    def fileno(self) -> int: ...
 
 VERSION = (1, 0, 1)
 __version__ = '.'.join(map(str, VERSION[0:3]))
@@ -156,6 +154,10 @@ HttpProtocolTypes = NamedTuple('HttpProtocolTypes', [
     ('HTTPS', int),
 ])
 httpProtocolTypes = HttpProtocolTypes(1, 2)
+
+
+class _HasFileno(Protocol):
+    def fileno(self) -> int: ...
 
 
 class TcpConnectionUninitializedException(Exception):
@@ -770,7 +772,6 @@ class HttpRequestRejected(ProtocolException):
                  status_code: Optional[int] = None,
                  reason: Optional[bytes] = None,
                  body: Optional[bytes] = None):
-        super().__init__()
         self.status_code: Optional[int] = status_code
         self.reason: Optional[bytes] = reason
         self.body: Optional[bytes] = body
@@ -1634,12 +1635,17 @@ class ProtocolHandler(threading.Thread):
                 teardown = self.run_once(readables, writables)
                 if teardown:
                     break
+
+                # Unregister
+                for fd in self.events.keys():
+                    self.selector.unregister(fd)
+                self.events = {}
         except KeyboardInterrupt:  # pragma: no cover
             pass
         except Exception as e:
             logger.exception(
-                'Exception while handling connection %r with reason %r' %
-                (self.client.connection, e))
+                'Exception while handling connection %r' %
+                self.client.connection, exc_info=e)
         finally:
             for fd in self.events.keys():
                 self.selector.unregister(fd)
@@ -1698,7 +1704,7 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
             continue
         module_name, klass_name = plugin.rsplit(DOT, 1)
         if module_name == 'proxy':
-            klass = getattr(sys.modules[__name__], text_(klass_name))
+            klass = getattr(__name__, text_(klass_name))
         else:
             klass = getattr(
                 importlib.import_module(
