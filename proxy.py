@@ -19,6 +19,7 @@ import logging
 import multiprocessing
 import os
 import pathlib
+import selectors
 import socket
 import ssl
 import subprocess
@@ -28,13 +29,14 @@ import time
 from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable, Protocol
 from urllib import parse as urlparse
-
-import select
 
 if os.name != 'nt':
     import resource
+
+class _HasFileno(Protocol):
+    def fileno(self) -> int: ...
 
 VERSION = (1, 0, 1)
 __version__ = '.'.join(map(str, VERSION[0:3]))
@@ -288,6 +290,7 @@ class TcpServer(ABC):
         self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
         self.hostname: Union[ipaddress.IPv4Address,
                              ipaddress.IPv6Address] = hostname
+        self.selector = selectors.DefaultSelector()
 
     @abstractmethod
     def setup(self) -> None:
@@ -305,15 +308,13 @@ class TcpServer(ABC):
         self.running = False
 
     def run_once(self) -> None:
-        if self.socket:
-            r, w, x = select.select([self.socket], [], [], 1)
-            if self.socket in r:
-                try:
-                    conn, addr = self.socket.accept()
-                    client = TcpClientConnection(conn, addr)
-                    self.handle(client)
-                except ssl.SSLError as e:
-                    logger.exception('SSLError encountered', exc_info=e)
+        try:
+            assert self.socket is not None
+            conn, addr = self.socket.accept()
+            client = TcpClientConnection(conn, addr)
+            self.handle(client)
+        except ssl.SSLError as e:
+            logger.exception('SSLError encountered', exc_info=e)
 
     def run(self) -> None:
         self.running = True
@@ -323,9 +324,14 @@ class TcpServer(ABC):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((str(self.hostname), self.port))
             self.socket.listen(self.backlog)
-            logger.info('Started server on %s:%d' % (self.hostname, self.port))
+            self.socket.setblocking(False)
+            logger.info('Listening on %s:%d' % (self.hostname, self.port))
+
+            self.selector.register(self.socket, selectors.EVENT_READ)
             while self.running:
-                self.run_once()
+                events = self.selector.select(timeout=1)
+                for _ in events:
+                    self.run_once()
         except Exception as e:
             logger.exception(
                 'Unexpected error, tearing down server.',
@@ -334,6 +340,7 @@ class TcpServer(ABC):
             self.shutdown()
             logger.info('Closing server socket')
             if self.socket:
+                self.selector.unregister(self.socket)
                 self.socket.close()
 
 
@@ -876,11 +883,11 @@ class ProtocolHandlerPlugin(ABC):
         return [], [], []  # pragma: no cover
 
     @abstractmethod
-    def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
+    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         pass  # pragma: no cover
 
     @abstractmethod
-    def read_from_descriptors(self, r: List[socket.socket]) -> bool:
+    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
         pass  # pragma: no cover
 
     @abstractmethod
@@ -1033,9 +1040,11 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             w.append(self.server.connection)
         return r, w, []
 
-    def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
+    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server() and \
-                self.server and not self.server.closed and self.server.connection in w:
+                self.server and not self.server.closed and \
+                self.server.buffer_size() > 0 and \
+                self.server.connection in w:
             logger.debug('Server is write ready, flushing buffer')
             try:
                 self.server.flush()
@@ -1045,7 +1054,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 return True
         return False
 
-    def read_from_descriptors(self, r: List[socket.socket]) -> bool:
+    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server(
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading')
@@ -1387,10 +1396,10 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 self.request.method), text_(
                 self.request.build_url())))
 
-    def flush_to_descriptors(self, w: List[socket.socket]) -> bool:
+    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         pass
 
-    def read_from_descriptors(self, r: List[socket.socket]) -> bool:
+    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
         pass
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
@@ -1422,9 +1431,13 @@ class ProtocolHandler(threading.Thread):
         self.config: ProtocolConfig = config if config else ProtocolConfig()
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
+        self.selector = selectors.DefaultSelector()
+
         conn = self.optionally_wrap_socket(self.fromfd(fileno))
         if conn is None:
             raise TcpConnectionUninitializedException()
+        conn.setblocking(False)
+
         self.client: TcpClientConnection = \
             TcpClientConnection(conn=conn, addr=addr)
 
@@ -1433,6 +1446,8 @@ class ProtocolHandler(threading.Thread):
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
+
+        self.events: Dict[socket.socket, int] = {}
 
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
@@ -1474,8 +1489,8 @@ class ProtocolHandler(threading.Thread):
         # TODO: Add input argument option for timeout
         return self.connection_inactive_for() > 30
 
-    def handle_writables(self, writables: List[socket.socket]) -> bool:
-        if self.client.connection in writables:
+    def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
+        if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is write, flushing buffer')
             try:
                 self.client.flush()
@@ -1485,7 +1500,7 @@ class ProtocolHandler(threading.Thread):
                 return True
         return False
 
-    def handle_readables(self, readables: List[socket.socket]) -> bool:
+    def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
             client_data = self.client.recv(self.config.client_recvbuf_size)
@@ -1536,25 +1551,21 @@ class ProtocolHandler(threading.Thread):
                     raise e
         return False
 
-    def run_once(self) -> bool:
-        """Returns True if proxy must teardown."""
+    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
         # Prepare list of descriptors
         read_desc: List[socket.socket] = [self.client.connection]
         write_desc: List[socket.socket] = []
-        err_desc: List[socket.socket] = []
         if self.client.has_buffer():
             write_desc.append(self.client.connection)
-
         # ProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
-            plugin_read_desc, plugin_write_desc, plugin_err_desc = plugin.get_descriptors()
+            plugin_read_desc, plugin_write_desc, _ = plugin.get_descriptors()
             read_desc += plugin_read_desc
             write_desc += plugin_write_desc
-            err_desc += plugin_err_desc
+        return read_desc, write_desc
 
-        readables, writables, errored = select.select(
-            read_desc, write_desc, err_desc, 1)
-
+    def run_once(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
+        """Returns True if proxy must teardown."""
         # Flush buffer for ready to write sockets
         teardown = self.handle_writables(writables)
         if teardown:
@@ -1591,7 +1602,36 @@ class ProtocolHandler(threading.Thread):
         logger.debug('Proxying connection %r' % self.client.connection)
         try:
             while True:
-                teardown = self.run_once()
+                read_desc, write_desc = self.get_descriptors()
+                # Register
+                for r in read_desc:
+                    if r not in self.events:
+                        self.events[r] = selectors.EVENT_READ
+                        self.selector.register(r, selectors.EVENT_READ)
+                        logger.debug('Registered %s for reads', r)
+                    elif self.events[r] & selectors.EVENT_WRITE:
+                        self.selector.unregister(r)
+                        self.selector.register(r, selectors.EVENT_READ | selectors.EVENT_WRITE)
+                for w in write_desc:
+                    if w not in self.events:
+                        self.events[w] = selectors.EVENT_WRITE
+                        self.selector.register(w, selectors.EVENT_WRITE)
+                        logger.debug('Registered %s for writes', w)
+                    elif self.events[w] & selectors.EVENT_READ:
+                        self.selector.unregister(w)
+                        self.selector.register(w, selectors.EVENT_READ | selectors.EVENT_WRITE)
+
+                # Select
+                events = self.selector.select(timeout=1)
+                readables = []
+                writables = []
+                for key, mask in events:
+                    if mask & selectors.EVENT_READ:
+                        readables.append(key.fileobj)
+                    if mask & selectors.EVENT_WRITE:
+                        writables.append(key.fileobj)
+
+                teardown = self.run_once(readables, writables)
                 if teardown:
                     break
         except KeyboardInterrupt:  # pragma: no cover
@@ -1601,6 +1641,10 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r with reason %r' %
                 (self.client.connection, e))
         finally:
+            for fd in self.events.keys():
+                self.selector.unregister(fd)
+            self.events = {}
+
             # Invoke plugin.access_log
             for plugin in self.plugins.values():
                 plugin.access_log()
