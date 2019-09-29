@@ -7,13 +7,13 @@
 [![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=none&color=green)](https://github.com/abhinavsingh/proxy.py)
 [![Coverage](https://coveralls.io/repos/github/abhinavsingh/proxy.py/badge.svg?branch=develop)](https://coveralls.io/github/abhinavsingh/proxy.py?branch=develop)
 
+[![Tested With MacOS](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
+[![Tested With Ubuntu](https://img.shields.io/static/v1?label=tested%20with&message=Ubuntu%20%F0%9F%96%A5&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
+[![Tested With Windows](https://img.shields.io/static/v1?label=tested%20with&message=Windows%20%F0%9F%92%BB&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
 [![Tested With Android](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1&color=brightgreen)](https://www.android.com/)
 [![Tested With Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20Emulator%20%F0%9F%93%B1&color=brightgreen)](https://developer.android.com/studio/run/emulator-networking.html#proxy)
 [![Tested With iOS](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
 [![Tested With iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20Simulator%20%F0%9F%93%B1&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
-[![Tested With MacOS](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
-[![Tested With Ubuntu](https://img.shields.io/static/v1?label=tested%20with&message=Ubuntu%20%F0%9F%96%A5&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
-[![Tested With Windows](https://img.shields.io/static/v1?label=tested%20with&message=Windows%20%F0%9F%92%BB&color=brightgreen)](https://developer.apple.com/library/archive/documentation/IDEs/Conceptual/iOS_Simulator_Guide/Introduction/Introduction.html)
 
 [![Maintenance](https://img.shields.io/static/v1?label=maintained%3F&message=yes&color=green)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
 [![Ask Me Anything](https://img.shields.io/static/v1?label=need%20help%3F&message=ask&color=green)](https://twitter.com/imoracle)
@@ -48,8 +48,12 @@ Table of Contents
 * [TLS Interception](#tls-interception)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
-    * [proxy.py Internals](#proxypy-internals)
-    * [Pull Request](#pull-request)
+    * [Internal Architecture](#internal-architecture)
+    * [Sending a Pull Request](#sending-a-pull-request)
+* [Frequently Asked Questions]()
+    * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
+    * [Basic auth not working with a browser](#basic-auth-not-working-with-a-browser)
+    * [Docker image not working on MacOS](#docker-image-not-working-on-macos)
 * [Flags](#flags)
 
 Features
@@ -530,7 +534,7 @@ As you might have guessed by now, in `proxy.py` everything is a plugin.
   http(s) server. [HttpProxyPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L941-L1182) 
   also implements `ProtocolHandlerPlugin`.
 
-## proxy.py Internals
+## Internal Architecture
 
 - [ProtocolHandler](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1263-L1440) 
 thread is started with the accepted [TcpClientConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L230-L237).
@@ -554,20 +558,55 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
   ensures full utilization of available CPU cores, for which it dispatches 
   accepted `TcpClientConnection` to `Worker` processes in a round-robin fashion.
 
-## Pull Request
+## Sending a Pull Request
+
+Install dependencies for local development testing:
+
+`$ pip install -r requirements-testing.txt`
 
 Every pull request goes through set of tests which must pass:
 
 - `mypy`: Run `make lint` locally for compliance check. 
   Fix all warnings and errors before sending out a PR.
 
-- `coverage`: Run `make coverage` for coverage report.
+- `coverage`: Run `make coverage` locally for coverage report.
   Its ideal to add tests for any critical change. Depending upon
   the change, it's ok if test coverage falls by `<0.5%`.
 
 - `formatting`: Run `make autopep8` locally to format the code in-place.
   `autopep8` is run with `--aggresive` flag.  Sometimes it _may_ result in
-  weird formatting.
+  weird formatting.  But let's stick to one consistent formatting tool.
+  I am open to flag changes for `autopep8`.
+
+Frequently Asked Questions
+==========================
+
+## Unable to connect with proxy.py from remote host
+
+Make sure `proxy.py` is listening on correct network interface.
+Try following flags:
+
+- For IPv6 `--hostname ::`
+- For IPv4 `--hostname 0.0.0.0`
+
+## Basic auth not working with a browser
+
+Most likely it's a browser integration issue with system keychain.
+
+- First verify that basic auth is working using `curl`
+
+    `curl -v -x username:password@localhost:8899 https://httpbin.org/get`
+
+- See [this thread](https://github.com/abhinavsingh/proxy.py/issues/89#issuecomment-534845710)
+  for further details.
+
+## Docker image not working on macOS
+
+It's a compatibility issue with `vpnkit`.
+
+See [moby/vpnkit exhausts docker resources](https://github.com/abhinavsingh/proxy.py/issues/43)
+and [Connection refused: The proxy could not connect](https://github.com/moby/vpnkit/issues/469)
+for some background.
 
 Flags
 =====

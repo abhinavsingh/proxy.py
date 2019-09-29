@@ -1499,6 +1499,13 @@ class ProtocolHandler(threading.Thread):
                 return True
         return False
 
+    def send_server_error(self, e: Exception) -> None:
+        logger.exception('Server error', exc_info=e)
+        self.client.queue(HttpParser.build_response(
+            500, b'Server Error'
+        ))
+        self.client.flush()
+
     def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
@@ -1545,9 +1552,12 @@ class ProtocolHandler(threading.Thread):
                         self.client.queue(response)
                         # But is client also ready for writes?
                         self.client.flush()
+                    else:
+                        self.send_server_error(e)
                     return True
                 except Exception as e:
-                    raise e
+                    self.send_server_error(e)
+                    return True
         return False
 
     def get_events(self) -> Dict[socket.socket, int]:
