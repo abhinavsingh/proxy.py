@@ -157,7 +157,8 @@ httpProtocolTypes = HttpProtocolTypes(1, 2)
 
 
 class _HasFileno(Protocol):
-    def fileno(self) -> int: ...
+    def fileno(self) -> int:
+        ...
 
 
 class TcpConnectionUninitializedException(Exception):
@@ -1623,7 +1624,7 @@ class ProtocolHandler(threading.Thread):
             self.selector.register(fd, events[fd])
 
         # Select
-        e = self.selector.select(timeout=1)
+        e: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
         readables = []
         writables = []
         for key, mask in e:
