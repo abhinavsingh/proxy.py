@@ -441,7 +441,7 @@ class Worker(multiprocessing.Process):
     depending upon requested operation starts a new thread to handle the work.
     """
 
-    event_lock = multiprocessing.Lock()
+    lock = multiprocessing.Lock()
 
     def __init__(
             self,
@@ -463,29 +463,15 @@ class Worker(multiprocessing.Process):
         sock.settimeout(0)
         try:
             while True:
-                with self.event_lock:
+                with self.lock:
                     selector.register(sock, selectors.EVENT_READ)
                     events = selector.select(timeout=1)
                     selector.unregister(sock)
                     if len(events) == 0:
                         continue
-                # We don't want to accept within the lock context.
-                # Doing so will prevent other process to event listen
-                # for EVENT_READ until current process has finished
-                # accept(), which defeats the whole purpose of doing
-                # accepts from multiple processes.
-                #
-                # If N workers are accept()'ing, it means
-                # EVENT_READ has been fired N times i.e. there are N
-                # clients waiting to be accepted.  Hence each process
-                # accept should complete, even if it gets a different
-                # socket then the one for which the event was raised.
                 try:
                     conn, addr = sock.accept()
                 except BlockingIOError as e:
-                    # Still we can end up getting BlockingIOError,
-                    # as if accept() was called with no client
-                    # on the other side.
                     logger.exception('BlockingIOError', exc_info=e)
                     continue
                 proxy = self.work_klass(
