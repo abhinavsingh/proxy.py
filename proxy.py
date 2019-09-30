@@ -474,6 +474,14 @@ class HttpParser:
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
 
+    def header(self, key: bytes) -> bytes:
+        if key.lower() not in self.headers:
+            raise KeyError('%s not found in headers', text_(key))
+        return self.headers[key.lower()][1]
+
+    def has_header(self, key: bytes) -> bool:
+        return key.lower() in self.headers
+
     def add_header(self, key: bytes, value: bytes) -> None:
         self.headers[key.lower()] = (key, value)
 
@@ -1284,6 +1292,12 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                  b'Connection': b'close'}
     )
 
+    DEFAULT_501_RESPONSE = HttpParser.build_response(
+        501, reason=b'NOT IMPLEMENTED',
+        headers={b'Server': PROXY_AGENT_HEADER_VALUE,
+                 b'Connection': b'close'}
+    )
+
     def __init__(
             self,
             config: ProtocolConfig,
@@ -1307,6 +1321,12 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             return False
 
         url = self.request.build_url()
+
+        # Upgrade requests not supported currently
+        if self.request.has_header(b'connection') and self.request.header(b'connection').lower() == b'upgrade':
+            self.client.queue(self.DEFAULT_501_RESPONSE)
+            self.client.flush()
+            return True
 
         # Routing
         if self.request.method != b'CONNECT':
