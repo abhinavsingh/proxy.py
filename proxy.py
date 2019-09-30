@@ -334,17 +334,17 @@ class AcceptorPool:
         # Send server socket to workers.
         assert self.socket is not None
         for work_queue in self.work_queues:
+            work_queue[0].send(self.family)
             send_handle(work_queue[0], self.socket.fileno(),
                         self.workers[self.current_worker_id].pid)
         self.socket.close()
 
 
 class Worker(multiprocessing.Process):
-    """Generic worker class implementation.
+    """Socket client acceptor.
 
-    Worker instance accepts (operation, payload) over pipe and
-    depending upon requested operation starts a new thread
-    to handle the work.
+    Accepts client connection over received server socket handle and
+    starts a new work thread.
     """
 
     lock = multiprocessing.Lock()
@@ -360,9 +360,10 @@ class Worker(multiprocessing.Process):
         self.kwargs = kwargs
 
     def run(self) -> None:
+        family = self.work_queue.recv()
         sock = socket.fromfd(
             recv_handle(self.work_queue),
-            family=socket.AF_INET6,
+            family=family,
             type=socket.SOCK_STREAM
         )
         selector = selectors.DefaultSelector()
