@@ -123,8 +123,9 @@ tcpConnectionTypes = TcpConnectionTypes(1, 2)
 WorkerOperations = NamedTuple('WorkerOperations', [
     ('HTTP_PROTOCOL', int),
     ('SHUTDOWN', int),
+    ('SOCKET_ACCEPT', int),
 ])
-workerOperations = WorkerOperations(1, 2)
+workerOperations = WorkerOperations(1, 2, 3)
 
 ChunkParserStates = NamedTuple('ChunkParserStates', [
     ('WAITING_FOR_SIZE', int),
@@ -310,6 +311,14 @@ class TcpServer(ABC):
     def stop(self) -> None:
         self.running = False
 
+    def listen(self):
+        self.socket = socket.socket(self.family, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind((str(self.hostname), self.port))
+        self.socket.listen(self.backlog)
+        self.socket.setblocking(False)
+        logger.info('Listening on %s:%d' % (self.hostname, self.port))
+
     def run_once(self) -> None:
         try:
             assert self.socket is not None
@@ -323,13 +332,7 @@ class TcpServer(ABC):
         self.running = True
         self.setup()
         try:
-            self.socket = socket.socket(self.family, socket.SOCK_STREAM)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.bind((str(self.hostname), self.port))
-            self.socket.listen(self.backlog)
-            self.socket.setblocking(False)
-            logger.info('Listening on %s:%d' % (self.hostname, self.port))
-
+            self.listen()
             self.selector.register(self.socket, selectors.EVENT_READ)
             while self.running:
                 events = self.selector.select(timeout=1)
@@ -405,6 +408,28 @@ class WorkerPool(TcpServer):
         for worker in self.workers:
             worker.join()
 
+    def run(self) -> None:
+        """Override TcpServer run which accepts from the main process.
+
+        WorkerPool instead of accepting from main process, passes the server socket
+        to Worker processes.  Worker processes then accepts for client connection
+        within their CPU core context.  Also, we leave load balancing of clients
+        upto Kernel."""
+        self.running = True
+        self.listen()
+
+        # Start worker processes.
+        self.setup()
+
+        # Send server socket to workers.
+        for work_queue in self.work_queues:
+            work_queue[0].send((workerOperations.SOCKET_ACCEPT, None))
+            send_handle(work_queue[0], self.socket.fileno(),
+                        self.workers[self.current_worker_id].pid)
+
+        # Close parent handler
+        self.socket.close()
+
 
 class Worker(multiprocessing.Process):
     """Generic worker class implementation.
@@ -412,6 +437,8 @@ class Worker(multiprocessing.Process):
     Worker instance accepts (operation, payload) over work queue and
     depending upon requested operation starts a new thread to handle the work.
     """
+
+    lock = multiprocessing.Lock()
 
     def __init__(
             self,
@@ -423,13 +450,43 @@ class Worker(multiprocessing.Process):
         self.work_klass = work_klass
         self.kwargs = kwargs
 
+    def socket_accept(self, fileno: int):
+        selector = selectors.DefaultSelector()
+        sock = socket.fromfd(
+            fileno, family=socket.AF_INET6,
+            type=socket.SOCK_STREAM
+        )
+        try:
+            while True:
+                with self.lock:
+                    selector.register(sock, selectors.EVENT_READ)
+                    events = selector.select(timeout=1)
+                    selector.unregister(sock)
+                    if len(events) == 0:
+                        continue
+                    assert len(events) == 1
+                    conn, addr = sock.accept()
+                proxy = self.work_klass(
+                    fileno=conn.fileno(),
+                    addr=addr,
+                    **self.kwargs)
+                proxy.setDaemon(True)
+                proxy.start()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            sock.close()
+
     def run_once(self) -> bool:
         try:
             op, payload = self.work_queue.recv()
-            if op == workerOperations.HTTP_PROTOCOL:
-                fileno = recv_handle(self.work_queue)
+            if op == workerOperations.SOCKET_ACCEPT:
+                self.socket_accept(recv_handle(self.work_queue))
+            elif op == workerOperations.HTTP_PROTOCOL:
                 proxy = self.work_klass(
-                    fileno=fileno, addr=payload, **self.kwargs)
+                    fileno=recv_handle(self.work_queue),
+                    addr=payload,
+                    **self.kwargs)
                 proxy.setDaemon(True)
                 proxy.start()
             elif op == workerOperations.SHUTDOWN:
@@ -1671,17 +1728,19 @@ class ProtocolHandler(threading.Thread):
                 plugin.on_client_connection_close()
 
             logger.debug(
-                'Closed proxy for connection %r '
+                'Closing proxy for connection %r '
                 'at address %r with pending client buffer size %d bytes' %
                 (self.client.connection, self.client.addr, self.client.buffer_size()))
 
             if not self.client.closed:
                 try:
                     self.client.connection.shutdown(socket.SHUT_RDWR)
-                    logger.debug('Client connection shutdown')
+                    logger.debug('Client connection shutdown successful')
+                except OSError as e:
+                    pass
                 finally:
-                    logger.debug('Closing client connection')
                     self.client.close()
+                    logger.debug('Client connection closed')
 
 
 def is_py3() -> bool:
@@ -1968,7 +2027,7 @@ def main(input_args: List[str]) -> None:
                 '%s%s' %
                 (default_plugins, args.plugins)))
 
-        server = WorkerPool(
+        workers = WorkerPool(
             hostname=config.hostname,
             port=config.port,
             backlog=config.backlog,
@@ -1978,7 +2037,13 @@ def main(input_args: List[str]) -> None:
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
-        server.run()
+        workers.run()
+
+        try:
+            while True:
+                time.sleep(1)
+        finally:
+            workers.shutdown()
     except KeyboardInterrupt:  # pragma: no cover
         pass
     finally:
