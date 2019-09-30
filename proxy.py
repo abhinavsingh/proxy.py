@@ -383,7 +383,6 @@ class WorkerPool(TcpServer):
         logger.info('Started %d workers' % self.num_workers)
 
     def handle(self, client: TcpClientConnection) -> None:
-        # Dispatch in round robin fashion
         work_queue = self.work_queues[self.current_worker_id]
         logger.debug(
             'Dispatched client request to worker id %d',
@@ -394,6 +393,7 @@ class WorkerPool(TcpServer):
                     self.workers[self.current_worker_id].pid)
         # Close parent handler
         client.close()
+        # Dispatch in round robin fashion
         self.current_worker_id += 1
         self.current_worker_id %= self.num_workers
 
@@ -1124,7 +1124,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                         stderr=subprocess.PIPE)
                     sign_cert = subprocess.Popen(
                         ['/usr/bin/openssl', 'x509', '-req', '-days', '365', '-CA', self.config.ca_cert_file, '-CAkey',
-                         self.config.ca_key_file, '-set_serial', str(int(time.time() * 1000)), '-out', cert_file_path],
+                         self.config.ca_key_file, '-set_serial', str(int(time.time())), '-out', cert_file_path],
                         stdin=gen_cert.stdout,
                         stderr=subprocess.PIPE)
                     # TODO: Ensure sign_cert success.
@@ -1473,8 +1473,12 @@ class ProtocolHandler(threading.Thread):
                 return conn
             except Exception as e:
                 logger.exception('Error encountered', exc_info=e)
-                conn.shutdown(socket.SHUT_RDWR)
-                conn.close()
+                try:
+                    conn.shutdown(socket.SHUT_RDWR)
+                except Exception as e:
+                    logger.exception('Error trying to shutdown client socket', exc_info=e)
+                finally:
+                    conn.close()
                 return None
         return conn
 
@@ -1634,18 +1638,18 @@ class ProtocolHandler(threading.Thread):
                 writables.append(key.fileobj)
 
         teardown = self.handle_events(readables, writables)
-        if teardown:
-            return True
 
         # Unregister
         for fd in events.keys():
             self.selector.unregister(fd)
 
+        if teardown:
+            return True
+
         return False
 
     def run(self) -> None:
         logger.debug('Proxying connection %r' % self.client.connection)
-        events: Dict[socket.socket, int] = {}
         try:
             while True:
                 teardown = self.run_once()
@@ -1658,19 +1662,9 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
-            for fd in events.keys():
-                self.selector.unregister(fd)
-
             # Invoke plugin.access_log
             for plugin in self.plugins.values():
                 plugin.access_log()
-
-            if not self.client.closed:
-                try:
-                    self.client.connection.shutdown(socket.SHUT_RDWR)
-                    self.client.close()
-                except OSError:
-                    pass
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
@@ -1680,6 +1674,14 @@ class ProtocolHandler(threading.Thread):
                 'Closed proxy for connection %r '
                 'at address %r with pending client buffer size %d bytes' %
                 (self.client.connection, self.client.addr, self.client.buffer_size()))
+
+            if not self.client.closed:
+                try:
+                    self.client.connection.shutdown(socket.SHUT_RDWR)
+                    logger.debug('Client connection shutdown')
+                finally:
+                    logger.debug('Closing client connection')
+                    self.client.close()
 
 
 def is_py3() -> bool:
