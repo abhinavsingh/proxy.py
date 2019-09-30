@@ -211,6 +211,8 @@ class TcpConnection(ABC):
         return len(data)
 
     def flush(self) -> int:
+        if self.buffer_size() == 0:
+            return 0
         sent: int = self.send(self.buffer)
         self.buffer = self.buffer[sent:]
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
@@ -852,10 +854,6 @@ class ProtocolHandlerPlugin(ABC):
         return chunk  # pragma: no cover
 
     @abstractmethod
-    def access_log(self) -> None:
-        pass  # pragma: no cover
-
-    @abstractmethod
     def on_client_connection_close(self) -> None:
         pass  # pragma: no cover
 
@@ -1023,15 +1021,38 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         return False
 
     def on_client_connection_close(self) -> None:
-        if self.request.has_upstream_server() and self.server:
+        if not self.request.has_upstream_server():
+            return
+        server_host, server_port = self.server.addr if self.server else (
+            None, None)
+        if self.request.method == b'CONNECT':
+            logger.info(
+                '%s:%s - %s %s:%s - %s bytes' %
+                (self.client.addr[0],
+                 self.client.addr[1],
+                 text_(
+                     self.request.method),
+                 text_(server_host),
+                 text_(server_port),
+                 self.response.total_size))
+        elif self.request.method:
+            logger.info(
+                '%s:%s - %s %s:%s%s - %s %s - %s bytes' %
+                (self.client.addr[0], self.client.addr[1],
+                 text_(self.request.method),
+                 text_(server_host), server_port,
+                 text_(self.request.build_url()),
+                 text_(self.response.code),
+                 text_(self.response.reason),
+                 self.response.total_size))
+        # Invoke plugin.on_upstream_connection_close
+        if self.server and not self.server.closed:
+            for plugin in self.plugins.values():
+                plugin.on_upstream_connection_close()
+            self.server.close()
             logger.debug(
                 'Closed server connection with pending server buffer size %d bytes' %
                 self.server.buffer_size())
-            if not self.server.closed:
-                # Invoke plugin.on_upstream_connection_close
-                for plugin in self.plugins.values():
-                    plugin.on_upstream_connection_close()
-                self.server.close()
 
     def handle_response_chunk(self, chunk: bytes) -> bytes:
         return chunk
@@ -1149,33 +1170,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                     disable_headers=self.config.disable_headers))
         return False
 
-    def access_log(self) -> None:
-        if not self.request.has_upstream_server():
-            return
-
-        server_host, server_port = self.server.addr if self.server else (
-            None, None)
-        if self.request.method == b'CONNECT':
-            logger.info(
-                '%s:%s - %s %s:%s - %s bytes' %
-                (self.client.addr[0],
-                 self.client.addr[1],
-                 text_(
-                     self.request.method),
-                 text_(server_host),
-                 text_(server_port),
-                 self.response.total_size))
-        elif self.request.method:
-            logger.info(
-                '%s:%s - %s %s:%s%s - %s %s - %s bytes' %
-                (self.client.addr[0], self.client.addr[1],
-                    text_(self.request.method),
-                    text_(server_host), server_port,
-                    text_(self.request.build_url()),
-                    text_(self.response.code),
-                    text_(self.response.reason),
-                    self.response.total_size))
-
     def authenticate(self) -> None:
         if self.config.auth_code:
             if b'proxy-authorization' not in self.request.headers or \
@@ -1282,7 +1276,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
 
 
 class HttpWebServerPlugin(ProtocolHandlerPlugin):
-    """ProtocolHandler plugin which handles incoming requests to local webserver."""
+    """ProtocolHandler plugin which handles incoming requests to local web server."""
 
     DEFAULT_404_RESPONSE = HttpParser.build_response(
         404, reason=b'NOT FOUND',
@@ -1332,15 +1326,6 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         self.client.flush()
         return True
 
-    def access_log(self) -> None:
-        if self.request.has_upstream_server():
-            return
-        logger.info(
-            '%s:%s - %s %s' %
-            (self.client.addr[0], self.client.addr[1], text_(
-                self.request.method), text_(
-                self.request.build_url())))
-
     def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         pass
 
@@ -1354,7 +1339,13 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         return chunk
 
     def on_client_connection_close(self) -> None:
-        pass
+        if self.request.has_upstream_server():
+            return
+        logger.info(
+            '%s:%s - %s %s' %
+            (self.client.addr[0], self.client.addr[1], text_(
+                self.request.method), text_(
+                self.request.build_url())))
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
@@ -1605,10 +1596,6 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
-            # Invoke plugin.access_log
-            for plugin in self.plugins.values():
-                plugin.access_log()
-
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()
