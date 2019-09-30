@@ -1139,7 +1139,7 @@ class TestHttpRequestRejected(unittest.TestCase):
 class TestMain(unittest.TestCase):
 
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.WorkerPool')
+    @mock.patch('proxy.AcceptorPool')
     @mock.patch('proxy.logging.basicConfig')
     def test_log_file_setup(
             self,
@@ -1162,7 +1162,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.WorkerPool')
+    @mock.patch('proxy.AcceptorPool')
     @unittest.skipIf(
         True,  # type: ignore
         'This test passes while development on Intellij but fails via CLI :(')
@@ -1186,7 +1186,7 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('proxy.ProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.WorkerPool')
+    @mock.patch('proxy.AcceptorPool')
     def test_main(
             self,
             mock_multicore_dispatcher: mock.Mock,
@@ -1224,7 +1224,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.print')
     @mock.patch('proxy.ProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.WorkerPool')
+    @mock.patch('proxy.AcceptorPool')
     def test_main_version(
             self,
             mock_multicore_dispatcher: mock.Mock,
@@ -1241,7 +1241,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.print')
     @mock.patch('proxy.ProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.WorkerPool')
+    @mock.patch('proxy.AcceptorPool')
     @mock.patch('proxy.is_py3')
     def test_main_py3_runs(
             self,
@@ -1261,7 +1261,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.print')
     @mock.patch('proxy.ProtocolConfig')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.WorkerPool')
+    @mock.patch('proxy.AcceptorPool')
     @mock.patch('proxy.is_py3')
     @unittest.skipIf(
         True,  # type: ignore

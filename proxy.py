@@ -120,13 +120,6 @@ TcpConnectionTypes = NamedTuple('TcpConnectionTypes', [
 ])
 tcpConnectionTypes = TcpConnectionTypes(1, 2)
 
-WorkerOperations = NamedTuple('WorkerOperations', [
-    ('HTTP_PROTOCOL', int),
-    ('SHUTDOWN', int),
-    ('SOCKET_ACCEPT', int),
-])
-workerOperations = WorkerOperations(1, 2, 3)
-
 ChunkParserStates = NamedTuple('ChunkParserStates', [
     ('WAITING_FOR_SIZE', int),
     ('WAITING_FOR_DATA', int),
@@ -274,42 +267,36 @@ class TcpClientConnection(TcpConnection):
         return self._conn
 
 
-class TcpServer(ABC):
-    """TcpServer server implementation.
+class AcceptorPool:
+    """AcceptorPool.
 
-    Inheritor MUST implement `handle` method. It accepts an instance of `TcpClientConnection`.
-    Optionally, can also implement `setup` and `shutdown` methods for custom bootstrapping and tearing
-    down internal state.
+    Pre-spawns worker processes to utilize all cores available on the system.  Server socket connection is
+    dispatched over a pipe to workers.  Each worker accepts incoming client request and spawns a
+    separate thread to handle the client request.
     """
 
     def __init__(self,
                  hostname: Union[ipaddress.IPv4Address,
-                                 ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
-                 port: int = DEFAULT_PORT,
-                 backlog: int = DEFAULT_BACKLOG):
-        self.port: int = port
-        self.backlog: int = backlog
-        self.socket: Optional[socket.socket] = None
+                                 ipaddress.IPv6Address],
+                 port: int, backlog: int, num_workers: int,
+                 work_klass: type, **kwargs: Any) -> None:
         self.running: bool = False
-        self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
+
         self.hostname: Union[ipaddress.IPv4Address,
                              ipaddress.IPv6Address] = hostname
-        self.selector = selectors.DefaultSelector()
+        self.port: int = port
+        self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
+        self.backlog: int = backlog
+        self.socket: Optional[socket.socket] = None
 
-    @abstractmethod
-    def setup(self) -> None:
-        pass  # pragma: no cover
+        self.current_worker_id = 0
+        self.num_workers = num_workers
+        self.workers: List[Worker] = []
+        self.work_queues: List[Tuple[connection.Connection,
+                                     connection.Connection]] = []
 
-    @abstractmethod
-    def handle(self, client: TcpClientConnection) -> None:
-        raise NotImplementedError()  # pragma: no cover
-
-    @abstractmethod
-    def shutdown(self) -> None:
-        pass  # pragma: no cover
-
-    def stop(self) -> None:
-        self.running = False
+        self.work_klass = work_klass
+        self.kwargs = kwargs
 
     def listen(self) -> None:
         self.socket = socket.socket(self.family, socket.SOCK_STREAM)
@@ -320,62 +307,8 @@ class TcpServer(ABC):
         self.socket.settimeout(0)
         logger.info('Listening on %s:%d' % (self.hostname, self.port))
 
-    def run_once(self) -> None:
-        try:
-            assert self.socket is not None
-            conn, addr = self.socket.accept()
-            client = TcpClientConnection(conn, addr)
-            self.handle(client)
-        except ssl.SSLError as e:
-            logger.exception('SSLError encountered', exc_info=e)
-
-    def run(self) -> None:
-        self.running = True
-        self.setup()
-        try:
-            self.listen()
-            assert self.socket is not None
-            self.selector.register(self.socket.fileno(), selectors.EVENT_READ)
-            while self.running:
-                events = self.selector.select(timeout=1)
-                for _ in events:
-                    self.run_once()
-        except Exception as e:
-            logger.exception(
-                'Unexpected error, tearing down server.',
-                exc_info=e)
-        finally:
-            self.shutdown()
-            logger.info('Closing server socket')
-            if self.socket:
-                self.selector.unregister(self.socket)
-                self.socket.close()
-
-
-class WorkerPool(TcpServer):
-    """WorkerPool.
-
-    Pre-spawns worker process to utilize all cores available on the system.  Accepted `TcpClientConnection` is
-    dispatched over a queue to workers.  One of the worker picks up the work and starts a new thread to handle the
-    client request.
-    """
-
-    def __init__(self, hostname: Union[ipaddress.IPv4Address,
-                                       ipaddress.IPv6Address],
-                 port: int, backlog: int, num_workers: int,
-                 work_klass: type, **kwargs: Any) -> None:
-        super().__init__(hostname=hostname, port=port, backlog=backlog)
-        self.num_workers = num_workers
-
-        self.workers: List[Worker] = []
-        self.work_queues: List[Tuple[connection.Connection,
-                                     connection.Connection]] = []
-        self.current_worker_id = 0
-
-        self.work_klass = work_klass
-        self.kwargs = kwargs
-
-    def setup(self) -> None:
+    def start_workers(self) -> None:
+        """Start worker processes."""
         for worker_id in range(self.num_workers):
             work_queue = multiprocessing.Pipe()
 
@@ -387,58 +320,31 @@ class WorkerPool(TcpServer):
             self.work_queues.append(work_queue)
         logger.info('Started %d workers' % self.num_workers)
 
-    def handle(self, client: TcpClientConnection) -> None:
-        work_queue = self.work_queues[self.current_worker_id]
-        logger.debug(
-            'Dispatched client request to worker id %d',
-            self.current_worker_id)
-        # Dispatch non-socket data first, followed by fileno using reduction
-        work_queue[0].send((workerOperations.HTTP_PROTOCOL, client.addr))
-        send_handle(work_queue[0], client.connection.fileno(),
-                    self.workers[self.current_worker_id].pid)
-        # Close parent handler
-        client.close()
-        # Dispatch in round robin fashion
-        self.current_worker_id += 1
-        self.current_worker_id %= self.num_workers
-
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.num_workers)
-        for work_queue in self.work_queues:
-            work_queue[0].send((workerOperations.SHUTDOWN, None))
-            work_queue[0].close()
         for worker in self.workers:
             worker.join()
 
-    def run(self) -> None:
-        """Override TcpServer run which accepts from the main process.
-
-        WorkerPool instead of accepting from main process, passes the server socket
-        to Worker processes.  Worker processes then accepts for client connection
-        within their CPU core context.  Also, we leave load balancing of clients
-        upto Kernel."""
+    def start(self) -> None:
+        """Listen on port, setup workers and pass server socket to workers."""
         self.running = True
         self.listen()
-        assert self.socket is not None
-
-        # Start worker processes.
-        self.setup()
+        self.start_workers()
 
         # Send server socket to workers.
+        assert self.socket is not None
         for work_queue in self.work_queues:
-            work_queue[0].send((workerOperations.SOCKET_ACCEPT, None))
             send_handle(work_queue[0], self.socket.fileno(),
                         self.workers[self.current_worker_id].pid)
-
-        # Close parent handler
         self.socket.close()
 
 
 class Worker(multiprocessing.Process):
     """Generic worker class implementation.
 
-    Worker instance accepts (operation, payload) over work queue and
-    depending upon requested operation starts a new thread to handle the work.
+    Worker instance accepts (operation, payload) over pipe and
+    depending upon requested operation starts a new thread
+    to handle the work.
     """
 
     lock = multiprocessing.Lock()
@@ -453,14 +359,13 @@ class Worker(multiprocessing.Process):
         self.work_klass = work_klass
         self.kwargs = kwargs
 
-    def socket_accept(self, fileno: int) -> None:
-        selector = selectors.DefaultSelector()
+    def run(self) -> None:
         sock = socket.fromfd(
-            fileno, family=socket.AF_INET6,
+            recv_handle(self.work_queue),
+            family=socket.AF_INET6,
             type=socket.SOCK_STREAM
         )
-        sock.setblocking(False)
-        sock.settimeout(0)
+        selector = selectors.DefaultSelector()
         try:
             while True:
                 with self.lock:
@@ -474,44 +379,16 @@ class Worker(multiprocessing.Process):
                 except BlockingIOError as e:
                     logger.exception('BlockingIOError', exc_info=e)
                     continue
-                proxy = self.work_klass(
+                work = self.work_klass(
                     fileno=conn.fileno(),
                     addr=addr,
                     **self.kwargs)
-                proxy.setDaemon(True)
-                proxy.start()
+                work.setDaemon(True)
+                work.start()
         except KeyboardInterrupt:
             pass
         finally:
             sock.close()
-
-    def run_once(self) -> bool:
-        try:
-            op, payload = self.work_queue.recv()
-            if op == workerOperations.SOCKET_ACCEPT:
-                self.socket_accept(recv_handle(self.work_queue))
-            elif op == workerOperations.HTTP_PROTOCOL:
-                proxy = self.work_klass(
-                    fileno=recv_handle(self.work_queue),
-                    addr=payload,
-                    **self.kwargs)
-                proxy.setDaemon(True)
-                proxy.start()
-            elif op == workerOperations.SHUTDOWN:
-                logger.debug('Worker shutting down....')
-                self.work_queue.close()
-                return True
-        except ConnectionRefusedError:
-            return False
-        except KeyboardInterrupt:  # pragma: no cover
-            return True
-        return False
-
-    def run(self) -> None:
-        while True:
-            teardown = self.run_once()
-            if teardown:
-                break
 
 
 class ChunkParser:
@@ -2035,7 +1912,7 @@ def main(input_args: List[str]) -> None:
                 '%s%s' %
                 (default_plugins, args.plugins)))
 
-        workers = WorkerPool(
+        workers = AcceptorPool(
             hostname=config.hostname,
             port=config.port,
             backlog=config.backlog,
@@ -2045,7 +1922,7 @@ def main(input_args: List[str]) -> None:
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
-        workers.run()
+        workers.start()
 
         try:
             while True:
