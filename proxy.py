@@ -311,12 +311,13 @@ class TcpServer(ABC):
     def stop(self) -> None:
         self.running = False
 
-    def listen(self):
+    def listen(self) -> None:
         self.socket = socket.socket(self.family, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((str(self.hostname), self.port))
         self.socket.listen(self.backlog)
         self.socket.setblocking(False)
+        self.socket.settimeout(0)
         logger.info('Listening on %s:%d' % (self.hostname, self.port))
 
     def run_once(self) -> None:
@@ -333,7 +334,8 @@ class TcpServer(ABC):
         self.setup()
         try:
             self.listen()
-            self.selector.register(self.socket, selectors.EVENT_READ)
+            assert self.socket is not None
+            self.selector.register(self.socket.fileno(), selectors.EVENT_READ)
             while self.running:
                 events = self.selector.select(timeout=1)
                 for _ in events:
@@ -417,6 +419,7 @@ class WorkerPool(TcpServer):
         upto Kernel."""
         self.running = True
         self.listen()
+        assert self.socket is not None
 
         # Start worker processes.
         self.setup()
@@ -438,7 +441,7 @@ class Worker(multiprocessing.Process):
     depending upon requested operation starts a new thread to handle the work.
     """
 
-    lock = multiprocessing.Lock()
+    event_lock = multiprocessing.Lock()
 
     def __init__(
             self,
@@ -450,22 +453,41 @@ class Worker(multiprocessing.Process):
         self.work_klass = work_klass
         self.kwargs = kwargs
 
-    def socket_accept(self, fileno: int):
+    def socket_accept(self, fileno: int) -> None:
         selector = selectors.DefaultSelector()
         sock = socket.fromfd(
             fileno, family=socket.AF_INET6,
             type=socket.SOCK_STREAM
         )
+        sock.setblocking(False)
+        sock.settimeout(0)
         try:
             while True:
-                with self.lock:
+                with self.event_lock:
                     selector.register(sock, selectors.EVENT_READ)
                     events = selector.select(timeout=1)
                     selector.unregister(sock)
                     if len(events) == 0:
                         continue
-                    assert len(events) == 1
+                # We don't want to accept within the lock context.
+                # Doing so will prevent other process to event listen
+                # for EVENT_READ until current process has finished
+                # accept(), which defeats the whole purpose of doing
+                # accepts from multiple processes.
+                #
+                # If N workers are accept()'ing, it means
+                # EVENT_READ has been fired N times i.e. there are N
+                # clients waiting to be accepted.  Hence each process
+                # accept should complete, even if it gets a different
+                # socket then the one for which the event was raised.
+                try:
                     conn, addr = sock.accept()
+                except BlockingIOError as e:
+                    # Still we can end up getting BlockingIOError,
+                    # as if accept() was called with no client
+                    # on the other side.
+                    logger.exception('BlockingIOError', exc_info=e)
+                    continue
                 proxy = self.work_klass(
                     fileno=conn.fileno(),
                     addr=addr,
