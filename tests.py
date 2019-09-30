@@ -16,7 +16,6 @@ import os
 import selectors
 import socket
 import tempfile
-import time
 import unittest
 from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -141,74 +140,6 @@ class TcpServerUnderTest(proxy.TcpServer):
 
     def shutdown(self) -> None:
         pass
-
-
-@unittest.skipIf(os.getenv('TESTING_ON_TRAVIS', 0),
-                 'Opening sockets not allowed on Travis')
-class TestTcpServerIntegration(unittest.TestCase):
-
-    ipv4_port: Optional[int] = None
-    ipv6_port: Optional[int] = None
-    ipv4_server: Optional[TcpServerUnderTest] = None
-    ipv6_server: Optional[TcpServerUnderTest] = None
-    ipv4_thread: Optional[Thread] = None
-    ipv6_thread: Optional[Thread] = None
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.ipv4_port = get_available_port()
-        cls.ipv6_port = get_available_port()
-        cls.ipv4_server = TcpServerUnderTest(
-            hostname=proxy.DEFAULT_IPV4_HOSTNAME,
-            port=cls.ipv4_port)
-        cls.ipv6_server = TcpServerUnderTest(
-            hostname=proxy.DEFAULT_IPV6_HOSTNAME,
-            port=cls.ipv6_port)
-        cls.ipv4_thread = Thread(target=cls.ipv4_server.run)
-        cls.ipv6_thread = Thread(target=cls.ipv6_server.run)
-        cls.ipv4_thread.setDaemon(True)
-        cls.ipv6_thread.setDaemon(True)
-        cls.ipv4_thread.start()
-        cls.ipv6_thread.start()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        if cls.ipv4_server:
-            cls.ipv4_server.stop()
-        if cls.ipv4_thread:
-            cls.ipv4_thread.join()
-        if cls.ipv6_server:
-            cls.ipv6_server.stop()
-        if cls.ipv6_thread:
-            cls.ipv6_thread.join()
-
-    def baseTestCase(self, ipv4: bool = True) -> None:
-        while True:
-            sock = None
-            try:
-                sock = socket.socket(
-                    socket.AF_INET if ipv4 else socket.AF_INET6,
-                    socket.SOCK_STREAM,
-                    0)
-                sock.connect(
-                    (str(
-                        proxy.DEFAULT_IPV4_HOSTNAME if ipv4 else proxy.DEFAULT_IPV6_HOSTNAME),
-                     self.ipv4_port if ipv4 else self.ipv6_port))
-                sock.sendall(b'HELLO')
-                data = sock.recv(proxy.DEFAULT_BUFFER_SIZE)
-                self.assertEqual(data, b'WORLD')
-                break
-            except ConnectionRefusedError:
-                time.sleep(0.1)
-            finally:
-                if sock:
-                    sock.close()
-
-    def testIpv4ClientConnection(self) -> None:
-        self.baseTestCase()
-
-    def testIpv6ClientConnection(self) -> None:
-        self.baseTestCase(ipv4=False)
 
 
 class TestTcpServer(unittest.TestCase):
