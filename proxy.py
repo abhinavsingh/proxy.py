@@ -12,6 +12,7 @@ import argparse
 import base64
 import datetime
 import errno
+import hashlib
 import importlib
 import inspect
 import ipaddress
@@ -1270,10 +1271,8 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
         if self.config.pac_file:
             try:
                 with open(self.config.pac_file, 'rb') as f:
-                    logger.debug('Will serve pac file from disk')
                     content = f.read()
             except IOError:
-                logger.debug('Will serve pac file content from buffer')
                 content = bytes_(self.config.pac_file)
             self.pac_file_response = HttpParser.build_response(
                 200, reason=b'OK', headers={
@@ -1281,6 +1280,16 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
                     b'Connection': b'close'
                 }, body=content
             )
+
+
+class WebsocketParser:
+    """Parser for Websocket frames."""
+
+    def __init__(self):
+        pass
+
+    def parse(self, raw: bytes) -> None:
+        print(raw)
 
 
 class HttpWebServerPlugin(ProtocolHandlerPlugin):
@@ -1305,6 +1314,8 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             request: HttpParser):
         super().__init__(config, client, request)
 
+        self.switched_protocol: Optional[bytes] = None
+
         self.routes: Dict[int, Dict[bytes, HttpWebServerRoutePlugin]] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
@@ -1323,10 +1334,36 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         url = self.request.build_url()
 
         # Upgrade requests not supported currently
-        if self.request.has_header(b'connection') and self.request.header(b'connection').lower() == b'upgrade':
-            self.client.queue(self.DEFAULT_501_RESPONSE)
-            self.client.flush()
-            return True
+        if self.request.has_header(b'connection') and \
+                self.request.header(b'connection').lower() == b'upgrade':
+            if self.request.has_header(b'upgrade') and \
+                    self.request.header(b'upgrade').lower() == b'websocket':
+                # Complete websocket handshake
+                if not self.request.has_header(b'Sec-WebSocket-Key'):
+                    # TODO: Return invalid request?
+                    return True
+
+                guid = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+                key = self.request.header(b'Sec-WebSocket-Key')
+                sha1 = hashlib.sha1()
+                sha1.update(key + guid)
+                accept = base64.b64encode(sha1.digest())
+
+                self.client.queue(HttpParser.build_response(
+                    101, reason=b'Switching Protocols',
+                    headers={
+                        b'Upgrade': b'websocket',
+                        b'Connection': b'Upgrade',
+                        b'Sec-WebSocket-Accept': bytes_(accept)
+                    }
+                ))
+                self.client.flush()
+                self.switched_protocol = 'websocket'
+                return False
+            else:
+                self.client.queue(self.DEFAULT_501_RESPONSE)
+                self.client.flush()
+                return True
 
         # Routing
         if self.request.method != b'CONNECT':
@@ -1353,6 +1390,10 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         pass
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
+        if self.switched_protocol is not None:
+            frame = WebsocketParser()
+            frame.parse(raw)
+            return None
         return raw
 
     def handle_response_chunk(self, chunk: bytes) -> bytes:
@@ -1480,6 +1521,8 @@ class ProtocolHandler(threading.Thread):
             plugins = list(self.plugins.values())
             while plugin_index < len(plugins) and client_data:
                 client_data = plugins[plugin_index].on_client_data(client_data)
+                if client_data is None:
+                    break
                 plugin_index += 1
 
             if client_data:
