@@ -149,8 +149,9 @@ httpParserTypes = HttpParserTypes(1, 2)
 HttpProtocolTypes = NamedTuple('HttpProtocolTypes', [
     ('HTTP', int),
     ('HTTPS', int),
+    ('WEBSOCKET', int),
 ])
-httpProtocolTypes = HttpProtocolTypes(1, 2)
+httpProtocolTypes = HttpProtocolTypes(1, 2, 3)
 
 
 class _HasFileno(Protocol):
@@ -1090,8 +1091,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 if not os.path.isfile(cert_file_path):
                     logger.debug('Generating certificates %s', cert_file_path)
                     # TODO: Use ssl.get_server_certificate to populate generated certificate metadata
-                    # Currently we only set CN=example.org on the generated
-                    # certificates.
+                    # Currently we only set CN= field for generated certificates.
                     gen_cert = subprocess.Popen(
                         ['/usr/bin/openssl', 'req', '-new', '-key', self.config.ca_signing_key_file, '-subj',
                          '/CN=%s' % text_(self.request.host)],
@@ -1124,24 +1124,16 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         for plugin in self.plugins.values():
             plugin.on_upstream_connection()
 
-        # for http connect methods (https requests)
-        # queue appropriate response for client
-        # notifying about established connection
         if self.request.method == b'CONNECT':
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled, generate server certificates
             if self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file:
-                # Flush client buffer before wrapping, but is client ready for
-                # writes?
+                # Flush client buffer before wrapping,
+                # but is client ready for writes?
                 self.client.flush()
                 generated_cert = self.generate_upstream_certificate()
                 if generated_cert:
-                    # If client is communicating over https,
-                    # self.client.conn has already been wrapped before.
-                    # We could unwrap, but then we can't maintain our https
-                    # connection to the client. Below we handle the scenario
-                    # when client is communicating to proxy.py using http.
                     if not (self.config.keyfile and self.config.certfile) and \
                             self.server and isinstance(self.server.connection, socket.socket):
                         self.client._conn = ssl.wrap_socket(
@@ -1159,8 +1151,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                         logger.info(
                             'TLS interception using %s', generated_cert)
                         return self.client.connection
-        # for general http requests, re-build request packet
-        # and queue for the server with appropriate headers
         elif self.server:
             # - proxy-connection header is a mistake, it doesn't seem to be
             #   officially documented in any specification, drop it.
@@ -1238,7 +1228,7 @@ def route(path: bytes, protocols: Optional[List[int]] = None) -> \
             def routes(self) -> List[Tuple[int, bytes]]:
                 p = protocols
                 if p is None:
-                    p = [httpProtocolTypes.HTTP, httpProtocolTypes.HTTPS]
+                    p = [i+1 for i in range(len(httpProtocolTypes))]
                 return [(protocol, path) for protocol in p]
 
             def handle_request(self, request: HttpParser) -> None:
@@ -1289,7 +1279,9 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
 class WebsocketFrame:
     """Websocket frames parser and constructor."""
 
-    def __init__(self):
+    GUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+
+    def __init__(self) -> None:
         self.fin: bool = False
         self.rsv1: bool = False
         self.rsv2: bool = False
@@ -1306,13 +1298,14 @@ class WebsocketFrame:
         self.rsv2 = bool(raw[0] & 1 << 5)
         self.rsv3 = bool(raw[0] & 1 << 4)
         self.opcode = raw[0] & 0b00001111
-        self.masked = raw[1] & 0b10000000
+        self.masked = bool(raw[1] & 0b10000000)
         # TODO: Handle case when payload length is 126 or 127
         self.payload_length = raw[1] & 0b01111111
         if self.masked:
             self.mask = raw[2:6]
         self.data = raw[6:]
         if self.masked:
+            assert self.mask is not None
             data = bytearray(self.data)
             for i in range(len(self.data)):
                 data[i] = data[i] ^ self.mask[i % 4]
@@ -1360,7 +1353,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
         url = self.request.build_url()
 
-        # Upgrade requests not supported currently
+        # Connection upgrade
         if self.request.has_header(b'connection') and \
                 self.request.header(b'connection').lower() == b'upgrade':
             if self.request.has_header(b'upgrade') and \
@@ -1370,10 +1363,9 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     # TODO: Return invalid request?
                     return True
 
-                guid = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
                 key = self.request.header(b'Sec-WebSocket-Key')
                 sha1 = hashlib.sha1()
-                sha1.update(key + guid)
+                sha1.update(key + WebsocketFrame.GUID)
                 accept = base64.b64encode(sha1.digest())
 
                 self.client.queue(HttpParser.build_response(
@@ -1385,7 +1377,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     }
                 ))
                 self.client.flush()
-                self.switched_protocol = 'websocket'
+                self.switched_protocol = b'websocket'
                 return False
             else:
                 self.client.queue(self.DEFAULT_501_RESPONSE)
@@ -1397,9 +1389,9 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             registered_routes = self.routes[httpProtocolTypes.HTTP]
         else:
             registered_routes = self.routes[httpProtocolTypes.HTTPS]
-        for route_ in registered_routes:
-            if url == route_:
-                registered_routes[route_].handle_request(self.request)
+        for r in registered_routes:
+            if r == url:
+                registered_routes[r].handle_request(self.request)
                 # But is client ready for flush?
                 self.client.flush()
                 return True
@@ -1417,7 +1409,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         pass
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
-        if self.switched_protocol is not None:
+        if self.switched_protocol == b'websocket':
             frame = WebsocketFrame()
             frame.parse(raw)
             return None
