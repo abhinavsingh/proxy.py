@@ -4,7 +4,7 @@
     ~~~~~~~~
     Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
 
-    :copyright: (c) 2013-present by Abhinav Singh.
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
 import ssl
@@ -13,6 +13,7 @@ import errno
 import logging
 import multiprocessing
 import os
+import secrets
 import selectors
 import socket
 import tempfile
@@ -124,22 +125,6 @@ class TestTcpConnection(unittest.TestCase):
         mock_socket.assert_called()
         mock_socket.return_value.connect.assert_called_with(
             (str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT))
-
-
-class TcpServerUnderTest(proxy.TcpServer):
-
-    def handle(self, client: proxy.TcpClientConnection) -> None:
-        data = client.recv(proxy.DEFAULT_BUFFER_SIZE)
-        if data != b'HELLO':
-            raise ValueError('Expected HELLO')
-        client.connection.sendall(b'WORLD')
-        client.close()
-
-    def setup(self) -> None:
-        pass
-
-    def shutdown(self) -> None:
-        pass
 
 
 class TestTcpServer(unittest.TestCase):
@@ -1332,6 +1317,39 @@ class TestMain(unittest.TestCase):
         proxy.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
+
+
+class TestWebsocketFrame(unittest.TestCase):
+
+    def test_parse_with_mask(self):
+        raw = b'\x81\x85\xc6\ti\x8d\xael\x05\xe1\xa9'
+        frame = proxy.WebsocketFrame()
+        frame.parse(raw)
+        self.assertEqual(frame.fin, True)
+        self.assertEqual(frame.rsv1, False)
+        self.assertEqual(frame.rsv2, False)
+        self.assertEqual(frame.rsv3, False)
+        self.assertEqual(frame.opcode, 0x1)
+        self.assertEqual(frame.masked, True)
+        assert frame.mask is not None
+        self.assertEqual(frame.mask, b'\xc6\ti\x8d')
+        self.assertEqual(frame.payload_length, 5)
+        self.assertEqual(frame.data, b'hello')
+
+
+class TestWebsocketClient(unittest.TestCase):
+
+    @mock.patch('base64.b64encode')
+    @mock.patch('proxy.TcpConnection.new')
+    def test_handshake(self, mock_connect, mock_b64encode) -> None:
+        key = b'MySecretKey'
+        mock_b64encode.return_value = key
+        mock_connect.return_value.recv.return_value = \
+            proxy.WebsocketClient.build_handshake_response(proxy.WebsocketFrame.key_to_accept(key))
+        _ = proxy.WebsocketClient(proxy.DEFAULT_IPV4_HOSTNAME, 8899)
+        mock_connect.return_value.send.assert_called_with(
+            proxy.WebsocketClient.build_handshake_request(key)
+        )
 
 
 if __name__ == '__main__':

@@ -5,7 +5,7 @@
     ~~~~~~~~
     Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
 
-    :copyright: (c) 2013-present by Abhinav Singh.
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
 import argparse
@@ -20,10 +20,10 @@ import logging
 import multiprocessing
 import os
 import pathlib
+import secrets
 import selectors
 import socket
 import ssl
-import struct
 import subprocess
 import sys
 import threading
@@ -222,6 +222,24 @@ class TcpConnection(ABC):
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
 
+    @staticmethod
+    def new(addr: Tuple[str, int]) -> socket.socket:
+        try:
+            ip = ipaddress.ip_address(addr[0])
+            if ip.version == 4:
+                conn = socket.socket(
+                    socket.AF_INET, socket.SOCK_STREAM, 0)
+                conn.connect(addr)
+            else:
+                conn = socket.socket(
+                    socket.AF_INET6, socket.SOCK_STREAM, 0)
+                conn.connect((addr[0], addr[1], 0, 0))
+        except ValueError:
+            # Not a valid IP address, most likely its a domain name,
+            # try to establish dual stack IPv4/IPv6 connection.
+            conn = socket.create_connection(addr)
+        return conn
+
 
 class TcpServerConnection(TcpConnection):
     """Establishes connection to upstream server."""
@@ -240,21 +258,7 @@ class TcpServerConnection(TcpConnection):
     def connect(self) -> None:
         if self._conn is not None:
             return
-
-        try:
-            ip = ipaddress.ip_address(text_(self.addr[0]))
-            if ip.version == 4:
-                self._conn = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM, 0)
-                self._conn.connect((self.addr[0], self.addr[1]))
-            else:
-                self._conn = socket.socket(
-                    socket.AF_INET6, socket.SOCK_STREAM, 0)
-                self._conn.connect((self.addr[0], self.addr[1], 0, 0))
-        except ValueError:
-            # Not a valid IP address, most likely its a domain name,
-            # try to establish dual stack IPv4/IPv6 connection.
-            self._conn = socket.create_connection((self.addr[0], self.addr[1]))
+        self._conn = self.new(self.addr)
 
 
 class TcpClientConnection(TcpConnection):
@@ -1311,6 +1315,56 @@ class WebsocketFrame:
                 data[i] = data[i] ^ self.mask[i % 4]
             self.data = bytes(data)
 
+    @staticmethod
+    def key_to_accept(key: bytes) -> bytes:
+        sha1 = hashlib.sha1()
+        sha1.update(key + WebsocketFrame.GUID)
+        return base64.b64encode(sha1.digest())
+
+
+class WebsocketClient:
+
+    def __init__(self, hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
+                 port: int):
+        self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = hostname
+        self.port: int = port
+        self.sock: socket.socket = TcpConnection.new((str(self.hostname), self.port))
+        self.upgrade()
+
+    @staticmethod
+    def build_handshake_request(key: bytes) -> bytes:
+        return HttpParser.build_request(
+            b'GET', b'/', b'HTTP/1.1',
+            headers={
+                b'Connection': b'upgrade',
+                b'Upgrade': b'websocket',
+                b'Sec-WebSocket-Key': key,
+                b'Sec-WebSocket-Version': b'13',
+            }
+        )
+
+    @staticmethod
+    def build_handshake_response(accept: bytes) -> bytes:
+        return HttpParser.build_response(
+            101, reason=b'Switching Protocols',
+            headers={
+                b'Upgrade': b'websocket',
+                b'Connection': b'Upgrade',
+                b'Sec-WebSocket-Accept': accept
+            }
+        )
+
+    def upgrade(self):
+        key = base64.b64encode(secrets.token_bytes(16))
+        self.sock.send(self.build_handshake_request(key))
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
+        accept = response.header(b'Sec-Websocket-Accept')
+        assert WebsocketFrame.key_to_accept(key) == accept
+
+    def send(self, raw: bytes):
+        pass
+
 
 class HttpWebServerPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which handles incoming requests to local web server."""
@@ -1363,19 +1417,10 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     # TODO: Return invalid request?
                     return True
 
-                key = self.request.header(b'Sec-WebSocket-Key')
-                sha1 = hashlib.sha1()
-                sha1.update(key + WebsocketFrame.GUID)
-                accept = base64.b64encode(sha1.digest())
-
-                self.client.queue(HttpParser.build_response(
-                    101, reason=b'Switching Protocols',
-                    headers={
-                        b'Upgrade': b'websocket',
-                        b'Connection': b'Upgrade',
-                        b'Sec-WebSocket-Accept': bytes_(accept)
-                    }
-                ))
+                self.client.queue(
+                    WebsocketClient.build_handshake_response(
+                        WebsocketFrame.key_to_accept(
+                            self.request.header(b'Sec-WebSocket-Key'))))
                 self.client.flush()
                 self.switched_protocol = b'websocket'
                 return False
