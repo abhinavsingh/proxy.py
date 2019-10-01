@@ -23,6 +23,7 @@ import pathlib
 import selectors
 import socket
 import ssl
+import struct
 import subprocess
 import sys
 import threading
@@ -31,8 +32,9 @@ from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable
-from typing_extensions import Protocol
 from urllib import parse as urlparse
+
+from typing_extensions import Protocol
 
 if os.name != 'nt':
     import resource
@@ -105,7 +107,7 @@ CRLF, COLON, WHITESPACE, COMMA, DOT = b'\r\n', b':', b' ', b',', b'.'
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
-    COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
+                     COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 
 ##
 # Various NamedTuples
@@ -511,7 +513,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -836,7 +838,7 @@ class ProtocolHandlerPlugin(ABC):
     @abstractmethod
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        return [], []   # pragma: no cover
+        return [], []  # pragma: no cover
 
     @abstractmethod
     def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
@@ -1242,7 +1244,9 @@ def route(path: bytes, protocols: Optional[List[int]] = None) -> \
             def handle_request(self, request: HttpParser) -> None:
                 self.client.queue(func(request))
                 self.client.flush()
+
         return HttpWebServerRouteHandler
+
     return decorator
 
 
@@ -1282,14 +1286,37 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
             )
 
 
-class WebsocketParser:
-    """Parser for Websocket frames."""
+class WebsocketFrame:
+    """Websocket frames parser and constructor."""
 
     def __init__(self):
-        pass
+        self.fin: bool = False
+        self.rsv1: bool = False
+        self.rsv2: bool = False
+        self.rsv3: bool = False
+        self.opcode: int = 0
+        self.masked: bool = False
+        self.payload_length: int = 0
+        self.mask: Optional[bytes] = None
+        self.data: Optional[bytes] = None
 
     def parse(self, raw: bytes) -> None:
-        print(raw)
+        self.fin = bool(raw[0] & 1 << 7)
+        self.rsv1 = bool(raw[0] & 1 << 6)
+        self.rsv2 = bool(raw[0] & 1 << 5)
+        self.rsv3 = bool(raw[0] & 1 << 4)
+        self.opcode = raw[0] & 0b00001111
+        self.masked = raw[1] & 0b10000000
+        # TODO: Handle case when payload length is 126 or 127
+        self.payload_length = raw[1] & 0b01111111
+        if self.masked:
+            self.mask = raw[2:6]
+        self.data = raw[6:]
+        if self.masked:
+            data = bytearray(self.data)
+            for i in range(len(self.data)):
+                data[i] = data[i] ^ self.mask[i % 4]
+            self.data = bytes(data)
 
 
 class HttpWebServerPlugin(ProtocolHandlerPlugin):
@@ -1391,7 +1418,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
         if self.switched_protocol is not None:
-            frame = WebsocketParser()
+            frame = WebsocketFrame()
             frame.parse(raw)
             return None
         return raw
