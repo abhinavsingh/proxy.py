@@ -1325,10 +1325,11 @@ class WebsocketFrame:
 class Websocket:
 
     def __init__(self, hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
-                 port: int, on_message: Optional[Callable[[bytes], None]] = None):
+                 port: int, on_message: Optional[Callable[[bytes], None]] = None) -> None:
         self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = hostname
         self.port: int = port
         self.sock: socket.socket = TcpConnection.new((str(self.hostname), self.port))
+        self.on_message: Optional[Callable[[bytes], None]] = on_message
         self.upgrade()
 
     @staticmethod
@@ -1358,7 +1359,7 @@ class Websocket:
             }
         )
 
-    def upgrade(self):
+    def upgrade(self) -> None:
         key = base64.b64encode(secrets.token_bytes(16))
         self.sock.send(self.build_handshake_request(key))
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
@@ -1366,16 +1367,16 @@ class Websocket:
         accept = response.header(b'Sec-Websocket-Accept')
         assert WebsocketFrame.key_to_accept(key) == accept
 
-    def ping(self, data: Optional[bytes] = None):
+    def ping(self, data: Optional[bytes] = None) -> None:
         pass
 
-    def pong(self, data: Optional[bytes] = None):
+    def pong(self, data: Optional[bytes] = None) -> None:
         pass
 
-    def send(self, raw: bytes):
+    def send(self, raw: bytes) -> None:
         pass
 
-    def close(self, data: Optional[bytes] = None):
+    def close(self, data: Optional[bytes] = None) -> None:
         pass
 
 
