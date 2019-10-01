@@ -1345,10 +1345,10 @@ class TestWebsocketClient(unittest.TestCase):
         key = b'MySecretKey'
         mock_b64encode.return_value = key
         mock_connect.return_value.recv.return_value = \
-            proxy.WebsocketClient.build_handshake_response(proxy.WebsocketFrame.key_to_accept(key))
-        _ = proxy.WebsocketClient(proxy.DEFAULT_IPV4_HOSTNAME, 8899)
+            proxy.Websocket.build_handshake_response(proxy.WebsocketFrame.key_to_accept(key))
+        _ = proxy.Websocket(proxy.DEFAULT_IPV4_HOSTNAME, 8899)
         mock_connect.return_value.send.assert_called_with(
-            proxy.WebsocketClient.build_handshake_request(key)
+            proxy.Websocket.build_handshake_request(key)
         )
 
 

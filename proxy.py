@@ -388,7 +388,7 @@ class Worker(multiprocessing.Process):
                 try:
                     conn, addr = sock.accept()
                 except BlockingIOError as e:
-                    logger.exception('BlockingIOError', exc_info=e)
+                    # logger.exception('BlockingIOError', exc_info=e)
                     continue
                 work = self.work_klass(
                     fileno=conn.fileno(),
@@ -1322,19 +1322,23 @@ class WebsocketFrame:
         return base64.b64encode(sha1.digest())
 
 
-class WebsocketClient:
+class Websocket:
 
     def __init__(self, hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
-                 port: int):
+                 port: int, on_message: Optional[Callable[[bytes], None]] = None):
         self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = hostname
         self.port: int = port
         self.sock: socket.socket = TcpConnection.new((str(self.hostname), self.port))
         self.upgrade()
 
     @staticmethod
-    def build_handshake_request(key: bytes) -> bytes:
+    def build_handshake_request(
+            key: bytes,
+            method: bytes = b'GET',
+            url: bytes = b'/',
+            protocol_version: bytes = b'HTTP/1.1') -> bytes:
         return HttpParser.build_request(
-            b'GET', b'/', b'HTTP/1.1',
+            method, url, protocol_version,
             headers={
                 b'Connection': b'upgrade',
                 b'Upgrade': b'websocket',
@@ -1362,7 +1366,16 @@ class WebsocketClient:
         accept = response.header(b'Sec-Websocket-Accept')
         assert WebsocketFrame.key_to_accept(key) == accept
 
+    def ping(self, data: Optional[bytes] = None):
+        pass
+
+    def pong(self, data: Optional[bytes] = None):
+        pass
+
     def send(self, raw: bytes):
+        pass
+
+    def close(self, data: Optional[bytes] = None):
         pass
 
 
@@ -1418,7 +1431,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     return True
 
                 self.client.queue(
-                    WebsocketClient.build_handshake_response(
+                    Websocket.build_handshake_response(
                         WebsocketFrame.key_to_accept(
                             self.request.header(b'Sec-WebSocket-Key'))))
                 self.client.flush()
