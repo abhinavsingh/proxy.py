@@ -25,7 +25,7 @@
 [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=mypy&message=checked&color=blue)](http://mypy-lang.org/)
 
-[![Become a Backer](https://opencollective.com/proxypy/tiers/backer.svg?avatarHeight=36)]()
+[![Become a Backer](https://opencollective.com/proxypy/tiers/backer.svg?avatarHeight=36)](https://opencollective.com/proxypy)
 
 Table of Contents
 =================
