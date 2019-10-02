@@ -153,39 +153,58 @@ class TestAcceptorPool(unittest.TestCase):
     pass
 
 
-'''
 class TestWorker(unittest.TestCase):
 
     @mock.patch('proxy.ProtocolHandler')
     def setUp(self, mock_protocol_handler: mock.Mock) -> None:
         self.pipe = multiprocessing.Pipe()
+        self.protocol_config = proxy.ProtocolConfig()
         self.worker = proxy.Worker(
             self.pipe[1],
             mock_protocol_handler,
-            config=proxy.ProtocolConfig())
+            config=self.protocol_config)
         self.mock_protocol_handler = mock_protocol_handler
 
-    @mock.patch('proxy.ProtocolHandler')
-    def test_shutdown_op(self, mock_http_proxy: mock.Mock) -> None:
-        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
-        self.worker.run()
-        self.assertFalse(mock_http_proxy.called)
-
+    @mock.patch('multiprocessing.Lock')
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
     @mock.patch('proxy.recv_handle')
-    def test_spawns_http_proxy_threads(
-            self, mock_recv_handle: mock.Mock) -> None:
+    def test_accepts_client_from_server_socket(
+            self,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock,
+            mock_selector: mock.Mock,
+            mock_lock: mock.Mock) -> None:
         fileno = 10
+        conn = mock.MagicMock()
+        addr = mock.MagicMock()
+        sock = mock_fromfd.return_value
+        mock_fromfd.return_value.accept.return_value = (conn, addr)
         mock_recv_handle.return_value = fileno
-        self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
-        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
-        self.worker.run()
-        self.assertTrue(self.mock_protocol_handler.called)
+        self.mock_protocol_handler.return_value.start.side_effect = KeyboardInterrupt()
+        selector = mock_selector.return_value
+        selector.select.return_value = [(None, None)]
+        mock_lock.__enter__.return_value = True
 
-    def test_handles_work_queue_recv_connection_refused(self) -> None:
-        with mock.patch.object(self.worker.work_queue, 'recv') as mock_recv:
-            mock_recv.side_effect = ConnectionRefusedError()
-            self.assertFalse(self.worker.run_once())  # doesn't teardown
-'''
+        self.pipe[0].send(socket.AF_INET6)
+        self.worker.run()
+
+        selector.register.assert_called_with(sock, selectors.EVENT_READ)
+        selector.unregister.assert_called_with(sock)
+        mock_recv_handle.assert_called_with(self.pipe[1])
+        mock_fromfd.assert_called_with(
+            fileno,
+            family=socket.AF_INET6,
+            type=socket.SOCK_STREAM
+        )
+        self.mock_protocol_handler.assert_called_with(
+            fileno=conn.fileno(),
+            addr=addr,
+            **{'config': self.protocol_config}
+        )
+        self.mock_protocol_handler.return_value.setDaemon.assert_called()
+        self.mock_protocol_handler.return_value.start.assert_called()
+        sock.close.assert_called()
 
 
 class TestChunkParser(unittest.TestCase):
@@ -1163,7 +1182,7 @@ class TestHttpRequestRejected(unittest.TestCase):
 class TestMain(unittest.TestCase):
 
     @staticmethod
-    def mock_default_args(mock_args: mock.Mock):
+    def mock_default_args(mock_args: mock.Mock) -> None:
         mock_args.version = False
         mock_args.cert_file = proxy.DEFAULT_CERT_FILE
         mock_args.key_file = proxy.DEFAULT_KEY_FILE
@@ -1185,7 +1204,6 @@ class TestMain(unittest.TestCase):
         mock_args.server_recvbuf_size = proxy.DEFAULT_SERVER_RECVBUF_SIZE
         mock_args.client_recvbuf_size = proxy.DEFAULT_CLIENT_RECVBUF_SIZE
         mock_args.open_file_limit = proxy.DEFAULT_OPEN_FILE_LIMIT
-
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.load_plugins')
