@@ -43,9 +43,8 @@ coverage:
 	open htmlcov/index.html
 
 lint:
+	flake8 --ignore=W504 --max-line-length=127 proxy.py tests.py
 	mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py
-	flake8 --ignore=E501,W504 proxy.py
-	flake8 --ignore=E501,W504 tests.py
 
 autopep8:
 	autopep8 --recursive --in-place --aggressive proxy.py

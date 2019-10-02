@@ -107,7 +107,7 @@ CRLF, COLON, WHITESPACE, COMMA, DOT = b'\r\n', b':', b' ', b',', b'.'
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
-                     COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
+    COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 
 ##
 # Various NamedTuples
@@ -387,7 +387,7 @@ class Worker(multiprocessing.Process):
                         continue
                 try:
                     conn, addr = sock.accept()
-                except BlockingIOError as e:
+                except BlockingIOError:  # as e:
                     # logger.exception('BlockingIOError', exc_info=e)
                     continue
                 work = self.work_klass(
@@ -518,7 +518,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -1232,7 +1232,7 @@ def route(path: bytes, protocols: Optional[List[int]] = None) -> \
             def routes(self) -> List[Tuple[int, bytes]]:
                 p = protocols
                 if p is None:
-                    p = [i+1 for i in range(len(httpProtocolTypes))]
+                    p = [i + 1 for i in range(len(httpProtocolTypes))]
                 return [(protocol, path) for protocol in p]
 
             def handle_request(self, request: HttpParser) -> None:
@@ -1750,7 +1750,7 @@ class ProtocolHandler(threading.Thread):
                 try:
                     self.client.connection.shutdown(socket.SHUT_RDWR)
                     logger.debug('Client connection shutdown successful')
-                except OSError as e:
+                except OSError:
                     pass
                 finally:
                     self.client.close()

@@ -24,10 +24,8 @@ jobs:
           pip install -r requirements-testing.txt
       - name: Quality Check
         run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 proxy.py tests.py --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 proxy.py tests.py --count --exit-zero --max-line-length=127 --statistics
+          # The GitHub editor is 127 chars wide
+          flake8 --ignore=W504 --max-line-length=127 proxy.py tests.py
           # mypy compliance check
           mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py
       - name: Run Tests

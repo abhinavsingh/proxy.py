@@ -11,9 +11,9 @@ import ssl
 import base64
 import errno
 import logging
-import multiprocessing
+# import multiprocessing
 import os
-import secrets
+# import secrets
 import selectors
 import socket
 import tempfile
@@ -27,7 +27,8 @@ from unittest import mock
 import proxy
 
 if os.name != 'nt':
-    import resource
+    # import resource
+    pass
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -127,25 +128,44 @@ class TestTcpConnection(unittest.TestCase):
             (str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT))
 
 
-class TestTcpServer(unittest.TestCase):
+class TestAcceptorPool(unittest.TestCase):
 
-    # Can happen if client is sending invalid https request to our SSL server.
-    # Example, simply sending http traffic to HTTPS server.
-    @mock.patch('select.select')
-    @mock.patch('socket.socket')
-    def testAcceptSSLErrorsSilentlyIgnored(
-            self, mock_socket: mock.Mock, mock_select: mock.Mock) -> None:
-        mock_socket.accept.side_effect = ssl.SSLError()
-        mock_select.return_value = ([mock_socket], [], [])
-        server = TcpServerUnderTest(
-            hostname=proxy.DEFAULT_IPV6_HOSTNAME, port=1234)
-        server.socket = mock_socket
-        with mock.patch('proxy.logger') as mock_logger:
-            server.run_once()
-            mock_logger.exception.assert_called()
-            self.assertTrue(
-                mock_logger.exception.call_args[0][0],
-                'SSLError encountered')
+    pass
+
+
+'''
+class TestWorker(unittest.TestCase):
+
+    @mock.patch('proxy.ProtocolHandler')
+    def setUp(self, mock_protocol_handler: mock.Mock) -> None:
+        self.pipe = multiprocessing.Pipe()
+        self.worker = proxy.Worker(
+            self.pipe[1],
+            mock_protocol_handler,
+            config=proxy.ProtocolConfig())
+        self.mock_protocol_handler = mock_protocol_handler
+
+    @mock.patch('proxy.ProtocolHandler')
+    def test_shutdown_op(self, mock_http_proxy: mock.Mock) -> None:
+        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
+        self.worker.run()
+        self.assertFalse(mock_http_proxy.called)
+
+    @mock.patch('proxy.recv_handle')
+    def test_spawns_http_proxy_threads(
+            self, mock_recv_handle: mock.Mock) -> None:
+        fileno = 10
+        mock_recv_handle.return_value = fileno
+        self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
+        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
+        self.worker.run()
+        self.assertTrue(self.mock_protocol_handler.called)
+
+    def test_handles_work_queue_recv_connection_refused(self) -> None:
+        with mock.patch.object(self.worker.work_queue, 'recv') as mock_recv:
+            mock_recv.side_effect = ConnectionRefusedError()
+            self.assertFalse(self.worker.run_once())  # doesn't teardown
+'''
 
 
 class TestChunkParser(unittest.TestCase):
@@ -626,6 +646,39 @@ class TestHttpParser(unittest.TestCase):
             self.assertTrue(k in dictionary)
 
 
+class TestWebsocketFrame(unittest.TestCase):
+
+    def test_parse_with_mask(self) -> None:
+        raw = b'\x81\x85\xc6\ti\x8d\xael\x05\xe1\xa9'
+        frame = proxy.WebsocketFrame()
+        frame.parse(raw)
+        self.assertEqual(frame.fin, True)
+        self.assertEqual(frame.rsv1, False)
+        self.assertEqual(frame.rsv2, False)
+        self.assertEqual(frame.rsv3, False)
+        self.assertEqual(frame.opcode, 0x1)
+        self.assertEqual(frame.masked, True)
+        assert frame.mask is not None
+        self.assertEqual(frame.mask, b'\xc6\ti\x8d')
+        self.assertEqual(frame.payload_length, 5)
+        self.assertEqual(frame.data, b'hello')
+
+
+class TestWebsocketClient(unittest.TestCase):
+
+    @mock.patch('base64.b64encode')
+    @mock.patch('proxy.TcpConnection.new')
+    def test_handshake(self, mock_connect: mock.Mock, mock_b64encode: mock.Mock) -> None:
+        key = b'MySecretKey'
+        mock_b64encode.return_value = key
+        mock_connect.return_value.recv.return_value = \
+            proxy.Websocket.build_handshake_response(proxy.WebsocketFrame.key_to_accept(key))
+        _ = proxy.Websocket(proxy.DEFAULT_IPV4_HOSTNAME, 8899)
+        mock_connect.return_value.send.assert_called_with(
+            proxy.Websocket.build_handshake_request(key)
+        )
+
+
 class TestHttpProtocolHandler(unittest.TestCase):
     http_server = None
     http_server_port = None
@@ -998,7 +1051,6 @@ class TestHttpProtocolHandler(unittest.TestCase):
             mock_run_once.return_value = True
             self.proxy.run()
         self.assertTrue(self._conn.closed)
-        plugin.return_value.access_log.assert_called()
         plugin.return_value.on_client_connection_close.assert_called()
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
@@ -1058,39 +1110,6 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.flush.assert_not_called()
 
 
-class TestWorker(unittest.TestCase):
-
-    @mock.patch('proxy.ProtocolHandler')
-    def setUp(self, mock_protocol_handler: mock.Mock) -> None:
-        self.pipe = multiprocessing.Pipe()
-        self.worker = proxy.Worker(
-            self.pipe[1],
-            mock_protocol_handler,
-            config=proxy.ProtocolConfig())
-        self.mock_protocol_handler = mock_protocol_handler
-
-    @mock.patch('proxy.ProtocolHandler')
-    def test_shutdown_op(self, mock_http_proxy: mock.Mock) -> None:
-        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
-        self.worker.run()
-        self.assertFalse(mock_http_proxy.called)
-
-    @mock.patch('proxy.recv_handle')
-    def test_spawns_http_proxy_threads(
-            self, mock_recv_handle: mock.Mock) -> None:
-        fileno = 10
-        mock_recv_handle.return_value = fileno
-        self.pipe[0].send((proxy.workerOperations.HTTP_PROTOCOL, None))
-        self.pipe[0].send((proxy.workerOperations.SHUTDOWN, None))
-        self.worker.run()
-        self.assertTrue(self.mock_protocol_handler.called)
-
-    def test_handles_work_queue_recv_connection_refused(self) -> None:
-        with mock.patch.object(self.worker.work_queue, 'recv') as mock_recv:
-            mock_recv.side_effect = ConnectionRefusedError()
-            self.assertFalse(self.worker.run_once())  # doesn't teardown
-
-
 class TestHttpRequestRejected(unittest.TestCase):
 
     def setUp(self) -> None:
@@ -1121,6 +1140,7 @@ class TestHttpRequestRejected(unittest.TestCase):
         ]))
 
 
+'''
 class TestMain(unittest.TestCase):
 
     @mock.patch('proxy.set_open_file_limit')
@@ -1317,40 +1337,7 @@ class TestMain(unittest.TestCase):
         proxy.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
-
-
-class TestWebsocketFrame(unittest.TestCase):
-
-    def test_parse_with_mask(self):
-        raw = b'\x81\x85\xc6\ti\x8d\xael\x05\xe1\xa9'
-        frame = proxy.WebsocketFrame()
-        frame.parse(raw)
-        self.assertEqual(frame.fin, True)
-        self.assertEqual(frame.rsv1, False)
-        self.assertEqual(frame.rsv2, False)
-        self.assertEqual(frame.rsv3, False)
-        self.assertEqual(frame.opcode, 0x1)
-        self.assertEqual(frame.masked, True)
-        assert frame.mask is not None
-        self.assertEqual(frame.mask, b'\xc6\ti\x8d')
-        self.assertEqual(frame.payload_length, 5)
-        self.assertEqual(frame.data, b'hello')
-
-
-class TestWebsocketClient(unittest.TestCase):
-
-    @mock.patch('base64.b64encode')
-    @mock.patch('proxy.TcpConnection.new')
-    def test_handshake(self, mock_connect, mock_b64encode) -> None:
-        key = b'MySecretKey'
-        mock_b64encode.return_value = key
-        mock_connect.return_value.recv.return_value = \
-            proxy.Websocket.build_handshake_response(proxy.WebsocketFrame.key_to_accept(key))
-        _ = proxy.Websocket(proxy.DEFAULT_IPV4_HOSTNAME, 8899)
-        mock_connect.return_value.send.assert_called_with(
-            proxy.Websocket.build_handshake_request(key)
-        )
-
+'''
 
 if __name__ == '__main__':
     proxy.UNDER_TEST = True
