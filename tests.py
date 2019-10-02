@@ -1162,26 +1162,8 @@ class TestHttpRequestRejected(unittest.TestCase):
 
 class TestMain(unittest.TestCase):
 
-    @mock.patch('time.sleep')
-    @mock.patch('proxy.load_plugins')
-    @mock.patch('proxy.init_parser')
-    @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.ProtocolConfig')
-    @mock.patch('proxy.AcceptorPool')
-    @mock.patch('proxy.logging.basicConfig')
-    def test_init_with_no_arguments(
-            self,
-            mock_logging_config: mock.Mock,
-            mock_acceptor_pool: mock.Mock,
-            mock_protocol_config: mock.Mock,
-            mock_set_open_file_limit: mock.Mock,
-            mock_init_parser: mock.Mock,
-            mock_load_plugins: mock.Mock,
-            mock_sleep: mock.Mock) -> None:
-        mock_sleep.side_effect = KeyboardInterrupt()
-
-        mock_args = mock_init_parser.return_value.parse_args.return_value
-
+    @staticmethod
+    def mock_default_args(mock_args: mock.Mock):
         mock_args.version = False
         mock_args.cert_file = proxy.DEFAULT_CERT_FILE
         mock_args.key_file = proxy.DEFAULT_KEY_FILE
@@ -1204,6 +1186,27 @@ class TestMain(unittest.TestCase):
         mock_args.client_recvbuf_size = proxy.DEFAULT_CLIENT_RECVBUF_SIZE
         mock_args.open_file_limit = proxy.DEFAULT_OPEN_FILE_LIMIT
 
+
+    @mock.patch('time.sleep')
+    @mock.patch('proxy.load_plugins')
+    @mock.patch('proxy.init_parser')
+    @mock.patch('proxy.set_open_file_limit')
+    @mock.patch('proxy.ProtocolConfig')
+    @mock.patch('proxy.AcceptorPool')
+    @mock.patch('proxy.logging.basicConfig')
+    def test_init_with_no_arguments(
+            self,
+            mock_logging_config: mock.Mock,
+            mock_acceptor_pool: mock.Mock,
+            mock_protocol_config: mock.Mock,
+            mock_set_open_file_limit: mock.Mock,
+            mock_init_parser: mock.Mock,
+            mock_load_plugins: mock.Mock,
+            mock_sleep: mock.Mock) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
+
+        mock_args = mock_init_parser.return_value.parse_args.return_value
+        self.mock_default_args(mock_args)
         proxy.main([])
 
         mock_init_parser.assert_called()
@@ -1249,159 +1252,126 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.shutdown.assert_called()
         mock_sleep.assert_called_with(1)
 
+    @mock.patch('time.sleep')
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
-    @mock.patch('proxy.set_open_file_limit')
+    @mock.patch('proxy.init_parser')
     @mock.patch('proxy.AcceptorPool')
-    @unittest.skipIf(
-        True,  # type: ignore
-        'This test passes while development on Intellij but fails via CLI :(')
     def test_pid_file_is_written_and_removed(
             self,
-            mock_multicore_dispatcher,
-            mock_set_open_file_limit,
-            mock_open,
-            mock_exists,
-            mock_remove) -> None:
+            mock_acceptor_pool: mock.Mock,
+            mock_init_parser: mock.Mock,
+            mock_open: mock.Mock,
+            mock_exists: mock.Mock,
+            mock_remove: mock.Mock,
+            mock_sleep: mock.Mock) -> None:
         pid_file = get_temp_file('proxy.pid')
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_args = mock_init_parser.return_value.parse_args.return_value
+        self.mock_default_args(mock_args)
+        mock_args.pid_file = pid_file
         proxy.main(['--pid-file', pid_file])
-        mock_set_open_file_limit.assert_called()
-        mock_multicore_dispatcher.assert_called()
-        mock_multicore_dispatcher.return_value.run.assert_called()
+        mock_init_parser.assert_called()
+        mock_acceptor_pool.assert_called()
+        mock_acceptor_pool.return_value.setup.assert_called()
         mock_open.assert_called_with(pid_file, 'wb')
         mock_open.return_value.__enter__.return_value.write.assert_called_with(
             proxy.bytes_(os.getpid()))
         mock_exists.assert_called_with(pid_file)
         mock_remove.assert_called_with(pid_file)
 
+    @mock.patch('time.sleep')
     @mock.patch('proxy.ProtocolConfig')
-    @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.AcceptorPool')
-    def test_main(
+    def test_basic_auth(
             self,
-            mock_multicore_dispatcher: mock.Mock,
-            mock_set_open_file_limit: mock.Mock,
-            mock_config: mock.Mock) -> None:
+            mock_acceptor_pool: mock.Mock,
+            mock_protocol_config: mock.Mock,
+            mock_sleep: mock.Mock) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
         proxy.main(['--basic-auth', 'user:pass'])
-        self.assertTrue(mock_set_open_file_limit.called)
-        config = mock_config.return_value
-        mock_multicore_dispatcher.assert_called_with(
+        config = mock_protocol_config.return_value
+        mock_acceptor_pool.assert_called_with(
             hostname=config.hostname,
             port=config.port,
             backlog=config.backlog,
             num_workers=config.num_workers,
             work_klass=proxy.ProtocolHandler,
             config=config)
-        mock_config.assert_called_with(
-            auth_code=b'Basic dXNlcjpwYXNz',
-            client_recvbuf_size=proxy.DEFAULT_CLIENT_RECVBUF_SIZE,
-            server_recvbuf_size=proxy.DEFAULT_SERVER_RECVBUF_SIZE,
-            pac_file=proxy.DEFAULT_PAC_FILE,
-            pac_file_url_path=proxy.DEFAULT_PAC_FILE_URL_PATH,
-            disable_headers=proxy.DEFAULT_DISABLE_HEADERS,
-            hostname=proxy.DEFAULT_IPV6_HOSTNAME,
-            port=proxy.DEFAULT_PORT,
-            backlog=proxy.DEFAULT_BACKLOG,
-            num_workers=multiprocessing.cpu_count(),
-            keyfile=None,
-            certfile=None,
-            ca_cert_file=None,
-            ca_key_file=None,
-            ca_signing_key_file=None,
-            ca_cert_dir=None
-        )
+        self.assertEqual(mock_protocol_config.call_args[1]['auth_code'], b'Basic dXNlcjpwYXNz')
 
     @mock.patch('builtins.print')
-    @mock.patch('proxy.ProtocolConfig')
-    @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.AcceptorPool')
     def test_main_version(
             self,
-            mock_multicore_dispatcher: mock.Mock,
-            mock_set_open_file_limit: mock.Mock,
-            mock_config: mock.Mock,
             mock_print: mock.Mock) -> None:
         with self.assertRaises(SystemExit):
             proxy.main(['--version'])
             mock_print.assert_called_with(proxy.text_(proxy.version))
-        mock_multicore_dispatcher.assert_not_called()
-        mock_set_open_file_limit.assert_not_called()
-        mock_config.assert_not_called()
 
+    @mock.patch('time.sleep')
     @mock.patch('builtins.print')
-    @mock.patch('proxy.ProtocolConfig')
-    @mock.patch('proxy.set_open_file_limit')
     @mock.patch('proxy.AcceptorPool')
     @mock.patch('proxy.is_py3')
     def test_main_py3_runs(
             self,
             mock_is_py3: mock.Mock,
-            mock_multicore_dispatcher: mock.Mock,
-            mock_set_open_file_limit: mock.Mock,
-            mock_config: mock.Mock,
-            mock_print: mock.Mock) -> None:
+            mock_acceptor_pool: mock.Mock,
+            mock_print: mock.Mock,
+            mock_sleep: mock.Mock) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
         mock_is_py3.return_value = True
         proxy.main([])
         mock_is_py3.assert_called()
         mock_print.assert_not_called()
-        mock_multicore_dispatcher.assert_called()
-        mock_set_open_file_limit.assert_called()
-        mock_config.assert_called()
+        mock_acceptor_pool.assert_called()
+        mock_acceptor_pool.return_value.setup.assert_called()
 
     @mock.patch('builtins.print')
-    @mock.patch('proxy.ProtocolConfig')
-    @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.AcceptorPool')
     @mock.patch('proxy.is_py3')
-    @unittest.skipIf(
-        True,  # type: ignore
-        'This test passes while development on Intellij but fails via CLI :(')
     def test_main_py2_exit(
             self,
-            mock_is_py3,
-            mock_multicore_dispatcher,
-            mock_set_open_file_limit,
-            mock_config,
-            mock_print) -> None:
+            mock_is_py3: mock.Mock,
+            mock_print: mock.Mock) -> None:
+        proxy.UNDER_TEST = False
         mock_is_py3.return_value = False
         with self.assertRaises(SystemExit):
             proxy.main([])
             mock_print.assert_called_with('DEPRECATION')
-            mock_is_py3.assert_called()
-        mock_multicore_dispatcher.assert_not_called()
-        mock_set_open_file_limit.assert_not_called()
-        mock_config.assert_not_called()
+        mock_is_py3.assert_called()
 
-    @unittest.skipIf(
-        os.name == 'nt',
-        'Open file limit tests disabled for Windows')
-    @mock.patch('resource.getrlimit', return_value=(128, 1024))  # type: ignore
+
+@unittest.skipIf(
+    os.name == 'nt',
+    'Open file limit tests disabled for Windows')
+class TestSetOpenFileLimit(unittest.TestCase):
+
+    @mock.patch('resource.getrlimit', return_value=(128, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
     def test_set_open_file_limit(
-            self, mock_set_rlimit, mock_get_rlimit) -> None:
+            self,
+            mock_set_rlimit: mock.Mock,
+            mock_get_rlimit: mock.Mock) -> None:
         proxy.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_called_with(resource.RLIMIT_NOFILE, (256, 1024))
 
-    @unittest.skipIf(
-        os.name == 'nt',
-        'Open file limit tests disabled for Windows')
-    @mock.patch('resource.getrlimit', return_value=(256, 1024))  # type: ignore
+    @mock.patch('resource.getrlimit', return_value=(256, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
     def test_set_open_file_limit_not_called(
-            self, mock_set_rlimit, mock_get_rlimit) -> None:
+            self,
+            mock_set_rlimit: mock.Mock,
+            mock_get_rlimit: mock.Mock) -> None:
         proxy.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
 
-    @unittest.skipIf(
-        os.name == 'nt',
-        'Open file limit tests disabled for Windows')
-    @mock.patch('resource.getrlimit', return_value=(256, 1024))  # type: ignore
+    @mock.patch('resource.getrlimit', return_value=(256, 1024))
     @mock.patch('resource.setrlimit', return_value=None)
-    def test_set_open_file_limit_not_called1(
-            self, mock_set_rlimit, mock_get_rlimit) -> None:
+    def test_set_open_file_limit_not_called_coz_upper_bound_check(
+            self,
+            mock_set_rlimit: mock.Mock,
+            mock_get_rlimit: mock.Mock) -> None:
         proxy.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
