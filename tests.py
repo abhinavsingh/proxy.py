@@ -7,15 +7,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import ssl
 import base64
 import errno
+import ipaddress
 import logging
 import multiprocessing
 import os
-# import secrets
 import selectors
 import socket
+import ssl
 import tempfile
 import unittest
 from contextlib import closing
@@ -67,7 +67,6 @@ class TestTextBytes(unittest.TestCase):
 
 
 class TestTcpConnection(unittest.TestCase):
-
     class TcpConnectionToTest(proxy.TcpConnection):
 
         def __init__(self, conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None,
@@ -150,7 +149,42 @@ class TestTcpConnection(unittest.TestCase):
 
 class TestAcceptorPool(unittest.TestCase):
 
-    pass
+    @mock.patch('proxy.send_handle')
+    @mock.patch('multiprocessing.Pipe')
+    @mock.patch('socket.socket')
+    @mock.patch('proxy.Worker')
+    def test_setup(self,
+                   mock_worker: mock.Mock,
+                   mock_socket: mock.Mock,
+                   mock_pipe: mock.Mock,
+                   mock_send_handle: mock.Mock) -> None:
+        num_workers = 2
+        sock = mock_socket.return_value
+        work_klass = mock.MagicMock()
+        kwargs = {'config': proxy.ProtocolConfig()}
+        acceptor = proxy.AcceptorPool(
+            ipaddress.ip_address(proxy.DEFAULT_IPV6_HOSTNAME),
+            proxy.DEFAULT_PORT,
+            proxy.DEFAULT_BACKLOG,
+            num_workers,
+            work_klass=work_klass,
+            **kwargs
+        )
+        acceptor.setup()
+        mock_socket.assert_called_with(
+            socket.AF_INET6 if acceptor.hostname.version == 6 else socket.AF_INET,
+            socket.SOCK_STREAM
+        )
+        sock.setsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind.assert_called_with((str(acceptor.hostname), acceptor.port))
+        sock.listen.assert_called_with(acceptor.backlog)
+        sock.setblocking.assert_called_with(False)
+        sock.settimeout.assert_called_with(0)
+
+        self.assertTrue(mock_pipe.call_count, num_workers)
+        self.assertTrue(mock_worker.call_count, num_workers)
+
+        sock.close.assert_called()
 
 
 class TestWorker(unittest.TestCase):
