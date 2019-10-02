@@ -49,7 +49,7 @@ Table of Contents
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
     * [Sending a Pull Request](#sending-a-pull-request)
-* [Frequently Asked Questions]()
+* [Frequently Asked Questions](#frequently-asked-questions)
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
     * [Basic auth not working with a browser](#basic-auth-not-working-with-a-browser)
     * [Docker image not working on MacOS](#docker-image-not-working-on-macos)
@@ -552,10 +552,9 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
   [AcceptorPool](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L368-L421) 
   on start-up.  `Worker` processes receives `TcpClientConnection` over a pipe from `AcceptorPool`.
 
-- `AcceptorPool` implements [TcpServer](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L240-L302) 
-  abstract class. `TcpServer` accepts `TcpClientConnection`. `AcceptorPool` 
-  ensures full utilization of available CPU cores, for which it dispatches 
-  accepted `TcpClientConnection` to `Worker` processes in a round-robin fashion.
+- `AcceptorPool` listens on server socket and pass the handler to `Worker` processes.
+  Workers are responsible for accepting new client connections and starting
+  `ProtocolHandler` thread.
 
 ## Sending a Pull Request
 
