@@ -550,7 +550,7 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
 
 - `--num-workers` `Worker` processes are started by 
   [AcceptorPool](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L368-L421) 
-  on start-up.  `Worker` processes receives `TcpClientConnection` over a pipe from `AcceptorPool`.
+  on start-up.
 
 - `AcceptorPool` listens on server socket and pass the handler to `Worker` processes.
   Workers are responsible for accepting new client connections and starting
