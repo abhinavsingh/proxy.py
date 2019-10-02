@@ -4,6 +4,7 @@
 .pydevproject
 .settings
 .mypy_cache
+node_modules
 venv
 cover
 htmlcov
@@ -13,3 +14,4 @@ proxy.py.egg-info
 proxy.py.iml
 *.pyc
 *.pem
+benchmark.py

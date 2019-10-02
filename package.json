@@ -2,14 +2,13 @@
   "name": "proxy.py",
   "version": "1.0.0",
   "description": "Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.",
-  "main": "main.js",
+  "main": "proxy.js",
   "scripts": {
-    "start": "electron --inspect=5858 --enable-logging .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "devtools": "./proxy.js"
   },
   "author": "Abhinav Singh",
   "license": "BSD-3-Clause",
   "devDependencies": {
-    "electron": "^6.0.10"
+    "chrome-devtools-frontend": "^1.0.702145"
   }
 }
