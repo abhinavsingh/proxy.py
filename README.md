@@ -45,6 +45,7 @@ Table of Contents
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
+* [import proxy.py](#import-proxypy)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
@@ -506,6 +507,42 @@ cached file instead of plain text.
 Now use CA flags other 
 [plugin examples](#plugin-examples) to make them work for `https` traffic.
 
+import proxy.py
+===============
+
+You can directly import `proxy.py` into your `Python` code.  Example:
+
+```
+$ python
+>>> import proxy
+>>>
+>>> # Generate HTTP GET request
+>>> proxy.build_http_request(b'GET', b'/')
+b'GET / HTTP/1.1\r\n\r\n'
+>>>
+>>> # Generate HTTP GET request with headers
+>>> proxy.build_http_request(b'GET', b'/', 
+        headers={b'Connection': b'close'})
+b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
+>>>
+>>> # Generate HTTP POST request with headers and body
+>>> import json
+>>> proxy.build_http_request(b'POST', b'/form', 
+        headers={b'Content-type': b'application/json'}, 
+        body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
+    b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
+```
+
+To start `proxy.py` server from imported `proxy.py` module, simply do:
+
+```
+import sys
+import proxy
+
+if __name__ == '__main__':
+  proxy.main(sys.argv[1:])
+```
+
 Plugin Developer and Contributor Guide
 ======================================
 
@@ -605,6 +642,7 @@ It's a compatibility issue with `vpnkit`.
 See [moby/vpnkit exhausts docker resources](https://github.com/abhinavsingh/proxy.py/issues/43)
 and [Connection refused: The proxy could not connect](https://github.com/moby/vpnkit/issues/469)
 for some background.
+
 
 Flags
 =====

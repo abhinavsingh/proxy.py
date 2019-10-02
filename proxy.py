@@ -430,7 +430,7 @@ class ChunkParser:
             raw = self.chunk + raw
             self.chunk = b''
             # Extract following chunk data size
-            line, raw = HttpParser.find_line(raw)
+            line, raw = find_http_line(raw)
             # CRLF not received or Blank line was received.
             if line is None or line.strip() == b'':
                 self.chunk = raw
@@ -453,6 +453,62 @@ class ChunkParser:
                 self.chunk = b''
                 self.size = None
         return len(raw) > 0, raw
+
+
+def build_http_request(method: bytes, url: bytes,
+                       protocol_version: bytes = b'HTTP/1.1',
+                       headers: Optional[Dict[bytes, bytes]] = None,
+                       body: Optional[bytes] = None) -> bytes:
+    if headers is None:
+        headers = {}
+    return build_http_pkt(
+        [method, url, protocol_version], headers, body)
+
+
+def build_http_response(status_code: int,
+                        protocol_version: bytes = b'HTTP/1.1',
+                        reason: Optional[bytes] = None,
+                        headers: Optional[Dict[bytes, bytes]] = None,
+                        body: Optional[bytes] = None) -> bytes:
+    line = [protocol_version, bytes_(status_code)]
+    if reason:
+        line.append(reason)
+    if headers is None:
+        headers = {}
+    if body is not None and not any(
+            k.lower() == b'content-length' for k in headers):
+        headers[b'Content-Length'] = bytes_(len(body))
+    return build_http_pkt(line, headers, body)
+
+
+def build_http_header(k: bytes, v: bytes) -> bytes:
+    return k + COLON + WHITESPACE + v
+
+
+def build_http_pkt(line: List[bytes],
+                   headers: Optional[Dict[bytes, bytes]] = None,
+                   body: Optional[bytes] = None) -> bytes:
+    req = WHITESPACE.join(line) + CRLF
+    if headers is not None:
+        for k in headers:
+            req += build_http_header(k, headers[k]) + CRLF
+    req += CRLF
+    if body:
+        req += body
+    return req
+
+
+def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
+    """Finds first line of request ending in CRLF.
+
+    If no CRLF is found, line is None.
+    Also returns pending buffer after received line of request."""
+    pos = raw.find(CRLF)
+    if pos == -1:
+        return None, raw
+    line = raw[:pos]
+    rest = raw[pos + len(CRLF):]
+    return line, rest
 
 
 class HttpParser:
@@ -568,7 +624,7 @@ class HttpParser:
 
     def process(self, raw: bytes) -> Tuple[bool, bytes]:
         """Returns False when no CRLF could be found in received bytes."""
-        line, raw = HttpParser.find_line(raw)
+        line, raw = find_http_line(raw)
         if line is None:
             return False, raw
 
@@ -646,67 +702,12 @@ class HttpParser:
         assert self.method and self.version
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
-        return HttpParser.build_request(
+        return build_http_request(
             self.method, self.build_url(), self.version,
             headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
                                                  k.lower() not in disable_headers},
             body=self.body
         )
-
-    @staticmethod
-    def build_request(method: bytes, url: bytes, protocol_version: bytes,
-                      headers: Optional[Dict[bytes, bytes]] = None,
-                      body: Optional[bytes] = None) -> bytes:
-        if headers is None:
-            headers = {}
-        return HttpParser.build_pkt(
-            [method, url, protocol_version], headers, body)
-
-    @staticmethod
-    def build_response(status_code: int,
-                       protocol_version: bytes = b'HTTP/1.1',
-                       reason: Optional[bytes] = None,
-                       headers: Optional[Dict[bytes, bytes]] = None,
-                       body: Optional[bytes] = None) -> bytes:
-        line = [protocol_version, bytes_(status_code)]
-        if reason:
-            line.append(reason)
-        if headers is None:
-            headers = {}
-        if body is not None and not any(
-                k.lower() == b'content-length' for k in headers):
-            headers[b'Content-Length'] = bytes_(len(body))
-        return HttpParser.build_pkt(line, headers, body)
-
-    @staticmethod
-    def build_pkt(line: List[bytes],
-                  headers: Optional[Dict[bytes, bytes]] = None,
-                  body: Optional[bytes] = None) -> bytes:
-        req = WHITESPACE.join(line) + CRLF
-        if headers is not None:
-            for k in headers:
-                req += HttpParser.build_header(k, headers[k]) + CRLF
-        req += CRLF
-        if body:
-            req += body
-        return req
-
-    @staticmethod
-    def build_header(k: bytes, v: bytes) -> bytes:
-        return k + COLON + WHITESPACE + v
-
-    @staticmethod
-    def find_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
-        """Finds first line of request ending in CRLF.
-
-        If no CRLF is found, line is None.
-        Also returns pending buffer after received line of request."""
-        pos = raw.find(CRLF)
-        if pos == -1:
-            return None, raw
-        line = raw[:pos]
-        rest = raw[pos + len(CRLF):]
-        return line, rest
 
     ##########################################################################
     # HttpParser was originally written to parse the incoming raw Http requests.
@@ -883,7 +884,7 @@ class ProtocolHandlerPlugin(ABC):
 class ProxyConnectionFailed(ProtocolException):
     """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
 
-    RESPONSE_PKT = HttpParser.build_response(
+    RESPONSE_PKT = build_http_response(
         502, reason=b'Bad Gateway',
         headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'},
@@ -907,7 +908,7 @@ class ProxyAuthenticationFailed(ProtocolException):
     """Exception raised when Http Proxy auth is enabled and
     incoming request doesn't present necessary credentials."""
 
-    RESPONSE_PKT = HttpParser.build_response(
+    RESPONSE_PKT = build_http_response(
         407, reason=b'Proxy Authentication Required',
         headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close',
@@ -968,7 +969,7 @@ class HttpProxyBasePlugin(ABC):
 class HttpProxyPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which implements HttpProxy specifications."""
 
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = HttpParser.build_response(
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = build_http_response(
         200, reason=b'Connection established'
     )
 
@@ -1278,7 +1279,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
                     content = f.read()
             except IOError:
                 content = bytes_(self.config.pac_file)
-            self.pac_file_response = HttpParser.build_response(
+            self.pac_file_response = build_http_response(
                 200, reason=b'OK', headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
                     b'Connection': b'close'
@@ -1342,10 +1343,9 @@ class Websocket:
     def build_handshake_request(
             key: bytes,
             method: bytes = b'GET',
-            url: bytes = b'/',
-            protocol_version: bytes = b'HTTP/1.1') -> bytes:
-        return HttpParser.build_request(
-            method, url, protocol_version,
+            url: bytes = b'/') -> bytes:
+        return build_http_request(
+            method, url,
             headers={
                 b'Connection': b'upgrade',
                 b'Upgrade': b'websocket',
@@ -1356,7 +1356,7 @@ class Websocket:
 
     @staticmethod
     def build_handshake_response(accept: bytes) -> bytes:
-        return HttpParser.build_response(
+        return build_http_response(
             101, reason=b'Switching Protocols',
             headers={
                 b'Upgrade': b'websocket',
@@ -1389,13 +1389,13 @@ class Websocket:
 class HttpWebServerPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which handles incoming requests to local web server."""
 
-    DEFAULT_404_RESPONSE = HttpParser.build_response(
+    DEFAULT_404_RESPONSE = build_http_response(
         404, reason=b'NOT FOUND',
         headers={b'Server': PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'}
     )
 
-    DEFAULT_501_RESPONSE = HttpParser.build_response(
+    DEFAULT_501_RESPONSE = build_http_response(
         501, reason=b'NOT IMPLEMENTED',
         headers={b'Server': PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'}
@@ -1585,7 +1585,7 @@ class ProtocolHandler(threading.Thread):
 
     def send_server_error(self, e: Exception) -> None:
         logger.exception('Server error', exc_info=e)
-        self.client.queue(HttpParser.build_response(
+        self.client.queue(build_http_response(
             500, b'Server Error'
         ))
         self.client.flush()

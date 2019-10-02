@@ -320,24 +320,24 @@ class TestHttpParser(unittest.TestCase):
 
     def test_build_request(self) -> None:
         self.assertEqual(
-            proxy.HttpParser.build_request(
+            proxy.build_http_request(
                 b'GET', b'http://localhost:12345', b'HTTP/1.1'),
             proxy.CRLF.join([
                 b'GET http://localhost:12345 HTTP/1.1',
                 proxy.CRLF
             ]))
         self.assertEqual(
-            proxy.HttpParser.build_request(b'GET', b'http://localhost:12345', b'HTTP/1.1',
-                                           headers={b'key': b'value'}),
+            proxy.build_http_request(b'GET', b'http://localhost:12345', b'HTTP/1.1',
+                                     headers={b'key': b'value'}),
             proxy.CRLF.join([
                 b'GET http://localhost:12345 HTTP/1.1',
                 b'key: value',
                 proxy.CRLF
             ]))
         self.assertEqual(
-            proxy.HttpParser.build_request(b'GET', b'http://localhost:12345', b'HTTP/1.1',
-                                           headers={b'key': b'value'},
-                                           body=b'Hello from proxy.py'),
+            proxy.build_http_request(b'GET', b'http://localhost:12345', b'HTTP/1.1',
+                                     headers={b'key': b'value'},
+                                     body=b'Hello from proxy.py'),
             proxy.CRLF.join([
                 b'GET http://localhost:12345 HTTP/1.1',
                 b'key: value',
@@ -346,15 +346,15 @@ class TestHttpParser(unittest.TestCase):
 
     def test_build_response(self) -> None:
         self.assertEqual(
-            proxy.HttpParser.build_response(
+            proxy.build_http_response(
                 200, reason=b'OK', protocol_version=b'HTTP/1.1'),
             proxy.CRLF.join([
                 b'HTTP/1.1 200 OK',
                 proxy.CRLF
             ]))
         self.assertEqual(
-            proxy.HttpParser.build_response(200, reason=b'OK', protocol_version=b'HTTP/1.1',
-                                            headers={b'key': b'value'}),
+            proxy.build_http_response(200, reason=b'OK', protocol_version=b'HTTP/1.1',
+                                      headers={b'key': b'value'}),
             proxy.CRLF.join([
                 b'HTTP/1.1 200 OK',
                 b'key: value',
@@ -364,9 +364,9 @@ class TestHttpParser(unittest.TestCase):
     def test_build_response_adds_content_length_header(self) -> None:
         body = b'Hello world!!!'
         self.assertEqual(
-            proxy.HttpParser.build_response(200, reason=b'OK', protocol_version=b'HTTP/1.1',
-                                            headers={b'key': b'value'},
-                                            body=body),
+            proxy.build_http_response(200, reason=b'OK', protocol_version=b'HTTP/1.1',
+                                      headers={b'key': b'value'},
+                                      body=body),
             proxy.CRLF.join([
                 b'HTTP/1.1 200 OK',
                 b'key: value',
@@ -376,19 +376,19 @@ class TestHttpParser(unittest.TestCase):
 
     def test_build_header(self) -> None:
         self.assertEqual(
-            proxy.HttpParser.build_header(
+            proxy.build_http_header(
                 b'key', b'value'), b'key: value')
 
     def test_find_line(self) -> None:
         self.assertEqual(
-            proxy.HttpParser.find_line(
+            proxy.find_http_line(
                 b'CONNECT python.org:443 HTTP/1.0\r\n\r\n'),
             (b'CONNECT python.org:443 HTTP/1.0',
              proxy.CRLF))
 
     def test_find_line_returns_None(self) -> None:
         self.assertEqual(
-            proxy.HttpParser.find_line(b'CONNECT python.org:443 HTTP/1.0'),
+            proxy.find_http_line(b'CONNECT python.org:443 HTTP/1.0'),
             (None,
              b'CONNECT python.org:443 HTTP/1.0'))
 
@@ -1047,7 +1047,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             self.proxy.request.state,
             proxy.httpParserStates.COMPLETE)
         with open('proxy.pac', 'rb') as f:
-            self._conn.send.called_once_with(proxy.HttpParser.build_response(
+            self._conn.send.called_once_with(proxy.build_http_response(
                 200, reason=b'OK', headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
                     b'Connection': b'close'
@@ -1066,7 +1066,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.assertEqual(
             self.proxy.request.state,
             proxy.httpParserStates.COMPLETE)
-        self._conn.send.called_once_with(proxy.HttpParser.build_response(
+        self._conn.send.called_once_with(proxy.build_http_response(
             200, reason=b'OK', headers={
                 b'Content-Type': b'application/x-ns-proxy-autoconfig',
                 b'Connection': b'close'
