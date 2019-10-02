@@ -4,7 +4,7 @@
   "description": "Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "electron --inspect=5858 --enable-logging .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Abhinav Singh",
