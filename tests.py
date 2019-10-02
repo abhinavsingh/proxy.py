@@ -11,7 +11,7 @@ import ssl
 import base64
 import errno
 import logging
-# import multiprocessing
+import multiprocessing
 import os
 # import secrets
 import selectors
@@ -27,8 +27,7 @@ from unittest import mock
 import proxy
 
 if os.name != 'nt':
-    # import resource
-    pass
+    import resource
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -44,6 +43,27 @@ def get_available_port() -> int:
         sock.bind(('', 0))
         _, port = sock.getsockname()
         return int(port)
+
+
+class TestTextBytes(unittest.TestCase):
+
+    def test_text(self) -> None:
+        self.assertEqual(proxy.text_(b'hello'), 'hello')
+
+    def test_text_int(self) -> None:
+        self.assertEqual(proxy.text_(1), '1')
+
+    def test_text_nochange(self) -> None:
+        self.assertEqual(proxy.text_('hello'), 'hello')
+
+    def test_bytes(self) -> None:
+        self.assertEqual(proxy.bytes_('hello'), b'hello')
+
+    def test_bytes_int(self) -> None:
+        self.assertEqual(proxy.bytes_(1), b'1')
+
+    def test_bytes_nochange(self) -> None:
+        self.assertEqual(proxy.bytes_(b'hello'), b'hello')
 
 
 class TestTcpConnection(unittest.TestCase):
@@ -1140,28 +1160,94 @@ class TestHttpRequestRejected(unittest.TestCase):
         ]))
 
 
-'''
 class TestMain(unittest.TestCase):
 
+    @mock.patch('time.sleep')
+    @mock.patch('proxy.load_plugins')
+    @mock.patch('proxy.init_parser')
     @mock.patch('proxy.set_open_file_limit')
+    @mock.patch('proxy.ProtocolConfig')
     @mock.patch('proxy.AcceptorPool')
     @mock.patch('proxy.logging.basicConfig')
-    def test_log_file_setup(
+    def test_init_with_no_arguments(
             self,
-            mock_config: mock.Mock,
-            mock_multicore_dispatcher: mock.Mock,
-            mock_set_open_file_limit: mock.Mock) -> None:
-        log_file = get_temp_file('proxy.log')
-        proxy.main(['--log-file', log_file])
-        mock_set_open_file_limit.assert_called()
-        mock_multicore_dispatcher.assert_called()
-        mock_multicore_dispatcher.return_value.run.assert_called()
-        mock_config.assert_called_with(
-            filename=log_file,
-            filemode='a',
+            mock_logging_config: mock.Mock,
+            mock_acceptor_pool: mock.Mock,
+            mock_protocol_config: mock.Mock,
+            mock_set_open_file_limit: mock.Mock,
+            mock_init_parser: mock.Mock,
+            mock_load_plugins: mock.Mock,
+            mock_sleep: mock.Mock) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
+
+        mock_args = mock_init_parser.return_value.parse_args.return_value
+
+        mock_args.version = False
+        mock_args.cert_file = proxy.DEFAULT_CERT_FILE
+        mock_args.key_file = proxy.DEFAULT_KEY_FILE
+        mock_args.ca_key_file = proxy.DEFAULT_CA_KEY_FILE
+        mock_args.ca_cert_file = proxy.DEFAULT_CA_CERT_FILE
+        mock_args.ca_signing_key_file = proxy.DEFAULT_CA_SIGNING_KEY_FILE
+        mock_args.pid_file = proxy.DEFAULT_PID_FILE
+        mock_args.log_file = proxy.DEFAULT_LOG_FILE
+        mock_args.log_level = proxy.DEFAULT_LOG_LEVEL
+        mock_args.log_format = proxy.DEFAULT_LOG_FORMAT
+        mock_args.basic_auth = proxy.DEFAULT_BASIC_AUTH
+        mock_args.hostname = proxy.DEFAULT_IPV6_HOSTNAME
+        mock_args.port = proxy.DEFAULT_PORT
+        mock_args.num_workers = proxy.DEFAULT_NUM_WORKERS
+        mock_args.disable_http_proxy = proxy.DEFAULT_DISABLE_HTTP_PROXY
+        mock_args.enable_web_server = proxy.DEFAULT_ENABLE_WEB_SERVER
+        mock_args.pac_file = proxy.DEFAULT_PAC_FILE
+        mock_args.plugins = proxy.DEFAULT_PLUGINS
+        mock_args.server_recvbuf_size = proxy.DEFAULT_SERVER_RECVBUF_SIZE
+        mock_args.client_recvbuf_size = proxy.DEFAULT_CLIENT_RECVBUF_SIZE
+        mock_args.open_file_limit = proxy.DEFAULT_OPEN_FILE_LIMIT
+
+        proxy.main([])
+
+        mock_init_parser.assert_called()
+        mock_init_parser.return_value.parse_args.called_with([])
+
+        mock_load_plugins.assert_called_with(b'proxy.HttpProxyPlugin,')
+        mock_logging_config.assert_called_with(
             level=logging.INFO,
             format=proxy.DEFAULT_LOG_FORMAT
         )
+        mock_set_open_file_limit.assert_called_with(mock_args.open_file_limit)
+
+        mock_protocol_config.assert_called_with(
+            auth_code=mock_args.basic_auth,
+            backlog=mock_args.backlog,
+            ca_cert_dir=mock_args.ca_cert_dir,
+            ca_cert_file=mock_args.ca_cert_file,
+            ca_key_file=mock_args.ca_key_file,
+            ca_signing_key_file=mock_args.ca_signing_key_file,
+            certfile=mock_args.cert_file,
+            client_recvbuf_size=mock_args.client_recvbuf_size,
+            hostname=mock_args.hostname,
+            keyfile=mock_args.key_file,
+            num_workers=multiprocessing.cpu_count(),
+            pac_file=mock_args.pac_file,
+            pac_file_url_path=mock_args.pac_file_url_path,
+            port=mock_args.port,
+            server_recvbuf_size=mock_args.server_recvbuf_size,
+            disable_headers=[
+                header.lower() for header in proxy.bytes_(
+                    mock_args.disable_headers).split(proxy.COMMA) if header.strip() != b''],
+        )
+
+        mock_acceptor_pool.assert_called_with(
+            hostname=mock_protocol_config.return_value.hostname,
+            port=mock_protocol_config.return_value.port,
+            backlog=mock_protocol_config.return_value.backlog,
+            num_workers=mock_protocol_config.return_value.num_workers,
+            work_klass=proxy.ProtocolHandler,
+            config=mock_protocol_config.return_value,
+        )
+        mock_acceptor_pool.return_value.setup.assert_called()
+        mock_acceptor_pool.return_value.shutdown.assert_called()
+        mock_sleep.assert_called_with(1)
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -1287,24 +1373,6 @@ class TestMain(unittest.TestCase):
         mock_set_open_file_limit.assert_not_called()
         mock_config.assert_not_called()
 
-    def test_text(self) -> None:
-        self.assertEqual(proxy.text_(b'hello'), 'hello')
-
-    def test_text_int(self) -> None:
-        self.assertEqual(proxy.text_(1), '1')
-
-    def test_text_nochange(self) -> None:
-        self.assertEqual(proxy.text_('hello'), 'hello')
-
-    def test_bytes(self) -> None:
-        self.assertEqual(proxy.bytes_('hello'), b'hello')
-
-    def test_bytes_int(self) -> None:
-        self.assertEqual(proxy.bytes_(1), b'1')
-
-    def test_bytes_nochange(self) -> None:
-        self.assertEqual(proxy.bytes_(b'hello'), b'hello')
-
     @unittest.skipIf(
         os.name == 'nt',
         'Open file limit tests disabled for Windows')
@@ -1337,7 +1405,7 @@ class TestMain(unittest.TestCase):
         proxy.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
-'''
+
 
 if __name__ == '__main__':
     proxy.UNDER_TEST = True

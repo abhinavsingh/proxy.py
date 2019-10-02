@@ -54,12 +54,18 @@ logger = logging.getLogger(__name__)
 # Defaults
 DEFAULT_BACKLOG = 100
 DEFAULT_BASIC_AUTH = None
+DEFAULT_CA_KEY_FILE = None
+DEFAULT_CA_CERT_DIR = None
+DEFAULT_CA_CERT_FILE = None
+DEFAULT_CA_SIGNING_KEY_FILE = None
+DEFAULT_CERT_FILE = None
 DEFAULT_BUFFER_SIZE = 1024 * 1024
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
+DEFAULT_KEY_FILE = None
 DEFAULT_PORT = 8899
 DEFAULT_DISABLE_HTTP_PROXY = False
 DEFAULT_ENABLE_WEB_SERVER = False
@@ -69,7 +75,7 @@ DEFAULT_PAC_FILE = None
 DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_PID_FILE = None
 DEFAULT_NUM_WORKERS = 0
-DEFAULT_PLUGINS = ''
+DEFAULT_PLUGINS = ''    # Comma separated list of plugins
 DEFAULT_VERSION = False
 DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_FILE = None
@@ -156,7 +162,7 @@ httpProtocolTypes = HttpProtocolTypes(1, 2, 3)
 
 class _HasFileno(Protocol):
     def fileno(self) -> int:
-        ...
+        ...     # pragma: no cover
 
 
 class TcpConnectionUninitializedException(Exception):
@@ -175,7 +181,7 @@ class TcpConnection(ABC):
     @abstractmethod
     def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
         """Must return the socket connection to use in this class."""
-        raise TcpConnectionUninitializedException()
+        raise TcpConnectionUninitializedException()     # pragma: no cover
 
     def send(self, data: bytes) -> int:
         """Users must handle BrokenPipeError exceptions"""
@@ -335,7 +341,7 @@ class AcceptorPool:
         for worker in self.workers:
             worker.join()
 
-    def start(self) -> None:
+    def setup(self) -> None:
         """Listen on port, setup workers and pass server socket to workers."""
         self.running = True
         self.listen()
@@ -1849,35 +1855,35 @@ def init_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--ca-key-file',
         type=str,
-        default=None,
+        default=DEFAULT_CA_KEY_FILE,
         help='Default: None. CA key to use for signing dynamically generated '
              'HTTPS certificates.  If used, must also pass --ca-cert-file and --ca-signing-key-file'
     )
     parser.add_argument(
         '--ca-cert-dir',
         type=str,
-        default=None,
+        default=DEFAULT_CA_CERT_DIR,
         help='Default: ~/.proxy.py. Directory to store dynamically generated certificates. '
              'Also see --ca-key-file, --ca-cert-file and --ca-signing-key-file'
     )
     parser.add_argument(
         '--ca-cert-file',
         type=str,
-        default=None,
+        default=DEFAULT_CA_CERT_FILE,
         help='Default: None. Signing certificate to use for signing dynamically generated '
              'HTTPS certificates.  If used, must also pass --ca-key-file and --ca-signing-key-file'
     )
     parser.add_argument(
         '--ca-signing-key-file',
         type=str,
-        default=None,
+        default=DEFAULT_CA_SIGNING_KEY_FILE,
         help='Default: None. CA signing key to use for dynamic generation of '
              'HTTPS certificates.  If used, must also pass --ca-key-file and --ca-cert-file'
     )
     parser.add_argument(
         '--cert-file',
         type=str,
-        default=None,
+        default=DEFAULT_CERT_FILE,
         help='Default: None. Server certificate to enable end-to-end TLS encryption with clients. '
              'If used, must also pass --key-file.'
     )
@@ -1912,7 +1918,7 @@ def init_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--key-file',
         type=str,
-        default=None,
+        default=DEFAULT_KEY_FILE,
         help='Default: None. Server key file to enable end-to-end TLS encryption with clients. '
              'If used, must also pass --cert-file.'
     )
@@ -2008,6 +2014,14 @@ def main(input_args: List[str]) -> None:
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
+        default_plugins = ''
+        if not args.disable_http_proxy:
+            default_plugins += 'proxy.HttpProxyPlugin,'
+        if args.enable_web_server or args.pac_file is not None:
+            default_plugins += 'proxy.HttpWebServerPlugin,'
+        if args.pac_file is not None:
+            default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
+
         config = ProtocolConfig(
             auth_code=auth_code,
             server_recvbuf_size=args.server_recvbuf_size,
@@ -2028,20 +2042,12 @@ def main(input_args: List[str]) -> None:
             backlog=args.backlog,
             num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count())
 
-        default_plugins = ''
-        if not args.disable_http_proxy:
-            default_plugins += 'proxy.HttpProxyPlugin,'
-        if args.enable_web_server or config.pac_file is not None:
-            default_plugins += 'proxy.HttpWebServerPlugin,'
-        if config.pac_file is not None:
-            default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
-
         config.plugins = load_plugins(
             bytes_(
                 '%s%s' %
                 (default_plugins, args.plugins)))
 
-        workers = AcceptorPool(
+        acceptor_pool = AcceptorPool(
             hostname=config.hostname,
             port=config.port,
             backlog=config.backlog,
@@ -2051,13 +2057,13 @@ def main(input_args: List[str]) -> None:
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
-        workers.start()
+        acceptor_pool.setup()
 
         try:
             while True:
                 time.sleep(1)
         finally:
-            workers.shutdown()
+            acceptor_pool.shutdown()
     except KeyboardInterrupt:  # pragma: no cover
         pass
     finally:
