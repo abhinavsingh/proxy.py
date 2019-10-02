@@ -38,14 +38,13 @@ release: package
 	twine upload dist/*
 
 coverage:
-	coverage3 run tests.py
+	coverage3 run --source=proxy tests.py
 	coverage3 html
 	open htmlcov/index.html
 
 lint:
+	flake8 --ignore=W504 --max-line-length=127 proxy.py tests.py
 	mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py
-	flake8 --ignore=E501,W504 proxy.py
-	flake8 --ignore=E501,W504 tests.py
 
 autopep8:
 	autopep8 --recursive --in-place --aggressive proxy.py

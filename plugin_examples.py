@@ -3,7 +3,7 @@
     ~~~~~~~~
     Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
 
-    :copyright: (c) 2013-present by Abhinav Singh.
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
 import json
@@ -19,7 +19,7 @@ import proxy
 @proxy.route(b'/hello-world')
 def hello_world(_request: proxy.HttpParser) -> bytes:
     """A HttpWebServerRoutePlugin plugin for inbuilt web server."""
-    return proxy.HttpParser.build_response(200, body=b'Hello World')
+    return proxy.build_http_response(200, body=b'Hello World')
 
 
 class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
@@ -59,14 +59,14 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
         before connecting to upstream server."""
         if self.request.host == self.API_SERVER and self.request.url:
             if self.request.url.path in self.REST_API_SPEC:
-                self.client.send(proxy.HttpParser.build_response(
+                self.client.send(proxy.build_http_response(
                     200, reason=b'OK',
                     headers={b'Content-Type': b'application/json'},
                     body=proxy.bytes_(json.dumps(
                         self.REST_API_SPEC[self.request.url.path]))
                 ))
             else:
-                self.client.send(proxy.HttpParser.build_response(
+                self.client.send(proxy.build_http_response(
                     404, reason=b'NOT FOUND', body=b'Not Found'
                 ))
             return True
@@ -166,7 +166,7 @@ class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
         pass
 
     def handle_upstream_response(self, raw: bytes) -> bytes:
-        return proxy.HttpParser.build_response(
+        return proxy.build_http_response(
             200, reason=b'OK', body=b'Hello from man in the middle')
 
     def on_upstream_connection_close(self) -> None:

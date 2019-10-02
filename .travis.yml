@@ -21,6 +21,6 @@ matrix:
         - TESTING_ON_TRAVIS=1
 install:
   - pip3 install -r requirements-testing.txt
-script: python3 -m coverage run tests.py || python -m coverage run tests.py
+script: python3 -m coverage run --source=proxy tests.py || python -m coverage run --source=proxy tests.py
 after_success:
   - coveralls
