@@ -49,6 +49,7 @@ Table of Contents
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
+    * [Internal Documentation](#internal-documentation)
     * [Sending a Pull Request](#sending-a-pull-request)
 * [Frequently Asked Questions](#frequently-asked-questions)
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
@@ -546,62 +547,6 @@ if __name__ == '__main__':
 Plugin Developer and Contributor Guide
 ======================================
 
-## pydoc
-
-Browse through internal class hierarchy and documentation using `pydoc3`.
-Example:
-
-```
-$ pydoc3 proxy
-Help on module proxy:
-
-NAME
-    proxy
-
-DESCRIPTION
-    proxy.py
-    ~~~~~~~~
-    Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
-    
-    :copyright: (c) 2013-present by Abhinav Singh and contributors.
-    :license: BSD, see LICENSE for more details.
-
-CLASSES
-    abc.ABC(builtins.object)
-        HttpProxyBasePlugin
-        HttpWebServerRoutePlugin
-            HttpWebServerPacFilePlugin
-        ProtocolHandlerPlugin
-            HttpProxyPlugin
-            HttpWebServerPlugin
-        TcpConnection
-            TcpClientConnection
-            TcpServerConnection
-    builtins.Exception(builtins.BaseException)
-        ProtocolException
-            HttpRequestRejected
-            ProxyAuthenticationFailed
-            ProxyConnectionFailed
-        TcpConnectionUninitializedException
-    builtins.object
-        AcceptorPool
-        ChunkParser
-        HttpParser
-        ProtocolConfig
-        Websocket
-        WebsocketFrame
-    builtins.tuple(builtins.object)
-        ChunkParserStates
-        HttpParserStates
-        HttpParserTypes
-        HttpProtocolTypes
-        TcpConnectionTypes
-    multiprocessing.context.Process(multiprocessing.process.BaseProcess)
-        Worker
-    threading.Thread(builtins.object)
-        ProtocolHandler
-```
-
 ## Everything is a plugin
 
 As you might have guessed by now, in `proxy.py` everything is a plugin.
@@ -668,6 +613,63 @@ Every pull request goes through set of tests which must pass:
   `autopep8` is run with `--aggresive` flag.  Sometimes it _may_ result in
   weird formatting.  But let's stick to one consistent formatting tool.
   I am open to flag changes for `autopep8`.
+
+## Internal Documentation
+
+Browse through internal class hierarchy and documentation using `pydoc3`.
+Example:
+
+```
+$ pydoc3 proxy
+Help on module proxy:
+
+NAME
+    proxy
+
+DESCRIPTION
+    proxy.py
+    ~~~~~~~~
+    Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
+    
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
+
+CLASSES
+    abc.ABC(builtins.object)
+        HttpProxyBasePlugin
+        HttpWebServerRoutePlugin
+            HttpWebServerPacFilePlugin
+        ProtocolHandlerPlugin
+            HttpProxyPlugin
+            HttpWebServerPlugin
+        TcpConnection
+            TcpClientConnection
+            TcpServerConnection
+    builtins.Exception(builtins.BaseException)
+        ProtocolException
+            HttpRequestRejected
+            ProxyAuthenticationFailed
+            ProxyConnectionFailed
+        TcpConnectionUninitializedException
+    builtins.object
+        AcceptorPool
+        ChunkParser
+        HttpParser
+        ProtocolConfig
+        Websocket
+        WebsocketFrame
+    builtins.tuple(builtins.object)
+        ChunkParserStates
+        HttpParserStates
+        HttpParserTypes
+        HttpProtocolTypes
+        TcpConnectionTypes
+    multiprocessing.context.Process(multiprocessing.process.BaseProcess)
+        Worker
+    threading.Thread(builtins.object)
+        ProtocolHandler
+... [ truncated ] ...
+```
 
 Frequently Asked Questions
 ==========================
