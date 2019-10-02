@@ -5,6 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    name: Python ${{ matrix.python }}
     strategy:
       matrix:
         os: [macOS-latest, ubuntu-latest, windows-latest]
@@ -13,7 +14,7 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python }}
@@ -25,9 +26,9 @@ jobs:
       - name: Quality Check
         run: |
           # The GitHub editor is 127 chars wide
+          # W504 screams for line break after binary operators
           flake8 --ignore=W504 --max-line-length=127 proxy.py tests.py
           # mypy compliance check
           mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py
       - name: Run Tests
-        run: |
-          pytest tests.py
+        run: pytest tests.py
