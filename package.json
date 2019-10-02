@@ -1,14 +1,24 @@
 {
   "name": "proxy.py",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.",
   "main": "proxy.js",
   "scripts": {
-    "devtools": "./proxy.js"
+    "start": "node proxy.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abhinavsingh/proxy.py.git"
   },
   "author": "Abhinav Singh",
   "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/abhinavsingh/proxy.py/issues"
+  },
+  "homepage": "https://github.com/abhinavsingh/proxy.py#readme",
   "devDependencies": {
-    "chrome-devtools-frontend": "^1.0.702145"
+    "chrome-devtools-frontend": "^1.0.702145",
+    "ncp": "^2.0.0"
   }
 }
