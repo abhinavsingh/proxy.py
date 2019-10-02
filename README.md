@@ -712,8 +712,11 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--ca-cert-file CA_CERT_FILE]
                 [--ca-signing-key-file CA_SIGNING_KEY_FILE]
                 [--cert-file CERT_FILE]
+                [--chrome-remote-debugging-host CHROME_REMOTE_DEBUGGING_HOST]
+                [--chrome-remote-debugging-port CHROME_REMOTE_DEBUGGING_PORT]
                 [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
                 [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
+                [--enable-devtools] [--enable-static-server]
                 [--enable-web-server] [--hostname HOSTNAME]
                 [--key-file KEY_FILE] [--log-level LOG_LEVEL]
                 [--log-file LOG_FILE] [--log-format LOG_FORMAT]
@@ -721,9 +724,10 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
                 [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
                 [--plugins PLUGINS] [--port PORT]
-                [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--version]
+                [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+                [--static-server-dir STATIC_SERVER_DIR] [--version]
 
-proxy.py v1.0.0
+proxy.py v1.0.1
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -752,6 +756,12 @@ optional arguments:
                         Default: None. Server certificate to enable end-to-end
                         TLS encryption with clients. If used, must also pass
                         --key-file.
+  --chrome-remote-debugging-host CHROME_REMOTE_DEBUGGING_HOST
+                        Default: 127.0.0.1. Only applicable if devtools
+                        integration is enabled. See --enable-devtools.
+  --chrome-remote-debugging-port CHROME_REMOTE_DEBUGGING_PORT
+                        Default: 9222. Only applicable if devtools integration
+                        is enabled. See --enable-devtools.
   --client-recvbuf-size CLIENT_RECVBUF_SIZE
                         Default: 1 MB. Maximum amount of data received from
                         the client in a single recv() operation. Bump this
@@ -763,6 +773,16 @@ optional arguments:
                         server.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
+  --enable-devtools     Default: False. Enables integration with Chrome
+                        Devtools. To use this option, you must first start
+                        Chrome with --remote-debugging-port flag. Then start
+                        proxy.py optionally with --chrome-remote-debugging-
+                        host and --chrome-remote-debugging-port.
+  --enable-static-server
+                        Default: False. Enable inbuilt static file server.
+                        Optionally, also use --static-server-dir to serve
+                        static content from custom directory. By default,
+                        static file server serves from public folder.
   --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
   --hostname HOSTNAME   Default: ::1. Server IP address.
@@ -795,6 +815,11 @@ optional arguments:
                         the server in a single recv() operation. Bump this
                         value for faster downloads at the expense of increased
                         RAM.
+  --static-server-dir STATIC_SERVER_DIR
+                        Default: /Users/abhinav/Dev/proxy.py/public. Static
+                        server root directory. This option is only applicable
+                        when static server is also enabled. See --enable-
+                        static-server.
   --version, -v         Prints proxy.py version.
 
 Proxy.py not working? Report at:

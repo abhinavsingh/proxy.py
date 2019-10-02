@@ -17,6 +17,7 @@ import importlib
 import inspect
 import ipaddress
 import logging
+import mimetypes
 import multiprocessing
 import os
 import pathlib
@@ -50,6 +51,7 @@ __download_url__ = '%s/archive/master.zip' % __homepage__
 __license__ = 'BSD'
 
 logger = logging.getLogger(__name__)
+PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # Defaults
 DEFAULT_BACKLOG = 100
@@ -60,6 +62,7 @@ DEFAULT_CA_CERT_FILE = None
 DEFAULT_CA_SIGNING_KEY_FILE = None
 DEFAULT_CERT_FILE = None
 DEFAULT_BUFFER_SIZE = 1024 * 1024
+DEFAULT_CHROME_REMOTE_DEBUGGING_PORT = 9222
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
@@ -68,6 +71,8 @@ DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_KEY_FILE = None
 DEFAULT_PORT = 8899
 DEFAULT_DISABLE_HTTP_PROXY = False
+DEFAULT_ENABLE_DEVTOOLS = False
+DEFAULT_ENABLE_STATIC_SERVER = False
 DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_OPEN_FILE_LIMIT = 1024
@@ -76,6 +81,7 @@ DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_PID_FILE = None
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_PLUGINS = ''    # Comma separated list of plugins
+DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
 DEFAULT_VERSION = False
 DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_FILE = None
@@ -158,6 +164,62 @@ HttpProtocolTypes = NamedTuple('HttpProtocolTypes', [
     ('WEBSOCKET', int),
 ])
 httpProtocolTypes = HttpProtocolTypes(1, 2, 3)
+
+
+def build_http_request(method: bytes, url: bytes,
+                       protocol_version: bytes = b'HTTP/1.1',
+                       headers: Optional[Dict[bytes, bytes]] = None,
+                       body: Optional[bytes] = None) -> bytes:
+    if headers is None:
+        headers = {}
+    return build_http_pkt(
+        [method, url, protocol_version], headers, body)
+
+
+def build_http_response(status_code: int,
+                        protocol_version: bytes = b'HTTP/1.1',
+                        reason: Optional[bytes] = None,
+                        headers: Optional[Dict[bytes, bytes]] = None,
+                        body: Optional[bytes] = None) -> bytes:
+    line = [protocol_version, bytes_(status_code)]
+    if reason:
+        line.append(reason)
+    if headers is None:
+        headers = {}
+    if body is not None and not any(
+            k.lower() == b'content-length' for k in headers):
+        headers[b'Content-Length'] = bytes_(len(body))
+    return build_http_pkt(line, headers, body)
+
+
+def build_http_header(k: bytes, v: bytes) -> bytes:
+    return k + COLON + WHITESPACE + v
+
+
+def build_http_pkt(line: List[bytes],
+                   headers: Optional[Dict[bytes, bytes]] = None,
+                   body: Optional[bytes] = None) -> bytes:
+    req = WHITESPACE.join(line) + CRLF
+    if headers is not None:
+        for k in headers:
+            req += build_http_header(k, headers[k]) + CRLF
+    req += CRLF
+    if body:
+        req += body
+    return req
+
+
+def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
+    """Finds first line of request ending in CRLF.
+
+    If no CRLF is found, line is None.
+    Also returns pending buffer after received line of request."""
+    pos = raw.find(CRLF)
+    if pos == -1:
+        return None, raw
+    line = raw[:pos]
+    rest = raw[pos + len(CRLF):]
+    return line, rest
 
 
 class _HasFileno(Protocol):
@@ -455,62 +517,6 @@ class ChunkParser:
         return len(raw) > 0, raw
 
 
-def build_http_request(method: bytes, url: bytes,
-                       protocol_version: bytes = b'HTTP/1.1',
-                       headers: Optional[Dict[bytes, bytes]] = None,
-                       body: Optional[bytes] = None) -> bytes:
-    if headers is None:
-        headers = {}
-    return build_http_pkt(
-        [method, url, protocol_version], headers, body)
-
-
-def build_http_response(status_code: int,
-                        protocol_version: bytes = b'HTTP/1.1',
-                        reason: Optional[bytes] = None,
-                        headers: Optional[Dict[bytes, bytes]] = None,
-                        body: Optional[bytes] = None) -> bytes:
-    line = [protocol_version, bytes_(status_code)]
-    if reason:
-        line.append(reason)
-    if headers is None:
-        headers = {}
-    if body is not None and not any(
-            k.lower() == b'content-length' for k in headers):
-        headers[b'Content-Length'] = bytes_(len(body))
-    return build_http_pkt(line, headers, body)
-
-
-def build_http_header(k: bytes, v: bytes) -> bytes:
-    return k + COLON + WHITESPACE + v
-
-
-def build_http_pkt(line: List[bytes],
-                   headers: Optional[Dict[bytes, bytes]] = None,
-                   body: Optional[bytes] = None) -> bytes:
-    req = WHITESPACE.join(line) + CRLF
-    if headers is not None:
-        for k in headers:
-            req += build_http_header(k, headers[k]) + CRLF
-    req += CRLF
-    if body:
-        req += body
-    return req
-
-
-def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
-    """Finds first line of request ending in CRLF.
-
-    If no CRLF is found, line is None.
-    Also returns pending buffer after received line of request."""
-    pos = raw.find(CRLF)
-    if pos == -1:
-        return None, raw
-    line = raw[:pos]
-    rest = raw[pos + len(CRLF):]
-    return line, rest
-
-
 class HttpParser:
     """HTTP request/response parser."""
 
@@ -791,7 +797,12 @@ class ProtocolConfig:
             hostname: Union[ipaddress.IPv4Address,
                             ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
             port: int = DEFAULT_PORT,
-            backlog: int = DEFAULT_BACKLOG) -> None:
+            backlog: int = DEFAULT_BACKLOG,
+            static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
+            enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
+            chrome_remote_debugging_host: Union[ipaddress.IPv4Address,
+                                                ipaddress.IPv6Address] = DEFAULT_IPV4_HOSTNAME,
+            chrome_remote_debugging_port: int = DEFAULT_CHROME_REMOTE_DEBUGGING_PORT) -> None:
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -813,6 +824,12 @@ class ProtocolConfig:
                              ipaddress.IPv6Address] = hostname
         self.port: int = port
         self.backlog: int = backlog
+
+        self.enable_static_server: bool = enable_static_server
+        self.static_server_dir: str = static_server_dir
+
+        self.chrome_remote_debugging_host = chrome_remote_debugging_host
+        self.chrome_remote_debugging_port = chrome_remote_debugging_port
 
         self.proxy_py_data_dir = os.path.join(
             str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
@@ -1251,42 +1268,6 @@ def route(path: bytes, protocols: Optional[List[int]] = None) -> \
     return decorator
 
 
-class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
-
-    def __init__(
-            self,
-            config: ProtocolConfig,
-            client: TcpClientConnection):
-        super().__init__(config, client)
-        self.pac_file_response: Optional[bytes] = None
-        self.cache_pac_file_response()
-
-    def routes(self) -> List[Tuple[int, bytes]]:
-        if self.config.pac_file_url_path:
-            return [(httpProtocolTypes.HTTP, bytes_(
-                self.config.pac_file_url_path))]
-        return []
-
-    def handle_request(self, request: HttpParser) -> None:
-        if self.config.pac_file and self.pac_file_response:
-            self.client.queue(self.pac_file_response)
-            self.client.flush()
-
-    def cache_pac_file_response(self) -> None:
-        if self.config.pac_file:
-            try:
-                with open(self.config.pac_file, 'rb') as f:
-                    content = f.read()
-            except IOError:
-                content = bytes_(self.config.pac_file)
-            self.pac_file_response = build_http_response(
-                200, reason=b'OK', headers={
-                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                    b'Connection': b'close'
-                }, body=content
-            )
-
-
 class WebsocketFrame:
     """Websocket frames parser and constructor."""
 
@@ -1386,6 +1367,58 @@ class Websocket:
         pass
 
 
+class DevTools:
+
+    def __init__(self,
+                 host: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
+                 port: int) -> None:
+        self.host: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = host
+        self.port: int = port
+        self.ws = Websocket(self.host, self.port)
+
+    def run(self):
+        try:
+            pass
+        finally:
+            self.ws.close()
+
+
+class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
+
+    def __init__(
+            self,
+            config: ProtocolConfig,
+            client: TcpClientConnection):
+        super().__init__(config, client)
+        self.pac_file_response: Optional[bytes] = None
+        self.cache_pac_file_response()
+
+    def routes(self) -> List[Tuple[int, bytes]]:
+        if self.config.pac_file_url_path:
+            return [(httpProtocolTypes.HTTP, bytes_(
+                self.config.pac_file_url_path))]
+        return []
+
+    def handle_request(self, request: HttpParser) -> None:
+        if self.config.pac_file and self.pac_file_response:
+            self.client.queue(self.pac_file_response)
+            self.client.flush()
+
+    def cache_pac_file_response(self) -> None:
+        if self.config.pac_file:
+            try:
+                with open(self.config.pac_file, 'rb') as f:
+                    content = f.read()
+            except IOError:
+                content = bytes_(self.config.pac_file)
+            self.pac_file_response = build_http_response(
+                200, reason=b'OK', headers={
+                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                    b'Connection': b'close'
+                }, body=content
+            )
+
+
 class HttpWebServerPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which handles incoming requests to local web server."""
 
@@ -1420,6 +1453,24 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 instance = klass(self.config, self.client)
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
+
+    def serve_file_or_404(self, path: str):
+        try:
+            with open(path, 'rb') as f:
+                content = f.read()
+            content_type = mimetypes.guess_type(path)[0]
+            if content_type is None:
+                content_type = 'text/plain'
+            self.client.queue(build_http_response(
+                200, reason=b'OK', headers={
+                    b'Content-Type': bytes_(content_type),
+                    b'Connection': b'close'
+                }, body=content
+            ))
+        except IOError:
+            self.client.queue(self.DEFAULT_404_RESPONSE)
+        finally:
+            self.client.flush()
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if self.request.has_upstream_server():
@@ -1461,9 +1512,14 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 self.client.flush()
                 return True
 
+        # No-route found, try static serving if enabled
+        if self.config.enable_static_server:
+            if os.path.isfile(DEFAULT_STATIC_SERVER_DIR + text_(url)):
+                self.serve_file_or_404(DEFAULT_STATIC_SERVER_DIR + text_(url))
+                return True
+
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
-        # But is client ready for flush?
         self.client.flush()
         return True
 
@@ -1888,6 +1944,20 @@ def init_parser() -> argparse.ArgumentParser:
              'If used, must also pass --key-file.'
     )
     parser.add_argument(
+        '--chrome-remote-debugging-host',
+        type=str,
+        default=str(DEFAULT_IPV4_HOSTNAME),
+        help='Default: 127.0.0.1. Only applicable if '
+             'devtools integration is enabled. See --enable-devtools.'
+    )
+    parser.add_argument(
+        '--chrome-remote-debugging-port',
+        type=int,
+        default=DEFAULT_CHROME_REMOTE_DEBUGGING_PORT,
+        help='Default: 9222. Only applicable if '
+             'devtools integration is enabled. See --enable-devtools.'
+    )
+    parser.add_argument(
         '--client-recvbuf-size',
         type=int,
         default=DEFAULT_CLIENT_RECVBUF_SIZE,
@@ -1906,6 +1976,24 @@ def init_parser() -> argparse.ArgumentParser:
         action='store_true',
         default=DEFAULT_DISABLE_HTTP_PROXY,
         help='Default: False.  Whether to disable proxy.HttpProxyPlugin.')
+    parser.add_argument(
+        '--enable-devtools',
+        action='store_true',
+        default=DEFAULT_ENABLE_DEVTOOLS,
+        help='Default: False.  Enables integration with Chrome Devtools. '
+             'To use this option, you must first start Chrome with '
+             '--remote-debugging-port flag.  Then start proxy.py optionally with '
+             '--chrome-remote-debugging-host and --chrome-remote-debugging-port.'
+    )
+    parser.add_argument(
+        '--enable-static-server',
+        action='store_true',
+        default=DEFAULT_ENABLE_STATIC_SERVER,
+        help='Default: False.  Enable inbuilt static file server. '
+             'Optionally, also use --static-server-dir to serve static content '
+             'from custom directory.  By default, static file server serves '
+             'from public folder.'
+    )
     parser.add_argument(
         '--enable-web-server',
         action='store_true',
@@ -1975,6 +2063,14 @@ def init_parser() -> argparse.ArgumentParser:
              'value for faster downloads at the expense of '
              'increased RAM.')
     parser.add_argument(
+        '--static-server-dir',
+        type=str,
+        default=DEFAULT_STATIC_SERVER_DIR,
+        help='Default: ' + DEFAULT_STATIC_SERVER_DIR + '.  Static server root directory. '
+             'This option is only applicable when static server is also enabled. '
+             'See --enable-static-server.'
+    )
+    parser.add_argument(
         '--version',
         '-v',
         action='store_true',
@@ -2017,7 +2113,9 @@ def main(input_args: List[str]) -> None:
         default_plugins = ''
         if not args.disable_http_proxy:
             default_plugins += 'proxy.HttpProxyPlugin,'
-        if args.enable_web_server or args.pac_file is not None:
+        if args.enable_web_server or \
+                args.pac_file is not None or \
+                args.enable_static_server:
             default_plugins += 'proxy.HttpWebServerPlugin,'
         if args.pac_file is not None:
             default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
@@ -2040,7 +2138,11 @@ def main(input_args: List[str]) -> None:
             hostname=ipaddress.ip_address(args.hostname),
             port=args.port,
             backlog=args.backlog,
-            num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count())
+            num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count(),
+            static_server_dir=args.static_server_dir,
+            enable_static_server=args.enable_static_server,
+            chrome_remote_debugging_host=ipaddress.ip_address(args.chrome_remote_debugging_host),
+            chrome_remote_debugging_port=DEFAULT_CHROME_REMOTE_DEBUGGING_PORT)
 
         config.plugins = load_plugins(
             bytes_(
