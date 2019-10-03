@@ -1379,22 +1379,26 @@ class Websocket(TcpConnection):
     def pong(self, data: Optional[bytes] = None) -> None:
         pass
 
-    def close(self, data: Optional[bytes] = None) -> None:
+    def shutdown(self, data: Optional[bytes] = None) -> None:
+        """Closes connection with the server."""
         super().close()
 
-    def run(self):
+    def run(self) -> None:
         self.sock.setblocking(False)
         selector: selectors.DefaultSelector = selectors.DefaultSelector()
         try:
-            while True:
+            while not self.closed:
                 ev = selectors.EVENT_READ
                 if self.has_buffer():
                     ev |= selectors.EVENT_WRITE
                 selector.register(self.sock.fileno(), ev)
                 events = selector.select(timeout=1)
                 for key, mask in events:
-                    if mask & selectors.EVENT_READ:
+                    if mask & selectors.EVENT_READ and self.on_message:
                         raw = self.recv()
+                        if raw is None or raw == b'':
+                            logger.debug('Connection closed by server')
+                            break
                         frame = WebsocketFrame()
                         frame.parse(raw)
                         self.on_message(frame)
@@ -1483,7 +1487,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
 
-    def serve_file_or_404(self, path: str):
+    def serve_file_or_404(self, path: str) -> None:
         try:
             with open(path, 'rb') as f:
                 content = f.read()
