@@ -222,6 +222,28 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
     return line, rest
 
 
+def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
+    """Attempts to create an IPv4 connection, then IPv6 and finally dual stack connection.
+
+    Returns established socket connection if successful,
+    otherwise an exception is raised."""
+    try:
+        ip = ipaddress.ip_address(addr[0])
+        if ip.version == 4:
+            conn = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM, 0)
+            conn.connect(addr)
+        else:
+            conn = socket.socket(
+                socket.AF_INET6, socket.SOCK_STREAM, 0)
+            conn.connect((addr[0], addr[1], 0, 0))
+    except ValueError:
+        # Not a valid IP address, most likely its a domain name,
+        # try to establish dual stack IPv4/IPv6 connection.
+        conn = socket.create_connection(addr)
+    return conn
+
+
 class _HasFileno(Protocol):
     def fileno(self) -> int:
         ...     # pragma: no cover
@@ -232,7 +254,13 @@ class TcpConnectionUninitializedException(Exception):
 
 
 class TcpConnection(ABC):
-    """TCP server/client connection abstraction."""
+    """TCP server/client connection abstraction.
+
+    Main motivation of this class is to provide a buffer management
+    when reading and writing into the socket.
+
+    Implement the connection property abstract method to return
+    a socket connection object."""
 
     def __init__(self, tag: int):
         self.buffer: bytes = b''
@@ -290,24 +318,6 @@ class TcpConnection(ABC):
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
 
-    @staticmethod
-    def new(addr: Tuple[str, int]) -> socket.socket:
-        try:
-            ip = ipaddress.ip_address(addr[0])
-            if ip.version == 4:
-                conn = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM, 0)
-                conn.connect(addr)
-            else:
-                conn = socket.socket(
-                    socket.AF_INET6, socket.SOCK_STREAM, 0)
-                conn.connect((addr[0], addr[1], 0, 0))
-        except ValueError:
-            # Not a valid IP address, most likely its a domain name,
-            # try to establish dual stack IPv4/IPv6 connection.
-            conn = socket.create_connection(addr)
-        return conn
-
 
 class TcpServerConnection(TcpConnection):
     """Establishes connection to upstream server."""
@@ -326,7 +336,7 @@ class TcpServerConnection(TcpConnection):
     def connect(self) -> None:
         if self._conn is not None:
             return
-        self._conn = self.new(self.addr)
+        self._conn = new_socket_connection(self.addr)
 
 
 class TcpClientConnection(TcpConnection):
@@ -1312,12 +1322,14 @@ class WebsocketFrame:
 
 class Websocket:
 
-    def __init__(self, hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
-                 port: int, on_message: Optional[Callable[[bytes], None]] = None) -> None:
+    def __init__(self,
+                 hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
+                 port: int) -> None:
         self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = hostname
         self.port: int = port
-        self.sock: socket.socket = TcpConnection.new((str(self.hostname), self.port))
-        self.on_message: Optional[Callable[[bytes], None]] = on_message
+        self.sock: socket.socket = new_socket_connection((str(self.hostname), self.port))
+        self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
+        self.selector.register(self.sock.fileno(), selectors.EVENT_READ | selectors.EVENT_WRITE)
         self.upgrade()
 
     @staticmethod
@@ -1514,8 +1526,9 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
         # No-route found, try static serving if enabled
         if self.config.enable_static_server:
-            if os.path.isfile(DEFAULT_STATIC_SERVER_DIR + text_(url)):
-                self.serve_file_or_404(DEFAULT_STATIC_SERVER_DIR + text_(url))
+            path = text_(url).split('?')[0]
+            if os.path.isfile(DEFAULT_STATIC_SERVER_DIR + path):
+                self.serve_file_or_404(DEFAULT_STATIC_SERVER_DIR + path)
                 return True
 
         # Catch all unhandled web server requests, return 404

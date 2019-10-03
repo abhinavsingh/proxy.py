@@ -740,7 +740,7 @@ class TestWebsocketFrame(unittest.TestCase):
 class TestWebsocketClient(unittest.TestCase):
 
     @mock.patch('base64.b64encode')
-    @mock.patch('proxy.TcpConnection.new')
+    @mock.patch('proxy.new_socket_connection')
     def test_handshake(self, mock_connect: mock.Mock, mock_b64encode: mock.Mock) -> None:
         key = b'MySecretKey'
         mock_b64encode.return_value = key
