@@ -209,6 +209,32 @@ def build_http_pkt(line: List[bytes],
     return req
 
 
+def build_websocket_handshake_request(
+        key: bytes,
+        method: bytes = b'GET',
+        url: bytes = b'/') -> bytes:
+    return build_http_request(
+        method, url,
+        headers={
+            b'Connection': b'upgrade',
+            b'Upgrade': b'websocket',
+            b'Sec-WebSocket-Key': key,
+            b'Sec-WebSocket-Version': b'13',
+        }
+    )
+
+
+def build_websocket_handshake_response(accept: bytes) -> bytes:
+    return build_http_response(
+        101, reason=b'Switching Protocols',
+        headers={
+            b'Upgrade': b'websocket',
+            b'Connection': b'Upgrade',
+            b'Sec-WebSocket-Accept': accept
+        }
+    )
+
+
 def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
     """Finds first line of request ending in CRLF.
 
@@ -1320,47 +1346,28 @@ class WebsocketFrame:
         return base64.b64encode(sha1.digest())
 
 
-class Websocket:
+class Websocket(TcpConnection):
 
     def __init__(self,
                  hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
-                 port: int) -> None:
+                 port: int,
+                 path: bytes = b'/',
+                 on_message: Optional[Callable[[WebsocketFrame], None]] = None) -> None:
+        super().__init__(tcpConnectionTypes.CLIENT)
         self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = hostname
         self.port: int = port
+        self.path: bytes = path
         self.sock: socket.socket = new_socket_connection((str(self.hostname), self.port))
-        self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
-        self.selector.register(self.sock.fileno(), selectors.EVENT_READ | selectors.EVENT_WRITE)
+        self.on_message: Optional[Callable[[WebsocketFrame], None]] = on_message
         self.upgrade()
 
-    @staticmethod
-    def build_handshake_request(
-            key: bytes,
-            method: bytes = b'GET',
-            url: bytes = b'/') -> bytes:
-        return build_http_request(
-            method, url,
-            headers={
-                b'Connection': b'upgrade',
-                b'Upgrade': b'websocket',
-                b'Sec-WebSocket-Key': key,
-                b'Sec-WebSocket-Version': b'13',
-            }
-        )
-
-    @staticmethod
-    def build_handshake_response(accept: bytes) -> bytes:
-        return build_http_response(
-            101, reason=b'Switching Protocols',
-            headers={
-                b'Upgrade': b'websocket',
-                b'Connection': b'Upgrade',
-                b'Sec-WebSocket-Accept': accept
-            }
-        )
+    @property
+    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+        return self.sock
 
     def upgrade(self) -> None:
         key = base64.b64encode(secrets.token_bytes(16))
-        self.sock.send(self.build_handshake_request(key))
+        self.sock.send(build_websocket_handshake_request(key, url=self.path))
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
         accept = response.header(b'Sec-Websocket-Accept')
@@ -1372,27 +1379,37 @@ class Websocket:
     def pong(self, data: Optional[bytes] = None) -> None:
         pass
 
-    def send(self, raw: bytes) -> None:
-        pass
-
     def close(self, data: Optional[bytes] = None) -> None:
-        pass
-
-
-class DevTools:
-
-    def __init__(self,
-                 host: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
-                 port: int) -> None:
-        self.host: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = host
-        self.port: int = port
-        self.ws = Websocket(self.host, self.port)
+        super().close()
 
     def run(self):
+        self.sock.setblocking(False)
+        selector: selectors.DefaultSelector = selectors.DefaultSelector()
         try:
+            while True:
+                ev = selectors.EVENT_READ
+                if self.has_buffer():
+                    ev |= selectors.EVENT_WRITE
+                selector.register(self.sock.fileno(), ev)
+                events = selector.select(timeout=1)
+                for key, mask in events:
+                    if mask & selectors.EVENT_READ:
+                        raw = self.recv()
+                        frame = WebsocketFrame()
+                        frame.parse(raw)
+                        self.on_message(frame)
+                    elif mask & selectors.EVENT_WRITE:
+                        self.flush()
+                selector.unregister(self.sock)
+        except KeyboardInterrupt:
             pass
         finally:
-            self.ws.close()
+            try:
+                selector.unregister(self.sock)
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except Exception as e:
+                logging.exception('Exception while shutdown of websocket client', exc_info=e)
+            self.sock.close()
 
 
 class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
@@ -1501,7 +1518,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     return True
 
                 self.client.queue(
-                    Websocket.build_handshake_response(
+                    build_websocket_handshake_response(
                         WebsocketFrame.key_to_accept(
                             self.request.header(b'Sec-WebSocket-Key'))))
                 self.client.flush()
