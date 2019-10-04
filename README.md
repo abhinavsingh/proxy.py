@@ -639,7 +639,7 @@ DESCRIPTION
 CLASSES
     abc.ABC(builtins.object)
         HttpProxyBasePlugin
-        HttpWebServerRoutePlugin
+        HttpWebServerBasePlugin
             HttpWebServerPacFilePlugin
         ProtocolHandlerPlugin
             HttpProxyPlugin

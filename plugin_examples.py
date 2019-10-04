@@ -18,7 +18,7 @@ import proxy
 
 @proxy.route(b'/hello-world')
 def hello_world(_request: Union[proxy.HttpParser, proxy.WebsocketFrame]) -> bytes:
-    """A HttpWebServerRoutePlugin plugin for inbuilt web server."""
+    """A HttpWebServerBasePlugin plugin for inbuilt web server."""
     return proxy.build_http_response(200, body=b'Hello World')
 
 

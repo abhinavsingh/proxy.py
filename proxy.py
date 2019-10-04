@@ -1422,7 +1422,7 @@ class WebsocketFrame:
         return base64.b64encode(sha1.digest())
 
 
-class Websocket(TcpConnection):
+class WebsocketClient(TcpConnection):
 
     def __init__(self,
                  hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
@@ -1502,8 +1502,8 @@ class Websocket(TcpConnection):
         logger.info('done')
 
 
-class HttpWebServerRoutePlugin(ABC):
-    """Web Server Route Plugin."""
+class HttpWebServerBasePlugin(ABC):
+    """Web Server Plugin for routing of requests."""
 
     def __init__(
             self,
@@ -1512,10 +1512,12 @@ class HttpWebServerRoutePlugin(ABC):
         self.config = config
         self.client = client
 
+    @abstractmethod
     def routes(self) -> List[Tuple[int, bytes]]:
         """Return List(protocol, path) that this plugin handles."""
         raise NotImplementedError()
 
+    @abstractmethod
     def handle_request(self, request: Union[HttpParser, WebsocketFrame]) -> None:
         """Handle the request and serve response.
 
@@ -1526,10 +1528,10 @@ class HttpWebServerRoutePlugin(ABC):
 
 
 def route(path: bytes, protocols: Optional[List[int]] = None) -> \
-        Callable[[Callable[[Union[HttpParser, WebsocketFrame]], bytes]], Type[HttpWebServerRoutePlugin]]:
+        Callable[[Callable[[Union[HttpParser, WebsocketFrame]], bytes]], Type[HttpWebServerBasePlugin]]:
     def decorator(func: Callable[[Union[HttpParser, WebsocketFrame]], bytes]
-                  ) -> Type[HttpWebServerRoutePlugin]:
-        class HttpWebServerRouteHandler(HttpWebServerRoutePlugin):
+                  ) -> Type[HttpWebServerBasePlugin]:
+        class HttpWebServerBaseHandler(HttpWebServerBasePlugin):
             @staticmethod
             def name() -> str:
                 return func.__name__
@@ -1544,12 +1546,12 @@ def route(path: bytes, protocols: Optional[List[int]] = None) -> \
                 self.client.queue(func(request))
                 self.client.flush()
 
-        return HttpWebServerRouteHandler
+        return HttpWebServerBaseHandler
 
     return decorator
 
 
-class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
+class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
     def __init__(
             self,
@@ -1607,15 +1609,15 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             request: HttpParser):
         super().__init__(config, client, request)
 
-        self.switched_protocol: Optional[bytes] = None
+        self.switched_protocol: Optional[int] = None
 
-        self.routes: Dict[int, Dict[bytes, HttpWebServerRoutePlugin]] = {
+        self.routes: Dict[int, Dict[bytes, HttpWebServerBasePlugin]] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
         }
 
-        if b'HttpWebServerRoutePlugin' in self.config.plugins:
-            for klass in self.config.plugins[b'HttpWebServerRoutePlugin']:
+        if b'HttpWebServerBasePlugin' in self.config.plugins:
+            for klass in self.config.plugins[b'HttpWebServerBasePlugin']:
                 instance = klass(self.config, self.client)
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
@@ -1638,13 +1640,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         finally:
             self.client.flush()
 
-    def on_request_complete(self) -> Union[socket.socket, bool]:
-        if self.request.has_upstream_server():
-            return False
-
-        url = self.request.build_url()
-
-        # Connection upgrade
+    def try_upgrade(self) -> bool:
         if self.request.has_header(b'connection') and \
                 self.request.header(b'connection').lower() == b'upgrade':
             if self.request.has_header(b'upgrade') and \
@@ -1659,24 +1655,46 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                         WebsocketFrame.key_to_accept(
                             self.request.header(b'Sec-WebSocket-Key'))))
                 self.client.flush()
-                self.switched_protocol = b'websocket'
-                return False
+                self.switched_protocol = httpProtocolTypes.WEBSOCKET
             else:
                 self.client.queue(self.DEFAULT_501_RESPONSE)
                 self.client.flush()
                 return True
+        return False
 
-        # Routing
-        if self.request.method != b'CONNECT':
-            registered_routes = self.routes[httpProtocolTypes.HTTP]
-        else:
-            registered_routes = self.routes[httpProtocolTypes.HTTPS]
-        for r in registered_routes:
-            if r == url:
-                registered_routes[r].handle_request(self.request)
-                # But is client ready for flush?
+    def route_by_protocol(self,
+                          url: bytes, protocol: int,
+                          request: Union[HttpParser, WebsocketFrame]) -> bool:
+        for route_ in self.routes[protocol]:
+            if route_ == url:
+                self.routes[protocol][route_].handle_request(request)
                 self.client.flush()
                 return True
+        return False
+
+    def on_request_complete(self) -> Union[socket.socket, bool]:
+        if self.request.has_upstream_server():
+            return False
+
+        url = self.request.build_url()
+
+        # Connection upgrade
+        teardown = self.try_upgrade()
+        if teardown:
+            return True
+
+        # For upgraded connections, nothing more to do
+        if self.switched_protocol:
+            return False
+
+        # Routing for Http(s) requests
+        teardown = self.route_by_protocol(
+            url, httpProtocolTypes.HTTPS
+            if self.request.method == b'CONNECT'
+            else httpProtocolTypes.HTTP,
+            self.request)
+        if teardown:
+            return True
 
         # No-route found, try static serving if enabled
         if self.config.enable_static_server:
@@ -1697,9 +1715,14 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         pass
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
-        if self.switched_protocol == b'websocket':
+        if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
             frame = WebsocketFrame()
             frame.parse(raw)
+            # TODO: Teardown if invalid protocol exception
+            self.route_by_protocol(
+                self.request.build_url(),
+                httpProtocolTypes.WEBSOCKET,
+                frame)
             return None
         return raw
 
@@ -2133,7 +2156,7 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
     p: Dict[bytes, List[type]] = {
         b'ProtocolHandlerPlugin': [],
         b'HttpProxyBasePlugin': [],
-        b'HttpWebServerRoutePlugin': [],
+        b'HttpWebServerBasePlugin': [],
     }
     for plugin in plugins.split(COMMA):
         plugin = plugin.strip()
