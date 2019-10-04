@@ -19,6 +19,7 @@
   "homepage": "https://github.com/abhinavsingh/proxy.py#readme",
   "devDependencies": {
     "chrome-devtools-frontend": "^1.0.702145",
+    "chrome-remote-interface": "^0.28.0",
     "ncp": "^2.0.0"
   }
 }

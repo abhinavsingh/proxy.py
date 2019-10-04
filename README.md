@@ -505,8 +505,8 @@ Connection: keep-alive
 Viola!!!  If you remove CA flags, encrypted data will be found in the
 cached file instead of plain text.
 
-Now use CA flags other 
-[plugin examples](#plugin-examples) to make them work for `https` traffic.
+Now use CA flags with other 
+[plugin examples](#plugin-examples) to see them work with `https` traffic.
 
 import proxy.py
 ===============
@@ -534,14 +534,16 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
     b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
 ```
 
+See [Internal Documentation](#internal-documentation)
+for all available classes and utility methods.
+
 To start `proxy.py` server from imported `proxy.py` module, simply do:
 
 ```
-import sys
 import proxy
 
 if __name__ == '__main__':
-  proxy.main(sys.argv[1:])
+  proxy.main(['--hostname', '::1', '--port', ...])
 ```
 
 Plugin Developer and Contributor Guide

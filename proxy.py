@@ -14,14 +14,16 @@ import datetime
 import errno
 import hashlib
 import importlib
-import io
 import inspect
+import io
 import ipaddress
+import json
 import logging
 import mimetypes
 import multiprocessing
 import os
 import pathlib
+import queue
 import secrets
 import selectors
 import socket
@@ -54,6 +56,7 @@ __license__ = 'BSD'
 
 logger = logging.getLogger(__name__)
 PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
+START_TIME = time.time()
 
 # Defaults
 DEFAULT_BACKLOG = 100
@@ -64,7 +67,6 @@ DEFAULT_CA_CERT_FILE = None
 DEFAULT_CA_SIGNING_KEY_FILE = None
 DEFAULT_CERT_FILE = None
 DEFAULT_BUFFER_SIZE = 1024 * 1024
-DEFAULT_CHROME_REMOTE_DEBUGGING_PORT = 9222
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
@@ -123,13 +125,13 @@ PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
     COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 
-##
+###############################################################
 # Various NamedTuples
 #
 # collections.namedtuple were replaced with typing.NamedTuple
 # for mypy compliance. Unfortunately, we can't seem to use
 # a NamedTuple as a type.
-##
+###############################################################
 
 TcpConnectionTypes = NamedTuple('TcpConnectionTypes', [
     ('SERVER', int),
@@ -170,7 +172,7 @@ httpProtocolTypes = HttpProtocolTypes(1, 2, 3)
 WebsocketOpcodes = NamedTuple('WebsocketOpcodes', [
     ('CONTINUATION_FRAME', int),
     ('TEXT_FRAME', int),
-    ('TEXT_BINARY', int),
+    ('BINARY_FRAME', int),
     ('CONNECTION_CLOSE', int),
     ('PING', int),
     ('PONG', int),
@@ -182,6 +184,7 @@ def build_http_request(method: bytes, url: bytes,
                        protocol_version: bytes = b'HTTP/1.1',
                        headers: Optional[Dict[bytes, bytes]] = None,
                        body: Optional[bytes] = None) -> bytes:
+    """Build and returns a HTTP request packet."""
     if headers is None:
         headers = {}
     return build_http_pkt(
@@ -193,6 +196,7 @@ def build_http_response(status_code: int,
                         reason: Optional[bytes] = None,
                         headers: Optional[Dict[bytes, bytes]] = None,
                         body: Optional[bytes] = None) -> bytes:
+    """Build and returns a HTTP response packet."""
     line = [protocol_version, bytes_(status_code)]
     if reason:
         line.append(reason)
@@ -205,12 +209,14 @@ def build_http_response(status_code: int,
 
 
 def build_http_header(k: bytes, v: bytes) -> bytes:
+    """Build and return a HTTP header line for use in raw packet."""
     return k + COLON + WHITESPACE + v
 
 
 def build_http_pkt(line: List[bytes],
                    headers: Optional[Dict[bytes, bytes]] = None,
                    body: Optional[bytes] = None) -> bytes:
+    """Build and returns a HTTP request or response packet."""
     req = WHITESPACE.join(line) + CRLF
     if headers is not None:
         for k in headers:
@@ -225,6 +231,13 @@ def build_websocket_handshake_request(
         key: bytes,
         method: bytes = b'GET',
         url: bytes = b'/') -> bytes:
+    """
+    Build and returns a Websocket handshake request packet.
+
+    :param key: Sec-WebSocket-Key header value.
+    :param method: HTTP method.
+    :param url: Websocket request path.
+    """
     return build_http_request(
         method, url,
         headers={
@@ -237,6 +250,11 @@ def build_websocket_handshake_request(
 
 
 def build_websocket_handshake_response(accept: bytes) -> bytes:
+    """
+    Build and returns a Websocket handshake response packet.
+
+    :param accept: Sec-WebSocket-Accept header value
+    """
     return build_http_response(
         101, reason=b'Switching Protocols',
         headers={
@@ -248,10 +266,9 @@ def build_websocket_handshake_response(accept: bytes) -> bytes:
 
 
 def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
-    """Finds first line of request ending in CRLF.
+    """Find and returns first line ending in CRLF along with following buffer.
 
-    If no CRLF is found, line is None.
-    Also returns pending buffer after received line of request."""
+    If no ending CRLF is found, line is None."""
     pos = raw.find(CRLF)
     if pos == -1:
         return None, raw
@@ -580,8 +597,6 @@ class HttpParser:
         self.buffer: bytes = b''
 
         self.headers: Dict[bytes, Tuple[bytes, bytes]] = dict()
-
-        # Can simply be b'', then set type as bytes?
         self.body: Optional[bytes] = None
 
         self.method: Optional[bytes] = None
@@ -817,135 +832,6 @@ class HttpRequestRejected(ProtocolException):
         return CRLF.join(pkt) if len(pkt) > 0 else None
 
 
-class ProtocolConfig:
-    """Holds various configuration values applicable to ProtocolHandler.
-
-    This config class helps us avoid passing around bunch of key/value pairs across methods.
-    """
-
-    ROOT_DATA_DIR_NAME = '.proxy.py'
-    GENERATED_CERTS_DIR_NAME = 'certificates'
-
-    def __init__(
-            self,
-            auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
-            server_recvbuf_size: int = DEFAULT_SERVER_RECVBUF_SIZE,
-            client_recvbuf_size: int = DEFAULT_CLIENT_RECVBUF_SIZE,
-            pac_file: Optional[str] = DEFAULT_PAC_FILE,
-            pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
-            plugins: Optional[Dict[bytes, List[type]]] = None,
-            disable_headers: Optional[List[bytes]] = None,
-            certfile: Optional[str] = None,
-            keyfile: Optional[str] = None,
-            ca_cert_dir: Optional[str] = None,
-            ca_key_file: Optional[str] = None,
-            ca_cert_file: Optional[str] = None,
-            ca_signing_key_file: Optional[str] = None,
-            num_workers: int = 0,
-            hostname: Union[ipaddress.IPv4Address,
-                            ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
-            port: int = DEFAULT_PORT,
-            backlog: int = DEFAULT_BACKLOG,
-            static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
-            enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
-            chrome_remote_debugging_host: Union[ipaddress.IPv4Address,
-                                                ipaddress.IPv6Address] = DEFAULT_IPV4_HOSTNAME,
-            chrome_remote_debugging_port: int = DEFAULT_CHROME_REMOTE_DEBUGGING_PORT) -> None:
-        self.auth_code = auth_code
-        self.server_recvbuf_size = server_recvbuf_size
-        self.client_recvbuf_size = client_recvbuf_size
-        self.pac_file = pac_file
-        self.pac_file_url_path = pac_file_url_path
-        if plugins is None:
-            plugins = {}
-        self.plugins: Dict[bytes, List[type]] = plugins
-        if disable_headers is None:
-            disable_headers = DEFAULT_DISABLE_HEADERS
-        self.disable_headers = disable_headers
-        self.certfile: Optional[str] = certfile
-        self.keyfile: Optional[str] = keyfile
-        self.ca_key_file: Optional[str] = ca_key_file
-        self.ca_cert_file: Optional[str] = ca_cert_file
-        self.ca_signing_key_file: Optional[str] = ca_signing_key_file
-        self.num_workers: int = num_workers
-        self.hostname: Union[ipaddress.IPv4Address,
-                             ipaddress.IPv6Address] = hostname
-        self.port: int = port
-        self.backlog: int = backlog
-
-        self.enable_static_server: bool = enable_static_server
-        self.static_server_dir: str = static_server_dir
-
-        self.chrome_remote_debugging_host = chrome_remote_debugging_host
-        self.chrome_remote_debugging_port = chrome_remote_debugging_port
-
-        self.proxy_py_data_dir = os.path.join(
-            str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
-        os.makedirs(self.proxy_py_data_dir, exist_ok=True)
-
-        self.ca_cert_dir: Optional[str] = ca_cert_dir
-        if self.ca_cert_dir is None:
-            self.ca_cert_dir = os.path.join(
-                self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
-            os.makedirs(self.ca_cert_dir, exist_ok=True)
-
-
-class ProtocolHandlerPlugin(ABC):
-    """Base ProtocolHandler Plugin class.
-
-    Implement various lifecycle event methods to customize behavior."""
-
-    def __init__(
-            self,
-            config: ProtocolConfig,
-            client: TcpClientConnection,
-            request: HttpParser):
-        self.config: ProtocolConfig = config
-        self.client: TcpClientConnection = client
-        self.request: HttpParser = request
-        super().__init__()
-
-    def name(self) -> str:
-        """A unique name for your plugin.
-
-        Defaults to name of the class. This helps plugin developers to directly
-        access a specific plugin by its name."""
-        return self.__class__.__name__
-
-    @abstractmethod
-    def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        return [], []  # pragma: no cover
-
-    @abstractmethod
-    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
-        pass  # pragma: no cover
-
-    @abstractmethod
-    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
-        pass  # pragma: no cover
-
-    @abstractmethod
-    def on_client_data(self, raw: bytes) -> Optional[bytes]:
-        return raw  # pragma: no cover
-
-    @abstractmethod
-    def on_request_complete(self) -> Union[socket.socket, bool]:
-        """Called right after client request parser has reached COMPLETE state."""
-        pass  # pragma: no cover
-
-    @abstractmethod
-    def handle_response_chunk(self, chunk: bytes) -> bytes:
-        """Handle data chunks as received from the server.
-
-        Return optionally modified chunk to return back to client."""
-        return chunk  # pragma: no cover
-
-    @abstractmethod
-    def on_client_connection_close(self) -> None:
-        pass  # pragma: no cover
-
-
 class ProxyConnectionFailed(ProtocolException):
     """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
 
@@ -982,6 +868,148 @@ class ProxyAuthenticationFailed(ProtocolException):
 
     def response(self, _request: HttpParser) -> bytes:
         return self.RESPONSE_PKT
+
+
+class ProtocolConfig:
+    """Holds various configuration values applicable to ProtocolHandler.
+
+    This config class helps us avoid passing around bunch of key/value pairs across methods.
+    """
+
+    ROOT_DATA_DIR_NAME = '.proxy.py'
+    GENERATED_CERTS_DIR_NAME = 'certificates'
+
+    def __init__(
+            self,
+            auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
+            server_recvbuf_size: int = DEFAULT_SERVER_RECVBUF_SIZE,
+            client_recvbuf_size: int = DEFAULT_CLIENT_RECVBUF_SIZE,
+            pac_file: Optional[str] = DEFAULT_PAC_FILE,
+            pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
+            plugins: Optional[Dict[bytes, List[type]]] = None,
+            disable_headers: Optional[List[bytes]] = None,
+            certfile: Optional[str] = None,
+            keyfile: Optional[str] = None,
+            ca_cert_dir: Optional[str] = None,
+            ca_key_file: Optional[str] = None,
+            ca_cert_file: Optional[str] = None,
+            ca_signing_key_file: Optional[str] = None,
+            num_workers: int = 0,
+            hostname: Union[ipaddress.IPv4Address,
+                            ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
+            port: int = DEFAULT_PORT,
+            backlog: int = DEFAULT_BACKLOG,
+            static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
+            enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
+            devtools_event_queue: Optional[queue.Queue] = None) -> None:
+        self.auth_code = auth_code
+        self.server_recvbuf_size = server_recvbuf_size
+        self.client_recvbuf_size = client_recvbuf_size
+        self.pac_file = pac_file
+        self.pac_file_url_path = pac_file_url_path
+        if plugins is None:
+            plugins = {}
+        self.plugins: Dict[bytes, List[type]] = plugins
+        if disable_headers is None:
+            disable_headers = DEFAULT_DISABLE_HEADERS
+        self.disable_headers = disable_headers
+        self.certfile: Optional[str] = certfile
+        self.keyfile: Optional[str] = keyfile
+        self.ca_key_file: Optional[str] = ca_key_file
+        self.ca_cert_file: Optional[str] = ca_cert_file
+        self.ca_signing_key_file: Optional[str] = ca_signing_key_file
+        self.num_workers: int = num_workers
+        self.hostname: Union[ipaddress.IPv4Address,
+                             ipaddress.IPv6Address] = hostname
+        self.port: int = port
+        self.backlog: int = backlog
+
+        self.enable_static_server: bool = enable_static_server
+        self.static_server_dir: str = static_server_dir
+        self.devtools_event_queue = devtools_event_queue
+
+        self.proxy_py_data_dir = os.path.join(
+            str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
+        os.makedirs(self.proxy_py_data_dir, exist_ok=True)
+
+        self.ca_cert_dir: Optional[str] = ca_cert_dir
+        if self.ca_cert_dir is None:
+            self.ca_cert_dir = os.path.join(
+                self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
+            os.makedirs(self.ca_cert_dir, exist_ok=True)
+
+
+class ProtocolHandlerPlugin(ABC):
+    """Base ProtocolHandler Plugin class.
+
+    NOTE: This is an internal plugin and in most cases only useful for core contributors.
+    If you are looking for proxy server plugins see `<proxy.HttpProxyBasePlugin>`.
+
+    Implements various lifecycle events for an accepted client connection.
+    Following events are of interest:
+
+    1. Client Connection Accepted
+       A new plugin instance is created per accepted client connection.
+       Add your logic within __init__ constructor for any per connection setup.
+    2. Client Request Chunk Received
+       on_client_data is called for every chunk of data sent by the client.
+    3. Client Request Complete
+       on_request_complete is called once client request has completed.
+    4. Server Response Chunk Received
+       on_response_chunk is called for every chunk received from the server.
+    5. Client Connection Closed
+       Add your logic within `on_client_connection_close` for any per connection teardown.
+    """
+
+    def __init__(
+            self,
+            config: ProtocolConfig,
+            client: TcpClientConnection,
+            request: HttpParser):
+        self.config: ProtocolConfig = config
+        self.client: TcpClientConnection = client
+        self.request: HttpParser = request
+        super().__init__()
+
+    def name(self) -> str:
+        """A unique name for your plugin.
+
+        Defaults to name of the class. This helps plugin developers to directly
+        access a specific plugin by its name."""
+        return self.__class__.__name__
+
+    @abstractmethod
+    def get_descriptors(
+            self) -> Tuple[List[socket.socket], List[socket.socket]]:
+        return [], []  # pragma: no cover
+
+    @abstractmethod
+    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def on_client_data(self, raw: bytes) -> Optional[bytes]:
+        return raw  # pragma: no cover
+
+    @abstractmethod
+    def on_request_complete(self) -> Union[socket.socket, bool]:
+        """Called right after client request parser has reached COMPLETE state."""
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def on_response_chunk(self, chunk: bytes) -> bytes:
+        """Handle data chunks as received from the server.
+
+        Return optionally modified chunk to return back to client."""
+        return chunk  # pragma: no cover
+
+    @abstractmethod
+    def on_client_connection_close(self) -> None:
+        pass  # pragma: no cover
 
 
 class HttpProxyBasePlugin(ABC):
@@ -1071,7 +1099,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             w.append(self.server.connection)
         return r, w
 
-    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server() and \
                 self.server and not self.server.closed and \
                 self.server.buffer_size() > 0 and \
@@ -1142,7 +1170,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 'Closed server connection with pending server buffer size %d bytes' %
                 self.server.buffer_size())
 
-    def handle_response_chunk(self, chunk: bytes) -> bytes:
+    def on_response_chunk(self, chunk: bytes) -> bytes:
         return chunk
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
@@ -1271,49 +1299,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         else:
             logger.exception('Both host and port must exist')
             raise ProtocolException()
-
-
-class HttpWebServerRoutePlugin(ABC):
-    """Web Server Route Plugin."""
-
-    def __init__(
-            self,
-            config: ProtocolConfig,
-            client: TcpClientConnection):
-        self.config = config
-        self.client = client
-
-    def routes(self) -> List[Tuple[int, bytes]]:
-        """Return List(protocol, path) that this plugin handles."""
-        raise NotImplementedError()
-
-    def handle_request(self, request: HttpParser) -> None:
-        """Handle the request and serve response."""
-        raise NotImplementedError()
-
-
-def route(path: bytes, protocols: Optional[List[int]] = None) -> \
-        Callable[[Callable[[HttpParser], bytes]], Type[HttpWebServerRoutePlugin]]:
-    def decorator(func: Callable[[HttpParser], bytes]
-                  ) -> Type[HttpWebServerRoutePlugin]:
-        class HttpWebServerRouteHandler(HttpWebServerRoutePlugin):
-            @staticmethod
-            def name() -> str:
-                return func.__name__
-
-            def routes(self) -> List[Tuple[int, bytes]]:
-                p = protocols
-                if p is None:
-                    p = [i + 1 for i in range(len(httpProtocolTypes))]
-                return [(protocol, path) for protocol in p]
-
-            def handle_request(self, request: HttpParser) -> None:
-                self.client.queue(func(request))
-                self.client.flush()
-
-        return HttpWebServerRouteHandler
-
-    return decorator
 
 
 class WebsocketFrame:
@@ -1446,6 +1431,8 @@ class Websocket(TcpConnection):
         self.sock: socket.socket = new_socket_connection((str(self.hostname), self.port))
         self.on_message: Optional[Callable[[WebsocketFrame], None]] = on_message
         self.upgrade()
+        self.sock.setblocking(False)
+        self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
 
     @property
     def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
@@ -1469,37 +1456,92 @@ class Websocket(TcpConnection):
         """Closes connection with the server."""
         super().close()
 
+    def run_once(self) -> bool:
+        ev = selectors.EVENT_READ
+        if self.has_buffer():
+            ev |= selectors.EVENT_WRITE
+        self.selector.register(self.sock.fileno(), ev)
+        events = self.selector.select(timeout=1)
+        self.selector.unregister(self.sock)
+        for key, mask in events:
+            if mask & selectors.EVENT_READ and self.on_message:
+                raw = self.recv()
+                if raw is None or raw == b'':
+                    self.closed = True
+                    logger.debug('Websocket connection closed by server')
+                    return True
+                frame = WebsocketFrame()
+                frame.parse(raw)
+                self.on_message(frame)
+            elif mask & selectors.EVENT_WRITE:
+                logger.debug(self.buffer)
+                self.flush()
+        return False
+
     def run(self) -> None:
-        self.sock.setblocking(False)
-        selector: selectors.DefaultSelector = selectors.DefaultSelector()
+        logger.debug('running')
         try:
             while not self.closed:
-                ev = selectors.EVENT_READ
-                if self.has_buffer():
-                    ev |= selectors.EVENT_WRITE
-                selector.register(self.sock.fileno(), ev)
-                events = selector.select(timeout=1)
-                for key, mask in events:
-                    if mask & selectors.EVENT_READ and self.on_message:
-                        raw = self.recv()
-                        if raw is None or raw == b'':
-                            logger.debug('Connection closed by server')
-                            break
-                        frame = WebsocketFrame()
-                        frame.parse(raw)
-                        self.on_message(frame)
-                    elif mask & selectors.EVENT_WRITE:
-                        self.flush()
-                selector.unregister(self.sock)
+                teardown = self.run_once()
+                if teardown:
+                    break
         except KeyboardInterrupt:
             pass
         finally:
             try:
-                selector.unregister(self.sock)
+                self.selector.unregister(self.sock)
                 self.sock.shutdown(socket.SHUT_RDWR)
             except Exception as e:
                 logging.exception('Exception while shutdown of websocket client', exc_info=e)
             self.sock.close()
+        logger.info('done')
+
+
+class HttpWebServerRoutePlugin(ABC):
+    """Web Server Route Plugin."""
+
+    def __init__(
+            self,
+            config: ProtocolConfig,
+            client: TcpClientConnection):
+        self.config = config
+        self.client = client
+
+    def routes(self) -> List[Tuple[int, bytes]]:
+        """Return List(protocol, path) that this plugin handles."""
+        raise NotImplementedError()
+
+    def handle_request(self, request: Union[HttpParser, WebsocketFrame]) -> None:
+        """Handle the request and serve response.
+
+        For Http requests, `request` is a `HttpParser` instance.
+        For Websocket requests, `request` is a `WebsocketFrame` instance.
+        """
+        raise NotImplementedError()
+
+
+def route(path: bytes, protocols: Optional[List[int]] = None) -> \
+        Callable[[Callable[[HttpParser], bytes]], Type[HttpWebServerRoutePlugin]]:
+    def decorator(func: Callable[[HttpParser], bytes]
+                  ) -> Type[HttpWebServerRoutePlugin]:
+        class HttpWebServerRouteHandler(HttpWebServerRoutePlugin):
+            @staticmethod
+            def name() -> str:
+                return func.__name__
+
+            def routes(self) -> List[Tuple[int, bytes]]:
+                p = protocols
+                if p is None:
+                    p = [i + 1 for i in range(len(httpProtocolTypes))]
+                return [(protocol, path) for protocol in p]
+
+            def handle_request(self, request: Union[HttpParser, WebsocketFrame]) -> None:
+                self.client.queue(func(request))
+                self.client.flush()
+
+        return HttpWebServerRouteHandler
+
+    return decorator
 
 
 class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
@@ -1518,7 +1560,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
                 self.config.pac_file_url_path))]
         return []
 
-    def handle_request(self, request: HttpParser) -> None:
+    def handle_request(self, request: Union[HttpParser, WebsocketFrame]) -> None:
         if self.config.pac_file and self.pac_file_response:
             self.client.queue(self.pac_file_response)
             self.client.flush()
@@ -1643,7 +1685,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         self.client.flush()
         return True
 
-    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         pass
 
     def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
@@ -1656,7 +1698,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             return None
         return raw
 
-    def handle_response_chunk(self, chunk: bytes) -> bytes:
+    def on_response_chunk(self, chunk: bytes) -> bytes:
         return chunk
 
     def on_client_connection_close(self) -> None:
@@ -1687,6 +1729,7 @@ class ProtocolHandler(threading.Thread):
 
         self.config: ProtocolConfig = config if config else ProtocolConfig()
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
+        self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
 
         self.selector = selectors.DefaultSelector()
 
@@ -1703,6 +1746,10 @@ class ProtocolHandler(threading.Thread):
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
+
+    @staticmethod
+    def now() -> datetime.datetime:
+        return datetime.datetime.utcnow()
 
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
@@ -1737,9 +1784,12 @@ class ProtocolHandler(threading.Thread):
                 return None
         return conn
 
-    @staticmethod
-    def now() -> datetime.datetime:
-        return datetime.datetime.utcnow()
+    def send_server_error(self, e: Exception) -> None:
+        logger.exception('Server error', exc_info=e)
+        self.client.queue(build_http_response(
+            500, b'Server Error'
+        ))
+        self.client.flush()
 
     def connection_inactive_for(self) -> int:
         return (self.now() - self.last_activity).seconds
@@ -1752,19 +1802,19 @@ class ProtocolHandler(threading.Thread):
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is write, flushing buffer')
             try:
+                # Invoke plugin.on_response_chunk
+                chunk = self.client.buffer
+                for plugin in self.plugins.values():
+                    chunk = plugin.on_response_chunk(chunk)
+                    if chunk is None:
+                        break
+
                 self.client.flush()
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for client')
                 return True
         return False
-
-    def send_server_error(self, e: Exception) -> None:
-        logger.exception('Server error', exc_info=e)
-        self.client.queue(build_http_response(
-            500, b'Server Error'
-        ))
-        self.client.flush()
 
     def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
@@ -1852,9 +1902,9 @@ class ProtocolHandler(threading.Thread):
         if teardown:
             return True
 
-        # Invoke plugin.flush_to_descriptors
+        # Invoke plugin.write_to_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.flush_to_descriptors(writables)
+            teardown = plugin.write_to_descriptors(writables)
             if teardown:
                 return True
 
@@ -1937,6 +1987,119 @@ class ProtocolHandler(threading.Thread):
                 finally:
                     self.client.close()
                     logger.debug('Client connection closed')
+
+
+class DevtoolsPlugin(ProtocolHandlerPlugin):
+
+    frame_id = '123.2'
+    loader_id = '123.67'
+
+    def __init__(
+            self,
+            config: ProtocolConfig,
+            client: TcpClientConnection,
+            request: HttpParser):
+        self.id: str = f'{ os.getpid() }-{ threading.get_ident() }-{ time.time() }'
+        self.response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        super().__init__(config, client, request)
+
+    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
+        return [], []
+
+    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+        return False
+
+    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
+        return False
+
+    def on_client_data(self, raw: bytes) -> Optional[bytes]:
+        return raw
+
+    def on_request_complete(self) -> Union[socket.socket, bool]:
+        self.config.devtools_event_queue.put({
+            'method': 'Network.requestWillBeSent',
+            'params': self.request_will_be_sent(),
+        })
+        return False
+
+    def on_response_chunk(self, chunk: bytes) -> bytes:
+        self.response.parse(chunk)
+        if self.response.state >= httpParserStates.HEADERS_COMPLETE:
+            self.config.devtools_event_queue.put({
+                'method': 'Network.responseReceived',
+                'params': self.response_received(),
+            })
+        if self.response.state >= httpParserStates.RCVING_BODY:
+            self.config.devtools_event_queue.put({
+                'method': 'Network.dataReceived',
+                'params': self.data_received(chunk)
+            })
+        if self.response.state == httpParserStates.COMPLETE:
+            self.config.devtools_event_queue.put({
+                'method': 'Network.loadingFinished',
+                'params': self.loading_finished()
+            })
+        return chunk
+
+    def on_client_connection_close(self) -> None:
+        pass
+
+    def request_will_be_sent(self) -> Dict:
+        now = time.time()
+        return {
+            'requestId': self.id,
+            'frameId': self.frame_id,
+            'loaderId': self.loader_id,
+            'documentURL': 'http://proxy-py',
+            'request': {
+                'url': text_(
+                    self.request.build_url()
+                    if self.request.has_upstream_server() else
+                    b'http://proxy-py' + self.request.build_url()
+                ),
+                'method': text_(self.request.method),
+                'headers': {text_(v[0]): text_(v[1]) for v in self.request.headers.values()},
+                'initialPriority': 'High',
+                'mixedContentType': 'none',
+                'postData': None if self.request.method != 'POST'
+                else text_(self.request.body)
+            },
+            'timestamp': now - START_TIME,
+            'wallTime': now,
+            'initiator': {
+                'type': 'other'
+            },
+            'type': text_(self.request.header(b'content-type'))
+            if self.request.has_header(b'content-type')
+            else 'Other'
+        }
+
+    def response_received(self) -> Dict:
+        return {
+            'requestId': self.id,
+            'frameId': self.frame_id,
+            'loaderId': self.loader_id,
+            'timestamp': time.time(),
+            'type': text_(self.response.header(b'content-type'))
+            if self.response.has_header(b'content-type')
+            else 'Other',
+            'response': {}
+        }
+
+    def data_received(self, chunk: bytes) -> Dict:
+        return {
+            'requestId': self.id,
+            'timestamp': time.time(),
+            'dataLength': len(chunk),
+            'encodedDataLength': len(chunk),
+        }
+
+    def loading_finished(self):
+        return {
+            'requestId': self.id,
+            'timestamp': time.time(),
+            'encodedDataLength': self.response.total_size
+        }
 
 
 def is_py3() -> bool:
@@ -2064,20 +2227,6 @@ def init_parser() -> argparse.ArgumentParser:
              'If used, must also pass --key-file.'
     )
     parser.add_argument(
-        '--chrome-remote-debugging-host',
-        type=str,
-        default=str(DEFAULT_IPV4_HOSTNAME),
-        help='Default: 127.0.0.1. Only applicable if '
-             'devtools integration is enabled. See --enable-devtools.'
-    )
-    parser.add_argument(
-        '--chrome-remote-debugging-port',
-        type=int,
-        default=DEFAULT_CHROME_REMOTE_DEBUGGING_PORT,
-        help='Default: 9222. Only applicable if '
-             'devtools integration is enabled. See --enable-devtools.'
-    )
-    parser.add_argument(
         '--client-recvbuf-size',
         type=int,
         default=DEFAULT_CLIENT_RECVBUF_SIZE,
@@ -2100,10 +2249,7 @@ def init_parser() -> argparse.ArgumentParser:
         '--enable-devtools',
         action='store_true',
         default=DEFAULT_ENABLE_DEVTOOLS,
-        help='Default: False.  Enables integration with Chrome Devtools. '
-             'To use this option, you must first start Chrome with '
-             '--remote-debugging-port flag.  Then start proxy.py optionally with '
-             '--chrome-remote-debugging-host and --chrome-remote-debugging-port.'
+        help='Default: False.  Enables integration with Chrome Devtool Frontend.'
     )
     parser.add_argument(
         '--enable-static-server',
@@ -2230,6 +2376,7 @@ def main(input_args: List[str]) -> None:
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
+        devtools_event_queue: Optional[queue.Queue] = None
         default_plugins = ''
         if not args.disable_http_proxy:
             default_plugins += 'proxy.HttpProxyPlugin,'
@@ -2239,6 +2386,9 @@ def main(input_args: List[str]) -> None:
             default_plugins += 'proxy.HttpWebServerPlugin,'
         if args.pac_file is not None:
             default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
+        if args.enable_devtools:
+            default_plugins += 'proxy.DevtoolsPlugin,'
+            devtools_event_queue = multiprocessing.Manager().Queue()
 
         config = ProtocolConfig(
             auth_code=auth_code,
@@ -2261,8 +2411,7 @@ def main(input_args: List[str]) -> None:
             num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count(),
             static_server_dir=args.static_server_dir,
             enable_static_server=args.enable_static_server,
-            chrome_remote_debugging_host=ipaddress.ip_address(args.chrome_remote_debugging_host),
-            chrome_remote_debugging_port=DEFAULT_CHROME_REMOTE_DEBUGGING_PORT)
+            devtools_event_queue=devtools_event_queue)
 
         config.plugins = load_plugins(
             bytes_(
@@ -2285,6 +2434,8 @@ def main(input_args: List[str]) -> None:
             # TODO: Introduce cron feature instead of mindless sleep
             while True:
                 time.sleep(1)
+        except Exception as e:
+            logger.exception('exception', exc_info=e)
         finally:
             acceptor_pool.shutdown()
     except KeyboardInterrupt:  # pragma: no cover
