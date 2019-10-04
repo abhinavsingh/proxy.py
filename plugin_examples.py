@@ -10,14 +10,14 @@ import json
 import os
 import tempfile
 import time
-from typing import Optional, BinaryIO
+from typing import Optional, BinaryIO, Union
 from urllib import parse as urlparse
 
 import proxy
 
 
 @proxy.route(b'/hello-world')
-def hello_world(_request: proxy.HttpParser) -> bytes:
+def hello_world(_request: Union[proxy.HttpParser, proxy.WebsocketFrame]) -> bytes:
     """A HttpWebServerRoutePlugin plugin for inbuilt web server."""
     return proxy.build_http_response(200, body=b'Hello World')
 

@@ -17,7 +17,6 @@ import importlib
 import inspect
 import io
 import ipaddress
-import json
 import logging
 import mimetypes
 import multiprocessing
@@ -36,7 +35,7 @@ import time
 from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable, TYPE_CHECKING
 from urllib import parse as urlparse
 
 from typing_extensions import Protocol
@@ -870,6 +869,12 @@ class ProxyAuthenticationFailed(ProtocolException):
         return self.RESPONSE_PKT
 
 
+if TYPE_CHECKING:
+    DevtoolsEventQueue = queue.Queue[Dict[str, Any]]
+else:
+    DevtoolsEventQueue = queue.Queue
+
+
 class ProtocolConfig:
     """Holds various configuration values applicable to ProtocolHandler.
 
@@ -901,7 +906,7 @@ class ProtocolConfig:
             backlog: int = DEFAULT_BACKLOG,
             static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
             enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
-            devtools_event_queue: Optional[queue.Queue] = None) -> None:
+            devtools_event_queue: Optional[DevtoolsEventQueue] = None) -> None:
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -1521,8 +1526,8 @@ class HttpWebServerRoutePlugin(ABC):
 
 
 def route(path: bytes, protocols: Optional[List[int]] = None) -> \
-        Callable[[Callable[[HttpParser], bytes]], Type[HttpWebServerRoutePlugin]]:
-    def decorator(func: Callable[[HttpParser], bytes]
+        Callable[[Callable[[Union[HttpParser, WebsocketFrame]], bytes]], Type[HttpWebServerRoutePlugin]]:
+    def decorator(func: Callable[[Union[HttpParser, WebsocketFrame]], bytes]
                   ) -> Type[HttpWebServerRoutePlugin]:
         class HttpWebServerRouteHandler(HttpWebServerRoutePlugin):
             @staticmethod
@@ -2016,35 +2021,37 @@ class DevtoolsPlugin(ProtocolHandlerPlugin):
         return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
-        self.config.devtools_event_queue.put({
-            'method': 'Network.requestWillBeSent',
-            'params': self.request_will_be_sent(),
-        })
+        if self.config.devtools_event_queue:
+            self.config.devtools_event_queue.put({
+                'method': 'Network.requestWillBeSent',
+                'params': self.request_will_be_sent(),
+            })
         return False
 
     def on_response_chunk(self, chunk: bytes) -> bytes:
-        self.response.parse(chunk)
-        if self.response.state >= httpParserStates.HEADERS_COMPLETE:
-            self.config.devtools_event_queue.put({
-                'method': 'Network.responseReceived',
-                'params': self.response_received(),
-            })
-        if self.response.state >= httpParserStates.RCVING_BODY:
-            self.config.devtools_event_queue.put({
-                'method': 'Network.dataReceived',
-                'params': self.data_received(chunk)
-            })
-        if self.response.state == httpParserStates.COMPLETE:
-            self.config.devtools_event_queue.put({
-                'method': 'Network.loadingFinished',
-                'params': self.loading_finished()
-            })
+        if self.config.devtools_event_queue:
+            self.response.parse(chunk)
+            if self.response.state >= httpParserStates.HEADERS_COMPLETE:
+                self.config.devtools_event_queue.put({
+                    'method': 'Network.responseReceived',
+                    'params': self.response_received(),
+                })
+            if self.response.state >= httpParserStates.RCVING_BODY:
+                self.config.devtools_event_queue.put({
+                    'method': 'Network.dataReceived',
+                    'params': self.data_received(chunk)
+                })
+            if self.response.state == httpParserStates.COMPLETE:
+                self.config.devtools_event_queue.put({
+                    'method': 'Network.loadingFinished',
+                    'params': self.loading_finished()
+                })
         return chunk
 
     def on_client_connection_close(self) -> None:
         pass
 
-    def request_will_be_sent(self) -> Dict:
+    def request_will_be_sent(self) -> Dict[str, Any]:
         now = time.time()
         return {
             'requestId': self.id,
@@ -2074,7 +2081,7 @@ class DevtoolsPlugin(ProtocolHandlerPlugin):
             else 'Other'
         }
 
-    def response_received(self) -> Dict:
+    def response_received(self) -> Dict[str, Any]:
         return {
             'requestId': self.id,
             'frameId': self.frame_id,
@@ -2086,7 +2093,7 @@ class DevtoolsPlugin(ProtocolHandlerPlugin):
             'response': {}
         }
 
-    def data_received(self, chunk: bytes) -> Dict:
+    def data_received(self, chunk: bytes) -> Dict[str, Any]:
         return {
             'requestId': self.id,
             'timestamp': time.time(),
@@ -2094,7 +2101,7 @@ class DevtoolsPlugin(ProtocolHandlerPlugin):
             'encodedDataLength': len(chunk),
         }
 
-    def loading_finished(self):
+    def loading_finished(self) -> Dict[str, Any]:
         return {
             'requestId': self.id,
             'timestamp': time.time(),
@@ -2376,7 +2383,7 @@ def main(input_args: List[str]) -> None:
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        devtools_event_queue: Optional[queue.Queue] = None
+        devtools_event_queue: Optional[DevtoolsEventQueue] = None
         default_plugins = ''
         if not args.disable_http_proxy:
             default_plugins += 'proxy.HttpProxyPlugin,'

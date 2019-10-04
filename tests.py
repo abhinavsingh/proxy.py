@@ -1250,8 +1250,7 @@ class TestMain(unittest.TestCase):
         mock_args.open_file_limit = proxy.DEFAULT_OPEN_FILE_LIMIT
         mock_args.enable_static_server = proxy.DEFAULT_ENABLE_STATIC_SERVER
         mock_args.enable_devtools = proxy.DEFAULT_ENABLE_DEVTOOLS
-        mock_args.chrome_remote_debugging_host = proxy.DEFAULT_IPV4_HOSTNAME
-        mock_args.chrome_remote_debugging_port = proxy.DEFAULT_CHROME_REMOTE_DEBUGGING_PORT
+        mock_args.devtools_event_queue = None
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.load_plugins')
@@ -1306,8 +1305,7 @@ class TestMain(unittest.TestCase):
                     mock_args.disable_headers).split(proxy.COMMA) if header.strip() != b''],
             static_server_dir=mock_args.static_server_dir,
             enable_static_server=mock_args.enable_static_server,
-            chrome_remote_debugging_host=mock_args.chrome_remote_debugging_host,
-            chrome_remote_debugging_port=mock_args.chrome_remote_debugging_port,
+            devtools_event_queue=None,
         )
 
         mock_acceptor_pool.assert_called_with(
