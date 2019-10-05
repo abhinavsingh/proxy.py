@@ -16,12 +16,6 @@ from urllib import parse as urlparse
 import proxy
 
 
-@proxy.route(b'/hello-world')
-def hello_world(_request: Union[proxy.HttpParser, proxy.WebsocketFrame]) -> bytes:
-    """A HttpWebServerBasePlugin plugin for inbuilt web server."""
-    return proxy.build_http_response(200, body=b'Hello World')
-
-
 class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     """Mock responses for your upstream REST API.
 

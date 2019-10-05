@@ -17,6 +17,7 @@ import importlib
 import inspect
 import io
 import ipaddress
+import json
 import logging
 import mimetypes
 import multiprocessing
@@ -35,7 +36,7 @@ import time
 from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable, TYPE_CHECKING
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, TYPE_CHECKING
 from urllib import parse as urlparse
 
 from typing_extensions import Protocol
@@ -870,9 +871,9 @@ class ProxyAuthenticationFailed(ProtocolException):
 
 
 if TYPE_CHECKING:
-    DevtoolsEventQueue = queue.Queue[Dict[str, Any]]
+    DevtoolsEventQueueType = queue.Queue[Dict[str, Any]]
 else:
-    DevtoolsEventQueue = queue.Queue
+    DevtoolsEventQueueType = queue.Queue
 
 
 class ProtocolConfig:
@@ -906,7 +907,7 @@ class ProtocolConfig:
             backlog: int = DEFAULT_BACKLOG,
             static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
             enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
-            devtools_event_queue: Optional[DevtoolsEventQueue] = None) -> None:
+            devtools_event_queue: Optional[DevtoolsEventQueueType] = None) -> None:
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -1312,6 +1313,9 @@ class WebsocketFrame:
     GUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
     def __init__(self) -> None:
+        self.reset()
+
+    def reset(self):
         self.fin: bool = False
         self.rsv1: bool = False
         self.rsv2: bool = False
@@ -1381,7 +1385,7 @@ class WebsocketFrame:
             raw.write(self.data)
         return raw.getvalue()
 
-    def parse(self, raw: bytes) -> None:
+    def parse(self, raw: bytes) -> bytes:
         cur = 0
         self.parse_fin_and_rsv(raw[cur])
         cur += 1
@@ -1402,11 +1406,13 @@ class WebsocketFrame:
             self.mask = raw[cur: cur + 4]
             cur += 4
 
-        self.data = raw[cur:]
-
+        self.data = raw[cur: cur + self.payload_length]
+        cur += self.payload_length
         if self.masked:
             assert self.mask is not None
             self.data = self.apply_mask(self.data, self.mask)
+
+        return raw[cur:]
 
     @staticmethod
     def apply_mask(data: bytes, mask: bytes) -> bytes:
@@ -1518,37 +1524,105 @@ class HttpWebServerBasePlugin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def handle_request(self, request: Union[HttpParser, WebsocketFrame]) -> None:
-        """Handle the request and serve response.
+    def handle_request(self, request: HttpParser) -> None:
+        """Handle the request and serve response."""
+        raise NotImplementedError()
 
-        For Http requests, `request` is a `HttpParser` instance.
-        For Websocket requests, `request` is a `WebsocketFrame` instance.
-        """
+    @abstractmethod
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        """Handle websocket frame."""
         raise NotImplementedError()
 
 
-def route(path: bytes, protocols: Optional[List[int]] = None) -> \
-        Callable[[Callable[[Union[HttpParser, WebsocketFrame]], bytes]], Type[HttpWebServerBasePlugin]]:
-    def decorator(func: Callable[[Union[HttpParser, WebsocketFrame]], bytes]
-                  ) -> Type[HttpWebServerBasePlugin]:
-        class HttpWebServerBaseHandler(HttpWebServerBasePlugin):
-            @staticmethod
-            def name() -> str:
-                return func.__name__
+class DevtoolsFrontendPlugin(HttpWebServerBasePlugin):
 
-            def routes(self) -> List[Tuple[int, bytes]]:
-                p = protocols
-                if p is None:
-                    p = [i + 1 for i in range(len(httpProtocolTypes))]
-                return [(protocol, path) for protocol in p]
+    def __init__(
+            self,
+            config: ProtocolConfig,
+            client: TcpClientConnection):
+        self.event_dispatcher_thread = threading.Thread(
+            target=DevtoolsFrontendPlugin.event_dispatcher,
+            args=(config, client))
+        self.event_dispatcher_thread.setDaemon(True)
+        self.event_dispatcher_thread.start()
+        super().__init__(config, client)
 
-            def handle_request(self, request: Union[HttpParser, WebsocketFrame]) -> None:
-                self.client.queue(func(request))
-                self.client.flush()
+    @staticmethod
+    def event_dispatcher(config: ProtocolConfig, client: TcpClientConnection):
+        while True:
+            try:
+                ev = config.devtools_event_queue.get(timeout=1)
+                frame = WebsocketFrame()
+                frame.fin = True
+                frame.opcode = websocketOpcodes.TEXT_FRAME
+                frame.data = bytes_(json.dumps(ev))
+                client.queue(frame.build())
+            except queue.Empty:
+                pass
+            except Exception as e:
+                logger.exception('Event dispatcher exception', exc_info=e)
+                break
+            except KeyboardInterrupt:
+                break
 
-        return HttpWebServerBaseHandler
+    def routes(self) -> List[Tuple[int, bytes]]:
+        return [
+            (httpProtocolTypes.WEBSOCKET, b'/devtools')
+        ]
 
-    return decorator
+    def handle_request(self, request: HttpParser) -> None:
+        pass
+
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        if frame.data:
+            message = json.loads(frame.data)
+            self.handle_message(message)
+        else:
+            logger.debug('No data found in frame')
+
+    def handle_message(self, message) -> None:
+        frame = WebsocketFrame()
+        frame.fin = True
+        frame.opcode = websocketOpcodes.TEXT_FRAME
+
+        if message['method'] in (
+            'Page.canScreencast',
+            'Network.canEmulateNetworkConditions',
+            'Emulation.canEmulate'
+        ):
+            data = json.dumps({
+                'id': message['id'],
+                'result': False
+            })
+        elif message['method'] == 'Page.getResourceTree':
+            data = json.dumps({
+                'id': message['id'],
+                'result': {
+                    'frameTree': {
+                        'frame': {
+                            'id': 1,
+                            'url': 'http://proxypy',
+                            'mimeType': 'other',
+                        },
+                        'childFrames': [],
+                        'resources': []
+                    }
+                }
+            })
+        elif message['method'] == 'Network.getResponseBody':
+            logger.debug('received request method Network.getResponseBody')
+            data = json.dumps({
+                'id': message['id'],
+                'result': {}
+            })
+        else:
+            data = json.dumps({
+                'id': message['id'],
+                'result': {},
+            })
+
+        frame.data = bytes_(data)
+        self.client.queue(frame.build())
 
 
 class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
@@ -1571,6 +1645,9 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
         if self.config.pac_file and self.pac_file_response:
             self.client.queue(self.pac_file_response)
             self.client.flush()
+
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        pass
 
     def cache_pac_file_response(self) -> None:
         if self.config.pac_file:
@@ -1614,6 +1691,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         self.routes: Dict[int, Dict[bytes, HttpWebServerBasePlugin]] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
+            httpProtocolTypes.WEBSOCKET: {},
         }
 
         if b'HttpWebServerBasePlugin' in self.config.plugins:
@@ -1645,11 +1723,6 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 self.request.header(b'connection').lower() == b'upgrade':
             if self.request.has_header(b'upgrade') and \
                     self.request.header(b'upgrade').lower() == b'websocket':
-                # Complete websocket handshake
-                if not self.request.has_header(b'Sec-WebSocket-Key'):
-                    # TODO: Return invalid request?
-                    return True
-
                 self.client.queue(
                     build_websocket_handshake_response(
                         WebsocketFrame.key_to_accept(
@@ -1664,10 +1737,14 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
     def route_by_protocol(self,
                           url: bytes, protocol: int,
-                          request: Union[HttpParser, WebsocketFrame]) -> bool:
+                          request: Optional[HttpParser] = None,
+                          frame: Optional[WebsocketFrame] = None) -> bool:
         for route_ in self.routes[protocol]:
             if route_ == url:
-                self.routes[protocol][route_].handle_request(request)
+                if request:
+                    self.routes[protocol][route_].handle_request(request)
+                elif frame:
+                    self.routes[protocol][route_].on_websocket_message(frame)
                 self.client.flush()
                 return True
         return False
@@ -1692,7 +1769,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             url, httpProtocolTypes.HTTPS
             if self.request.method == b'CONNECT'
             else httpProtocolTypes.HTTP,
-            self.request)
+            request=self.request)
         if teardown:
             return True
 
@@ -1716,13 +1793,16 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
+            remaining = raw
             frame = WebsocketFrame()
-            frame.parse(raw)
-            # TODO: Teardown if invalid protocol exception
-            self.route_by_protocol(
-                self.request.build_url(),
-                httpProtocolTypes.WEBSOCKET,
-                frame)
+            while remaining != b'':
+                # TODO: Teardown if invalid protocol exception
+                remaining = frame.parse(remaining)
+                self.route_by_protocol(
+                    self.request.build_url(),
+                    httpProtocolTypes.WEBSOCKET,
+                    frame=frame)
+                frame.reset()
             return None
         return raw
 
@@ -2017,10 +2097,18 @@ class ProtocolHandler(threading.Thread):
                     logger.debug('Client connection closed')
 
 
-class DevtoolsPlugin(ProtocolHandlerPlugin):
+class DevtoolsEventGeneratorPlugin(ProtocolHandlerPlugin):
+    """
+    DevtoolsEventGeneratorPlugin taps into core `ProtocolHandler`
+    plugin to generate events necessary for integration with
+    devtools frontend.
 
-    frame_id = '123.2'
-    loader_id = '123.67'
+    A DevtoolsEventGeneratorPlugin instance is created per request.
+    Per request devtool events are queued into a multiprocessing queue.
+    """
+
+    frame_id = secrets.token_hex(8)
+    loader_id = secrets.token_hex(8)
 
     def __init__(
             self,
@@ -2044,6 +2132,7 @@ class DevtoolsPlugin(ProtocolHandlerPlugin):
         return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
+        # Handle devtool frontend websocket upgrade
         if self.config.devtools_event_queue:
             self.config.devtools_event_queue.put({
                 'method': 'Network.requestWillBeSent',
@@ -2080,7 +2169,7 @@ class DevtoolsPlugin(ProtocolHandlerPlugin):
             'requestId': self.id,
             'frameId': self.frame_id,
             'loaderId': self.loader_id,
-            'documentURL': 'http://proxy-py',
+            'documentURL': 'http://proxy-py/devtools',
             'request': {
                 'url': text_(
                     self.request.build_url()
@@ -2406,19 +2495,19 @@ def main(input_args: List[str]) -> None:
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
-        devtools_event_queue: Optional[DevtoolsEventQueue] = None
         default_plugins = ''
         if not args.disable_http_proxy:
             default_plugins += 'proxy.HttpProxyPlugin,'
+        if args.enable_devtools:
+            default_plugins += 'proxy.HttpWebServerPlugin,proxy.DevtoolsEventGeneratorPlugin,'
         if args.enable_web_server or \
                 args.pac_file is not None or \
                 args.enable_static_server:
             default_plugins += 'proxy.HttpWebServerPlugin,'
+        if args.enable_devtools:
+            default_plugins += 'proxy.DevtoolsFrontendPlugin,'
         if args.pac_file is not None:
             default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
-        if args.enable_devtools:
-            default_plugins += 'proxy.DevtoolsPlugin,'
-            devtools_event_queue = multiprocessing.Manager().Queue()
 
         config = ProtocolConfig(
             auth_code=auth_code,
@@ -2441,7 +2530,7 @@ def main(input_args: List[str]) -> None:
             num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count(),
             static_server_dir=args.static_server_dir,
             enable_static_server=args.enable_static_server,
-            devtools_event_queue=devtools_event_queue)
+            devtools_event_queue=multiprocessing.Manager().Queue())
 
         config.plugins = load_plugins(
             bytes_(

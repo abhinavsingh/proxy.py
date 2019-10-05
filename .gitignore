@@ -1,5 +1,6 @@
 .coverage
 .idea
+.vscode
 .project
 .pydevproject
 .settings
