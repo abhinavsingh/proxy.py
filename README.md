@@ -714,8 +714,6 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--ca-cert-file CA_CERT_FILE]
                 [--ca-signing-key-file CA_SIGNING_KEY_FILE]
                 [--cert-file CERT_FILE]
-                [--chrome-remote-debugging-host CHROME_REMOTE_DEBUGGING_HOST]
-                [--chrome-remote-debugging-port CHROME_REMOTE_DEBUGGING_PORT]
                 [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
                 [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
                 [--enable-devtools] [--enable-static-server]
@@ -758,12 +756,6 @@ optional arguments:
                         Default: None. Server certificate to enable end-to-end
                         TLS encryption with clients. If used, must also pass
                         --key-file.
-  --chrome-remote-debugging-host CHROME_REMOTE_DEBUGGING_HOST
-                        Default: 127.0.0.1. Only applicable if devtools
-                        integration is enabled. See --enable-devtools.
-  --chrome-remote-debugging-port CHROME_REMOTE_DEBUGGING_PORT
-                        Default: 9222. Only applicable if devtools integration
-                        is enabled. See --enable-devtools.
   --client-recvbuf-size CLIENT_RECVBUF_SIZE
                         Default: 1 MB. Maximum amount of data received from
                         the client in a single recv() operation. Bump this
@@ -776,10 +768,7 @@ optional arguments:
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
   --enable-devtools     Default: False. Enables integration with Chrome
-                        Devtools. To use this option, you must first start
-                        Chrome with --remote-debugging-port flag. Then start
-                        proxy.py optionally with --chrome-remote-debugging-
-                        host and --chrome-remote-debugging-port.
+                        Devtool Frontend.
   --enable-static-server
                         Default: False. Enable inbuilt static file server.
                         Optionally, also use --static-server-dir to serve
