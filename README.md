@@ -55,6 +55,8 @@ Table of Contents
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
     * [Basic auth not working with a browser](#basic-auth-not-working-with-a-browser)
     * [Docker image not working on MacOS](#docker-image-not-working-on-macos)
+    * [Unable to load custom plugins](#unable-to-load-custom-plugins)
+    * [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
 * [Flags](#flags)
 
 Features
@@ -703,6 +705,46 @@ See [moby/vpnkit exhausts docker resources](https://github.com/abhinavsingh/prox
 and [Connection refused: The proxy could not connect](https://github.com/moby/vpnkit/issues/469)
 for some background.
 
+## Unable to load custom plugins
+
+`proxy.py --plugins my_app.proxyPlugin`
+
+```
+2019-10-07 05:44:42,246 - INFO - pid:16037 - load_plugins:2272 - Loaded plugin proxy.HttpProxyPlugin
+Traceback (most recent call last):
+  ...[redacted]...
+ModuleNotFoundError: No module named 'my_app'
+```
+
+Make sure your plugin modules are discoverable by adding them to `PYTHONPATH`.  Example:
+
+`PYTHONPATH=/path/to/my/app proxy.py --plugins my_app.proxyPlugin`
+
+```
+...[redacted]... - Loaded plugin proxy.HttpProxyPlugin
+...[redacted]... - Loaded plugin my_app.proxyPlugin
+```
+
+## ValueError: filedescriptor out of range in select
+
+`proxy.py` is made to handle thousands of connections per second.
+
+1. Make use of `--open-file-limit` flag to customize `ulimit -n`.
+2. To set a value upper than the hard limit, run as root.
+
+If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issues/new)
+with `requests per second` sent and output of following debug script:
+
+```
+# PID of proxy.py
+PROXY_PY_PID=<... Put value here or use --pid-file option ...>;
+
+# Prints number of open files by main process
+lsof -p $PROXY_PY_PID | wc -l;
+
+# Prints number of open files per worker process
+pgrep -P $PROXY_PY_PID | while read pid; do lsof -p $pid | wc -l; done;
+```
 
 Flags
 =====
