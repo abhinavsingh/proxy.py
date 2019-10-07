@@ -707,15 +707,6 @@ for some background.
 
 ## Unable to load custom plugins
 
-`proxy.py --plugins my_app.proxyPlugin`
-
-```
-2019-10-07 05:44:42,246 - INFO - pid:16037 - load_plugins:2272 - Loaded plugin proxy.HttpProxyPlugin
-Traceback (most recent call last):
-  ...[redacted]...
-ModuleNotFoundError: No module named 'my_app'
-```
-
 Make sure your plugin modules are discoverable by adding them to `PYTHONPATH`.  Example:
 
 `PYTHONPATH=/path/to/my/app proxy.py --plugins my_app.proxyPlugin`
