@@ -1896,25 +1896,14 @@ class ProtocolHandler(threading.Thread):
         Shutdown and closes client connection upon error.
         """
         if self.config.certfile and self.config.keyfile:
-            try:
-                ctx = ssl.create_default_context(
-                    ssl.Purpose.CLIENT_AUTH)
-                ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                ctx.verify_mode = ssl.CERT_NONE
-                ctx.load_cert_chain(
-                    certfile=self.config.certfile,
-                    keyfile=self.config.keyfile)
-                conn = ctx.wrap_socket(conn, server_side=True)
-                return conn
-            except Exception as e:
-                logger.exception('Error encountered', exc_info=e)
-                try:
-                    conn.shutdown(socket.SHUT_RDWR)
-                except Exception as e:
-                    logger.exception('Error trying to shutdown client socket', exc_info=e)
-                finally:
-                    conn.close()
-                return None
+            ctx = ssl.create_default_context(
+                ssl.Purpose.CLIENT_AUTH)
+            ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+            ctx.verify_mode = ssl.CERT_NONE
+            ctx.load_cert_chain(
+                certfile=self.config.certfile,
+                keyfile=self.config.keyfile)
+            conn = ctx.wrap_socket(conn, server_side=True)
         return conn
 
     def send_server_error(self, e: Exception) -> None:
