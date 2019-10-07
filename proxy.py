@@ -10,8 +10,10 @@
 """
 import argparse
 import base64
+import contextlib
 import datetime
 import errno
+import functools
 import hashlib
 import importlib
 import inspect
@@ -277,10 +279,6 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
 
 
 def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
-    """Attempts to create an IPv4 connection, then IPv6 and finally dual stack connection.
-
-    Returns established socket connection if successful,
-    otherwise an exception is raised."""
     try:
         ip = ipaddress.ip_address(addr[0])
         if ip.version == 4:
@@ -296,6 +294,31 @@ def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
         # try to establish dual stack IPv4/IPv6 connection.
         conn = socket.create_connection(addr)
     return conn
+
+
+class socket_connection(contextlib.ContextDecorator):
+    """Same as new_socket_connection but as a context manager and decorator."""
+
+    def __init__(self, addr: Tuple[str, int]):
+        self.addr: Tuple[str, int] = addr
+        self.conn: Optional[socket.socket] = None
+        super().__init__()
+
+    def __enter__(self):
+        self.conn = new_socket_connection(self.addr)
+        return self
+
+    def __exit__(self, *exc) -> bool:
+        if self.conn:
+            self.conn.close()
+        return False
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def decorated(*args, **kwargs):
+            with self:
+                return func(self, *args, **kwargs)
+        return decorated
 
 
 class _HasFileno(Protocol):
@@ -408,131 +431,6 @@ class TcpClientConnection(TcpConnection):
         if self._conn is None:
             raise TcpConnectionUninitializedException()
         return self._conn
-
-
-class AcceptorPool:
-    """AcceptorPool.
-
-    Pre-spawns worker processes to utilize all cores available on the system.  Server socket connection is
-    dispatched over a pipe to workers.  Each worker accepts incoming client request and spawns a
-    separate thread to handle the client request.
-    """
-
-    def __init__(self,
-                 hostname: Union[ipaddress.IPv4Address,
-                                 ipaddress.IPv6Address],
-                 port: int, backlog: int, num_workers: int,
-                 work_klass: type, **kwargs: Any) -> None:
-        self.running: bool = False
-
-        self.hostname: Union[ipaddress.IPv4Address,
-                             ipaddress.IPv6Address] = hostname
-        self.port: int = port
-        self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
-        self.backlog: int = backlog
-        self.socket: Optional[socket.socket] = None
-
-        self.current_worker_id = 0
-        self.num_workers = num_workers
-        self.workers: List[Worker] = []
-        self.work_queues: List[Tuple[connection.Connection,
-                                     connection.Connection]] = []
-
-        self.work_klass = work_klass
-        self.kwargs = kwargs
-
-    def listen(self) -> None:
-        self.socket = socket.socket(self.family, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((str(self.hostname), self.port))
-        self.socket.listen(self.backlog)
-        self.socket.setblocking(False)
-        self.socket.settimeout(0)
-        logger.info('Listening on %s:%d' % (self.hostname, self.port))
-
-    def start_workers(self) -> None:
-        """Start worker processes."""
-        for worker_id in range(self.num_workers):
-            work_queue = multiprocessing.Pipe()
-
-            worker = Worker(work_queue[1], self.work_klass, **self.kwargs)
-            worker.daemon = True
-            worker.start()
-
-            self.workers.append(worker)
-            self.work_queues.append(work_queue)
-        logger.info('Started %d workers' % self.num_workers)
-
-    def shutdown(self) -> None:
-        logger.info('Shutting down %d workers' % self.num_workers)
-        for worker in self.workers:
-            worker.join()
-
-    def setup(self) -> None:
-        """Listen on port, setup workers and pass server socket to workers."""
-        self.running = True
-        self.listen()
-        self.start_workers()
-
-        # Send server socket to workers.
-        assert self.socket is not None
-        for work_queue in self.work_queues:
-            work_queue[0].send(self.family)
-            send_handle(work_queue[0], self.socket.fileno(),
-                        self.workers[self.current_worker_id].pid)
-        self.socket.close()
-
-
-class Worker(multiprocessing.Process):
-    """Socket client acceptor.
-
-    Accepts client connection over received server socket handle and
-    starts a new work thread.
-    """
-
-    lock = multiprocessing.Lock()
-
-    def __init__(
-            self,
-            work_queue: connection.Connection,
-            work_klass: type,
-            **kwargs: Any):
-        super().__init__()
-        self.work_queue: connection.Connection = work_queue
-        self.work_klass = work_klass
-        self.kwargs = kwargs
-
-    def run(self) -> None:
-        family = self.work_queue.recv()
-        sock = socket.fromfd(
-            recv_handle(self.work_queue),
-            family=family,
-            type=socket.SOCK_STREAM
-        )
-        selector = selectors.DefaultSelector()
-        try:
-            while True:
-                with self.lock:
-                    selector.register(sock, selectors.EVENT_READ)
-                    events = selector.select(timeout=1)
-                    selector.unregister(sock)
-                    if len(events) == 0:
-                        continue
-                try:
-                    conn, addr = sock.accept()
-                except BlockingIOError:  # as e:
-                    # logger.exception('BlockingIOError', exc_info=e)
-                    continue
-                work = self.work_klass(
-                    fileno=conn.fileno(),
-                    addr=addr,
-                    **self.kwargs)
-                work.setDaemon(True)
-                work.start()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            sock.close()
 
 
 class ChunkParser:
@@ -649,7 +547,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -789,6 +687,131 @@ class HttpParser:
         return True if self.host is not None else False
 
 
+class AcceptorPool:
+    """AcceptorPool.
+
+    Pre-spawns worker processes to utilize all cores available on the system.  Server socket connection is
+    dispatched over a pipe to workers.  Each worker accepts incoming client request and spawns a
+    separate thread to handle the client request.
+    """
+
+    def __init__(self,
+                 hostname: Union[ipaddress.IPv4Address,
+                                 ipaddress.IPv6Address],
+                 port: int, backlog: int, num_workers: int,
+                 work_klass: type, **kwargs: Any) -> None:
+        self.running: bool = False
+
+        self.hostname: Union[ipaddress.IPv4Address,
+                             ipaddress.IPv6Address] = hostname
+        self.port: int = port
+        self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
+        self.backlog: int = backlog
+        self.socket: Optional[socket.socket] = None
+
+        self.current_worker_id = 0
+        self.num_workers = num_workers
+        self.workers: List[Worker] = []
+        self.work_queues: List[Tuple[connection.Connection,
+                                     connection.Connection]] = []
+
+        self.work_klass = work_klass
+        self.kwargs = kwargs
+
+    def listen(self) -> None:
+        self.socket = socket.socket(self.family, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind((str(self.hostname), self.port))
+        self.socket.listen(self.backlog)
+        self.socket.setblocking(False)
+        self.socket.settimeout(0)
+        logger.info('Listening on %s:%d' % (self.hostname, self.port))
+
+    def start_workers(self) -> None:
+        """Start worker processes."""
+        for worker_id in range(self.num_workers):
+            work_queue = multiprocessing.Pipe()
+
+            worker = Worker(work_queue[1], self.work_klass, **self.kwargs)
+            worker.daemon = True
+            worker.start()
+
+            self.workers.append(worker)
+            self.work_queues.append(work_queue)
+        logger.info('Started %d workers' % self.num_workers)
+
+    def shutdown(self) -> None:
+        logger.info('Shutting down %d workers' % self.num_workers)
+        for worker in self.workers:
+            worker.join()
+
+    def setup(self) -> None:
+        """Listen on port, setup workers and pass server socket to workers."""
+        self.running = True
+        self.listen()
+        self.start_workers()
+
+        # Send server socket to workers.
+        assert self.socket is not None
+        for work_queue in self.work_queues:
+            work_queue[0].send(self.family)
+            send_handle(work_queue[0], self.socket.fileno(),
+                        self.workers[self.current_worker_id].pid)
+        self.socket.close()
+
+
+class Worker(multiprocessing.Process):
+    """Socket client acceptor.
+
+    Accepts client connection over received server socket handle and
+    starts a new work thread.
+    """
+
+    lock = multiprocessing.Lock()
+
+    def __init__(
+            self,
+            work_queue: connection.Connection,
+            work_klass: type,
+            **kwargs: Any):
+        super().__init__()
+        self.work_queue: connection.Connection = work_queue
+        self.work_klass = work_klass
+        self.kwargs = kwargs
+
+    def run(self) -> None:
+        family = self.work_queue.recv()
+        sock = socket.fromfd(
+            recv_handle(self.work_queue),
+            family=family,
+            type=socket.SOCK_STREAM
+        )
+        selector = selectors.DefaultSelector()
+        try:
+            while True:
+                with self.lock:
+                    selector.register(sock, selectors.EVENT_READ)
+                    events = selector.select(timeout=1)
+                    selector.unregister(sock)
+                    if len(events) == 0:
+                        continue
+                try:
+                    conn, addr = sock.accept()
+                except BlockingIOError:  # as e:
+                    # logger.exception('BlockingIOError', exc_info=e)
+                    continue
+                work = self.work_klass(
+                    fileno=conn.fileno(),
+                    addr=addr,
+                    **self.kwargs)
+                work.setDaemon(True)
+                work.start()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            sock.close()
+
+
 class ProtocolException(Exception):
     """Top level ProtocolException exception class.
 
@@ -871,7 +894,7 @@ class ProxyAuthenticationFailed(ProtocolException):
 
 
 if TYPE_CHECKING:
-    DevtoolsEventQueueType = queue.Queue[Dict[str, Any]]
+    DevtoolsEventQueueType = queue.Queue[Dict[str, Any]]    # pragma: no cover
 else:
     DevtoolsEventQueueType = queue.Queue
 
@@ -1028,16 +1051,16 @@ class HttpProxyBasePlugin(ABC):
             config: ProtocolConfig,
             client: TcpClientConnection,
             request: HttpParser):
-        self.config = config
-        self.client = client
-        self.request = request
+        self.config = config        # pragma: no cover
+        self.client = client        # pragma: no cover
+        self.request = request      # pragma: no cover
 
     def name(self) -> str:
         """A unique name for your plugin.
 
         Defaults to name of the class. This helps plugin developers to directly
         access a specific plugin by its name."""
-        return self.__class__.__name__
+        return self.__class__.__name__      # pragma: no cover
 
     @abstractmethod
     def before_upstream_connection(self) -> bool:

@@ -93,7 +93,18 @@ Install
 
 ## Stable version
 
+Install from `PyPi`
+
 	$ pip install --upgrade proxy.py
+
+or from GitHub `master` branch
+
+    $ pip install git+https://github.com/abhinavsingh/proxy.py.git@master
+
+or download from here [proxy.py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/master/proxy.py)
+or simply `wget` it:
+
+    $ wget -q https://raw.githubusercontent.com/abhinavsingh/proxy.py/master/proxy.py
 
 ## Development version
 
@@ -519,16 +530,61 @@ You can directly import `proxy.py` into your `Python` code.  Example:
 $ python
 >>> import proxy
 >>>
->>> # Generate HTTP GET request
+```
+
+## proxy.new_socket_connection
+
+Attempts to create an IPv4 connection, then IPv6 and
+finally a dual stack connection to provided address.
+
+```
+>>> conn = proxy.new_socket_connection(('httpbin.org', 80))
+>>> ...[ use connection ]...
+>>> conn.close()
+```
+
+## proxy.socket_connection
+
+`socket_connection` is a convenient decorator + context manager
+around `new_socket_connection` which ensures `conn.close` is implicit.
+
+As a context manager:
+
+```
+>>> with proxy.new_socket_connection(('httpbin.org', 80)) as conn:
+>>>   ... [ use connection ] ...
+```
+
+As a decorator:
+
+```
+>>> @proxy.new_socket_connection(('httpbin.org', 80))
+>>> def my_api_call(conn, *args, **kwargs):
+>>>   ... [ use connection ] ...
+```
+
+## proxy.build_http_request
+
+#### Generate HTTP GET request
+
+```
 >>> proxy.build_http_request(b'GET', b'/')
 b'GET / HTTP/1.1\r\n\r\n'
 >>>
->>> # Generate HTTP GET request with headers
+```
+
+#### Generate HTTP GET request with headers
+
+```
 >>> proxy.build_http_request(b'GET', b'/', 
         headers={b'Connection': b'close'})
 b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
 >>>
->>> # Generate HTTP POST request with headers and body
+```
+
+#### Generate HTTP POST request with headers and body
+
+```
 >>> import json
 >>> proxy.build_http_request(b'POST', b'/form', 
         headers={b'Content-type': b'application/json'}, 
@@ -536,17 +592,17 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
     b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
 ```
 
-See [Internal Documentation](#internal-documentation)
-for all available classes and utility methods.
-
 To start `proxy.py` server from imported `proxy.py` module, simply do:
 
 ```
 import proxy
 
 if __name__ == '__main__':
-  proxy.main(['--hostname', '::1', '--port', ...])
+  proxy.main(['--hostname', '::1', '--port', 8899])
 ```
+
+See [Internal Documentation](#internal-documentation)
+for all available classes and utility methods.
 
 Plugin Developer and Contributor Guide
 ======================================
@@ -642,13 +698,16 @@ CLASSES
     abc.ABC(builtins.object)
         HttpProxyBasePlugin
         HttpWebServerBasePlugin
+            DevtoolsFrontendPlugin
             HttpWebServerPacFilePlugin
         ProtocolHandlerPlugin
+            DevtoolsEventGeneratorPlugin
             HttpProxyPlugin
             HttpWebServerPlugin
         TcpConnection
             TcpClientConnection
             TcpServerConnection
+            WebsocketClient
     builtins.Exception(builtins.BaseException)
         ProtocolException
             HttpRequestRejected
@@ -660,7 +719,6 @@ CLASSES
         ChunkParser
         HttpParser
         ProtocolConfig
-        Websocket
         WebsocketFrame
     builtins.tuple(builtins.object)
         ChunkParserStates
@@ -668,11 +726,13 @@ CLASSES
         HttpParserTypes
         HttpProtocolTypes
         TcpConnectionTypes
+        WebsocketOpcodes
+    contextlib.ContextDecorator(builtins.object)
+        socket_connection
     multiprocessing.context.Process(multiprocessing.process.BaseProcess)
         Worker
     threading.Thread(builtins.object)
         ProtocolHandler
-... [ truncated ] ...
 ```
 
 Frequently Asked Questions
