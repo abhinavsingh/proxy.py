@@ -378,8 +378,8 @@ class TcpServerConnection(TcpConnection):
 
     def __init__(self, host: str, port: int):
         super().__init__(tcpConnectionTypes.SERVER)
-        self.addr: Tuple[str, int] = (host, int(port))
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
+        self.addr: Tuple[str, int] = (host, int(port))
 
     @property
     def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
@@ -394,10 +394,11 @@ class TcpServerConnection(TcpConnection):
 
 
 class TcpClientConnection(TcpConnection):
-    """Accepted client connection."""
+    """An accepted client connection request."""
 
-    def __init__(self, conn: Union[ssl.SSLSocket,
-                                   socket.socket], addr: Tuple[str, int]):
+    def __init__(self,
+                 conn: Union[ssl.SSLSocket, socket.socket],
+                 addr: Tuple[str, int]):
         super().__init__(tcpConnectionTypes.CLIENT)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
         self.addr: Tuple[str, int] = addr
@@ -1314,7 +1315,7 @@ class WebsocketFrame:
     def __init__(self) -> None:
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         self.fin: bool = False
         self.rsv1: bool = False
         self.rsv2: bool = False
@@ -1405,6 +1406,7 @@ class WebsocketFrame:
             self.mask = raw[cur: cur + 4]
             cur += 4
 
+        assert self.payload_length
         self.data = raw[cur: cur + self.payload_length]
         cur += self.payload_length
         if self.masked:
@@ -1547,7 +1549,8 @@ class DevtoolsFrontendPlugin(HttpWebServerBasePlugin):
         super().__init__(config, client)
 
     @staticmethod
-    def event_dispatcher(config: ProtocolConfig, client: TcpClientConnection):
+    def event_dispatcher(config: ProtocolConfig, client: TcpClientConnection) -> None:
+        assert config.devtools_event_queue
         while True:
             try:
                 ev = config.devtools_event_queue.get(timeout=1)
@@ -1579,7 +1582,7 @@ class DevtoolsFrontendPlugin(HttpWebServerBasePlugin):
         else:
             logger.debug('No data found in frame')
 
-    def handle_message(self, message) -> None:
+    def handle_message(self, message: Dict[str, Any]) -> None:
         frame = WebsocketFrame()
         frame.fin = True
         frame.opcode = websocketOpcodes.TEXT_FRAME
@@ -1640,7 +1643,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
                 self.config.pac_file_url_path))]
         return []
 
-    def handle_request(self, request: Union[HttpParser, WebsocketFrame]) -> None:
+    def handle_request(self, request: HttpParser) -> None:
         if self.config.pac_file and self.pac_file_response:
             self.client.queue(self.pac_file_response)
             self.client.flush()
@@ -2495,6 +2498,7 @@ def main(input_args: List[str]) -> None:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
         default_plugins = ''
+        devtools_event_queue: Optional[DevtoolsEventQueueType] = None
         if not args.disable_http_proxy:
             default_plugins += 'proxy.HttpProxyPlugin,'
         if args.enable_devtools:
@@ -2505,6 +2509,7 @@ def main(input_args: List[str]) -> None:
             default_plugins += 'proxy.HttpWebServerPlugin,'
         if args.enable_devtools:
             default_plugins += 'proxy.DevtoolsFrontendPlugin,'
+            devtools_event_queue = multiprocessing.Manager().Queue()
         if args.pac_file is not None:
             default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
 
@@ -2529,7 +2534,7 @@ def main(input_args: List[str]) -> None:
             num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count(),
             static_server_dir=args.static_server_dir,
             enable_static_server=args.enable_static_server,
-            devtools_event_queue=multiprocessing.Manager().Queue())
+            devtools_event_queue=devtools_event_queue)
 
         config.plugins = load_plugins(
             bytes_(
