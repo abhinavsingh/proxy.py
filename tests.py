@@ -807,6 +807,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.mock_selector = mock_selector
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=self.config)
+        self.proxy.initialize()
 
     @mock.patch('proxy.TcpServerConnection')
     def test_http_get(self, mock_server_connection: mock.Mock) -> None:
@@ -930,6 +931,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=config)
+        self.proxy.initialize()
         self._conn.recv.return_value = proxy.CRLF.join([
             b'GET http://abhinavsingh.com HTTP/1.1',
             b'Host: abhinavsingh.com',
@@ -962,6 +964,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         self.proxy = proxy.ProtocolHandler(
             self.fileno, addr=self._addr, config=config)
+        self.proxy.initialize()
         assert self.http_server_port is not None
 
         self._conn.recv.return_value = b'GET http://localhost:%d HTTP/1.1' % self.http_server_port
@@ -1008,6 +1011,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=config)
+        self.proxy.initialize()
 
         assert self.http_server_port is not None
         self._conn.recv.return_value = proxy.CRLF.join([
@@ -1107,6 +1111,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=config)
+        self.proxy.initialize()
         self._conn.recv.return_value = proxy.CRLF.join([
             b'GET /hello HTTP/1.1',
             proxy.CRLF,
@@ -1129,6 +1134,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=config)
+        self.proxy.initialize()
         plugin.assert_called()
         with mock.patch.object(self.proxy, 'run_once') as mock_run_once:
             mock_run_once.return_value = True
@@ -1142,6 +1148,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin,proxy.HttpWebServerPacFilePlugin')
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=config)
+        self.proxy.initialize()
         self._conn.recv.return_value = proxy.CRLF.join([
             b'GET / HTTP/1.1',
             proxy.CRLF,

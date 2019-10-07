@@ -1857,6 +1857,9 @@ class ProtocolHandler(threading.Thread):
     def __init__(self, fileno: int, addr: Tuple[str, int],
                  config: Optional[ProtocolConfig] = None):
         super().__init__()
+        self.fileno: int = fileno
+        self.addr: Tuple[str, int] = addr
+
         self.start_time: datetime.datetime = self.now()
         self.last_activity: datetime.datetime = self.start_time
 
@@ -1865,16 +1868,13 @@ class ProtocolHandler(threading.Thread):
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
 
         self.selector = selectors.DefaultSelector()
-
-        conn = self.optionally_wrap_socket(self.fromfd(fileno))
-        if conn is None:
-            raise TcpConnectionUninitializedException()
-        conn.setblocking(False)
-
-        self.client: TcpClientConnection = \
-            TcpClientConnection(conn=conn, addr=addr)
-
+        self.client : Optional[TcpClientConnection] = None
         self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
+
+    def initialize(self):
+        conn = self.optionally_wrap_socket(self.fromfd(self.fileno))
+        conn.setblocking(False)
+        self.client = TcpClientConnection(conn=conn, addr=self.addr)
         if b'ProtocolHandlerPlugin' in self.config.plugins:
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
@@ -2079,6 +2079,7 @@ class ProtocolHandler(threading.Thread):
 
     def run(self) -> None:
         logger.debug('Proxying connection %r' % self.client.connection)
+        self.initialize()
         try:
             while True:
                 teardown = self.run_once()
@@ -2086,6 +2087,8 @@ class ProtocolHandler(threading.Thread):
                     break
         except KeyboardInterrupt:  # pragma: no cover
             pass
+        except ssl.SSLError as e:
+            logger.exception('ssl.SSLError', exc_info=e)
         except Exception as e:
             logger.exception(
                 'Exception while handling connection %r' %
