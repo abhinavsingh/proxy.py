@@ -44,6 +44,9 @@ from typing_extensions import Protocol
 if os.name != 'nt':
     import resource
 
+PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
+PROXY_PY_START_TIME = time.time()
+
 VERSION = (1, 0, 1)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = 'Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, ' \
@@ -53,10 +56,6 @@ __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 __download_url__ = '%s/archive/master.zip' % __homepage__
 __license__ = 'BSD'
-
-logger = logging.getLogger(__name__)
-PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
-START_TIME = time.time()
 
 # Defaults
 DEFAULT_BACKLOG = 100
@@ -89,9 +88,9 @@ DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
 DEFAULT_VERSION = False
 DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_FILE = None
+UNDER_TEST = False  # Set to True if under test
 
-# Set to True if under test
-UNDER_TEST = False
+logger = logging.getLogger(__name__)
 
 
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
@@ -2183,7 +2182,7 @@ class DevtoolsEventGeneratorPlugin(ProtocolHandlerPlugin):
                 'postData': None if self.request.method != 'POST'
                 else text_(self.request.body)
             },
-            'timestamp': now - START_TIME,
+            'timestamp': now - PROXY_PY_START_TIME,
             'wallTime': now,
             'initiator': {
                 'type': 'other'
