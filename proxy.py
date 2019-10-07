@@ -306,7 +306,7 @@ class socket_connection(contextlib.ContextDecorator):
 
     def __enter__(self):
         self.conn = new_socket_connection(self.addr)
-        return self
+        return self.conn
 
     def __exit__(self, *exc) -> bool:
         if self.conn:
@@ -316,8 +316,8 @@ class socket_connection(contextlib.ContextDecorator):
     def __call__(self, func):
         @functools.wraps(func)
         def decorated(*args, **kwargs):
-            with self:
-                return func(self, *args, **kwargs)
+            with self as conn:
+                return func(conn, *args, **kwargs)
         return decorated
 
 

@@ -776,6 +776,24 @@ Make sure your plugin modules are discoverable by adding them to `PYTHONPATH`.  
 ...[redacted]... - Loaded plugin my_app.proxyPlugin
 ```
 
+## GCE log viewer integration for proxy.py
+
+A starter [fluentd.conf](https://github.com/abhinavsingh/proxy.py/blob/develop/fluentd.conf)
+template is available.
+
+1. Copy this configuration file as `proxy.py.conf` under
+   `/etc/google-fluentd/config.d/`
+
+2. Update `path` field to log file path as used with `--log-file` flag.
+   By default `/tmp/proxy.log` path is tailed.
+
+3. Reload `google-fluentd`:
+
+   `sudo service google-fluentd restart`
+
+Now `proxy.py` logs can be browsed using
+[GCE log viewer](https://console.cloud.google.com/logs/viewer).
+
 ## ValueError: filedescriptor out of range in select
 
 `proxy.py` is made to handle thousands of connections per second.

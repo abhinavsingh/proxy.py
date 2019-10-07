@@ -147,6 +147,47 @@ class TestTcpConnection(unittest.TestCase):
             (str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT))
 
 
+class TestSocketConnectionUtils(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.addr_ipv4 = (proxy.DEFAULT_IPV4_HOSTNAME, proxy.DEFAULT_PORT)
+        self.addr_ipv6 = (proxy.DEFAULT_IPV6_HOSTNAME, proxy.DEFAULT_PORT)
+        self.addr_dual = (b'httpbin.org', 80)
+
+    @mock.patch('socket.socket')
+    def test_new_socket_connection_ipv4(self, mock_socket: mock.Mock) -> None:
+        conn = proxy.new_socket_connection(self.addr_ipv4)
+        mock_socket.assert_called_with(socket.AF_INET, socket.SOCK_STREAM, 0)
+        self.assertEqual(conn, mock_socket.return_value)
+        mock_socket.return_value.connect.assert_called_with(self.addr_ipv4)
+
+    @mock.patch('socket.socket')
+    def test_new_socket_connection_ipv6(self, mock_socket: mock.Mock) -> None:
+        conn = proxy.new_socket_connection(self.addr_ipv6)
+        mock_socket.assert_called_with(socket.AF_INET6, socket.SOCK_STREAM, 0)
+        self.assertEqual(conn, mock_socket.return_value)
+        mock_socket.return_value.connect.assert_called_with(
+            (self.addr_ipv6[0], self.addr_ipv6[1], 0, 0))
+
+    @mock.patch('socket.create_connection')
+    def test_new_socket_connection_dual(self, mock_socket: mock.Mock) -> None:
+        conn = proxy.new_socket_connection(self.addr_dual)
+        mock_socket.assert_called_with(self.addr_dual)
+        self.assertEqual(conn, mock_socket.return_value)
+
+    @mock.patch('proxy.new_socket_connection')
+    def test_decorator(self, mock_new_socket_connection: mock.Mock) -> None:
+        @proxy.socket_connection(self.addr_ipv4)
+        def dummy(conn):
+            self.assertEqual(conn, mock_new_socket_connection.return_value)
+        dummy()
+
+    @mock.patch('proxy.new_socket_connection')
+    def test_context_manager(self, mock_new_socket_connection: mock.Mock) -> None:
+        with proxy.socket_connection(self.addr_ipv4) as conn:
+            self.assertEqual(conn, mock_new_socket_connection.return_value)
+
+
 class TestAcceptorPool(unittest.TestCase):
 
     @mock.patch('proxy.send_handle')
