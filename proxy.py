@@ -2284,7 +2284,7 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
         plugin = text_(plugin_.strip())
         if plugin == '':
             continue
-        module_name, klass_name = plugin.rsplit(DOT, 1)
+        module_name, klass_name = plugin.rsplit(text_(DOT), 1)
         if module_name == 'proxy':
             klass = getattr(
                 importlib.import_module(__name__),
