@@ -543,7 +543,7 @@ class HttpParser:
                 self.host, self.port = self.url.hostname, self.url.port \
                     if self.url.port else 80
             else:
-                raise Exception('Invalid request\n%s' % self.bytes)
+                raise KeyError('Invalid request\n%s' % self.bytes)
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
@@ -778,6 +778,7 @@ class Worker(multiprocessing.Process):
         self.work_queue: connection.Connection = work_queue
         self.work_klass = work_klass
         self.kwargs = kwargs
+        self.running = True
 
     def run(self) -> None:
         family = self.work_queue.recv()
@@ -788,7 +789,7 @@ class Worker(multiprocessing.Process):
         )
         selector = selectors.DefaultSelector()
         try:
-            while True:
+            while self.running:
                 with self.lock:
                     selector.register(sock, selectors.EVENT_READ)
                     events = selector.select(timeout=1)
@@ -1165,9 +1166,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             self.client.queue(raw)
         return False
 
-    def on_client_connection_close(self) -> None:
-        if not self.request.has_upstream_server():
-            return
+    def access_log(self):
         server_host, server_port = self.server.addr if self.server else (
             None, None)
         if self.request.method == b'CONNECT':
@@ -1190,6 +1189,11 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                  text_(self.response.code),
                  text_(self.response.reason),
                  self.response.total_size))
+
+    def on_client_connection_close(self) -> None:
+        if not self.request.has_upstream_server():
+            return
+        self.access_log()
         # Invoke plugin.on_upstream_connection_close
         if self.server and not self.server.closed:
             for plugin in self.plugins.values():
@@ -1200,6 +1204,14 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 self.server.buffer_size())
 
     def on_response_chunk(self, chunk: bytes) -> bytes:
+        # TODO: Allow to output multiple access_log lines
+        # for each request over a pipelined HTTP connection (not for HTTPS).
+        # However, this must also be accompanied by resetting both request
+        # and response objects.
+        #
+        # if not self.request.method == b'CONNECT' and \
+        #         self.response.state == httpParserStates.COMPLETE:
+        #     self.access_log()
         return chunk
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
@@ -1545,17 +1557,17 @@ class HttpWebServerBasePlugin(ABC):
     @abstractmethod
     def routes(self) -> List[Tuple[int, bytes]]:
         """Return List(protocol, path) that this plugin handles."""
-        raise NotImplementedError()
+        raise NotImplementedError()     # pragma: no cover
 
     @abstractmethod
     def handle_request(self, request: HttpParser) -> None:
         """Handle the request and serve response."""
-        raise NotImplementedError()
+        raise NotImplementedError()     # pragma: no cover
 
     @abstractmethod
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         """Handle websocket frame."""
-        raise NotImplementedError()
+        raise NotImplementedError()     # pragma: no cover
 
 
 class DevtoolsFrontendPlugin(HttpWebServerBasePlugin):
@@ -1664,7 +1676,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
         if self.config.pac_file_url_path:
             return [(httpProtocolTypes.HTTP, bytes_(
                 self.config.pac_file_url_path))]
-        return []
+        return []   # pragma: no cover
 
     def handle_request(self, request: HttpParser) -> None:
         if self.config.pac_file and self.pac_file_response:
@@ -1672,7 +1684,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
             self.client.flush()
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
-        pass
+        pass    # pragma: no cover
 
     def cache_pac_file_response(self) -> None:
         if self.config.pac_file:
@@ -1989,9 +2001,6 @@ class ProtocolHandler(threading.Thread):
                     else:
                         self.send_server_error(e)
                     return True
-                except Exception as e:
-                    self.send_server_error(e)
-                    return True
         return False
 
     def get_events(self) -> Dict[socket.socket, int]:
@@ -2078,9 +2087,9 @@ class ProtocolHandler(threading.Thread):
         return False
 
     def run(self) -> None:
-        logger.debug('Proxying connection %r' % self.client.connection)
-        self.initialize()
         try:
+            self.initialize()
+            logger.debug('Proxying connection %r' % self.client.connection)
             while True:
                 teardown = self.run_once()
                 if teardown:
@@ -2269,19 +2278,22 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
         if plugin == b'':
             continue
         module_name, klass_name = plugin.rsplit(DOT, 1)
+        module_name = text_(module_name)
+        klass_name = text_(klass_name)
         if module_name == 'proxy':
-            klass = getattr(__name__, text_(klass_name))
+            klass = getattr(
+                importlib.import_module(__name__),
+                klass_name)
         else:
             klass = getattr(
-                importlib.import_module(
-                    text_(module_name)),
-                text_(klass_name))
+                importlib.import_module(module_name),
+                klass_name)
         base_klass = inspect.getmro(klass)[1]
         p[bytes_(base_klass.__name__)].append(klass)
         logger.info(
             'Loaded %s %s.%s',
             'plugin' if klass.__name__ != 'HttpWebServerRouteHandler' else 'route',
-            text_(module_name),
+            module_name,
             # HttpWebServerRouteHandler route decorator adds a special
             # staticmethod to return decorated function name
             klass.__name__ if klass.__name__ != 'HttpWebServerRouteHandler' else klass.name())

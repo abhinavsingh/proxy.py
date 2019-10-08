@@ -126,6 +126,12 @@ class TestTcpConnection(unittest.TestCase):
         _conn.close.assert_not_called()
         self.assertTrue(self.conn.closed)
 
+    def testFlushReturnsIfNoBuffer(self) -> None:
+        _conn = mock.MagicMock()
+        self.conn = TestTcpConnection.TcpConnectionToTest(_conn)
+        self.conn.flush()
+        self.assertTrue(not _conn.send.called)
+
     @mock.patch('socket.socket')
     def testTcpServerEstablishesIPv6Connection(
             self, mock_socket: mock.Mock) -> None:
@@ -136,6 +142,16 @@ class TestTcpConnection(unittest.TestCase):
         mock_socket.return_value.connect.assert_called_with(
             (str(proxy.DEFAULT_IPV6_HOSTNAME), proxy.DEFAULT_PORT, 0, 0))
 
+    @mock.patch('proxy.new_socket_connection')
+    def testTcpServerIgnoresDoubleConnectSilently(
+            self,
+            mock_new_socket_connection: mock.Mock) -> None:
+        conn = proxy.TcpServerConnection(
+            str(proxy.DEFAULT_IPV6_HOSTNAME), proxy.DEFAULT_PORT)
+        conn.connect()
+        conn.connect()
+        mock_new_socket_connection.assert_called_once()
+
     @mock.patch('socket.socket')
     def testTcpServerEstablishesIPv4Connection(
             self, mock_socket: mock.Mock) -> None:
@@ -145,6 +161,29 @@ class TestTcpConnection(unittest.TestCase):
         mock_socket.assert_called()
         mock_socket.return_value.connect.assert_called_with(
             (str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT))
+
+    @mock.patch('proxy.new_socket_connection')
+    def testTcpServerConnectionProperty(
+            self,
+            mock_new_socket_connection: mock.Mock) -> None:
+        conn = proxy.TcpServerConnection(
+            str(proxy.DEFAULT_IPV6_HOSTNAME), proxy.DEFAULT_PORT)
+        conn.connect()
+        self.assertEqual(conn.connection, mock_new_socket_connection.return_value)
+
+    def testTcpServerRaisesTcpConnectionUninitializedException(self) -> None:
+        conn = proxy.TcpServerConnection(
+            str(proxy.DEFAULT_IPV6_HOSTNAME), proxy.DEFAULT_PORT)
+        with self.assertRaises(proxy.TcpConnectionUninitializedException):
+            _ = conn.connection
+
+    def testTcpClientRaisesTcpConnectionUninitializedException(self) -> None:
+        _conn = mock.MagicMock()
+        _addr = mock.MagicMock()
+        conn = proxy.TcpClientConnection(_conn, _addr)
+        conn._conn = None
+        with self.assertRaises(proxy.TcpConnectionUninitializedException):
+            _ = conn.connection
 
 
 class TestSocketConnectionUtils(unittest.TestCase):
@@ -194,11 +233,16 @@ class TestAcceptorPool(unittest.TestCase):
     @mock.patch('multiprocessing.Pipe')
     @mock.patch('socket.socket')
     @mock.patch('proxy.Worker')
-    def test_setup(self,
-                   mock_worker: mock.Mock,
-                   mock_socket: mock.Mock,
-                   mock_pipe: mock.Mock,
-                   mock_send_handle: mock.Mock) -> None:
+    def test_setup_and_shutdown(
+            self,
+            mock_worker: mock.Mock,
+            mock_socket: mock.Mock,
+            mock_pipe: mock.Mock,
+            _mock_send_handle: mock.Mock) -> None:
+        mock_worker1 = mock.MagicMock()
+        mock_worker2 = mock.MagicMock()
+        mock_worker.side_effect = [mock_worker1, mock_worker2]
+
         num_workers = 2
         sock = mock_socket.return_value
         work_klass = mock.MagicMock()
@@ -211,7 +255,9 @@ class TestAcceptorPool(unittest.TestCase):
             work_klass=work_klass,
             **kwargs
         )
+
         acceptor.setup()
+
         mock_socket.assert_called_with(
             socket.AF_INET6 if acceptor.hostname.version == 6 else socket.AF_INET,
             socket.SOCK_STREAM
@@ -224,8 +270,16 @@ class TestAcceptorPool(unittest.TestCase):
 
         self.assertTrue(mock_pipe.call_count, num_workers)
         self.assertTrue(mock_worker.call_count, num_workers)
+        mock_worker1.start.assert_called()
+        mock_worker1.join.assert_not_called()
+        mock_worker2.start.assert_called()
+        mock_worker2.join.assert_not_called()
 
         sock.close.assert_called()
+
+        acceptor.shutdown()
+        mock_worker1.join.assert_called()
+        mock_worker2.join.assert_called()
 
 
 class TestWorker(unittest.TestCase):
@@ -240,7 +294,54 @@ class TestWorker(unittest.TestCase):
             config=self.protocol_config)
         self.mock_protocol_handler = mock_protocol_handler
 
-    @mock.patch('multiprocessing.Lock')
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    @mock.patch('proxy.recv_handle')
+    def test_continues_when_no_events(
+            self,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock,
+            mock_selector: mock.Mock) -> None:
+        fileno = 10
+        conn = mock.MagicMock()
+        addr = mock.MagicMock()
+        sock = mock_fromfd.return_value
+        mock_fromfd.return_value.accept.return_value = (conn, addr)
+        mock_recv_handle.return_value = fileno
+
+        selector = mock_selector.return_value
+        selector.select.side_effect = [[], KeyboardInterrupt()]
+
+        self.pipe[0].send(socket.AF_INET6)
+        self.worker.run()
+
+        sock.accept.assert_not_called()
+        self.mock_protocol_handler.assert_not_called()
+
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    @mock.patch('proxy.recv_handle')
+    def test_worker_doesnt_teardown_on_blocking_io_error(
+            self,
+            mock_recv_handle: mock.Mock,
+            mock_fromfd: mock.Mock,
+            mock_selector: mock.Mock) -> None:
+        fileno = 10
+        conn = mock.MagicMock()
+        addr = mock.MagicMock()
+        sock = mock_fromfd.return_value
+        mock_fromfd.return_value.accept.return_value = (conn, addr)
+        mock_recv_handle.return_value = fileno
+
+        selector = mock_selector.return_value
+        selector.select.side_effect = [(None, None), KeyboardInterrupt()]
+        sock.accept.side_effect = BlockingIOError()
+
+        self.pipe[0].send(socket.AF_INET6)
+        self.worker.run()
+
+        self.mock_protocol_handler.assert_not_called()
+
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     @mock.patch('proxy.recv_handle')
@@ -248,18 +349,18 @@ class TestWorker(unittest.TestCase):
             self,
             mock_recv_handle: mock.Mock,
             mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock,
-            mock_lock: mock.Mock) -> None:
+            mock_selector: mock.Mock) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
         sock = mock_fromfd.return_value
         mock_fromfd.return_value.accept.return_value = (conn, addr)
         mock_recv_handle.return_value = fileno
+
         self.mock_protocol_handler.return_value.start.side_effect = KeyboardInterrupt()
+
         selector = mock_selector.return_value
         selector.select.return_value = [(None, None)]
-        mock_lock.__enter__.return_value = True
 
         self.pipe[0].send(socket.AF_INET6)
         self.worker.run()
@@ -419,6 +520,14 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(
             proxy.build_http_header(
                 b'key', b'value'), b'key: value')
+
+    def test_header_raises(self):
+        with self.assertRaises(KeyError):
+            self.parser.header(b'not-found')
+
+    def test_set_host_port_raises(self):
+        with self.assertRaises(KeyError):
+            self.parser.set_host_port()
 
     def test_find_line(self) -> None:
         self.assertEqual(
