@@ -38,7 +38,8 @@ import time
 from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, TYPE_CHECKING
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, TYPE_CHECKING, Type
+from types import TracebackType
 from urllib import parse as urlparse
 
 from typing_extensions import Protocol
@@ -304,18 +305,22 @@ class socket_connection(contextlib.ContextDecorator):
         self.conn: Optional[socket.socket] = None
         super().__init__()
 
-    def __enter__(self):
+    def __enter__(self) -> socket.socket:
         self.conn = new_socket_connection(self.addr)
         return self.conn
 
-    def __exit__(self, *exc) -> bool:
+    def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_val: Optional[BaseException],
+            exc_tb: Optional[TracebackType]) -> bool:
         if self.conn:
             self.conn.close()
         return False
 
-    def __call__(self, func):
+    def __call__(self, func: Callable[..., Any]) -> Callable[[socket.socket], Any]:
         @functools.wraps(func)
-        def decorated(*args, **kwargs):
+        def decorated(*args: Any, **kwargs: Any) -> Any:
             with self as conn:
                 return func(conn, *args, **kwargs)
         return decorated
@@ -547,7 +552,7 @@ class HttpParser:
 
     def is_chunked_encoded_response(self) -> bool:
         return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -1166,7 +1171,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             self.client.queue(raw)
         return False
 
-    def access_log(self):
+    def access_log(self) -> None:
         server_host, server_port = self.server.addr if self.server else (
             None, None)
         if self.request.method == b'CONNECT':
@@ -1880,11 +1885,17 @@ class ProtocolHandler(threading.Thread):
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
 
         self.selector = selectors.DefaultSelector()
-        self.client : Optional[TcpClientConnection] = None
+        self.client: TcpClientConnection = TcpClientConnection(
+            self.fromfd(self.fileno), self.addr
+        )
         self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
 
-    def initialize(self):
-        conn = self.optionally_wrap_socket(self.fromfd(self.fileno))
+    @staticmethod
+    def now() -> datetime.datetime:
+        return datetime.datetime.utcnow()
+
+    def initialize(self) -> None:
+        conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
         self.client = TcpClientConnection(conn=conn, addr=self.addr)
         if b'ProtocolHandlerPlugin' in self.config.plugins:
@@ -1892,17 +1903,13 @@ class ProtocolHandler(threading.Thread):
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
 
-    @staticmethod
-    def now() -> datetime.datetime:
-        return datetime.datetime.utcnow()
-
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
             fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM)
 
     def optionally_wrap_socket(
-            self, conn: socket.socket) -> Optional[Union[ssl.SSLSocket, socket.socket]]:
+            self, conn: socket.socket) -> Union[ssl.SSLSocket, socket.socket]:
         """Attempts to wrap accepted client connection using provided certificates.
 
         Shutdown and closes client connection upon error.
@@ -2273,13 +2280,11 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
         b'HttpProxyBasePlugin': [],
         b'HttpWebServerBasePlugin': [],
     }
-    for plugin in plugins.split(COMMA):
-        plugin = plugin.strip()
-        if plugin == b'':
+    for plugin_ in plugins.split(COMMA):
+        plugin = text_(plugin_.strip())
+        if plugin == '':
             continue
         module_name, klass_name = plugin.rsplit(DOT, 1)
-        module_name = text_(module_name)
-        klass_name = text_(klass_name)
         if module_name == 'proxy':
             klass = getattr(
                 importlib.import_module(__name__),

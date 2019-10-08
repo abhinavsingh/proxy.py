@@ -189,9 +189,9 @@ class TestTcpConnection(unittest.TestCase):
 class TestSocketConnectionUtils(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.addr_ipv4 = (proxy.DEFAULT_IPV4_HOSTNAME, proxy.DEFAULT_PORT)
-        self.addr_ipv6 = (proxy.DEFAULT_IPV6_HOSTNAME, proxy.DEFAULT_PORT)
-        self.addr_dual = (b'httpbin.org', 80)
+        self.addr_ipv4 = (str(proxy.DEFAULT_IPV4_HOSTNAME), proxy.DEFAULT_PORT)
+        self.addr_ipv6 = (str(proxy.DEFAULT_IPV6_HOSTNAME), proxy.DEFAULT_PORT)
+        self.addr_dual = ('httpbin.org', 80)
 
     @mock.patch('socket.socket')
     def test_new_socket_connection_ipv4(self, mock_socket: mock.Mock) -> None:
@@ -217,9 +217,9 @@ class TestSocketConnectionUtils(unittest.TestCase):
     @mock.patch('proxy.new_socket_connection')
     def test_decorator(self, mock_new_socket_connection: mock.Mock) -> None:
         @proxy.socket_connection(self.addr_ipv4)
-        def dummy(conn):
+        def dummy(conn: socket.socket) -> None:
             self.assertEqual(conn, mock_new_socket_connection.return_value)
-        dummy()
+        dummy()     # type: ignore
 
     @mock.patch('proxy.new_socket_connection')
     def test_context_manager(self, mock_new_socket_connection: mock.Mock) -> None:
@@ -521,11 +521,11 @@ class TestHttpParser(unittest.TestCase):
             proxy.build_http_header(
                 b'key', b'value'), b'key: value')
 
-    def test_header_raises(self):
+    def test_header_raises(self) -> None:
         with self.assertRaises(KeyError):
             self.parser.header(b'not-found')
 
-    def test_set_host_port_raises(self):
+    def test_set_host_port_raises(self) -> None:
         with self.assertRaises(KeyError):
             self.parser.set_host_port()
 
