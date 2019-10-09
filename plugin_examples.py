@@ -16,6 +16,27 @@ from urllib import parse as urlparse
 import proxy
 
 
+class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
+    """Modify POST request body before sending to upstream server."""
+
+    MODIFIED_BODY = b'{"key": "modified"}'
+
+    def before_upstream_connection(self) -> bool:
+        if self.request.method == proxy.httpMethods.POST:
+            self.request.body = ModifyPostDataPlugin.MODIFIED_BODY
+            self.request.add_header(b'Content-Length', proxy.bytes_(len(self.request.body)))
+        return False
+
+    def on_upstream_connection(self) -> None:
+        pass
+
+    def handle_upstream_response(self, raw: bytes) -> bytes:
+        return raw
+
+    def on_upstream_connection_close(self) -> None:
+        pass
+
+
 class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     """Mock responses for your upstream REST API.
 
