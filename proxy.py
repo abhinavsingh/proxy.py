@@ -148,6 +148,23 @@ ChunkParserStates = NamedTuple('ChunkParserStates', [
 ])
 chunkParserStates = ChunkParserStates(1, 2, 3)
 
+HttpMethods = NamedTuple('HttpMethods', [
+    ('GET', bytes),
+    ('PUT', bytes),
+    ('POST', bytes),
+    ('CONNECT', bytes),
+    ('HEAD', bytes),
+    ('DELETE', bytes),
+])
+httpMethods = HttpMethods(
+    b'GET',
+    b'PUT',
+    b'POST',
+    b'CONNECT',
+    b'HEAD',
+    b'DELETE',
+)
+
 HttpParserStates = NamedTuple('HttpParserStates', [
     ('INITIALIZED', int),
     ('LINE_RCVD', int),
@@ -541,7 +558,7 @@ class HttpParser:
 
     def set_host_port(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
-            if self.method == b'CONNECT' and self.url:
+            if self.method == httpMethods.CONNECT and self.url:
                 u = urlparse.urlsplit(b'//' + self.url.path)
                 self.host, self.port = u.hostname, u.port
             elif self.url:
@@ -571,7 +588,7 @@ class HttpParser:
                     httpParserStates.HEADERS_COMPLETE,
                     httpParserStates.RCVING_BODY,
                     httpParserStates.COMPLETE) and (
-                    self.method == b'POST' or self.type == httpParserTypes.RESPONSE_PARSER):
+                    self.method == httpMethods.POST or self.type == httpParserTypes.RESPONSE_PARSER):
                 if not self.body:
                     self.body = b''
 
@@ -625,12 +642,12 @@ class HttpParser:
         # `TestHttpParser.test_response_parse_without_content_length` for details
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
                 self.type == httpParserTypes.REQUEST_PARSER and \
-                self.method != b'POST' and \
+                self.method != httpMethods.POST and \
                 self.bytes.endswith(CRLF * 2):
             self.state = httpParserStates.COMPLETE
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
                 self.type == httpParserTypes.REQUEST_PARSER and \
-                self.method == b'POST' and \
+                self.method == httpMethods.POST and \
                 (b'content-length' not in self.headers or
                  (b'content-length' in self.headers and
                   int(self.headers[b'content-length'][1]) == 0)) and \
@@ -1159,7 +1176,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
 
             # parse incoming response packet
             # only for non-https requests
-            if not self.request.method == b'CONNECT':
+            if not self.request.method == httpMethods.CONNECT:
                 self.response.parse(raw)
             else:
                 self.response.total_size += len(raw)
@@ -1210,7 +1227,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         # However, this must also be accompanied by resetting both request
         # and response objects.
         #
-        # if not self.request.method == b'CONNECT' and \
+        # if not self.request.method == httpMethods.CONNECT and \
         #         self.response.state == httpParserStates.COMPLETE:
         #     self.access_log()
         return chunk
@@ -1270,7 +1287,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         for plugin in self.plugins.values():
             plugin.on_upstream_connection()
 
-        if self.request.method == b'CONNECT':
+        if self.request.method == httpMethods.CONNECT:
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled, generate server certificates
@@ -1784,19 +1801,21 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
         url = self.request.build_url()
 
-        # Connection upgrade
-        teardown = self.try_upgrade()
-        if teardown:
-            return True
+        # If a websocket route exists for the path, try upgrade
+        if url in self.routes[httpProtocolTypes.WEBSOCKET]:
+            # Connection upgrade
+            teardown = self.try_upgrade()
+            if teardown:
+                return True
 
-        # For upgraded connections, nothing more to do
-        if self.switched_protocol:
-            return False
+            # For upgraded connections, nothing more to do
+            if self.switched_protocol:
+                return False
 
         # Routing for Http(s) requests
         teardown = self.route_by_protocol(
             url, httpProtocolTypes.HTTPS
-            if self.request.method == b'CONNECT'
+            if self.request.method == httpMethods.CONNECT
             else httpProtocolTypes.HTTP,
             request=self.request)
         if teardown:

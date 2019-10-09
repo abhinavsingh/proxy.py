@@ -83,7 +83,7 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
 
     def before_upstream_connection(self) -> bool:
         # Redirect all non-https requests to inbuilt WebServer.
-        if self.request.method != b'CONNECT':
+        if self.request.method != proxy.httpMethods.CONNECT:
             self.request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
             self.request.set_host_port()
         return False
