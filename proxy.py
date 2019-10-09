@@ -2165,7 +2165,7 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
-            # Flush any pending buffer if any
+            # Flush pending buffer if any
             self.flush()
 
             # Invoke plugin.on_client_connection_close
@@ -2179,7 +2179,7 @@ class ProtocolHandler(threading.Thread):
 
             if not self.client.closed:
                 try:
-                    self.client.connection.shutdown(socket.SHUT_RDWR)
+                    self.client.connection.shutdown(socket.SHUT_WR)
                     logger.debug('Client connection shutdown successful')
                 except OSError:
                     pass
