@@ -127,14 +127,6 @@ PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
     COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 
-###############################################################
-# Various NamedTuples
-#
-# collections.namedtuple were replaced with typing.NamedTuple
-# for mypy compliance. Unfortunately, we can't seem to use
-# a NamedTuple as a type.
-###############################################################
-
 TcpConnectionTypes = NamedTuple('TcpConnectionTypes', [
     ('SERVER', int),
     ('CLIENT', int),
@@ -699,12 +691,6 @@ class HttpParser:
                                                  k.lower() not in disable_headers},
             body=self.body
         )
-
-    ##########################################################################
-    # HttpParser was originally written to parse the incoming raw Http requests.
-    # Since request / response objects passed to ProtocolHandlerPlugin methods
-    # are also HttpParser objects, methods below were added to simplify developer API.
-    ##########################################################################
 
     def has_upstream_server(self) -> bool:
         """Host field SHOULD be None for incoming local WebServer requests."""
