@@ -2184,7 +2184,7 @@ class ProtocolHandler(threading.Thread):
                 except OSError:
                     pass
                 finally:
-                    self.client.close()
+                    self.client.connection.close()
                     logger.debug('Client connection closed')
 
 
