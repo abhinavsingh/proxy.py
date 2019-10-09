@@ -2132,6 +2132,21 @@ class ProtocolHandler(threading.Thread):
 
         return False
 
+    def flush(self) -> None:
+        if not self.client.has_buffer():
+            return
+        try:
+            self.selector.register(self.client.connection, selectors.EVENT_WRITE)
+            while self.client.has_buffer():
+                ev: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
+                if len(ev) == 0:
+                    continue
+                self.client.flush()
+        except BrokenPipeError:
+            pass
+        finally:
+            self.selector.unregister(self.client.connection)
+
     def run(self) -> None:
         try:
             self.initialize()
@@ -2150,12 +2165,8 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
-            # Flush any pending buffer
-            try:
-                self.client.flush()
-            except BrokenPipeError:
-                # Client closed connection
-                pass
+            # Flush any pending buffer if any
+            self.flush()
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
