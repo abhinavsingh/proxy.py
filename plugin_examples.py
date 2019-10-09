@@ -184,5 +184,11 @@ class WebServerPlugin(proxy.HttpWebServerBasePlugin):
         elif path == b'/https-route-example':
             self.client.queue(proxy.build_http_response(200, body=b'HTTPS route response'))
 
+    def on_websocket_open(self) -> None:
+        proxy.logger.info('Websocket open')
+
     def on_websocket_message(self, frame: proxy.WebsocketFrame) -> None:
-        pass
+        proxy.logger.info(frame.data)
+
+    def on_websocket_close(self) -> None:
+        proxy.logger.info('Websocket close')
