@@ -1696,7 +1696,10 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
             logger.debug('received request method Network.getResponseBody')
             data = json.dumps({
                 'id': message['id'],
-                'result': {}
+                'result': {
+                    'body': '',
+                    'base64Encoded': False,
+                }
             })
         else:
             data = json.dumps({
@@ -2251,15 +2254,16 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
         now = time.time()
         return {
             'requestId': self.id,
-            'frameId': self.frame_id,
             'loaderId': self.loader_id,
-            'documentURL': 'http://proxy-py' + text_(self.config.devtools_ws_path),
+            'documentURL': 'http://proxy-py',
             'request': {
                 'url': text_(
                     self.request.build_url()
                     if self.request.has_upstream_server() else
-                    b'http://proxy-py' + self.request.build_url()
+                    b'http://' + bytes_(str(self.config.hostname)) +
+                    COLON + bytes_(self.config.port) + self.request.build_url()
                 ),
+                'urlFragment': '',
                 'method': text_(self.request.method),
                 'headers': {text_(v[0]): text_(v[1]) for v in self.request.headers.values()},
                 'initialPriority': 'High',
@@ -2274,7 +2278,9 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
             },
             'type': text_(self.request.header(b'content-type'))
             if self.request.has_header(b'content-type')
-            else 'Other'
+            else 'Other',
+            'frameId': self.frame_id,
+            'hasUserGesture': False
         }
 
     def response_received(self) -> Dict[str, Any]:
@@ -2286,7 +2292,38 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
             'type': text_(self.response.header(b'content-type'))
             if self.response.has_header(b'content-type')
             else 'Other',
-            'response': {}
+            'response': {
+                'url': '',
+                'status': '',
+                'statusText': '',
+                'headers': '',
+                'headersText': '',
+                'mimeType': '',
+                'connectionReused': True,
+                'connectionId': '',
+                'encodedDataLength': '',
+                'fromDiskCache': False,
+                'fromServiceWorker': False,
+                'timing': {
+                    'requestTime': '',
+                    'proxyStart': -1,
+                    'proxyEnd': -1,
+                    'dnsStart': -1,
+                    'dnsEnd': -1,
+                    'connectStart': -1,
+                    'connectEnd': -1,
+                    'sslStart': -1,
+                    'sslEnd': -1,
+                    'workerStart': -1,
+                    'workerReady': -1,
+                    'sendStart': 0,
+                    'sendEnd': 0,
+                    'receiveHeadersEnd': 0,
+                },
+                'requestHeaders': '',
+                'remoteIPAddress': '',
+                'remotePort': '',
+            }
         }
 
     def data_received(self, chunk: bytes) -> Dict[str, Any]:
