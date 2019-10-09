@@ -10,7 +10,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Optional, BinaryIO, Union
+from typing import Optional, BinaryIO, List, Tuple
 from urllib import parse as urlparse
 
 import proxy
@@ -164,4 +164,25 @@ class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
             200, reason=b'OK', body=b'Hello from man in the middle')
 
     def on_upstream_connection_close(self) -> None:
+        pass
+
+
+class WebServerPlugin(proxy.HttpWebServerBasePlugin):
+    """Demonstration of inbuilt web server routing via plugin."""
+
+    def routes(self) -> List[Tuple[int, bytes]]:
+        return [
+            (proxy.httpProtocolTypes.HTTP, b'/http-route-example'),
+            (proxy.httpProtocolTypes.HTTPS, b'/https-route-example'),
+            (proxy.httpProtocolTypes.WEBSOCKET, b'/ws-route-example'),
+        ]
+
+    def handle_request(self, request: proxy.HttpParser) -> None:
+        path = request.build_url()
+        if path == b'/http-route-example':
+            self.client.queue(proxy.build_http_response(200, body=b'HTTP route response'))
+        elif path == b'/https-route-example':
+            self.client.queue(proxy.build_http_response(200, body=b'HTTPS route response'))
+
+    def on_websocket_message(self, frame: proxy.WebsocketFrame) -> None:
         pass

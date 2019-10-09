@@ -89,7 +89,7 @@ DEFAULT_NUM_WORKERS = 0
 DEFAULT_PLUGINS = ''    # Comma separated list of plugins
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
 DEFAULT_VERSION = False
-DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
+DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_FILE = None
 UNDER_TEST = False  # Set to True if under test
 
@@ -412,6 +412,8 @@ class TcpConnection(ABC):
     def flush(self) -> int:
         if self.buffer_size() == 0:
             return 0
+        if self.closed:
+            raise BrokenPipeError()
         sent: int = self.send(self.buffer)
         self.buffer = self.buffer[sent:]
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
@@ -1815,7 +1817,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         # Routing for Http(s) requests
         teardown = self.route_by_protocol(
             url, httpProtocolTypes.HTTPS
-            if self.request.method == httpMethods.CONNECT
+            if self.config.certfile and self.config.keyfile
             else httpProtocolTypes.HTTP,
             request=self.request)
         if teardown:
@@ -1947,14 +1949,15 @@ class ProtocolHandler(threading.Thread):
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
-            try:
-                # Invoke plugin.on_response_chunk
-                chunk = self.client.buffer
-                for plugin in self.plugins.values():
-                    chunk = plugin.on_response_chunk(chunk)
-                    if chunk is None:
-                        break
 
+            # Invoke plugin.on_response_chunk
+            chunk = self.client.buffer
+            for plugin in self.plugins.values():
+                chunk = plugin.on_response_chunk(chunk)
+                if chunk is None:
+                    break
+
+            try:
                 self.client.flush()
             except BrokenPipeError:
                 logger.error(
@@ -2116,7 +2119,12 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
-            self.client.flush()
+            # Flush any pending buffer
+            try:
+                self.client.flush()
+            except BrokenPipeError:
+                # Client closed connection
+                pass
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
