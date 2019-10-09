@@ -830,6 +830,7 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--ca-signing-key-file CA_SIGNING_KEY_FILE]
                 [--cert-file CERT_FILE]
                 [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+                [--devtools-ws-path DEVTOOLS_WS_PATH]
                 [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
                 [--enable-devtools] [--enable-static-server]
                 [--enable-web-server] [--hostname HOSTNAME]
@@ -876,6 +877,9 @@ optional arguments:
                         the client in a single recv() operation. Bump this
                         value for faster uploads at the expense of increased
                         RAM.
+  --devtools-ws-path DEVTOOLS_WS_PATH
+                        Default: /devtools. Only applicable if --enable-
+                        devtools is used.
   --disable-headers DISABLE_HEADERS
                         Default: None. Comma separated list of headers to
                         remove before dispatching client request to upstream

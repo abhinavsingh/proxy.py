@@ -78,6 +78,7 @@ DEFAULT_KEY_FILE = None
 DEFAULT_PORT = 8899
 DEFAULT_DISABLE_HTTP_PROXY = False
 DEFAULT_ENABLE_DEVTOOLS = False
+DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
 DEFAULT_ENABLE_STATIC_SERVER = False
 DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_LOG_LEVEL = 'INFO'
@@ -937,7 +938,8 @@ class ProtocolConfig:
             backlog: int = DEFAULT_BACKLOG,
             static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
             enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
-            devtools_event_queue: Optional[DevtoolsEventQueueType] = None) -> None:
+            devtools_event_queue: Optional[DevtoolsEventQueueType] = None,
+            devtools_ws_path: Optional[bytes] = None) -> None:
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -962,7 +964,8 @@ class ProtocolConfig:
 
         self.enable_static_server: bool = enable_static_server
         self.static_server_dir: str = static_server_dir
-        self.devtools_event_queue = devtools_event_queue
+        self.devtools_event_queue: Optional[DevtoolsEventQueueType] = devtools_event_queue
+        self.devtools_ws_path: Optional[bytes] = devtools_ws_path
 
         self.proxy_py_data_dir = os.path.join(
             str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
@@ -1607,7 +1610,7 @@ class DevtoolsFrontendPlugin(HttpWebServerBasePlugin):
 
     def routes(self) -> List[Tuple[int, bytes]]:
         return [
-            (httpProtocolTypes.WEBSOCKET, b'/devtools')
+            (httpProtocolTypes.WEBSOCKET, self.config.devtools_ws_path)
         ]
 
     def handle_request(self, request: HttpParser) -> None:
@@ -1812,7 +1815,6 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         # No-route found, try static serving if enabled
         if self.config.enable_static_server:
             path = text_(url).split('?')[0]
-            print(self.config.static_server_dir + path)
             if os.path.isfile(self.config.static_server_dir + path):
                 self.serve_file_or_404(self.config.static_server_dir + path)
                 return True
@@ -2390,6 +2392,13 @@ def init_parser() -> argparse.ArgumentParser:
              'value for faster uploads at the expense of '
              'increased RAM.')
     parser.add_argument(
+        '--devtools-ws-path',
+        type=str,
+        default=DEFAULT_DEVTOOLS_WS_PATH,
+        help='Default: /devtools.  Only applicable '
+             'if --enable-devtools is used.'
+    )
+    parser.add_argument(
         '--disable-headers',
         type=str,
         default=COMMA.join(DEFAULT_DISABLE_HEADERS),
@@ -2568,7 +2577,8 @@ def main(input_args: List[str]) -> None:
             num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count(),
             static_server_dir=args.static_server_dir,
             enable_static_server=args.enable_static_server,
-            devtools_event_queue=devtools_event_queue)
+            devtools_event_queue=devtools_event_queue,
+            devtools_ws_path=args.devtools_ws_path)
 
         config.plugins = load_plugins(
             bytes_(
