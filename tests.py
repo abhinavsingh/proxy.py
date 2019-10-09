@@ -1065,8 +1065,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             proxy.CRLF
         ])
         self.proxy.run_once()
-        received = self._conn.send.call_args[0][0]
-        self.assertEqual(received, proxy.ProxyConnectionFailed.RESPONSE_PKT)
+        self.assertEqual(self.proxy.client.buffer, proxy.ProxyConnectionFailed.RESPONSE_PKT)
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -1089,7 +1088,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         ])
         self.proxy.run_once()
         self.assertEqual(
-            self._conn.send.call_args[0][0],
+            self.proxy.client.buffer,
             proxy.ProxyAuthenticationFailed.RESPONSE_PKT)
 
     @mock.patch('selectors.DefaultSelector')
@@ -1265,15 +1264,105 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self._conn.recv.return_value = proxy.CRLF.join([
             b'GET /hello HTTP/1.1',
             proxy.CRLF,
-            proxy.CRLF
         ])
         self.proxy.run_once()
         self.assertEqual(
             self.proxy.request.state,
             proxy.httpParserStates.COMPLETE)
         self.assertEqual(
-            self._conn.send.call_args[0][0],
+            self.proxy.client.buffer,
             proxy.HttpWebServerPlugin.DEFAULT_404_RESPONSE)
+
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def test_static_web_server_serves(
+            self, mock_fromfd: mock.Mock, mock_selector: mock.Mock) -> None:
+        # Setup a static directory
+        static_server_dir = os.path.join(tempfile.gettempdir(), 'static')
+        index_file_path = os.path.join(static_server_dir, 'index.html')
+        html_file_content = b'''
+        <html>
+        <head></head>
+        <body></body>
+        </html>
+        '''
+        os.makedirs(static_server_dir, exist_ok=True)
+        with open(index_file_path, 'wb') as f:
+            f.write(html_file_content)
+
+        self._conn = mock_fromfd.return_value
+        self._conn.recv.return_value = proxy.build_http_request(b'GET', b'/index.html')
+
+        mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)], ]
+
+        config = proxy.ProtocolConfig(
+            enable_static_server=True,
+            static_server_dir=static_server_dir)
+        config.plugins = proxy.load_plugins(
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=config)
+        self.proxy.initialize()
+
+        self.proxy.run_once()
+        self.proxy.run_once()
+
+        self.assertEqual(mock_selector.return_value.select.call_count, 2)
+        self.assertEqual(self._conn.send.call_count, 1)
+        self.assertEqual(self._conn.send.call_args[0][0], proxy.build_http_response(
+            200, reason=b'OK', headers={
+                b'Content-Type': b'text/html',
+                b'Connection': b'close',
+                b'Content-Length': proxy.bytes_(len(html_file_content))
+            },
+            body=html_file_content
+        ))
+
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def test_static_web_server_serves_404(
+            self, mock_fromfd: mock.Mock, mock_selector: mock.Mock) -> None:
+        self._conn = mock_fromfd.return_value
+        self._conn.recv.return_value = proxy.build_http_request(b'GET', b'/not-found.html')
+
+        mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)], ]
+
+        config = proxy.ProtocolConfig(enable_static_server=True)
+        config.plugins = proxy.load_plugins(
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=config)
+        self.proxy.initialize()
+
+        self.proxy.run_once()
+        self.proxy.run_once()
+
+        self.assertEqual(mock_selector.return_value.select.call_count, 2)
+        self.assertEqual(self._conn.send.call_count, 1)
+        self.assertEqual(self._conn.send.call_args[0][0],
+                         proxy.HttpWebServerPlugin.DEFAULT_404_RESPONSE)
 
     @mock.patch('socket.fromfd')
     def test_on_client_connection_called_on_teardown(

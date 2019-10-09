@@ -826,7 +826,7 @@ class ProtocolException(Exception):
     to optionally return custom response to client."""
 
     def response(self, request: HttpParser) -> Optional[bytes]:
-        pass  # pragma: no cover
+        return None  # pragma: no cover
 
 
 class HttpRequestRejected(ProtocolException):
@@ -878,10 +878,6 @@ class ProxyConnectionFailed(ProtocolException):
 
     def response(self, _request: HttpParser) -> bytes:
         return self.RESPONSE_PKT
-
-    def __str__(self) -> str:
-        return '<ProxyConnectionFailed - %s:%s - %s>' % (
-            self.host, self.port, self.reason)
 
 
 class ProxyAuthenticationFailed(ProtocolException):
@@ -1279,9 +1275,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled, generate server certificates
             if self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file:
-                # Flush client buffer before wrapping,
-                # but is client ready for writes?
-                self.client.flush()
                 generated_cert = self.generate_upstream_certificate()
                 if generated_cert:
                     if not (self.config.keyfile and self.config.certfile) and \
@@ -1504,7 +1497,7 @@ class WebsocketClient(TcpConnection):
     def pong(self, data: Optional[bytes] = None) -> None:
         pass
 
-    def shutdown(self, data: Optional[bytes] = None) -> None:
+    def shutdown(self, _data: Optional[bytes] = None) -> None:
         """Closes connection with the server."""
         super().close()
 
@@ -1686,7 +1679,6 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
     def handle_request(self, request: HttpParser) -> None:
         if self.config.pac_file and self.pac_file_response:
             self.client.queue(self.pac_file_response)
-            self.client.flush()
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         pass    # pragma: no cover
@@ -1757,8 +1749,6 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             ))
         except IOError:
             self.client.queue(self.DEFAULT_404_RESPONSE)
-        finally:
-            self.client.flush()
 
     def try_upgrade(self) -> bool:
         if self.request.has_header(b'connection') and \
@@ -1769,11 +1759,9 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     build_websocket_handshake_response(
                         WebsocketFrame.key_to_accept(
                             self.request.header(b'Sec-WebSocket-Key'))))
-                self.client.flush()
                 self.switched_protocol = httpProtocolTypes.WEBSOCKET
             else:
                 self.client.queue(self.DEFAULT_501_RESPONSE)
-                self.client.flush()
                 return True
         return False
 
@@ -1787,7 +1775,6 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     self.routes[protocol][route_].handle_request(request)
                 elif frame:
                     self.routes[protocol][route_].on_websocket_message(frame)
-                self.client.flush()
                 return True
         return False
 
@@ -1818,13 +1805,13 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         # No-route found, try static serving if enabled
         if self.config.enable_static_server:
             path = text_(url).split('?')[0]
-            if os.path.isfile(DEFAULT_STATIC_SERVER_DIR + path):
-                self.serve_file_or_404(DEFAULT_STATIC_SERVER_DIR + path)
+            print(self.config.static_server_dir + path)
+            if os.path.isfile(self.config.static_server_dir + path):
+                self.serve_file_or_404(self.config.static_server_dir + path)
                 return True
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
-        self.client.flush()
         return True
 
     def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
@@ -1930,7 +1917,6 @@ class ProtocolHandler(threading.Thread):
         self.client.queue(build_http_response(
             500, b'Server Error'
         ))
-        self.client.flush()
 
     def connection_inactive_for(self) -> int:
         return (self.now() - self.last_activity).seconds
@@ -1941,7 +1927,7 @@ class ProtocolHandler(threading.Thread):
 
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
-            logger.debug('Client is write, flushing buffer')
+            logger.debug('Client is ready for writes, flushing buffer')
             try:
                 # Invoke plugin.on_response_chunk
                 chunk = self.client.buffer
@@ -2003,9 +1989,9 @@ class ProtocolHandler(threading.Thread):
                     response = e.response(self.request)
                     if response:
                         self.client.queue(response)
-                        # But is client also ready for writes?
-                        self.client.flush()
                     else:
+                        # If ProtocolException doesn't return a response,
+                        # its a server error
                         self.send_server_error(e)
                     return True
         return False
@@ -2096,7 +2082,8 @@ class ProtocolHandler(threading.Thread):
     def run(self) -> None:
         try:
             self.initialize()
-            logger.debug('Proxying connection %r' % self.client.connection)
+            logger.debug('Handling connection %r' % self.client.connection)
+
             while True:
                 teardown = self.run_once()
                 if teardown:
@@ -2110,6 +2097,8 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
+            self.client.flush()
+
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()

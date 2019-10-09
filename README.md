@@ -799,7 +799,8 @@ Now `proxy.py` logs can be browsed using
 `proxy.py` is made to handle thousands of connections per second.
 
 1. Make use of `--open-file-limit` flag to customize `ulimit -n`.
-2. To set a value upper than the hard limit, run as root.
+    - To set a value upper than the hard limit, run as root.
+2. Make sure to adjust `--backlog` flag for higher concurrency.
 
 If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issues/new)
 with `requests per second` sent and output of following debug script:
