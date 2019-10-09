@@ -80,6 +80,13 @@ class TestTcpConnection(unittest.TestCase):
                 raise proxy.TcpConnectionUninitializedException()
             return self._conn
 
+    def testFlushThrowsBrokenPipeIfClosed(self) -> None:
+        self.conn = TestTcpConnection.TcpConnectionToTest()
+        self.conn.queue(b'some data')
+        self.conn.closed = True
+        with self.assertRaises(BrokenPipeError):
+            self.conn.flush()
+
     def testThrowsKeyErrorIfNoConn(self) -> None:
         self.conn = TestTcpConnection.TcpConnectionToTest()
         with self.assertRaises(proxy.TcpConnectionUninitializedException):
@@ -524,6 +531,11 @@ class TestHttpParser(unittest.TestCase):
     def test_header_raises(self) -> None:
         with self.assertRaises(KeyError):
             self.parser.header(b'not-found')
+
+    def test_has_header(self) -> None:
+        self.parser.add_header(b'key', b'value')
+        self.assertFalse(self.parser.has_header(b'not-found'))
+        self.assertTrue(self.parser.has_header(b'key'))
 
     def test_set_host_port_raises(self) -> None:
         with self.assertRaises(KeyError):
@@ -1437,6 +1449,79 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.queue.assert_called_once_with(pkt)
         server.buffer_size.return_value = len(pkt)
         server.flush.assert_not_called()
+
+
+class TestHttpProxyPlugin(unittest.TestCase):
+
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def setUp(self,
+              mock_fromfd: mock.Mock,
+              mock_selector: mock.Mock) -> None:
+        self.mock_fromfd = mock_fromfd
+        self.mock_selector = mock_selector
+
+        self.fileno = 10
+        self._addr = ('127.0.0.1', 54382)
+        self.config = proxy.ProtocolConfig()
+        self.plugin = mock.MagicMock()
+        self.config.plugins = {
+            b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
+            b'HttpProxyBasePlugin': [self.plugin]
+        }
+        self._conn = mock_fromfd.return_value
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=self.config)
+        self.proxy.initialize()
+
+    def test_proxy_plugin_initialized(self) -> None:
+        self.plugin.assert_called()
+
+    @mock.patch('proxy.TcpServerConnection')
+    def test_proxy_plugin_on_and_before_upstream_connection(
+            self,
+            mock_server_conn: mock.Mock) -> None:
+        self.plugin.return_value.before_upstream_connection.return_value = False
+        self.plugin.return_value.on_upstream_connection.return_value = None
+
+        self._conn.recv.return_value = proxy.build_http_request(
+            b'GET', b'http://upstream.host/not-found.html',
+            headers={
+                b'Host': b'upstream.host'
+            })
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+
+        self.proxy.run_once()
+        mock_server_conn.assert_called_with('upstream.host', 80)
+        self.plugin.return_value.before_upstream_connection.assert_called()
+        self.plugin.return_value.on_upstream_connection.assert_called()
+
+    @mock.patch('proxy.TcpServerConnection')
+    def test_proxy_plugin_before_upstream_connection_can_teardown(
+            self,
+            mock_server_conn: mock.Mock) -> None:
+        self.plugin.return_value.before_upstream_connection.return_value = True
+
+        self._conn.recv.return_value = proxy.build_http_request(
+            b'GET', b'http://upstream.host/not-found.html',
+            headers={
+                b'Host': b'upstream.host'
+            })
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+
+        self.proxy.run_once()
+        self.plugin.return_value.before_upstream_connection.assert_called()
+        mock_server_conn.assert_not_called()
 
 
 class TestHttpRequestRejected(unittest.TestCase):

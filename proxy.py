@@ -1267,6 +1267,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             return False
 
         # Note: can raise HttpRequestRejected exception
+        # Invoke plugin.before_upstream_connection
         for plugin in self.plugins.values():
             teardown = plugin.before_upstream_connection()
             if teardown:
