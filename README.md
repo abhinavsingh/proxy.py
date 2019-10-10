@@ -843,7 +843,7 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--server-recvbuf-size SERVER_RECVBUF_SIZE]
                 [--static-server-dir STATIC_SERVER_DIR] [--version]
 
-proxy.py v1.0.1
+proxy.py v1.1.0
 
 optional arguments:
   -h, --help            show this help message and exit

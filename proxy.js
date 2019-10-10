@@ -1,3 +1,11 @@
+/*
+    proxy.py
+    ~~~~~~~~
+    ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
+
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
+*/
 const path = require('path');
 const fs = require('fs');
 const ncp = require('ncp').ncp;
@@ -20,7 +28,6 @@ if (!destinationFolderExists) {
 
 const chromeDevTools = path.dirname(require.resolve('chrome-devtools-frontend/front_end/inspector.html'));
 
-console.log('Copying recursively...');
 console.log(chromeDevTools + ' ---> ' + destinationFolderPath);
 ncp(chromeDevTools, destinationFolderPath, (err) => {
     if (err) {

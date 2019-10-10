@@ -3,7 +3,7 @@
 """
     proxy.py
     ~~~~~~~~
-    Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
+    ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
@@ -50,7 +50,7 @@ if os.name != 'nt':
 PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
 PROXY_PY_START_TIME = time.time()
 
-VERSION = (1, 0, 1)
+VERSION = (1, 1, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = 'Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, ' \
                   'WebSockets protocols in a single Python file.'
