@@ -3,7 +3,7 @@
     proxy.py
     ~~~~~~~~
     ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
-    
+
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
@@ -77,5 +77,5 @@ setup(
     license=proxy.__license__,
     py_modules=['proxy'],
     scripts=['proxy.py'],
-    install_requires=['typing-extensions==3.7.4'],
+    install_requires=open('requirements.txt', 'r').read().strip().split(),
 )
