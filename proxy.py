@@ -10,20 +10,27 @@
 """
 import argparse
 import base64
+import contextlib
 import datetime
 import errno
+import functools
 import hashlib
 import importlib
 import inspect
+import io
 import ipaddress
+import json
 import logging
+import mimetypes
 import multiprocessing
 import os
 import pathlib
+import queue
 import secrets
 import selectors
 import socket
 import ssl
+import struct
 import subprocess
 import sys
 import threading
@@ -31,13 +38,17 @@ import time
 from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Type, Callable
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, TYPE_CHECKING, Type
+from types import TracebackType
 from urllib import parse as urlparse
 
 from typing_extensions import Protocol
 
 if os.name != 'nt':
     import resource
+
+PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
+PROXY_PY_START_TIME = time.time()
 
 VERSION = (1, 0, 1)
 __version__ = '.'.join(map(str, VERSION[0:3]))
@@ -48,8 +59,6 @@ __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 __download_url__ = '%s/archive/master.zip' % __homepage__
 __license__ = 'BSD'
-
-logger = logging.getLogger(__name__)
 
 # Defaults
 DEFAULT_BACKLOG = 100
@@ -68,6 +77,9 @@ DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_KEY_FILE = None
 DEFAULT_PORT = 8899
 DEFAULT_DISABLE_HTTP_PROXY = False
+DEFAULT_ENABLE_DEVTOOLS = False
+DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
+DEFAULT_ENABLE_STATIC_SERVER = False
 DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_OPEN_FILE_LIMIT = 1024
@@ -76,12 +88,13 @@ DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_PID_FILE = None
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_PLUGINS = ''    # Comma separated list of plugins
+DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
 DEFAULT_VERSION = False
-DEFAULT_LOG_FORMAT = '%(asctime)s - %(levelname)s - pid:%(process)d - %(funcName)s:%(lineno)d - %(message)s'
+DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_FILE = None
+UNDER_TEST = False  # Set to True if under test
 
-# Set to True if under test
-UNDER_TEST = False
+logger = logging.getLogger(__name__)
 
 
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
@@ -115,14 +128,6 @@ PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
     COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 
-##
-# Various NamedTuples
-#
-# collections.namedtuple were replaced with typing.NamedTuple
-# for mypy compliance. Unfortunately, we can't seem to use
-# a NamedTuple as a type.
-##
-
 TcpConnectionTypes = NamedTuple('TcpConnectionTypes', [
     ('SERVER', int),
     ('CLIENT', int),
@@ -135,6 +140,23 @@ ChunkParserStates = NamedTuple('ChunkParserStates', [
     ('COMPLETE', int),
 ])
 chunkParserStates = ChunkParserStates(1, 2, 3)
+
+HttpMethods = NamedTuple('HttpMethods', [
+    ('GET', bytes),
+    ('PUT', bytes),
+    ('POST', bytes),
+    ('CONNECT', bytes),
+    ('HEAD', bytes),
+    ('DELETE', bytes),
+])
+httpMethods = HttpMethods(
+    b'GET',
+    b'PUT',
+    b'POST',
+    b'CONNECT',
+    b'HEAD',
+    b'DELETE',
+)
 
 HttpParserStates = NamedTuple('HttpParserStates', [
     ('INITIALIZED', int),
@@ -159,6 +181,160 @@ HttpProtocolTypes = NamedTuple('HttpProtocolTypes', [
 ])
 httpProtocolTypes = HttpProtocolTypes(1, 2, 3)
 
+WebsocketOpcodes = NamedTuple('WebsocketOpcodes', [
+    ('CONTINUATION_FRAME', int),
+    ('TEXT_FRAME', int),
+    ('BINARY_FRAME', int),
+    ('CONNECTION_CLOSE', int),
+    ('PING', int),
+    ('PONG', int),
+])
+websocketOpcodes = WebsocketOpcodes(0x0, 0x1, 0x2, 0x8, 0x9, 0xA)
+
+
+def build_http_request(method: bytes, url: bytes,
+                       protocol_version: bytes = b'HTTP/1.1',
+                       headers: Optional[Dict[bytes, bytes]] = None,
+                       body: Optional[bytes] = None) -> bytes:
+    """Build and returns a HTTP request packet."""
+    if headers is None:
+        headers = {}
+    return build_http_pkt(
+        [method, url, protocol_version], headers, body)
+
+
+def build_http_response(status_code: int,
+                        protocol_version: bytes = b'HTTP/1.1',
+                        reason: Optional[bytes] = None,
+                        headers: Optional[Dict[bytes, bytes]] = None,
+                        body: Optional[bytes] = None) -> bytes:
+    """Build and returns a HTTP response packet."""
+    line = [protocol_version, bytes_(status_code)]
+    if reason:
+        line.append(reason)
+    if headers is None:
+        headers = {}
+    if body is not None and not any(
+            k.lower() == b'content-length' for k in headers):
+        headers[b'Content-Length'] = bytes_(len(body))
+    return build_http_pkt(line, headers, body)
+
+
+def build_http_header(k: bytes, v: bytes) -> bytes:
+    """Build and return a HTTP header line for use in raw packet."""
+    return k + COLON + WHITESPACE + v
+
+
+def build_http_pkt(line: List[bytes],
+                   headers: Optional[Dict[bytes, bytes]] = None,
+                   body: Optional[bytes] = None) -> bytes:
+    """Build and returns a HTTP request or response packet."""
+    req = WHITESPACE.join(line) + CRLF
+    if headers is not None:
+        for k in headers:
+            req += build_http_header(k, headers[k]) + CRLF
+    req += CRLF
+    if body:
+        req += body
+    return req
+
+
+def build_websocket_handshake_request(
+        key: bytes,
+        method: bytes = b'GET',
+        url: bytes = b'/') -> bytes:
+    """
+    Build and returns a Websocket handshake request packet.
+
+    :param key: Sec-WebSocket-Key header value.
+    :param method: HTTP method.
+    :param url: Websocket request path.
+    """
+    return build_http_request(
+        method, url,
+        headers={
+            b'Connection': b'upgrade',
+            b'Upgrade': b'websocket',
+            b'Sec-WebSocket-Key': key,
+            b'Sec-WebSocket-Version': b'13',
+        }
+    )
+
+
+def build_websocket_handshake_response(accept: bytes) -> bytes:
+    """
+    Build and returns a Websocket handshake response packet.
+
+    :param accept: Sec-WebSocket-Accept header value
+    """
+    return build_http_response(
+        101, reason=b'Switching Protocols',
+        headers={
+            b'Upgrade': b'websocket',
+            b'Connection': b'Upgrade',
+            b'Sec-WebSocket-Accept': accept
+        }
+    )
+
+
+def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
+    """Find and returns first line ending in CRLF along with following buffer.
+
+    If no ending CRLF is found, line is None."""
+    pos = raw.find(CRLF)
+    if pos == -1:
+        return None, raw
+    line = raw[:pos]
+    rest = raw[pos + len(CRLF):]
+    return line, rest
+
+
+def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
+    try:
+        ip = ipaddress.ip_address(addr[0])
+        if ip.version == 4:
+            conn = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM, 0)
+            conn.connect(addr)
+        else:
+            conn = socket.socket(
+                socket.AF_INET6, socket.SOCK_STREAM, 0)
+            conn.connect((addr[0], addr[1], 0, 0))
+    except ValueError:
+        # Not a valid IP address, most likely its a domain name,
+        # try to establish dual stack IPv4/IPv6 connection.
+        conn = socket.create_connection(addr)
+    return conn
+
+
+class socket_connection(contextlib.ContextDecorator):
+    """Same as new_socket_connection but as a context manager and decorator."""
+
+    def __init__(self, addr: Tuple[str, int]):
+        self.addr: Tuple[str, int] = addr
+        self.conn: Optional[socket.socket] = None
+        super().__init__()
+
+    def __enter__(self) -> socket.socket:
+        self.conn = new_socket_connection(self.addr)
+        return self.conn
+
+    def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_val: Optional[BaseException],
+            exc_tb: Optional[TracebackType]) -> bool:
+        if self.conn:
+            self.conn.close()
+        return False
+
+    def __call__(self, func: Callable[..., Any]) -> Callable[[socket.socket], Any]:
+        @functools.wraps(func)
+        def decorated(*args: Any, **kwargs: Any) -> Any:
+            with self as conn:
+                return func(conn, *args, **kwargs)
+        return decorated
+
 
 class _HasFileno(Protocol):
     def fileno(self) -> int:
@@ -170,7 +346,13 @@ class TcpConnectionUninitializedException(Exception):
 
 
 class TcpConnection(ABC):
-    """TCP server/client connection abstraction."""
+    """TCP server/client connection abstraction.
+
+    Main motivation of this class is to provide a buffer management
+    when reading and writing into the socket.
+
+    Implement the connection property abstract method to return
+    a socket connection object."""
 
     def __init__(self, tag: int):
         self.buffer: bytes = b''
@@ -223,28 +405,12 @@ class TcpConnection(ABC):
     def flush(self) -> int:
         if self.buffer_size() == 0:
             return 0
+        if self.closed:
+            raise BrokenPipeError()
         sent: int = self.send(self.buffer)
         self.buffer = self.buffer[sent:]
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
-
-    @staticmethod
-    def new(addr: Tuple[str, int]) -> socket.socket:
-        try:
-            ip = ipaddress.ip_address(addr[0])
-            if ip.version == 4:
-                conn = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM, 0)
-                conn.connect(addr)
-            else:
-                conn = socket.socket(
-                    socket.AF_INET6, socket.SOCK_STREAM, 0)
-                conn.connect((addr[0], addr[1], 0, 0))
-        except ValueError:
-            # Not a valid IP address, most likely its a domain name,
-            # try to establish dual stack IPv4/IPv6 connection.
-            conn = socket.create_connection(addr)
-        return conn
 
 
 class TcpServerConnection(TcpConnection):
@@ -252,8 +418,8 @@ class TcpServerConnection(TcpConnection):
 
     def __init__(self, host: str, port: int):
         super().__init__(tcpConnectionTypes.SERVER)
-        self.addr: Tuple[str, int] = (host, int(port))
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
+        self.addr: Tuple[str, int] = (host, int(port))
 
     @property
     def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
@@ -264,14 +430,15 @@ class TcpServerConnection(TcpConnection):
     def connect(self) -> None:
         if self._conn is not None:
             return
-        self._conn = self.new(self.addr)
+        self._conn = new_socket_connection(self.addr)
 
 
 class TcpClientConnection(TcpConnection):
-    """Accepted client connection."""
+    """An accepted client connection request."""
 
-    def __init__(self, conn: Union[ssl.SSLSocket,
-                                   socket.socket], addr: Tuple[str, int]):
+    def __init__(self,
+                 conn: Union[ssl.SSLSocket, socket.socket],
+                 addr: Tuple[str, int]):
         super().__init__(tcpConnectionTypes.CLIENT)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
         self.addr: Tuple[str, int] = addr
@@ -281,6 +448,267 @@ class TcpClientConnection(TcpConnection):
         if self._conn is None:
             raise TcpConnectionUninitializedException()
         return self._conn
+
+
+class ChunkParser:
+    """HTTP chunked encoding response parser."""
+
+    def __init__(self) -> None:
+        self.state = chunkParserStates.WAITING_FOR_SIZE
+        self.body: bytes = b''  # Parsed chunks
+        self.chunk: bytes = b''  # Partial chunk received
+        # Expected size of next following chunk
+        self.size: Optional[int] = None
+
+    def parse(self, raw: bytes) -> None:
+        more = True if len(raw) > 0 else False
+        while more:
+            more, raw = self.process(raw)
+
+    def process(self, raw: bytes) -> Tuple[bool, bytes]:
+        if self.state == chunkParserStates.WAITING_FOR_SIZE:
+            # Consume prior chunk in buffer
+            # in case chunk size without CRLF was received
+            raw = self.chunk + raw
+            self.chunk = b''
+            # Extract following chunk data size
+            line, raw = find_http_line(raw)
+            # CRLF not received or Blank line was received.
+            if line is None or line.strip() == b'':
+                self.chunk = raw
+                raw = b''
+            else:
+                self.size = int(line, 16)
+                self.state = chunkParserStates.WAITING_FOR_DATA
+        elif self.state == chunkParserStates.WAITING_FOR_DATA:
+            assert self.size is not None
+            remaining = self.size - len(self.chunk)
+            self.chunk += raw[:remaining]
+            raw = raw[remaining:]
+            if len(self.chunk) == self.size:
+                raw = raw[len(CRLF):]
+                self.body += self.chunk
+                if self.size == 0:
+                    self.state = chunkParserStates.COMPLETE
+                else:
+                    self.state = chunkParserStates.WAITING_FOR_SIZE
+                self.chunk = b''
+                self.size = None
+        return len(raw) > 0, raw
+
+    @staticmethod
+    def to_chunks(raw: bytes, chunk_size: int = DEFAULT_BUFFER_SIZE) -> bytes:
+        chunks: List[bytes] = []
+        for i in range(0, len(raw), chunk_size):
+            chunk = raw[i: i + chunk_size]
+            chunks.append(bytes_('{:x}'.format(len(chunk))))
+            chunks.append(chunk)
+        chunks.append(bytes_('{:x}'.format(0)))
+        chunks.append(b'')
+        return CRLF.join(chunks) + CRLF
+
+
+class HttpParser:
+    """HTTP request/response parser."""
+
+    def __init__(self, parser_type: int) -> None:
+        self.type: int = parser_type
+        self.state: int = httpParserStates.INITIALIZED
+
+        # Raw bytes as passed to parse(raw) method and its total size
+        self.bytes: bytes = b''
+        self.total_size: int = 0
+
+        # Buffer to hold unprocessed bytes
+        self.buffer: bytes = b''
+
+        self.headers: Dict[bytes, Tuple[bytes, bytes]] = dict()
+        self.body: Optional[bytes] = None
+
+        self.method: Optional[bytes] = None
+        self.url: Optional[urlparse.SplitResultBytes] = None
+        self.code: Optional[bytes] = None
+        self.reason: Optional[bytes] = None
+        self.version: Optional[bytes] = None
+
+        self.chunk_parser: Optional[ChunkParser] = None
+
+        # This cleans up developer APIs as Python urlparse.urlsplit behaves differently
+        # for incoming proxy request and incoming web request.  Web request is the one
+        # which is broken.
+        self.host: Optional[bytes] = None
+        self.port: Optional[int] = None
+
+    def header(self, key: bytes) -> bytes:
+        if key.lower() not in self.headers:
+            raise KeyError('%s not found in headers', text_(key))
+        return self.headers[key.lower()][1]
+
+    def has_header(self, key: bytes) -> bool:
+        return key.lower() in self.headers
+
+    def add_header(self, key: bytes, value: bytes) -> None:
+        self.headers[key.lower()] = (key, value)
+
+    def add_headers(self, headers: List[Tuple[bytes, bytes]]) -> None:
+        for (key, value) in headers:
+            self.add_header(key, value)
+
+    def del_header(self, header: bytes) -> None:
+        if header.lower() in self.headers:
+            del self.headers[header.lower()]
+
+    def del_headers(self, headers: List[bytes]) -> None:
+        for key in headers:
+            self.del_header(key.lower())
+
+    def set_host_port(self) -> None:
+        if self.type == httpParserTypes.REQUEST_PARSER:
+            if self.method == httpMethods.CONNECT and self.url:
+                u = urlparse.urlsplit(b'//' + self.url.path)
+                self.host, self.port = u.hostname, u.port
+            elif self.url:
+                self.host, self.port = self.url.hostname, self.url.port \
+                    if self.url.port else 80
+            else:
+                raise KeyError('Invalid request\n%s' % self.bytes)
+
+    def is_chunked_encoded(self) -> bool:
+        return b'transfer-encoding' in self.headers and \
+            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+
+    def parse(self, raw: bytes) -> None:
+        """Parses Http request out of raw bytes.
+
+        Check HttpParser state after parse has successfully returned."""
+        self.bytes += raw
+        self.total_size += len(raw)
+
+        # Prepend past buffer
+        raw = self.buffer + raw
+        self.buffer = b''
+
+        more = True if len(raw) > 0 else False
+        while more:
+            if self.state in (
+                    httpParserStates.HEADERS_COMPLETE,
+                    httpParserStates.RCVING_BODY,
+                    httpParserStates.COMPLETE):
+                if b'content-length' in self.headers:
+                    self.state = httpParserStates.RCVING_BODY
+                    if self.body is None:
+                        self.body = b''
+                    self.body += raw
+                    if self.body and \
+                            len(self.body) >= int(self.header(b'content-length')):
+                        self.state = httpParserStates.COMPLETE
+                elif self.is_chunked_encoded():
+                    if not self.chunk_parser:
+                        self.chunk_parser = ChunkParser()
+                    self.chunk_parser.parse(raw)
+                    if self.chunk_parser.state == chunkParserStates.COMPLETE:
+                        self.body = self.chunk_parser.body
+                        self.state = httpParserStates.COMPLETE
+                more, raw = False, b''
+            else:
+                more, raw = self.process(raw)
+        self.buffer = raw
+
+    def process(self, raw: bytes) -> Tuple[bool, bytes]:
+        """Returns False when no CRLF could be found in received bytes."""
+        line, raw = find_http_line(raw)
+        if line is None:
+            return False, raw
+
+        if self.state == httpParserStates.INITIALIZED:
+            self.process_line(line)
+            self.state = httpParserStates.LINE_RCVD
+        elif self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
+            if self.state == httpParserStates.LINE_RCVD:
+                # LINE_RCVD state is equivalent to RCVING_HEADERS
+                self.state = httpParserStates.RCVING_HEADERS
+            if line.strip() == b'':  # Blank line received.
+                self.state = httpParserStates.HEADERS_COMPLETE
+            else:
+                self.process_header(line)
+
+        # When connect request is received without a following host header
+        # See
+        # `TestHttpParser.test_connect_request_without_host_header_request_parse`
+        # for details
+        if self.state == httpParserStates.LINE_RCVD and \
+                self.type == httpParserTypes.RESPONSE_PARSER and \
+                raw == CRLF:
+            self.state = httpParserStates.COMPLETE
+        # When raw request has ended with \r\n\r\n and no more http headers are expected
+        # See `TestHttpParser.test_request_parse_without_content_length` and
+        # `TestHttpParser.test_response_parse_without_content_length` for details
+        elif self.state == httpParserStates.HEADERS_COMPLETE and \
+                self.type == httpParserTypes.REQUEST_PARSER and \
+                self.method != httpMethods.POST and \
+                self.bytes.endswith(CRLF * 2):
+            self.state = httpParserStates.COMPLETE
+        elif self.state == httpParserStates.HEADERS_COMPLETE and \
+                self.type == httpParserTypes.REQUEST_PARSER and \
+                self.method == httpMethods.POST and \
+                (b'content-length' not in self.headers or
+                 (b'content-length' in self.headers and
+                  int(self.headers[b'content-length'][1]) == 0)) and \
+                self.bytes.endswith(CRLF * 2):
+            self.state = httpParserStates.COMPLETE
+
+        return len(raw) > 0, raw
+
+    def process_line(self, raw: bytes) -> None:
+        line = raw.split(WHITESPACE)
+        if self.type == httpParserTypes.REQUEST_PARSER:
+            self.method = line[0].upper()
+            self.url = urlparse.urlsplit(line[1])
+            self.version = line[2]
+        else:
+            self.version = line[0]
+            self.code = line[1]
+            self.reason = WHITESPACE.join(line[2:])
+        self.set_host_port()
+
+    def process_header(self, raw: bytes) -> None:
+        parts = raw.split(COLON)
+        key = parts[0].strip()
+        value = COLON.join(parts[1:]).strip()
+        self.add_headers([(key, value)])
+
+    def build_url(self) -> bytes:
+        if not self.url:
+            return b'/None'
+
+        url = self.url.path
+        if url == b'':
+            url = b'/'
+        if not self.url.query == b'':
+            url += b'?' + self.url.query
+        if not self.url.fragment == b'':
+            url += b'#' + self.url.fragment
+        return url
+
+    def build(self, disable_headers: Optional[List[bytes]] = None) -> bytes:
+        assert self.method and self.version
+        if disable_headers is None:
+            disable_headers = DEFAULT_DISABLE_HEADERS
+        body: Optional[bytes] = None
+        if self.is_chunked_encoded() and self.body:
+            body = ChunkParser.to_chunks(self.body)
+        else:
+            body = self.body
+        return build_http_request(
+            self.method, self.build_url(), self.version,
+            headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
+                                                 k.lower() not in disable_headers},
+            body=body
+        )
+
+    def has_upstream_server(self) -> bool:
+        """Host field SHOULD be None for incoming local WebServer requests."""
+        return True if self.host is not None else False
 
 
 class AcceptorPool:
@@ -374,6 +802,7 @@ class Worker(multiprocessing.Process):
         self.work_queue: connection.Connection = work_queue
         self.work_klass = work_klass
         self.kwargs = kwargs
+        self.running = True
 
     def run(self) -> None:
         family = self.work_queue.recv()
@@ -384,7 +813,7 @@ class Worker(multiprocessing.Process):
         )
         selector = selectors.DefaultSelector()
         try:
-            while True:
+            while self.running:
                 with self.lock:
                     selector.register(sock, selectors.EVENT_READ)
                     events = selector.select(timeout=1)
@@ -396,339 +825,16 @@ class Worker(multiprocessing.Process):
                 except BlockingIOError:  # as e:
                     # logger.exception('BlockingIOError', exc_info=e)
                     continue
-                try:
-                    work = self.work_klass(
-                        fileno=conn.fileno(),
-                        addr=addr,
-                        **self.kwargs)
-                    work.setDaemon(True)
-                    work.start()
-                except ssl.SSLError as e:
-                    logger.exception('ssl.SSLError', exc_info=e)
-                except Exception as e:
-                    logger.exception('Error encountered', exc_info=e)
-                finally:
-                    try:
-                        conn.shutdown(socket.SHUT_RDWR)
-                    except Exception as e:
-                        logger.exception('Error trying to shutdown client socket', exc_info=e)
-                    conn.close()
+                work = self.work_klass(
+                    fileno=conn.fileno(),
+                    addr=addr,
+                    **self.kwargs)
+                work.setDaemon(True)
+                work.start()
         except KeyboardInterrupt:
             pass
         finally:
             sock.close()
-
-
-class ChunkParser:
-    """HTTP chunked encoding response parser."""
-
-    def __init__(self) -> None:
-        self.state = chunkParserStates.WAITING_FOR_SIZE
-        self.body: bytes = b''  # Parsed chunks
-        self.chunk: bytes = b''  # Partial chunk received
-        # Expected size of next following chunk
-        self.size: Optional[int] = None
-
-    def parse(self, raw: bytes) -> None:
-        more = True if len(raw) > 0 else False
-        while more:
-            more, raw = self.process(raw)
-
-    def process(self, raw: bytes) -> Tuple[bool, bytes]:
-        if self.state == chunkParserStates.WAITING_FOR_SIZE:
-            # Consume prior chunk in buffer
-            # in case chunk size without CRLF was received
-            raw = self.chunk + raw
-            self.chunk = b''
-            # Extract following chunk data size
-            line, raw = find_http_line(raw)
-            # CRLF not received or Blank line was received.
-            if line is None or line.strip() == b'':
-                self.chunk = raw
-                raw = b''
-            else:
-                self.size = int(line, 16)
-                self.state = chunkParserStates.WAITING_FOR_DATA
-        elif self.state == chunkParserStates.WAITING_FOR_DATA:
-            assert self.size is not None
-            remaining = self.size - len(self.chunk)
-            self.chunk += raw[:remaining]
-            raw = raw[remaining:]
-            if len(self.chunk) == self.size:
-                raw = raw[len(CRLF):]
-                self.body += self.chunk
-                if self.size == 0:
-                    self.state = chunkParserStates.COMPLETE
-                else:
-                    self.state = chunkParserStates.WAITING_FOR_SIZE
-                self.chunk = b''
-                self.size = None
-        return len(raw) > 0, raw
-
-
-def build_http_request(method: bytes, url: bytes,
-                       protocol_version: bytes = b'HTTP/1.1',
-                       headers: Optional[Dict[bytes, bytes]] = None,
-                       body: Optional[bytes] = None) -> bytes:
-    if headers is None:
-        headers = {}
-    return build_http_pkt(
-        [method, url, protocol_version], headers, body)
-
-
-def build_http_response(status_code: int,
-                        protocol_version: bytes = b'HTTP/1.1',
-                        reason: Optional[bytes] = None,
-                        headers: Optional[Dict[bytes, bytes]] = None,
-                        body: Optional[bytes] = None) -> bytes:
-    line = [protocol_version, bytes_(status_code)]
-    if reason:
-        line.append(reason)
-    if headers is None:
-        headers = {}
-    if body is not None and not any(
-            k.lower() == b'content-length' for k in headers):
-        headers[b'Content-Length'] = bytes_(len(body))
-    return build_http_pkt(line, headers, body)
-
-
-def build_http_header(k: bytes, v: bytes) -> bytes:
-    return k + COLON + WHITESPACE + v
-
-
-def build_http_pkt(line: List[bytes],
-                   headers: Optional[Dict[bytes, bytes]] = None,
-                   body: Optional[bytes] = None) -> bytes:
-    req = WHITESPACE.join(line) + CRLF
-    if headers is not None:
-        for k in headers:
-            req += build_http_header(k, headers[k]) + CRLF
-    req += CRLF
-    if body:
-        req += body
-    return req
-
-
-def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
-    """Finds first line of request ending in CRLF.
-
-    If no CRLF is found, line is None.
-    Also returns pending buffer after received line of request."""
-    pos = raw.find(CRLF)
-    if pos == -1:
-        return None, raw
-    line = raw[:pos]
-    rest = raw[pos + len(CRLF):]
-    return line, rest
-
-
-class HttpParser:
-    """HTTP request/response parser."""
-
-    def __init__(self, parser_type: int) -> None:
-        self.type: int = parser_type
-        self.state: int = httpParserStates.INITIALIZED
-
-        # Raw bytes as passed to parse(raw) method and its total size
-        self.bytes: bytes = b''
-        self.total_size: int = 0
-
-        # Buffer to hold unprocessed bytes
-        self.buffer: bytes = b''
-
-        self.headers: Dict[bytes, Tuple[bytes, bytes]] = dict()
-
-        # Can simply be b'', then set type as bytes?
-        self.body: Optional[bytes] = None
-
-        self.method: Optional[bytes] = None
-        self.url: Optional[urlparse.SplitResultBytes] = None
-        self.code: Optional[bytes] = None
-        self.reason: Optional[bytes] = None
-        self.version: Optional[bytes] = None
-
-        self.chunk_parser: Optional[ChunkParser] = None
-
-        # This cleans up developer APIs as Python urlparse.urlsplit behaves differently
-        # for incoming proxy request and incoming web request.  Web request is the one
-        # which is broken.
-        self.host: Optional[bytes] = None
-        self.port: Optional[int] = None
-
-    def header(self, key: bytes) -> bytes:
-        if key.lower() not in self.headers:
-            raise KeyError('%s not found in headers', text_(key))
-        return self.headers[key.lower()][1]
-
-    def has_header(self, key: bytes) -> bool:
-        return key.lower() in self.headers
-
-    def add_header(self, key: bytes, value: bytes) -> None:
-        self.headers[key.lower()] = (key, value)
-
-    def add_headers(self, headers: List[Tuple[bytes, bytes]]) -> None:
-        for (key, value) in headers:
-            self.add_header(key, value)
-
-    def del_header(self, header: bytes) -> None:
-        if header.lower() in self.headers:
-            del self.headers[header.lower()]
-
-    def del_headers(self, headers: List[bytes]) -> None:
-        for key in headers:
-            self.del_header(key.lower())
-
-    def set_host_port(self) -> None:
-        if self.type == httpParserTypes.REQUEST_PARSER:
-            if self.method == b'CONNECT' and self.url:
-                u = urlparse.urlsplit(b'//' + self.url.path)
-                self.host, self.port = u.hostname, u.port
-            elif self.url:
-                self.host, self.port = self.url.hostname, self.url.port \
-                    if self.url.port else 80
-            else:
-                raise Exception('Invalid request\n%s' % self.bytes)
-
-    def is_chunked_encoded_response(self) -> bool:
-        return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
-            self.headers[b'transfer-encoding'][1].lower() == b'chunked'
-
-    def parse(self, raw: bytes) -> None:
-        """Parses Http request out of raw bytes.
-
-        Check HttpParser state after parse has successfully returned."""
-        self.bytes += raw
-        self.total_size += len(raw)
-
-        # Prepend past buffer
-        raw = self.buffer + raw
-        self.buffer = b''
-
-        more = True if len(raw) > 0 else False
-        while more:
-            if self.state in (
-                    httpParserStates.HEADERS_COMPLETE,
-                    httpParserStates.RCVING_BODY,
-                    httpParserStates.COMPLETE) and (
-                    self.method == b'POST' or self.type == httpParserTypes.RESPONSE_PARSER):
-                if not self.body:
-                    self.body = b''
-
-                if b'content-length' in self.headers:
-                    self.state = httpParserStates.RCVING_BODY
-                    self.body += raw
-                    if self.body and \
-                            len(self.body) >= int(self.headers[b'content-length'][1]):
-                        self.state = httpParserStates.COMPLETE
-                elif self.is_chunked_encoded_response():
-                    if not self.chunk_parser:
-                        self.chunk_parser = ChunkParser()
-                    self.chunk_parser.parse(raw)
-                    if self.chunk_parser.state == chunkParserStates.COMPLETE:
-                        self.body = self.chunk_parser.body
-                        self.state = httpParserStates.COMPLETE
-
-                more, raw = False, b''
-            else:
-                more, raw = self.process(raw)
-        self.buffer = raw
-
-    def process(self, raw: bytes) -> Tuple[bool, bytes]:
-        """Returns False when no CRLF could be found in received bytes."""
-        line, raw = find_http_line(raw)
-        if line is None:
-            return False, raw
-
-        if self.state == httpParserStates.INITIALIZED:
-            self.process_line(line)
-            self.state = httpParserStates.LINE_RCVD
-        elif self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
-            if self.state == httpParserStates.LINE_RCVD:
-                # LINE_RCVD state is equivalent to RCVING_HEADERS
-                self.state = httpParserStates.RCVING_HEADERS
-            if line.strip() == b'':  # Blank line received.
-                self.state = httpParserStates.HEADERS_COMPLETE
-            else:
-                self.process_header(line)
-
-        # When connect request is received without a following host header
-        # See
-        # `TestHttpParser.test_connect_request_without_host_header_request_parse`
-        # for details
-        if self.state == httpParserStates.LINE_RCVD and \
-                self.type == httpParserTypes.RESPONSE_PARSER and \
-                raw == CRLF:
-            self.state = httpParserStates.COMPLETE
-        # When raw request has ended with \r\n\r\n and no more http headers are expected
-        # See `TestHttpParser.test_request_parse_without_content_length` and
-        # `TestHttpParser.test_response_parse_without_content_length` for details
-        elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                self.type == httpParserTypes.REQUEST_PARSER and \
-                self.method != b'POST' and \
-                self.bytes.endswith(CRLF * 2):
-            self.state = httpParserStates.COMPLETE
-        elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                self.type == httpParserTypes.REQUEST_PARSER and \
-                self.method == b'POST' and \
-                (b'content-length' not in self.headers or
-                 (b'content-length' in self.headers and
-                  int(self.headers[b'content-length'][1]) == 0)) and \
-                self.bytes.endswith(CRLF * 2):
-            self.state = httpParserStates.COMPLETE
-
-        return len(raw) > 0, raw
-
-    def process_line(self, raw: bytes) -> None:
-        line = raw.split(WHITESPACE)
-        if self.type == httpParserTypes.REQUEST_PARSER:
-            self.method = line[0].upper()
-            self.url = urlparse.urlsplit(line[1])
-            self.version = line[2]
-        else:
-            self.version = line[0]
-            self.code = line[1]
-            self.reason = WHITESPACE.join(line[2:])
-        self.set_host_port()
-
-    def process_header(self, raw: bytes) -> None:
-        parts = raw.split(COLON)
-        key = parts[0].strip()
-        value = COLON.join(parts[1:]).strip()
-        self.add_headers([(key, value)])
-
-    def build_url(self) -> bytes:
-        if not self.url:
-            return b'/None'
-
-        url = self.url.path
-        if url == b'':
-            url = b'/'
-        if not self.url.query == b'':
-            url += b'?' + self.url.query
-        if not self.url.fragment == b'':
-            url += b'#' + self.url.fragment
-        return url
-
-    def build(self, disable_headers: Optional[List[bytes]] = None) -> bytes:
-        assert self.method and self.version
-        if disable_headers is None:
-            disable_headers = DEFAULT_DISABLE_HEADERS
-        return build_http_request(
-            self.method, self.build_url(), self.version,
-            headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
-                                                 k.lower() not in disable_headers},
-            body=self.body
-        )
-
-    ##########################################################################
-    # HttpParser was originally written to parse the incoming raw Http requests.
-    # Since request / response objects passed to ProtocolHandlerPlugin methods
-    # are also HttpParser objects, methods below were added to simplify developer API.
-    ##########################################################################
-
-    def has_upstream_server(self) -> bool:
-        """Host field SHOULD be None for incoming local WebServer requests."""
-        return True if self.host is not None else False
 
 
 class ProtocolException(Exception):
@@ -739,7 +845,7 @@ class ProtocolException(Exception):
     to optionally return custom response to client."""
 
     def response(self, request: HttpParser) -> Optional[bytes]:
-        pass  # pragma: no cover
+        return None  # pragma: no cover
 
 
 class HttpRequestRejected(ProtocolException):
@@ -774,6 +880,46 @@ class HttpRequestRejected(ProtocolException):
         return CRLF.join(pkt) if len(pkt) > 0 else None
 
 
+class ProxyConnectionFailed(ProtocolException):
+    """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
+
+    RESPONSE_PKT = build_http_response(
+        502, reason=b'Bad Gateway',
+        headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
+                 b'Connection': b'close'},
+        body=b'Bad Gateway'
+    )
+
+    def __init__(self, host: str, port: int, reason: str):
+        self.host: str = host
+        self.port: int = port
+        self.reason: str = reason
+
+    def response(self, _request: HttpParser) -> bytes:
+        return self.RESPONSE_PKT
+
+
+class ProxyAuthenticationFailed(ProtocolException):
+    """Exception raised when Http Proxy auth is enabled and
+    incoming request doesn't present necessary credentials."""
+
+    RESPONSE_PKT = build_http_response(
+        407, reason=b'Proxy Authentication Required',
+        headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
+                 b'Connection': b'close',
+                 b'Proxy-Authenticate': b'Basic'},
+        body=b'Proxy Authentication Required')
+
+    def response(self, _request: HttpParser) -> bytes:
+        return self.RESPONSE_PKT
+
+
+if TYPE_CHECKING:
+    DevtoolsEventQueueType = queue.Queue[Dict[str, Any]]    # pragma: no cover
+else:
+    DevtoolsEventQueueType = queue.Queue
+
+
 class ProtocolConfig:
     """Holds various configuration values applicable to ProtocolHandler.
 
@@ -802,7 +948,11 @@ class ProtocolConfig:
             hostname: Union[ipaddress.IPv4Address,
                             ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
             port: int = DEFAULT_PORT,
-            backlog: int = DEFAULT_BACKLOG) -> None:
+            backlog: int = DEFAULT_BACKLOG,
+            static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
+            enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
+            devtools_event_queue: Optional[DevtoolsEventQueueType] = None,
+            devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH) -> None:
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -825,6 +975,11 @@ class ProtocolConfig:
         self.port: int = port
         self.backlog: int = backlog
 
+        self.enable_static_server: bool = enable_static_server
+        self.static_server_dir: str = static_server_dir
+        self.devtools_event_queue: Optional[DevtoolsEventQueueType] = devtools_event_queue
+        self.devtools_ws_path: bytes = devtools_ws_path
+
         self.proxy_py_data_dir = os.path.join(
             str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
         os.makedirs(self.proxy_py_data_dir, exist_ok=True)
@@ -839,7 +994,24 @@ class ProtocolConfig:
 class ProtocolHandlerPlugin(ABC):
     """Base ProtocolHandler Plugin class.
 
-    Implement various lifecycle event methods to customize behavior."""
+    NOTE: This is an internal plugin and in most cases only useful for core contributors.
+    If you are looking for proxy server plugins see `<proxy.HttpProxyBasePlugin>`.
+
+    Implements various lifecycle events for an accepted client connection.
+    Following events are of interest:
+
+    1. Client Connection Accepted
+       A new plugin instance is created per accepted client connection.
+       Add your logic within __init__ constructor for any per connection setup.
+    2. Client Request Chunk Received
+       on_client_data is called for every chunk of data sent by the client.
+    3. Client Request Complete
+       on_request_complete is called once client request has completed.
+    4. Server Response Chunk Received
+       on_response_chunk is called for every chunk received from the server.
+    5. Client Connection Closed
+       Add your logic within `on_client_connection_close` for any per connection teardown.
+    """
 
     def __init__(
             self,
@@ -864,7 +1036,7 @@ class ProtocolHandlerPlugin(ABC):
         return [], []  # pragma: no cover
 
     @abstractmethod
-    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         pass  # pragma: no cover
 
     @abstractmethod
@@ -881,7 +1053,7 @@ class ProtocolHandlerPlugin(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def handle_response_chunk(self, chunk: bytes) -> bytes:
+    def on_response_chunk(self, chunk: bytes) -> bytes:
         """Handle data chunks as received from the server.
 
         Return optionally modified chunk to return back to client."""
@@ -890,44 +1062,6 @@ class ProtocolHandlerPlugin(ABC):
     @abstractmethod
     def on_client_connection_close(self) -> None:
         pass  # pragma: no cover
-
-
-class ProxyConnectionFailed(ProtocolException):
-    """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
-
-    RESPONSE_PKT = build_http_response(
-        502, reason=b'Bad Gateway',
-        headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-                 b'Connection': b'close'},
-        body=b'Bad Gateway'
-    )
-
-    def __init__(self, host: str, port: int, reason: str):
-        self.host: str = host
-        self.port: int = port
-        self.reason: str = reason
-
-    def response(self, _request: HttpParser) -> bytes:
-        return self.RESPONSE_PKT
-
-    def __str__(self) -> str:
-        return '<ProxyConnectionFailed - %s:%s - %s>' % (
-            self.host, self.port, self.reason)
-
-
-class ProxyAuthenticationFailed(ProtocolException):
-    """Exception raised when Http Proxy auth is enabled and
-    incoming request doesn't present necessary credentials."""
-
-    RESPONSE_PKT = build_http_response(
-        407, reason=b'Proxy Authentication Required',
-        headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-                 b'Connection': b'close',
-                 b'Proxy-Authenticate': b'Basic'},
-        body=b'Proxy Authentication Required')
-
-    def response(self, _request: HttpParser) -> bytes:
-        return self.RESPONSE_PKT
 
 
 class HttpProxyBasePlugin(ABC):
@@ -940,16 +1074,16 @@ class HttpProxyBasePlugin(ABC):
             config: ProtocolConfig,
             client: TcpClientConnection,
             request: HttpParser):
-        self.config = config
-        self.client = client
-        self.request = request
+        self.config = config        # pragma: no cover
+        self.client = client        # pragma: no cover
+        self.request = request      # pragma: no cover
 
     def name(self) -> str:
         """A unique name for your plugin.
 
         Defaults to name of the class. This helps plugin developers to directly
         access a specific plugin by its name."""
-        return self.__class__.__name__
+        return self.__class__.__name__      # pragma: no cover
 
     @abstractmethod
     def before_upstream_connection(self) -> bool:
@@ -1017,7 +1151,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             w.append(self.server.connection)
         return r, w
 
-    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server() and \
                 self.server and not self.server.closed and \
                 self.server.buffer_size() > 0 and \
@@ -1046,7 +1180,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
 
             # parse incoming response packet
             # only for non-https requests
-            if not self.request.method == b'CONNECT':
+            if not self.request.method == httpMethods.CONNECT:
                 self.response.parse(raw)
             else:
                 self.response.total_size += len(raw)
@@ -1054,9 +1188,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             self.client.queue(raw)
         return False
 
-    def on_client_connection_close(self) -> None:
-        if not self.request.has_upstream_server():
-            return
+    def access_log(self) -> None:
         server_host, server_port = self.server.addr if self.server else (
             None, None)
         if self.request.method == b'CONNECT':
@@ -1079,6 +1211,11 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                  text_(self.response.code),
                  text_(self.response.reason),
                  self.response.total_size))
+
+    def on_client_connection_close(self) -> None:
+        if not self.request.has_upstream_server():
+            return
+        self.access_log()
         # Invoke plugin.on_upstream_connection_close
         if self.server and not self.server.closed:
             for plugin in self.plugins.values():
@@ -1088,7 +1225,15 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 'Closed server connection with pending server buffer size %d bytes' %
                 self.server.buffer_size())
 
-    def handle_response_chunk(self, chunk: bytes) -> bytes:
+    def on_response_chunk(self, chunk: bytes) -> bytes:
+        # TODO: Allow to output multiple access_log lines
+        # for each request over a pipelined HTTP connection (not for HTTPS).
+        # However, this must also be accompanied by resetting both request
+        # and response objects.
+        #
+        # if not self.request.method == httpMethods.CONNECT and \
+        #         self.response.state == httpParserStates.COMPLETE:
+        #     self.access_log()
         return chunk
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
@@ -1135,6 +1280,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             return False
 
         # Note: can raise HttpRequestRejected exception
+        # Invoke plugin.before_upstream_connection
         for plugin in self.plugins.values():
             teardown = plugin.before_upstream_connection()
             if teardown:
@@ -1146,14 +1292,11 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         for plugin in self.plugins.values():
             plugin.on_upstream_connection()
 
-        if self.request.method == b'CONNECT':
+        if self.request.method == httpMethods.CONNECT:
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled, generate server certificates
             if self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file:
-                # Flush client buffer before wrapping,
-                # but is client ready for writes?
-                self.client.flush()
                 generated_cert = self.generate_upstream_certificate()
                 if generated_cert:
                     if not (self.config.keyfile and self.config.certfile) and \
@@ -1219,8 +1362,210 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             raise ProtocolException()
 
 
-class HttpWebServerRoutePlugin(ABC):
-    """Web Server Route Plugin."""
+class WebsocketFrame:
+    """Websocket frames parser and constructor."""
+
+    GUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self.fin: bool = False
+        self.rsv1: bool = False
+        self.rsv2: bool = False
+        self.rsv3: bool = False
+        self.opcode: int = 0
+        self.masked: bool = False
+        self.payload_length: Optional[int] = None
+        self.mask: Optional[bytes] = None
+        self.data: Optional[bytes] = None
+
+    def parse_fin_and_rsv(self, byte: int) -> None:
+        self.fin = bool(byte & 1 << 7)
+        self.rsv1 = bool(byte & 1 << 6)
+        self.rsv2 = bool(byte & 1 << 5)
+        self.rsv3 = bool(byte & 1 << 4)
+        self.opcode = byte & 0b00001111
+
+    def parse_mask_and_payload(self, byte: int) -> None:
+        self.masked = bool(byte & 0b10000000)
+        self.payload_length = byte & 0b01111111
+
+    def build(self) -> bytes:
+        if self.payload_length is None and self.data:
+            self.payload_length = len(self.data)
+        raw = io.BytesIO()
+        raw.write(
+            struct.pack(
+                '!B',
+                (1 << 7 if self.fin else 0) |
+                (1 << 6 if self.rsv1 else 0) |
+                (1 << 5 if self.rsv2 else 0) |
+                (1 << 4 if self.rsv3 else 0) |
+                self.opcode
+            ))
+        assert self.payload_length is not None
+        if self.payload_length < 126:
+            raw.write(
+                struct.pack(
+                    '!B',
+                    (1 << 7 if self.masked else 0) | self.payload_length
+                )
+            )
+        elif self.payload_length < 1 << 16:
+            raw.write(
+                struct.pack(
+                    '!BH',
+                    (1 << 7 if self.masked else 0) | 126,
+                    self.payload_length
+                )
+            )
+        elif self.payload_length < 1 << 64:
+            raw.write(
+                struct.pack(
+                    '!BHQ',
+                    (1 << 7 if self.masked else 0) | 127,
+                    self.payload_length
+                )
+            )
+        else:
+            raise ValueError(f'Invalid payload_length { self.payload_length },'
+                             f'maximum allowed { 1 << 64 }')
+        if self.masked and self.data:
+            mask = secrets.token_bytes(4) if self.mask is None else self.mask
+            raw.write(mask)
+            raw.write(self.apply_mask(self.data, mask))
+        elif self.data:
+            raw.write(self.data)
+        return raw.getvalue()
+
+    def parse(self, raw: bytes) -> bytes:
+        cur = 0
+        self.parse_fin_and_rsv(raw[cur])
+        cur += 1
+
+        self.parse_mask_and_payload(raw[cur])
+        cur += 1
+
+        if self.payload_length == 126:
+            data = raw[cur: cur + 2]
+            self.payload_length, = struct.unpack('!H', data)
+            cur += 2
+        elif self.payload_length == 127:
+            data = raw[cur: cur + 8]
+            self.payload_length, = struct.unpack('!Q', data)
+            cur += 8
+
+        if self.masked:
+            self.mask = raw[cur: cur + 4]
+            cur += 4
+
+        assert self.payload_length
+        self.data = raw[cur: cur + self.payload_length]
+        cur += self.payload_length
+        if self.masked:
+            assert self.mask is not None
+            self.data = self.apply_mask(self.data, self.mask)
+
+        return raw[cur:]
+
+    @staticmethod
+    def apply_mask(data: bytes, mask: bytes) -> bytes:
+        raw = bytearray(data)
+        for i in range(len(raw)):
+            raw[i] = raw[i] ^ mask[i % 4]
+        return bytes(raw)
+
+    @staticmethod
+    def key_to_accept(key: bytes) -> bytes:
+        sha1 = hashlib.sha1()
+        sha1.update(key + WebsocketFrame.GUID)
+        return base64.b64encode(sha1.digest())
+
+
+class WebsocketClient(TcpConnection):
+
+    def __init__(self,
+                 hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
+                 port: int,
+                 path: bytes = b'/',
+                 on_message: Optional[Callable[[WebsocketFrame], None]] = None) -> None:
+        super().__init__(tcpConnectionTypes.CLIENT)
+        self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = hostname
+        self.port: int = port
+        self.path: bytes = path
+        self.sock: socket.socket = new_socket_connection((str(self.hostname), self.port))
+        self.on_message: Optional[Callable[[WebsocketFrame], None]] = on_message
+        self.upgrade()
+        self.sock.setblocking(False)
+        self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
+
+    @property
+    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+        return self.sock
+
+    def upgrade(self) -> None:
+        key = base64.b64encode(secrets.token_bytes(16))
+        self.sock.send(build_websocket_handshake_request(key, url=self.path))
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
+        accept = response.header(b'Sec-Websocket-Accept')
+        assert WebsocketFrame.key_to_accept(key) == accept
+
+    def ping(self, data: Optional[bytes] = None) -> None:
+        pass
+
+    def pong(self, data: Optional[bytes] = None) -> None:
+        pass
+
+    def shutdown(self, _data: Optional[bytes] = None) -> None:
+        """Closes connection with the server."""
+        super().close()
+
+    def run_once(self) -> bool:
+        ev = selectors.EVENT_READ
+        if self.has_buffer():
+            ev |= selectors.EVENT_WRITE
+        self.selector.register(self.sock.fileno(), ev)
+        events = self.selector.select(timeout=1)
+        self.selector.unregister(self.sock)
+        for key, mask in events:
+            if mask & selectors.EVENT_READ and self.on_message:
+                raw = self.recv()
+                if raw is None or raw == b'':
+                    self.closed = True
+                    logger.debug('Websocket connection closed by server')
+                    return True
+                frame = WebsocketFrame()
+                frame.parse(raw)
+                self.on_message(frame)
+            elif mask & selectors.EVENT_WRITE:
+                logger.debug(self.buffer)
+                self.flush()
+        return False
+
+    def run(self) -> None:
+        logger.debug('running')
+        try:
+            while not self.closed:
+                teardown = self.run_once()
+                if teardown:
+                    break
+        except KeyboardInterrupt:
+            pass
+        finally:
+            try:
+                self.selector.unregister(self.sock)
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except Exception as e:
+                logging.exception('Exception while shutdown of websocket client', exc_info=e)
+            self.sock.close()
+        logger.info('done')
+
+
+class HttpWebServerBasePlugin(ABC):
+    """Web Server Plugin for routing of requests."""
 
     def __init__(
             self,
@@ -1229,40 +1574,158 @@ class HttpWebServerRoutePlugin(ABC):
         self.config = config
         self.client = client
 
+    @abstractmethod
     def routes(self) -> List[Tuple[int, bytes]]:
         """Return List(protocol, path) that this plugin handles."""
-        raise NotImplementedError()
+        raise NotImplementedError()     # pragma: no cover
 
+    @abstractmethod
     def handle_request(self, request: HttpParser) -> None:
         """Handle the request and serve response."""
-        raise NotImplementedError()
+        raise NotImplementedError()     # pragma: no cover
+
+    @abstractmethod
+    def on_websocket_open(self) -> None:
+        """Called when websocket handshake has finished."""
+        raise NotImplementedError()     # pragma: no cover
+
+    @abstractmethod
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        """Handle websocket frame."""
+        raise NotImplementedError()     # pragma: no cover
+
+    @abstractmethod
+    def on_websocket_close(self) -> None:
+        """Called when websocket connection has been closed."""
+        raise NotImplementedError()     # pragma: no cover
 
 
-def route(path: bytes, protocols: Optional[List[int]] = None) -> \
-        Callable[[Callable[[HttpParser], bytes]], Type[HttpWebServerRoutePlugin]]:
-    def decorator(func: Callable[[HttpParser], bytes]
-                  ) -> Type[HttpWebServerRoutePlugin]:
-        class HttpWebServerRouteHandler(HttpWebServerRoutePlugin):
-            @staticmethod
-            def name() -> str:
-                return func.__name__
+class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
+    """DevtoolsWebsocketPlugin handles Devtools Frontend websocket requests.
 
-            def routes(self) -> List[Tuple[int, bytes]]:
-                p = protocols
-                if p is None:
-                    p = [i + 1 for i in range(len(httpProtocolTypes))]
-                return [(protocol, path) for protocol in p]
+    For every connected Devtools Frontend instance, a dispatcher thread is
+    started which drains the global Devtools protocol events queue.
 
-            def handle_request(self, request: HttpParser) -> None:
-                self.client.queue(func(request))
-                self.client.flush()
+    Dispatcher thread is terminated when Devtools Frontend disconnects."""
 
-        return HttpWebServerRouteHandler
+    def __init__(
+            self,
+            config: ProtocolConfig,
+            client: TcpClientConnection):
+        super().__init__(config, client)
+        self.event_dispatcher_thread: Optional[threading.Thread] = None
+        self.event_dispatcher_shutdown: Optional[threading.Event] = None
 
-    return decorator
+    def start_dispatcher(self) -> None:
+        self.event_dispatcher_shutdown = threading.Event()
+        assert self.config.devtools_event_queue is not None
+        self.event_dispatcher_thread = threading.Thread(
+            target=DevtoolsWebsocketPlugin.event_dispatcher,
+            args=(self.event_dispatcher_shutdown,
+                  self.config.devtools_event_queue,
+                  self.client))
+        self.event_dispatcher_thread.setDaemon(True)
+        self.event_dispatcher_thread.start()
+
+    def stop_dispatcher(self) -> None:
+        assert self.event_dispatcher_shutdown is not None
+        assert self.event_dispatcher_thread is not None
+        self.event_dispatcher_shutdown.set()
+        self.event_dispatcher_thread.join()
+        logger.debug('Event dispatcher shutdown')
+
+    @staticmethod
+    def event_dispatcher(
+            shutdown: threading.Event,
+            devtools_event_queue: DevtoolsEventQueueType,
+            client: TcpClientConnection) -> None:
+        while not shutdown.is_set():
+            try:
+                ev = devtools_event_queue.get(timeout=1)
+                frame = WebsocketFrame()
+                frame.fin = True
+                frame.opcode = websocketOpcodes.TEXT_FRAME
+                frame.data = bytes_(json.dumps(ev))
+                logger.debug(ev)
+                client.queue(frame.build())
+            except queue.Empty:
+                pass
+            except Exception as e:
+                logger.exception('Event dispatcher exception', exc_info=e)
+                break
+            except KeyboardInterrupt:
+                break
+
+    def routes(self) -> List[Tuple[int, bytes]]:
+        return [
+            (httpProtocolTypes.WEBSOCKET, self.config.devtools_ws_path)
+        ]
+
+    def handle_request(self, request: HttpParser) -> None:
+        pass
+
+    def on_websocket_open(self) -> None:
+        self.start_dispatcher()
+
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        if frame.data:
+            message = json.loads(frame.data)
+            self.handle_message(message)
+        else:
+            logger.debug('No data found in frame')
+
+    def on_websocket_close(self) -> None:
+        self.stop_dispatcher()
+
+    def handle_message(self, message: Dict[str, Any]) -> None:
+        frame = WebsocketFrame()
+        frame.fin = True
+        frame.opcode = websocketOpcodes.TEXT_FRAME
+
+        if message['method'] in (
+            'Page.canScreencast',
+            'Network.canEmulateNetworkConditions',
+            'Emulation.canEmulate'
+        ):
+            data = json.dumps({
+                'id': message['id'],
+                'result': False
+            })
+        elif message['method'] == 'Page.getResourceTree':
+            data = json.dumps({
+                'id': message['id'],
+                'result': {
+                    'frameTree': {
+                        'frame': {
+                            'id': 1,
+                            'url': 'http://proxypy',
+                            'mimeType': 'other',
+                        },
+                        'childFrames': [],
+                        'resources': []
+                    }
+                }
+            })
+        elif message['method'] == 'Network.getResponseBody':
+            logger.debug('received request method Network.getResponseBody')
+            data = json.dumps({
+                'id': message['id'],
+                'result': {
+                    'body': '',
+                    'base64Encoded': False,
+                }
+            })
+        else:
+            data = json.dumps({
+                'id': message['id'],
+                'result': {},
+            })
+
+        frame.data = bytes_(data)
+        self.client.queue(frame.build())
 
 
-class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
+class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
     def __init__(
             self,
@@ -1271,17 +1734,6 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
         super().__init__(config, client)
         self.pac_file_response: Optional[bytes] = None
         self.cache_pac_file_response()
-
-    def routes(self) -> List[Tuple[int, bytes]]:
-        if self.config.pac_file_url_path:
-            return [(httpProtocolTypes.HTTP, bytes_(
-                self.config.pac_file_url_path))]
-        return []
-
-    def handle_request(self, request: HttpParser) -> None:
-        if self.config.pac_file and self.pac_file_response:
-            self.client.queue(self.pac_file_response)
-            self.client.flush()
 
     def cache_pac_file_response(self) -> None:
         if self.config.pac_file:
@@ -1297,104 +1749,24 @@ class HttpWebServerPacFilePlugin(HttpWebServerRoutePlugin):
                 }, body=content
             )
 
+    def routes(self) -> List[Tuple[int, bytes]]:
+        if self.config.pac_file_url_path:
+            return [(httpProtocolTypes.HTTP, bytes_(
+                self.config.pac_file_url_path))]
+        return []   # pragma: no cover
 
-class WebsocketFrame:
-    """Websocket frames parser and constructor."""
+    def handle_request(self, request: HttpParser) -> None:
+        if self.config.pac_file and self.pac_file_response:
+            self.client.queue(self.pac_file_response)
 
-    GUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+    def on_websocket_open(self) -> None:
+        pass    # pragma: no cover
 
-    def __init__(self) -> None:
-        self.fin: bool = False
-        self.rsv1: bool = False
-        self.rsv2: bool = False
-        self.rsv3: bool = False
-        self.opcode: int = 0
-        self.masked: bool = False
-        self.payload_length: int = 0
-        self.mask: Optional[bytes] = None
-        self.data: Optional[bytes] = None
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        pass    # pragma: no cover
 
-    def parse(self, raw: bytes) -> None:
-        self.fin = bool(raw[0] & 1 << 7)
-        self.rsv1 = bool(raw[0] & 1 << 6)
-        self.rsv2 = bool(raw[0] & 1 << 5)
-        self.rsv3 = bool(raw[0] & 1 << 4)
-        self.opcode = raw[0] & 0b00001111
-        self.masked = bool(raw[1] & 0b10000000)
-        # TODO: Handle case when payload length is 126 or 127
-        self.payload_length = raw[1] & 0b01111111
-        if self.masked:
-            self.mask = raw[2:6]
-        self.data = raw[6:]
-        if self.masked:
-            assert self.mask is not None
-            data = bytearray(self.data)
-            for i in range(len(self.data)):
-                data[i] = data[i] ^ self.mask[i % 4]
-            self.data = bytes(data)
-
-    @staticmethod
-    def key_to_accept(key: bytes) -> bytes:
-        sha1 = hashlib.sha1()
-        sha1.update(key + WebsocketFrame.GUID)
-        return base64.b64encode(sha1.digest())
-
-
-class Websocket:
-
-    def __init__(self, hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
-                 port: int, on_message: Optional[Callable[[bytes], None]] = None) -> None:
-        self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = hostname
-        self.port: int = port
-        self.sock: socket.socket = TcpConnection.new((str(self.hostname), self.port))
-        self.on_message: Optional[Callable[[bytes], None]] = on_message
-        self.upgrade()
-
-    @staticmethod
-    def build_handshake_request(
-            key: bytes,
-            method: bytes = b'GET',
-            url: bytes = b'/') -> bytes:
-        return build_http_request(
-            method, url,
-            headers={
-                b'Connection': b'upgrade',
-                b'Upgrade': b'websocket',
-                b'Sec-WebSocket-Key': key,
-                b'Sec-WebSocket-Version': b'13',
-            }
-        )
-
-    @staticmethod
-    def build_handshake_response(accept: bytes) -> bytes:
-        return build_http_response(
-            101, reason=b'Switching Protocols',
-            headers={
-                b'Upgrade': b'websocket',
-                b'Connection': b'Upgrade',
-                b'Sec-WebSocket-Accept': accept
-            }
-        )
-
-    def upgrade(self) -> None:
-        key = base64.b64encode(secrets.token_bytes(16))
-        self.sock.send(self.build_handshake_request(key))
-        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
-        accept = response.header(b'Sec-Websocket-Accept')
-        assert WebsocketFrame.key_to_accept(key) == accept
-
-    def ping(self, data: Optional[bytes] = None) -> None:
-        pass
-
-    def pong(self, data: Optional[bytes] = None) -> None:
-        pass
-
-    def send(self, raw: bytes) -> None:
-        pass
-
-    def close(self, data: Optional[bytes] = None) -> None:
-        pass
+    def on_websocket_close(self) -> None:
+        pass    # pragma: no cover
 
 
 class HttpWebServerPlugin(ProtocolHandlerPlugin):
@@ -1419,18 +1791,50 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             request: HttpParser):
         super().__init__(config, client, request)
 
-        self.switched_protocol: Optional[bytes] = None
+        self.switched_protocol: Optional[int] = None
 
-        self.routes: Dict[int, Dict[bytes, HttpWebServerRoutePlugin]] = {
+        self.routes: Dict[int, Dict[bytes, HttpWebServerBasePlugin]] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
+            httpProtocolTypes.WEBSOCKET: {},
         }
 
-        if b'HttpWebServerRoutePlugin' in self.config.plugins:
-            for klass in self.config.plugins[b'HttpWebServerRoutePlugin']:
+        if b'HttpWebServerBasePlugin' in self.config.plugins:
+            for klass in self.config.plugins[b'HttpWebServerBasePlugin']:
                 instance = klass(self.config, self.client)
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
+
+    def serve_file_or_404(self, path: str) -> None:
+        try:
+            with open(path, 'rb') as f:
+                content = f.read()
+            content_type = mimetypes.guess_type(path)[0]
+            if content_type is None:
+                content_type = 'text/plain'
+            self.client.queue(build_http_response(
+                200, reason=b'OK', headers={
+                    b'Content-Type': bytes_(content_type),
+                    b'Connection': b'close'
+                }, body=content
+            ))
+        except IOError:
+            self.client.queue(self.DEFAULT_404_RESPONSE)
+
+    def try_upgrade(self) -> bool:
+        if self.request.has_header(b'connection') and \
+                self.request.header(b'connection').lower() == b'upgrade':
+            if self.request.has_header(b'upgrade') and \
+                    self.request.header(b'upgrade').lower() == b'websocket':
+                self.client.queue(
+                    build_websocket_handshake_response(
+                        WebsocketFrame.key_to_accept(
+                            self.request.header(b'Sec-WebSocket-Key'))))
+                self.switched_protocol = httpProtocolTypes.WEBSOCKET
+            else:
+                self.client.queue(self.DEFAULT_501_RESPONSE)
+                return True
+        return False
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if self.request.has_upstream_server():
@@ -1438,65 +1842,71 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
         url = self.request.build_url()
 
-        # Connection upgrade
-        if self.request.has_header(b'connection') and \
-                self.request.header(b'connection').lower() == b'upgrade':
-            if self.request.has_header(b'upgrade') and \
-                    self.request.header(b'upgrade').lower() == b'websocket':
-                # Complete websocket handshake
-                if not self.request.has_header(b'Sec-WebSocket-Key'):
-                    # TODO: Return invalid request?
-                    return True
-
-                self.client.queue(
-                    Websocket.build_handshake_response(
-                        WebsocketFrame.key_to_accept(
-                            self.request.header(b'Sec-WebSocket-Key'))))
-                self.client.flush()
-                self.switched_protocol = b'websocket'
-                return False
-            else:
-                self.client.queue(self.DEFAULT_501_RESPONSE)
-                self.client.flush()
+        # If a websocket route exists for the path, try upgrade
+        if url in self.routes[httpProtocolTypes.WEBSOCKET]:
+            # Connection upgrade
+            teardown = self.try_upgrade()
+            if teardown:
                 return True
 
-        # Routing
-        if self.request.method != b'CONNECT':
-            registered_routes = self.routes[httpProtocolTypes.HTTP]
-        else:
-            registered_routes = self.routes[httpProtocolTypes.HTTPS]
-        for r in registered_routes:
+            # For upgraded connections, nothing more to do
+            if self.switched_protocol:
+                # Invoke plugin.on_websocket_open
+                for r in self.routes[httpProtocolTypes.WEBSOCKET]:
+                    if r == url:
+                        self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_open()
+                return False
+
+        # Routing for Http(s) requests
+        protocol = httpProtocolTypes.HTTPS if self.config.certfile and self.config.keyfile else httpProtocolTypes.HTTP
+        for r in self.routes[protocol]:
             if r == url:
-                registered_routes[r].handle_request(self.request)
-                # But is client ready for flush?
-                self.client.flush()
+                self.routes[protocol][r].handle_request(self.request)
+                return True
+
+        # No-route found, try static serving if enabled
+        if self.config.enable_static_server:
+            path = text_(url).split('?')[0]
+            if os.path.isfile(self.config.static_server_dir + path):
+                self.serve_file_or_404(self.config.static_server_dir + path)
                 return True
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
-        # But is client ready for flush?
-        self.client.flush()
         return True
 
-    def flush_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         pass
 
     def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
         pass
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
-        if self.switched_protocol == b'websocket':
+        if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
+            url = self.request.build_url()
+            remaining = raw
             frame = WebsocketFrame()
-            frame.parse(raw)
+            while remaining != b'':
+                # TODO: Teardown if invalid protocol exception
+                remaining = frame.parse(remaining)
+                for r in self.routes[httpProtocolTypes.WEBSOCKET]:
+                    if r == url:
+                        self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_message(frame)
+                frame.reset()
             return None
         return raw
 
-    def handle_response_chunk(self, chunk: bytes) -> bytes:
+    def on_response_chunk(self, chunk: bytes) -> bytes:
         return chunk
 
     def on_client_connection_close(self) -> None:
         if self.request.has_upstream_server():
             return
+        if self.switched_protocol:
+            # Invoke plugin.on_websocket_close
+            for r in self.routes[httpProtocolTypes.WEBSOCKET]:
+                if r == self.request.build_url():
+                    self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_close()
         logger.info(
             '%s:%s - %s %s' %
             (self.client.addr[0], self.client.addr[1], text_(
@@ -1517,23 +1927,30 @@ class ProtocolHandler(threading.Thread):
     def __init__(self, fileno: int, addr: Tuple[str, int],
                  config: Optional[ProtocolConfig] = None):
         super().__init__()
+        self.fileno: int = fileno
+        self.addr: Tuple[str, int] = addr
+
         self.start_time: datetime.datetime = self.now()
         self.last_activity: datetime.datetime = self.start_time
 
         self.config: ProtocolConfig = config if config else ProtocolConfig()
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
+        self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
 
         self.selector = selectors.DefaultSelector()
-
-        conn = self.optionally_wrap_socket(self.fromfd(fileno))
-        if conn is None:
-            raise TcpConnectionUninitializedException()
-        conn.setblocking(False)
-
-        self.client: TcpClientConnection = \
-            TcpClientConnection(conn=conn, addr=addr)
-
+        self.client: TcpClientConnection = TcpClientConnection(
+            self.fromfd(self.fileno), self.addr
+        )
         self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
+
+    @staticmethod
+    def now() -> datetime.datetime:
+        return datetime.datetime.utcnow()
+
+    def initialize(self) -> None:
+        conn = self.optionally_wrap_socket(self.client.connection)
+        conn.setblocking(False)
+        self.client = TcpClientConnection(conn=conn, addr=self.addr)
         if b'ProtocolHandlerPlugin' in self.config.plugins:
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
@@ -1545,7 +1962,7 @@ class ProtocolHandler(threading.Thread):
             type=socket.SOCK_STREAM)
 
     def optionally_wrap_socket(
-            self, conn: socket.socket) -> Optional[Union[ssl.SSLSocket, socket.socket]]:
+            self, conn: socket.socket) -> Union[ssl.SSLSocket, socket.socket]:
         """Attempts to wrap accepted client connection using provided certificates.
 
         Shutdown and closes client connection upon error.
@@ -1561,9 +1978,11 @@ class ProtocolHandler(threading.Thread):
             conn = ctx.wrap_socket(conn, server_side=True)
         return conn
 
-    @staticmethod
-    def now() -> datetime.datetime:
-        return datetime.datetime.utcnow()
+    def send_server_error(self, e: Exception) -> None:
+        logger.exception('Server error', exc_info=e)
+        self.client.queue(build_http_response(
+            500, b'Server Error'
+        ))
 
     def connection_inactive_for(self) -> int:
         return (self.now() - self.last_activity).seconds
@@ -1574,7 +1993,15 @@ class ProtocolHandler(threading.Thread):
 
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
-            logger.debug('Client is write, flushing buffer')
+            logger.debug('Client is ready for writes, flushing buffer')
+
+            # Invoke plugin.on_response_chunk
+            chunk = self.client.buffer
+            for plugin in self.plugins.values():
+                chunk = plugin.on_response_chunk(chunk)
+                if chunk is None:
+                    break
+
             try:
                 self.client.flush()
             except BrokenPipeError:
@@ -1582,13 +2009,6 @@ class ProtocolHandler(threading.Thread):
                     'BrokenPipeError when flushing buffer for client')
                 return True
         return False
-
-    def send_server_error(self, e: Exception) -> None:
-        logger.exception('Server error', exc_info=e)
-        self.client.queue(build_http_response(
-            500, b'Server Error'
-        ))
-        self.client.flush()
 
     def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
@@ -1636,13 +2056,10 @@ class ProtocolHandler(threading.Thread):
                     response = e.response(self.request)
                     if response:
                         self.client.queue(response)
-                        # But is client also ready for writes?
-                        self.client.flush()
                     else:
+                        # If ProtocolException doesn't return a response,
+                        # its a server error
                         self.send_server_error(e)
-                    return True
-                except Exception as e:
-                    self.send_server_error(e)
                     return True
         return False
 
@@ -1676,9 +2093,9 @@ class ProtocolHandler(threading.Thread):
         if teardown:
             return True
 
-        # Invoke plugin.flush_to_descriptors
+        # Invoke plugin.write_to_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.flush_to_descriptors(writables)
+            teardown = plugin.write_to_descriptors(writables)
             if teardown:
                 return True
 
@@ -1729,20 +2146,42 @@ class ProtocolHandler(threading.Thread):
 
         return False
 
-    def run(self) -> None:
-        logger.debug('Proxying connection %r' % self.client.connection)
+    def flush(self) -> None:
+        if not self.client.has_buffer():
+            return
         try:
+            self.selector.register(self.client.connection, selectors.EVENT_WRITE)
+            while self.client.has_buffer():
+                ev: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
+                if len(ev) == 0:
+                    continue
+                self.client.flush()
+        except BrokenPipeError:
+            pass
+        finally:
+            self.selector.unregister(self.client.connection)
+
+    def run(self) -> None:
+        try:
+            self.initialize()
+            logger.debug('Handling connection %r' % self.client.connection)
+
             while True:
                 teardown = self.run_once()
                 if teardown:
                     break
         except KeyboardInterrupt:  # pragma: no cover
             pass
+        except ssl.SSLError as e:
+            logger.exception('ssl.SSLError', exc_info=e)
         except Exception as e:
             logger.exception(
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
+            # Flush pending buffer if any
+            self.flush()
+
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()
@@ -1754,13 +2193,178 @@ class ProtocolHandler(threading.Thread):
 
             if not self.client.closed:
                 try:
-                    self.client.connection.shutdown(socket.SHUT_RDWR)
+                    self.client.connection.shutdown(socket.SHUT_WR)
                     logger.debug('Client connection shutdown successful')
                 except OSError:
                     pass
                 finally:
-                    self.client.close()
+                    self.client.connection.close()
                     logger.debug('Client connection closed')
+
+
+class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
+    """
+    DevtoolsProtocolPlugin taps into core `ProtocolHandler`
+    events and converts them into Devtools Protocol json messages.
+
+    A DevtoolsProtocolPlugin instance is created per request.
+    Per request devtool events are queued into a global multiprocessing queue.
+    """
+
+    frame_id = secrets.token_hex(8)
+    loader_id = secrets.token_hex(8)
+
+    def __init__(
+            self,
+            config: ProtocolConfig,
+            client: TcpClientConnection,
+            request: HttpParser):
+        self.id: str = f'{ os.getpid() }-{ threading.get_ident() }-{ time.time() }'
+        self.response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        super().__init__(config, client, request)
+
+    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
+        return [], []
+
+    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+        return False
+
+    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
+        return False
+
+    def on_client_data(self, raw: bytes) -> Optional[bytes]:
+        return raw
+
+    def on_request_complete(self) -> Union[socket.socket, bool]:
+        if not self.request.has_upstream_server() and \
+                self.request.build_url() == self.config.devtools_ws_path:
+            return False
+
+        # Handle devtool frontend websocket upgrade
+        if self.config.devtools_event_queue:
+            self.config.devtools_event_queue.put({
+                'method': 'Network.requestWillBeSent',
+                'params': self.request_will_be_sent(),
+            })
+        return False
+
+    def on_response_chunk(self, chunk: bytes) -> bytes:
+        if not self.request.has_upstream_server() and \
+                self.request.build_url() == self.config.devtools_ws_path:
+            return chunk
+
+        if self.config.devtools_event_queue:
+            self.response.parse(chunk)
+            if self.response.state >= httpParserStates.HEADERS_COMPLETE:
+                self.config.devtools_event_queue.put({
+                    'method': 'Network.responseReceived',
+                    'params': self.response_received(),
+                })
+            if self.response.state >= httpParserStates.RCVING_BODY:
+                self.config.devtools_event_queue.put({
+                    'method': 'Network.dataReceived',
+                    'params': self.data_received(chunk)
+                })
+            if self.response.state == httpParserStates.COMPLETE:
+                self.config.devtools_event_queue.put({
+                    'method': 'Network.loadingFinished',
+                    'params': self.loading_finished()
+                })
+        return chunk
+
+    def on_client_connection_close(self) -> None:
+        pass
+
+    def request_will_be_sent(self) -> Dict[str, Any]:
+        now = time.time()
+        return {
+            'requestId': self.id,
+            'loaderId': self.loader_id,
+            'documentURL': 'http://proxy-py',
+            'request': {
+                'url': text_(
+                    self.request.build_url()
+                    if self.request.has_upstream_server() else
+                    b'http://' + bytes_(str(self.config.hostname)) +
+                    COLON + bytes_(self.config.port) + self.request.build_url()
+                ),
+                'urlFragment': '',
+                'method': text_(self.request.method),
+                'headers': {text_(v[0]): text_(v[1]) for v in self.request.headers.values()},
+                'initialPriority': 'High',
+                'mixedContentType': 'none',
+                'postData': None if self.request.method != 'POST'
+                else text_(self.request.body)
+            },
+            'timestamp': now - PROXY_PY_START_TIME,
+            'wallTime': now,
+            'initiator': {
+                'type': 'other'
+            },
+            'type': text_(self.request.header(b'content-type'))
+            if self.request.has_header(b'content-type')
+            else 'Other',
+            'frameId': self.frame_id,
+            'hasUserGesture': False
+        }
+
+    def response_received(self) -> Dict[str, Any]:
+        return {
+            'requestId': self.id,
+            'frameId': self.frame_id,
+            'loaderId': self.loader_id,
+            'timestamp': time.time(),
+            'type': text_(self.response.header(b'content-type'))
+            if self.response.has_header(b'content-type')
+            else 'Other',
+            'response': {
+                'url': '',
+                'status': '',
+                'statusText': '',
+                'headers': '',
+                'headersText': '',
+                'mimeType': '',
+                'connectionReused': True,
+                'connectionId': '',
+                'encodedDataLength': '',
+                'fromDiskCache': False,
+                'fromServiceWorker': False,
+                'timing': {
+                    'requestTime': '',
+                    'proxyStart': -1,
+                    'proxyEnd': -1,
+                    'dnsStart': -1,
+                    'dnsEnd': -1,
+                    'connectStart': -1,
+                    'connectEnd': -1,
+                    'sslStart': -1,
+                    'sslEnd': -1,
+                    'workerStart': -1,
+                    'workerReady': -1,
+                    'sendStart': 0,
+                    'sendEnd': 0,
+                    'receiveHeadersEnd': 0,
+                },
+                'requestHeaders': '',
+                'remoteIPAddress': '',
+                'remotePort': '',
+            }
+        }
+
+    def data_received(self, chunk: bytes) -> Dict[str, Any]:
+        return {
+            'requestId': self.id,
+            'timestamp': time.time(),
+            'dataLength': len(chunk),
+            'encodedDataLength': len(chunk),
+        }
+
+    def loading_finished(self) -> Dict[str, Any]:
+        return {
+            'requestId': self.id,
+            'timestamp': time.time(),
+            'encodedDataLength': self.response.total_size
+        }
 
 
 def is_py3() -> bool:
@@ -1787,26 +2391,27 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
     p: Dict[bytes, List[type]] = {
         b'ProtocolHandlerPlugin': [],
         b'HttpProxyBasePlugin': [],
-        b'HttpWebServerRoutePlugin': [],
+        b'HttpWebServerBasePlugin': [],
     }
-    for plugin in plugins.split(COMMA):
-        plugin = plugin.strip()
-        if plugin == b'':
+    for plugin_ in plugins.split(COMMA):
+        plugin = text_(plugin_.strip())
+        if plugin == '':
             continue
-        module_name, klass_name = plugin.rsplit(DOT, 1)
+        module_name, klass_name = plugin.rsplit(text_(DOT), 1)
         if module_name == 'proxy':
-            klass = getattr(__name__, text_(klass_name))
+            klass = getattr(
+                importlib.import_module(__name__),
+                klass_name)
         else:
             klass = getattr(
-                importlib.import_module(
-                    text_(module_name)),
-                text_(klass_name))
+                importlib.import_module(module_name),
+                klass_name)
         base_klass = inspect.getmro(klass)[1]
         p[bytes_(base_klass.__name__)].append(klass)
         logger.info(
             'Loaded %s %s.%s',
             'plugin' if klass.__name__ != 'HttpWebServerRouteHandler' else 'route',
-            text_(module_name),
+            module_name,
             # HttpWebServerRouteHandler route decorator adds a special
             # staticmethod to return decorated function name
             klass.__name__ if klass.__name__ != 'HttpWebServerRouteHandler' else klass.name())
@@ -1896,6 +2501,13 @@ def init_parser() -> argparse.ArgumentParser:
              'value for faster uploads at the expense of '
              'increased RAM.')
     parser.add_argument(
+        '--devtools-ws-path',
+        type=str,
+        default=DEFAULT_DEVTOOLS_WS_PATH,
+        help='Default: /devtools.  Only applicable '
+             'if --enable-devtools is used.'
+    )
+    parser.add_argument(
         '--disable-headers',
         type=str,
         default=COMMA.join(DEFAULT_DISABLE_HEADERS),
@@ -1906,6 +2518,21 @@ def init_parser() -> argparse.ArgumentParser:
         action='store_true',
         default=DEFAULT_DISABLE_HTTP_PROXY,
         help='Default: False.  Whether to disable proxy.HttpProxyPlugin.')
+    parser.add_argument(
+        '--enable-devtools',
+        action='store_true',
+        default=DEFAULT_ENABLE_DEVTOOLS,
+        help='Default: False.  Enables integration with Chrome Devtool Frontend.'
+    )
+    parser.add_argument(
+        '--enable-static-server',
+        action='store_true',
+        default=DEFAULT_ENABLE_STATIC_SERVER,
+        help='Default: False.  Enable inbuilt static file server. '
+             'Optionally, also use --static-server-dir to serve static content '
+             'from custom directory.  By default, static file server serves '
+             'from public folder.'
+    )
     parser.add_argument(
         '--enable-web-server',
         action='store_true',
@@ -1975,6 +2602,14 @@ def init_parser() -> argparse.ArgumentParser:
              'value for faster downloads at the expense of '
              'increased RAM.')
     parser.add_argument(
+        '--static-server-dir',
+        type=str,
+        default=DEFAULT_STATIC_SERVER_DIR,
+        help='Default: ' + DEFAULT_STATIC_SERVER_DIR + '.  Static server root directory. '
+             'This option is only applicable when static server is also enabled. '
+             'See --enable-static-server.'
+    )
+    parser.add_argument(
         '--version',
         '-v',
         action='store_true',
@@ -2015,10 +2650,20 @@ def main(input_args: List[str]) -> None:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
         default_plugins = ''
+        devtools_event_queue: Optional[DevtoolsEventQueueType] = None
+        if args.enable_devtools:
+            default_plugins += 'proxy.DevtoolsProtocolPlugin,'
+            default_plugins += 'proxy.HttpWebServerPlugin,'
         if not args.disable_http_proxy:
             default_plugins += 'proxy.HttpProxyPlugin,'
-        if args.enable_web_server or args.pac_file is not None:
-            default_plugins += 'proxy.HttpWebServerPlugin,'
+        if args.enable_web_server or \
+                args.pac_file is not None or \
+                args.enable_static_server:
+            if 'proxy.HttpWebServerPlugin' not in default_plugins:
+                default_plugins += 'proxy.HttpWebServerPlugin,'
+        if args.enable_devtools:
+            default_plugins += 'proxy.DevtoolsWebsocketPlugin,'
+            devtools_event_queue = multiprocessing.Manager().Queue()
         if args.pac_file is not None:
             default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
 
@@ -2040,7 +2685,11 @@ def main(input_args: List[str]) -> None:
             hostname=ipaddress.ip_address(args.hostname),
             port=args.port,
             backlog=args.backlog,
-            num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count())
+            num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count(),
+            static_server_dir=args.static_server_dir,
+            enable_static_server=args.enable_static_server,
+            devtools_event_queue=devtools_event_queue,
+            devtools_ws_path=args.devtools_ws_path)
 
         config.plugins = load_plugins(
             bytes_(
@@ -2063,6 +2712,8 @@ def main(input_args: List[str]) -> None:
             # TODO: Introduce cron feature instead of mindless sleep
             while True:
                 time.sleep(1)
+        except Exception as e:
+            logger.exception('exception', exc_info=e)
         finally:
             acceptor_pool.shutdown()
     except KeyboardInterrupt:  # pragma: no cover
