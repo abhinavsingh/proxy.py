@@ -52,8 +52,7 @@ PROXY_PY_START_TIME = time.time()
 
 VERSION = (1, 1, 1)
 __version__ = '.'.join(map(str, VERSION[0:3]))
-__description__ = 'Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, ' \
-                  'WebSockets protocols in a single Python file.'
+__description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'

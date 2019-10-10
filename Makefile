@@ -60,6 +60,7 @@ run-container:
 
 release-container:
 	docker push $(IMAGE_TAG)
+	docker push $(LATEST_TAG)
 
 https-certificates:
 	# Generate server key
