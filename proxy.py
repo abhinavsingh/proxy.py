@@ -1959,6 +1959,7 @@ class ProtocolHandler(threading.Thread):
         return datetime.datetime.utcnow()
 
     def initialize(self) -> None:
+        """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
         self.client = TcpClientConnection(conn=conn, addr=self.addr)
@@ -2052,14 +2053,12 @@ class ProtocolHandler(threading.Thread):
                                 logger.debug(
                                     'Updated client conn to %s', upgraded_sock)
                                 self.client._conn = upgraded_sock
-                                # Update self.client.conn references for all
-                                # plugins
                                 for plugin_ in self.plugins.values():
                                     if plugin_ != plugin:
                                         plugin_.client._conn = upgraded_sock
                                         logger.debug(
                                             'Upgraded client conn for plugin %s', str(plugin_))
-                            elif isinstance(upgraded_sock, bool) and upgraded_sock:
+                            elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                                 return True
                 except ProtocolException as e:
                     logger.exception(
