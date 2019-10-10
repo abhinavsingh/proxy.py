@@ -166,7 +166,7 @@ See [flags](#flags) for full list of available configuration options.
 
 ## Docker image
 
-    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:v1.0.0
+    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:v1.1.0
 
 By default `docker` binary is started with IPv4 networking flags:
 
@@ -177,7 +177,7 @@ For example, to check `proxy.py --version`:
 
     $ docker run -it \
         -p 8899:8899 \
-        --rm abhinavsingh/proxy.py:v1.0.0 \
+        --rm abhinavsingh/proxy.py:v1.1.0 \
         --version
 
 [![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/moby/vpnkit/issues/469)
