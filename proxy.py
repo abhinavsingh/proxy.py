@@ -38,8 +38,8 @@ import time
 from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, TYPE_CHECKING, Type
 from types import TracebackType
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, TYPE_CHECKING, Type, cast
 from urllib import parse as urlparse
 
 from typing_extensions import Protocol
@@ -50,7 +50,7 @@ if os.name != 'nt':
 PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
 PROXY_PY_START_TIME = time.time()
 
-VERSION = (1, 1, 0)
+VERSION = (1, 1, 1)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = 'Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, ' \
                   'WebSockets protocols in a single Python file.'
@@ -1246,34 +1246,37 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         else:
             return raw
 
-    def generate_upstream_certificate(self) -> Optional[str]:
-        if self.config.ca_cert_dir and self.config.ca_signing_key_file and \
-                self.config.ca_cert_file and self.config.ca_key_file:
-            with self.lock:
-                cert_file_path = os.path.join(
-                    self.config.ca_cert_dir,
-                    '%s.pem' %
-                    text_(
-                        self.request.host))
-                if not os.path.isfile(cert_file_path):
-                    logger.debug('Generating certificates %s', cert_file_path)
-                    # TODO: Use ssl.get_server_certificate to populate generated certificate metadata
-                    # Currently we only set CN= field for generated certificates.
-                    gen_cert = subprocess.Popen(
-                        ['/usr/bin/openssl', 'req', '-new', '-key', self.config.ca_signing_key_file, '-subj',
-                         '/CN=%s' % text_(self.request.host)],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE)
-                    sign_cert = subprocess.Popen(
-                        ['/usr/bin/openssl', 'x509', '-req', '-days', '365', '-CA', self.config.ca_cert_file, '-CAkey',
-                         self.config.ca_key_file, '-set_serial', str(int(time.time())), '-out', cert_file_path],
-                        stdin=gen_cert.stdout,
-                        stderr=subprocess.PIPE)
-                    # TODO: Ensure sign_cert success.
-                    sign_cert.communicate(timeout=10)
-                return cert_file_path
-        else:
-            return None
+    def generate_upstream_certificate(self, _certificate: Optional[Dict[str, Any]]) -> Optional[str]:
+        if not (self.config.ca_cert_dir and self.config.ca_signing_key_file and
+                self.config.ca_cert_file and self.config.ca_key_file):
+            raise ProtocolException(
+                f'For certificate generation all the following flags are mandatory: '
+                f'--ca-cert-file:{ self.config.ca_cert_file }, '
+                f'--ca-key-file:{ self.config.ca_key_file }, '
+                f'--ca-signing-key-file:{ self.config.ca_signing_key_file }')
+        with self.lock:
+            cert_file_path = os.path.join(
+                self.config.ca_cert_dir,
+                '%s.pem' %
+                text_(
+                    self.request.host))
+            if not os.path.isfile(cert_file_path):
+                logger.debug('Generating certificates %s', cert_file_path)
+                # TODO: Parse subject from certificate
+                # Currently we only set CN= field for generated certificates.
+                gen_cert = subprocess.Popen(
+                    ['openssl', 'req', '-new', '-key', self.config.ca_signing_key_file, '-subj',
+                     f'/C=/ST=/L=/O=/OU=/CN={ text_(self.request.host) }'],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+                sign_cert = subprocess.Popen(
+                    ['openssl', 'x509', '-req', '-days', '365', '-CA', self.config.ca_cert_file, '-CAkey',
+                     self.config.ca_key_file, '-set_serial', str(int(time.time())), '-out', cert_file_path],
+                    stdin=gen_cert.stdout,
+                    stderr=subprocess.PIPE)
+                # TODO: Ensure sign_cert success.
+                sign_cert.communicate(timeout=10)
+            return cert_file_path
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if not self.request.has_upstream_server():
@@ -1295,27 +1298,34 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if self.request.method == httpMethods.CONNECT:
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-            # If interception is enabled, generate server certificates
+            # If interception is enabled
             if self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file:
-                generated_cert = self.generate_upstream_certificate()
-                if generated_cert:
-                    if not (self.config.keyfile and self.config.certfile) and \
-                            self.server and isinstance(self.server.connection, socket.socket):
-                        self.client._conn = ssl.wrap_socket(
-                            self.client.connection,
-                            server_side=True,
-                            keyfile=self.config.ca_signing_key_file,
-                            certfile=generated_cert)
-                        # Wrap our connection to upstream server connection
-                        ctx = ssl.create_default_context(
-                            ssl.Purpose.SERVER_AUTH)
-                        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                        self.server._conn = ctx.wrap_socket(
-                            self.server.connection,
-                            server_hostname=text_(self.request.host))
-                        logger.info(
-                            'TLS interception using %s', generated_cert)
-                        return self.client.connection
+                assert self.server is not None
+                assert isinstance(self.server.connection, socket.socket)
+                # Perform SSL/TLS handshake with upstream
+                ctx = ssl.create_default_context(
+                    ssl.Purpose.SERVER_AUTH)
+                ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+                self.server.connection.setblocking(True)
+                self.server._conn = ctx.wrap_socket(
+                    self.server.connection,
+                    server_hostname=text_(self.request.host))
+                self.server.connection.setblocking(False)
+                assert isinstance(self.server.connection, ssl.SSLSocket)
+                # Generate certificate and perform handshake with client
+                generated_cert = self.generate_upstream_certificate(
+                    cast(Dict[str, Any], self.server.connection.getpeercert()))
+                self.client.flush()
+                self.client.connection.setblocking(True)
+                self.client._conn = ssl.wrap_socket(
+                    self.client.connection,
+                    server_side=True,
+                    keyfile=self.config.ca_signing_key_file,
+                    certfile=generated_cert)
+                self.client.connection.setblocking(False)
+                logger.info(
+                    'TLS interception using %s', generated_cert)
+                return self.client.connection
         elif self.server:
             # - proxy-connection header is a mistake, it doesn't seem to be
             #   officially documented in any specification, drop it.
@@ -1351,6 +1361,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                     'Connecting to upstream %s:%s' %
                     (text_(host), port))
                 self.server.connect()
+                self.server.connection.setblocking(False)
                 logger.debug(
                     'Connected to upstream %s:%s' %
                     (text_(host), port))
@@ -1948,6 +1959,7 @@ class ProtocolHandler(threading.Thread):
         return datetime.datetime.utcnow()
 
     def initialize(self) -> None:
+        """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
         self.client = TcpClientConnection(conn=conn, addr=self.addr)
@@ -2041,14 +2053,12 @@ class ProtocolHandler(threading.Thread):
                                 logger.debug(
                                     'Updated client conn to %s', upgraded_sock)
                                 self.client._conn = upgraded_sock
-                                # Update self.client.conn references for all
-                                # plugins
                                 for plugin_ in self.plugins.values():
                                     if plugin_ != plugin:
                                         plugin_.client._conn = upgraded_sock
                                         logger.debug(
                                             'Upgraded client conn for plugin %s', str(plugin_))
-                            elif isinstance(upgraded_sock, bool) and upgraded_sock:
+                            elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                                 return True
                 except ProtocolException as e:
                     logger.exception(
