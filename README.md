@@ -166,7 +166,7 @@ See [flags](#flags) for full list of available configuration options.
 
 ## Docker image
 
-    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:v1.1.0
+    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 
 By default `docker` binary is started with IPv4 networking flags:
 
