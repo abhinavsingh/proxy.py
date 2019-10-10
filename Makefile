@@ -15,6 +15,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 .PHONY: all clean test package test-release release coverage lint autopep8
 .PHONY: container run-container release-container https-certificates ca-certificates
+.PHONY: profile
 
 all: clean test
 
@@ -23,7 +24,7 @@ clean:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 	rm -f .coverage
-	rm -rf htmlcov dist build
+	rm -rf htmlcov dist build .pytest_cache proxy.py.egg-info
 
 test:
 	python -m unittest tests
@@ -38,14 +39,13 @@ release: package
 	twine upload dist/*
 
 coverage:
-	coverage3 run tests.py
+	coverage3 run --source=proxy tests.py
 	coverage3 html
 	open htmlcov/index.html
 
 lint:
+	flake8 --ignore=W504 --max-line-length=127 proxy.py tests.py
 	mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py
-	flake8 --ignore=E501,W504 proxy.py
-	flake8 --ignore=E501,W504 tests.py
 
 autopep8:
 	autopep8 --recursive --in-place --aggressive proxy.py
@@ -75,3 +75,6 @@ ca-certificates:
 	# Generate key that will be used to generate domain certificates on the fly
 	# Generated certificates are then signed with CA certificate / key generated above
 	openssl genrsa -out $(CA_SIGNING_KEY_FILE_PATH) 2048
+
+profile:
+	sudo py-spy -F -f profile.svg -d 3600 proxy.py

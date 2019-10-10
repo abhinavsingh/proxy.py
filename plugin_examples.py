@@ -1,25 +1,42 @@
 """
     proxy.py
     ~~~~~~~~
-    Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
+    ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
 
-    :copyright: (c) 2013-present by Abhinav Singh.
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
 import json
 import os
 import tempfile
 import time
-from typing import Optional, BinaryIO
+from typing import Optional, BinaryIO, List, Tuple
 from urllib import parse as urlparse
 
 import proxy
 
 
-@proxy.route(b'/hello-world')
-def hello_world(_request: proxy.HttpParser) -> bytes:
-    """A HttpWebServerRoutePlugin plugin for inbuilt web server."""
-    return proxy.HttpParser.build_response(200, body=b'Hello World')
+class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
+    """Modify POST request body before sending to upstream server."""
+
+    MODIFIED_BODY = b'{"key": "modified"}'
+
+    def before_upstream_connection(self) -> bool:
+        if self.request.method == proxy.httpMethods.POST:
+            self.request.body = ModifyPostDataPlugin.MODIFIED_BODY
+            # Update Content-Length header only when request is NOT chunked encoded
+            if not self.request.is_chunked_encoded():
+                self.request.add_header(b'Content-Length', proxy.bytes_(len(self.request.body)))
+        return False
+
+    def on_upstream_connection(self) -> None:
+        pass
+
+    def handle_upstream_response(self, raw: bytes) -> bytes:
+        return raw
+
+    def on_upstream_connection_close(self) -> None:
+        pass
 
 
 class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
@@ -59,13 +76,14 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
         before connecting to upstream server."""
         if self.request.host == self.API_SERVER and self.request.url:
             if self.request.url.path in self.REST_API_SPEC:
-                self.client.send(proxy.HttpParser.build_response(
+                self.client.send(proxy.build_http_response(
                     200, reason=b'OK',
                     headers={b'Content-Type': b'application/json'},
-                    body=proxy.bytes_(json.dumps(self.REST_API_SPEC[self.request.url.path]))
+                    body=proxy.bytes_(json.dumps(
+                        self.REST_API_SPEC[self.request.url.path]))
                 ))
             else:
-                self.client.send(proxy.HttpParser.build_response(
+                self.client.send(proxy.build_http_response(
                     404, reason=b'NOT FOUND', body=b'Not Found'
                 ))
             return True
@@ -88,7 +106,7 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
 
     def before_upstream_connection(self) -> bool:
         # Redirect all non-https requests to inbuilt WebServer.
-        if self.request.method != b'CONNECT':
+        if self.request.method != proxy.httpMethods.CONNECT:
             self.request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
             self.request.set_host_port()
         return False
@@ -165,7 +183,35 @@ class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
         pass
 
     def handle_upstream_response(self, raw: bytes) -> bytes:
-        return proxy.HttpParser.build_response(200, reason=b'OK', body=b'Hello from man in the middle')
+        return proxy.build_http_response(
+            200, reason=b'OK', body=b'Hello from man in the middle')
 
     def on_upstream_connection_close(self) -> None:
         pass
+
+
+class WebServerPlugin(proxy.HttpWebServerBasePlugin):
+    """Demonstration of inbuilt web server routing via plugin."""
+
+    def routes(self) -> List[Tuple[int, bytes]]:
+        return [
+            (proxy.httpProtocolTypes.HTTP, b'/http-route-example'),
+            (proxy.httpProtocolTypes.HTTPS, b'/https-route-example'),
+            (proxy.httpProtocolTypes.WEBSOCKET, b'/ws-route-example'),
+        ]
+
+    def handle_request(self, request: proxy.HttpParser) -> None:
+        path = request.build_url()
+        if path == b'/http-route-example':
+            self.client.queue(proxy.build_http_response(200, body=b'HTTP route response'))
+        elif path == b'/https-route-example':
+            self.client.queue(proxy.build_http_response(200, body=b'HTTPS route response'))
+
+    def on_websocket_open(self) -> None:
+        proxy.logger.info('Websocket open')
+
+    def on_websocket_message(self, frame: proxy.WebsocketFrame) -> None:
+        proxy.logger.info(frame.data)
+
+    def on_websocket_close(self) -> None:
+        proxy.logger.info('Websocket close')

@@ -4,19 +4,20 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}-latest
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-latest, windows-latest]
+        os: [macOS, ubuntu, windows]
         python: [3.6, 3.7]
       max-parallel: 4
       fail-fast: false
     steps:
       - uses: actions/checkout@v1
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v1
         with:
-          python-version: ${{ matrix.python }}
+          python-version: ${{ matrix.python }}-dev
           architecture: x64
       - name: Install dependencies
         run: |
@@ -24,12 +25,10 @@ jobs:
           pip install -r requirements-testing.txt
       - name: Quality Check
         run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 proxy.py tests.py --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 proxy.py tests.py --count --exit-zero --max-line-length=127 --statistics
+          # The GitHub editor is 127 chars wide
+          # W504 screams for line break after binary operators
+          flake8 --ignore=W504 --max-line-length=127 proxy.py tests.py
           # mypy compliance check
           mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py
       - name: Run Tests
-        run: |
-          pytest tests.py
+        run: pytest tests.py
