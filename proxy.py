@@ -496,6 +496,17 @@ class ChunkParser:
                 self.size = None
         return len(raw) > 0, raw
 
+    @staticmethod
+    def to_chunks(raw: bytes, chunk_size: int = DEFAULT_BUFFER_SIZE) -> bytes:
+        chunks: List[bytes] = []
+        for i in range(0, len(raw), chunk_size):
+            chunk = raw[i: i + chunk_size]
+            chunks.append(bytes_('{:x}'.format(len(chunk))))
+            chunks.append(chunk)
+        chunks.append(bytes_('{:x}'.format(0)))
+        chunks.append(b'')
+        return CRLF.join(chunks) + CRLF
+
 
 class HttpParser:
     """HTTP request/response parser."""
@@ -562,8 +573,8 @@ class HttpParser:
             else:
                 raise KeyError('Invalid request\n%s' % self.bytes)
 
-    def is_chunked_encoded_response(self) -> bool:
-        return self.type == httpParserTypes.RESPONSE_PARSER and b'transfer-encoding' in self.headers and \
+    def is_chunked_encoded(self) -> bool:
+        return b'transfer-encoding' in self.headers and \
             self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def parse(self, raw: bytes) -> None:
@@ -582,25 +593,22 @@ class HttpParser:
             if self.state in (
                     httpParserStates.HEADERS_COMPLETE,
                     httpParserStates.RCVING_BODY,
-                    httpParserStates.COMPLETE) and (
-                    self.method == httpMethods.POST or self.type == httpParserTypes.RESPONSE_PARSER):
-                if not self.body:
-                    self.body = b''
-
+                    httpParserStates.COMPLETE):
                 if b'content-length' in self.headers:
                     self.state = httpParserStates.RCVING_BODY
+                    if self.body is None:
+                        self.body = b''
                     self.body += raw
                     if self.body and \
-                            len(self.body) >= int(self.headers[b'content-length'][1]):
+                            len(self.body) >= int(self.header(b'content-length')):
                         self.state = httpParserStates.COMPLETE
-                elif self.is_chunked_encoded_response():
+                elif self.is_chunked_encoded():
                     if not self.chunk_parser:
                         self.chunk_parser = ChunkParser()
                     self.chunk_parser.parse(raw)
                     if self.chunk_parser.state == chunkParserStates.COMPLETE:
                         self.body = self.chunk_parser.body
                         self.state = httpParserStates.COMPLETE
-
                 more, raw = False, b''
             else:
                 more, raw = self.process(raw)
@@ -686,11 +694,16 @@ class HttpParser:
         assert self.method and self.version
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
+        body: Optional[bytes] = None
+        if self.is_chunked_encoded() and self.body:
+            body = ChunkParser.to_chunks(self.body)
+        else:
+            body = self.body
         return build_http_request(
             self.method, self.build_url(), self.version,
             headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
                                                  k.lower() not in disable_headers},
-            body=self.body
+            body=body
         )
 
     def has_upstream_server(self) -> bool:

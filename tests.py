@@ -461,6 +461,9 @@ class TestChunkParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'abcdefg')
         self.assertEqual(self.parser.state, proxy.chunkParserStates.COMPLETE)
 
+    def test_to_chunks(self) -> None:
+        self.assertEqual(b'f\r\n{"key":"value"}\r\n0\r\n\r\n', proxy.ChunkParser.to_chunks(b'{"key":"value"}'))
+
 
 class TestHttpParser(unittest.TestCase):
 
@@ -873,6 +876,18 @@ class TestHttpParser(unittest.TestCase):
             b'\r\n'
         ]))
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
+        self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
+
+    def test_chunked_request_parse(self) -> None:
+        self.parser.type = proxy.httpParserTypes.REQUEST_PARSER
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.POST, b'http://example.org/',
+            headers={
+                b'Transfer-Encoding': b'chunked',
+                b'Content-Type': b'application/json',
+            },
+            body=b'f\r\n{"key":"value"}\r\n0\r\n\r\n'))
+        self.assertEqual(self.parser.body, b'{"key":"value"}')
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
     def assertDictContainsSubset(self, subset: Dict[bytes, Tuple[bytes, bytes]],

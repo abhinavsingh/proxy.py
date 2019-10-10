@@ -24,7 +24,9 @@ class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
     def before_upstream_connection(self) -> bool:
         if self.request.method == proxy.httpMethods.POST:
             self.request.body = ModifyPostDataPlugin.MODIFIED_BODY
-            self.request.add_header(b'Content-Length', proxy.bytes_(len(self.request.body)))
+            # Update Content-Length header only when request is NOT chunked encoded
+            if not self.request.is_chunked_encoded():
+                self.request.add_header(b'Content-Length', proxy.bytes_(len(self.request.body)))
         return False
 
     def on_upstream_connection(self) -> None:
