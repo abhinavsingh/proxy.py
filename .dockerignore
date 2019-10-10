@@ -3,3 +3,4 @@
 
 # Except proxy.py
 !proxy.py
+!requirements.txt
