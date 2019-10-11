@@ -1943,6 +1943,9 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             for r in self.routes[httpProtocolTypes.WEBSOCKET]:
                 if r == self.request.path:
                     self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_close()
+        self.access_log()
+
+    def access_log(self) -> None:
         logger.info(
             '%s:%s - %s %s' %
             (self.client.addr[0], self.client.addr[1], text_(
