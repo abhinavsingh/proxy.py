@@ -1822,7 +1822,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
 
-    def serve_file_or_404(self, path: str) -> None:
+    def serve_file_or_404(self, path: str) -> bool:
         try:
             with open(path, 'rb') as f:
                 content = f.read()
@@ -1835,8 +1835,10 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     b'Connection': b'close'
                 }, body=content
             ))
+            return False
         except IOError:
             self.client.queue(self.DEFAULT_404_RESPONSE)
+        return True
 
     def try_upgrade(self) -> bool:
         if self.request.has_header(b'connection') and \
@@ -1879,14 +1881,13 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         for r in self.routes[protocol]:
             if r == url:
                 self.routes[protocol][r].handle_request(self.request)
-                return True
+                return False
 
         # No-route found, try static serving if enabled
         if self.config.enable_static_server:
             path = text_(url).split('?')[0]
             if os.path.isfile(self.config.static_server_dir + path):
-                self.serve_file_or_404(self.config.static_server_dir + path)
-                return True
+                return self.serve_file_or_404(self.config.static_server_dir + path)
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
