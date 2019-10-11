@@ -36,6 +36,8 @@ Table of Contents
 * [Start proxy.py](#start-proxypy)
     * [Command Line](#command-line)
     * [Docker Image](#docker-image)
+        * [Stable version](#stable-version-from-docker-hub)
+        * [Development version](#build-development-version-locally)
 * [Plugin Examples](#plugin-examples)
     * [ProposedRestApiPlugin](#proposedrestapiplugin)
     * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
@@ -66,7 +68,7 @@ Features
 ========
 
 - Lightweight
-    - Distributed as a single file module `~50KB`
+    - Distributed as a single file module `~100KB`
     - Uses only `~5-20MB` RAM
     - No external dependency other than standard Python library
 - Programmable
@@ -104,10 +106,11 @@ or from GitHub `master` branch
 
     $ pip install git+https://github.com/abhinavsingh/proxy.py.git@master
 
-or download from here [proxy.py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/master/proxy.py)
 or simply `wget` it:
 
     $ wget -q https://raw.githubusercontent.com/abhinavsingh/proxy.py/master/proxy.py
+
+or download from here [proxy.py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/master/proxy.py)
 
 ## Development version
 
@@ -166,19 +169,28 @@ See [flags](#flags) for full list of available configuration options.
 
 ## Docker image
 
+#### Stable Version from Docker Hub
+
     $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
+
+#### Build Development Version Locally
+
+    $ git clone https://github.com/abhinavsingh/proxy.py.git
+    $ cd proxy.py
+    $ make container
+    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:v$(./proxy.py -v)
 
 By default `docker` binary is started with IPv4 networking flags:
 
     --hostname 0.0.0.0 --port 8899
 
 To override input flags, start docker image as follows.
-For example, to check `proxy.py --version`:
+For example, to check `proxy.py` version within Docker image:
 
     $ docker run -it \
         -p 8899:8899 \
         --rm abhinavsingh/proxy.py:latest \
-        --version
+        -v
 
 [![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/moby/vpnkit/issues/469)
 `docker` image is currently broken on `macOS` due to incompatibility with [vpnkit](https://github.com/moby/vpnkit/issues/469).
