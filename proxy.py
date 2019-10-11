@@ -693,11 +693,9 @@ class HttpParser:
         assert self.method and self.version
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
-        body: Optional[bytes] = None
-        if self.is_chunked_encoded() and self.body:
-            body = ChunkParser.to_chunks(self.body)
-        else:
-            body = self.body
+        body: Optional[bytes] = ChunkParser.to_chunks(self.body) \
+            if self.is_chunked_encoded() and self.body else \
+            self.body
         return build_http_request(
             self.method, self.build_url(), self.version,
             headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
@@ -1245,7 +1243,11 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         else:
             return raw
 
-    def generate_upstream_certificate(self, _certificate: Optional[Dict[str, Any]]) -> Optional[str]:
+    @staticmethod
+    def generated_cert_file_path(ca_cert_dir: str, host: str) -> str:
+        return os.path.join(ca_cert_dir, '%s.pem' % host)
+
+    def generate_upstream_certificate(self, _certificate: Optional[Dict[str, Any]]) -> str:
         if not (self.config.ca_cert_dir and self.config.ca_signing_key_file and
                 self.config.ca_cert_file and self.config.ca_key_file):
             raise ProtocolException(
@@ -1253,12 +1255,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 f'--ca-cert-file:{ self.config.ca_cert_file }, '
                 f'--ca-key-file:{ self.config.ca_key_file }, '
                 f'--ca-signing-key-file:{ self.config.ca_signing_key_file }')
+        cert_file_path = HttpProxyPlugin.generated_cert_file_path(
+            self.config.ca_cert_dir, text_(self.request.host))
         with self.lock:
-            cert_file_path = os.path.join(
-                self.config.ca_cert_dir,
-                '%s.pem' %
-                text_(
-                    self.request.host))
             if not os.path.isfile(cert_file_path):
                 logger.debug('Generating certificates %s', cert_file_path)
                 # TODO: Parse subject from certificate
@@ -1275,7 +1274,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                     stderr=subprocess.PIPE)
                 # TODO: Ensure sign_cert success.
                 sign_cert.communicate(timeout=10)
-            return cert_file_path
+        return cert_file_path
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if not self.request.has_upstream_server():
@@ -1378,9 +1377,6 @@ class WebsocketFrame:
     GUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
     def __init__(self) -> None:
-        self.reset()
-
-    def reset(self) -> None:
         self.fin: bool = False
         self.rsv1: bool = False
         self.rsv2: bool = False
@@ -1390,6 +1386,17 @@ class WebsocketFrame:
         self.payload_length: Optional[int] = None
         self.mask: Optional[bytes] = None
         self.data: Optional[bytes] = None
+
+    def reset(self) -> None:
+        self.fin = False
+        self.rsv1 = False
+        self.rsv2 = False
+        self.rsv3 = False
+        self.opcode = 0
+        self.masked = False
+        self.payload_length = None
+        self.mask = None
+        self.data = None
 
     def parse_fin_and_rsv(self, byte: int) -> None:
         self.fin = bool(byte & 1 << 7)
