@@ -880,7 +880,6 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
     def test_chunked_request_parse(self) -> None:
-        self.parser.type = proxy.httpParserTypes.REQUEST_PARSER
         self.parser.parse(proxy.build_http_request(
             proxy.httpMethods.POST, b'http://example.org/',
             headers={
@@ -897,6 +896,36 @@ class TestHttpParser(unittest.TestCase):
                 b'Content-Type': b'application/json',
             },
             body=b'f\r\n{"key":"value"}\r\n0\r\n\r\n'))
+
+    def test_is_http_1_1_keep_alive(self):
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.GET, b'/'
+        ))
+        self.assertTrue(self.parser.is_http_1_1_keep_alive())
+
+    def test_is_http_1_1_keep_alive_with_non_close_connection_header(self):
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.GET, b'/',
+            headers={
+                b'Connection': b'keep-alive',
+            }
+        ))
+        self.assertTrue(self.parser.is_http_1_1_keep_alive())
+
+    def test_is_not_http_1_1_keep_alive_with_close_header(self):
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.GET, b'/',
+            headers={
+                b'Connection': b'close',
+            }
+        ))
+        self.assertFalse(self.parser.is_http_1_1_keep_alive())
+
+    def test_is_not_http_1_1_keep_alive_for_http_1_0(self):
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.GET, b'/', protocol_version=b'HTTP/1.0',
+        ))
+        self.assertFalse(self.parser.is_http_1_1_keep_alive())
 
     def assertDictContainsSubset(self, subset: Dict[bytes, Tuple[bytes, bytes]],
                                  dictionary: Dict[bytes, Tuple[bytes, bytes]]) -> None:
