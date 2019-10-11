@@ -108,7 +108,9 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
         # Redirect all non-https requests to inbuilt WebServer.
         if self.request.method != proxy.httpMethods.CONNECT:
             self.request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
-            self.request.set_host_port()
+            # This command will re-parse modified url and
+            # update host, port, path fields
+            self.request.set_line_attributes()
         return False
 
     def on_upstream_connection(self) -> None:
@@ -201,10 +203,9 @@ class WebServerPlugin(proxy.HttpWebServerBasePlugin):
         ]
 
     def handle_request(self, request: proxy.HttpParser) -> None:
-        path = request.build_url()
-        if path == b'/http-route-example':
+        if self.request.path == b'/http-route-example':
             self.client.queue(proxy.build_http_response(200, body=b'HTTP route response'))
-        elif path == b'/https-route-example':
+        elif self.request.path == b'/https-route-example':
             self.client.queue(proxy.build_http_response(200, body=b'HTTPS route response'))
 
     def on_websocket_open(self) -> None:

@@ -537,6 +537,7 @@ class HttpParser:
         # which is broken.
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
+        self.path: Optional[bytes] = None
 
     def header(self, key: bytes) -> bytes:
         if key.lower() not in self.headers:
@@ -561,7 +562,7 @@ class HttpParser:
         for key in headers:
             self.del_header(key.lower())
 
-    def set_host_port(self) -> None:
+    def set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
             if self.method == httpMethods.CONNECT and self.url:
                 u = urlparse.urlsplit(b'//' + self.url.path)
@@ -571,6 +572,7 @@ class HttpParser:
                     if self.url.port else 80
             else:
                 raise KeyError('Invalid request\n%s' % self.bytes)
+            self.path = self.build_url()
 
     def is_chunked_encoded(self) -> bool:
         return b'transfer-encoding' in self.headers and \
@@ -668,7 +670,7 @@ class HttpParser:
             self.version = line[0]
             self.code = line[1]
             self.reason = WHITESPACE.join(line[2:])
-        self.set_host_port()
+        self.set_line_attributes()
 
     def process_header(self, raw: bytes) -> None:
         parts = raw.split(COLON)
@@ -679,7 +681,6 @@ class HttpParser:
     def build_url(self) -> bytes:
         if not self.url:
             return b'/None'
-
         url = self.url.path
         if url == b'':
             url = b'/'
@@ -697,7 +698,7 @@ class HttpParser:
             if self.is_chunked_encoded() and self.body else \
             self.body
         return build_http_request(
-            self.method, self.build_url(), self.version,
+            self.method, self.path, self.version,
             headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
                                                  k.lower() not in disable_headers},
             body=body
@@ -1204,7 +1205,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 (self.client.addr[0], self.client.addr[1],
                  text_(self.request.method),
                  text_(server_host), server_port,
-                 text_(self.request.build_url()),
+                 text_(self.request.path),
                  text_(self.response.code),
                  text_(self.response.reason),
                  self.response.total_size))
@@ -1807,14 +1808,14 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
-
+        self.pipeline_request: Optional[HttpParser] = None
         self.switched_protocol: Optional[int] = None
-
         self.routes: Dict[int, Dict[bytes, HttpWebServerBasePlugin]] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
             httpProtocolTypes.WEBSOCKET: {},
         }
+        self.route: Optional[HttpWebServerBasePlugin] = None
 
         if b'HttpWebServerBasePlugin' in self.config.plugins:
             for klass in self.config.plugins[b'HttpWebServerBasePlugin']:
@@ -1859,10 +1860,10 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         if self.request.has_upstream_server():
             return False
 
-        url = self.request.build_url()
-
         # If a websocket route exists for the path, try upgrade
-        if url in self.routes[httpProtocolTypes.WEBSOCKET]:
+        if self.request.path in self.routes[httpProtocolTypes.WEBSOCKET]:
+            self.route = self.routes[httpProtocolTypes.WEBSOCKET][self.request.path]
+
             # Connection upgrade
             teardown = self.try_upgrade()
             if teardown:
@@ -1871,21 +1872,22 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             # For upgraded connections, nothing more to do
             if self.switched_protocol:
                 # Invoke plugin.on_websocket_open
-                for r in self.routes[httpProtocolTypes.WEBSOCKET]:
-                    if r == url:
-                        self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_open()
+                self.route.on_websocket_open()
                 return False
 
         # Routing for Http(s) requests
-        protocol = httpProtocolTypes.HTTPS if self.config.certfile and self.config.keyfile else httpProtocolTypes.HTTP
+        protocol = httpProtocolTypes.HTTPS \
+            if self.config.certfile and self.config.keyfile else \
+            httpProtocolTypes.HTTP
         for r in self.routes[protocol]:
-            if r == url:
-                self.routes[protocol][r].handle_request(self.request)
+            if r == self.request.path:
+                self.route = self.routes[protocol][r]
+                self.route.handle_request(self.request)
                 return False
 
         # No-route found, try static serving if enabled
         if self.config.enable_static_server:
-            path = text_(url).split('?')[0]
+            path = text_(self.request.path).split('?')[0]
             if os.path.isfile(self.config.static_server_dir + path):
                 return self.serve_file_or_404(self.config.static_server_dir + path)
 
@@ -1901,17 +1903,24 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
-            url = self.request.build_url()
             remaining = raw
             frame = WebsocketFrame()
             while remaining != b'':
                 # TODO: Teardown if invalid protocol exception
                 remaining = frame.parse(remaining)
                 for r in self.routes[httpProtocolTypes.WEBSOCKET]:
-                    if r == url:
+                    if r == self.request.path:
                         self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_message(frame)
                 frame.reset()
             return None
+        # If 1st valid request was completed
+        elif self.request.state == httpParserStates.COMPLETE:
+            if self.pipeline_request is None:
+                self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
+            self.pipeline_request.parse(raw)
+            if self.pipeline_request.state == httpParserStates.COMPLETE:
+                self.route.handle_request(self.pipeline_request)
+                self.pipeline_request = None
         return raw
 
     def on_response_chunk(self, chunk: bytes) -> bytes:
@@ -1923,13 +1932,13 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         if self.switched_protocol:
             # Invoke plugin.on_websocket_close
             for r in self.routes[httpProtocolTypes.WEBSOCKET]:
-                if r == self.request.build_url():
+                if r == self.request.path:
                     self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_close()
         logger.info(
             '%s:%s - %s %s' %
             (self.client.addr[0], self.client.addr[1], text_(
                 self.request.method), text_(
-                self.request.build_url())))
+                self.request.path)))
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
@@ -2048,7 +2057,11 @@ class ProtocolHandler(threading.Thread):
                     break
                 plugin_index += 1
 
-            if client_data:
+            # Don't parse request any further after 1st request has completed.
+            # This specially does happen for pipeline requests.
+            # Plugins can utilize on_client_data for such cases and
+            # apply custom logic to handle request data sent after 1st valid request.
+            if client_data and self.request.state != httpParserStates.COMPLETE:
                 try:
                     # Parse http request
                     self.request.parse(client_data)
@@ -2254,7 +2267,7 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if not self.request.has_upstream_server() and \
-                self.request.build_url() == self.config.devtools_ws_path:
+                self.request.path == self.config.devtools_ws_path:
             return False
 
         # Handle devtool frontend websocket upgrade
@@ -2267,7 +2280,7 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
 
     def on_response_chunk(self, chunk: bytes) -> bytes:
         if not self.request.has_upstream_server() and \
-                self.request.build_url() == self.config.devtools_ws_path:
+                self.request.path == self.config.devtools_ws_path:
             return chunk
 
         if self.config.devtools_event_queue:
@@ -2300,10 +2313,10 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
             'documentURL': 'http://proxy-py',
             'request': {
                 'url': text_(
-                    self.request.build_url()
+                    self.request.path
                     if self.request.has_upstream_server() else
                     b'http://' + bytes_(str(self.config.hostname)) +
-                    COLON + bytes_(self.config.port) + self.request.build_url()
+                    COLON + bytes_(self.config.port) + self.request.path
                 ),
                 'urlFragment': '',
                 'method': text_(self.request.method),

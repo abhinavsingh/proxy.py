@@ -543,7 +543,7 @@ class TestHttpParser(unittest.TestCase):
 
     def test_set_host_port_raises(self) -> None:
         with self.assertRaises(KeyError):
-            self.parser.set_host_port()
+            self.parser.set_line_attributes()
 
     def test_find_line(self) -> None:
         self.assertEqual(
