@@ -121,7 +121,7 @@ def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
 
 
 version = bytes_(__version__)
-CRLF, COLON, WHITESPACE, COMMA, DOT = b'\r\n', b':', b' ', b',', b'.'
+CRLF, COLON, WHITESPACE, COMMA, DOT, HTTP_1_1 = b'\r\n', b':', b' ', b',', b'.', b'HTTP/1.1'
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
@@ -192,7 +192,7 @@ websocketOpcodes = WebsocketOpcodes(0x0, 0x1, 0x2, 0x8, 0x9, 0xA)
 
 
 def build_http_request(method: bytes, url: bytes,
-                       protocol_version: bytes = b'HTTP/1.1',
+                       protocol_version: bytes = HTTP_1_1,
                        headers: Optional[Dict[bytes, bytes]] = None,
                        body: Optional[bytes] = None) -> bytes:
     """Build and returns a HTTP request packet."""
@@ -203,7 +203,7 @@ def build_http_request(method: bytes, url: bytes,
 
 
 def build_http_response(status_code: int,
-                        protocol_version: bytes = b'HTTP/1.1',
+                        protocol_version: bytes = HTTP_1_1,
                         reason: Optional[bytes] = None,
                         headers: Optional[Dict[bytes, bytes]] = None,
                         body: Optional[bytes] = None) -> bytes:
@@ -708,6 +708,11 @@ class HttpParser:
         """Host field SHOULD be None for incoming local WebServer requests."""
         return True if self.host is not None else False
 
+    def is_http_1_1_keep_alive(self) -> bool:
+        return self.version == HTTP_1_1 and \
+               (not self.has_header(b'Connection') or
+                self.header(b'Connection').lower() == b'keep-alive')
+
 
 class AcceptorPool:
     """AcceptorPool.
@@ -863,7 +868,7 @@ class HttpRequestRejected(ProtocolException):
     def response(self, _request: HttpParser) -> Optional[bytes]:
         pkt = []
         if self.status_code is not None:
-            line = b'HTTP/1.1 ' + bytes_(self.status_code)
+            line = HTTP_1_1 + WHITESPACE + bytes_(self.status_code)
             if self.reason:
                 line += WHITESPACE + self.reason
             pkt.append(line)
@@ -1913,12 +1918,15 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                         self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_message(frame)
                 frame.reset()
             return None
-        # If 1st valid request was completed
-        elif self.request.state == httpParserStates.COMPLETE:
+        # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
+        elif self.request.state == httpParserStates.COMPLETE and \
+                self.request.is_http_1_1_keep_alive():
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
             self.pipeline_request.parse(raw)
             if self.pipeline_request.state == httpParserStates.COMPLETE:
+                # TODO: Check if pipelined request has set Connection: close header
+                # If yes, we must teardown the connection.
                 assert self.route is not None
                 self.route.handle_request(self.pipeline_request)
                 self.pipeline_request = None
