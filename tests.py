@@ -18,6 +18,7 @@ import socket
 import ssl
 import tempfile
 import unittest
+import uuid
 from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
@@ -542,7 +543,7 @@ class TestHttpParser(unittest.TestCase):
 
     def test_set_host_port_raises(self) -> None:
         with self.assertRaises(KeyError):
-            self.parser.set_host_port()
+            self.parser.set_line_attributes()
 
     def test_find_line(self) -> None:
         self.assertEqual(
@@ -1231,6 +1232,76 @@ class TestHttpProtocolHandler(unittest.TestCase):
                 data=None), selectors.EVENT_WRITE), ],
         ]
 
+    def assert_data_queued(
+            self, mock_server_connection: mock.Mock, server: mock.Mock) -> None:
+        self.proxy.run_once()
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.httpParserStates.COMPLETE)
+        mock_server_connection.assert_called_once()
+        server.connect.assert_called_once()
+        server.closed = False
+        assert self.http_server_port is not None
+        pkt = proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            b'Host: localhost:%d' % self.http_server_port,
+            b'Accept: */*',
+            b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
+            proxy.CRLF
+        ])
+        server.queue.assert_called_once_with(pkt)
+        server.buffer_size.return_value = len(pkt)
+
+    def assert_data_queued_to_server(self, server: mock.Mock) -> None:
+        assert self.http_server_port is not None
+        self.assertEqual(
+            self._conn.send.call_args[0][0],
+            proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+
+        self._conn.recv.return_value = proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'Host: localhost:%d' % self.http_server_port,
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            proxy.CRLF
+        ])
+        self.proxy.run_once()
+
+        pkt = proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'Host: localhost:%d' % self.http_server_port,
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            proxy.CRLF
+        ])
+        server.queue.assert_called_once_with(pkt)
+        server.buffer_size.return_value = len(pkt)
+        server.flush.assert_not_called()
+
+    def mock_selector_for_client_read(self, mock_selector: mock.Mock) -> None:
+        mock_selector.return_value.select.return_value = [(
+            selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ), ]
+
+
+class TestWebServerPlugin(unittest.TestCase):
+
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def setUp(self, mock_fromfd: mock.Mock, mock_selector: mock.Mock) -> None:
+        self.fileno = 10
+        self._addr = ('127.0.0.1', 54382)
+        self._conn = mock_fromfd.return_value
+        self.mock_selector = mock_selector
+        self.config = proxy.ProtocolConfig()
+        self.config.plugins = proxy.load_plugins(
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=self.config)
+        self.proxy.initialize()
+
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     def test_pac_file_served_from_disk(
@@ -1269,14 +1340,6 @@ class TestHttpProtocolHandler(unittest.TestCase):
                 b'Connection': b'close'
             }, body=pac_file_content
         ))
-
-    def mock_selector_for_client_read(self, mock_selector: mock.Mock) -> None:
-        mock_selector.return_value.select.return_value = [(
-            selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ), ]
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -1427,50 +1490,13 @@ class TestHttpProtocolHandler(unittest.TestCase):
             proxy.CRLF,
         ])
 
-    def assert_data_queued(
-            self, mock_server_connection: mock.Mock, server: mock.Mock) -> None:
-        self.proxy.run_once()
-        self.assertEqual(
-            self.proxy.request.state,
-            proxy.httpParserStates.COMPLETE)
-        mock_server_connection.assert_called_once()
-        server.connect.assert_called_once()
-        server.closed = False
-        assert self.http_server_port is not None
-        pkt = proxy.CRLF.join([
-            b'GET / HTTP/1.1',
-            b'User-Agent: proxy.py/%s' % proxy.version,
-            b'Host: localhost:%d' % self.http_server_port,
-            b'Accept: */*',
-            b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
-            proxy.CRLF
-        ])
-        server.queue.assert_called_once_with(pkt)
-        server.buffer_size.return_value = len(pkt)
-
-    def assert_data_queued_to_server(self, server: mock.Mock) -> None:
-        assert self.http_server_port is not None
-        self.assertEqual(
-            self._conn.send.call_args[0][0],
-            proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-
-        self._conn.recv.return_value = proxy.CRLF.join([
-            b'GET / HTTP/1.1',
-            b'Host: localhost:%d' % self.http_server_port,
-            b'User-Agent: proxy.py/%s' % proxy.version,
-            proxy.CRLF
-        ])
-        self.proxy.run_once()
-
-        pkt = proxy.CRLF.join([
-            b'GET / HTTP/1.1',
-            b'Host: localhost:%d' % self.http_server_port,
-            b'User-Agent: proxy.py/%s' % proxy.version,
-            proxy.CRLF
-        ])
-        server.queue.assert_called_once_with(pkt)
-        server.buffer_size.return_value = len(pkt)
-        server.flush.assert_not_called()
+    def mock_selector_for_client_read(self, mock_selector: mock.Mock) -> None:
+        mock_selector.return_value.select.return_value = [(
+            selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ), ]
 
 
 class TestHttpProxyPlugin(unittest.TestCase):
@@ -1551,20 +1577,23 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
     @mock.patch('ssl.wrap_socket')
     @mock.patch('ssl.create_default_context')
     @mock.patch('proxy.TcpServerConnection')
-    @mock.patch('proxy.HttpProxyPlugin.generate_upstream_certificate')
+    @mock.patch('subprocess.Popen')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     def test_e2e(
             self,
             mock_fromfd: mock.Mock,
             mock_selector: mock.Mock,
-            mock_generate_certificate: mock.Mock,
+            mock_popen: mock.Mock,
             mock_server_conn: mock.Mock,
             mock_ssl_context: mock.Mock,
             mock_ssl_wrap: mock.Mock) -> None:
+        host, port = uuid.uuid4().hex, 443
+        netloc = '{0}:{1}'.format(host, port)
+
         self.mock_fromfd = mock_fromfd
         self.mock_selector = mock_selector
-        self.mock_generate_certificate = mock_generate_certificate
+        self.mock_popen = mock_popen
         self.mock_server_conn = mock_server_conn
         self.mock_ssl_context = mock_ssl_context
         self.mock_ssl_wrap = mock_ssl_wrap
@@ -1608,9 +1637,9 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.assertEqual(self.proxy_plugin.call_args[0][1].connection, self._conn)
 
         connect_request = proxy.build_http_request(
-            proxy.httpMethods.CONNECT, b'super.secure:443',
+            proxy.httpMethods.CONNECT, proxy.bytes_(netloc),
             headers={
-                b'Host': b'super.secure:443',
+                b'Host': proxy.bytes_(netloc),
             })
         self._conn.recv.return_value = connect_request
 
@@ -1643,7 +1672,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
         self.proxy_plugin.return_value.on_upstream_connection.assert_called()
 
-        self.mock_server_conn.assert_called_with('super.secure', 443)
+        self.mock_server_conn.assert_called_with(host, port)
         self.mock_server_conn.return_value.connection.setblocking.assert_called_with(False)
 
         self.mock_ssl_context.assert_called_with(ssl.Purpose.SERVER_AUTH)
@@ -1651,26 +1680,27 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         #                  ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
         self.assertEqual(plain_connection.setblocking.call_count, 2)
         self.mock_ssl_context.return_value.wrap_socket.assert_called_with(
-            plain_connection, server_hostname='super.secure')
+            plain_connection, server_hostname=host)
+        # TODO: Assert Popen arguments, piping, success condition
+        self.assertEqual(self.mock_popen.call_count, 2)
         self.assertEqual(ssl_connection.setblocking.call_count, 1)
         self.assertEqual(self.mock_server_conn.return_value._conn, ssl_connection)
-        self.mock_generate_certificate.assert_called_with(
-            self.mock_server_conn.return_value.connection.getpeercert.return_value)
         self._conn.send.assert_called_with(proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+        assert self.config.ca_cert_dir is not None
         self.mock_ssl_wrap.assert_called_with(
             self._conn,
             server_side=True,
             keyfile=self.config.ca_signing_key_file,
-            certfile=self.mock_generate_certificate.return_value
+            certfile=proxy.HttpProxyPlugin.generated_cert_file_path(
+                self.config.ca_cert_dir, host)
         )
         self.assertEqual(self._conn.setblocking.call_count, 2)
         self.assertEqual(self.proxy.client.connection, self.mock_ssl_wrap.return_value)
 
         # Assert connection references for all other plugins is updated
         self.assertEqual(self.plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
-
-        # Currently proxy doesn't update it's own plugin
-        # self.assertEqual(self.proxy_plugin.return_value.client._conn, self._conn)
+        # Currently proxy doesn't update it's own plugin connection reference
+        # self.assertEqual(self.proxy_plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
 
 
 class TestHttpRequestRejected(unittest.TestCase):
