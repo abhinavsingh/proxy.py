@@ -203,9 +203,9 @@ class WebServerPlugin(proxy.HttpWebServerBasePlugin):
         ]
 
     def handle_request(self, request: proxy.HttpParser) -> None:
-        if self.request.path == b'/http-route-example':
+        if request.path == b'/http-route-example':
             self.client.queue(proxy.build_http_response(200, body=b'HTTP route response'))
-        elif self.request.path == b'/https-route-example':
+        elif request.path == b'/https-route-example':
             self.client.queue(proxy.build_http_response(200, body=b'HTTPS route response'))
 
     def on_websocket_open(self) -> None:

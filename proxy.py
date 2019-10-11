@@ -691,7 +691,7 @@ class HttpParser:
         return url
 
     def build(self, disable_headers: Optional[List[bytes]] = None) -> bytes:
-        assert self.method and self.version
+        assert self.method and self.version and self.path
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
         body: Optional[bytes] = ChunkParser.to_chunks(self.body) \
@@ -1919,6 +1919,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
             self.pipeline_request.parse(raw)
             if self.pipeline_request.state == httpParserStates.COMPLETE:
+                assert self.route is not None
                 self.route.handle_request(self.pipeline_request)
                 self.pipeline_request = None
         return raw
