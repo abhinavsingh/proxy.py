@@ -8,6 +8,7 @@
 """
 import json
 import os
+import random
 import tempfile
 import time
 from typing import Optional, BinaryIO, List, Tuple
@@ -27,6 +28,10 @@ class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
             # Update Content-Length header only when request is NOT chunked encoded
             if not self.request.is_chunked_encoded():
                 self.request.add_header(b'Content-Length', proxy.bytes_(len(self.request.body)))
+            # Enforce content-type json
+            if self.request.has_header(b'Content-Type'):
+                self.request.del_header(b'Content-Type')
+            self.request.add_header(b'Content-Type', b'application/json')
         return False
 
     def on_upstream_connection(self) -> None:
