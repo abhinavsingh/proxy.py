@@ -1420,7 +1420,6 @@ class TestWebServerPlugin(unittest.TestCase):
         self.assertEqual(self._conn.send.call_args[0][0], proxy.build_http_response(
             200, reason=b'OK', headers={
                 b'Content-Type': b'text/html',
-                b'Connection': b'close',
                 b'Content-Length': proxy.bytes_(len(html_file_content))
             },
             body=html_file_content

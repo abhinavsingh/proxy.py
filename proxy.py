@@ -50,7 +50,7 @@ if os.name != 'nt':
 PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
 PROXY_PY_START_TIME = time.time()
 
-VERSION = (1, 1, 1)
+VERSION = (1, 1, 2)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
 __author__ = 'Abhinav Singh'
@@ -888,8 +888,10 @@ class ProxyConnectionFailed(ProtocolException):
 
     RESPONSE_PKT = build_http_response(
         502, reason=b'Bad Gateway',
-        headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-                 b'Connection': b'close'},
+        headers={
+            PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
+            b'Connection': b'close'
+        },
         body=b'Bad Gateway'
     )
 
@@ -908,9 +910,11 @@ class ProxyAuthenticationFailed(ProtocolException):
 
     RESPONSE_PKT = build_http_response(
         407, reason=b'Proxy Authentication Required',
-        headers={PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-                 b'Connection': b'close',
-                 b'Proxy-Authenticate': b'Basic'},
+        headers={
+            PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
+            b'Proxy-Authenticate': b'Basic',
+            b'Connection': b'close',
+        },
         body=b'Proxy Authentication Required')
 
     def response(self, _request: HttpParser) -> bytes:
@@ -1768,7 +1772,6 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
             self.pac_file_response = build_http_response(
                 200, reason=b'OK', headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                    b'Connection': b'close'
                 }, body=content
             )
 
@@ -1838,7 +1841,6 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             self.client.queue(build_http_response(
                 200, reason=b'OK', headers={
                     b'Content-Type': bytes_(content_type),
-                    b'Connection': b'close'
                 }, body=content
             ))
             return False
