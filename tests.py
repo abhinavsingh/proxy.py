@@ -1232,6 +1232,76 @@ class TestHttpProtocolHandler(unittest.TestCase):
                 data=None), selectors.EVENT_WRITE), ],
         ]
 
+    def assert_data_queued(
+            self, mock_server_connection: mock.Mock, server: mock.Mock) -> None:
+        self.proxy.run_once()
+        self.assertEqual(
+            self.proxy.request.state,
+            proxy.httpParserStates.COMPLETE)
+        mock_server_connection.assert_called_once()
+        server.connect.assert_called_once()
+        server.closed = False
+        assert self.http_server_port is not None
+        pkt = proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            b'Host: localhost:%d' % self.http_server_port,
+            b'Accept: */*',
+            b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
+            proxy.CRLF
+        ])
+        server.queue.assert_called_once_with(pkt)
+        server.buffer_size.return_value = len(pkt)
+
+    def assert_data_queued_to_server(self, server: mock.Mock) -> None:
+        assert self.http_server_port is not None
+        self.assertEqual(
+            self._conn.send.call_args[0][0],
+            proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+
+        self._conn.recv.return_value = proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'Host: localhost:%d' % self.http_server_port,
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            proxy.CRLF
+        ])
+        self.proxy.run_once()
+
+        pkt = proxy.CRLF.join([
+            b'GET / HTTP/1.1',
+            b'Host: localhost:%d' % self.http_server_port,
+            b'User-Agent: proxy.py/%s' % proxy.version,
+            proxy.CRLF
+        ])
+        server.queue.assert_called_once_with(pkt)
+        server.buffer_size.return_value = len(pkt)
+        server.flush.assert_not_called()
+
+    def mock_selector_for_client_read(self, mock_selector: mock.Mock) -> None:
+        mock_selector.return_value.select.return_value = [(
+            selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ), ]
+
+
+class TestWebServerPlugin(unittest.TestCase):
+
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def setUp(self, mock_fromfd: mock.Mock, mock_selector: mock.Mock) -> None:
+        self.fileno = 10
+        self._addr = ('127.0.0.1', 54382)
+        self._conn = mock_fromfd.return_value
+        self.mock_selector = mock_selector
+        self.config = proxy.ProtocolConfig()
+        self.config.plugins = proxy.load_plugins(
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=self.config)
+        self.proxy.initialize()
+
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     def test_pac_file_served_from_disk(
@@ -1270,14 +1340,6 @@ class TestHttpProtocolHandler(unittest.TestCase):
                 b'Connection': b'close'
             }, body=pac_file_content
         ))
-
-    def mock_selector_for_client_read(self, mock_selector: mock.Mock) -> None:
-        mock_selector.return_value.select.return_value = [(
-            selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ), ]
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -1428,50 +1490,13 @@ class TestHttpProtocolHandler(unittest.TestCase):
             proxy.CRLF,
         ])
 
-    def assert_data_queued(
-            self, mock_server_connection: mock.Mock, server: mock.Mock) -> None:
-        self.proxy.run_once()
-        self.assertEqual(
-            self.proxy.request.state,
-            proxy.httpParserStates.COMPLETE)
-        mock_server_connection.assert_called_once()
-        server.connect.assert_called_once()
-        server.closed = False
-        assert self.http_server_port is not None
-        pkt = proxy.CRLF.join([
-            b'GET / HTTP/1.1',
-            b'User-Agent: proxy.py/%s' % proxy.version,
-            b'Host: localhost:%d' % self.http_server_port,
-            b'Accept: */*',
-            b'Via: %s' % b'1.1 proxy.py v%s' % proxy.version,
-            proxy.CRLF
-        ])
-        server.queue.assert_called_once_with(pkt)
-        server.buffer_size.return_value = len(pkt)
-
-    def assert_data_queued_to_server(self, server: mock.Mock) -> None:
-        assert self.http_server_port is not None
-        self.assertEqual(
-            self._conn.send.call_args[0][0],
-            proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-
-        self._conn.recv.return_value = proxy.CRLF.join([
-            b'GET / HTTP/1.1',
-            b'Host: localhost:%d' % self.http_server_port,
-            b'User-Agent: proxy.py/%s' % proxy.version,
-            proxy.CRLF
-        ])
-        self.proxy.run_once()
-
-        pkt = proxy.CRLF.join([
-            b'GET / HTTP/1.1',
-            b'Host: localhost:%d' % self.http_server_port,
-            b'User-Agent: proxy.py/%s' % proxy.version,
-            proxy.CRLF
-        ])
-        server.queue.assert_called_once_with(pkt)
-        server.buffer_size.return_value = len(pkt)
-        server.flush.assert_not_called()
+    def mock_selector_for_client_read(self, mock_selector: mock.Mock) -> None:
+        mock_selector.return_value.select.return_value = [(
+            selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ), ]
 
 
 class TestHttpProxyPlugin(unittest.TestCase):
