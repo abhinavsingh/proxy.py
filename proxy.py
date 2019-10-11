@@ -1925,10 +1925,10 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
             self.pipeline_request.parse(raw)
             if self.pipeline_request.state == httpParserStates.COMPLETE:
-                # TODO: Check if pipelined request has set Connection: close header
-                # If yes, we must teardown the connection.
                 assert self.route is not None
                 self.route.handle_request(self.pipeline_request)
+                if not self.pipeline_request.is_http_1_1_keep_alive():
+                    raise ProtocolException()
                 self.pipeline_request = None
         return raw
 
@@ -2015,12 +2015,6 @@ class ProtocolHandler(threading.Thread):
             conn = ctx.wrap_socket(conn, server_side=True)
         return conn
 
-    def send_server_error(self, e: Exception) -> None:
-        logger.exception('Server error', exc_info=e)
-        self.client.queue(build_http_response(
-            500, b'Server Error'
-        ))
-
     def connection_inactive_for(self) -> int:
         return (self.now() - self.last_activity).seconds
 
@@ -2057,21 +2051,22 @@ class ProtocolHandler(threading.Thread):
                 self.client.closed = True
                 return True
 
-            # ProtocolHandlerPlugin.on_client_data
-            plugin_index = 0
-            plugins = list(self.plugins.values())
-            while plugin_index < len(plugins) and client_data:
-                client_data = plugins[plugin_index].on_client_data(client_data)
-                if client_data is None:
-                    break
-                plugin_index += 1
+            try:
+                # ProtocolHandlerPlugin.on_client_data
+                # Can raise ProtocolException to teardown the connection
+                plugin_index = 0
+                plugins = list(self.plugins.values())
+                while plugin_index < len(plugins) and client_data:
+                    client_data = plugins[plugin_index].on_client_data(client_data)
+                    if client_data is None:
+                        break
+                    plugin_index += 1
 
-            # Don't parse request any further after 1st request has completed.
-            # This specially does happen for pipeline requests.
-            # Plugins can utilize on_client_data for such cases and
-            # apply custom logic to handle request data sent after 1st valid request.
-            if client_data and self.request.state != httpParserStates.COMPLETE:
-                try:
+                # Don't parse request any further after 1st request has completed.
+                # This specially does happen for pipeline requests.
+                # Plugins can utilize on_client_data for such cases and
+                # apply custom logic to handle request data sent after 1st valid request.
+                if client_data and self.request.state != httpParserStates.COMPLETE:
                     # Parse http request
                     self.request.parse(client_data)
                     if self.request.state == httpParserStates.COMPLETE:
@@ -2089,17 +2084,13 @@ class ProtocolHandler(threading.Thread):
                                             'Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                                 return True
-                except ProtocolException as e:
-                    logger.exception(
-                        'ProtocolException type raised', exc_info=e)
-                    response = e.response(self.request)
-                    if response:
-                        self.client.queue(response)
-                    else:
-                        # If ProtocolException doesn't return a response,
-                        # its a server error
-                        self.send_server_error(e)
-                    return True
+            except ProtocolException as e:
+                logger.exception(
+                    'ProtocolException type raised', exc_info=e)
+                response = e.response(self.request)
+                if response:
+                    self.client.queue(response)
+                return True
         return False
 
     def get_events(self) -> Dict[socket.socket, int]:
