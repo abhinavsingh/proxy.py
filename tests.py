@@ -20,8 +20,6 @@ import tempfile
 import unittest
 import uuid
 from contextlib import closing
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from threading import Thread
 from typing import Dict, Optional, Tuple, Union, Any, cast
 from unittest import mock
 
