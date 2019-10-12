@@ -2496,14 +2496,10 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
         if plugin == '':
             continue
         module_name, klass_name = plugin.rsplit(text_(DOT), 1)
-        if module_name == 'proxy':
-            klass = getattr(
-                importlib.import_module(__name__),
-                klass_name)
-        else:
-            klass = getattr(
-                importlib.import_module(module_name),
-                klass_name)
+        klass = getattr(
+            importlib.import_module(
+                __name__ if module_name == 'proxy' else module_name),
+            klass_name)
         base_klass = inspect.getmro(klass)[1]
         p[bytes_(base_klass.__name__)].append(klass)
         logger.info(
