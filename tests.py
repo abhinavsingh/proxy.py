@@ -977,40 +977,6 @@ class TestWebsocketClient(unittest.TestCase):
 
 
 class TestHttpProtocolHandler(unittest.TestCase):
-    http_server = None
-    http_server_port = None
-    http_server_thread = None
-    config = None
-
-    class HTTPRequestHandler(BaseHTTPRequestHandler):
-
-        def do_GET(self) -> None:
-            self.send_response(200)
-            # TODO(abhinavsingh): Proxy should work just fine even without
-            # content-length header
-            self.send_header('content-length', '2')
-            self.end_headers()
-            self.wfile.write(b'OK')
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.http_server_port = get_available_port()
-        cls.http_server = HTTPServer(
-            ('127.0.0.1', cls.http_server_port), TestHttpProtocolHandler.HTTPRequestHandler)
-        cls.http_server_thread = Thread(target=cls.http_server.serve_forever)
-        cls.http_server_thread.setDaemon(True)
-        cls.http_server_thread.start()
-        cls.config = proxy.ProtocolConfig()
-        cls.config.plugins = proxy.load_plugins(
-            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        if cls.http_server:
-            cls.http_server.shutdown()
-            cls.http_server.server_close()
-        if cls.http_server_thread:
-            cls.http_server_thread.join()
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -1018,6 +984,12 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
         self._conn = mock_fromfd.return_value
+
+        self.http_server_port = 65535
+        self.config = proxy.ProtocolConfig()
+        self.config.plugins = proxy.load_plugins(
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+
         self.mock_selector = mock_selector
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=self.config)
