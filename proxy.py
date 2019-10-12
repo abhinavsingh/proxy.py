@@ -1003,6 +1003,16 @@ class ProtocolConfig:
                 self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
             os.makedirs(self.ca_cert_dir, exist_ok=True)
 
+    def tls_interception_enabled(self) -> bool:
+        return self.ca_key_file is not None and \
+            self.ca_cert_dir is not None and \
+            self.ca_signing_key_file is not None and \
+            self.ca_cert_file is not None
+
+    def encryption_enabled(self) -> bool:
+        return self.keyfile is not None and \
+            self.certfile is not None
+
 
 class ProtocolHandlerPlugin(ABC):
     """Base ProtocolHandler Plugin class.
@@ -1085,11 +1095,9 @@ class HttpProxyBasePlugin(ABC):
     def __init__(
             self,
             config: ProtocolConfig,
-            client: TcpClientConnection,
-            request: HttpParser):
+            client: TcpClientConnection):
         self.config = config        # pragma: no cover
         self.client = client        # pragma: no cover
-        self.request = request      # pragma: no cover
 
     def name(self) -> str:
         """A unique name for your plugin.
@@ -1099,33 +1107,38 @@ class HttpProxyBasePlugin(ABC):
         return self.__class__.__name__      # pragma: no cover
 
     @abstractmethod
-    def before_upstream_connection(self) -> bool:
+    def before_upstream_connection(self, request: HttpParser) -> HttpParser:
         """Handler called just before Proxy upstream connection is established.
 
-        Raise HttpRequestRejected to drop the connection."""
-        pass  # pragma: no cover
+        Return optionally modified request object.
+        Raise HttpRequestRejected or ProtocolException directly to drop the connection."""
+        return request  # pragma: no cover
 
     @abstractmethod
-    def on_upstream_connection(self) -> None:
-        """Handler called right after upstream connection has been established."""
-        pass  # pragma: no cover
+    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+        """Handler called before dispatching client request to upstream.
+
+        Note: For pipelined (keep-alive) connections, this handler can be
+        called multiple times, for each request sent to upstream.
+
+        Note: If TLS interception is enabled, this handler can
+        be called multiple times if client exchanges multiple
+        requests over same SSL session.
+
+        Return optionally modified request object to dispatch to upstream.
+        Return None to drop the request data, e.g. in case a response has already been queued.
+        Raise HttpRequestRejected or ProtocolException directly to
+            teardown the connection with client.
+        """
+        return request
 
     @abstractmethod
-    def handle_upstream_response(self, raw: bytes) -> bytes:
-        """Handled called right after reading response from upstream server and
-        before queuing that response to client.
+    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
+        """Handler called right after receiving raw response from upstream server.
 
-        Optionally return modified response to queue for client."""
-        return raw  # pragma: no cover
-
-    @abstractmethod
-    def handle_pipeline_request(self, request: HttpParser) -> HttpParser:
-        """Handle pipelined requests sent by client to the server.
-
-        This callback is only valid if when:
-        1. Client is sending HTTP keep-alive requests to the server.
-        2. Client is sending HTTPS traffic and TLS interception is enabled."""
-        pass
+        For HTTPS connections, chunk will be encrypted unless
+        TLS interception is also enabled."""
+        return chunk  # pragma: no cover
 
     @abstractmethod
     def on_upstream_connection_close(self) -> None:
@@ -1158,7 +1171,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
         if b'HttpProxyBasePlugin' in self.config.plugins:
             for klass in self.config.plugins[b'HttpProxyBasePlugin']:
-                instance = klass(self.config, self.client, self.request)
+                instance = klass(self.config, self.client)
                 self.plugins[instance.name()] = instance
 
     def get_descriptors(
@@ -1200,14 +1213,13 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 return True
 
             for plugin in self.plugins.values():
-                raw = plugin.handle_upstream_response(raw)
+                raw = plugin.handle_upstream_chunk(raw)
 
             # parse incoming response packet
             # only for non-https requests and when
             # tls interception is enabled
             if self.request.method != httpMethods.CONNECT or \
-                    (self.config.ca_key_file and self.config.ca_cert_file and
-                     self.config.ca_signing_key_file and self.config.ca_cert_dir):
+                    self.config.tls_interception_enabled():
                 self.response.parse(raw)
             else:
                 self.response.total_size += len(raw)
@@ -1275,16 +1287,19 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             # or if TLS interception was enabled
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
-                    (self.config.ca_cert_file and self.config.ca_cert_dir and
-                     self.config.ca_signing_key_file and self.config.ca_key_file)):
+                    self.config.tls_interception_enabled()):
                 if self.pipeline_request is None:
                     self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
                 self.pipeline_request.parse(raw)
                 if self.pipeline_request.state == httpParserStates.COMPLETE:
-                    request = self.pipeline_request
                     for plugin in self.plugins.values():
-                        request = plugin.handle_pipeline_request(request)
-                    self.server.queue(request.build())
+                        assert self.pipeline_request is not None
+                        r = plugin.handle_client_request(self.pipeline_request)
+                        if r is None:
+                            return None
+                        self.pipeline_request = r
+                    assert self.pipeline_request is not None
+                    self.server.queue(self.pipeline_request.build())
                     self.pipeline_request = None
             else:
                 self.server.queue(raw)
@@ -1332,21 +1347,24 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
         for plugin in self.plugins.values():
-            teardown = plugin.before_upstream_connection()
-            if teardown:
-                return teardown
+            self.request = plugin.before_upstream_connection(self.request)
 
         self.authenticate()
         self.connect_upstream()
 
         for plugin in self.plugins.values():
-            plugin.on_upstream_connection()
+            assert self.request is not None
+            r = plugin.handle_client_request(self.request)
+            if r is not None:
+                self.request = r
+            else:
+                return False
 
         if self.request.method == httpMethods.CONNECT:
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled
-            if self.config.ca_key_file and self.config.ca_cert_file and self.config.ca_signing_key_file:
+            if self.config.tls_interception_enabled():
                 assert self.server is not None
                 assert isinstance(self.server.connection, socket.socket)
                 # Perform SSL/TLS handshake with upstream
@@ -1924,7 +1942,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
-            if self.config.certfile and self.config.keyfile else \
+            if self.config.encryption_enabled() else \
             httpProtocolTypes.HTTP
         for r in self.routes[protocol]:
             if r == self.request.path:
@@ -2050,11 +2068,12 @@ class ProtocolHandler(threading.Thread):
 
         Shutdown and closes client connection upon error.
         """
-        if self.config.certfile and self.config.keyfile:
+        if self.config.encryption_enabled():
             ctx = ssl.create_default_context(
                 ssl.Purpose.CLIENT_AUTH)
             ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
             ctx.verify_mode = ssl.CERT_NONE
+            assert self.config.keyfile and self.config.certfile
             ctx.load_cert_chain(
                 certfile=self.config.certfile,
                 keyfile=self.config.keyfile)

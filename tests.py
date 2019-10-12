@@ -1557,8 +1557,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
     def test_proxy_plugin_on_and_before_upstream_connection(
             self,
             mock_server_conn: mock.Mock) -> None:
-        self.plugin.return_value.before_upstream_connection.return_value = False
-        self.plugin.return_value.on_upstream_connection.return_value = None
+        self.plugin.return_value.before_upstream_connection.side_effect = lambda r: r
+        self.plugin.return_value.handle_client_request.side_effect = lambda r: r
 
         self._conn.recv.return_value = proxy.build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
@@ -1575,13 +1575,13 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self.proxy.run_once()
         mock_server_conn.assert_called_with('upstream.host', 80)
         self.plugin.return_value.before_upstream_connection.assert_called()
-        self.plugin.return_value.on_upstream_connection.assert_called()
+        self.plugin.return_value.handle_client_request.assert_called()
 
     @mock.patch('proxy.TcpServerConnection')
     def test_proxy_plugin_before_upstream_connection_can_teardown(
             self,
             mock_server_conn: mock.Mock) -> None:
-        self.plugin.return_value.before_upstream_connection.return_value = True
+        self.plugin.return_value.before_upstream_connection.side_effect = proxy.ProtocolException()
 
         self._conn.recv.return_value = proxy.build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
@@ -1681,7 +1681,8 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.plugin.return_value.on_client_connection_close.return_value = None
 
         # Prepare mocked HttpProxyBasePlugin
-        self.proxy_plugin.return_value.before_upstream_connection.return_value = False
+        self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
+        self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
 
         self.mock_selector.return_value.select.side_effect = [
             [(selectors.SelectorKey(
@@ -1698,7 +1699,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.plugin.return_value.on_request_complete.assert_called()
         self.plugin.return_value.read_from_descriptors.assert_called_with([self._conn])
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
-        self.proxy_plugin.return_value.on_upstream_connection.assert_called()
+        self.proxy_plugin.return_value.handle_client_request.assert_called()
 
         self.mock_server_conn.assert_called_with(host, port)
         self.mock_server_conn.return_value.connection.setblocking.assert_called_with(False)
