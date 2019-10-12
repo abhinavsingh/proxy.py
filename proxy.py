@@ -142,19 +142,25 @@ chunkParserStates = ChunkParserStates(1, 2, 3)
 
 HttpMethods = NamedTuple('HttpMethods', [
     ('GET', bytes),
-    ('PUT', bytes),
-    ('POST', bytes),
-    ('CONNECT', bytes),
     ('HEAD', bytes),
+    ('POST', bytes),
+    ('PUT', bytes),
     ('DELETE', bytes),
+    ('CONNECT', bytes),
+    ('OPTIONS', bytes),
+    ('TRACE', bytes),
+    ('PATCH', bytes),
 ])
 httpMethods = HttpMethods(
     b'GET',
-    b'PUT',
-    b'POST',
-    b'CONNECT',
     b'HEAD',
+    b'POST',
+    b'PUT',
     b'DELETE',
+    b'CONNECT',
+    b'OPTIONS',
+    b'TRACE',
+    b'PATCH',
 )
 
 HttpParserStates = NamedTuple('HttpParserStates', [
@@ -1113,6 +1119,15 @@ class HttpProxyBasePlugin(ABC):
         return raw  # pragma: no cover
 
     @abstractmethod
+    def handle_pipeline_request(self, request: HttpParser) -> HttpParser:
+        """Handle pipelined requests sent by client to the server.
+
+        This callback is only valid if when:
+        1. Client is sending HTTP keep-alive requests to the server.
+        2. Client is sending HTTPS traffic and TLS interception is enabled."""
+        pass
+
+    @abstractmethod
     def on_upstream_connection_close(self) -> None:
         """Handler called right after upstream connection has been closed."""
         pass  # pragma: no cover
@@ -1135,8 +1150,10 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
+        self.start_time: float = time.time()
         self.server: Optional[TcpServerConnection] = None
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        self.pipeline_request: Optional[HttpParser] = None
 
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
         if b'HttpProxyBasePlugin' in self.config.plugins:
@@ -1186,8 +1203,11 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 raw = plugin.handle_upstream_response(raw)
 
             # parse incoming response packet
-            # only for non-https requests
-            if not self.request.method == httpMethods.CONNECT:
+            # only for non-https requests and when
+            # tls interception is enabled
+            if self.request.method != httpMethods.CONNECT or \
+                    (self.config.ca_key_file and self.config.ca_cert_file and
+                     self.config.ca_signing_key_file and self.config.ca_cert_dir):
                 self.response.parse(raw)
             else:
                 self.response.total_size += len(raw)
@@ -1198,26 +1218,28 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def access_log(self) -> None:
         server_host, server_port = self.server.addr if self.server else (
             None, None)
+        connection_time_ms = (time.time() - self.start_time) * 1000
         if self.request.method == b'CONNECT':
             logger.info(
-                '%s:%s - %s %s:%s - %s bytes' %
+                '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
                 (self.client.addr[0],
                  self.client.addr[1],
-                 text_(
-                     self.request.method),
+                 text_(self.request.method),
                  text_(server_host),
                  text_(server_port),
-                 self.response.total_size))
+                 self.response.total_size,
+                 connection_time_ms))
         elif self.request.method:
             logger.info(
-                '%s:%s - %s %s:%s%s - %s %s - %s bytes' %
+                '%s:%s - %s %s:%s%s - %s %s - %s bytes - %.2f ms' %
                 (self.client.addr[0], self.client.addr[1],
                  text_(self.request.method),
                  text_(server_host), server_port,
                  text_(self.request.path),
                  text_(self.response.code),
                  text_(self.response.reason),
-                 self.response.total_size))
+                 self.response.total_size,
+                 connection_time_ms))
 
     def on_client_connection_close(self) -> None:
         if not self.request.has_upstream_server():
@@ -1248,7 +1270,24 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             return raw
 
         if self.server and not self.server.closed:
-            self.server.queue(raw)
+            # If 1st request did reach completion stage
+            # and 1st request was not a CONNECT request
+            # or if TLS interception was enabled
+            if self.request.state == httpParserStates.COMPLETE and (
+                    self.request.method != httpMethods.CONNECT or
+                    (self.config.ca_cert_file and self.config.ca_cert_dir and
+                     self.config.ca_signing_key_file and self.config.ca_key_file)):
+                if self.pipeline_request is None:
+                    self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
+                self.pipeline_request.parse(raw)
+                if self.pipeline_request.state == httpParserStates.COMPLETE:
+                    request = self.pipeline_request
+                    for plugin in self.plugins.values():
+                        request = plugin.handle_pipeline_request(request)
+                    self.server.queue(request.build())
+                    self.pipeline_request = None
+            else:
+                self.server.queue(raw)
             return None
         else:
             return raw
@@ -1816,6 +1855,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
+        self.start_time: float = time.time()
         self.pipeline_request: Optional[HttpParser] = None
         self.switched_protocol: Optional[int] = None
         self.routes: Dict[int, Dict[bytes, HttpWebServerBasePlugin]] = {
@@ -1950,9 +1990,10 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
     def access_log(self) -> None:
         logger.info(
             '%s:%s - %s %s' %
-            (self.client.addr[0], self.client.addr[1], text_(
-                self.request.method), text_(
-                self.request.path)))
+            (self.client.addr[0],
+             self.client.addr[1],
+             text_(self.request.method),
+             text_(self.request.path)))
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:

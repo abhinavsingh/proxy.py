@@ -8,7 +8,6 @@
 """
 import json
 import os
-import random
 import tempfile
 import time
 from typing import Optional, BinaryIO, List, Tuple
@@ -22,16 +21,21 @@ class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
 
     MODIFIED_BODY = b'{"key": "modified"}'
 
+    @staticmethod
+    def modify_request(request: proxy.HttpParser) -> proxy.HttpParser:
+        request.body = ModifyPostDataPlugin.MODIFIED_BODY
+        # Update Content-Length header only when request is NOT chunked encoded
+        if not request.is_chunked_encoded():
+            request.add_header(b'Content-Length', proxy.bytes_(len(request.body)))
+        # Enforce content-type json
+        if request.has_header(b'Content-Type'):
+            request.del_header(b'Content-Type')
+        request.add_header(b'Content-Type', b'application/json')
+        return request
+
     def before_upstream_connection(self) -> bool:
         if self.request.method == proxy.httpMethods.POST:
-            self.request.body = ModifyPostDataPlugin.MODIFIED_BODY
-            # Update Content-Length header only when request is NOT chunked encoded
-            if not self.request.is_chunked_encoded():
-                self.request.add_header(b'Content-Length', proxy.bytes_(len(self.request.body)))
-            # Enforce content-type json
-            if self.request.has_header(b'Content-Type'):
-                self.request.del_header(b'Content-Type')
-            self.request.add_header(b'Content-Type', b'application/json')
+            self.modify_request(self.request)
         return False
 
     def on_upstream_connection(self) -> None:
@@ -39,6 +43,9 @@ class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
 
     def handle_upstream_response(self, raw: bytes) -> bytes:
         return raw
+
+    def handle_pipeline_request(self, request: proxy.HttpParser) -> proxy.HttpParser:
+        return self.modify_request(request)
 
     def on_upstream_connection_close(self) -> None:
         pass
@@ -100,6 +107,9 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     def handle_upstream_response(self, raw: bytes) -> bytes:
         return raw
 
+    def handle_pipeline_request(self, request: proxy.HttpParser) -> proxy.HttpParser:
+        return request
+
     def on_upstream_connection_close(self) -> None:
         pass
 
@@ -124,6 +134,9 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
     def handle_upstream_response(self, raw: bytes) -> bytes:
         return raw
 
+    def handle_pipeline_request(self, request: proxy.HttpParser) -> proxy.HttpParser:
+        return request
+
     def on_upstream_connection_close(self) -> None:
         pass
 
@@ -144,6 +157,9 @@ class FilterByUpstreamHostPlugin(proxy.HttpProxyBasePlugin):
 
     def handle_upstream_response(self, raw: bytes) -> bytes:
         return raw
+
+    def handle_pipeline_request(self, request: proxy.HttpParser) -> proxy.HttpParser:
+        return request
 
     def on_upstream_connection_close(self) -> None:
         pass
@@ -174,6 +190,9 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
             self.cache_file.write(chunk)
         return chunk
 
+    def handle_pipeline_request(self, request: proxy.HttpParser) -> proxy.HttpParser:
+        return request
+
     def on_upstream_connection_close(self) -> None:
         if self.cache_file:
             self.cache_file.close()
@@ -192,6 +211,9 @@ class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
     def handle_upstream_response(self, raw: bytes) -> bytes:
         return proxy.build_http_response(
             200, reason=b'OK', body=b'Hello from man in the middle')
+
+    def handle_pipeline_request(self, request: proxy.HttpParser) -> proxy.HttpParser:
+        return request
 
     def on_upstream_connection_close(self) -> None:
         pass

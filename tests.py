@@ -897,13 +897,13 @@ class TestHttpParser(unittest.TestCase):
             },
             body=b'f\r\n{"key":"value"}\r\n0\r\n\r\n'))
 
-    def test_is_http_1_1_keep_alive(self):
+    def test_is_http_1_1_keep_alive(self) -> None:
         self.parser.parse(proxy.build_http_request(
             proxy.httpMethods.GET, b'/'
         ))
         self.assertTrue(self.parser.is_http_1_1_keep_alive())
 
-    def test_is_http_1_1_keep_alive_with_non_close_connection_header(self):
+    def test_is_http_1_1_keep_alive_with_non_close_connection_header(self) -> None:
         self.parser.parse(proxy.build_http_request(
             proxy.httpMethods.GET, b'/',
             headers={
@@ -912,7 +912,7 @@ class TestHttpParser(unittest.TestCase):
         ))
         self.assertTrue(self.parser.is_http_1_1_keep_alive())
 
-    def test_is_not_http_1_1_keep_alive_with_close_header(self):
+    def test_is_not_http_1_1_keep_alive_with_close_header(self) -> None:
         self.parser.parse(proxy.build_http_request(
             proxy.httpMethods.GET, b'/',
             headers={
@@ -921,7 +921,7 @@ class TestHttpParser(unittest.TestCase):
         ))
         self.assertFalse(self.parser.is_http_1_1_keep_alive())
 
-    def test_is_not_http_1_1_keep_alive_for_http_1_0(self):
+    def test_is_not_http_1_1_keep_alive_for_http_1_0(self) -> None:
         self.parser.parse(proxy.build_http_request(
             proxy.httpMethods.GET, b'/', protocol_version=b'HTTP/1.0',
         ))
