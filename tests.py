@@ -22,7 +22,7 @@ import uuid
 from contextlib import closing
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Dict, Optional, Tuple, Union, Any
+from typing import Dict, Optional, Tuple, Union, Any, cast
 from unittest import mock
 
 import proxy
@@ -1059,7 +1059,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             self, mock_server_connection: mock.Mock, server: mock.Mock) -> None:
         self.proxy.run_once()
         self.assertTrue(
-            self.proxy.plugins['HttpProxyPlugin'].server is not None)  # type: ignore
+            cast(proxy.HttpProxyPlugin, self.proxy.plugins['HttpProxyPlugin']).server is not None)
         self.assertEqual(
             self.proxy.client.buffer,
             proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)

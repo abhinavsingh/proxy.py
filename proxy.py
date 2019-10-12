@@ -1107,7 +1107,7 @@ class HttpProxyBasePlugin(ABC):
         return self.__class__.__name__      # pragma: no cover
 
     @abstractmethod
-    def before_upstream_connection(self, request: HttpParser) -> HttpParser:
+    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
         """Handler called just before Proxy upstream connection is established.
 
         Return optionally modified request object.
@@ -1347,7 +1347,10 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
         for plugin in self.plugins.values():
-            self.request = plugin.before_upstream_connection(self.request)
+            r = plugin.before_upstream_connection(self.request)
+            if r is None:
+                return False
+            self.request = r
 
         self.authenticate()
         self.connect_upstream()

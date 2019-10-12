@@ -21,7 +21,7 @@ class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
 
     MODIFIED_BODY = b'{"key": "modified"}'
 
-    def before_upstream_connection(self, request: proxy.HttpParser) -> proxy.HttpParser:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         return request
 
     def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
@@ -75,10 +75,7 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
         },
     }
 
-    def before_upstream_connection(self, request: proxy.HttpParser) -> proxy.HttpParser:
-        return request
-
-    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         if request.host != self.API_SERVER:
             return request
         assert request.path
@@ -95,6 +92,9 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
             ))
         return None
 
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        return request
+
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:
         return chunk
 
@@ -107,7 +107,7 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
 
     UPSTREAM_SERVER = b'http://localhost:8899'
 
-    def before_upstream_connection(self, request: proxy.HttpParser) -> proxy.HttpParser:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         # Redirect all non-https requests to inbuilt WebServer.
         if request.method != proxy.httpMethods.CONNECT:
             request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
@@ -131,7 +131,7 @@ class FilterByUpstreamHostPlugin(proxy.HttpProxyBasePlugin):
 
     FILTERED_DOMAINS = [b'google.com', b'www.google.com']
 
-    def before_upstream_connection(self, request: proxy.HttpParser) -> proxy.HttpParser:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         if request.host in self.FILTERED_DOMAINS:
             raise proxy.HttpRequestRejected(
                 status_code=418, reason=b'I\'m a tea pot')
@@ -160,7 +160,7 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 
-    def before_upstream_connection(self, request: proxy.HttpParser) -> proxy.HttpParser:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         # Ideally should only create file if upstream connection succeeds.
         self.cache_file_path = os.path.join(
             self.CACHE_DIR,
@@ -186,7 +186,7 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
 class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
     """Modifies upstream server responses."""
 
-    def before_upstream_connection(self, request: proxy.HttpParser) -> proxy.HttpParser:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         return request
 
     def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
