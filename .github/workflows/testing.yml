@@ -25,14 +25,12 @@ jobs:
           pip install -r requirements-testing.txt
       - name: Quality Check
         run: |
-          # The GitHub editor is 127 chars wide
           # W504 screams for line break after binary operators
           flake8 --ignore=W504 --max-line-length=127 proxy.py plugin_examples.py tests.py setup.py
-          # mypy compliance check
           mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py
       - name: Run Tests
-        run: coverage3 run --source=proxy,plugin_examples tests.py
-      - name: Coveralls
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-        run: coveralls
+        run: |
+          coverage3 run --source=proxy,plugin_examples tests.py
+          coveralls
