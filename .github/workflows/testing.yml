@@ -31,4 +31,6 @@ jobs:
           # mypy compliance check
           mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py
       - name: Run Tests
-        run: pytest tests.py
+        run: coverage3 run --source=proxy,plugin_examples tests.py
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@v1.0.1
