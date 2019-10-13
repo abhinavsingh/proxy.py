@@ -39,6 +39,7 @@ Table of Contents
         * [Stable version](#stable-version-from-docker-hub)
         * [Development version](#build-development-version-locally)
 * [Plugin Examples](#plugin-examples)
+    * [ModifyPostDataPlugin](#modifypostdataplugin)
     * [ProposedRestApiPlugin](#proposedrestapiplugin)
     * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
     * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
@@ -203,6 +204,58 @@ See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/p
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
 See [TLS Interception](#tls-interception).
 
+## ModifyPostDataPlugin
+
+Modifies POST request body before sending request to upstream server.
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --plugins plugin_examples.ModifyPostDataPlugin
+```
+
+By default plugin replaces POST body content with hardcoded `b'{"key": "modified"}'`
+and enforced `Content-Type: application/json`.
+
+Verify the same using `curl -x localhost:8899 -d '{"key": "value"}' http://httpbin.org/post`
+
+```
+{
+  "args": {},
+  "data": "{\"key\": \"modified\"}",
+  "files": {},
+  "form": {},
+  "headers": {
+    "Accept": "*/*",
+    "Content-Length": "19",
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "curl/7.54.0"
+  },
+  "json": {
+    "key": "modified"
+  },
+  "origin": "1.2.3.4, 5.6.7.8",
+  "url": "https://httpbin.org/post"
+}
+```
+
+Note following from the response above:
+
+1. POST data was modified `"data": "{\"key\": \"modified\"}"`.
+   Original `curl` command data was `{"key": "value"}`.
+2. Our `curl` command didn't add any `Content-Type` header,
+   but our plugin did add one `"Content-Type": "application/json"`.
+   Same can also be verified by looking at `json` field in the output above:
+   ```
+   "json": {
+    "key": "modified"
+   },
+   ```
+3. Our plugin also added a `Content-Length` header to match length
+   of modified body.
+
 ## ProposedRestApiPlugin
 
 Mock responses for your server REST API.
@@ -332,13 +385,13 @@ Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
 < Connection: keep-alive
 < 
 {
-  "args": {}, 
+  "args": {},
   "headers": {
-    "Accept": "*/*", 
-    "Host": "httpbin.org", 
+    "Accept": "*/*",
+    "Host": "httpbin.org",
     "User-Agent": "curl/7.54.0"
-  }, 
-  "origin": "1.2.3.4, 5.6.7.8", 
+  },
+  "origin": "1.2.3.4, 5.6.7.8",
   "url": "https://httpbin.org/get"
 }
 * Connection #0 to host localhost left intact
@@ -368,13 +421,13 @@ Content-Length: 202
 Connection: keep-alive
 
 {
-  "args": {}, 
+  "args": {},
   "headers": {
-    "Accept": "*/*", 
-    "Host": "httpbin.org", 
+    "Accept": "*/*",
+    "Host": "httpbin.org",
     "User-Agent": "curl/7.54.0"
-  }, 
-  "origin": "1.2.3.4, 5.6.7.8", 
+  },
+  "origin": "1.2.3.4, 5.6.7.8",
   "url": "https://httpbin.org/get"
 }
 ```
@@ -443,13 +496,13 @@ Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https
 
 ```
 {
-  "args": {}, 
+  "args": {},
   "headers": {
-    "Accept": "*/*", 
-    "Host": "httpbin.org", 
+    "Accept": "*/*",
+    "Host": "httpbin.org",
     "User-Agent": "curl/7.54.0"
-  }, 
-  "origin": "1.2.3.4, 5.6.7.8", 
+  },
+  "origin": "1.2.3.4, 5.6.7.8",
   "url": "https://httpbin.org/get"
 }
 ```
@@ -485,13 +538,13 @@ Verify using `curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org
 < Connection: keep-alive
 < 
 {
-  "args": {}, 
+  "args": {},
   "headers": {
-    "Accept": "*/*", 
-    "Host": "httpbin.org", 
+    "Accept": "*/*",
+    "Host": "httpbin.org",
     "User-Agent": "curl/7.54.0"
-  }, 
-  "origin": "1.2.3.4, 5.6.7.8", 
+  },
+  "origin": "1.2.3.4, 5.6.7.8",
   "url": "https://httpbin.org/get"
 }
 ```
@@ -518,16 +571,15 @@ Content-Length: 202
 Connection: keep-alive
 
 {
-  "args": {}, 
+  "args": {},
   "headers": {
-    "Accept": "*/*", 
-    "Host": "httpbin.org", 
+    "Accept": "*/*",
+    "Host": "httpbin.org",
     "User-Agent": "curl/7.54.0"
-  }, 
-  "origin": "1.2.3.4, 5.6.7.8", 
+  },
+  "origin": "1.2.3.4, 5.6.7.8",
   "url": "https://httpbin.org/get"
 }
-
 ```
 
 Viola!!!  If you remove CA flags, encrypted data will be found in the

@@ -20,9 +20,7 @@ import tempfile
 import unittest
 import uuid
 from contextlib import closing
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from threading import Thread
-from typing import Dict, Optional, Tuple, Union, Any
+from typing import Dict, Optional, Tuple, Union, Any, cast
 from unittest import mock
 
 import proxy
@@ -880,7 +878,6 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
     def test_chunked_request_parse(self) -> None:
-        self.parser.type = proxy.httpParserTypes.REQUEST_PARSER
         self.parser.parse(proxy.build_http_request(
             proxy.httpMethods.POST, b'http://example.org/',
             headers={
@@ -897,6 +894,36 @@ class TestHttpParser(unittest.TestCase):
                 b'Content-Type': b'application/json',
             },
             body=b'f\r\n{"key":"value"}\r\n0\r\n\r\n'))
+
+    def test_is_http_1_1_keep_alive(self) -> None:
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.GET, b'/'
+        ))
+        self.assertTrue(self.parser.is_http_1_1_keep_alive())
+
+    def test_is_http_1_1_keep_alive_with_non_close_connection_header(self) -> None:
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.GET, b'/',
+            headers={
+                b'Connection': b'keep-alive',
+            }
+        ))
+        self.assertTrue(self.parser.is_http_1_1_keep_alive())
+
+    def test_is_not_http_1_1_keep_alive_with_close_header(self) -> None:
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.GET, b'/',
+            headers={
+                b'Connection': b'close',
+            }
+        ))
+        self.assertFalse(self.parser.is_http_1_1_keep_alive())
+
+    def test_is_not_http_1_1_keep_alive_for_http_1_0(self) -> None:
+        self.parser.parse(proxy.build_http_request(
+            proxy.httpMethods.GET, b'/', protocol_version=b'HTTP/1.0',
+        ))
+        self.assertFalse(self.parser.is_http_1_1_keep_alive())
 
     def assertDictContainsSubset(self, subset: Dict[bytes, Tuple[bytes, bytes]],
                                  dictionary: Dict[bytes, Tuple[bytes, bytes]]) -> None:
@@ -948,40 +975,6 @@ class TestWebsocketClient(unittest.TestCase):
 
 
 class TestHttpProtocolHandler(unittest.TestCase):
-    http_server = None
-    http_server_port = None
-    http_server_thread = None
-    config = None
-
-    class HTTPRequestHandler(BaseHTTPRequestHandler):
-
-        def do_GET(self) -> None:
-            self.send_response(200)
-            # TODO(abhinavsingh): Proxy should work just fine even without
-            # content-length header
-            self.send_header('content-length', '2')
-            self.end_headers()
-            self.wfile.write(b'OK')
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.http_server_port = get_available_port()
-        cls.http_server = HTTPServer(
-            ('127.0.0.1', cls.http_server_port), TestHttpProtocolHandler.HTTPRequestHandler)
-        cls.http_server_thread = Thread(target=cls.http_server.serve_forever)
-        cls.http_server_thread.setDaemon(True)
-        cls.http_server_thread.start()
-        cls.config = proxy.ProtocolConfig()
-        cls.config.plugins = proxy.load_plugins(
-            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        if cls.http_server:
-            cls.http_server.shutdown()
-            cls.http_server.server_close()
-        if cls.http_server_thread:
-            cls.http_server_thread.join()
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -989,6 +982,12 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
         self._conn = mock_fromfd.return_value
+
+        self.http_server_port = 65535
+        self.config = proxy.ProtocolConfig()
+        self.config.plugins = proxy.load_plugins(
+            b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
+
         self.mock_selector = mock_selector
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=self.config)
@@ -1030,7 +1029,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             self, mock_server_connection: mock.Mock, server: mock.Mock) -> None:
         self.proxy.run_once()
         self.assertTrue(
-            self.proxy.plugins['HttpProxyPlugin'].server is not None)  # type: ignore
+            cast(proxy.HttpProxyPlugin, self.proxy.plugins['HttpProxyPlugin']).server is not None)
         self.assertEqual(
             self.proxy.client.buffer,
             proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
@@ -1528,8 +1527,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
     def test_proxy_plugin_on_and_before_upstream_connection(
             self,
             mock_server_conn: mock.Mock) -> None:
-        self.plugin.return_value.before_upstream_connection.return_value = False
-        self.plugin.return_value.on_upstream_connection.return_value = None
+        self.plugin.return_value.before_upstream_connection.side_effect = lambda r: r
+        self.plugin.return_value.handle_client_request.side_effect = lambda r: r
 
         self._conn.recv.return_value = proxy.build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
@@ -1546,13 +1545,13 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self.proxy.run_once()
         mock_server_conn.assert_called_with('upstream.host', 80)
         self.plugin.return_value.before_upstream_connection.assert_called()
-        self.plugin.return_value.on_upstream_connection.assert_called()
+        self.plugin.return_value.handle_client_request.assert_called()
 
     @mock.patch('proxy.TcpServerConnection')
     def test_proxy_plugin_before_upstream_connection_can_teardown(
             self,
             mock_server_conn: mock.Mock) -> None:
-        self.plugin.return_value.before_upstream_connection.return_value = True
+        self.plugin.return_value.before_upstream_connection.side_effect = proxy.ProtocolException()
 
         self._conn.recv.return_value = proxy.build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
@@ -1652,7 +1651,8 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.plugin.return_value.on_client_connection_close.return_value = None
 
         # Prepare mocked HttpProxyBasePlugin
-        self.proxy_plugin.return_value.before_upstream_connection.return_value = False
+        self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
+        self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
 
         self.mock_selector.return_value.select.side_effect = [
             [(selectors.SelectorKey(
@@ -1669,7 +1669,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.plugin.return_value.on_request_complete.assert_called()
         self.plugin.return_value.read_from_descriptors.assert_called_with([self._conn])
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
-        self.proxy_plugin.return_value.on_upstream_connection.assert_called()
+        self.proxy_plugin.return_value.handle_client_request.assert_called()
 
         self.mock_server_conn.assert_called_with(host, port)
         self.mock_server_conn.return_value.connection.setblocking.assert_called_with(False)

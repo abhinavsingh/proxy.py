@@ -8,7 +8,8 @@ assignees: abhinavsingh
 ---
 
 **Check FAQs**
-Please check [Frequently Asked Questions](https://github.com/abhinavsingh/proxy.py#frequently-asked-questions) before filling a bug.
+Please check [Frequently Asked Questions](https://github.com/abhinavsingh/proxy.py#frequently-asked-questions)
+before opening a bug report.
 
 **Describe the bug**
 A clear and concise description of what the bug is.

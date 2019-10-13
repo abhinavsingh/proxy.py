@@ -21,19 +21,23 @@ class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
 
     MODIFIED_BODY = b'{"key": "modified"}'
 
-    def before_upstream_connection(self) -> bool:
-        if self.request.method == proxy.httpMethods.POST:
-            self.request.body = ModifyPostDataPlugin.MODIFIED_BODY
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        return request
+
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        if request.method == proxy.httpMethods.POST:
+            request.body = ModifyPostDataPlugin.MODIFIED_BODY
             # Update Content-Length header only when request is NOT chunked encoded
-            if not self.request.is_chunked_encoded():
-                self.request.add_header(b'Content-Length', proxy.bytes_(len(self.request.body)))
-        return False
+            if not request.is_chunked_encoded():
+                request.add_header(b'Content-Length', proxy.bytes_(len(request.body)))
+            # Enforce content-type json
+            if request.has_header(b'Content-Type'):
+                request.del_header(b'Content-Type')
+            request.add_header(b'Content-Type', b'application/json')
+        return request
 
-    def on_upstream_connection(self) -> None:
-        pass
-
-    def handle_upstream_response(self, raw: bytes) -> bytes:
-        return raw
+    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
+        return chunk
 
     def on_upstream_connection_close(self) -> None:
         pass
@@ -71,29 +75,28 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
         },
     }
 
-    def before_upstream_connection(self) -> bool:
-        """Called after client request is received and
-        before connecting to upstream server."""
-        if self.request.host == self.API_SERVER and self.request.url:
-            if self.request.url.path in self.REST_API_SPEC:
-                self.client.send(proxy.build_http_response(
-                    200, reason=b'OK',
-                    headers={b'Content-Type': b'application/json'},
-                    body=proxy.bytes_(json.dumps(
-                        self.REST_API_SPEC[self.request.url.path]))
-                ))
-            else:
-                self.client.send(proxy.build_http_response(
-                    404, reason=b'NOT FOUND', body=b'Not Found'
-                ))
-            return True
-        return False
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        if request.host != self.API_SERVER:
+            return request
+        assert request.path
+        if request.path in self.REST_API_SPEC:
+            self.client.queue(proxy.build_http_response(
+                200, reason=b'OK',
+                headers={b'Content-Type': b'application/json'},
+                body=proxy.bytes_(json.dumps(
+                    self.REST_API_SPEC[request.path]))
+            ))
+        else:
+            self.client.queue(proxy.build_http_response(
+                404, reason=b'NOT FOUND', body=b'Not Found'
+            ))
+        return None
 
-    def on_upstream_connection(self) -> None:
-        pass
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        return request
 
-    def handle_upstream_response(self, raw: bytes) -> bytes:
-        return raw
+    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
+        return chunk
 
     def on_upstream_connection_close(self) -> None:
         pass
@@ -104,20 +107,20 @@ class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
 
     UPSTREAM_SERVER = b'http://localhost:8899'
 
-    def before_upstream_connection(self) -> bool:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         # Redirect all non-https requests to inbuilt WebServer.
-        if self.request.method != proxy.httpMethods.CONNECT:
-            self.request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
+        if request.method != proxy.httpMethods.CONNECT:
+            request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
             # This command will re-parse modified url and
             # update host, port, path fields
-            self.request.set_line_attributes()
-        return False
+            request.set_line_attributes()
+        return request
 
-    def on_upstream_connection(self) -> None:
-        pass
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        return request
 
-    def handle_upstream_response(self, raw: bytes) -> bytes:
-        return raw
+    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
+        return chunk
 
     def on_upstream_connection_close(self) -> None:
         pass
@@ -128,17 +131,17 @@ class FilterByUpstreamHostPlugin(proxy.HttpProxyBasePlugin):
 
     FILTERED_DOMAINS = [b'google.com', b'www.google.com']
 
-    def before_upstream_connection(self) -> bool:
-        if self.request.host in self.FILTERED_DOMAINS:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        if request.host in self.FILTERED_DOMAINS:
             raise proxy.HttpRequestRejected(
                 status_code=418, reason=b'I\'m a tea pot')
-        return False
+        return request
 
-    def on_upstream_connection(self) -> None:
-        pass
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        return request
 
-    def handle_upstream_response(self, raw: bytes) -> bytes:
-        return raw
+    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
+        return chunk
 
     def on_upstream_connection_close(self) -> None:
         pass
@@ -149,22 +152,27 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
 
     CACHE_DIR = tempfile.gettempdir()
 
-    def __init__(self, config: proxy.ProtocolConfig, client: proxy.TcpClientConnection,
-                 request: proxy.HttpParser) -> None:
-        super().__init__(config, client, request)
+    def __init__(
+            self,
+            config: proxy.ProtocolConfig,
+            client: proxy.TcpClientConnection) -> None:
+        super().__init__(config, client)
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 
-    def before_upstream_connection(self) -> bool:
-        return False
-
-    def on_upstream_connection(self) -> None:
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        # Ideally should only create file if upstream connection succeeds.
         self.cache_file_path = os.path.join(
             self.CACHE_DIR,
-            '%s-%s.txt' % (proxy.text_(self.request.host), str(time.time())))
+            '%s-%s.txt' % (proxy.text_(request.host), str(time.time())))
         self.cache_file = open(self.cache_file_path, "wb")
+        return request
 
-    def handle_upstream_response(self, chunk: bytes) -> bytes:
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        return request
+
+    def handle_upstream_chunk(self,
+                              chunk: bytes) -> bytes:
         if self.cache_file:
             self.cache_file.write(chunk)
         return chunk
@@ -178,13 +186,13 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
 class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
     """Modifies upstream server responses."""
 
-    def before_upstream_connection(self) -> bool:
-        return False
+    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        return request
 
-    def on_upstream_connection(self) -> None:
-        pass
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        return request
 
-    def handle_upstream_response(self, raw: bytes) -> bytes:
+    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
         return proxy.build_http_response(
             200, reason=b'OK', body=b'Hello from man in the middle')
 
