@@ -34,3 +34,5 @@ jobs:
         run: coverage3 run --source=proxy,plugin_examples tests.py
       - name: Coveralls GitHub Action
         uses: coverallsapp/github-action@v1.0.1
+        with:
+          github-token: ${{ secrets.github_token }}
