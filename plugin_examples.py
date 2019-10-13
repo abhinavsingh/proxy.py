@@ -81,14 +81,16 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
         assert request.path
         if request.path in self.REST_API_SPEC:
             self.client.queue(proxy.build_http_response(
-                200, reason=b'OK',
+                proxy.httpStatusCodes.OK,
+                reason=b'OK',
                 headers={b'Content-Type': b'application/json'},
                 body=proxy.bytes_(json.dumps(
                     self.REST_API_SPEC[request.path]))
             ))
         else:
             self.client.queue(proxy.build_http_response(
-                404, reason=b'NOT FOUND', body=b'Not Found'
+                proxy.httpStatusCodes.NOT_FOUND,
+                reason=b'NOT FOUND', body=b'Not Found'
             ))
         return None
 
@@ -134,7 +136,7 @@ class FilterByUpstreamHostPlugin(proxy.HttpProxyBasePlugin):
     def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         if request.host in self.FILTERED_DOMAINS:
             raise proxy.HttpRequestRejected(
-                status_code=418, reason=b'I\'m a tea pot')
+                status_code=proxy.httpStatusCodes.I_AM_A_TEAPOT, reason=b'I\'m a tea pot')
         return request
 
     def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
@@ -194,7 +196,8 @@ class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
 
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:
         return proxy.build_http_response(
-            200, reason=b'OK', body=b'Hello from man in the middle')
+            proxy.httpStatusCodes.OK,
+            reason=b'OK', body=b'Hello from man in the middle')
 
     def on_upstream_connection_close(self) -> None:
         pass
@@ -212,9 +215,11 @@ class WebServerPlugin(proxy.HttpWebServerBasePlugin):
 
     def handle_request(self, request: proxy.HttpParser) -> None:
         if request.path == b'/http-route-example':
-            self.client.queue(proxy.build_http_response(200, body=b'HTTP route response'))
+            self.client.queue(proxy.build_http_response(
+                proxy.httpStatusCodes.OK, body=b'HTTP route response'))
         elif request.path == b'/https-route-example':
-            self.client.queue(proxy.build_http_response(200, body=b'HTTPS route response'))
+            self.client.queue(proxy.build_http_response(
+                proxy.httpStatusCodes.OK, body=b'HTTPS route response'))
 
     def on_websocket_open(self) -> None:
         proxy.logger.info('Websocket open')

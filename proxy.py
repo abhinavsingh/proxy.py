@@ -141,6 +141,35 @@ ChunkParserStates = NamedTuple('ChunkParserStates', [
 ])
 chunkParserStates = ChunkParserStates(1, 2, 3)
 
+HttpStatusCodes = NamedTuple('HttpStatusCodes', [
+    # 1xx
+    ('CONTINUE', int),
+    ('SWITCHING_PROTOCOLS', int),
+    # 2xx
+    ('OK', int),
+    # 4xx
+    ('BAD_REQUEST', int),
+    ('UNAUTHORIZED', int),
+    ('FORBIDDEN', int),
+    ('NOT_FOUND', int),
+    ('PROXY_AUTH_REQUIRED', int),
+    ('REQUEST_TIMEOUT', int),
+    ('I_AM_A_TEAPOT', int),
+    # 5xx
+    ('INTERNAL_SERVER_ERROR', int),
+    ('NOT_IMPLEMENTED', int),
+    ('BAD_GATEWAY', int),
+    ('GATEWAY_TIMEOUT', int),
+    ('NETWORK_READ_TIMEOUT_ERROR', int),
+    ('NETWORK_CONNECT_TIMEOUT_ERROR', int),
+])
+httpStatusCodes = HttpStatusCodes(
+    100, 101,
+    200,
+    400, 401, 403, 404, 407, 408, 418,
+    500, 501, 502, 504, 598, 599
+)
+
 HttpMethods = NamedTuple('HttpMethods', [
     ('GET', bytes),
     ('HEAD', bytes),
@@ -894,7 +923,8 @@ class ProxyConnectionFailed(ProtocolException):
     """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
 
     RESPONSE_PKT = build_http_response(
-        502, reason=b'Bad Gateway',
+        httpStatusCodes.BAD_GATEWAY,
+        reason=b'Bad Gateway',
         headers={
             PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
             b'Connection': b'close'
@@ -916,7 +946,8 @@ class ProxyAuthenticationFailed(ProtocolException):
     incoming request doesn't present necessary credentials."""
 
     RESPONSE_PKT = build_http_response(
-        407, reason=b'Proxy Authentication Required',
+        httpStatusCodes.PROXY_AUTH_REQUIRED,
+        reason=b'Proxy Authentication Required',
         headers={
             PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
             b'Proxy-Authenticate': b'Basic',
@@ -1153,7 +1184,8 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which implements HttpProxy specifications."""
 
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = build_http_response(
-        200, reason=b'Connection established'
+        httpStatusCodes.OK,
+        reason=b'Connection established'
     )
 
     # Used to synchronize with other HttpProxyPlugin instances while
@@ -1861,13 +1893,15 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which handles incoming requests to local web server."""
 
     DEFAULT_404_RESPONSE = build_http_response(
-        404, reason=b'NOT FOUND',
+        httpStatusCodes.NOT_FOUND,
+        reason=b'NOT FOUND',
         headers={b'Server': PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'}
     )
 
     DEFAULT_501_RESPONSE = build_http_response(
-        501, reason=b'NOT IMPLEMENTED',
+        httpStatusCodes.NOT_IMPLEMENTED,
+        reason=b'NOT IMPLEMENTED',
         headers={b'Server': PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'}
     )
@@ -1902,10 +1936,12 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             if content_type is None:
                 content_type = 'text/plain'
             self.client.queue(build_http_response(
-                200, reason=b'OK', headers={
+                httpStatusCodes.OK,
+                reason=b'OK',
+                headers={
                     b'Content-Type': bytes_(content_type),
-                }, body=content
-            ))
+                },
+                body=content))
             return False
         except IOError:
             self.client.queue(self.DEFAULT_404_RESPONSE)
@@ -2215,7 +2251,7 @@ class ProtocolHandler(threading.Thread):
         if not self.client.has_buffer() and \
                 self.is_connection_inactive():
             self.client.queue(build_http_response(
-                408, reason=b'Request Timeout',
+                httpStatusCodes.REQUEST_TIMEOUT, reason=b'Request Timeout',
                 headers={
                     b'Server': PROXY_AGENT_HEADER_VALUE,
                     b'Connection': b'close',
