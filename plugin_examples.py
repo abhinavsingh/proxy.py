@@ -49,7 +49,8 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     Used to test and develop client side applications
     without need of an actual upstream REST API server.
 
-    Returns proposed REST API mock responses to the client."""
+    Returns proposed REST API mock responses to the client
+    without establishing upstream connection."""
 
     API_SERVER = b'api.example.com'
 

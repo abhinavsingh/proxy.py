@@ -47,6 +47,23 @@ def get_available_port() -> int:
         return int(port)
 
 
+def get_plugin_by_test_name(test_name: str) -> Type[proxy.HttpProxyBasePlugin]:
+    plugin: Type[proxy.HttpProxyBasePlugin] = plugin_examples.ModifyPostDataPlugin
+    if test_name == 'test_modify_post_data_plugin':
+        plugin = plugin_examples.ModifyPostDataPlugin
+    elif test_name == 'test_proposed_rest_api_plugin':
+        plugin = plugin_examples.ProposedRestApiPlugin
+    elif test_name == 'test_redirect_to_custom_server_plugin':
+        plugin = plugin_examples.RedirectToCustomServerPlugin
+    elif test_name == 'test_filter_by_upstream_host_plugin':
+        plugin = plugin_examples.FilterByUpstreamHostPlugin
+    elif test_name == 'test_cache_responses_plugin':
+        plugin = plugin_examples.CacheResponsesPlugin
+    elif test_name == 'test_man_in_the_middle_plugin':
+        plugin = plugin_examples.ManInTheMiddlePlugin
+    return plugin
+
+
 class TestTextBytes(unittest.TestCase):
 
     def test_text(self) -> None:
@@ -1576,137 +1593,6 @@ class TestHttpProxyPlugin(unittest.TestCase):
         mock_server_conn.assert_not_called()
 
 
-class TestHttpProxyTlsInterception(unittest.TestCase):
-
-    @mock.patch('ssl.wrap_socket')
-    @mock.patch('ssl.create_default_context')
-    @mock.patch('proxy.TcpServerConnection')
-    @mock.patch('subprocess.Popen')
-    @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
-    def test_e2e(
-            self,
-            mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock,
-            mock_popen: mock.Mock,
-            mock_server_conn: mock.Mock,
-            mock_ssl_context: mock.Mock,
-            mock_ssl_wrap: mock.Mock) -> None:
-        host, port = uuid.uuid4().hex, 443
-        netloc = '{0}:{1}'.format(host, port)
-
-        self.mock_fromfd = mock_fromfd
-        self.mock_selector = mock_selector
-        self.mock_popen = mock_popen
-        self.mock_server_conn = mock_server_conn
-        self.mock_ssl_context = mock_ssl_context
-        self.mock_ssl_wrap = mock_ssl_wrap
-
-        ssl_connection = mock.MagicMock(spec=ssl.SSLSocket)
-        self.mock_ssl_context.return_value.wrap_socket.return_value = ssl_connection
-        self.mock_ssl_wrap.return_value = mock.MagicMock(spec=ssl.SSLSocket)
-        plain_connection = mock.MagicMock(spec=socket.socket)
-
-        def mock_connection() -> Any:
-            if self.mock_ssl_context.return_value.wrap_socket.called:
-                return ssl_connection
-            return plain_connection
-
-        type(self.mock_server_conn.return_value).connection = \
-            mock.PropertyMock(side_effect=mock_connection)
-
-        self.fileno = 10
-        self._addr = ('127.0.0.1', 54382)
-        self.config = proxy.ProtocolConfig(
-            ca_cert_file='ca-cert.pem',
-            ca_key_file='ca-key.pem',
-            ca_signing_key_file='ca-signing-key.pem',
-        )
-        self.plugin = mock.MagicMock()
-        self.proxy_plugin = mock.MagicMock()
-        self.config.plugins = {
-            b'ProtocolHandlerPlugin': [self.plugin, proxy.HttpProxyPlugin],
-            b'HttpProxyBasePlugin': [self.proxy_plugin],
-        }
-        self._conn = mock_fromfd.return_value
-        self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=self.config)
-        self.proxy.initialize()
-
-        self.plugin.assert_called()
-        self.assertEqual(self.plugin.call_args[0][0], self.config)
-        self.assertEqual(self.plugin.call_args[0][1].connection, self._conn)
-        self.proxy_plugin.assert_called()
-        self.assertEqual(self.proxy_plugin.call_args[0][0], self.config)
-        self.assertEqual(self.proxy_plugin.call_args[0][1].connection, self._conn)
-
-        connect_request = proxy.build_http_request(
-            proxy.httpMethods.CONNECT, proxy.bytes_(netloc),
-            headers={
-                b'Host': proxy.bytes_(netloc),
-            })
-        self._conn.recv.return_value = connect_request
-
-        # Prepare mocked ProtocolHandlerPlugin
-        self.plugin.return_value.get_descriptors.return_value = ([], [])
-        self.plugin.return_value.write_to_descriptors.return_value = False
-        self.plugin.return_value.read_from_descriptors.return_value = False
-        self.plugin.return_value.on_client_data.side_effect = lambda raw: raw
-        self.plugin.return_value.on_request_complete.return_value = False
-        self.plugin.return_value.on_response_chunk.side_effect = lambda chunk: chunk
-        self.plugin.return_value.on_client_connection_close.return_value = None
-
-        # Prepare mocked HttpProxyBasePlugin
-        self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
-        self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
-
-        self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
-        self.proxy.run_once()
-
-        # Assert our mocked plugins invocations
-        self.plugin.return_value.get_descriptors.assert_called()
-        self.plugin.return_value.write_to_descriptors.assert_called_with([])
-        self.plugin.return_value.on_client_data.assert_called_with(connect_request)
-        self.plugin.return_value.on_request_complete.assert_called()
-        self.plugin.return_value.read_from_descriptors.assert_called_with([self._conn])
-        self.proxy_plugin.return_value.before_upstream_connection.assert_called()
-        self.proxy_plugin.return_value.handle_client_request.assert_called()
-
-        self.mock_server_conn.assert_called_with(host, port)
-        self.mock_server_conn.return_value.connection.setblocking.assert_called_with(False)
-
-        self.mock_ssl_context.assert_called_with(ssl.Purpose.SERVER_AUTH)
-        # self.assertEqual(self.mock_ssl_context.return_value.options,
-        #                  ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
-        self.assertEqual(plain_connection.setblocking.call_count, 2)
-        self.mock_ssl_context.return_value.wrap_socket.assert_called_with(
-            plain_connection, server_hostname=host)
-        # TODO: Assert Popen arguments, piping, success condition
-        self.assertEqual(self.mock_popen.call_count, 2)
-        self.assertEqual(ssl_connection.setblocking.call_count, 1)
-        self.assertEqual(self.mock_server_conn.return_value._conn, ssl_connection)
-        self._conn.send.assert_called_with(proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-        assert self.config.ca_cert_dir is not None
-        self.mock_ssl_wrap.assert_called_with(
-            self._conn,
-            server_side=True,
-            keyfile=self.config.ca_signing_key_file,
-            certfile=proxy.HttpProxyPlugin.generated_cert_file_path(
-                self.config.ca_cert_dir, host)
-        )
-        self.assertEqual(self._conn.setblocking.call_count, 2)
-        self.assertEqual(self.proxy.client.connection, self.mock_ssl_wrap.return_value)
-
-        # Assert connection references for all other plugins is updated
-        self.assertEqual(self.plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
-        self.assertEqual(self.proxy_plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
-
-
 class TestHttpProxyPluginExamples(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
@@ -1722,19 +1608,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.mock_fromfd = mock_fromfd
         self.mock_selector = mock_selector
 
-        plugin: Type[proxy.HttpProxyBasePlugin] = plugin_examples.ModifyPostDataPlugin
-        if self._testMethodName == 'test_modify_post_data_plugin':
-            plugin = plugin_examples.ModifyPostDataPlugin
-        elif self._testMethodName == 'test_proposed_rest_api_plugin':
-            plugin = plugin_examples.ProposedRestApiPlugin
-        elif self._testMethodName == 'test_redirect_to_custom_server_plugin':
-            plugin = plugin_examples.RedirectToCustomServerPlugin
-        elif self._testMethodName == 'test_filter_by_upstream_host_plugin':
-            plugin = plugin_examples.FilterByUpstreamHostPlugin
-        elif self._testMethodName == 'test_cache_responses_plugin':
-            plugin = plugin_examples.CacheResponsesPlugin
-        elif self._testMethodName == 'test_man_in_the_middle_plugin':
-            plugin = plugin_examples.ManInTheMiddlePlugin
+        plugin = get_plugin_by_test_name(self._testMethodName)
 
         self.config.plugins = {
             b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
@@ -1945,6 +1819,412 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 reason=b'OK', body=b'Hello from man in the middle')
         )
 
+
+class TestHttpProxyTlsInterception(unittest.TestCase):
+
+    @mock.patch('ssl.wrap_socket')
+    @mock.patch('ssl.create_default_context')
+    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('subprocess.Popen')
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def test_e2e(
+            self,
+            mock_fromfd: mock.Mock,
+            mock_selector: mock.Mock,
+            mock_popen: mock.Mock,
+            mock_server_conn: mock.Mock,
+            mock_ssl_context: mock.Mock,
+            mock_ssl_wrap: mock.Mock) -> None:
+        host, port = uuid.uuid4().hex, 443
+        netloc = '{0}:{1}'.format(host, port)
+
+        self.mock_fromfd = mock_fromfd
+        self.mock_selector = mock_selector
+        self.mock_popen = mock_popen
+        self.mock_server_conn = mock_server_conn
+        self.mock_ssl_context = mock_ssl_context
+        self.mock_ssl_wrap = mock_ssl_wrap
+
+        ssl_connection = mock.MagicMock(spec=ssl.SSLSocket)
+        self.mock_ssl_context.return_value.wrap_socket.return_value = ssl_connection
+        self.mock_ssl_wrap.return_value = mock.MagicMock(spec=ssl.SSLSocket)
+        plain_connection = mock.MagicMock(spec=socket.socket)
+
+        def mock_connection() -> Any:
+            if self.mock_ssl_context.return_value.wrap_socket.called:
+                return ssl_connection
+            return plain_connection
+
+        type(self.mock_server_conn.return_value).connection = \
+            mock.PropertyMock(side_effect=mock_connection)
+
+        self.fileno = 10
+        self._addr = ('127.0.0.1', 54382)
+        self.config = proxy.ProtocolConfig(
+            ca_cert_file='ca-cert.pem',
+            ca_key_file='ca-key.pem',
+            ca_signing_key_file='ca-signing-key.pem',
+        )
+        self.plugin = mock.MagicMock()
+        self.proxy_plugin = mock.MagicMock()
+        self.config.plugins = {
+            b'ProtocolHandlerPlugin': [self.plugin, proxy.HttpProxyPlugin],
+            b'HttpProxyBasePlugin': [self.proxy_plugin],
+        }
+        self._conn = mock_fromfd.return_value
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=self.config)
+        self.proxy.initialize()
+
+        self.plugin.assert_called()
+        self.assertEqual(self.plugin.call_args[0][0], self.config)
+        self.assertEqual(self.plugin.call_args[0][1].connection, self._conn)
+        self.proxy_plugin.assert_called()
+        self.assertEqual(self.proxy_plugin.call_args[0][0], self.config)
+        self.assertEqual(self.proxy_plugin.call_args[0][1].connection, self._conn)
+
+        connect_request = proxy.build_http_request(
+            proxy.httpMethods.CONNECT, proxy.bytes_(netloc),
+            headers={
+                b'Host': proxy.bytes_(netloc),
+            })
+        self._conn.recv.return_value = connect_request
+
+        # Prepare mocked ProtocolHandlerPlugin
+        self.plugin.return_value.get_descriptors.return_value = ([], [])
+        self.plugin.return_value.write_to_descriptors.return_value = False
+        self.plugin.return_value.read_from_descriptors.return_value = False
+        self.plugin.return_value.on_client_data.side_effect = lambda raw: raw
+        self.plugin.return_value.on_request_complete.return_value = False
+        self.plugin.return_value.on_response_chunk.side_effect = lambda chunk: chunk
+        self.plugin.return_value.on_client_connection_close.return_value = None
+
+        # Prepare mocked HttpProxyBasePlugin
+        self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
+        self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
+
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+        self.proxy.run_once()
+
+        # Assert our mocked plugins invocations
+        self.plugin.return_value.get_descriptors.assert_called()
+        self.plugin.return_value.write_to_descriptors.assert_called_with([])
+        self.plugin.return_value.on_client_data.assert_called_with(connect_request)
+        self.plugin.return_value.on_request_complete.assert_called()
+        self.plugin.return_value.read_from_descriptors.assert_called_with([self._conn])
+        self.proxy_plugin.return_value.before_upstream_connection.assert_called()
+        self.proxy_plugin.return_value.handle_client_request.assert_called()
+
+        self.mock_server_conn.assert_called_with(host, port)
+        self.mock_server_conn.return_value.connection.setblocking.assert_called_with(False)
+
+        self.mock_ssl_context.assert_called_with(ssl.Purpose.SERVER_AUTH)
+        # self.assertEqual(self.mock_ssl_context.return_value.options,
+        #                  ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
+        self.assertEqual(plain_connection.setblocking.call_count, 2)
+        self.mock_ssl_context.return_value.wrap_socket.assert_called_with(
+            plain_connection, server_hostname=host)
+        # TODO: Assert Popen arguments, piping, success condition
+        self.assertEqual(self.mock_popen.call_count, 2)
+        self.assertEqual(ssl_connection.setblocking.call_count, 1)
+        self.assertEqual(self.mock_server_conn.return_value._conn, ssl_connection)
+        self._conn.send.assert_called_with(proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+        assert self.config.ca_cert_dir is not None
+        self.mock_ssl_wrap.assert_called_with(
+            self._conn,
+            server_side=True,
+            keyfile=self.config.ca_signing_key_file,
+            certfile=proxy.HttpProxyPlugin.generated_cert_file_path(
+                self.config.ca_cert_dir, host)
+        )
+        self.assertEqual(self._conn.setblocking.call_count, 2)
+        self.assertEqual(self.proxy.client.connection, self.mock_ssl_wrap.return_value)
+
+        # Assert connection references for all other plugins is updated
+        self.assertEqual(self.plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
+        self.assertEqual(self.proxy_plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
+
+
+class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
+
+    @mock.patch('ssl.wrap_socket')
+    @mock.patch('ssl.create_default_context')
+    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('subprocess.Popen')
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def setUp(self,
+              mock_fromfd: mock.Mock,
+              mock_selector: mock.Mock,
+              mock_popen: mock.Mock,
+              mock_server_conn: mock.Mock,
+              mock_ssl_context: mock.Mock,
+              mock_ssl_wrap: mock.Mock) -> None:
+        self.mock_fromfd = mock_fromfd
+        self.mock_selector = mock_selector
+        self.mock_popen = mock_popen
+        self.mock_server_conn = mock_server_conn
+        self.mock_ssl_context = mock_ssl_context
+        self.mock_ssl_wrap = mock_ssl_wrap
+
+        self.fileno = 10
+        self._addr = ('127.0.0.1', 54382)
+        self.config = proxy.ProtocolConfig(
+            ca_cert_file='ca-cert.pem',
+            ca_key_file='ca-key.pem',
+            ca_signing_key_file='ca-signing-key.pem',)
+        self.plugin = mock.MagicMock()
+
+        plugin = get_plugin_by_test_name(self._testMethodName)
+
+        self.config.plugins = {
+            b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
+            b'HttpProxyBasePlugin': [plugin],
+        }
+        self._conn = mock.MagicMock(spec=socket.socket)
+        mock_fromfd.return_value = self._conn
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=self.config)
+        self.proxy.initialize()
+
+        self.server = self.mock_server_conn.return_value
+
+        self.server_ssl_connection = mock.MagicMock(spec=ssl.SSLSocket)
+        self.mock_ssl_context.return_value.wrap_socket.return_value = self.server_ssl_connection
+        self.client_ssl_connection = mock.MagicMock(spec=ssl.SSLSocket)
+        self.mock_ssl_wrap.return_value = self.client_ssl_connection
+
+        def has_buffer() -> bool:
+            return cast(bool, self.server.queue.called)
+
+        def closed() -> bool:
+            return not self.server.connect.called
+
+        def mock_connection() -> Any:
+            if self.mock_ssl_context.return_value.wrap_socket.called:
+                return self.server_ssl_connection
+            return self._conn
+
+        self.server.has_buffer.side_effect = has_buffer
+        type(self.server).closed = mock.PropertyMock(side_effect=closed)
+        type(self.server).connection = mock.PropertyMock(side_effect=mock_connection)
+
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=self.client_ssl_connection,
+                fd=self.client_ssl_connection.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+
+        # Connect
+        self._conn.recv.return_value = proxy.build_http_request(
+            proxy.httpMethods.CONNECT, b'uni.corn:443'
+        )
+        self.proxy.run_once()
+
+        self.mock_popen.assert_called()
+        self.mock_server_conn.assert_called_once_with('uni.corn', 443)
+        self.server.connect.assert_called()
+        self.assertEqual(self.proxy.client.connection, self.client_ssl_connection)
+        self.assertEqual(self.server.connection, self.server_ssl_connection)
+        self._conn.send.assert_called_with(
+            proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
+        )
+
+    def test_modify_post_data_plugin(self) -> None:
+        original = b'{"key": "value"}'
+        modified = b'{"key": "modified"}'
+        self.client_ssl_connection.recv.return_value = proxy.build_http_request(
+            b'POST', b'/',
+            headers={
+                b'Host': b'uni.corn',
+                b'Content-Type': b'application/x-www-form-urlencoded',
+                b'Content-Length': proxy.bytes_(len(original)),
+            },
+            body=original
+        )
+        self.proxy.run_once()
+        self.server.queue.assert_called_with(
+            proxy.build_http_request(
+                b'POST', b'/',
+                headers={
+                    b'Host': b'uni.corn',
+                    b'Content-Length': proxy.bytes_(len(modified)),
+                    b'Content-Type': b'application/json',
+                },
+                body=modified
+            )
+        )
+
+    '''
+    @mock.patch('proxy.TcpServerConnection')
+    def test_proposed_rest_api_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        path = b'/v1/users/'
+        self.client_ssl_connection.recv.return_value = proxy.build_http_request(
+            b'GET', path,
+            headers={
+                b'Host': plugin_examples.ProposedRestApiPlugin.API_SERVER,
+            }
+        )
+        self.proxy.run_once()
+        mock_server_conn.assert_not_called()
+        self.assertEqual(
+            self.proxy.client.buffer,
+            proxy.build_http_response(
+                proxy.httpStatusCodes.OK, reason=b'OK',
+                headers={b'Content-Type': b'application/json'},
+                body=proxy.bytes_(json.dumps(plugin_examples.ProposedRestApiPlugin.REST_API_SPEC[path]))
+            ))
+
+    @mock.patch('proxy.TcpServerConnection')
+    def test_redirect_to_custom_server_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        request = proxy.build_http_request(
+            b'GET', b'http://example.org/get',
+            headers={
+                b'Host': b'example.org',
+            }
+        )
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+        self.proxy.run_once()
+
+        upstream = urlparse.urlsplit(
+            plugin_examples.RedirectToCustomServerPlugin.UPSTREAM_SERVER)
+        mock_server_conn.assert_called_with('localhost', 8899)
+        mock_server_conn.return_value.queue.assert_called_with(
+            proxy.build_http_request(
+                b'GET', upstream.path,
+                headers={
+                    b'Host': upstream.netloc,
+                    b'Via': b'1.1 %s' % proxy.PROXY_AGENT_HEADER_VALUE,
+                }
+            )
+        )
+
+    @mock.patch('proxy.TcpServerConnection')
+    def test_filter_by_upstream_host_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        request = proxy.build_http_request(
+            b'GET', b'http://google.com/',
+            headers={
+                b'Host': b'google.com',
+            }
+        )
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+        self.proxy.run_once()
+
+        mock_server_conn.assert_not_called()
+        self.assertEqual(
+            self.proxy.client.buffer,
+            proxy.build_http_response(
+                proxy.httpStatusCodes.I_AM_A_TEAPOT,
+                reason=b'I\'m a tea pot',
+                headers={
+                    proxy.PROXY_AGENT_HEADER_KEY: proxy.PROXY_AGENT_HEADER_VALUE
+                },
+            )
+        )
+
+    @mock.patch('proxy.TcpServerConnection')
+    def test_cache_responses_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        pass
+
+    @mock.patch('proxy.TcpServerConnection')
+    def test_man_in_the_middle_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        request = proxy.build_http_request(
+            b'GET', b'http://super.secure/',
+            headers={
+                b'Host': b'super.secure',
+            }
+        )
+        self._conn.recv.return_value = request
+
+        server = mock_server_conn.return_value
+        server.connect.return_value = True
+
+        def has_buffer() -> bool:
+            return cast(bool, server.queue.called)
+
+        def closed() -> bool:
+            return not server.connect.called
+
+        server.has_buffer.side_effect = has_buffer
+        type(server).closed = mock.PropertyMock(side_effect=closed)
+
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=server.connection,
+                fd=server.connection.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)],
+            [(selectors.SelectorKey(
+                fileobj=server.connection,
+                fd=server.connection.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+
+        # Client read
+        self.proxy.run_once()
+        mock_server_conn.assert_called_with('super.secure', 80)
+        server.connect.assert_called_once()
+        queued_request = \
+            proxy.build_http_request(
+                b'GET', b'/',
+                headers={
+                    b'Host': b'super.secure',
+                    b'Via': b'1.1 %s' % proxy.PROXY_AGENT_HEADER_VALUE
+                }
+            )
+        server.queue.assert_called_once_with(queued_request)
+
+        # Server write
+        self.proxy.run_once()
+        server.flush.assert_called_once()
+
+        # Server read
+        server.recv.return_value = \
+            proxy.build_http_response(
+                proxy.httpStatusCodes.OK,
+                reason=b'OK', body=b'Original Response From Upstream')
+        self.proxy.run_once()
+        self.assertEqual(
+            self.proxy.client.buffer,
+            proxy.build_http_response(
+                proxy.httpStatusCodes.OK,
+                reason=b'OK', body=b'Hello from man in the middle')
+        )
+    '''
 
 class TestHttpRequestRejected(unittest.TestCase):
 

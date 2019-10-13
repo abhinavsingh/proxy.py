@@ -1381,6 +1381,8 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if not self.request.has_upstream_server():
             return False
 
+        self.authenticate()
+
         # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
         for plugin in self.plugins.values():
@@ -1389,7 +1391,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 return False
             self.request = r
 
-        self.authenticate()
         self.connect_upstream()
 
         for plugin in self.plugins.values():
