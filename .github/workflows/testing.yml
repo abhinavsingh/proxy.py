@@ -29,13 +29,13 @@ jobs:
           flake8 --ignore=W504 --max-line-length=127 proxy.py plugin_examples.py tests.py setup.py
           mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py
       - name: Run Tests
-        run: |
-          coverage3 run --source=proxy,plugin_examples tests.py
-      - name: Generate LCOV
+        run: coverage3 run --source=proxy,plugin_examples tests.py
+      - name: Setup Ruby
         uses: actions/setup-ruby@v1
         with:
           ruby-version: '2.x'
           architecture: 'x64'
+      - name: Generate LCOV
         run: |
           gem install coveralls-lcov
           coveralls-lcov -v -n .coverage > coverage.json
