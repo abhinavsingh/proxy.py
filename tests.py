@@ -24,6 +24,7 @@ from typing import Dict, Optional, Tuple, Union, Any, cast
 from unittest import mock
 
 import proxy
+import plugin_examples
 
 if os.name != 'nt':
     import resource
@@ -1699,6 +1700,107 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         # Assert connection references for all other plugins is updated
         self.assertEqual(self.plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
         self.assertEqual(self.proxy_plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
+
+
+class TestPluginExamples(unittest.TestCase):
+
+    def setUp(self):
+        self.fileno = 10
+        self._addr = ('127.0.0.1', 54382)
+        self.config = proxy.ProtocolConfig()
+        self.plugin = mock.MagicMock()
+
+    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def test_post_data_modified_plugin(
+            self,
+            mock_fromfd: mock.Mock,
+            mock_selector: mock.Mock,
+            mock_server_conn: mock.Mock) -> None:
+        self.mock_fromfd = mock_fromfd
+        self.mock_selector = mock_selector
+        self.mock_server_conn = mock_server_conn
+
+        self.config.plugins = {
+            b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
+            b'HttpProxyBasePlugin': [plugin_examples.ModifyPostDataPlugin]
+        }
+        self._conn = mock_fromfd.return_value
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=self.config)
+        self.proxy.initialize()
+
+        original = b'{"key": "value"}'
+        modified = b'{"key": "modified"}'
+
+        self._conn.recv.return_value = proxy.build_http_request(
+            b'POST', b'http://httpbin.org/post',
+            headers={
+                b'Host': b'httpbin.org',
+                b'Content-Type': b'application/x-www-form-urlencoded',
+                b'Content-Length': proxy.bytes_(len(original)),
+            },
+            body=original
+        )
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+
+        self.proxy.run_once()
+        mock_server_conn.assert_called_with('httpbin.org', 80)
+        mock_server_conn.return_value.queue.assert_called_with(
+            proxy.build_http_request(
+                b'POST', b'/post',
+                headers={
+                    b'Host': b'httpbin.org',
+                    b'Content-Length': proxy.bytes_(len(modified)),
+                    b'Content-Type': b'application/json',
+                    b'Via': b'1.1 %s' % proxy.PROXY_AGENT_HEADER_VALUE,
+                },
+                body=modified
+            )
+        )
+
+    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def test_proposed_rest_api_plugin(
+            self,
+            mock_fromfd: mock.Mock,
+            mock_selector: mock.Mock,
+            mock_server_conn: mock.Mock) -> None:
+        self.mock_fromfd = mock_fromfd
+        self.mock_selector = mock_selector
+        self.mock_server_conn = mock_server_conn
+
+        self.config.plugins = {
+            b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
+            b'HttpProxyBasePlugin': [plugin_examples.ProposedRestApiPlugin]
+        }
+        self._conn = mock_fromfd.return_value
+        self.proxy = proxy.ProtocolHandler(
+            self.fileno, self._addr, config=self.config)
+        self.proxy.initialize()
+
+        self._conn.recv.return_value = proxy.build_http_request(
+            b'GET', b'http://%s%s' % (plugin_examples.ProposedRestApiPlugin.API_SERVER, b'/v1/users/'),
+            headers={
+                b'Host': plugin_examples.ProposedRestApiPlugin.API_SERVER,
+            }
+        )
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+        self.proxy.run_once()
+
+        mock_server_conn.assert_not_called()
 
 
 class TestHttpRequestRejected(unittest.TestCase):

@@ -39,7 +39,7 @@ release: package
 	twine upload dist/*
 
 coverage:
-	coverage3 run --source=proxy tests.py
+	coverage3 run --source=proxy,plugin_examples tests.py
 	coverage3 html
 	open htmlcov/index.html
 
