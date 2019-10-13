@@ -50,7 +50,7 @@ if os.name != 'nt':
 PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
 PROXY_PY_START_TIME = time.time()
 
-VERSION = (1, 1, 2)
+VERSION = (1, 2, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
 __author__ = 'Abhinav Singh'
@@ -91,6 +91,7 @@ DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
 DEFAULT_VERSION = False
 DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_FILE = None
+DEFAULT_TIMEOUT = 5
 UNDER_TEST = False  # Set to True if under test
 
 logger = logging.getLogger(__name__)
@@ -965,7 +966,9 @@ class ProtocolConfig:
             static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
             enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
             devtools_event_queue: Optional[DevtoolsEventQueueType] = None,
-            devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH) -> None:
+            devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH,
+            timeout: int = DEFAULT_TIMEOUT) -> None:
+        self.timeout = timeout
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -1207,7 +1210,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading')
             raw = self.server.recv(self.config.server_recvbuf_size)
-            # self.last_activity = ProtocolHandler.now()
             if not raw:
                 logger.debug('Server closed connection, tearing down...')
                 return True
@@ -2087,12 +2089,12 @@ class ProtocolHandler(threading.Thread):
         return (self.now() - self.last_activity).seconds
 
     def is_connection_inactive(self) -> bool:
-        # TODO: Add input argument option for timeout
-        return self.connection_inactive_for() > 30
+        return self.connection_inactive_for() > self.config.timeout
 
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
+            self.last_activity = self.now()
 
             # Invoke plugin.on_response_chunk
             chunk = self.client.buffer
@@ -2112,8 +2114,9 @@ class ProtocolHandler(threading.Thread):
     def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
-            client_data = self.client.recv(self.config.client_recvbuf_size)
             self.last_activity = self.now()
+
+            client_data = self.client.recv(self.config.client_recvbuf_size)
             if not client_data:
                 logger.debug('Client closed connection, tearing down...')
                 self.client.closed = True
@@ -2209,12 +2212,12 @@ class ProtocolHandler(threading.Thread):
                 return True
 
         # Teardown if client buffer is empty and connection is inactive
-        if self.client.buffer_size() == 0:
-            if self.is_connection_inactive():
-                logger.debug(
-                    'Client buffer is empty and maximum inactivity has reached '
-                    'between client and server connection, tearing down...')
-                return True
+        if not self.client.has_buffer() and \
+                self.is_connection_inactive():
+            logger.debug(
+                'Client buffer is empty and maximum inactivity has reached '
+                'between client and server connection, tearing down...')
+            return True
 
         return False
 
@@ -2241,7 +2244,6 @@ class ProtocolHandler(threading.Thread):
 
         if teardown:
             return True
-
         return False
 
     def flush(self) -> None:
@@ -2704,6 +2706,14 @@ def init_parser() -> argparse.ArgumentParser:
              'See --enable-static-server.'
     )
     parser.add_argument(
+        '--timeout',
+        type=int,
+        default=DEFAULT_TIMEOUT,
+        help='Default: ' + str(DEFAULT_TIMEOUT) + '.  Number of seconds after which '
+             'an inactive connection must be dropped.  Inactivity is defined by no '
+             'data sent or received by the client.'
+    )
+    parser.add_argument(
         '--version',
         '-v',
         action='store_true',
@@ -2783,7 +2793,8 @@ def main(input_args: List[str]) -> None:
             static_server_dir=args.static_server_dir,
             enable_static_server=args.enable_static_server,
             devtools_event_queue=devtools_event_queue,
-            devtools_ws_path=args.devtools_ws_path)
+            devtools_ws_path=args.devtools_ws_path,
+            timeout=args.timeout)
 
         config.plugins = load_plugins(
             bytes_(

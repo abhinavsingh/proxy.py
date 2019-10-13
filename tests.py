@@ -1761,6 +1761,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_devtools = proxy.DEFAULT_ENABLE_DEVTOOLS
         mock_args.devtools_event_queue = None
         mock_args.devtools_ws_path = proxy.DEFAULT_DEVTOOLS_WS_PATH
+        mock_args.timeout = proxy.DEFAULT_TIMEOUT
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.load_plugins')
@@ -1817,6 +1818,7 @@ class TestMain(unittest.TestCase):
             enable_static_server=mock_args.enable_static_server,
             devtools_event_queue=None,
             devtools_ws_path=proxy.DEFAULT_DEVTOOLS_WS_PATH,
+            timeout=proxy.DEFAULT_TIMEOUT
         )
 
         mock_acceptor_pool.assert_called_with(
