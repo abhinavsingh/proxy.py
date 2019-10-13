@@ -1662,7 +1662,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
                 data=None), selectors.EVENT_READ)], ]
         self.proxy.run_once()
 
-        # Assert our mocked plugin invocations
+        # Assert our mocked plugins invocations
         self.plugin.return_value.get_descriptors.assert_called()
         self.plugin.return_value.write_to_descriptors.assert_called_with([])
         self.plugin.return_value.on_client_data.assert_called_with(connect_request)
@@ -1698,8 +1698,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
 
         # Assert connection references for all other plugins is updated
         self.assertEqual(self.plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
-        # Currently proxy doesn't update it's own plugin connection reference
-        # self.assertEqual(self.proxy_plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
+        self.assertEqual(self.proxy_plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
 
 
 class TestHttpRequestRejected(unittest.TestCase):
@@ -1761,6 +1760,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_devtools = proxy.DEFAULT_ENABLE_DEVTOOLS
         mock_args.devtools_event_queue = None
         mock_args.devtools_ws_path = proxy.DEFAULT_DEVTOOLS_WS_PATH
+        mock_args.timeout = proxy.DEFAULT_TIMEOUT
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.load_plugins')
@@ -1817,6 +1817,7 @@ class TestMain(unittest.TestCase):
             enable_static_server=mock_args.enable_static_server,
             devtools_event_queue=None,
             devtools_ws_path=proxy.DEFAULT_DEVTOOLS_WS_PATH,
+            timeout=proxy.DEFAULT_TIMEOUT
         )
 
         mock_acceptor_pool.assert_called_with(

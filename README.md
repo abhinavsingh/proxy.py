@@ -905,9 +905,10 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
                 [--plugins PLUGINS] [--port PORT]
                 [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-                [--static-server-dir STATIC_SERVER_DIR] [--version]
+                [--static-server-dir STATIC_SERVER_DIR] [--timeout TIMEOUT]
+                [--version]
 
-proxy.py v1.1.0
+proxy.py v1.2.0
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -994,6 +995,9 @@ optional arguments:
                         server root directory. This option is only applicable
                         when static server is also enabled. See --enable-
                         static-server.
+  --timeout TIMEOUT     Default: 10. Number of seconds after which an inactive
+                        connection must be dropped. Inactivity is defined by
+                        no data sent or received by the client.
   --version, -v         Prints proxy.py version.
 
 Proxy.py not working? Report at:

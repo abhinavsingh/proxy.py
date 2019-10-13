@@ -14,5 +14,6 @@ build
 proxy.py.egg-info
 proxy.py.iml
 *.pyc
-*.pem
+ca-*.pem
+https-*.pem
 benchmark.py

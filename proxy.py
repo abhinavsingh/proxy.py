@@ -50,7 +50,7 @@ if os.name != 'nt':
 PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
 PROXY_PY_START_TIME = time.time()
 
-VERSION = (1, 1, 2)
+VERSION = (1, 2, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
 __author__ = 'Abhinav Singh'
@@ -62,35 +62,36 @@ __license__ = 'BSD'
 # Defaults
 DEFAULT_BACKLOG = 100
 DEFAULT_BASIC_AUTH = None
-DEFAULT_CA_KEY_FILE = None
+DEFAULT_BUFFER_SIZE = 1024 * 1024
 DEFAULT_CA_CERT_DIR = None
 DEFAULT_CA_CERT_FILE = None
+DEFAULT_CA_KEY_FILE = None
 DEFAULT_CA_SIGNING_KEY_FILE = None
 DEFAULT_CERT_FILE = None
-DEFAULT_BUFFER_SIZE = 1024 * 1024
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
-DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
+DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
+DEFAULT_DISABLE_HTTP_PROXY = False
+DEFAULT_ENABLE_DEVTOOLS = False
+DEFAULT_ENABLE_STATIC_SERVER = False
+DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_KEY_FILE = None
-DEFAULT_PORT = 8899
-DEFAULT_DISABLE_HTTP_PROXY = False
-DEFAULT_ENABLE_DEVTOOLS = False
-DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
-DEFAULT_ENABLE_STATIC_SERVER = False
-DEFAULT_ENABLE_WEB_SERVER = False
+DEFAULT_LOG_FILE = None
+DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
+DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
 DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_PID_FILE = None
-DEFAULT_NUM_WORKERS = 0
-DEFAULT_PLUGINS = ''    # Comma separated list of plugins
+DEFAULT_PLUGINS = ''
+DEFAULT_PORT = 8899
+DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
+DEFAULT_TIMEOUT = 10
 DEFAULT_VERSION = False
-DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
-DEFAULT_LOG_FILE = None
 UNDER_TEST = False  # Set to True if under test
 
 logger = logging.getLogger(__name__)
@@ -139,6 +140,35 @@ ChunkParserStates = NamedTuple('ChunkParserStates', [
     ('COMPLETE', int),
 ])
 chunkParserStates = ChunkParserStates(1, 2, 3)
+
+HttpStatusCodes = NamedTuple('HttpStatusCodes', [
+    # 1xx
+    ('CONTINUE', int),
+    ('SWITCHING_PROTOCOLS', int),
+    # 2xx
+    ('OK', int),
+    # 4xx
+    ('BAD_REQUEST', int),
+    ('UNAUTHORIZED', int),
+    ('FORBIDDEN', int),
+    ('NOT_FOUND', int),
+    ('PROXY_AUTH_REQUIRED', int),
+    ('REQUEST_TIMEOUT', int),
+    ('I_AM_A_TEAPOT', int),
+    # 5xx
+    ('INTERNAL_SERVER_ERROR', int),
+    ('NOT_IMPLEMENTED', int),
+    ('BAD_GATEWAY', int),
+    ('GATEWAY_TIMEOUT', int),
+    ('NETWORK_READ_TIMEOUT_ERROR', int),
+    ('NETWORK_CONNECT_TIMEOUT_ERROR', int),
+])
+httpStatusCodes = HttpStatusCodes(
+    100, 101,
+    200,
+    400, 401, 403, 404, 407, 408, 418,
+    500, 501, 502, 504, 598, 599
+)
 
 HttpMethods = NamedTuple('HttpMethods', [
     ('GET', bytes),
@@ -893,7 +923,8 @@ class ProxyConnectionFailed(ProtocolException):
     """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
 
     RESPONSE_PKT = build_http_response(
-        502, reason=b'Bad Gateway',
+        httpStatusCodes.BAD_GATEWAY,
+        reason=b'Bad Gateway',
         headers={
             PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
             b'Connection': b'close'
@@ -915,7 +946,8 @@ class ProxyAuthenticationFailed(ProtocolException):
     incoming request doesn't present necessary credentials."""
 
     RESPONSE_PKT = build_http_response(
-        407, reason=b'Proxy Authentication Required',
+        httpStatusCodes.PROXY_AUTH_REQUIRED,
+        reason=b'Proxy Authentication Required',
         headers={
             PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
             b'Proxy-Authenticate': b'Basic',
@@ -965,7 +997,9 @@ class ProtocolConfig:
             static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
             enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
             devtools_event_queue: Optional[DevtoolsEventQueueType] = None,
-            devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH) -> None:
+            devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH,
+            timeout: int = DEFAULT_TIMEOUT) -> None:
+        self.timeout = timeout
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
         self.client_recvbuf_size = client_recvbuf_size
@@ -1130,7 +1164,7 @@ class HttpProxyBasePlugin(ABC):
         Raise HttpRequestRejected or ProtocolException directly to
             teardown the connection with client.
         """
-        return request
+        return request  # pragma: no cover
 
     @abstractmethod
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:
@@ -1150,7 +1184,8 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which implements HttpProxy specifications."""
 
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = build_http_response(
-        200, reason=b'Connection established'
+        httpStatusCodes.OK,
+        reason=b'Connection established'
     )
 
     # Used to synchronize with other HttpProxyPlugin instances while
@@ -1207,7 +1242,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading')
             raw = self.server.recv(self.config.server_recvbuf_size)
-            # self.last_activity = ProtocolHandler.now()
             if not raw:
                 logger.debug('Server closed connection, tearing down...')
                 return True
@@ -1393,6 +1427,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 self.client.connection.setblocking(False)
                 logger.info(
                     'TLS interception using %s', generated_cert)
+                # Update all plugin connection reference
+                for plugin in self.plugins.values():
+                    plugin.client._conn = self.client.connection
                 return self.client.connection
         elif self.server:
             # - proxy-connection header is a mistake, it doesn't seem to be
@@ -1859,13 +1896,15 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
     """ProtocolHandler plugin which handles incoming requests to local web server."""
 
     DEFAULT_404_RESPONSE = build_http_response(
-        404, reason=b'NOT FOUND',
+        httpStatusCodes.NOT_FOUND,
+        reason=b'NOT FOUND',
         headers={b'Server': PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'}
     )
 
     DEFAULT_501_RESPONSE = build_http_response(
-        501, reason=b'NOT IMPLEMENTED',
+        httpStatusCodes.NOT_IMPLEMENTED,
+        reason=b'NOT IMPLEMENTED',
         headers={b'Server': PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'}
     )
@@ -1900,10 +1939,12 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
             if content_type is None:
                 content_type = 'text/plain'
             self.client.queue(build_http_response(
-                200, reason=b'OK', headers={
+                httpStatusCodes.OK,
+                reason=b'OK',
+                headers={
                     b'Content-Type': bytes_(content_type),
-                }, body=content
-            ))
+                },
+                body=content))
             return False
         except IOError:
             self.client.queue(self.DEFAULT_404_RESPONSE)
@@ -2087,12 +2128,12 @@ class ProtocolHandler(threading.Thread):
         return (self.now() - self.last_activity).seconds
 
     def is_connection_inactive(self) -> bool:
-        # TODO: Add input argument option for timeout
-        return self.connection_inactive_for() > 30
+        return self.connection_inactive_for() > self.config.timeout
 
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
+            self.last_activity = self.now()
 
             # Invoke plugin.on_response_chunk
             chunk = self.client.buffer
@@ -2112,8 +2153,9 @@ class ProtocolHandler(threading.Thread):
     def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
-            client_data = self.client.recv(self.config.client_recvbuf_size)
             self.last_activity = self.now()
+
+            client_data = self.client.recv(self.config.client_recvbuf_size)
             if not client_data:
                 logger.debug('Client closed connection, tearing down...')
                 self.client.closed = True
@@ -2209,12 +2251,19 @@ class ProtocolHandler(threading.Thread):
                 return True
 
         # Teardown if client buffer is empty and connection is inactive
-        if self.client.buffer_size() == 0:
-            if self.is_connection_inactive():
-                logger.debug(
-                    'Client buffer is empty and maximum inactivity has reached '
-                    'between client and server connection, tearing down...')
-                return True
+        if not self.client.has_buffer() and \
+                self.is_connection_inactive():
+            self.client.queue(build_http_response(
+                httpStatusCodes.REQUEST_TIMEOUT, reason=b'Request Timeout',
+                headers={
+                    b'Server': PROXY_AGENT_HEADER_VALUE,
+                    b'Connection': b'close',
+                }
+            ))
+            logger.debug(
+                'Client buffer is empty and maximum inactivity has reached '
+                'between client and server connection, tearing down...')
+            return True
 
         return False
 
@@ -2241,7 +2290,6 @@ class ProtocolHandler(threading.Thread):
 
         if teardown:
             return True
-
         return False
 
     def flush(self) -> None:
@@ -2704,6 +2752,14 @@ def init_parser() -> argparse.ArgumentParser:
              'See --enable-static-server.'
     )
     parser.add_argument(
+        '--timeout',
+        type=int,
+        default=DEFAULT_TIMEOUT,
+        help='Default: ' + str(DEFAULT_TIMEOUT) + '.  Number of seconds after which '
+             'an inactive connection must be dropped.  Inactivity is defined by no '
+             'data sent or received by the client.'
+    )
+    parser.add_argument(
         '--version',
         '-v',
         action='store_true',
@@ -2783,7 +2839,8 @@ def main(input_args: List[str]) -> None:
             static_server_dir=args.static_server_dir,
             enable_static_server=args.enable_static_server,
             devtools_event_queue=devtools_event_queue,
-            devtools_ws_path=args.devtools_ws_path)
+            devtools_ws_path=args.devtools_ws_path,
+            timeout=args.timeout)
 
         config.plugins = load_plugins(
             bytes_(
