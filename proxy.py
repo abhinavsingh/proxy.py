@@ -91,7 +91,7 @@ DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
 DEFAULT_VERSION = False
 DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_FILE = None
-DEFAULT_TIMEOUT = 5
+DEFAULT_TIMEOUT = 10
 UNDER_TEST = False  # Set to True if under test
 
 logger = logging.getLogger(__name__)

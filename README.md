@@ -995,7 +995,7 @@ optional arguments:
                         server root directory. This option is only applicable
                         when static server is also enabled. See --enable-
                         static-server.
-  --timeout TIMEOUT     Default: 5. Number of seconds after which an inactive
+  --timeout TIMEOUT     Default: 10. Number of seconds after which an inactive
                         connection must be dropped. Inactivity is defined by
                         no data sent or received by the client.
   --version, -v         Prints proxy.py version.
