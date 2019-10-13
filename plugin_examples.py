@@ -107,15 +107,16 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
 class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
     """Modifies client request to redirect all incoming requests to a fixed server address."""
 
-    UPSTREAM_SERVER = b'http://localhost:8899'
+    UPSTREAM_SERVER = b'http://localhost:8899/'
 
     def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         # Redirect all non-https requests to inbuilt WebServer.
         if request.method != proxy.httpMethods.CONNECT:
-            request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
-            # This command will re-parse modified url and
-            # update host, port, path fields
-            request.set_line_attributes()
+            request.set_url(self.UPSTREAM_SERVER)
+            # Update Host header too, otherwise upstream can reject our request
+            if request.has_header(b'Host'):
+                request.del_header(b'Host')
+            request.add_header(b'Host', urlparse.urlsplit(self.UPSTREAM_SERVER).netloc)
         return request
 
     def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:

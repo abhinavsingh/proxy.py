@@ -10,6 +10,7 @@
 import base64
 import errno
 import ipaddress
+import json
 import logging
 import multiprocessing
 import os
@@ -20,11 +21,12 @@ import tempfile
 import unittest
 import uuid
 from contextlib import closing
-from typing import Dict, Optional, Tuple, Union, Any, cast
+from typing import Dict, Optional, Tuple, Union, Any, cast, Type
 from unittest import mock
+from urllib import parse as urlparse
 
-import proxy
 import plugin_examples
+import proxy
 
 if os.name != 'nt':
     import resource
@@ -1702,35 +1704,46 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.assertEqual(self.proxy_plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
 
 
-class TestPluginExamples(unittest.TestCase):
+class TestHttpProxyPluginExamples(unittest.TestCase):
 
-    def setUp(self):
+    @mock.patch('selectors.DefaultSelector')
+    @mock.patch('socket.fromfd')
+    def setUp(self,
+              mock_fromfd: mock.Mock,
+              mock_selector: mock.Mock) -> None:
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
         self.config = proxy.ProtocolConfig()
         self.plugin = mock.MagicMock()
 
-    @mock.patch('proxy.TcpServerConnection')
-    @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
-    def test_post_data_modified_plugin(
-            self,
-            mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock,
-            mock_server_conn: mock.Mock) -> None:
         self.mock_fromfd = mock_fromfd
         self.mock_selector = mock_selector
-        self.mock_server_conn = mock_server_conn
+
+        plugin: Type[proxy.HttpProxyBasePlugin] = plugin_examples.ModifyPostDataPlugin
+        if self._testMethodName == 'test_modify_post_data_plugin':
+            plugin = plugin_examples.ModifyPostDataPlugin
+        elif self._testMethodName == 'test_proposed_rest_api_plugin':
+            plugin = plugin_examples.ProposedRestApiPlugin
+        elif self._testMethodName == 'test_redirect_to_custom_server_plugin':
+            plugin = plugin_examples.RedirectToCustomServerPlugin
+        elif self._testMethodName == 'test_filter_by_upstream_host_plugin':
+            plugin = plugin_examples.FilterByUpstreamHostPlugin
+        elif self._testMethodName == 'test_cache_responses_plugin':
+            plugin = plugin_examples.CacheResponsesPlugin
+        elif self._testMethodName == 'test_man_in_the_middle_plugin':
+            plugin = plugin_examples.ManInTheMiddlePlugin
 
         self.config.plugins = {
             b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
-            b'HttpProxyBasePlugin': [plugin_examples.ModifyPostDataPlugin]
+            b'HttpProxyBasePlugin': [plugin],
         }
         self._conn = mock_fromfd.return_value
         self.proxy = proxy.ProtocolHandler(
             self.fileno, self._addr, config=self.config)
         self.proxy.initialize()
 
+    @mock.patch('proxy.TcpServerConnection')
+    def test_modify_post_data_plugin(self, mock_server_conn: mock.Mock) -> None:
         original = b'{"key": "value"}'
         modified = b'{"key": "modified"}'
 
@@ -1766,28 +1779,11 @@ class TestPluginExamples(unittest.TestCase):
         )
 
     @mock.patch('proxy.TcpServerConnection')
-    @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
     def test_proposed_rest_api_plugin(
-            self,
-            mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock,
-            mock_server_conn: mock.Mock) -> None:
-        self.mock_fromfd = mock_fromfd
-        self.mock_selector = mock_selector
-        self.mock_server_conn = mock_server_conn
-
-        self.config.plugins = {
-            b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
-            b'HttpProxyBasePlugin': [plugin_examples.ProposedRestApiPlugin]
-        }
-        self._conn = mock_fromfd.return_value
-        self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=self.config)
-        self.proxy.initialize()
-
+            self, mock_server_conn: mock.Mock) -> None:
+        path = b'/v1/users/'
         self._conn.recv.return_value = proxy.build_http_request(
-            b'GET', b'http://%s%s' % (plugin_examples.ProposedRestApiPlugin.API_SERVER, b'/v1/users/'),
+            b'GET', b'http://%s%s' % (plugin_examples.ProposedRestApiPlugin.API_SERVER, path),
             headers={
                 b'Host': plugin_examples.ProposedRestApiPlugin.API_SERVER,
             }
@@ -1801,6 +1797,80 @@ class TestPluginExamples(unittest.TestCase):
         self.proxy.run_once()
 
         mock_server_conn.assert_not_called()
+        self.assertEqual(
+            self.proxy.client.buffer,
+            proxy.build_http_response(
+                proxy.httpStatusCodes.OK, reason=b'OK',
+                headers={b'Content-Type': b'application/json'},
+                body=proxy.bytes_(json.dumps(plugin_examples.ProposedRestApiPlugin.REST_API_SPEC[path]))
+            ))
+
+    @mock.patch('proxy.TcpServerConnection')
+    def test_redirect_to_custom_server_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        request = proxy.build_http_request(
+            b'GET', b'http://example.org/get',
+            headers={
+                b'Host': b'example.org',
+            }
+        )
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+        self.proxy.run_once()
+
+        upstream = urlparse.urlsplit(
+            plugin_examples.RedirectToCustomServerPlugin.UPSTREAM_SERVER)
+        mock_server_conn.assert_called_with('localhost', 8899)
+        mock_server_conn.return_value.queue.assert_called_with(
+            proxy.build_http_request(
+                b'GET', upstream.path,
+                headers={
+                    b'Host': upstream.netloc,
+                    b'Via': b'1.1 %s' % proxy.PROXY_AGENT_HEADER_VALUE,
+                }
+            )
+        )
+
+    @mock.patch('proxy.TcpServerConnection')
+    def test_filter_by_upstream_host_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        request = proxy.build_http_request(
+            b'GET', b'http://google.com/',
+            headers={
+                b'Host': b'google.com',
+            }
+        )
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+        self.proxy.run_once()
+
+        mock_server_conn.assert_not_called()
+        self.assertEqual(
+            self.proxy.client.buffer,
+            proxy.build_http_response(
+                proxy.httpStatusCodes.I_AM_A_TEAPOT,
+                reason=b'I\'m a tea pot',
+                headers={
+                    proxy.PROXY_AGENT_HEADER_KEY: proxy.PROXY_AGENT_HEADER_VALUE
+                },
+            )
+        )
+
+    def test_cache_responses_plugin(self) -> None:
+        pass
+
+    def test_man_in_the_middle_plugin(self) -> None:
+        pass
 
 
 class TestHttpRequestRejected(unittest.TestCase):

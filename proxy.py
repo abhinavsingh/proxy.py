@@ -598,6 +598,10 @@ class HttpParser:
         for key in headers:
             self.del_header(key.lower())
 
+    def set_url(self, url: bytes) -> None:
+        self.url = urlparse.urlsplit(url)
+        self.set_line_attributes()
+
     def set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
             if self.method == httpMethods.CONNECT and self.url:
@@ -700,13 +704,12 @@ class HttpParser:
         line = raw.split(WHITESPACE)
         if self.type == httpParserTypes.REQUEST_PARSER:
             self.method = line[0].upper()
-            self.url = urlparse.urlsplit(line[1])
+            self.set_url(line[1])
             self.version = line[2]
         else:
             self.version = line[0]
             self.code = line[1]
             self.reason = WHITESPACE.join(line[2:])
-        self.set_line_attributes()
 
     def process_header(self, raw: bytes) -> None:
         parts = raw.split(COLON)
@@ -2095,7 +2098,8 @@ class ProtocolHandler(threading.Thread):
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
-        self.client = TcpClientConnection(conn=conn, addr=self.addr)
+        if self.config.encryption_enabled():
+            self.client = TcpClientConnection(conn=conn, addr=self.addr)
         if b'ProtocolHandlerPlugin' in self.config.plugins:
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
