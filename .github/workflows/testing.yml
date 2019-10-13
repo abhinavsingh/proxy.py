@@ -43,6 +43,8 @@ jobs:
           coveralls-lcov -v -n coverage.info > coverage.json
       - name: Coveralls
         uses: coverallsapp/github-action@master
+        env:
+          COVERALLS_SERVICE_NAME: GitHub-Actions
         with:
           github-token: ${{ secrets.github_token }}
           path-to-lcov: coverage.json
