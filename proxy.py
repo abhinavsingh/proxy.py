@@ -1229,7 +1229,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server() and \
                 self.server and not self.server.closed and \
-                self.server.buffer_size() > 0 and \
+                self.server.has_buffer() and \
                 self.server.connection in w:
             logger.debug('Server is write ready, flushing buffer')
             try:

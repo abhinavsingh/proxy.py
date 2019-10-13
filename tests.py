@@ -1051,8 +1051,11 @@ class TestHttpProtocolHandler(unittest.TestCase):
     def test_http_tunnel(self, mock_server_connection: mock.Mock) -> None:
         server = mock_server_connection.return_value
         server.connect.return_value = True
-        server.buffer_size.return_value = 0
-        server.has_buffer.side_effect = [False, False, False, True]
+
+        def has_buffer() -> bool:
+            return server.queue.called
+
+        server.has_buffer.side_effect = has_buffer
         self.mock_selector.return_value.select.side_effect = [
             [(selectors.SelectorKey(
                 fileobj=self._conn,
@@ -1866,11 +1869,81 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    def test_cache_responses_plugin(self) -> None:
+    @mock.patch('proxy.TcpServerConnection')
+    def test_cache_responses_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
         pass
 
-    def test_man_in_the_middle_plugin(self) -> None:
-        pass
+    @mock.patch('proxy.TcpServerConnection')
+    def test_man_in_the_middle_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        request = proxy.build_http_request(
+            b'GET', b'http://super.secure/',
+            headers={
+                b'Host': b'super.secure',
+            }
+        )
+        self._conn.recv.return_value = request
+
+        server = mock_server_conn.return_value
+        server.connect.return_value = True
+
+        def has_buffer() -> None:
+            return server.queue.called
+
+        def closed() -> bool:
+            return not server.connect.called
+
+        server.has_buffer.side_effect = has_buffer
+        type(server).closed = mock.PropertyMock(side_effect=closed)
+
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=server.connection,
+                fd=server.connection.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)],
+            [(selectors.SelectorKey(
+                fileobj=server.connection,
+                fd=server.connection.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+
+        # Client read
+        self.proxy.run_once()
+        mock_server_conn.assert_called_with('super.secure', 80)
+        server.connect.assert_called_once()
+        queued_request = \
+            proxy.build_http_request(
+                b'GET', b'/',
+                headers={
+                    b'Host': b'super.secure',
+                    b'Via': b'1.1 %s' % proxy.PROXY_AGENT_HEADER_VALUE
+                }
+            )
+        server.queue.assert_called_once_with(queued_request)
+
+        # Server write
+        self.proxy.run_once()
+        server.flush.assert_called_once()
+
+        # Server read
+        server.recv.return_value = \
+            proxy.build_http_response(
+                proxy.httpStatusCodes.OK,
+                reason=b'OK', body=b'Original Response From Upstream')
+        self.proxy.run_once()
+        self.assertEqual(
+            self.proxy.client.buffer,
+            proxy.build_http_response(
+                proxy.httpStatusCodes.OK,
+                reason=b'OK', body=b'Hello from man in the middle')
+        )
 
 
 class TestHttpRequestRejected(unittest.TestCase):
