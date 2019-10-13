@@ -49,7 +49,12 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     Used to test and develop client side applications
     without need of an actual upstream REST API server.
 
-    Returns proposed REST API mock responses to the client."""
+    Returns proposed REST API mock responses to the client
+    without establishing upstream connection.
+
+    Note: This plugin won't work if your client is making
+    HTTPS connection to api.example.com.
+    """
 
     API_SERVER = b'api.example.com'
 
@@ -76,6 +81,11 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     }
 
     def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        # Return None to disable establishing connection to upstream
+        # Most likely our api.example.com won't even exist under development scenario
+        return None
+
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         if request.host != self.API_SERVER:
             return request
         assert request.path
@@ -94,9 +104,6 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
             ))
         return None
 
-    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
-        return request
-
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:
         return chunk
 
@@ -107,15 +114,16 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
 class RedirectToCustomServerPlugin(proxy.HttpProxyBasePlugin):
     """Modifies client request to redirect all incoming requests to a fixed server address."""
 
-    UPSTREAM_SERVER = b'http://localhost:8899'
+    UPSTREAM_SERVER = b'http://localhost:8899/'
 
     def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         # Redirect all non-https requests to inbuilt WebServer.
         if request.method != proxy.httpMethods.CONNECT:
-            request.url = urlparse.urlsplit(self.UPSTREAM_SERVER)
-            # This command will re-parse modified url and
-            # update host, port, path fields
-            request.set_line_attributes()
+            request.set_url(self.UPSTREAM_SERVER)
+            # Update Host header too, otherwise upstream can reject our request
+            if request.has_header(b'Host'):
+                request.del_header(b'Host')
+            request.add_header(b'Host', urlparse.urlsplit(self.UPSTREAM_SERVER).netloc)
         return request
 
     def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:

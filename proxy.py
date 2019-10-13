@@ -598,6 +598,10 @@ class HttpParser:
         for key in headers:
             self.del_header(key.lower())
 
+    def set_url(self, url: bytes) -> None:
+        self.url = urlparse.urlsplit(url)
+        self.set_line_attributes()
+
     def set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
             if self.method == httpMethods.CONNECT and self.url:
@@ -700,13 +704,12 @@ class HttpParser:
         line = raw.split(WHITESPACE)
         if self.type == httpParserTypes.REQUEST_PARSER:
             self.method = line[0].upper()
-            self.url = urlparse.urlsplit(line[1])
+            self.set_url(line[1])
             self.version = line[2]
         else:
             self.version = line[0]
             self.code = line[1]
             self.reason = WHITESPACE.join(line[2:])
-        self.set_line_attributes()
 
     def process_header(self, raw: bytes) -> None:
         parts = raw.split(COLON)
@@ -1226,7 +1229,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server() and \
                 self.server and not self.server.closed and \
-                self.server.buffer_size() > 0 and \
+                self.server.has_buffer() and \
                 self.server.connection in w:
             logger.debug('Server is write ready, flushing buffer')
             try:
@@ -1378,16 +1381,20 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if not self.request.has_upstream_server():
             return False
 
+        self.authenticate()
+
         # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
+        do_connect = True
         for plugin in self.plugins.values():
             r = plugin.before_upstream_connection(self.request)
             if r is None:
-                return False
+                do_connect = False
+                break
             self.request = r
 
-        self.authenticate()
-        self.connect_upstream()
+        if do_connect:
+            self.connect_upstream()
 
         for plugin in self.plugins.values():
             assert self.request is not None
@@ -1444,7 +1451,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection
             # connection headers are meant for communication between client and
             # first intercepting proxy.
-            self.request.add_headers([(b'Via', b'1.1 proxy.py v%s' % version)])
+            self.request.add_headers([(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)])
             # Disable args.disable_headers before dispatching to upstream
             self.server.queue(
                 self.request.build(
@@ -2095,7 +2102,8 @@ class ProtocolHandler(threading.Thread):
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
-        self.client = TcpClientConnection(conn=conn, addr=self.addr)
+        if self.config.encryption_enabled():
+            self.client = TcpClientConnection(conn=conn, addr=self.addr)
         if b'ProtocolHandlerPlugin' in self.config.plugins:
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
