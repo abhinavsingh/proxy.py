@@ -1164,7 +1164,7 @@ class HttpProxyBasePlugin(ABC):
         Raise HttpRequestRejected or ProtocolException directly to
             teardown the connection with client.
         """
-        return request
+        return request  # pragma: no cover
 
     @abstractmethod
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:
@@ -1427,6 +1427,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 self.client.connection.setblocking(False)
                 logger.info(
                     'TLS interception using %s', generated_cert)
+                # Update all plugin connection reference
+                for plugin in self.plugins.values():
+                    plugin.client._conn = self.client.connection
                 return self.client.connection
         elif self.server:
             # - proxy-connection header is a mistake, it doesn't seem to be
