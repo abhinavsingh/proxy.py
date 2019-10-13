@@ -1385,13 +1385,16 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
 
         # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
+        do_connect = True
         for plugin in self.plugins.values():
             r = plugin.before_upstream_connection(self.request)
             if r is None:
-                return False
+                do_connect = False
+                break
             self.request = r
 
-        self.connect_upstream()
+        if do_connect:
+            self.connect_upstream()
 
         for plugin in self.plugins.values():
             assert self.request is not None

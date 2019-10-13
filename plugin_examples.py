@@ -50,7 +50,11 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     without need of an actual upstream REST API server.
 
     Returns proposed REST API mock responses to the client
-    without establishing upstream connection."""
+    without establishing upstream connection.
+
+    Note: This plugin won't work if your client is making
+    HTTPS connection to api.example.com.
+    """
 
     API_SERVER = b'api.example.com'
 
@@ -77,6 +81,11 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
     }
 
     def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+        # Return None to disable establishing connection to upstream
+        # Most likely our api.example.com won't even exist under development scenario
+        return None
+
+    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
         if request.host != self.API_SERVER:
             return request
         assert request.path
@@ -94,9 +103,6 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
                 reason=b'NOT FOUND', body=b'Not Found'
             ))
         return None
-
-    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
-        return request
 
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:
         return chunk
