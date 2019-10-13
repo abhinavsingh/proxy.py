@@ -29,7 +29,9 @@ jobs:
           flake8 --ignore=W504 --max-line-length=127 proxy.py plugin_examples.py tests.py setup.py
           mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py
       - name: Run Tests
-        run: coverage3 run --source=proxy,plugin_examples tests.py
+        run: |
+          coverage3 run --source=proxy,plugin_examples tests.py
+          coveralls --output=coverage.info
       - name: Setup Ruby
         uses: actions/setup-ruby@v1
         with:
@@ -38,10 +40,10 @@ jobs:
       - name: Generate LCOV
         run: |
           gem install coveralls-lcov
-          coveralls-lcov -v -n .coverage > coverage.json
+          coveralls-lcov -v -n coverage.info > coverage.json
       - name: Coveralls
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.github_token }}
-          parallel: true
           path-to-lcov: coverage.json
+          parallel: true
