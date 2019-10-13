@@ -31,6 +31,8 @@ jobs:
       - name: Run Tests
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+          COVERALLS_SERVICE_NAME: GitHub
+          COVERALLS_PARALLEL: true
         run: |
           coverage3 run --source=proxy,plugin_examples tests.py
           coveralls
