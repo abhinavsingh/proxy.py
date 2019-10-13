@@ -1053,7 +1053,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.connect.return_value = True
 
         def has_buffer() -> bool:
-            return server.queue.called
+            return cast(bool, server.queue.called)
 
         server.has_buffer.side_effect = has_buffer
         self.mock_selector.return_value.select.side_effect = [
@@ -1888,8 +1888,8 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         server = mock_server_conn.return_value
         server.connect.return_value = True
 
-        def has_buffer() -> None:
-            return server.queue.called
+        def has_buffer() -> bool:
+            return cast(bool, server.queue.called)
 
         def closed() -> bool:
             return not server.connect.called
