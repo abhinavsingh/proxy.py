@@ -62,36 +62,36 @@ __license__ = 'BSD'
 # Defaults
 DEFAULT_BACKLOG = 100
 DEFAULT_BASIC_AUTH = None
-DEFAULT_CA_KEY_FILE = None
+DEFAULT_BUFFER_SIZE = 1024 * 1024
 DEFAULT_CA_CERT_DIR = None
 DEFAULT_CA_CERT_FILE = None
+DEFAULT_CA_KEY_FILE = None
 DEFAULT_CA_SIGNING_KEY_FILE = None
 DEFAULT_CERT_FILE = None
-DEFAULT_BUFFER_SIZE = 1024 * 1024
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
-DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
+DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
+DEFAULT_DISABLE_HTTP_PROXY = False
+DEFAULT_ENABLE_DEVTOOLS = False
+DEFAULT_ENABLE_STATIC_SERVER = False
+DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_KEY_FILE = None
-DEFAULT_PORT = 8899
-DEFAULT_DISABLE_HTTP_PROXY = False
-DEFAULT_ENABLE_DEVTOOLS = False
-DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
-DEFAULT_ENABLE_STATIC_SERVER = False
-DEFAULT_ENABLE_WEB_SERVER = False
+DEFAULT_LOG_FILE = None
+DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
+DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
 DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_PID_FILE = None
-DEFAULT_NUM_WORKERS = 0
-DEFAULT_PLUGINS = ''    # Comma separated list of plugins
+DEFAULT_PLUGINS = ''
+DEFAULT_PORT = 8899
+DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
-DEFAULT_VERSION = False
-DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
-DEFAULT_LOG_FILE = None
 DEFAULT_TIMEOUT = 10
+DEFAULT_VERSION = False
 UNDER_TEST = False  # Set to True if under test
 
 logger = logging.getLogger(__name__)
@@ -2214,6 +2214,13 @@ class ProtocolHandler(threading.Thread):
         # Teardown if client buffer is empty and connection is inactive
         if not self.client.has_buffer() and \
                 self.is_connection_inactive():
+            self.client.queue(build_http_response(
+                408, reason=b'Request Timeout',
+                headers={
+                    b'Server': PROXY_AGENT_HEADER_VALUE,
+                    b'Connection': b'close',
+                }
+            ))
             logger.debug(
                 'Client buffer is empty and maximum inactivity has reached '
                 'between client and server connection, tearing down...')
