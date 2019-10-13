@@ -2258,9 +2258,11 @@ class ProtocolHandler(threading.Thread):
             if teardown:
                 return True
 
-        # Teardown if client buffer is empty and connection is inactive
-        if not self.client.has_buffer() and \
-                self.is_connection_inactive():
+        # Teardown if client connection has been closed or
+        # if client buffer is empty and connection is inactive
+        if self.client.closed or (
+                not self.client.has_buffer() and
+                self.is_connection_inactive()):
             self.client.queue(build_http_response(
                 httpStatusCodes.REQUEST_TIMEOUT, reason=b'Request Timeout',
                 headers={
@@ -2272,7 +2274,6 @@ class ProtocolHandler(threading.Thread):
                 'Client buffer is empty and maximum inactivity has reached '
                 'between client and server connection, tearing down...')
             return True
-
         return False
 
     def run_once(self) -> bool:

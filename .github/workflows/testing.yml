@@ -32,7 +32,7 @@ jobs:
           mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py
       - name: Run Tests
         run: coverage3 run --source=proxy,plugin_examples tests.py
-      - name: Coveralls GitHub Action
-        uses: coverallsapp/github-action@v1.0.1
-        with:
-          github-token: ${{ secrets.github_token }}
+      - name: Coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        run: coveralls
