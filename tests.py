@@ -292,7 +292,6 @@ class TestAcceptorPool(unittest.TestCase):
         sock.bind.assert_called_with((str(acceptor.hostname), acceptor.port))
         sock.listen.assert_called_with(acceptor.backlog)
         sock.setblocking.assert_called_with(False)
-        sock.settimeout.assert_called_with(0)
 
         self.assertTrue(mock_pipe.call_count, num_workers)
         self.assertTrue(mock_worker.call_count, num_workers)
