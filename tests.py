@@ -278,6 +278,7 @@ class TestAcceptorPool(unittest.TestCase):
             proxy.DEFAULT_PORT,
             proxy.DEFAULT_BACKLOG,
             num_workers,
+            threadless=proxy.DEFAULT_THREADLESS,
             work_klass=work_klass,
             **kwargs
         )
@@ -314,6 +315,7 @@ class TestWorker(unittest.TestCase):
         self.pipe = multiprocessing.Pipe()
         self.protocol_config = proxy.ProtocolConfig()
         self.worker = proxy.Worker(
+            proxy.DEFAULT_THREADLESS,
             self.pipe[1],
             mock_protocol_handler,
             config=self.protocol_config)
@@ -2169,6 +2171,7 @@ class TestMain(unittest.TestCase):
         mock_args.devtools_event_queue = None
         mock_args.devtools_ws_path = proxy.DEFAULT_DEVTOOLS_WS_PATH
         mock_args.timeout = proxy.DEFAULT_TIMEOUT
+        mock_args.threadless = proxy.DEFAULT_THREADLESS
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.load_plugins')
@@ -2225,7 +2228,8 @@ class TestMain(unittest.TestCase):
             enable_static_server=mock_args.enable_static_server,
             devtools_event_queue=None,
             devtools_ws_path=proxy.DEFAULT_DEVTOOLS_WS_PATH,
-            timeout=proxy.DEFAULT_TIMEOUT
+            timeout=proxy.DEFAULT_TIMEOUT,
+            threadless=proxy.DEFAULT_THREADLESS,
         )
 
         mock_acceptor_pool.assert_called_with(
@@ -2234,6 +2238,7 @@ class TestMain(unittest.TestCase):
             backlog=mock_protocol_config.return_value.backlog,
             num_workers=mock_protocol_config.return_value.num_workers,
             work_klass=proxy.ProtocolHandler,
+            threadless=mock_protocol_config.return_value.threadless,
             config=mock_protocol_config.return_value,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
@@ -2286,6 +2291,7 @@ class TestMain(unittest.TestCase):
             backlog=config.backlog,
             num_workers=config.num_workers,
             work_klass=proxy.ProtocolHandler,
+            threadless=config.threadless,
             config=config)
         self.assertEqual(mock_protocol_config.call_args[1]['auth_code'], b'Basic dXNlcjpwYXNz')
 

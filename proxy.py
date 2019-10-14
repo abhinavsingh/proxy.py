@@ -90,6 +90,7 @@ DEFAULT_PLUGINS = ''
 DEFAULT_PORT = 8899
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
+DEFAULT_THREADLESS = False
 DEFAULT_TIMEOUT = 10
 DEFAULT_VERSION = False
 UNDER_TEST = False  # Set to True if under test
@@ -765,7 +766,10 @@ class AcceptorPool:
                  hostname: Union[ipaddress.IPv4Address,
                                  ipaddress.IPv6Address],
                  port: int, backlog: int, num_workers: int,
-                 work_klass: type, **kwargs: Any) -> None:
+                 threadless: bool,
+                 work_klass: type,
+                 **kwargs: Any) -> None:
+        self.threadless = threadless
         self.running: bool = False
 
         self.hostname: Union[ipaddress.IPv4Address,
@@ -796,7 +800,12 @@ class AcceptorPool:
         for worker_id in range(self.num_workers):
             work_queue = multiprocessing.Pipe()
 
-            worker = Worker(work_queue[1], self.work_klass, **self.kwargs)
+            worker = Worker(
+                self.threadless,
+                work_queue[1],
+                self.work_klass,
+                **self.kwargs
+            )
             worker.daemon = True
             worker.start()
 
@@ -837,6 +846,7 @@ class Worker(multiprocessing.Process):
 
     def __init__(
             self,
+            threadless: bool,
             work_queue: connection.Connection,
             work_klass: type,
             **kwargs: Any):
@@ -1007,7 +1017,9 @@ class ProtocolConfig:
             enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
             devtools_event_queue: Optional[DevtoolsEventQueueType] = None,
             devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH,
-            timeout: int = DEFAULT_TIMEOUT) -> None:
+            timeout: int = DEFAULT_TIMEOUT,
+            threadless: bool = DEFAULT_THREADLESS) -> None:
+        self.threadless = threadless
         self.timeout = timeout
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
@@ -2765,6 +2777,13 @@ def init_parser() -> argparse.ArgumentParser:
              'See --enable-static-server.'
     )
     parser.add_argument(
+        '--threadless',
+        action='store_true',
+        default=DEFAULT_THREADLESS,
+        help='Default: False.  When disabled a new thread is spawned '
+             'to handle each client connection.'
+    )
+    parser.add_argument(
         '--timeout',
         type=int,
         default=DEFAULT_TIMEOUT,
@@ -2854,7 +2873,8 @@ def main(input_args: List[str]) -> None:
             enable_static_server=args.enable_static_server,
             devtools_event_queue=devtools_event_queue,
             devtools_ws_path=args.devtools_ws_path,
-            timeout=args.timeout)
+            timeout=args.timeout,
+            threadless=args.threadless)
 
         config.plugins = load_plugins(
             bytes_(
@@ -2866,6 +2886,7 @@ def main(input_args: List[str]) -> None:
             port=config.port,
             backlog=config.backlog,
             num_workers=config.num_workers,
+            threadless=config.threadless,
             work_klass=ProtocolHandler,
             config=config)
         if args.pid_file:

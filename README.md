@@ -905,8 +905,8 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
                 [--plugins PLUGINS] [--port PORT]
                 [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-                [--static-server-dir STATIC_SERVER_DIR] [--timeout TIMEOUT]
-                [--version]
+                [--static-server-dir STATIC_SERVER_DIR] [--threadless]
+                [--timeout TIMEOUT] [--version]
 
 proxy.py v1.2.0
 
@@ -995,6 +995,8 @@ optional arguments:
                         server root directory. This option is only applicable
                         when static server is also enabled. See --enable-
                         static-server.
+  --threadless          Default: False. When disabled a new thread is spawned
+                        to handle each client connection.
   --timeout TIMEOUT     Default: 10. Number of seconds after which an inactive
                         connection must be dropped. Inactivity is defined by
                         no data sent or received by the client.
