@@ -895,6 +895,9 @@ class Threadless(multiprocessing.Process):
         for fileno in tasks:
             teardown = await tasks[fileno]
             if teardown:
+                # TODO: Shutdown can block too
+                # Currently calls flush which can use
+                # ProtocolHandler.selector
                 self.clients[fileno].shutdown()
                 del self.clients[fileno]
 
@@ -907,7 +910,7 @@ class Threadless(multiprocessing.Process):
                 with self.selected_events() as (readables, writables):
                     if len(readables) == 0 and len(writables) == 0:
                         continue
-                    # TODO: Only send readable / writables that client is expecting.
+                    # TODO: Only send readable / writables that client originally registered.
                     tasks = {}
                     for fileno in self.clients:
                         tasks[fileno] = self.loop.create_task(
@@ -925,8 +928,10 @@ class Threadless(multiprocessing.Process):
         except KeyboardInterrupt:
             pass
         finally:
+            assert self.selector is not None
             self.selector.unregister(self.client_queue)
             self.client_queue.close()
+            assert self.loop is not None
             self.loop.close()
 
 
