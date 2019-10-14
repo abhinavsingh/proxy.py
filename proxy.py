@@ -38,7 +38,8 @@ from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from types import TracebackType
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, TYPE_CHECKING, Type, cast
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, Type
+from typing import cast, Generator, TYPE_CHECKING
 from urllib import parse as urlparse
 
 from typing_extensions import Protocol
@@ -2292,7 +2293,7 @@ class ProtocolHandler(threading.Thread):
         return events
 
     @contextlib.contextmanager
-    def selected_events(self) -> List[Tuple[selectors.SelectorKey, int]]:
+    def selected_events(self) -> Generator[List[Tuple[selectors.SelectorKey, int]], None, None]:
         events = self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
