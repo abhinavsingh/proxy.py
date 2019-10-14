@@ -342,6 +342,10 @@ def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
     return conn
 
 
+def now() -> datetime.datetime:
+    return datetime.datetime.utcnow()
+
+
 class socket_connection(contextlib.ContextDecorator):
     """Same as new_socket_connection but as a context manager and decorator."""
 
@@ -2087,7 +2091,7 @@ class ProtocolHandler(threading.Thread):
         self.fileno: int = fileno
         self.addr: Tuple[str, int] = addr
 
-        self.start_time: datetime.datetime = self.now()
+        self.start_time: datetime.datetime = now()
         self.last_activity: datetime.datetime = self.start_time
 
         self.config: ProtocolConfig = config if config else ProtocolConfig()
@@ -2099,10 +2103,6 @@ class ProtocolHandler(threading.Thread):
             self.fromfd(self.fileno), self.addr
         )
         self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
-
-    @staticmethod
-    def now() -> datetime.datetime:
-        return datetime.datetime.utcnow()
 
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
@@ -2139,7 +2139,7 @@ class ProtocolHandler(threading.Thread):
         return conn
 
     def connection_inactive_for(self) -> int:
-        return (self.now() - self.last_activity).seconds
+        return (now() - self.last_activity).seconds
 
     def is_connection_inactive(self) -> bool:
         return self.connection_inactive_for() > self.config.timeout
@@ -2147,7 +2147,7 @@ class ProtocolHandler(threading.Thread):
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
-            self.last_activity = self.now()
+            self.last_activity = now()
 
             # Invoke plugin.on_response_chunk
             chunk = self.client.buffer
@@ -2167,7 +2167,7 @@ class ProtocolHandler(threading.Thread):
     def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
-            self.last_activity = self.now()
+            self.last_activity = now()
 
             client_data = self.client.recv(self.config.client_recvbuf_size)
             if not client_data:
@@ -2436,7 +2436,7 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
         pass
 
     def request_will_be_sent(self) -> Dict[str, Any]:
-        now = time.time()
+        _now = time.time()
         return {
             'requestId': self.id,
             'loaderId': self.loader_id,
@@ -2456,8 +2456,8 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
                 'postData': None if self.request.method != 'POST'
                 else text_(self.request.body)
             },
-            'timestamp': now - PROXY_PY_START_TIME,
-            'wallTime': now,
+            'timestamp': _now - PROXY_PY_START_TIME,
+            'wallTime': _now,
             'initiator': {
                 'type': 'other'
             },
