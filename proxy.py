@@ -790,7 +790,6 @@ class AcceptorPool:
         self.socket.bind((str(self.hostname), self.port))
         self.socket.listen(self.backlog)
         self.socket.setblocking(False)
-        self.socket.settimeout(0)
         logger.info('Listening on %s:%d' % (self.hostname, self.port))
 
     def start_workers(self) -> None:
@@ -863,9 +862,14 @@ class Worker(multiprocessing.Process):
                         continue
                 try:
                     conn, addr = sock.accept()
-                except BlockingIOError:  # as e:
-                    # logger.exception('BlockingIOError', exc_info=e)
+                except BlockingIOError:
                     continue
+                # Spawning new thread for each request is not a good strategy.
+                # This means to handle 1 million connections, server would need
+                # to spawn a million threads.
+                #
+                # In future we'll merge client selector with server selector,
+                # so that Worker is the only process per core to select for events.
                 work = self.work_klass(
                     fileno=conn.fileno(),
                     addr=addr,
