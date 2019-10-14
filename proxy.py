@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
+import asyncio
 import base64
 import contextlib
 import errno
@@ -866,6 +867,7 @@ class Threadless(multiprocessing.Process):
         events: Dict[socket.socket, int] = {}
         for work in self.clients.values():
             events.update(work.get_events())
+        assert self.selector is not None
         for fd in events:
             self.selector.register(fd, events[fd])
         ev = self.selector.select(timeout=1)
@@ -880,26 +882,34 @@ class Threadless(multiprocessing.Process):
         for fd in events.keys():
             self.selector.unregister(fd)
 
+    async def handle_events(
+            self, fileno: int,
+            readables: List[Union[int, _HasFileno]],
+            writables: List[Union[int, _HasFileno]]) -> bool:
+        return self.clients[fileno].handle_events(readables, writables)
+
+    # TODO: Use correct future typing annotations
+    async def wait_for_tasks(
+            self, tasks: Dict[int, Any]) -> None:
+        for fileno in tasks:
+            teardown = await tasks[fileno]
+            if teardown:
+                self.clients[fileno].shutdown()
+                del self.clients[fileno]
+
     def run(self) -> None:
         try:
             self.selector = selectors.DefaultSelector()
             self.selector.register(self.client_queue, selectors.EVENT_READ)
-
             while True:
                 with self.selected_events() as (readables, writables):
                     if len(readables) == 0 and len(writables) == 0:
                         continue
-
                     # TODO: Only send readable / writables that client is expecting.
-                    teared_down = []
+                    tasks = {}
                     for fileno in self.clients:
-                        teardown = self.clients[fileno].handle_events(readables, writables)
-                        if teardown:
-                            teared_down.append(fileno)
-                    for fileno in teared_down:
-                        self.clients[fileno].shutdown()
-                        del self.clients[fileno]
-
+                        tasks[fileno] = asyncio.ensure_future(
+                            self.handle_events(fileno, readables, writables))
                     # Receive accepted client connection
                     if self.client_queue in readables:
                         addr = self.client_queue.recv()
@@ -909,6 +919,7 @@ class Threadless(multiprocessing.Process):
                             addr=addr,
                             **self.kwargs)
                         self.clients[fileno].initialize()
+                    asyncio.run(self.wait_for_tasks(tasks))
         except KeyboardInterrupt:
             pass
         finally:
