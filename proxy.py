@@ -342,10 +342,6 @@ def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
     return conn
 
 
-def now() -> datetime.datetime:
-    return datetime.datetime.utcnow()
-
-
 class socket_connection(contextlib.ContextDecorator):
     """Same as new_socket_connection but as a context manager and decorator."""
 
@@ -2091,8 +2087,8 @@ class ProtocolHandler(threading.Thread):
         self.fileno: int = fileno
         self.addr: Tuple[str, int] = addr
 
-        self.start_time: datetime.datetime = now()
-        self.last_activity: datetime.datetime = self.start_time
+        self.start_time: float = time.time()
+        self.last_activity: float = self.start_time
 
         self.config: ProtocolConfig = config if config else ProtocolConfig()
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
@@ -2138,8 +2134,8 @@ class ProtocolHandler(threading.Thread):
             conn = ctx.wrap_socket(conn, server_side=True)
         return conn
 
-    def connection_inactive_for(self) -> int:
-        return (now() - self.last_activity).seconds
+    def connection_inactive_for(self) -> float:
+        return time.time() - self.last_activity
 
     def is_connection_inactive(self) -> bool:
         return self.connection_inactive_for() > self.config.timeout
@@ -2147,7 +2143,7 @@ class ProtocolHandler(threading.Thread):
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
-            self.last_activity = now()
+            self.last_activity = time.time()
 
             # Invoke plugin.on_response_chunk
             chunk = self.client.buffer
@@ -2167,7 +2163,7 @@ class ProtocolHandler(threading.Thread):
     def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
-            self.last_activity = now()
+            self.last_activity = time.time()
 
             client_data = self.client.recv(self.config.client_recvbuf_size)
             if not client_data:
@@ -2802,7 +2798,8 @@ def main(input_args: List[str]) -> None:
 
     if (args.cert_file and args.key_file) and \
             (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
-        print('HTTPS interception not supported when proxy.py is serving over HTTPS')
+        print('You can either enable end-to-end encryption OR TLS interception,'
+              'not both together.')
         sys.exit(0)
 
     try:

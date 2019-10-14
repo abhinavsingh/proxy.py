@@ -1743,11 +1743,6 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         )
 
     @mock.patch('proxy.TcpServerConnection')
-    def test_cache_responses_plugin(
-            self, mock_server_conn: mock.Mock) -> None:
-        pass
-
-    @mock.patch('proxy.TcpServerConnection')
     def test_man_in_the_middle_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = proxy.build_http_request(
@@ -2080,11 +2075,6 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
                 body=modified
             )
         )
-
-    @mock.patch('proxy.TcpServerConnection')
-    def test_cache_responses_plugin(
-            self, mock_server_conn: mock.Mock) -> None:
-        pass
 
     @mock.patch('proxy.TcpServerConnection')
     def test_man_in_the_middle_plugin(
