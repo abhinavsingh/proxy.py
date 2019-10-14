@@ -2139,6 +2139,21 @@ class ProtocolHandler(threading.Thread):
     def is_connection_inactive(self) -> bool:
         return self.connection_inactive_for() > self.config.timeout
 
+    def flush(self) -> None:
+        if not self.client.has_buffer():
+            return
+        try:
+            self.selector.register(self.client.connection, selectors.EVENT_WRITE)
+            while self.client.has_buffer():
+                ev: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
+                if len(ev) == 0:
+                    continue
+                self.client.flush()
+        except BrokenPipeError:
+            pass
+        finally:
+            self.selector.unregister(self.client.connection)
+
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
@@ -2212,29 +2227,6 @@ class ProtocolHandler(threading.Thread):
                 return True
         return False
 
-    def get_events(self) -> Dict[socket.socket, int]:
-        events: Dict[socket.socket, int] = {
-            self.client.connection: selectors.EVENT_READ
-        }
-        if self.client.has_buffer():
-            events[self.client.connection] |= selectors.EVENT_WRITE
-
-        # ProtocolHandlerPlugin.get_descriptors
-        for plugin in self.plugins.values():
-            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
-            for r in plugin_read_desc:
-                if r not in events:
-                    events[r] = selectors.EVENT_READ
-                else:
-                    events[r] |= selectors.EVENT_READ
-            for w in plugin_write_desc:
-                if w not in events:
-                    events[w] = selectors.EVENT_WRITE
-                else:
-                    events[w] |= selectors.EVENT_WRITE
-
-        return events
-
     def handle_events(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
         """Returns True if proxy must teardown."""
         # Flush buffer for ready to write sockets
@@ -2276,45 +2268,51 @@ class ProtocolHandler(threading.Thread):
 
         return False
 
-    def run_once(self) -> bool:
+    def get_events(self) -> Dict[socket.socket, int]:
+        events: Dict[socket.socket, int] = {
+            self.client.connection: selectors.EVENT_READ
+        }
+        if self.client.has_buffer():
+            events[self.client.connection] |= selectors.EVENT_WRITE
+
+        # ProtocolHandlerPlugin.get_descriptors
+        for plugin in self.plugins.values():
+            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
+            for r in plugin_read_desc:
+                if r not in events:
+                    events[r] = selectors.EVENT_READ
+                else:
+                    events[r] |= selectors.EVENT_READ
+            for w in plugin_write_desc:
+                if w not in events:
+                    events[w] = selectors.EVENT_WRITE
+                else:
+                    events[w] |= selectors.EVENT_WRITE
+
+        return events
+
+    @contextlib.contextmanager
+    def selected_events(self) -> List[Tuple[selectors.SelectorKey, int]]:
         events = self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
-
-        # Select
-        e: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
-        readables = []
-        writables = []
-        for key, mask in e:
-            if mask & selectors.EVENT_READ:
-                readables.append(key.fileobj)
-            if mask & selectors.EVENT_WRITE:
-                writables.append(key.fileobj)
-
-        teardown = self.handle_events(readables, writables)
-
-        # Unregister
+        yield self.selector.select(timeout=1)
         for fd in events.keys():
             self.selector.unregister(fd)
 
+    def run_once(self) -> bool:
+        readables = []
+        writables = []
+        with self.selected_events() as events:
+            for key, mask in events:
+                if mask & selectors.EVENT_READ:
+                    readables.append(key.fileobj)
+                if mask & selectors.EVENT_WRITE:
+                    writables.append(key.fileobj)
+        teardown = self.handle_events(readables, writables)
         if teardown:
             return True
         return False
-
-    def flush(self) -> None:
-        if not self.client.has_buffer():
-            return
-        try:
-            self.selector.register(self.client.connection, selectors.EVENT_WRITE)
-            while self.client.has_buffer():
-                ev: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
-                if len(ev) == 0:
-                    continue
-                self.client.flush()
-        except BrokenPipeError:
-            pass
-        finally:
-            self.selector.unregister(self.client.connection)
 
     def run(self) -> None:
         try:
