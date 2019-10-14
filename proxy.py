@@ -11,7 +11,6 @@
 import argparse
 import base64
 import contextlib
-import datetime
 import errno
 import functools
 import hashlib
