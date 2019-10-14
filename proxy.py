@@ -799,6 +799,7 @@ class AcceptorPool:
         for _ in range(self.num_acceptors):
             work_queue = multiprocessing.Pipe()
             acceptor = Acceptor(
+                self.family,
                 self.threadless,
                 work_queue[1],
                 self.work_klass,
@@ -826,11 +827,64 @@ class AcceptorPool:
         # Send server socket to all acceptor processes.
         assert self.socket is not None
         for index in range(self.num_acceptors):
-            work_queue = self.work_queues[index]
-            work_queue.send(self.family)
-            send_handle(work_queue, self.socket.fileno(),
-                        self.acceptors[index].pid)
+            send_handle(
+                self.work_queues[index],
+                self.socket.fileno(),
+                self.acceptors[index].pid
+            )
         self.socket.close()
+
+
+class Threadless(multiprocessing.Process):
+    """Threadless handles lifecycle of multiple ProtocolHandler instances.
+
+    When --threadless option is enabled, each Acceptor process also
+    spawns one Threadless process.  Then instead of spawning a new thread
+    for each accepted client connection, Acceptor process simply sends
+    accepted client connection to Threadless process over a pipe.
+    """
+
+    def __init__(
+            self,
+            client_queue: connection.Connection,
+            work_klass: type,
+            **kwargs: Any) -> None:
+        super().__init__()
+        self.client_queue = client_queue
+        self.work_klass = work_klass
+        self.kwargs = kwargs
+
+        # TODO: Create an abstract class that ProtocolHandler will implement.
+        # For now hardcode type as ProtocolHandler
+        self.clients: Dict[int, ProtocolHandler] = {}
+        self.selector = selectors.DefaultSelector()
+
+    def run(self) -> None:
+        try:
+            while True:
+                # TODO: Recv via selector to make non-blocking
+                addr = self.client_queue.recv()
+                fileno = recv_handle(self.client_queue)
+
+                work = self.work_klass(
+                    fileno=fileno,
+                    addr=addr,
+                    **self.kwargs)
+                self.clients[fileno] = work
+
+                events: Dict[socket.socket, int] = work.get_events()
+                for fd in events:
+                    self.selector.register(fd, events[fd])
+
+                _ = self.selector.select(timeout=1)
+
+                work.handle_selected_events(events)
+                for fd in events.keys():
+                    self.selector.unregister(fd)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            pass
 
 
 class Acceptor(multiprocessing.Process):
@@ -844,51 +898,97 @@ class Acceptor(multiprocessing.Process):
 
     def __init__(
             self,
+            family: int,
             threadless: bool,
             work_queue: connection.Connection,
             work_klass: type,
-            **kwargs: Any):
+            **kwargs: Any) -> None:
         super().__init__()
+        self.family: int = family
         self.threadless: bool = threadless
         self.work_queue: connection.Connection = work_queue
         self.work_klass = work_klass
         self.kwargs = kwargs
-        self.running = True
+
+        self.running = False
+        self.selector = selectors.DefaultSelector()
+        self.sock: Optional[socket.socket] = None
+        self.threadless_process: Optional[multiprocessing.Process] = None
+        self.threadless_client_queue: Optional[connection.Connection] = None
+
+    def start_threadless_process(self) -> None:
+        if not self.threadless:
+            return
+        pipe = multiprocessing.Pipe()
+        self.threadless_client_queue = pipe[0]
+        self.threadless_process = Threadless(
+            pipe[1], self.work_klass, **self.kwargs
+        )
+        self.threadless_process.daemon = True
+        self.threadless_process.start()
+
+    def shutdown_threadless_process(self) -> None:
+        if not self.threadless:
+            return
+        assert self.threadless_process and self.threadless_client_queue
+        self.threadless_process.join()
+        self.threadless_client_queue.close()
+
+    def run_once(self) -> bool:
+        with self.lock:
+            events = self.selector.select(timeout=1)
+            if len(events) == 0:
+                return False
+        try:
+            assert self.sock
+            conn, addr = self.sock.accept()
+        except BlockingIOError:
+            return False
+        if self.threadless and \
+                self.threadless_client_queue and \
+                self.threadless_process:
+            self.threadless_client_queue.send(addr)
+            send_handle(
+                self.threadless_client_queue,
+                conn.fileno(),
+                self.threadless_process.pid
+            )
+            conn.close()
+        else:
+            # Starting a new thread per client request simply means
+            # we need 1 million threads to handle a million concurrent
+            # connections.  Since most of the client requests are short
+            # lived (even with keep-alive), starting threads is excessive.
+            work = self.work_klass(
+                fileno=conn.fileno(),
+                addr=addr,
+                **self.kwargs)
+            work.setDaemon(True)
+            work.start()
+        return False
 
     def run(self) -> None:
-        family = self.work_queue.recv()
-        sock = socket.fromfd(
+        self.running = True
+        self.sock = socket.fromfd(
             recv_handle(self.work_queue),
-            family=family,
+            family=self.family,
             type=socket.SOCK_STREAM
         )
-        selector = selectors.DefaultSelector()
         try:
-            selector.register(sock, selectors.EVENT_READ)
+            self.start_threadless_process()
+            self.selector.register(self.sock, selectors.EVENT_READ)
             while self.running:
-                with self.lock:
-                    events = selector.select(timeout=1)
-                    if len(events) == 0:
-                        continue
-                try:
-                    conn, addr = sock.accept()
-                except BlockingIOError:
-                    continue
-                work = self.work_klass(
-                    fileno=conn.fileno(),
-                    addr=addr,
-                    **self.kwargs)
-                if self.threadless:
-                    pass
-                else:
-                    work.setDaemon(True)
-                    work.start()
+                teardown = self.run_once()
+                if teardown:
+                    break
         except KeyboardInterrupt:
             pass
         finally:
-            selector.unregister(sock)
-            sock.close()
+            self.selector.unregister(self.sock)
+            self.shutdown_threadless_process()
+            self.sock.close()
             self.work_queue.close()
+            self.running = False
 
 
 class ProtocolException(Exception):
@@ -2301,30 +2401,31 @@ class ProtocolHandler(threading.Thread):
         return events
 
     @contextlib.contextmanager
-    def selected_events(self) -> Generator[List[Tuple[selectors.SelectorKey, int]], None, None]:
+    def selected_events(self) -> \
+            Generator[Tuple[List[Union[int, _HasFileno]],
+                            List[Union[int, _HasFileno]]],
+                      None, None]:
         events = self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
-        yield self.selector.select(timeout=1)
-        for fd in events.keys():
-            self.selector.unregister(fd)
-
-    def handle_selected_events(self, events: List[Tuple[selectors.SelectorKey, int]]) -> bool:
+        ev = self.selector.select(timeout=1)
         readables = []
         writables = []
-        for key, mask in events:
+        for key, mask in ev:
             if mask & selectors.EVENT_READ:
                 readables.append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 writables.append(key.fileobj)
-        teardown = self.handle_events(readables, writables)
-        if teardown:
-            return True
-        return False
+        yield (readables, writables)
+        for fd in events.keys():
+            self.selector.unregister(fd)
 
     def run_once(self) -> bool:
-        with self.selected_events() as events:
-            return self.handle_selected_events(events)
+        with self.selected_events() as (readables, writables):
+            teardown = self.handle_events(readables, writables)
+            if teardown:
+                return True
+            return False
 
     def run(self) -> None:
         try:

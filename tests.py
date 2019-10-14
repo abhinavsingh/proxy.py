@@ -310,25 +310,29 @@ class TestAcceptorPool(unittest.TestCase):
 
 class TestWorker(unittest.TestCase):
 
+    @mock.patch('selectors.DefaultSelector')
     @mock.patch('proxy.ProtocolHandler')
-    def setUp(self, mock_protocol_handler: mock.Mock) -> None:
+    def setUp(
+            self,
+            mock_protocol_handler: mock.Mock,
+            mock_selector: mock.Mock) -> None:
+        self.mock_protocol_handler = mock_protocol_handler
+        self.mock_selector = mock_selector
         self.pipe = multiprocessing.Pipe()
         self.protocol_config = proxy.ProtocolConfig()
         self.worker = proxy.Acceptor(
+            socket.AF_INET6,
             proxy.DEFAULT_THREADLESS,
             self.pipe[1],
             mock_protocol_handler,
             config=self.protocol_config)
-        self.mock_protocol_handler = mock_protocol_handler
 
-    @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     @mock.patch('proxy.recv_handle')
     def test_continues_when_no_events(
             self,
             mock_recv_handle: mock.Mock,
-            mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock) -> None:
+            mock_fromfd: mock.Mock) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
@@ -336,23 +340,20 @@ class TestWorker(unittest.TestCase):
         mock_fromfd.return_value.accept.return_value = (conn, addr)
         mock_recv_handle.return_value = fileno
 
-        selector = mock_selector.return_value
+        selector = self.mock_selector.return_value
         selector.select.side_effect = [[], KeyboardInterrupt()]
 
-        self.pipe[0].send(socket.AF_INET6)
         self.worker.run()
 
         sock.accept.assert_not_called()
         self.mock_protocol_handler.assert_not_called()
 
-    @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     @mock.patch('proxy.recv_handle')
     def test_worker_doesnt_teardown_on_blocking_io_error(
             self,
             mock_recv_handle: mock.Mock,
-            mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock) -> None:
+            mock_fromfd: mock.Mock) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
@@ -360,23 +361,20 @@ class TestWorker(unittest.TestCase):
         mock_fromfd.return_value.accept.return_value = (conn, addr)
         mock_recv_handle.return_value = fileno
 
-        selector = mock_selector.return_value
+        selector = self.mock_selector.return_value
         selector.select.side_effect = [(None, None), KeyboardInterrupt()]
         sock.accept.side_effect = BlockingIOError()
 
-        self.pipe[0].send(socket.AF_INET6)
         self.worker.run()
 
         self.mock_protocol_handler.assert_not_called()
 
-    @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     @mock.patch('proxy.recv_handle')
     def test_accepts_client_from_server_socket(
             self,
             mock_recv_handle: mock.Mock,
-            mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock) -> None:
+            mock_fromfd: mock.Mock) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
@@ -386,10 +384,9 @@ class TestWorker(unittest.TestCase):
 
         self.mock_protocol_handler.return_value.start.side_effect = KeyboardInterrupt()
 
-        selector = mock_selector.return_value
+        selector = self.mock_selector.return_value
         selector.select.return_value = [(None, None)]
 
-        self.pipe[0].send(socket.AF_INET6)
         self.worker.run()
 
         selector.register.assert_called_with(sock, selectors.EVENT_READ)
