@@ -836,13 +836,38 @@ class AcceptorPool:
         self.socket.close()
 
 
+class ThreadlessWork(ABC):
+    """Implement ThreadlessWork to hook into the event loop provided by Threadless process."""
+
+    @abstractmethod
+    def initialize(self) -> None:
+        pass    # pragma: no cover
+
+    @abstractmethod
+    def get_events(self) -> Dict[socket.socket, int]:
+        return {}   # pragma: no cover
+
+    @abstractmethod
+    def handle_events(self,
+                      readables: List[Union[int, _HasFileno]],
+                      writables: List[Union[int, _HasFileno]]) -> bool:
+        return False    # pragma: no cover
+
+    @abstractmethod
+    def shutdown(self) -> None:
+        pass    # pragma: no cover
+
+
 class Threadless(multiprocessing.Process):
-    """Threadless handles lifecycle of multiple ProtocolHandler instances.
+    """Threadless provides an event loop.  Use it by implementing Threadless class.
 
     When --threadless option is enabled, each Acceptor process also
-    spawns one Threadless process.  Then instead of spawning a new thread
-    for each accepted client connection, Acceptor process simply sends
+    spawns one Threadless process.  And instead of spawning new thread
+    for each accepted client connection, Acceptor process sends
     accepted client connection to Threadless process over a pipe.
+
+    ProtocolHandler implements ThreadlessWork class and hooks into the
+    event loop provided by Threadless.
     """
 
     def __init__(
@@ -855,9 +880,7 @@ class Threadless(multiprocessing.Process):
         self.work_klass = work_klass
         self.kwargs = kwargs
 
-        # TODO: Create an abstract class that ProtocolHandler will implement.
-        # For now hardcode type as ProtocolHandler
-        self.clients: Dict[int, ProtocolHandler] = {}
+        self.works: Dict[int, ThreadlessWork] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -866,7 +889,7 @@ class Threadless(multiprocessing.Process):
                                                  List[Union[int, _HasFileno]]],
                                            None, None]:
         events: Dict[socket.socket, int] = {}
-        for work in self.clients.values():
+        for work in self.works.values():
             events.update(work.get_events())
         assert self.selector is not None
         for fd in events:
@@ -887,7 +910,7 @@ class Threadless(multiprocessing.Process):
             self, fileno: int,
             readables: List[Union[int, _HasFileno]],
             writables: List[Union[int, _HasFileno]]) -> bool:
-        return self.clients[fileno].handle_events(readables, writables)
+        return self.works[fileno].handle_events(readables, writables)
 
     # TODO: Use correct future typing annotations
     async def wait_for_tasks(
@@ -898,8 +921,8 @@ class Threadless(multiprocessing.Process):
                 # TODO: Shutdown can block too
                 # Currently calls flush which can use
                 # ProtocolHandler.selector
-                self.clients[fileno].shutdown()
-                del self.clients[fileno]
+                self.works[fileno].shutdown()
+                del self.works[fileno]
 
     def run(self) -> None:
         try:
@@ -912,18 +935,18 @@ class Threadless(multiprocessing.Process):
                         continue
                     # TODO: Only send readable / writables that client originally registered.
                     tasks = {}
-                    for fileno in self.clients:
+                    for fileno in self.works:
                         tasks[fileno] = self.loop.create_task(
                             self.handle_events(fileno, readables, writables))
                     # Receive accepted client connection
                     if self.client_queue in readables:
                         addr = self.client_queue.recv()
                         fileno = recv_handle(self.client_queue)
-                        self.clients[fileno] = self.work_klass(
+                        self.works[fileno] = self.work_klass(
                             fileno=fileno,
                             addr=addr,
                             **self.kwargs)
-                        self.clients[fileno].initialize()
+                        self.works[fileno].initialize()
                     self.loop.run_until_complete(self.wait_for_tasks(tasks))
         except KeyboardInterrupt:
             pass
@@ -2236,7 +2259,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         return [], []
 
 
-class ProtocolHandler(threading.Thread):
+class ProtocolHandler(threading.Thread, ThreadlessWork):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection object and manages ProtocolHandlerPlugin invocations.
@@ -2271,6 +2294,94 @@ class ProtocolHandler(threading.Thread):
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
+        logger.debug('Handling connection %r' % self.client.connection)
+
+    def get_events(self) -> Dict[socket.socket, int]:
+        events: Dict[socket.socket, int] = {
+            self.client.connection: selectors.EVENT_READ
+        }
+        if self.client.has_buffer():
+            events[self.client.connection] |= selectors.EVENT_WRITE
+
+        # ProtocolHandlerPlugin.get_descriptors
+        for plugin in self.plugins.values():
+            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
+            for r in plugin_read_desc:
+                if r not in events:
+                    events[r] = selectors.EVENT_READ
+                else:
+                    events[r] |= selectors.EVENT_READ
+            for w in plugin_write_desc:
+                if w not in events:
+                    events[w] = selectors.EVENT_WRITE
+                else:
+                    events[w] |= selectors.EVENT_WRITE
+
+        return events
+
+    def handle_events(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
+        """Returns True if proxy must teardown."""
+        # Flush buffer for ready to write sockets
+        teardown = self.handle_writables(writables)
+        if teardown:
+            return True
+
+        # Invoke plugin.write_to_descriptors
+        for plugin in self.plugins.values():
+            teardown = plugin.write_to_descriptors(writables)
+            if teardown:
+                return True
+
+        # Read from ready to read sockets
+        teardown = self.handle_readables(readables)
+        if teardown:
+            return True
+
+        # Invoke plugin.read_from_descriptors
+        for plugin in self.plugins.values():
+            teardown = plugin.read_from_descriptors(readables)
+            if teardown:
+                return True
+
+        # Teardown if client buffer is empty and connection is inactive
+        if not self.client.has_buffer() and \
+                self.is_connection_inactive():
+            self.client.queue(build_http_response(
+                httpStatusCodes.REQUEST_TIMEOUT, reason=b'Request Timeout',
+                headers={
+                    b'Server': PROXY_AGENT_HEADER_VALUE,
+                    b'Connection': b'close',
+                }
+            ))
+            logger.debug(
+                'Client buffer is empty and maximum inactivity has reached '
+                'between client and server connection, tearing down...')
+            return True
+
+        return False
+
+    def shutdown(self) -> None:
+        # Flush pending buffer if any
+        self.flush()
+
+        # Invoke plugin.on_client_connection_close
+        for plugin in self.plugins.values():
+            plugin.on_client_connection_close()
+
+        logger.debug(
+            'Closing proxy for connection %r '
+            'at address %r with pending client buffer size %d bytes' %
+            (self.client.connection, self.client.addr, self.client.buffer_size()))
+
+        if not self.client.closed:
+            try:
+                self.client.connection.shutdown(socket.SHUT_WR)
+                logger.debug('Client connection shutdown successful')
+            except OSError:
+                pass
+            finally:
+                self.client.connection.close()
+                logger.debug('Client connection closed')
 
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
@@ -2389,70 +2500,6 @@ class ProtocolHandler(threading.Thread):
                 return True
         return False
 
-    def handle_events(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
-        """Returns True if proxy must teardown."""
-        # Flush buffer for ready to write sockets
-        teardown = self.handle_writables(writables)
-        if teardown:
-            return True
-
-        # Invoke plugin.write_to_descriptors
-        for plugin in self.plugins.values():
-            teardown = plugin.write_to_descriptors(writables)
-            if teardown:
-                return True
-
-        # Read from ready to read sockets
-        teardown = self.handle_readables(readables)
-        if teardown:
-            return True
-
-        # Invoke plugin.read_from_descriptors
-        for plugin in self.plugins.values():
-            teardown = plugin.read_from_descriptors(readables)
-            if teardown:
-                return True
-
-        # Teardown if client buffer is empty and connection is inactive
-        if not self.client.has_buffer() and \
-                self.is_connection_inactive():
-            self.client.queue(build_http_response(
-                httpStatusCodes.REQUEST_TIMEOUT, reason=b'Request Timeout',
-                headers={
-                    b'Server': PROXY_AGENT_HEADER_VALUE,
-                    b'Connection': b'close',
-                }
-            ))
-            logger.debug(
-                'Client buffer is empty and maximum inactivity has reached '
-                'between client and server connection, tearing down...')
-            return True
-
-        return False
-
-    def get_events(self) -> Dict[socket.socket, int]:
-        events: Dict[socket.socket, int] = {
-            self.client.connection: selectors.EVENT_READ
-        }
-        if self.client.has_buffer():
-            events[self.client.connection] |= selectors.EVENT_WRITE
-
-        # ProtocolHandlerPlugin.get_descriptors
-        for plugin in self.plugins.values():
-            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
-            for r in plugin_read_desc:
-                if r not in events:
-                    events[r] = selectors.EVENT_READ
-                else:
-                    events[r] |= selectors.EVENT_READ
-            for w in plugin_write_desc:
-                if w not in events:
-                    events[w] = selectors.EVENT_WRITE
-                else:
-                    events[w] |= selectors.EVENT_WRITE
-
-        return events
-
     @contextlib.contextmanager
     def selected_events(self) -> \
             Generator[Tuple[List[Union[int, _HasFileno]],
@@ -2483,7 +2530,6 @@ class ProtocolHandler(threading.Thread):
     def run(self) -> None:
         try:
             self.initialize()
-            logger.debug('Handling connection %r' % self.client.connection)
             while True:
                 teardown = self.run_once()
                 if teardown:
@@ -2498,29 +2544,6 @@ class ProtocolHandler(threading.Thread):
                 self.client.connection, exc_info=e)
         finally:
             self.shutdown()
-
-    def shutdown(self) -> None:
-        # Flush pending buffer if any
-        self.flush()
-
-        # Invoke plugin.on_client_connection_close
-        for plugin in self.plugins.values():
-            plugin.on_client_connection_close()
-
-        logger.debug(
-            'Closing proxy for connection %r '
-            'at address %r with pending client buffer size %d bytes' %
-            (self.client.connection, self.client.addr, self.client.buffer_size()))
-
-        if not self.client.closed:
-            try:
-                self.client.connection.shutdown(socket.SHUT_WR)
-                logger.debug('Client connection shutdown successful')
-            except OSError:
-                pass
-            finally:
-                self.client.connection.close()
-                logger.debug('Client connection closed')
 
 
 class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
