@@ -2300,25 +2300,27 @@ class ProtocolHandler(threading.Thread):
         for fd in events.keys():
             self.selector.unregister(fd)
 
-    def run_once(self) -> bool:
+    def handle_selected_events(self, events: List[Tuple[selectors.SelectorKey, int]]) -> bool:
         readables = []
         writables = []
-        with self.selected_events() as events:
-            for key, mask in events:
-                if mask & selectors.EVENT_READ:
-                    readables.append(key.fileobj)
-                if mask & selectors.EVENT_WRITE:
-                    writables.append(key.fileobj)
+        for key, mask in events:
+            if mask & selectors.EVENT_READ:
+                readables.append(key.fileobj)
+            if mask & selectors.EVENT_WRITE:
+                writables.append(key.fileobj)
         teardown = self.handle_events(readables, writables)
         if teardown:
             return True
         return False
 
+    def run_once(self) -> bool:
+        with self.selected_events() as events:
+            return self.handle_selected_events(events)
+
     def run(self) -> None:
         try:
             self.initialize()
             logger.debug('Handling connection %r' % self.client.connection)
-
             while True:
                 teardown = self.run_once()
                 if teardown:
@@ -2332,27 +2334,30 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
-            # Flush pending buffer if any
-            self.flush()
+            self.shutdown()
 
-            # Invoke plugin.on_client_connection_close
-            for plugin in self.plugins.values():
-                plugin.on_client_connection_close()
+    def shutdown(self) -> None:
+        # Flush pending buffer if any
+        self.flush()
 
-            logger.debug(
-                'Closing proxy for connection %r '
-                'at address %r with pending client buffer size %d bytes' %
-                (self.client.connection, self.client.addr, self.client.buffer_size()))
+        # Invoke plugin.on_client_connection_close
+        for plugin in self.plugins.values():
+            plugin.on_client_connection_close()
 
-            if not self.client.closed:
-                try:
-                    self.client.connection.shutdown(socket.SHUT_WR)
-                    logger.debug('Client connection shutdown successful')
-                except OSError:
-                    pass
-                finally:
-                    self.client.connection.close()
-                    logger.debug('Client connection closed')
+        logger.debug(
+            'Closing proxy for connection %r '
+            'at address %r with pending client buffer size %d bytes' %
+            (self.client.connection, self.client.addr, self.client.buffer_size()))
+
+        if not self.client.closed:
+            try:
+                self.client.connection.shutdown(socket.SHUT_WR)
+                logger.debug('Client connection shutdown successful')
+            except OSError:
+                pass
+            finally:
+                self.client.connection.close()
+                logger.debug('Client connection closed')
 
 
 class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
