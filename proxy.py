@@ -860,9 +860,10 @@ class Threadless(multiprocessing.Process):
         self.selector: Optional[selectors.DefaultSelector] = None
 
     def run(self) -> None:
-        self.selector = selectors.DefaultSelector()
         try:
+            self.selector = selectors.DefaultSelector()
             self.selector.register(self.client_queue, selectors.EVENT_READ)
+
             while True:
                 events: Dict[socket.socket, int] = {}
                 for work in self.clients.values():
@@ -899,13 +900,13 @@ class Threadless(multiprocessing.Process):
                 # TODO: Only send readable / writables that client requested for
                 # Downside is that for thousands of connections, we'll be passing
                 # large lists back and forth for no actions.
-                shutdown_fileno: List[int] = []
+                teared_down = []
                 for fileno in self.clients:
                     teardown = self.clients[fileno].handle_events(readables, writables)
                     if teardown:
-                        self.clients[fileno].shutdown()
-                        shutdown_fileno.append(fileno)
-                for fileno in shutdown_fileno:
+                        teared_down.append(fileno)
+                for fileno in teared_down:
+                    self.clients[fileno].shutdown()
                     del self.clients[fileno]
 
                 for fd in events.keys():
@@ -913,7 +914,7 @@ class Threadless(multiprocessing.Process):
         except KeyboardInterrupt:
             pass
         finally:
-            pass
+            self.client_queue.close()
 
 
 class Acceptor(multiprocessing.Process):
