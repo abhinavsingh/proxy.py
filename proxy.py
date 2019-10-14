@@ -859,58 +859,56 @@ class Threadless(multiprocessing.Process):
         self.clients: Dict[int, ProtocolHandler] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
 
+    @contextlib.contextmanager
+    def selected_events(self) -> Generator[Tuple[List[Union[int, _HasFileno]],
+                                                 List[Union[int, _HasFileno]]],
+                                           None, None]:
+        events: Dict[socket.socket, int] = {}
+        for work in self.clients.values():
+            events.update(work.get_events())
+        for fd in events:
+            self.selector.register(fd, events[fd])
+        ev = self.selector.select(timeout=1)
+        readables = []
+        writables = []
+        for key, mask in ev:
+            if mask & selectors.EVENT_READ:
+                readables.append(key.fileobj)
+            if mask & selectors.EVENT_WRITE:
+                writables.append(key.fileobj)
+        yield (readables, writables)
+        for fd in events.keys():
+            self.selector.unregister(fd)
+
     def run(self) -> None:
         try:
             self.selector = selectors.DefaultSelector()
             self.selector.register(self.client_queue, selectors.EVENT_READ)
 
             while True:
-                events: Dict[socket.socket, int] = {}
-                for work in self.clients.values():
-                    events.update(work.get_events())
+                with self.selected_events() as (readables, writables):
+                    if len(readables) == 0 and len(writables) == 0:
+                        continue
 
-                for fd in events:
-                    self.selector.register(fd, events[fd])
+                    # TODO: Only send readable / writables that client is expecting.
+                    teared_down = []
+                    for fileno in self.clients:
+                        teardown = self.clients[fileno].handle_events(readables, writables)
+                        if teardown:
+                            teared_down.append(fileno)
+                    for fileno in teared_down:
+                        self.clients[fileno].shutdown()
+                        del self.clients[fileno]
 
-                ev = self.selector.select(timeout=1)
-                if len(ev) == 0:
-                    for fd in events.keys():
-                        self.selector.unregister(fd)
-                    continue
-
-                readables = []
-                writables = []
-                for key, mask in ev:
-                    if mask & selectors.EVENT_READ:
-                        readables.append(key.fileobj)
-                    if mask & selectors.EVENT_WRITE:
-                        writables.append(key.fileobj)
-
-                # Receive accepted client connection
-                if self.client_queue in readables:
-                    readables.remove(self.client_queue)
-                    addr = self.client_queue.recv()
-                    fileno = recv_handle(self.client_queue)
-                    self.clients[fileno] = self.work_klass(
-                        fileno=fileno,
-                        addr=addr,
-                        **self.kwargs)
-                    self.clients[fileno].initialize()
-
-                # TODO: Only send readable / writables that client requested for
-                # Downside is that for thousands of connections, we'll be passing
-                # large lists back and forth for no actions.
-                teared_down = []
-                for fileno in self.clients:
-                    teardown = self.clients[fileno].handle_events(readables, writables)
-                    if teardown:
-                        teared_down.append(fileno)
-                for fileno in teared_down:
-                    self.clients[fileno].shutdown()
-                    del self.clients[fileno]
-
-                for fd in events.keys():
-                    self.selector.unregister(fd)
+                    # Receive accepted client connection
+                    if self.client_queue in readables:
+                        addr = self.client_queue.recv()
+                        fileno = recv_handle(self.client_queue)
+                        self.clients[fileno] = self.work_klass(
+                            fileno=fileno,
+                            addr=addr,
+                            **self.kwargs)
+                        self.clients[fileno].initialize()
         except KeyboardInterrupt:
             pass
         finally:
@@ -2082,6 +2080,11 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     self.routes[protocol][path] = instance
 
     def serve_file_or_404(self, path: str) -> bool:
+        """Read and serves a file from disk.
+
+        Queues 404 Not Found for IOError.
+        Shouldn't this be server error?
+        """
         try:
             with open(path, 'rb') as f:
                 content = f.read()
