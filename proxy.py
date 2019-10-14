@@ -855,11 +855,10 @@ class Worker(multiprocessing.Process):
         )
         selector = selectors.DefaultSelector()
         try:
+            selector.register(sock, selectors.EVENT_READ)
             while self.running:
                 with self.lock:
-                    selector.register(sock, selectors.EVENT_READ)
                     events = selector.select(timeout=1)
-                    selector.unregister(sock)
                     if len(events) == 0:
                         continue
                 try:
@@ -876,6 +875,7 @@ class Worker(multiprocessing.Process):
         except KeyboardInterrupt:
             pass
         finally:
+            selector.unregister(sock)
             sock.close()
 
 
