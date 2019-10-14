@@ -258,7 +258,7 @@ class TestAcceptorPool(unittest.TestCase):
     @mock.patch('proxy.send_handle')
     @mock.patch('multiprocessing.Pipe')
     @mock.patch('socket.socket')
-    @mock.patch('proxy.Worker')
+    @mock.patch('proxy.Acceptor')
     def test_setup_and_shutdown(
             self,
             mock_worker: mock.Mock,
@@ -314,7 +314,7 @@ class TestWorker(unittest.TestCase):
     def setUp(self, mock_protocol_handler: mock.Mock) -> None:
         self.pipe = multiprocessing.Pipe()
         self.protocol_config = proxy.ProtocolConfig()
-        self.worker = proxy.Worker(
+        self.worker = proxy.Acceptor(
             proxy.DEFAULT_THREADLESS,
             self.pipe[1],
             mock_protocol_handler,

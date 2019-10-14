@@ -710,14 +710,14 @@ mechanism. Its responsibility is to establish connection between client and
 upstream [TcpServerConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L204-L227)
 and invoke `HttpProxyBasePlugin` lifecycle hooks.
 
-- `ProtocolHandler` threads are started by [Worker](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
+- `ProtocolHandler` threads are started by [Acceptor](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
   processes.
 
-- `--num-workers` `Worker` processes are started by 
+- `--num-workers` `Acceptor` processes are started by 
   [AcceptorPool](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L368-L421) 
   on start-up.
 
-- `AcceptorPool` listens on server socket and pass the handler to `Worker` processes.
+- `AcceptorPool` listens on server socket and pass the handler to `Acceptor` processes.
   Workers are responsible for accepting new client connections and starting
   `ProtocolHandler` thread.
 
@@ -797,7 +797,7 @@ CLASSES
     contextlib.ContextDecorator(builtins.object)
         socket_connection
     multiprocessing.context.Process(multiprocessing.process.BaseProcess)
-        Worker
+        Acceptor
     threading.Thread(builtins.object)
         ProtocolHandler
 ```

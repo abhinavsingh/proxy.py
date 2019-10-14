@@ -781,7 +781,7 @@ class AcceptorPool:
 
         self.current_worker_id = 0
         self.num_workers = num_workers
-        self.workers: List[Worker] = []
+        self.workers: List[Acceptor] = []
         self.work_queues: List[connection.Connection] = []
 
         self.work_klass = work_klass
@@ -800,7 +800,7 @@ class AcceptorPool:
         for worker_id in range(self.num_workers):
             work_queue = multiprocessing.Pipe()
 
-            worker = Worker(
+            worker = Acceptor(
                 self.threadless,
                 work_queue[1],
                 self.work_klass,
@@ -835,7 +835,7 @@ class AcceptorPool:
         self.socket.close()
 
 
-class Worker(multiprocessing.Process):
+class Acceptor(multiprocessing.Process):
     """Socket client acceptor.
 
     Accepts client connection over received server socket handle and
@@ -851,6 +851,7 @@ class Worker(multiprocessing.Process):
             work_klass: type,
             **kwargs: Any):
         super().__init__()
+        self.threadless: bool = threadless
         self.work_queue: connection.Connection = work_queue
         self.work_klass = work_klass
         self.kwargs = kwargs
@@ -875,18 +876,15 @@ class Worker(multiprocessing.Process):
                     conn, addr = sock.accept()
                 except BlockingIOError:
                     continue
-                # Spawning new thread for each request is not a good strategy.
-                # This means to handle 1 million connections, server would need
-                # to spawn a million threads.
-                #
-                # In future we'll merge client selector with server selector,
-                # so that Worker is the only process per core to select for events.
                 work = self.work_klass(
                     fileno=conn.fileno(),
                     addr=addr,
                     **self.kwargs)
-                work.setDaemon(True)
-                work.start()
+                if self.threadless:
+                    pass
+                else:
+                    work.setDaemon(True)
+                    work.start()
         except KeyboardInterrupt:
             pass
         finally:
