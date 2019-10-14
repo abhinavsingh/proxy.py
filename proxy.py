@@ -778,8 +778,7 @@ class AcceptorPool:
         self.current_worker_id = 0
         self.num_workers = num_workers
         self.workers: List[Worker] = []
-        self.work_queues: List[Tuple[connection.Connection,
-                                     connection.Connection]] = []
+        self.work_queues: List[connection.Connection] = []
 
         self.work_klass = work_klass
         self.kwargs = kwargs
@@ -802,13 +801,15 @@ class AcceptorPool:
             worker.start()
 
             self.workers.append(worker)
-            self.work_queues.append(work_queue)
+            self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.num_workers)
 
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.num_workers)
         for worker in self.workers:
             worker.join()
+        for work_queue in self.work_queues:
+            work_queue.close()
 
     def setup(self) -> None:
         """Listen on port, setup workers and pass server socket to workers."""
@@ -819,8 +820,8 @@ class AcceptorPool:
         # Send server socket to workers.
         assert self.socket is not None
         for work_queue in self.work_queues:
-            work_queue[0].send(self.family)
-            send_handle(work_queue[0], self.socket.fileno(),
+            work_queue.send(self.family)
+            send_handle(work_queue, self.socket.fileno(),
                         self.workers[self.current_worker_id].pid)
         self.socket.close()
 
@@ -881,6 +882,7 @@ class Worker(multiprocessing.Process):
         finally:
             selector.unregister(sock)
             sock.close()
+            self.work_queue.close()
 
 
 class ProtocolException(Exception):
