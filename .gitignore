@@ -16,4 +16,3 @@ proxy.py.iml
 *.pyc
 ca-*.pem
 https-*.pem
-benchmark.py

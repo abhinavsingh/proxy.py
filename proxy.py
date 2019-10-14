@@ -851,10 +851,12 @@ class ThreadlessWork(ABC):
     def handle_events(self,
                       readables: List[Union[int, _HasFileno]],
                       writables: List[Union[int, _HasFileno]]) -> bool:
+        """Return True to shutdown work."""
         return False    # pragma: no cover
 
     @abstractmethod
     def shutdown(self) -> None:
+        """Must close any opened resources."""
         pass    # pragma: no cover
 
 
@@ -2357,7 +2359,6 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
                 'Client buffer is empty and maximum inactivity has reached '
                 'between client and server connection, tearing down...')
             return True
-
         return False
 
     def shutdown(self) -> None:
@@ -2369,19 +2370,18 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             plugin.on_client_connection_close()
 
         logger.debug(
-            'Closing proxy for connection %r '
+            'Closing client connection %r '
             'at address %r with pending client buffer size %d bytes' %
             (self.client.connection, self.client.addr, self.client.buffer_size()))
 
-        if not self.client.closed:
-            try:
-                self.client.connection.shutdown(socket.SHUT_WR)
-                logger.debug('Client connection shutdown successful')
-            except OSError:
-                pass
-            finally:
-                self.client.connection.close()
-                logger.debug('Client connection closed')
+        try:
+            self.client.connection.shutdown(socket.SHUT_WR)
+            logger.debug('Client connection shutdown successful')
+        except OSError:
+            pass
+        finally:
+            self.client.connection.close()
+            logger.debug('Client connection closed')
 
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
@@ -2620,7 +2620,7 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
         pass
 
     def request_will_be_sent(self) -> Dict[str, Any]:
-        _now = time.time()
+        now = time.time()
         return {
             'requestId': self.id,
             'loaderId': self.loader_id,
@@ -2640,8 +2640,8 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
                 'postData': None if self.request.method != 'POST'
                 else text_(self.request.body)
             },
-            'timestamp': _now - PROXY_PY_START_TIME,
-            'wallTime': _now,
+            'timestamp': now - PROXY_PY_START_TIME,
+            'wallTime': now,
             'initiator': {
                 'type': 'other'
             },
