@@ -859,6 +859,7 @@ class Threadless(multiprocessing.Process):
         # For now hardcode type as ProtocolHandler
         self.clients: Dict[int, ProtocolHandler] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
 
     @contextlib.contextmanager
     def selected_events(self) -> Generator[Tuple[List[Union[int, _HasFileno]],
@@ -901,6 +902,7 @@ class Threadless(multiprocessing.Process):
         try:
             self.selector = selectors.DefaultSelector()
             self.selector.register(self.client_queue, selectors.EVENT_READ)
+            self.loop = asyncio.get_event_loop()
             while True:
                 with self.selected_events() as (readables, writables):
                     if len(readables) == 0 and len(writables) == 0:
@@ -908,7 +910,7 @@ class Threadless(multiprocessing.Process):
                     # TODO: Only send readable / writables that client is expecting.
                     tasks = {}
                     for fileno in self.clients:
-                        tasks[fileno] = asyncio.ensure_future(
+                        tasks[fileno] = self.loop.create_task(
                             self.handle_events(fileno, readables, writables))
                     # Receive accepted client connection
                     if self.client_queue in readables:
@@ -919,11 +921,13 @@ class Threadless(multiprocessing.Process):
                             addr=addr,
                             **self.kwargs)
                         self.clients[fileno].initialize()
-                    asyncio.run(self.wait_for_tasks(tasks))
+                    self.loop.run_until_complete(self.wait_for_tasks(tasks))
         except KeyboardInterrupt:
             pass
         finally:
+            self.selector.unregister(self.client_queue)
             self.client_queue.close()
+            self.loop.close()
 
 
 class Acceptor(multiprocessing.Process):
