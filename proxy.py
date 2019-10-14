@@ -872,33 +872,41 @@ class Threadless(multiprocessing.Process):
                     self.selector.register(fd, events[fd])
 
                 ev = self.selector.select(timeout=1)
-                if len(ev) > 0:
-                    readables = []
-                    writables = []
-                    for key, mask in ev:
-                        if mask & selectors.EVENT_READ:
-                            readables.append(key.fileobj)
-                        if mask & selectors.EVENT_WRITE:
-                            writables.append(key.fileobj)
+                if len(ev) == 0:
+                    for fd in events.keys():
+                        self.selector.unregister(fd)
+                    continue
 
-                    # Receive accepted client connection
-                    if self.client_queue in readables:
-                        readables.remove(self.client_queue)
-                        addr = self.client_queue.recv()
-                        fileno = recv_handle(self.client_queue)
-                        self.clients[fileno] = self.work_klass(
-                            fileno=fileno,
-                            addr=addr,
-                            **self.kwargs)
-                        self.clients[fileno].initialize()
+                readables = []
+                writables = []
+                for key, mask in ev:
+                    if mask & selectors.EVENT_READ:
+                        readables.append(key.fileobj)
+                    if mask & selectors.EVENT_WRITE:
+                        writables.append(key.fileobj)
 
-                    if len(self.clients.keys()) > 0 and \
-                            (len(readables) > 0 or len(writables) > 0):
-                        work = self.clients[list(self.clients.keys())[0]]
-                        teardown = work.handle_events(readables, writables)
-                        if teardown:
-                            work.shutdown()
-                            del self.clients[list(self.clients.keys())[0]]
+                # Receive accepted client connection
+                if self.client_queue in readables:
+                    readables.remove(self.client_queue)
+                    addr = self.client_queue.recv()
+                    fileno = recv_handle(self.client_queue)
+                    self.clients[fileno] = self.work_klass(
+                        fileno=fileno,
+                        addr=addr,
+                        **self.kwargs)
+                    self.clients[fileno].initialize()
+
+                # TODO: Only send readable / writables that client requested for
+                # Downside is that for thousands of connections, we'll be passing
+                # large lists back and forth for no actions.
+                shutdown_fileno: List[int] = []
+                for fileno in self.clients:
+                    teardown = self.clients[fileno].handle_events(readables, writables)
+                    if teardown:
+                        self.clients[fileno].shutdown()
+                        shutdown_fileno.append(fileno)
+                for fileno in shutdown_fileno:
+                    del self.clients[fileno]
 
                 for fd in events.keys():
                     self.selector.unregister(fd)
@@ -956,6 +964,7 @@ class Acceptor(multiprocessing.Process):
         self.threadless_client_queue.close()
 
     def run_once(self) -> None:
+        assert self.selector
         with self.lock:
             events = self.selector.select(timeout=1)
             if len(events) == 0:
@@ -2191,11 +2200,12 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
     def access_log(self) -> None:
         logger.info(
-            '%s:%s - %s %s' %
+            '%s:%s - %s %s - %.2f ms' %
             (self.client.addr[0],
              self.client.addr[1],
              text_(self.request.method),
-             text_(self.request.path)))
+             text_(self.request.path),
+             (time.time() - self.start_time) * 1000))
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
