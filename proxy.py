@@ -779,9 +779,8 @@ class AcceptorPool:
         self.backlog: int = backlog
         self.socket: Optional[socket.socket] = None
 
-        self.current_worker_id = 0
-        self.num_workers = num_workers
-        self.workers: List[Acceptor] = []
+        self.num_acceptors = num_workers
+        self.acceptors: List[Acceptor] = []
         self.work_queues: List[connection.Connection] = []
 
         self.work_klass = work_klass
@@ -797,26 +796,24 @@ class AcceptorPool:
 
     def start_workers(self) -> None:
         """Start worker processes."""
-        for worker_id in range(self.num_workers):
+        for _ in range(self.num_acceptors):
             work_queue = multiprocessing.Pipe()
-
-            worker = Acceptor(
+            acceptor = Acceptor(
                 self.threadless,
                 work_queue[1],
                 self.work_klass,
                 **self.kwargs
             )
-            worker.daemon = True
-            worker.start()
-
-            self.workers.append(worker)
+            acceptor.daemon = True
+            acceptor.start()
+            self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
-        logger.info('Started %d workers' % self.num_workers)
+        logger.info('Started %d workers' % self.num_acceptors)
 
     def shutdown(self) -> None:
-        logger.info('Shutting down %d workers' % self.num_workers)
-        for worker in self.workers:
-            worker.join()
+        logger.info('Shutting down %d workers' % self.num_acceptors)
+        for acceptor in self.acceptors:
+            acceptor.join()
         for work_queue in self.work_queues:
             work_queue.close()
 
@@ -826,12 +823,13 @@ class AcceptorPool:
         self.listen()
         self.start_workers()
 
-        # Send server socket to workers.
+        # Send server socket to all acceptor processes.
         assert self.socket is not None
-        for work_queue in self.work_queues:
+        for index in range(self.num_acceptors):
+            work_queue = self.work_queues[index]
             work_queue.send(self.family)
             send_handle(work_queue, self.socket.fileno(),
-                        self.workers[self.current_worker_id].pid)
+                        self.acceptors[index].pid)
         self.socket.close()
 
 
