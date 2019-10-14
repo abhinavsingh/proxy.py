@@ -805,7 +805,7 @@ class AcceptorPool:
                 self.work_klass,
                 **self.kwargs
             )
-            acceptor.daemon = True
+            # acceptor.daemon = True
             acceptor.start()
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
@@ -857,28 +857,49 @@ class Threadless(multiprocessing.Process):
         # TODO: Create an abstract class that ProtocolHandler will implement.
         # For now hardcode type as ProtocolHandler
         self.clients: Dict[int, ProtocolHandler] = {}
-        self.selector = selectors.DefaultSelector()
+        self.selector: Optional[selectors.DefaultSelector] = None
 
     def run(self) -> None:
+        self.selector = selectors.DefaultSelector()
         try:
+            self.selector.register(self.client_queue, selectors.EVENT_READ)
             while True:
-                # TODO: Recv via selector to make non-blocking
-                addr = self.client_queue.recv()
-                fileno = recv_handle(self.client_queue)
+                events: Dict[socket.socket, int] = {}
+                for work in self.clients.values():
+                    events.update(work.get_events())
 
-                work = self.work_klass(
-                    fileno=fileno,
-                    addr=addr,
-                    **self.kwargs)
-                self.clients[fileno] = work
-
-                events: Dict[socket.socket, int] = work.get_events()
                 for fd in events:
                     self.selector.register(fd, events[fd])
 
-                _ = self.selector.select(timeout=1)
+                ev = self.selector.select(timeout=1)
+                if len(ev) > 0:
+                    readables = []
+                    writables = []
+                    for key, mask in ev:
+                        if mask & selectors.EVENT_READ:
+                            readables.append(key.fileobj)
+                        if mask & selectors.EVENT_WRITE:
+                            writables.append(key.fileobj)
 
-                work.handle_selected_events(events)
+                    # Receive accepted client connection
+                    if self.client_queue in readables:
+                        readables.remove(self.client_queue)
+                        addr = self.client_queue.recv()
+                        fileno = recv_handle(self.client_queue)
+                        self.clients[fileno] = self.work_klass(
+                            fileno=fileno,
+                            addr=addr,
+                            **self.kwargs)
+                        self.clients[fileno].initialize()
+
+                    if len(self.clients.keys()) > 0 and \
+                            (len(readables) > 0 or len(writables) > 0):
+                        work = self.clients[list(self.clients.keys())[0]]
+                        teardown = work.handle_events(readables, writables)
+                        if teardown:
+                            work.shutdown()
+                            del self.clients[list(self.clients.keys())[0]]
+
                 for fd in events.keys():
                     self.selector.unregister(fd)
         except KeyboardInterrupt:
@@ -898,20 +919,20 @@ class Acceptor(multiprocessing.Process):
 
     def __init__(
             self,
-            family: int,
+            family: socket.AddressFamily,
             threadless: bool,
             work_queue: connection.Connection,
             work_klass: type,
             **kwargs: Any) -> None:
         super().__init__()
-        self.family: int = family
+        self.family: socket.AddressFamily = family
         self.threadless: bool = threadless
         self.work_queue: connection.Connection = work_queue
         self.work_klass = work_klass
         self.kwargs = kwargs
 
         self.running = False
-        self.selector = selectors.DefaultSelector()
+        self.selector: Optional[selectors.DefaultSelector] = None
         self.sock: Optional[socket.socket] = None
         self.threadless_process: Optional[multiprocessing.Process] = None
         self.threadless_client_queue: Optional[connection.Connection] = None
@@ -924,7 +945,7 @@ class Acceptor(multiprocessing.Process):
         self.threadless_process = Threadless(
             pipe[1], self.work_klass, **self.kwargs
         )
-        self.threadless_process.daemon = True
+        # self.threadless_process.daemon = True
         self.threadless_process.start()
 
     def shutdown_threadless_process(self) -> None:
@@ -934,16 +955,16 @@ class Acceptor(multiprocessing.Process):
         self.threadless_process.join()
         self.threadless_client_queue.close()
 
-    def run_once(self) -> bool:
+    def run_once(self) -> None:
         with self.lock:
             events = self.selector.select(timeout=1)
             if len(events) == 0:
-                return False
+                return
         try:
             assert self.sock
             conn, addr = self.sock.accept()
         except BlockingIOError:
-            return False
+            return
         if self.threadless and \
                 self.threadless_client_queue and \
                 self.threadless_process:
@@ -963,24 +984,22 @@ class Acceptor(multiprocessing.Process):
                 fileno=conn.fileno(),
                 addr=addr,
                 **self.kwargs)
-            work.setDaemon(True)
+            # work.setDaemon(True)
             work.start()
-        return False
 
     def run(self) -> None:
         self.running = True
+        self.selector = selectors.DefaultSelector()
         self.sock = socket.fromfd(
             recv_handle(self.work_queue),
             family=self.family,
             type=socket.SOCK_STREAM
         )
         try:
-            self.start_threadless_process()
             self.selector.register(self.sock, selectors.EVENT_READ)
+            self.start_threadless_process()
             while self.running:
-                teardown = self.run_once()
-                if teardown:
-                    break
+                self.run_once()
         except KeyboardInterrupt:
             pass
         finally:
@@ -1869,7 +1888,7 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
             args=(self.event_dispatcher_shutdown,
                   self.config.devtools_event_queue,
                   self.client))
-        self.event_dispatcher_thread.setDaemon(True)
+        # self.event_dispatcher_thread.setDaemon(True)
         self.event_dispatcher_thread.start()
 
     def stop_dispatcher(self) -> None:
