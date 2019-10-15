@@ -926,30 +926,38 @@ class Threadless(multiprocessing.Process):
                 self.works[fileno].shutdown()
                 del self.works[fileno]
 
+    def run_once(self) -> None:
+        with self.selected_events() as (readables, writables):
+            if len(readables) == 0 and len(writables) == 0:
+                return
+            # TODO: Only send readable / writables that client originally registered.
+            tasks = {}
+            for fileno in self.works:
+                tasks[fileno] = self.loop.create_task(
+                    self.handle_events(fileno, readables, writables))
+            # Receive accepted client connection
+            if self.client_queue in readables:
+                addr = self.client_queue.recv()
+                fileno = recv_handle(self.client_queue)
+                self.works[fileno] = self.work_klass(
+                    fileno=fileno,
+                    addr=addr,
+                    **self.kwargs)
+                try:
+                    self.works[fileno].initialize()
+                except ssl.SSLError as e:
+                    logger.exception('ssl.SSLError', exc_info=e)
+                    self.works[fileno].shutdown()
+                    del self.works[fileno]
+            self.loop.run_until_complete(self.wait_for_tasks(tasks))
+
     def run(self) -> None:
         try:
             self.selector = selectors.DefaultSelector()
             self.selector.register(self.client_queue, selectors.EVENT_READ)
             self.loop = asyncio.get_event_loop()
             while True:
-                with self.selected_events() as (readables, writables):
-                    if len(readables) == 0 and len(writables) == 0:
-                        continue
-                    # TODO: Only send readable / writables that client originally registered.
-                    tasks = {}
-                    for fileno in self.works:
-                        tasks[fileno] = self.loop.create_task(
-                            self.handle_events(fileno, readables, writables))
-                    # Receive accepted client connection
-                    if self.client_queue in readables:
-                        addr = self.client_queue.recv()
-                        fileno = recv_handle(self.client_queue)
-                        self.works[fileno] = self.work_klass(
-                            fileno=fileno,
-                            addr=addr,
-                            **self.kwargs)
-                        self.works[fileno].initialize()
-                    self.loop.run_until_complete(self.wait_for_tasks(tasks))
+                self.run_once()
         except KeyboardInterrupt:
             pass
         finally:
@@ -2067,8 +2075,10 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
     def routes(self) -> List[Tuple[int, bytes]]:
         if self.config.pac_file_url_path:
-            return [(httpProtocolTypes.HTTP, bytes_(
-                self.config.pac_file_url_path))]
+            return [
+                (httpProtocolTypes.HTTP, bytes_(self.config.pac_file_url_path)),
+                (httpProtocolTypes.HTTPS, bytes_(self.config.pac_file_url_path)),
+            ]
         return []   # pragma: no cover
 
     def handle_request(self, request: HttpParser) -> None:
@@ -2374,13 +2384,15 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             'at address %r with pending client buffer size %d bytes' %
             (self.client.connection, self.client.addr, self.client.buffer_size()))
 
+        if self.config.encryption_enabled():
+            conn = self.client.connection.unwrap()
         try:
-            self.client.connection.shutdown(socket.SHUT_WR)
+            conn.shutdown(socket.SHUT_RDWR)
             logger.debug('Client connection shutdown successful')
         except OSError:
             pass
         finally:
-            self.client.connection.close()
+            conn.close()
             logger.debug('Client connection closed')
 
     def fromfd(self, fileno: int) -> socket.socket:
