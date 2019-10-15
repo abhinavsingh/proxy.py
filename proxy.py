@@ -2385,9 +2385,12 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             'at address %r with pending client buffer size %d bytes' %
             (self.client.connection, self.client.addr, self.client.buffer_size()))
 
-        if self.config.encryption_enabled():
-            conn = cast(ssl.SSLSocket, self.client.connection).unwrap()
+        # Unwrap if wrapped before shutdown.
+        conn = self.client.connection
         try:
+            if self.config.encryption_enabled() and \
+                    isinstance(self.client.connection, ssl.SSLSocket):
+                conn = cast(ssl.SSLSocket, self.client.connection).unwrap()
             conn.shutdown(socket.SHUT_RDWR)
             logger.debug('Client connection shutdown successful')
         except OSError:
