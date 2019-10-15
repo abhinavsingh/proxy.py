@@ -1493,6 +1493,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if self.server:
             for plugin in self.plugins.values():
                 plugin.on_upstream_connection_close()
+        assert self.server
         try:
             self.server.connection.shutdown(socket.SHUT_WR)
         except OSError:
