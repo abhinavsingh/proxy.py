@@ -76,7 +76,7 @@ Features
 ========
 
 - Fast & Scalable
-    - Utilizes all available cores on the system
+    - Scales by using all available cores on the system
     - Threadless executions using coroutine
     - Made to handle `tens-of-thousands` connections / sec
         ```
@@ -1034,10 +1034,9 @@ optional arguments:
                         value for faster downloads at the expense of increased
                         RAM.
   --static-server-dir STATIC_SERVER_DIR
-                        Default: /Users/abhinav/Dev/proxy.py/public. Static
-                        server root directory. This option is only applicable
-                        when static server is also enabled. See --enable-
-                        static-server.
+                        Default: "public" folder in directory where proxy.py
+                        is placed. This option is only applicable when static
+                        server is also enabled. See --enable-static-server.
   --threadless          Default: False. When disabled a new thread is spawned
                         to handle each client connection.
   --timeout TIMEOUT     Default: 10. Number of seconds after which an inactive

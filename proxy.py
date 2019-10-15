@@ -2977,7 +2977,7 @@ def init_parser() -> argparse.ArgumentParser:
         '--static-server-dir',
         type=str,
         default=DEFAULT_STATIC_SERVER_DIR,
-        help='Default: ' + DEFAULT_STATIC_SERVER_DIR + '.  Static server root directory. '
+        help='Default: "public" folder in directory where proxy.py is placed. '
              'This option is only applicable when static server is also enabled. '
              'See --enable-static-server.'
     )
