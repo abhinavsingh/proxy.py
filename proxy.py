@@ -2390,7 +2390,7 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
         try:
             if self.config.encryption_enabled() and \
                     isinstance(self.client.connection, ssl.SSLSocket):
-                conn = cast(ssl.SSLSocket, self.client.connection).unwrap()
+                conn = self.client.connection.unwrap()
             conn.shutdown(socket.SHUT_RDWR)
             logger.debug('Client connection shutdown successful')
         except OSError:
