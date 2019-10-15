@@ -2507,6 +2507,9 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
 
             try:
                 self.client.flush()
+            except OSError as e:
+                logger.error('OSError when flushing buffer to client')
+                return True
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for client')
