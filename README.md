@@ -798,33 +798,23 @@ Example:
 
 ```
 $ pydoc3 proxy
-Help on module proxy:
-
-NAME
-    proxy
-
-DESCRIPTION
-    proxy.py
-    ~~~~~~~~
-    Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
-    
-    :copyright: (c) 2013-present by Abhinav Singh and contributors.
-    :license: BSD, see LICENSE for more details.
 
 CLASSES
     abc.ABC(builtins.object)
         HttpProxyBasePlugin
         HttpWebServerBasePlugin
-            DevtoolsFrontendPlugin
+            DevtoolsWebsocketPlugin
             HttpWebServerPacFilePlugin
         ProtocolHandlerPlugin
-            DevtoolsEventGeneratorPlugin
+            DevtoolsProtocolPlugin
             HttpProxyPlugin
             HttpWebServerPlugin
         TcpConnection
             TcpClientConnection
             TcpServerConnection
             WebsocketClient
+        ThreadlessWork
+            ProtocolHandler(threading.Thread, ThreadlessWork)
     builtins.Exception(builtins.BaseException)
         ProtocolException
             HttpRequestRejected
@@ -839,17 +829,20 @@ CLASSES
         WebsocketFrame
     builtins.tuple(builtins.object)
         ChunkParserStates
+        HttpMethods
         HttpParserStates
         HttpParserTypes
         HttpProtocolTypes
+        HttpStatusCodes
         TcpConnectionTypes
         WebsocketOpcodes
     contextlib.ContextDecorator(builtins.object)
         socket_connection
     multiprocessing.context.Process(multiprocessing.process.BaseProcess)
         Acceptor
+        Threadless
     threading.Thread(builtins.object)
-        ProtocolHandler
+        ProtocolHandler(threading.Thread, ThreadlessWork)
 ```
 
 Frequently Asked Questions
