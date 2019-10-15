@@ -11,7 +11,7 @@
 # ./monitor <proxy-py-pid>
 #
 # Alternately, just run:
-# watch -n 5 'lsof -i TCP:8899 | grep -v LISTEN'
+# watch -n 1 'lsof -i TCP:8899 | grep -v LISTEN'
 
 PROXY_PY_PID=$1
 if [ -z "$PROXY_PY_PID" ]; then

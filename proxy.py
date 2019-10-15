@@ -417,6 +417,7 @@ class TcpConnection(ABC):
                 logger.debug(
                     'received %d bytes from %s' %
                     (len(data), self.tag))
+                logger.debug(data)
                 return data
         except socket.error as e:
             if e.errno == errno.ECONNRESET:
@@ -449,6 +450,7 @@ class TcpConnection(ABC):
         if self.closed:
             raise BrokenPipeError()
         sent: int = self.send(self.buffer)
+        logger.debug(self.buffer[:sent])
         self.buffer = self.buffer[sent:]
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
@@ -848,6 +850,10 @@ class ThreadlessWork(ABC):
         pass    # pragma: no cover
 
     @abstractmethod
+    def is_inactive(self) -> bool:
+        return False    # pragma: no cover
+
+    @abstractmethod
     def get_events(self) -> Dict[socket.socket, int]:
         return {}   # pragma: no cover
 
@@ -921,40 +927,68 @@ class Threadless(multiprocessing.Process):
     # TODO: Use correct future typing annotations
     async def wait_for_tasks(
             self, tasks: Dict[int, Any]) -> None:
-        for fileno in tasks:
-            teardown = await tasks[fileno]
-            if teardown:
-                # TODO: Shutdown can block too
-                # Currently calls flush which can use
-                # ProtocolHandler.selector
-                self.works[fileno].shutdown()
-                del self.works[fileno]
+        for work_id in tasks:
+            # TODO: Resolving one handle_events here can block resolution of other tasks
+            try:
+                teardown = await asyncio.wait_for(tasks[work_id], DEFAULT_TIMEOUT)
+                if teardown:
+                    self.cleanup(work_id)
+            except asyncio.TimeoutError:
+                self.cleanup(work_id)
+
+    def accept_client(self) -> None:
+        addr = self.client_queue.recv()
+        fileno = recv_handle(self.client_queue)
+        self.works[fileno] = self.work_klass(
+            fileno=fileno,
+            addr=addr,
+            **self.kwargs)
+        try:
+            self.works[fileno].initialize()
+        except ssl.SSLError as e:
+            logger.exception('ssl.SSLError', exc_info=e)
+            self.cleanup(fileno)
+
+    def cleanup_inactive(self) -> None:
+        inactive_works: List[int] = []
+        for work_id in self.works:
+            if self.works[work_id].is_inactive():
+                inactive_works.append(work_id)
+        for work_id in inactive_works:
+            self.cleanup(work_id)
+
+    def cleanup(self, work_id: int) -> None:
+        # TODO: ProtocolHandler.shutdown can call flush which may block
+        self.works[work_id].shutdown()
+        del self.works[work_id]
 
     def run_once(self) -> None:
         assert self.loop is not None
+        readables: List[Union[int, _HasFileno]] = []
+        writables: List[Union[int, _HasFileno]] = []
         with self.selected_events() as (readables, writables):
             if len(readables) == 0 and len(writables) == 0:
+                # Remove and shutdown inactive connections
+                self.cleanup_inactive()
                 return
-            # TODO: Only send readable / writables that client originally registered.
-            tasks = {}
-            for fileno in self.works:
-                tasks[fileno] = self.loop.create_task(
-                    self.handle_events(fileno, readables, writables))
-            # Receive accepted client connection
-            if self.client_queue in readables:
-                addr = self.client_queue.recv()
-                fileno = recv_handle(self.client_queue)
-                self.works[fileno] = self.work_klass(
-                    fileno=fileno,
-                    addr=addr,
-                    **self.kwargs)
-                try:
-                    self.works[fileno].initialize()
-                except ssl.SSLError as e:
-                    logger.exception('ssl.SSLError', exc_info=e)
-                    self.works[fileno].shutdown()
-                    del self.works[fileno]
-            self.loop.run_until_complete(self.wait_for_tasks(tasks))
+        # Note that selector from now on is idle,
+        # until all the logic below completes.
+        #
+        # Invoke Threadless.handle_events
+        # TODO: Only send readable / writables that client originally registered.
+        tasks = {}
+        for fileno in self.works:
+            logger.debug('Creating task for %s', fileno)
+            tasks[fileno] = self.loop.create_task(
+                self.handle_events(fileno, readables, writables))
+        # Accepted client connection from Acceptor
+        if self.client_queue in readables:
+            logger.debug('Accepting client')
+            self.accept_client()
+        # Wait for Threadless.handle_events to complete
+        self.loop.run_until_complete(self.wait_for_tasks(tasks))
+        # Remove and shutdown inactive connections
+        self.cleanup_inactive()
 
     def run(self) -> None:
         try:
@@ -2325,6 +2359,12 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
                 self.plugins[instance.name()] = instance
         logger.debug('Handling connection %r' % self.client.connection)
 
+    def is_inactive(self) -> bool:
+        if not self.client.has_buffer() and \
+                self.connection_inactive_for() > self.config.timeout:
+            return True
+        return False
+
     def get_events(self) -> Dict[socket.socket, int]:
         events: Dict[socket.socket, int] = {
             self.client.connection: selectors.EVENT_READ
@@ -2348,7 +2388,10 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
 
         return events
 
-    def handle_events(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
+    def handle_events(
+            self,
+            readables: List[Union[int, _HasFileno]],
+            writables: List[Union[int, _HasFileno]]) -> bool:
         """Returns True if proxy must teardown."""
         # Flush buffer for ready to write sockets
         teardown = self.handle_writables(writables)
@@ -2372,20 +2415,6 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             if teardown:
                 return True
 
-        # Teardown if client buffer is empty and connection is inactive
-        if not self.client.has_buffer() and \
-                self.is_connection_inactive():
-            self.client.queue(build_http_response(
-                httpStatusCodes.REQUEST_TIMEOUT, reason=b'Request Timeout',
-                headers={
-                    b'Server': PROXY_AGENT_HEADER_VALUE,
-                    b'Connection': b'close',
-                }
-            ))
-            logger.debug(
-                'Client buffer is empty and maximum inactivity has reached '
-                'between client and server connection, tearing down...')
-            return True
         return False
 
     def shutdown(self) -> None:
@@ -2440,9 +2469,6 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
 
     def connection_inactive_for(self) -> float:
         return time.time() - self.last_activity
-
-    def is_connection_inactive(self) -> bool:
-        return self.connection_inactive_for() > self.config.timeout
 
     def flush(self) -> None:
         if not self.client.has_buffer():
@@ -2563,6 +2589,12 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
         try:
             self.initialize()
             while True:
+                # Teardown if client buffer is empty and connection is inactive
+                if self.is_inactive():
+                    logger.debug(
+                        'Client buffer is empty and maximum inactivity has reached '
+                        'between client and server connection, tearing down...')
+                    break
                 teardown = self.run_once()
                 if teardown:
                     break
