@@ -327,6 +327,7 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
 
 
 def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
+    conn = None
     try:
         ip = ipaddress.ip_address(addr[0])
         if ip.version == 4:
@@ -338,10 +339,13 @@ def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
                 socket.AF_INET6, socket.SOCK_STREAM, 0)
             conn.connect((addr[0], addr[1], 0, 0))
     except ValueError:
-        # Not a valid IP address, most likely its a domain name,
-        # try to establish dual stack IPv4/IPv6 connection.
-        conn = socket.create_connection(addr)
-    return conn
+        pass    # does not appear to be an IPv4 or IPv6 address
+
+    if conn is not None:
+        return conn
+
+    # try to establish dual stack IPv4/IPv6 connection.
+    return socket.create_connection(addr)
 
 
 class socket_connection(contextlib.ContextDecorator):
@@ -1488,12 +1492,18 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def on_client_connection_close(self) -> None:
         if not self.request.has_upstream_server():
             return
+
         self.access_log()
+
+        # If server was never initialized, nothing to do
+        if not self.server or \
+                not self.server.connection:
+            return
+
         # Invoke plugin.on_upstream_connection_close
-        if self.server:
-            for plugin in self.plugins.values():
-                plugin.on_upstream_connection_close()
-        assert self.server
+        for plugin in self.plugins.values():
+            plugin.on_upstream_connection_close()
+
         try:
             self.server.connection.shutdown(socket.SHUT_WR)
         except OSError:
