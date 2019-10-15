@@ -49,9 +49,16 @@ Table of Contents
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
 * [import proxy.py](#import-proxypy)
-    * [proxy.new_socket_connection](#proxynew_socket_connection)
-    * [proxy.socket_connection](#proxysocket_connection)
-    * [proxy.build_http_request](#proxybuild_http_request)
+    * [TCP Sockets](#tcp-sockets)
+        * [proxy.new_socket_connection](#proxynew_socket_connection)
+        * [proxy.socket_connection](#proxysocket_connection)
+    * [Http Client](#http-client)
+        * [proxy.build_http_request](#proxybuild_http_request)
+        * [proxy.build_http_response](#proxybuild_http_response)
+    * [Websocket Client](#websocket-client)
+        * [proxy.WebsocketFrame](#proxywebsocketframe)
+        * [proxy.WebsocketClient](#proxywebsocketclient)
+    * [Embed proxy.py](#embed-proxypy)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
@@ -68,6 +75,29 @@ Table of Contents
 Features
 ========
 
+- Fast & Scalable
+    - Utilizes all available cores on the system
+    - Threadless executions using coroutine
+    - Made to handle `tens-of-thousands` connections / sec
+        ```
+        # On Macbook Pro 2015 / 2.8 GHz Intel Core i7
+        $ hey -n 10000 -c 100 http://localhost:8899/
+
+        Summary:
+          Total:	0.6157 secs
+          Slowest:	0.1049 secs
+          Fastest:	0.0007 secs
+          Average:	0.0055 secs
+          Requests/sec:	16240.5444
+
+          Total data:	800000 bytes
+          Size/request:	80 bytes
+
+        Response time histogram:
+          0.001 [1]     |
+          0.011 [9565]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+          0.022 [332]	|■
+        ```
 - Lightweight
     - Distributed as a single file module `~100KB`
     - Uses only `~5-20MB` RAM
@@ -599,7 +629,9 @@ $ python
 >>>
 ```
 
-## proxy.new_socket_connection
+## TCP Sockets
+
+### proxy.new_socket_connection
 
 Attempts to create an IPv4 connection, then IPv6 and
 finally a dual stack connection to provided address.
@@ -610,7 +642,7 @@ finally a dual stack connection to provided address.
 >>> conn.close()
 ```
 
-## proxy.socket_connection
+### proxy.socket_connection
 
 `socket_connection` is a convenient decorator + context manager
 around `new_socket_connection` which ensures `conn.close` is implicit.
@@ -630,9 +662,11 @@ As a decorator:
 >>>   ... [ use connection ] ...
 ```
 
-## proxy.build_http_request
+## Http Client
 
-#### Generate HTTP GET request
+### proxy.build_http_request
+
+##### Generate HTTP GET request
 
 ```
 >>> proxy.build_http_request(b'GET', b'/')
@@ -640,7 +674,7 @@ b'GET / HTTP/1.1\r\n\r\n'
 >>>
 ```
 
-#### Generate HTTP GET request with headers
+##### Generate HTTP GET request with headers
 
 ```
 >>> proxy.build_http_request(b'GET', b'/', 
@@ -649,7 +683,7 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
 >>>
 ```
 
-#### Generate HTTP POST request with headers and body
+##### Generate HTTP POST request with headers and body
 
 ```
 >>> import json
@@ -658,6 +692,22 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
         body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
     b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
 ```
+
+### proxy.build_http_response
+
+TODO
+
+## Websocket Client
+
+### proxy.WebsocketFrame
+
+TODO
+
+### proxy.WebsocketClient
+
+TODO
+
+## Embed proxy.py
 
 To start `proxy.py` server from imported `proxy.py` module, simply do:
 
