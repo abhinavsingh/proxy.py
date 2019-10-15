@@ -411,22 +411,15 @@ class TcpConnection(ABC):
         return self.connection.send(data)
 
     def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[bytes]:
-        try:
-            data: bytes = self.connection.recv(buffer_size)
-            if len(data) > 0:
-                logger.debug(
-                    'received %d bytes from %s' %
-                    (len(data), self.tag))
-                # logger.debug(data)
-                return data
-        except socket.error as e:
-            if e.errno == errno.ECONNRESET:
-                logger.debug('%r' % e)
-            else:
-                logger.exception(
-                    'Exception while receiving from connection %s %r with reason %r' %
-                    (self.tag, self.connection, e))
-        return None
+        """Users must handle socket.error exceptions"""
+        data: bytes = self.connection.recv(buffer_size)
+        if len(data) == 0:
+            return None
+        logger.debug(
+            'received %d bytes from %s' %
+            (len(data), self.tag))
+        # logger.debug(data)
+        return data
 
     def close(self) -> bool:
         if not self.closed:
@@ -445,10 +438,9 @@ class TcpConnection(ABC):
         return len(data)
 
     def flush(self) -> int:
+        """Users must handle BrokenPipeError exceptions"""
         if self.buffer_size() == 0:
             return 0
-        if self.closed:
-            raise BrokenPipeError()
         sent: int = self.send(self.buffer)
         # logger.debug(self.buffer[:sent])
         self.buffer = self.buffer[sent:]
@@ -1481,6 +1473,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             logger.debug('Server is write ready, flushing buffer')
             try:
                 self.server.flush()
+            except OSError:
+                logger.error('OSError when flushing buffer to server')
+                return True
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for server')
@@ -1491,7 +1486,22 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if self.request.has_upstream_server(
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading...')
-            raw = self.server.recv(self.config.server_recvbuf_size)
+            raw: Optional[bytes] = None
+
+            try:
+                raw = self.server.recv(self.config.server_recvbuf_size)
+            except ssl.SSLWantReadError:    # Try again later
+                logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
+                return False
+            except socket.error as e:
+                if e.errno == errno.ECONNRESET:
+                    logger.warning('Connection reset by upstream: %r' % e)
+                else:
+                    logger.exception(
+                        'Exception while receiving from %s connection %r with reason %r' %
+                        (self.server.tag, self.server.connection, e))
+                return True
+
             if not raw:
                 logger.debug('Server closed connection, tearing down...')
                 return True
@@ -1566,6 +1576,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             except OSError:
                 pass
             finally:
+                # TODO: Unwrap if wrapped before close?
                 self.server.connection.close()
         except TcpConnectionUninitializedException:
             pass
@@ -1645,6 +1656,34 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 sign_cert.communicate(timeout=10)
         return cert_file_path
 
+    def wrap_server(self) -> None:
+        assert self.server is not None
+        assert isinstance(self.server.connection, socket.socket)
+        ctx = ssl.create_default_context(
+            ssl.Purpose.SERVER_AUTH)
+        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        self.server.connection.setblocking(True)
+        self.server._conn = ctx.wrap_socket(
+            self.server.connection,
+            server_hostname=text_(self.request.host))
+        self.server.connection.setblocking(False)
+
+    def wrap_client(self) -> None:
+        assert self.server is not None
+        assert isinstance(self.server.connection, ssl.SSLSocket)
+        generated_cert = self.generate_upstream_certificate(
+            cast(Dict[str, Any], self.server.connection.getpeercert()))
+        self.client.connection.setblocking(True)
+        self.client.flush()
+        self.client._conn = ssl.wrap_socket(
+            self.client.connection,
+            server_side=True,
+            keyfile=self.config.ca_signing_key_file,
+            certfile=generated_cert)
+        self.client.connection.setblocking(False)
+        logger.info(
+            'TLS interception using %s', generated_cert)
+
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if not self.request.has_upstream_server():
             return False
@@ -1677,31 +1716,20 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled
             if self.config.tls_interception_enabled():
-                assert self.server is not None
-                assert isinstance(self.server.connection, socket.socket)
                 # Perform SSL/TLS handshake with upstream
-                ctx = ssl.create_default_context(
-                    ssl.Purpose.SERVER_AUTH)
-                ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                self.server.connection.setblocking(True)
-                self.server._conn = ctx.wrap_socket(
-                    self.server.connection,
-                    server_hostname=text_(self.request.host))
-                self.server.connection.setblocking(False)
-                assert isinstance(self.server.connection, ssl.SSLSocket)
+                self.wrap_server()
                 # Generate certificate and perform handshake with client
-                generated_cert = self.generate_upstream_certificate(
-                    cast(Dict[str, Any], self.server.connection.getpeercert()))
-                self.client.flush()
-                self.client.connection.setblocking(True)
-                self.client._conn = ssl.wrap_socket(
-                    self.client.connection,
-                    server_side=True,
-                    keyfile=self.config.ca_signing_key_file,
-                    certfile=generated_cert)
-                self.client.connection.setblocking(False)
-                logger.info(
-                    'TLS interception using %s', generated_cert)
+                try:
+                    # wrap_client also flushes client data before wrapping
+                    # sending to client can raise, handle expected exceptions
+                    self.wrap_client()
+                except OSError:
+                    logger.error('OSError when wrapping client')
+                    return True
+                except BrokenPipeError:
+                    logger.error(
+                        'BrokenPipeError when wrapping client')
+                    return True
                 # Update all plugin connection reference
                 for plugin in self.plugins.values():
                     plugin.client._conn = self.client.connection
@@ -2535,8 +2563,22 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
+            client_data: Optional[bytes] = None
 
-            client_data = self.client.recv(self.config.client_recvbuf_size)
+            try:
+                client_data = self.client.recv(self.config.client_recvbuf_size)
+            except ssl.SSLWantReadError:    # Try again later
+                logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
+                return False
+            except socket.error as e:
+                if e.errno == errno.ECONNRESET:
+                    logger.warning('Connection reset by upstream: %r' % e)
+                else:
+                    logger.exception(
+                        'Exception while receiving from %s connection %r with reason %r' %
+                        (self.client.tag, self.client.connection, e))
+                return True
+
             if not client_data:
                 logger.debug('Client closed connection, tearing down...')
                 self.client.closed = True
@@ -2571,8 +2613,6 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
                                 for plugin_ in self.plugins.values():
                                     if plugin_ != plugin:
                                         plugin_.client._conn = upgraded_sock
-                                        logger.debug(
-                                            'Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                                 return True
             except ProtocolException as e:

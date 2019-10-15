@@ -99,13 +99,6 @@ class TestTcpConnection(unittest.TestCase):
                 raise proxy.TcpConnectionUninitializedException()
             return self._conn
 
-    def testFlushThrowsBrokenPipeIfClosed(self) -> None:
-        self.conn = TestTcpConnection.TcpConnectionToTest()
-        self.conn.queue(b'some data')
-        self.conn.closed = True
-        with self.assertRaises(BrokenPipeError):
-            self.conn.flush()
-
     def testThrowsKeyErrorIfNoConn(self) -> None:
         self.conn = TestTcpConnection.TcpConnectionToTest()
         with self.assertRaises(proxy.TcpConnectionUninitializedException):
@@ -114,28 +107,6 @@ class TestTcpConnection(unittest.TestCase):
             self.conn.recv()
         with self.assertRaises(proxy.TcpConnectionUninitializedException):
             self.conn.close()
-
-    def testHandlesIOError(self) -> None:
-        _conn = mock.MagicMock()
-        _conn.recv.side_effect = IOError()
-        self.conn = TestTcpConnection.TcpConnectionToTest(_conn)
-        with mock.patch('proxy.logger') as mock_logger:
-            self.conn.recv()
-            mock_logger.exception.assert_called()
-            logging.info(mock_logger.exception.call_args[0][0].startswith(
-                'Exception while receiving from connection'))
-
-    def testHandlesConnReset(self) -> None:
-        _conn = mock.MagicMock()
-        e = IOError()
-        e.errno = errno.ECONNRESET
-        _conn.recv.side_effect = e
-        self.conn = TestTcpConnection.TcpConnectionToTest(_conn)
-        with mock.patch('proxy.logger') as mock_logger:
-            self.conn.recv()
-            mock_logger.exception.assert_not_called()
-            mock_logger.debug.assert_called()
-            self.assertEqual(mock_logger.debug.call_args[0][0], '%r' % e)
 
     def testClosesIfNotClosed(self) -> None:
         _conn = mock.MagicMock()
