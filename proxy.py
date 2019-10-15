@@ -927,6 +927,7 @@ class Threadless(multiprocessing.Process):
                 del self.works[fileno]
 
     def run_once(self) -> None:
+        assert self.loop is not None
         with self.selected_events() as (readables, writables):
             if len(readables) == 0 and len(writables) == 0:
                 return
@@ -2385,7 +2386,7 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             (self.client.connection, self.client.addr, self.client.buffer_size()))
 
         if self.config.encryption_enabled():
-            conn = self.client.connection.unwrap()
+            conn = cast(ssl.SSLSocket, self.client.connection).unwrap()
         try:
             conn.shutdown(socket.SHUT_RDWR)
             logger.debug('Client connection shutdown successful')
