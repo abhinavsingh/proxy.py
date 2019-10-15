@@ -39,7 +39,7 @@ from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from types import TracebackType
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, Type
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, Type, TypeVar
 from typing import cast, Generator, TYPE_CHECKING
 from urllib import parse as urlparse
 
@@ -551,6 +551,9 @@ class ChunkParser:
         return CRLF.join(chunks) + CRLF
 
 
+T = TypeVar('T', bound='HttpParser')
+
+
 class HttpParser:
     """HTTP request/response parser."""
 
@@ -582,6 +585,18 @@ class HttpParser:
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
         self.path: Optional[bytes] = None
+
+    @classmethod
+    def request(cls: Type[T], raw: bytes) -> T:
+        parser = cls(httpParserTypes.REQUEST_PARSER)
+        parser.parse(raw)
+        return parser
+
+    @classmethod
+    def response(cls: Type[T], raw: bytes) -> T:
+        parser = cls(httpParserTypes.RESPONSE_PARSER)
+        parser.parse(raw)
+        return parser
 
     def header(self, key: bytes) -> bytes:
         if key.lower() not in self.headers:
