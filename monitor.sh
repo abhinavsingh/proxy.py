@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# proxy.py
+# ~~~~~~~~
+# ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
+#
+# :copyright: (c) 2013-present by Abhinav Singh and contributors.
+# :license: BSD, see LICENSE for more details.
+#
+# Usage
+# ./monitor <proxy-py-pid>
+#
+# Alternately, just run:
+# watch -n 5 'lsof -i TCP:8899 | grep -v LISTEN'
+
 PROXY_PY_PID=$1
 if [ -z "$PROXY_PY_PID" ]; then
   echo "PROXY_PY_PID required as argument."
