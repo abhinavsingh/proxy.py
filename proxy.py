@@ -417,7 +417,7 @@ class TcpConnection(ABC):
                 logger.debug(
                     'received %d bytes from %s' %
                     (len(data), self.tag))
-                logger.debug(data)
+                # logger.debug(data)
                 return data
         except socket.error as e:
             if e.errno == errno.ECONNRESET:
@@ -450,7 +450,7 @@ class TcpConnection(ABC):
         if self.closed:
             raise BrokenPipeError()
         sent: int = self.send(self.buffer)
-        logger.debug(self.buffer[:sent])
+        # logger.debug(self.buffer[:sent])
         self.buffer = self.buffer[sent:]
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
@@ -978,12 +978,10 @@ class Threadless(multiprocessing.Process):
         # TODO: Only send readable / writables that client originally registered.
         tasks = {}
         for fileno in self.works:
-            logger.debug('Creating task for %s', fileno)
             tasks[fileno] = self.loop.create_task(
                 self.handle_events(fileno, readables, writables))
         # Accepted client connection from Acceptor
         if self.client_queue in readables:
-            logger.debug('Accepting client')
             self.accept_client()
         # Wait for Threadless.handle_events to complete
         self.loop.run_until_complete(self.wait_for_tasks(tasks))
@@ -1438,6 +1436,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         self.server: Optional[TcpServerConnection] = None
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.pipeline_request: Optional[HttpParser] = None
+        self.pipeline_response: Optional[HttpParser] = None
 
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
         if b'HttpProxyBasePlugin' in self.config.plugins:
@@ -1476,7 +1475,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server(
         ) and self.server and not self.server.closed and self.server.connection in r:
-            logger.debug('Server is ready for reads, reading')
+            logger.debug('Server is ready for reads, reading...')
             raw = self.server.recv(self.config.server_recvbuf_size)
             if not raw:
                 logger.debug('Server closed connection, tearing down...')
@@ -1490,7 +1489,14 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             # tls interception is enabled
             if self.request.method != httpMethods.CONNECT or \
                     self.config.tls_interception_enabled():
-                self.response.parse(raw)
+                if self.response.state == httpParserStates.COMPLETE:
+                    if self.pipeline_response is None:
+                        self.pipeline_response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+                    self.pipeline_response.parse(raw)
+                    if self.pipeline_response.state == httpParserStates.COMPLETE:
+                        self.pipeline_response = None
+                else:
+                    self.response.parse(raw)
             else:
                 self.response.total_size += len(raw)
             # queue raw data for client
@@ -1529,21 +1535,26 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
 
         self.access_log()
 
-        # If server was never initialized, nothing to do
-        if not self.server or \
-                not self.server.connection:
+        # If server was never initialized, return
+        if self.server is None:
             return
 
+        # Note that, server instance was initialized
+        # but not necessarily the connection object exists.
         # Invoke plugin.on_upstream_connection_close
         for plugin in self.plugins.values():
             plugin.on_upstream_connection_close()
 
         try:
-            self.server.connection.shutdown(socket.SHUT_WR)
-        except OSError:
+            try:
+                self.server.connection.shutdown(socket.SHUT_WR)
+            except OSError:
+                pass
+            finally:
+                self.server.connection.close()
+        except TcpConnectionUninitializedException:
             pass
         finally:
-            self.server.connection.close()
             logger.debug(
                 'Closed server connection with pending server buffer size %d bytes' %
                 self.server.buffer_size())
@@ -1564,9 +1575,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             return raw
 
         if self.server and not self.server.closed:
-            # If 1st request did reach completion stage
-            # and 1st request was not a CONNECT request
-            # or if TLS interception was enabled
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
                     self.config.tls_interception_enabled()):
