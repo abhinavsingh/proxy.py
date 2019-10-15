@@ -1490,10 +1490,15 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             return
         self.access_log()
         # Invoke plugin.on_upstream_connection_close
-        if self.server and not self.server.closed:
+        if self.server:
             for plugin in self.plugins.values():
                 plugin.on_upstream_connection_close()
-            self.server.close()
+        try:
+            self.server.connection.shutdown(socket.SHUT_WR)
+        except OSError:
+            pass
+        finally:
+            self.server.connection.close()
             logger.debug(
                 'Closed server connection with pending server buffer size %d bytes' %
                 self.server.buffer_size())
@@ -1883,7 +1888,7 @@ class WebsocketClient(TcpConnection):
         finally:
             try:
                 self.selector.unregister(self.sock)
-                self.sock.shutdown(socket.SHUT_RDWR)
+                self.sock.shutdown(socket.SHUT_WR)
             except Exception as e:
                 logging.exception('Exception while shutdown of websocket client', exc_info=e)
             self.sock.close()
@@ -2385,13 +2390,13 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             'at address %r with pending client buffer size %d bytes' %
             (self.client.connection, self.client.addr, self.client.buffer_size()))
 
-        # Unwrap if wrapped before shutdown.
         conn = self.client.connection
         try:
+            # Unwrap if wrapped before shutdown.
             if self.config.encryption_enabled() and \
                     isinstance(self.client.connection, ssl.SSLSocket):
                 conn = self.client.connection.unwrap()
-            conn.shutdown(socket.SHUT_RDWR)
+            conn.shutdown(socket.SHUT_WR)
             logger.debug('Client connection shutdown successful')
         except OSError:
             pass
