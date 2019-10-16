@@ -990,8 +990,6 @@ class Threadless(multiprocessing.Process):
 
     def run_once(self) -> None:
         assert self.loop is not None
-        readables: List[Union[int, _HasFileno]] = []
-        writables: List[Union[int, _HasFileno]] = []
         with self.selected_events() as (readables, writables):
             if len(readables) == 0 and len(writables) == 0:
                 # Remove and shutdown inactive connections
@@ -1506,8 +1504,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         if self.request.has_upstream_server(
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading...')
-            raw: Optional[bytes] = None
-
             try:
                 raw = self.server.recv(self.config.server_recvbuf_size)
             except ssl.SSLWantReadError:    # Try again later
@@ -2589,8 +2585,6 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
-            client_data: Optional[bytes] = None
-
             try:
                 client_data = self.client.recv(self.config.client_recvbuf_size)
             except ssl.SSLWantReadError:    # Try again later
