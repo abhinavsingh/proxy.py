@@ -39,6 +39,7 @@ Table of Contents
         * [Stable version](#stable-version-from-docker-hub)
         * [Development version](#build-development-version-locally)
 * [Plugin Examples](#plugin-examples)
+    * [ShortLinkPlugin](#shortlinkplugin)
     * [ModifyPostDataPlugin](#modifypostdataplugin)
     * [ProposedRestApiPlugin](#proposedrestapiplugin)
     * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
@@ -49,9 +50,16 @@ Table of Contents
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
 * [import proxy.py](#import-proxypy)
-    * [proxy.new_socket_connection](#proxynew_socket_connection)
-    * [proxy.socket_connection](#proxysocket_connection)
-    * [proxy.build_http_request](#proxybuild_http_request)
+    * [TCP Sockets](#tcp-sockets)
+        * [proxy.new_socket_connection](#proxynew_socket_connection)
+        * [proxy.socket_connection](#proxysocket_connection)
+    * [Http Client](#http-client)
+        * [proxy.build_http_request](#proxybuild_http_request)
+        * [proxy.build_http_response](#proxybuild_http_response)
+    * [Websocket Client](#websocket-client)
+        * [proxy.WebsocketFrame](#proxywebsocketframe)
+        * [proxy.WebsocketClient](#proxywebsocketclient)
+    * [Embed proxy.py](#embed-proxypy)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
@@ -68,6 +76,29 @@ Table of Contents
 Features
 ========
 
+- Fast & Scalable
+    - Scales by using all available cores on the system
+    - Threadless executions using coroutine
+    - Made to handle `tens-of-thousands` connections / sec
+        ```
+        # On Macbook Pro 2015 / 2.8 GHz Intel Core i7
+        $ hey -n 10000 -c 100 http://localhost:8899/
+
+        Summary:
+          Total:	0.6157 secs
+          Slowest:	0.1049 secs
+          Fastest:	0.0007 secs
+          Average:	0.0055 secs
+          Requests/sec:	16240.5444
+
+          Total data:	800000 bytes
+          Size/request:	80 bytes
+
+        Response time histogram:
+          0.001 [1]     |
+          0.011 [9565]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+          0.022 [332]	|■
+        ```
 - Lightweight
     - Distributed as a single file module `~100KB`
     - Uses only `~5-20MB` RAM
@@ -203,6 +234,35 @@ See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/p
 
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
 See [TLS Interception](#tls-interception).
+
+## ShortLinkPlugin
+
+Add support for short links in your favorite browsers / applications.
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --plugins plugin_examples.ShortLinkPlugin
+```
+
+Now you can speed up your daily browsing experience by visiting your
+favorite website using single character domain names :).  This works
+across all browsers.
+
+Following short links are enabled by default:
+
+Short Link | Destination URL
+:--------: | :---------------:
+a/ | amazon.com
+i/ | instagram.com
+l/ | linkedin.com
+f/ | facebook.com
+g/ | google.com
+t/ | twitter.com
+w/ | web.whatsapp.com
+y/ | youtube.com
+proxy/ | localhost:8899
 
 ## ModifyPostDataPlugin
 
@@ -599,7 +659,9 @@ $ python
 >>>
 ```
 
-## proxy.new_socket_connection
+## TCP Sockets
+
+### proxy.new_socket_connection
 
 Attempts to create an IPv4 connection, then IPv6 and
 finally a dual stack connection to provided address.
@@ -610,7 +672,7 @@ finally a dual stack connection to provided address.
 >>> conn.close()
 ```
 
-## proxy.socket_connection
+### proxy.socket_connection
 
 `socket_connection` is a convenient decorator + context manager
 around `new_socket_connection` which ensures `conn.close` is implicit.
@@ -630,9 +692,11 @@ As a decorator:
 >>>   ... [ use connection ] ...
 ```
 
-## proxy.build_http_request
+## Http Client
 
-#### Generate HTTP GET request
+### proxy.build_http_request
+
+##### Generate HTTP GET request
 
 ```
 >>> proxy.build_http_request(b'GET', b'/')
@@ -640,7 +704,7 @@ b'GET / HTTP/1.1\r\n\r\n'
 >>>
 ```
 
-#### Generate HTTP GET request with headers
+##### Generate HTTP GET request with headers
 
 ```
 >>> proxy.build_http_request(b'GET', b'/', 
@@ -649,7 +713,7 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
 >>>
 ```
 
-#### Generate HTTP POST request with headers and body
+##### Generate HTTP POST request with headers and body
 
 ```
 >>> import json
@@ -658,6 +722,22 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
         body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
     b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
 ```
+
+### proxy.build_http_response
+
+TODO
+
+## Websocket Client
+
+### proxy.WebsocketFrame
+
+TODO
+
+### proxy.WebsocketClient
+
+TODO
+
+## Embed proxy.py
 
 To start `proxy.py` server from imported `proxy.py` module, simply do:
 
@@ -710,14 +790,14 @@ mechanism. Its responsibility is to establish connection between client and
 upstream [TcpServerConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L204-L227)
 and invoke `HttpProxyBasePlugin` lifecycle hooks.
 
-- `ProtocolHandler` threads are started by [Worker](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
+- `ProtocolHandler` threads are started by [Acceptor](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
   processes.
 
-- `--num-workers` `Worker` processes are started by 
+- `--num-workers` `Acceptor` processes are started by 
   [AcceptorPool](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L368-L421) 
   on start-up.
 
-- `AcceptorPool` listens on server socket and pass the handler to `Worker` processes.
+- `AcceptorPool` listens on server socket and pass the handler to `Acceptor` processes.
   Workers are responsible for accepting new client connections and starting
   `ProtocolHandler` thread.
 
@@ -748,33 +828,23 @@ Example:
 
 ```
 $ pydoc3 proxy
-Help on module proxy:
-
-NAME
-    proxy
-
-DESCRIPTION
-    proxy.py
-    ~~~~~~~~
-    Lightweight, Programmable, TLS interceptor Proxy for HTTP(S), HTTP2, WebSockets protocols in a single Python file.
-    
-    :copyright: (c) 2013-present by Abhinav Singh and contributors.
-    :license: BSD, see LICENSE for more details.
 
 CLASSES
     abc.ABC(builtins.object)
         HttpProxyBasePlugin
         HttpWebServerBasePlugin
-            DevtoolsFrontendPlugin
+            DevtoolsWebsocketPlugin
             HttpWebServerPacFilePlugin
         ProtocolHandlerPlugin
-            DevtoolsEventGeneratorPlugin
+            DevtoolsProtocolPlugin
             HttpProxyPlugin
             HttpWebServerPlugin
         TcpConnection
             TcpClientConnection
             TcpServerConnection
             WebsocketClient
+        ThreadlessWork
+            ProtocolHandler(threading.Thread, ThreadlessWork)
     builtins.Exception(builtins.BaseException)
         ProtocolException
             HttpRequestRejected
@@ -789,17 +859,20 @@ CLASSES
         WebsocketFrame
     builtins.tuple(builtins.object)
         ChunkParserStates
+        HttpMethods
         HttpParserStates
         HttpParserTypes
         HttpProtocolTypes
+        HttpStatusCodes
         TcpConnectionTypes
         WebsocketOpcodes
     contextlib.ContextDecorator(builtins.object)
         socket_connection
     multiprocessing.context.Process(multiprocessing.process.BaseProcess)
-        Worker
+        Acceptor
+        Threadless
     threading.Thread(builtins.object)
-        ProtocolHandler
+        ProtocolHandler(threading.Thread, ThreadlessWork)
 ```
 
 Frequently Asked Questions
@@ -905,8 +978,8 @@ usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
                 [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
                 [--plugins PLUGINS] [--port PORT]
                 [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-                [--static-server-dir STATIC_SERVER_DIR] [--timeout TIMEOUT]
-                [--version]
+                [--static-server-dir STATIC_SERVER_DIR] [--threadless]
+                [--timeout TIMEOUT] [--version]
 
 proxy.py v1.2.0
 
@@ -991,10 +1064,11 @@ optional arguments:
                         value for faster downloads at the expense of increased
                         RAM.
   --static-server-dir STATIC_SERVER_DIR
-                        Default: /Users/abhinav/Dev/proxy.py/public. Static
-                        server root directory. This option is only applicable
-                        when static server is also enabled. See --enable-
-                        static-server.
+                        Default: "public" folder in directory where proxy.py
+                        is placed. This option is only applicable when static
+                        server is also enabled. See --enable-static-server.
+  --threadless          Default: False. When disabled a new thread is spawned
+                        to handle each client connection.
   --timeout TIMEOUT     Default: 10. Number of seconds after which an inactive
                         connection must be dropped. Inactivity is defined by
                         no data sent or received by the client.

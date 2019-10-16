@@ -9,9 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
+import asyncio
 import base64
 import contextlib
-import datetime
 import errno
 import functools
 import hashlib
@@ -39,7 +39,8 @@ from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from types import TracebackType
-from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, TYPE_CHECKING, Type, cast
+from typing import Any, Dict, List, Tuple, Optional, Union, NamedTuple, Callable, Type, TypeVar
+from typing import cast, Generator, TYPE_CHECKING
 from urllib import parse as urlparse
 
 from typing_extensions import Protocol
@@ -90,6 +91,7 @@ DEFAULT_PLUGINS = ''
 DEFAULT_PORT = 8899
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
+DEFAULT_THREADLESS = False
 DEFAULT_TIMEOUT = 10
 DEFAULT_VERSION = False
 UNDER_TEST = False  # Set to True if under test
@@ -122,7 +124,7 @@ def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
 
 
 version = bytes_(__version__)
-CRLF, COLON, WHITESPACE, COMMA, DOT, HTTP_1_1 = b'\r\n', b':', b' ', b',', b'.', b'HTTP/1.1'
+CRLF, COLON, WHITESPACE, COMMA, DOT, SLASH, HTTP_1_1 = b'\r\n', b':', b' ', b',', b'.', b'/', b'HTTP/1.1'
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
@@ -147,6 +149,11 @@ HttpStatusCodes = NamedTuple('HttpStatusCodes', [
     ('SWITCHING_PROTOCOLS', int),
     # 2xx
     ('OK', int),
+    # 3xx
+    ('MOVED_PERMANENTLY', int),
+    ('SEE_OTHER', int),
+    ('TEMPORARY_REDIRECT', int),
+    ('PERMANENT_REDIRECT', int),
     # 4xx
     ('BAD_REQUEST', int),
     ('UNAUTHORIZED', int),
@@ -166,6 +173,7 @@ HttpStatusCodes = NamedTuple('HttpStatusCodes', [
 httpStatusCodes = HttpStatusCodes(
     100, 101,
     200,
+    301, 303, 307, 308,
     400, 401, 403, 404, 407, 408, 418,
     500, 501, 502, 504, 598, 599
 )
@@ -325,6 +333,7 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
 
 
 def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
+    conn = None
     try:
         ip = ipaddress.ip_address(addr[0])
         if ip.version == 4:
@@ -336,10 +345,13 @@ def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
                 socket.AF_INET6, socket.SOCK_STREAM, 0)
             conn.connect((addr[0], addr[1], 0, 0))
     except ValueError:
-        # Not a valid IP address, most likely its a domain name,
-        # try to establish dual stack IPv4/IPv6 connection.
-        conn = socket.create_connection(addr)
-    return conn
+        pass    # does not appear to be an IPv4 or IPv6 address
+
+    if conn is not None:
+        return conn
+
+    # try to establish dual stack IPv4/IPv6 connection.
+    return socket.create_connection(addr)
 
 
 class socket_connection(contextlib.ContextDecorator):
@@ -405,21 +417,15 @@ class TcpConnection(ABC):
         return self.connection.send(data)
 
     def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[bytes]:
-        try:
-            data: bytes = self.connection.recv(buffer_size)
-            if len(data) > 0:
-                logger.debug(
-                    'received %d bytes from %s' %
-                    (len(data), self.tag))
-                return data
-        except socket.error as e:
-            if e.errno == errno.ECONNRESET:
-                logger.debug('%r' % e)
-            else:
-                logger.exception(
-                    'Exception while receiving from connection %s %r with reason %r' %
-                    (self.tag, self.connection, e))
-        return None
+        """Users must handle socket.error exceptions"""
+        data: bytes = self.connection.recv(buffer_size)
+        if len(data) == 0:
+            return None
+        logger.debug(
+            'received %d bytes from %s' %
+            (len(data), self.tag))
+        # logger.info(data)
+        return data
 
     def close(self) -> bool:
         if not self.closed:
@@ -438,11 +444,11 @@ class TcpConnection(ABC):
         return len(data)
 
     def flush(self) -> int:
+        """Users must handle BrokenPipeError exceptions"""
         if self.buffer_size() == 0:
             return 0
-        if self.closed:
-            raise BrokenPipeError()
         sent: int = self.send(self.buffer)
+        # logger.info(self.buffer[:sent])
         self.buffer = self.buffer[sent:]
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
@@ -543,6 +549,9 @@ class ChunkParser:
         return CRLF.join(chunks) + CRLF
 
 
+T = TypeVar('T', bound='HttpParser')
+
+
 class HttpParser:
     """HTTP request/response parser."""
 
@@ -574,6 +583,18 @@ class HttpParser:
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
         self.path: Optional[bytes] = None
+
+    @classmethod
+    def request(cls: Type[T], raw: bytes) -> T:
+        parser = cls(httpParserTypes.REQUEST_PARSER)
+        parser.parse(raw)
+        return parser
+
+    @classmethod
+    def response(cls: Type[T], raw: bytes) -> T:
+        parser = cls(httpParserTypes.RESPONSE_PARSER)
+        parser.parse(raw)
+        return parser
 
     def header(self, key: bytes) -> bytes:
         if key.lower() not in self.headers:
@@ -765,7 +786,10 @@ class AcceptorPool:
                  hostname: Union[ipaddress.IPv4Address,
                                  ipaddress.IPv6Address],
                  port: int, backlog: int, num_workers: int,
-                 work_klass: type, **kwargs: Any) -> None:
+                 threadless: bool,
+                 work_klass: type,
+                 **kwargs: Any) -> None:
+        self.threadless = threadless
         self.running: bool = False
 
         self.hostname: Union[ipaddress.IPv4Address,
@@ -775,11 +799,9 @@ class AcceptorPool:
         self.backlog: int = backlog
         self.socket: Optional[socket.socket] = None
 
-        self.current_worker_id = 0
-        self.num_workers = num_workers
-        self.workers: List[Worker] = []
-        self.work_queues: List[Tuple[connection.Connection,
-                                     connection.Connection]] = []
+        self.num_acceptors = num_workers
+        self.acceptors: List[Acceptor] = []
+        self.work_queues: List[connection.Connection] = []
 
         self.work_klass = work_klass
         self.kwargs = kwargs
@@ -790,26 +812,31 @@ class AcceptorPool:
         self.socket.bind((str(self.hostname), self.port))
         self.socket.listen(self.backlog)
         self.socket.setblocking(False)
-        self.socket.settimeout(0)
         logger.info('Listening on %s:%d' % (self.hostname, self.port))
 
     def start_workers(self) -> None:
         """Start worker processes."""
-        for worker_id in range(self.num_workers):
+        for _ in range(self.num_acceptors):
             work_queue = multiprocessing.Pipe()
-
-            worker = Worker(work_queue[1], self.work_klass, **self.kwargs)
-            worker.daemon = True
-            worker.start()
-
-            self.workers.append(worker)
-            self.work_queues.append(work_queue)
-        logger.info('Started %d workers' % self.num_workers)
+            acceptor = Acceptor(
+                self.family,
+                self.threadless,
+                work_queue[1],
+                self.work_klass,
+                **self.kwargs
+            )
+            # acceptor.daemon = True
+            acceptor.start()
+            self.acceptors.append(acceptor)
+            self.work_queues.append(work_queue[0])
+        logger.info('Started %d workers' % self.num_acceptors)
 
     def shutdown(self) -> None:
-        logger.info('Shutting down %d workers' % self.num_workers)
-        for worker in self.workers:
-            worker.join()
+        logger.info('Shutting down %d workers' % self.num_acceptors)
+        for acceptor in self.acceptors:
+            acceptor.join()
+        for work_queue in self.work_queues:
+            work_queue.close()
 
     def setup(self) -> None:
         """Listen on port, setup workers and pass server socket to workers."""
@@ -817,16 +844,181 @@ class AcceptorPool:
         self.listen()
         self.start_workers()
 
-        # Send server socket to workers.
+        # Send server socket to all acceptor processes.
         assert self.socket is not None
-        for work_queue in self.work_queues:
-            work_queue[0].send(self.family)
-            send_handle(work_queue[0], self.socket.fileno(),
-                        self.workers[self.current_worker_id].pid)
+        for index in range(self.num_acceptors):
+            send_handle(
+                self.work_queues[index],
+                self.socket.fileno(),
+                self.acceptors[index].pid
+            )
         self.socket.close()
 
 
-class Worker(multiprocessing.Process):
+class ThreadlessWork(ABC):
+    """Implement ThreadlessWork to hook into the event loop provided by Threadless process."""
+
+    @abstractmethod
+    def initialize(self) -> None:
+        pass    # pragma: no cover
+
+    @abstractmethod
+    def is_inactive(self) -> bool:
+        return False    # pragma: no cover
+
+    @abstractmethod
+    def get_events(self) -> Dict[socket.socket, int]:
+        return {}   # pragma: no cover
+
+    @abstractmethod
+    def handle_events(self,
+                      readables: List[Union[int, _HasFileno]],
+                      writables: List[Union[int, _HasFileno]]) -> bool:
+        """Return True to shutdown work."""
+        return False    # pragma: no cover
+
+    @abstractmethod
+    def shutdown(self) -> None:
+        """Must close any opened resources."""
+        pass    # pragma: no cover
+
+
+class Threadless(multiprocessing.Process):
+    """Threadless provides an event loop.  Use it by implementing Threadless class.
+
+    When --threadless option is enabled, each Acceptor process also
+    spawns one Threadless process.  And instead of spawning new thread
+    for each accepted client connection, Acceptor process sends
+    accepted client connection to Threadless process over a pipe.
+
+    ProtocolHandler implements ThreadlessWork class and hooks into the
+    event loop provided by Threadless.
+    """
+
+    def __init__(
+            self,
+            client_queue: connection.Connection,
+            work_klass: type,
+            **kwargs: Any) -> None:
+        super().__init__()
+        self.client_queue = client_queue
+        self.work_klass = work_klass
+        self.kwargs = kwargs
+
+        self.works: Dict[int, ThreadlessWork] = {}
+        self.selector: Optional[selectors.DefaultSelector] = None
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
+
+    @contextlib.contextmanager
+    def selected_events(self) -> Generator[Tuple[List[Union[int, _HasFileno]],
+                                                 List[Union[int, _HasFileno]]],
+                                           None, None]:
+        events: Dict[socket.socket, int] = {}
+        for work in self.works.values():
+            events.update(work.get_events())
+        assert self.selector is not None
+        for fd in events:
+            self.selector.register(fd, events[fd])
+        ev = self.selector.select(timeout=1)
+        readables = []
+        writables = []
+        for key, mask in ev:
+            if mask & selectors.EVENT_READ:
+                readables.append(key.fileobj)
+            if mask & selectors.EVENT_WRITE:
+                writables.append(key.fileobj)
+        yield (readables, writables)
+        for fd in events.keys():
+            self.selector.unregister(fd)
+
+    async def handle_events(
+            self, fileno: int,
+            readables: List[Union[int, _HasFileno]],
+            writables: List[Union[int, _HasFileno]]) -> bool:
+        return self.works[fileno].handle_events(readables, writables)
+
+    # TODO: Use correct future typing annotations
+    async def wait_for_tasks(
+            self, tasks: Dict[int, Any]) -> None:
+        for work_id in tasks:
+            # TODO: Resolving one handle_events here can block resolution of other tasks
+            try:
+                teardown = await asyncio.wait_for(tasks[work_id], DEFAULT_TIMEOUT)
+                if teardown:
+                    self.cleanup(work_id)
+            except asyncio.TimeoutError:
+                self.cleanup(work_id)
+
+    def accept_client(self) -> None:
+        addr = self.client_queue.recv()
+        fileno = recv_handle(self.client_queue)
+        self.works[fileno] = self.work_klass(
+            fileno=fileno,
+            addr=addr,
+            **self.kwargs)
+        try:
+            self.works[fileno].initialize()
+        except ssl.SSLError as e:
+            logger.exception('ssl.SSLError', exc_info=e)
+            self.cleanup(fileno)
+
+    def cleanup_inactive(self) -> None:
+        inactive_works: List[int] = []
+        for work_id in self.works:
+            if self.works[work_id].is_inactive():
+                inactive_works.append(work_id)
+        for work_id in inactive_works:
+            self.cleanup(work_id)
+
+    def cleanup(self, work_id: int) -> None:
+        # TODO: ProtocolHandler.shutdown can call flush which may block
+        self.works[work_id].shutdown()
+        del self.works[work_id]
+
+    def run_once(self) -> None:
+        assert self.loop is not None
+        readables: List[Union[int, _HasFileno]] = []
+        writables: List[Union[int, _HasFileno]] = []
+        with self.selected_events() as (readables, writables):
+            if len(readables) == 0 and len(writables) == 0:
+                # Remove and shutdown inactive connections
+                self.cleanup_inactive()
+                return
+        # Note that selector from now on is idle,
+        # until all the logic below completes.
+        #
+        # Invoke Threadless.handle_events
+        # TODO: Only send readable / writables that client originally registered.
+        tasks = {}
+        for fileno in self.works:
+            tasks[fileno] = self.loop.create_task(
+                self.handle_events(fileno, readables, writables))
+        # Accepted client connection from Acceptor
+        if self.client_queue in readables:
+            self.accept_client()
+        # Wait for Threadless.handle_events to complete
+        self.loop.run_until_complete(self.wait_for_tasks(tasks))
+        # Remove and shutdown inactive connections
+        self.cleanup_inactive()
+
+    def run(self) -> None:
+        try:
+            self.selector = selectors.DefaultSelector()
+            self.selector.register(self.client_queue, selectors.EVENT_READ)
+            self.loop = asyncio.get_event_loop()
+            while True:
+                self.run_once()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            assert self.selector is not None
+            self.selector.unregister(self.client_queue)
+            self.client_queue.close()
+            assert self.loop is not None
+            self.loop.close()
+
+
+class Acceptor(multiprocessing.Process):
     """Socket client acceptor.
 
     Accepts client connection over received server socket handle and
@@ -837,46 +1029,98 @@ class Worker(multiprocessing.Process):
 
     def __init__(
             self,
+            family: socket.AddressFamily,
+            threadless: bool,
             work_queue: connection.Connection,
             work_klass: type,
-            **kwargs: Any):
+            **kwargs: Any) -> None:
         super().__init__()
+        self.family: socket.AddressFamily = family
+        self.threadless: bool = threadless
         self.work_queue: connection.Connection = work_queue
         self.work_klass = work_klass
         self.kwargs = kwargs
-        self.running = True
+
+        self.running = False
+        self.selector: Optional[selectors.DefaultSelector] = None
+        self.sock: Optional[socket.socket] = None
+        self.threadless_process: Optional[multiprocessing.Process] = None
+        self.threadless_client_queue: Optional[connection.Connection] = None
+
+    def start_threadless_process(self) -> None:
+        if not self.threadless:
+            return
+        pipe = multiprocessing.Pipe()
+        self.threadless_client_queue = pipe[0]
+        self.threadless_process = Threadless(
+            pipe[1], self.work_klass, **self.kwargs
+        )
+        # self.threadless_process.daemon = True
+        self.threadless_process.start()
+
+    def shutdown_threadless_process(self) -> None:
+        if not self.threadless:
+            return
+        assert self.threadless_process and self.threadless_client_queue
+        self.threadless_process.join()
+        self.threadless_client_queue.close()
+
+    def run_once(self) -> None:
+        assert self.selector
+        with self.lock:
+            events = self.selector.select(timeout=1)
+            if len(events) == 0:
+                return
+        try:
+            assert self.sock
+            conn, addr = self.sock.accept()
+        except BlockingIOError:
+            return
+        if self.threadless and \
+                self.threadless_client_queue and \
+                self.threadless_process:
+            self.threadless_client_queue.send(addr)
+            send_handle(
+                self.threadless_client_queue,
+                conn.fileno(),
+                self.threadless_process.pid
+            )
+            conn.close()
+        else:
+            # Starting a new thread per client request simply means
+            # we need 1 million threads to handle a million concurrent
+            # connections.  Since most of the client requests are short
+            # lived (even with keep-alive), starting threads is excessive.
+            work = self.work_klass(
+                fileno=conn.fileno(),
+                addr=addr,
+                **self.kwargs)
+            # work.setDaemon(True)
+            work.start()
 
     def run(self) -> None:
-        family = self.work_queue.recv()
-        sock = socket.fromfd(
-            recv_handle(self.work_queue),
-            family=family,
+        self.running = True
+        self.selector = selectors.DefaultSelector()
+        fileno = recv_handle(self.work_queue)
+        self.sock = socket.fromfd(
+            fileno,
+            family=self.family,
             type=socket.SOCK_STREAM
         )
-        selector = selectors.DefaultSelector()
+        os.close(fileno)
         try:
+            self.selector.register(self.sock, selectors.EVENT_READ)
+            self.start_threadless_process()
             while self.running:
-                with self.lock:
-                    selector.register(sock, selectors.EVENT_READ)
-                    events = selector.select(timeout=1)
-                    selector.unregister(sock)
-                    if len(events) == 0:
-                        continue
-                try:
-                    conn, addr = sock.accept()
-                except BlockingIOError:  # as e:
-                    # logger.exception('BlockingIOError', exc_info=e)
-                    continue
-                work = self.work_klass(
-                    fileno=conn.fileno(),
-                    addr=addr,
-                    **self.kwargs)
-                work.setDaemon(True)
-                work.start()
+                self.run_once()
         except KeyboardInterrupt:
             pass
         finally:
-            sock.close()
+            self.selector.unregister(self.sock)
+            self.shutdown_threadless_process()
+            self.sock.close()
+            self.work_queue.close()
+            self.running = False
 
 
 class ProtocolException(Exception):
@@ -1001,7 +1245,9 @@ class ProtocolConfig:
             enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
             devtools_event_queue: Optional[DevtoolsEventQueueType] = None,
             devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH,
-            timeout: int = DEFAULT_TIMEOUT) -> None:
+            timeout: int = DEFAULT_TIMEOUT,
+            threadless: bool = DEFAULT_THREADLESS) -> None:
+        self.threadless = threadless
         self.timeout = timeout
         self.auth_code = auth_code
         self.server_recvbuf_size = server_recvbuf_size
@@ -1205,6 +1451,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
         self.server: Optional[TcpServerConnection] = None
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.pipeline_request: Optional[HttpParser] = None
+        self.pipeline_response: Optional[HttpParser] = None
 
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
         if b'HttpProxyBasePlugin' in self.config.plugins:
@@ -1234,6 +1481,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             logger.debug('Server is write ready, flushing buffer')
             try:
                 self.server.flush()
+            except OSError:
+                logger.error('OSError when flushing buffer to server')
+                return True
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for server')
@@ -1243,8 +1493,23 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
         if self.request.has_upstream_server(
         ) and self.server and not self.server.closed and self.server.connection in r:
-            logger.debug('Server is ready for reads, reading')
-            raw = self.server.recv(self.config.server_recvbuf_size)
+            logger.debug('Server is ready for reads, reading...')
+            raw: Optional[bytes] = None
+
+            try:
+                raw = self.server.recv(self.config.server_recvbuf_size)
+            except ssl.SSLWantReadError:    # Try again later
+                # logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
+                return False
+            except socket.error as e:
+                if e.errno == errno.ECONNRESET:
+                    logger.warning('Connection reset by upstream: %r' % e)
+                else:
+                    logger.exception(
+                        'Exception while receiving from %s connection %r with reason %r' %
+                        (self.server.tag, self.server.connection, e))
+                return True
+
             if not raw:
                 logger.debug('Server closed connection, tearing down...')
                 return True
@@ -1255,9 +1520,19 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             # parse incoming response packet
             # only for non-https requests and when
             # tls interception is enabled
-            if self.request.method != httpMethods.CONNECT or \
-                    self.config.tls_interception_enabled():
-                self.response.parse(raw)
+            if self.request.method != httpMethods.CONNECT:
+                # See https://github.com/abhinavsingh/proxy.py/issues/127 for why
+                # currently response parsing is disabled when TLS interception is enabled.
+                #
+                # or self.config.tls_interception_enabled():
+                if self.response.state == httpParserStates.COMPLETE:
+                    if self.pipeline_response is None:
+                        self.pipeline_response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+                    self.pipeline_response.parse(raw)
+                    if self.pipeline_response.state == httpParserStates.COMPLETE:
+                        self.pipeline_response = None
+                else:
+                    self.response.parse(raw)
             else:
                 self.response.total_size += len(raw)
             # queue raw data for client
@@ -1293,12 +1568,30 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def on_client_connection_close(self) -> None:
         if not self.request.has_upstream_server():
             return
+
         self.access_log()
+
+        # If server was never initialized, return
+        if self.server is None:
+            return
+
+        # Note that, server instance was initialized
+        # but not necessarily the connection object exists.
         # Invoke plugin.on_upstream_connection_close
-        if self.server and not self.server.closed:
-            for plugin in self.plugins.values():
-                plugin.on_upstream_connection_close()
-            self.server.close()
+        for plugin in self.plugins.values():
+            plugin.on_upstream_connection_close()
+
+        try:
+            try:
+                self.server.connection.shutdown(socket.SHUT_WR)
+            except OSError:
+                pass
+            finally:
+                # TODO: Unwrap if wrapped before close?
+                self.server.connection.close()
+        except TcpConnectionUninitializedException:
+            pass
+        finally:
             logger.debug(
                 'Closed server connection with pending server buffer size %d bytes' %
                 self.server.buffer_size())
@@ -1319,9 +1612,6 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             return raw
 
         if self.server and not self.server.closed:
-            # If 1st request did reach completion stage
-            # and 1st request was not a CONNECT request
-            # or if TLS interception was enabled
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
                     self.config.tls_interception_enabled()):
@@ -1377,6 +1667,34 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 sign_cert.communicate(timeout=10)
         return cert_file_path
 
+    def wrap_server(self) -> None:
+        assert self.server is not None
+        assert isinstance(self.server.connection, socket.socket)
+        ctx = ssl.create_default_context(
+            ssl.Purpose.SERVER_AUTH)
+        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        self.server.connection.setblocking(True)
+        self.server._conn = ctx.wrap_socket(
+            self.server.connection,
+            server_hostname=text_(self.request.host))
+        self.server.connection.setblocking(False)
+
+    def wrap_client(self) -> None:
+        assert self.server is not None
+        assert isinstance(self.server.connection, ssl.SSLSocket)
+        generated_cert = self.generate_upstream_certificate(
+            cast(Dict[str, Any], self.server.connection.getpeercert()))
+        self.client.connection.setblocking(True)
+        self.client.flush()
+        self.client._conn = ssl.wrap_socket(
+            self.client.connection,
+            server_side=True,
+            keyfile=self.config.ca_signing_key_file,
+            certfile=generated_cert)
+        self.client.connection.setblocking(False)
+        logger.debug(
+            'TLS interception using %s', generated_cert)
+
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if not self.request.has_upstream_server():
             return False
@@ -1409,31 +1727,20 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled
             if self.config.tls_interception_enabled():
-                assert self.server is not None
-                assert isinstance(self.server.connection, socket.socket)
                 # Perform SSL/TLS handshake with upstream
-                ctx = ssl.create_default_context(
-                    ssl.Purpose.SERVER_AUTH)
-                ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-                self.server.connection.setblocking(True)
-                self.server._conn = ctx.wrap_socket(
-                    self.server.connection,
-                    server_hostname=text_(self.request.host))
-                self.server.connection.setblocking(False)
-                assert isinstance(self.server.connection, ssl.SSLSocket)
+                self.wrap_server()
                 # Generate certificate and perform handshake with client
-                generated_cert = self.generate_upstream_certificate(
-                    cast(Dict[str, Any], self.server.connection.getpeercert()))
-                self.client.flush()
-                self.client.connection.setblocking(True)
-                self.client._conn = ssl.wrap_socket(
-                    self.client.connection,
-                    server_side=True,
-                    keyfile=self.config.ca_signing_key_file,
-                    certfile=generated_cert)
-                self.client.connection.setblocking(False)
-                logger.info(
-                    'TLS interception using %s', generated_cert)
+                try:
+                    # wrap_client also flushes client data before wrapping
+                    # sending to client can raise, handle expected exceptions
+                    self.wrap_client()
+                except OSError:
+                    logger.error('OSError when wrapping client')
+                    return True
+                except BrokenPipeError:
+                    logger.error(
+                        'BrokenPipeError when wrapping client')
+                    return True
                 # Update all plugin connection reference
                 for plugin in self.plugins.values():
                     plugin.client._conn = self.client.connection
@@ -1688,7 +1995,7 @@ class WebsocketClient(TcpConnection):
         finally:
             try:
                 self.selector.unregister(self.sock)
-                self.sock.shutdown(socket.SHUT_RDWR)
+                self.sock.shutdown(socket.SHUT_WR)
             except Exception as e:
                 logging.exception('Exception while shutdown of websocket client', exc_info=e)
             self.sock.close()
@@ -1755,7 +2062,7 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
             args=(self.event_dispatcher_shutdown,
                   self.config.devtools_event_queue,
                   self.client))
-        self.event_dispatcher_thread.setDaemon(True)
+        # self.event_dispatcher_thread.setDaemon(True)
         self.event_dispatcher_thread.start()
 
     def stop_dispatcher(self) -> None:
@@ -1881,8 +2188,10 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
     def routes(self) -> List[Tuple[int, bytes]]:
         if self.config.pac_file_url_path:
-            return [(httpProtocolTypes.HTTP, bytes_(
-                self.config.pac_file_url_path))]
+            return [
+                (httpProtocolTypes.HTTP, bytes_(self.config.pac_file_url_path)),
+                (httpProtocolTypes.HTTPS, bytes_(self.config.pac_file_url_path)),
+            ]
         return []   # pragma: no cover
 
     def handle_request(self, request: HttpParser) -> None:
@@ -1939,6 +2248,11 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     self.routes[protocol][path] = instance
 
     def serve_file_or_404(self, path: str) -> bool:
+        """Read and serves a file from disk.
+
+        Queues 404 Not Found for IOError.
+        Shouldn't this be server error?
+        """
         try:
             with open(path, 'rb') as f:
                 content = f.read()
@@ -2030,15 +2344,17 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 frame.reset()
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
+        # And only if we have a route, parse pipeline requests
         elif self.request.state == httpParserStates.COMPLETE and \
-                self.request.is_http_1_1_keep_alive():
+                self.request.is_http_1_1_keep_alive() and \
+                self.route is not None:
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
             self.pipeline_request.parse(raw)
             if self.pipeline_request.state == httpParserStates.COMPLETE:
-                assert self.route is not None
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive():
+                    logger.error('Pipelined request is not keep-alive, will teardown request...')
                     raise ProtocolException()
                 self.pipeline_request = None
         return raw
@@ -2058,18 +2374,19 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
     def access_log(self) -> None:
         logger.info(
-            '%s:%s - %s %s' %
+            '%s:%s - %s %s - %.2f ms' %
             (self.client.addr[0],
              self.client.addr[1],
              text_(self.request.method),
-             text_(self.request.path)))
+             text_(self.request.path),
+             (time.time() - self.start_time) * 1000))
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
         return [], []
 
 
-class ProtocolHandler(threading.Thread):
+class ProtocolHandler(threading.Thread, ThreadlessWork):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection object and manages ProtocolHandlerPlugin invocations.
@@ -2081,8 +2398,8 @@ class ProtocolHandler(threading.Thread):
         self.fileno: int = fileno
         self.addr: Tuple[str, int] = addr
 
-        self.start_time: datetime.datetime = self.now()
-        self.last_activity: datetime.datetime = self.start_time
+        self.start_time: float = time.time()
+        self.last_activity: float = self.start_time
 
         self.config: ProtocolConfig = config if config else ProtocolConfig()
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
@@ -2094,10 +2411,6 @@ class ProtocolHandler(threading.Thread):
         )
         self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
 
-    @staticmethod
-    def now() -> datetime.datetime:
-        return datetime.datetime.utcnow()
-
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
@@ -2108,11 +2421,99 @@ class ProtocolHandler(threading.Thread):
             for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
                 instance = klass(self.config, self.client, self.request)
                 self.plugins[instance.name()] = instance
+        logger.debug('Handling connection %r' % self.client.connection)
+
+    def is_inactive(self) -> bool:
+        if not self.client.has_buffer() and \
+                self.connection_inactive_for() > self.config.timeout:
+            return True
+        return False
+
+    def get_events(self) -> Dict[socket.socket, int]:
+        events: Dict[socket.socket, int] = {
+            self.client.connection: selectors.EVENT_READ
+        }
+        if self.client.has_buffer():
+            events[self.client.connection] |= selectors.EVENT_WRITE
+
+        # ProtocolHandlerPlugin.get_descriptors
+        for plugin in self.plugins.values():
+            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
+            for r in plugin_read_desc:
+                if r not in events:
+                    events[r] = selectors.EVENT_READ
+                else:
+                    events[r] |= selectors.EVENT_READ
+            for w in plugin_write_desc:
+                if w not in events:
+                    events[w] = selectors.EVENT_WRITE
+                else:
+                    events[w] |= selectors.EVENT_WRITE
+
+        return events
+
+    def handle_events(
+            self,
+            readables: List[Union[int, _HasFileno]],
+            writables: List[Union[int, _HasFileno]]) -> bool:
+        """Returns True if proxy must teardown."""
+        # Flush buffer for ready to write sockets
+        teardown = self.handle_writables(writables)
+        if teardown:
+            return True
+
+        # Invoke plugin.write_to_descriptors
+        for plugin in self.plugins.values():
+            teardown = plugin.write_to_descriptors(writables)
+            if teardown:
+                return True
+
+        # Read from ready to read sockets
+        teardown = self.handle_readables(readables)
+        if teardown:
+            return True
+
+        # Invoke plugin.read_from_descriptors
+        for plugin in self.plugins.values():
+            teardown = plugin.read_from_descriptors(readables)
+            if teardown:
+                return True
+
+        return False
+
+    def shutdown(self) -> None:
+        # Flush pending buffer if any
+        self.flush()
+
+        # Invoke plugin.on_client_connection_close
+        for plugin in self.plugins.values():
+            plugin.on_client_connection_close()
+
+        logger.debug(
+            'Closing client connection %r '
+            'at address %r with pending client buffer size %d bytes' %
+            (self.client.connection, self.client.addr, self.client.buffer_size()))
+
+        conn = self.client.connection
+        try:
+            # Unwrap if wrapped before shutdown.
+            if self.config.encryption_enabled() and \
+                    isinstance(self.client.connection, ssl.SSLSocket):
+                conn = self.client.connection.unwrap()
+            conn.shutdown(socket.SHUT_WR)
+            logger.debug('Client connection shutdown successful')
+        except OSError:
+            pass
+        finally:
+            conn.close()
+            logger.debug('Client connection closed')
 
     def fromfd(self, fileno: int) -> socket.socket:
-        return socket.fromfd(
+        conn = socket.fromfd(
             fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM)
+        os.close(fileno)
+        return conn
 
     def optionally_wrap_socket(
             self, conn: socket.socket) -> Union[ssl.SSLSocket, socket.socket]:
@@ -2132,16 +2533,28 @@ class ProtocolHandler(threading.Thread):
             conn = ctx.wrap_socket(conn, server_side=True)
         return conn
 
-    def connection_inactive_for(self) -> int:
-        return (self.now() - self.last_activity).seconds
+    def connection_inactive_for(self) -> float:
+        return time.time() - self.last_activity
 
-    def is_connection_inactive(self) -> bool:
-        return self.connection_inactive_for() > self.config.timeout
+    def flush(self) -> None:
+        if not self.client.has_buffer():
+            return
+        try:
+            self.selector.register(self.client.connection, selectors.EVENT_WRITE)
+            while self.client.has_buffer():
+                ev: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
+                if len(ev) == 0:
+                    continue
+                self.client.flush()
+        except BrokenPipeError:
+            pass
+        finally:
+            self.selector.unregister(self.client.connection)
 
     def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
-            self.last_activity = self.now()
+            self.last_activity = time.time()
 
             # Invoke plugin.on_response_chunk
             chunk = self.client.buffer
@@ -2152,6 +2565,9 @@ class ProtocolHandler(threading.Thread):
 
             try:
                 self.client.flush()
+            except OSError:
+                logger.error('OSError when flushing buffer to client')
+                return True
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for client')
@@ -2161,9 +2577,23 @@ class ProtocolHandler(threading.Thread):
     def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
-            self.last_activity = self.now()
+            self.last_activity = time.time()
+            client_data: Optional[bytes] = None
 
-            client_data = self.client.recv(self.config.client_recvbuf_size)
+            try:
+                client_data = self.client.recv(self.config.client_recvbuf_size)
+            except ssl.SSLWantReadError:    # Try again later
+                logger.warning('SSLWantReadError encountered while reading from client, will retry ...')
+                return False
+            except socket.error as e:
+                if e.errno == errno.ECONNRESET:
+                    logger.warning('%r' % e)
+                else:
+                    logger.exception(
+                        'Exception while receiving from %s connection %r with reason %r' %
+                        (self.client.tag, self.client.connection, e))
+                return True
+
             if not client_data:
                 logger.debug('Client closed connection, tearing down...')
                 self.client.closed = True
@@ -2198,8 +2628,6 @@ class ProtocolHandler(threading.Thread):
                                 for plugin_ in self.plugins.values():
                                     if plugin_ != plugin:
                                         plugin_.client._conn = upgraded_sock
-                                        logger.debug(
-                                            'Upgraded client conn for plugin %s', str(plugin_))
                             elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                                 return True
             except ProtocolException as e:
@@ -2211,116 +2639,43 @@ class ProtocolHandler(threading.Thread):
                 return True
         return False
 
-    def get_events(self) -> Dict[socket.socket, int]:
-        events: Dict[socket.socket, int] = {
-            self.client.connection: selectors.EVENT_READ
-        }
-        if self.client.has_buffer():
-            events[self.client.connection] |= selectors.EVENT_WRITE
-
-        # ProtocolHandlerPlugin.get_descriptors
-        for plugin in self.plugins.values():
-            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
-            for r in plugin_read_desc:
-                if r not in events:
-                    events[r] = selectors.EVENT_READ
-                else:
-                    events[r] |= selectors.EVENT_READ
-            for w in plugin_write_desc:
-                if w not in events:
-                    events[w] = selectors.EVENT_WRITE
-                else:
-                    events[w] |= selectors.EVENT_WRITE
-
-        return events
-
-    def handle_events(self, readables: List[Union[int, _HasFileno]], writables: List[Union[int, _HasFileno]]) -> bool:
-        """Returns True if proxy must teardown."""
-        # Flush buffer for ready to write sockets
-        teardown = self.handle_writables(writables)
-        if teardown:
-            return True
-
-        # Invoke plugin.write_to_descriptors
-        for plugin in self.plugins.values():
-            teardown = plugin.write_to_descriptors(writables)
-            if teardown:
-                return True
-
-        # Read from ready to read sockets
-        teardown = self.handle_readables(readables)
-        if teardown:
-            return True
-
-        # Invoke plugin.read_from_descriptors
-        for plugin in self.plugins.values():
-            teardown = plugin.read_from_descriptors(readables)
-            if teardown:
-                return True
-
-        # Teardown if client buffer is empty and connection is inactive
-        if not self.client.has_buffer() and \
-                self.is_connection_inactive():
-            self.client.queue(build_http_response(
-                httpStatusCodes.REQUEST_TIMEOUT, reason=b'Request Timeout',
-                headers={
-                    b'Server': PROXY_AGENT_HEADER_VALUE,
-                    b'Connection': b'close',
-                }
-            ))
-            logger.debug(
-                'Client buffer is empty and maximum inactivity has reached '
-                'between client and server connection, tearing down...')
-            return True
-
-        return False
-
-    def run_once(self) -> bool:
+    @contextlib.contextmanager
+    def selected_events(self) -> \
+            Generator[Tuple[List[Union[int, _HasFileno]],
+                            List[Union[int, _HasFileno]]],
+                      None, None]:
         events = self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
-
-        # Select
-        e: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
+        ev = self.selector.select(timeout=1)
         readables = []
         writables = []
-        for key, mask in e:
+        for key, mask in ev:
             if mask & selectors.EVENT_READ:
                 readables.append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 writables.append(key.fileobj)
-
-        teardown = self.handle_events(readables, writables)
-
-        # Unregister
+        yield (readables, writables)
         for fd in events.keys():
             self.selector.unregister(fd)
 
-        if teardown:
-            return True
-        return False
-
-    def flush(self) -> None:
-        if not self.client.has_buffer():
-            return
-        try:
-            self.selector.register(self.client.connection, selectors.EVENT_WRITE)
-            while self.client.has_buffer():
-                ev: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
-                if len(ev) == 0:
-                    continue
-                self.client.flush()
-        except BrokenPipeError:
-            pass
-        finally:
-            self.selector.unregister(self.client.connection)
+    def run_once(self) -> bool:
+        with self.selected_events() as (readables, writables):
+            teardown = self.handle_events(readables, writables)
+            if teardown:
+                return True
+            return False
 
     def run(self) -> None:
         try:
             self.initialize()
-            logger.debug('Handling connection %r' % self.client.connection)
-
             while True:
+                # Teardown if client buffer is empty and connection is inactive
+                if self.is_inactive():
+                    logger.debug(
+                        'Client buffer is empty and maximum inactivity has reached '
+                        'between client and server connection, tearing down...')
+                    break
                 teardown = self.run_once()
                 if teardown:
                     break
@@ -2333,27 +2688,7 @@ class ProtocolHandler(threading.Thread):
                 'Exception while handling connection %r' %
                 self.client.connection, exc_info=e)
         finally:
-            # Flush pending buffer if any
-            self.flush()
-
-            # Invoke plugin.on_client_connection_close
-            for plugin in self.plugins.values():
-                plugin.on_client_connection_close()
-
-            logger.debug(
-                'Closing proxy for connection %r '
-                'at address %r with pending client buffer size %d bytes' %
-                (self.client.connection, self.client.addr, self.client.buffer_size()))
-
-            if not self.client.closed:
-                try:
-                    self.client.connection.shutdown(socket.SHUT_WR)
-                    logger.debug('Client connection shutdown successful')
-                except OSError:
-                    pass
-                finally:
-                    self.client.connection.close()
-                    logger.debug('Client connection closed')
+            self.shutdown()
 
 
 class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
@@ -2755,9 +3090,16 @@ def init_parser() -> argparse.ArgumentParser:
         '--static-server-dir',
         type=str,
         default=DEFAULT_STATIC_SERVER_DIR,
-        help='Default: ' + DEFAULT_STATIC_SERVER_DIR + '.  Static server root directory. '
+        help='Default: "public" folder in directory where proxy.py is placed. '
              'This option is only applicable when static server is also enabled. '
              'See --enable-static-server.'
+    )
+    parser.add_argument(
+        '--threadless',
+        action='store_true',
+        default=DEFAULT_THREADLESS,
+        help='Default: False.  When disabled a new thread is spawned '
+             'to handle each client connection.'
     )
     parser.add_argument(
         '--timeout',
@@ -2796,7 +3138,8 @@ def main(input_args: List[str]) -> None:
 
     if (args.cert_file and args.key_file) and \
             (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
-        print('HTTPS interception not supported when proxy.py is serving over HTTPS')
+        print('You can either enable end-to-end encryption OR TLS interception,'
+              'not both together.')
         sys.exit(0)
 
     try:
@@ -2848,7 +3191,8 @@ def main(input_args: List[str]) -> None:
             enable_static_server=args.enable_static_server,
             devtools_event_queue=devtools_event_queue,
             devtools_ws_path=args.devtools_ws_path,
-            timeout=args.timeout)
+            timeout=args.timeout,
+            threadless=args.threadless)
 
         config.plugins = load_plugins(
             bytes_(
@@ -2860,6 +3204,7 @@ def main(input_args: List[str]) -> None:
             port=config.port,
             backlog=config.backlog,
             num_workers=config.num_workers,
+            threadless=config.threadless,
             work_klass=ProtocolHandler,
             config=config)
         if args.pid_file:

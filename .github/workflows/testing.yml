@@ -27,8 +27,8 @@ jobs:
         run: |
           # The GitHub editor is 127 chars wide
           # W504 screams for line break after binary operators
-          flake8 --ignore=W504 --max-line-length=127 proxy.py plugin_examples.py tests.py setup.py
+          flake8 --ignore=W504 --max-line-length=127 proxy.py plugin_examples.py tests.py setup.py benchmark.py
           # mypy compliance check
-          mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py
+          mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py benchmark.py
       - name: Run Tests
         run: pytest tests.py
