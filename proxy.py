@@ -257,8 +257,16 @@ def build_http_response(status_code: int,
         line.append(reason)
     if headers is None:
         headers = {}
-    if body is not None and not any(
-            k.lower() == b'content-length' for k in headers):
+    has_content_length = False
+    has_transfer_encoding = False
+    for k in headers:
+        if k.lower() == b'content-length':
+            has_content_length = True
+        if k.lower() == b'transfer-encoding':
+            has_transfer_encoding = True
+    if body is not None and \
+            not has_transfer_encoding and \
+            not has_content_length:
         headers[b'Content-Length'] = bytes_(len(body))
     return build_http_pkt(line, headers, body)
 
@@ -501,10 +509,11 @@ class ChunkParser:
         # Expected size of next following chunk
         self.size: Optional[int] = None
 
-    def parse(self, raw: bytes) -> None:
+    def parse(self, raw: bytes) -> bytes:
         more = True if len(raw) > 0 else False
-        while more:
+        while more and self.state != chunkParserStates.COMPLETE:
             more, raw = self.process(raw)
+        return raw
 
     def process(self, raw: bytes) -> Tuple[bool, bytes]:
         if self.state == chunkParserStates.WAITING_FOR_SIZE:
@@ -669,12 +678,11 @@ class HttpParser:
                 elif self.is_chunked_encoded():
                     if not self.chunk_parser:
                         self.chunk_parser = ChunkParser()
-                    self.chunk_parser.parse(raw)
-                    logger.info(self.chunk_parser.state)
+                    raw = self.chunk_parser.parse(raw)
                     if self.chunk_parser.state == chunkParserStates.COMPLETE:
                         self.body = self.chunk_parser.body
                         self.state = httpParserStates.COMPLETE
-                    more, raw = False, b''
+                    more = False
             else:
                 more, raw = self.process(raw)
         self.buffer = raw
