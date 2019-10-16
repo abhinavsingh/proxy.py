@@ -418,7 +418,7 @@ class TcpConnection(ABC):
         logger.debug(
             'received %d bytes from %s' %
             (len(data), self.tag))
-        # logger.debug(data)
+        # logger.info(data)
         return data
 
     def close(self) -> bool:
@@ -442,7 +442,7 @@ class TcpConnection(ABC):
         if self.buffer_size() == 0:
             return 0
         sent: int = self.send(self.buffer)
-        # logger.debug(self.buffer[:sent])
+        # logger.info(self.buffer[:sent])
         self.buffer = self.buffer[sent:]
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
@@ -1491,7 +1491,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             try:
                 raw = self.server.recv(self.config.server_recvbuf_size)
             except ssl.SSLWantReadError:    # Try again later
-                logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
+                # logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
                 return False
             except socket.error as e:
                 if e.errno == errno.ECONNRESET:
@@ -1512,8 +1512,11 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             # parse incoming response packet
             # only for non-https requests and when
             # tls interception is enabled
-            if self.request.method != httpMethods.CONNECT or \
-                    self.config.tls_interception_enabled():
+            if self.request.method != httpMethods.CONNECT:
+                # See https://github.com/abhinavsingh/proxy.py/issues/127 for why
+                # currently response parsing is disabled when TLS interception is enabled.
+                #
+                # or self.config.tls_interception_enabled():
                 if self.response.state == httpParserStates.COMPLETE:
                     if self.pipeline_response is None:
                         self.pipeline_response = HttpParser(httpParserTypes.RESPONSE_PARSER)
@@ -1681,7 +1684,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             keyfile=self.config.ca_signing_key_file,
             certfile=generated_cert)
         self.client.connection.setblocking(False)
-        logger.info(
+        logger.debug(
             'TLS interception using %s', generated_cert)
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
@@ -2568,11 +2571,11 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             try:
                 client_data = self.client.recv(self.config.client_recvbuf_size)
             except ssl.SSLWantReadError:    # Try again later
-                logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
+                logger.warning('SSLWantReadError encountered while reading from client, will retry ...')
                 return False
             except socket.error as e:
                 if e.errno == errno.ECONNRESET:
-                    logger.warning('Connection reset by upstream: %r' % e)
+                    logger.warning('%r' % e)
                 else:
                     logger.exception(
                         'Exception while receiving from %s connection %r with reason %r' %
