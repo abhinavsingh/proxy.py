@@ -124,7 +124,7 @@ def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
 
 
 version = bytes_(__version__)
-CRLF, COLON, WHITESPACE, COMMA, DOT, HTTP_1_1 = b'\r\n', b':', b' ', b',', b'.', b'HTTP/1.1'
+CRLF, COLON, WHITESPACE, COMMA, DOT, SLASH, HTTP_1_1 = b'\r\n', b':', b' ', b',', b'.', b'/', b'HTTP/1.1'
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + version
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
