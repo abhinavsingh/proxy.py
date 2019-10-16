@@ -11,6 +11,7 @@
 import argparse
 import asyncio
 import sys
+import time
 from typing import List, Tuple
 
 import proxy
@@ -48,17 +49,36 @@ class Benchmark:
             self.clients.append(await asyncio.open_connection('::', 8899))
         print('Opened ' + str(self.n) + ' connections')
 
-    def send_requests(self) -> None:
-        for _, writer in self.clients:
-            writer.write(proxy.build_http_request(
-                proxy.httpMethods.GET, b'/'
-            ))
+    @staticmethod
+    async def send(writer: asyncio.StreamWriter) -> None:
+        try:
+            while True:
+                writer.write(proxy.build_http_request(
+                    proxy.httpMethods.GET, b'/'
+                ))
+                # await asyncio.sleep(0.1)
+        except KeyboardInterrupt:
+            pass
 
-    async def recv_responses(self) -> None:
-        for reader, _ in self.clients:
-            response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
-            while response.state != proxy.httpParserStates.COMPLETE:
-                response.parse(await reader.read(proxy.DEFAULT_BUFFER_SIZE))
+    @staticmethod
+    async def recv(idd: int, reader: asyncio.StreamReader) -> None:
+        last_status_time = time.time()
+        num_completed_requests_per_connection: int = 0
+        try:
+            while True:
+                response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+                while response.state != proxy.httpParserStates.COMPLETE:
+                    raw = await reader.read(proxy.DEFAULT_BUFFER_SIZE)
+                    print(raw)
+                    response.parse(raw)
+
+                num_completed_requests_per_connection += 1
+                if num_completed_requests_per_connection % 50 == 0:
+                    now = time.time()
+                    print('[%d] Made 50 requests in last %.2f seconds' % (idd, now - last_status_time))
+                    last_status_time = now
+        except KeyboardInterrupt:
+            pass
 
     async def close_connections(self) -> None:
         for reader, writer in self.clients:
@@ -67,19 +87,30 @@ class Benchmark:
         print('Closed ' + str(self.n) + ' connections')
 
     async def run(self) -> None:
-        num_completed_requests_per_connection: int = 0
         try:
             await self.open_connections()
             print('Exchanging request / response packets')
-            while True:
-                self.send_requests()
-                await self.recv_responses()
-                num_completed_requests_per_connection += 1
-                await asyncio.sleep(0.1)
+            readers = []
+            writers = []
+            idd = 0
+            for reader, writer in self.clients:
+                readers.append(
+                    asyncio.create_task(
+                        self.recv(idd, reader)
+                    )
+                )
+                writers.append(
+                    asyncio.create_task(
+                        self.send(writer)
+                    )
+                )
+                idd += 1
+            await asyncio.gather(*(readers + writers))
         finally:
-            await self.close_connections()
-            print('Exchanged ' + str(num_completed_requests_per_connection) +
-                  ' request / response per connection')
+            try:
+                await self.close_connections()
+            except RuntimeError:
+                pass
 
 
 def main(input_args: List[str]) -> None:
