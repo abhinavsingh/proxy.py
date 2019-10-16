@@ -874,6 +874,41 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
+    def test_pipelined_response_parse(self) -> None:
+        response = proxy.build_http_response(
+            proxy.httpStatusCodes.OK, reason=b'OK',
+            headers={
+                b'Content-Length': b'15'
+            },
+            body=b'{"key":"value"}',
+        )
+        self.assert_pipeline_response(response)
+
+    def test_pipelined_chunked_response_parse(self) -> None:
+        response = proxy.build_http_response(
+            proxy.httpStatusCodes.OK, reason=b'OK',
+            headers={
+                b'Transfer-Encoding': b'chunked',
+                b'Content-Type': b'application/json',
+            },
+            body=b'f\r\n{"key":"value"}\r\n0\r\n\r\n'
+        )
+        self.assert_pipeline_response(response)
+
+    def assert_pipeline_response(self, response: bytes) -> None:
+        self.parser = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+        self.parser.parse(response + response)
+        self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
+        self.assertEqual(self.parser.body, b'{"key":"value"}')
+        self.assertEqual(self.parser.buffer, response)
+
+        # parse buffer
+        parser = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+        parser.parse(self.parser.buffer)
+        self.assertEqual(parser.state, proxy.httpParserStates.COMPLETE)
+        self.assertEqual(parser.body, b'{"key":"value"}')
+        self.assertEqual(parser.buffer, b'')
+
     def test_chunked_request_parse(self) -> None:
         self.parser.parse(proxy.build_http_request(
             proxy.httpMethods.POST, b'http://example.org/',
