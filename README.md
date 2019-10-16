@@ -234,6 +234,35 @@ See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/p
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
 See [TLS Interception](#tls-interception).
 
+## ShortLinkPlugin
+
+Add support for short links in your favorite browsers / applications.
+
+Start `proxy.py` as:
+
+```
+$ proxy.py \
+    --plugins plugin_examples.ShortLinkPlugin
+```
+
+Now you can speed up your daily browsing experience by visiting your
+favorite website using single character domain names :).  This works
+across all browsers.
+
+Following short links are enabled by default:
+
+Short Link | Destination URL
+:--------: | :---------------:
+a/ | amazon.com
+i/ | instagram.com
+l/ | linkedin.com
+f/ | facebook.com
+g/ | google.com
+t/ | twitter.com
+w/ | web.whatsapp.com
+y/ | youtube.com
+proxy/ | localhost:8899
+
 ## ModifyPostDataPlugin
 
 Modifies POST request body before sending request to upstream server.
