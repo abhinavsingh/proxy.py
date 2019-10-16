@@ -30,9 +30,8 @@ class ShortLinkPlugin(proxy.HttpProxyBasePlugin):
     * proxy/ for proxy.py internal web servers.
     Customize map below for your taste and need.
 
-    Note that no path translation is not done i.e.
-    t/imoracle won't resolve to http://twitter.com/imoracle.
-    That is left as an exercise for you :P.
+    Paths are also preserved. E.g. t/imoracle will
+    resolve to http://twitter.com/imoracle.
     """
 
     SHORT_LINKS = {
@@ -59,7 +58,7 @@ class ShortLinkPlugin(proxy.HttpProxyBasePlugin):
                 self.client.queue(proxy.build_http_response(
                     proxy.httpStatusCodes.SEE_OTHER, reason=b'See Other',
                     headers={
-                        b'Location': b'http://' + self.SHORT_LINKS[request.host] + proxy.SLASH,
+                        b'Location': b'http://' + self.SHORT_LINKS[request.host] + request.path,
                         b'Content-Length': b'0',
                         b'Connection': b'close',
                     }
