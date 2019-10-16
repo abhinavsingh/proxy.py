@@ -39,6 +39,7 @@ Table of Contents
         * [Stable version](#stable-version-from-docker-hub)
         * [Development version](#build-development-version-locally)
 * [Plugin Examples](#plugin-examples)
+    * [ShortLinkPlugin](#shortlinkplugin)
     * [ModifyPostDataPlugin](#modifypostdataplugin)
     * [ProposedRestApiPlugin](#proposedrestapiplugin)
     * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
