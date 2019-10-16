@@ -8,7 +8,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import base64
-import errno
 import ipaddress
 import json
 import logging
