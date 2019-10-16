@@ -14,6 +14,60 @@ from typing import Optional, BinaryIO, List, Tuple
 from urllib import parse as urlparse
 
 import proxy
+from proxy import HttpParser
+
+
+class ShortLinkPlugin(proxy.HttpProxyBasePlugin):
+    """Add support for short links in your favorite browsers / applications.
+
+    Example, enable ShortLinkPlugin and start browsing using short links
+    defined below in SHORT_LINKS dictionary:
+
+    1. g/ for google.com
+    2. fb/ for facebook.com
+    3. yt/ for youtube.com
+    4. tw/ for twitter.com
+    5. proxy/ for proxy.py internal web servers.
+
+    Customize map below for your taste and need.
+    """
+
+    SHORT_LINKS = {
+        b'g': b'google.com',
+        b'fb': b'facebook.com',
+        b'yt': b'youtube.com',
+        b'tw': b'twitter.com',
+        b'proxy': b'localhost:8899',
+    }
+
+    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+        if request.host and proxy.DOT not in request.host:
+            return None
+        return request
+
+    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+        if request.host and proxy.DOT not in request.host:
+            if request.host in self.SHORT_LINKS:
+                self.client.queue(proxy.build_http_response(
+                    proxy.httpStatusCodes.SEE_OTHER, reason=b'See Other',
+                    headers={
+                        b'Location': b'http://' + self.SHORT_LINKS[request.host],
+                        b'Content-Length': b'0',
+                        b'Connection': b'close',
+                    }
+                ))
+            else:
+                self.client.queue(proxy.build_http_response(
+                    proxy.httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+                ))
+            return None
+        return request
+
+    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
+        return chunk
+
+    def on_upstream_connection_close(self) -> None:
+        pass
 
 
 class ModifyPostDataPlugin(proxy.HttpProxyBasePlugin):
