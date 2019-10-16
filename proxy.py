@@ -1101,11 +1101,13 @@ class Acceptor(multiprocessing.Process):
     def run(self) -> None:
         self.running = True
         self.selector = selectors.DefaultSelector()
+        fileno = recv_handle(self.work_queue)
         self.sock = socket.fromfd(
-            recv_handle(self.work_queue),
+            fileno,
             family=self.family,
             type=socket.SOCK_STREAM
         )
+        os.close(fileno)
         try:
             self.selector.register(self.sock, selectors.EVENT_READ)
             self.start_threadless_process()
@@ -2507,9 +2509,11 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             logger.debug('Client connection closed')
 
     def fromfd(self, fileno: int) -> socket.socket:
-        return socket.fromfd(
+        conn = socket.fromfd(
             fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM)
+        os.close(fileno)
+        return conn
 
     def optionally_wrap_socket(
             self, conn: socket.socket) -> Union[ssl.SSLSocket, socket.socket]:
