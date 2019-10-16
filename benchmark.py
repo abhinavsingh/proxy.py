@@ -15,7 +15,7 @@ from typing import List, Tuple
 
 import proxy
 
-DEFAULT_N = 10
+DEFAULT_N = 1
 
 
 def init_parser() -> argparse.ArgumentParser:
