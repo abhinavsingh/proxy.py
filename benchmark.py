@@ -75,7 +75,7 @@ class Benchmark:
                 self.send_requests()
                 await self.recv_responses()
                 num_completed_requests_per_connection += 1
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.1)
         finally:
             await self.close_connections()
             print('Exchanged ' + str(num_completed_requests_per_connection) +
