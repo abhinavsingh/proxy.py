@@ -55,10 +55,11 @@ class ShortLinkPlugin(proxy.HttpProxyBasePlugin):
     def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
         if request.host and proxy.DOT not in request.host:
             if request.host in self.SHORT_LINKS:
+                path = proxy.SLASH if not request.path else request.path
                 self.client.queue(proxy.build_http_response(
                     proxy.httpStatusCodes.SEE_OTHER, reason=b'See Other',
                     headers={
-                        b'Location': b'http://' + self.SHORT_LINKS[request.host] + request.path,
+                        b'Location': b'http://' + self.SHORT_LINKS[request.host] + path,
                         b'Content-Length': b'0',
                         b'Connection': b'close',
                     }
