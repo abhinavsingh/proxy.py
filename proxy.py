@@ -149,6 +149,11 @@ HttpStatusCodes = NamedTuple('HttpStatusCodes', [
     ('SWITCHING_PROTOCOLS', int),
     # 2xx
     ('OK', int),
+    # 3xx
+    ('MOVED_PERMANENTLY', int),
+    ('SEE_OTHER', int),
+    ('TEMPORARY_REDIRECT', int),
+    ('PERMANENT_REDIRECT', int),
     # 4xx
     ('BAD_REQUEST', int),
     ('UNAUTHORIZED', int),
@@ -168,6 +173,7 @@ HttpStatusCodes = NamedTuple('HttpStatusCodes', [
 httpStatusCodes = HttpStatusCodes(
     100, 101,
     200,
+    301, 303, 307, 308,
     400, 401, 403, 404, 407, 408, 418,
     500, 501, 502, 504, 598, 599
 )
@@ -2336,15 +2342,17 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 frame.reset()
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
+        # And only if we have a route, parse pipeline requests
         elif self.request.state == httpParserStates.COMPLETE and \
-                self.request.is_http_1_1_keep_alive():
+                self.request.is_http_1_1_keep_alive() and \
+                self.route is not None:
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
             self.pipeline_request.parse(raw)
             if self.pipeline_request.state == httpParserStates.COMPLETE:
-                assert self.route is not None
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive():
+                    logger.error('Pipelined request is not keep-alive, will teardown request...')
                     raise ProtocolException()
                 self.pipeline_request = None
         return raw
