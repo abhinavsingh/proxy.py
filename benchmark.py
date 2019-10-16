@@ -56,27 +56,46 @@ class Benchmark:
                 writer.write(proxy.build_http_request(
                     proxy.httpMethods.GET, b'/'
                 ))
-                # await asyncio.sleep(0.1)
+                await asyncio.sleep(0.01)
         except KeyboardInterrupt:
             pass
 
     @staticmethod
+    def parse_pipeline_response(response: proxy.HttpParser, raw: bytes, counter: int = 0) -> \
+            Tuple[proxy.HttpParser, int]:
+        response.parse(raw)
+        if response.state != proxy.httpParserStates.COMPLETE:
+            # Need more data
+            return response, counter
+
+        if response.buffer == b'':
+            # No more buffer left to parse
+            return response, counter + 1
+
+        # For pipelined requests we may have pending buffer, try parse them as responses
+        pipelined_response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+        return Benchmark.parse_pipeline_response(pipelined_response, response.buffer, counter + 1)
+
+    @staticmethod
     async def recv(idd: int, reader: asyncio.StreamReader) -> None:
-        last_status_time = time.time()
-        num_completed_requests_per_connection: int = 0
+        print_every = 1000
+        last_print = time.time()
+        num_completed_requests: int = 0
+        response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
         try:
             while True:
-                response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
-                while response.state != proxy.httpParserStates.COMPLETE:
-                    raw = await reader.read(proxy.DEFAULT_BUFFER_SIZE)
-                    print(raw)
-                    response.parse(raw)
-
-                num_completed_requests_per_connection += 1
-                if num_completed_requests_per_connection % 50 == 0:
-                    now = time.time()
-                    print('[%d] Made 50 requests in last %.2f seconds' % (idd, now - last_status_time))
-                    last_status_time = now
+                raw = await reader.read(proxy.DEFAULT_BUFFER_SIZE)
+                response, total_parsed = Benchmark.parse_pipeline_response(response, raw)
+                if response.state == proxy.httpParserStates.COMPLETE:
+                    response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+                if total_parsed > 0:
+                    num_completed_requests += total_parsed
+                    # print('total parsed %d' % total_parsed)
+                    if num_completed_requests % print_every == 0:
+                        now = time.time()
+                        print('[%d] Completed last %d requests in %.2f secs' %
+                              (idd, print_every, now - last_print))
+                        last_print = now
         except KeyboardInterrupt:
             pass
 

@@ -874,6 +874,26 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
 
+    def test_pipelined_response_parse(self) -> None:
+        response = proxy.build_http_response(
+            proxy.httpStatusCodes.OK, reason=b'OK',
+            headers={
+                b'Content-Length': b'11'
+            },
+            body=b'hello world',
+        )
+        self.parser.parse(response + response)
+        self.assertEqual(self.parser.state, proxy.httpParserStates.COMPLETE)
+        self.assertEqual(self.parser.body, b'hello world')
+        self.assertEqual(self.parser.buffer, response)
+
+        # parse buffer
+        parser = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+        parser.parse(self.parser.buffer)
+        self.assertEqual(parser.state, proxy.httpParserStates.COMPLETE)
+        self.assertEqual(parser.body, b'hello world')
+        self.assertEqual(parser.buffer, b'')
+
     def test_chunked_request_parse(self) -> None:
         self.parser.parse(proxy.build_http_request(
             proxy.httpMethods.POST, b'http://example.org/',

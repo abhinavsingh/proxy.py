@@ -651,27 +651,30 @@ class HttpParser:
         self.buffer = b''
 
         more = True if len(raw) > 0 else False
-        while more:
+        while more and self.state != httpParserStates.COMPLETE:
             if self.state in (
                     httpParserStates.HEADERS_COMPLETE,
-                    httpParserStates.RCVING_BODY,
-                    httpParserStates.COMPLETE):
+                    httpParserStates.RCVING_BODY):
                 if b'content-length' in self.headers:
                     self.state = httpParserStates.RCVING_BODY
                     if self.body is None:
                         self.body = b''
-                    self.body += raw
+                    total_size = int(self.header(b'content-length'))
+                    received_size = len(self.body)
+                    self.body += raw[:total_size - received_size]
                     if self.body and \
-                            len(self.body) >= int(self.header(b'content-length')):
+                            len(self.body) == int(self.header(b'content-length')):
                         self.state = httpParserStates.COMPLETE
+                    more, raw = len(raw) > 0, raw[total_size - received_size:]
                 elif self.is_chunked_encoded():
                     if not self.chunk_parser:
                         self.chunk_parser = ChunkParser()
                     self.chunk_parser.parse(raw)
+                    logger.info(self.chunk_parser.state)
                     if self.chunk_parser.state == chunkParserStates.COMPLETE:
                         self.body = self.chunk_parser.body
                         self.state = httpParserStates.COMPLETE
-                more, raw = False, b''
+                    more, raw = False, b''
             else:
                 more, raw = self.process(raw)
         self.buffer = raw
@@ -713,6 +716,7 @@ class HttpParser:
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
                 self.type == httpParserTypes.REQUEST_PARSER and \
                 self.method == httpMethods.POST and \
+                not self.is_chunked_encoded() and \
                 (b'content-length' not in self.headers or
                  (b'content-length' in self.headers and
                   int(self.headers[b'content-length'][1]) == 0)) and \
