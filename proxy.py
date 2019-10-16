@@ -970,6 +970,7 @@ class Threadless(multiprocessing.Process):
             **self.kwargs)
         try:
             self.works[fileno].initialize()
+            os.close(fileno)
         except ssl.SSLError as e:
             logger.exception('ssl.SSLError', exc_info=e)
             self.cleanup(fileno)
@@ -1119,7 +1120,6 @@ class Acceptor(multiprocessing.Process):
             family=self.family,
             type=socket.SOCK_STREAM
         )
-        os.close(fileno)
         try:
             self.selector.register(self.sock, selectors.EVENT_READ)
             self.start_threadless_process()
@@ -2524,7 +2524,6 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
         conn = socket.fromfd(
             fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM)
-        os.close(fileno)
         return conn
 
     def optionally_wrap_socket(
