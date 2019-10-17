@@ -1,7 +1,7 @@
 const typescript = require('rollup-plugin-typescript');
 const copy = require('rollup-plugin-copy');
-const obfuscatorPlugin = require('rollup-plugin-javascript-obfuscator');
-import { uglify } from 'rollup-plugin-uglify';
+// const obfuscatorPlugin = require('rollup-plugin-javascript-obfuscator');
+// import { uglify } from 'rollup-plugin-uglify';
 
 module.exports = {
     input: 'src/proxy.ts',
@@ -15,13 +15,13 @@ module.exports = {
         typescript(),
         copy({
             targets: [{
-                src: 'src/index.html',
+                src: 'static/**/*',
                 dest: '../public',
             }],
         }),
-        uglify(),
+        /*uglify(),
         obfuscatorPlugin({
             compact: true,
-        })
+        })*/
     ]
 };
