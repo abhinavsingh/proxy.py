@@ -837,7 +837,6 @@ class AcceptorPool:
                 self.work_klass,
                 **self.kwargs
             )
-            # acceptor.daemon = True
             acceptor.start()
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
@@ -1036,7 +1035,7 @@ class Acceptor(multiprocessing.Process):
     starts a new work thread.
     """
 
-    lock = multiprocessing.Lock()
+    lock = multiprocessing.Manager().Lock()
 
     def __init__(
             self,
@@ -1066,7 +1065,6 @@ class Acceptor(multiprocessing.Process):
         self.threadless_process = Threadless(
             pipe[1], self.work_klass, **self.kwargs
         )
-        # self.threadless_process.daemon = True
         self.threadless_process.start()
 
     def shutdown_threadless_process(self) -> None:
@@ -1076,17 +1074,7 @@ class Acceptor(multiprocessing.Process):
         self.threadless_process.join()
         self.threadless_client_queue.close()
 
-    def run_once(self) -> None:
-        assert self.selector
-        with self.lock:
-            events = self.selector.select(timeout=1)
-            if len(events) == 0:
-                return
-        try:
-            assert self.sock
-            conn, addr = self.sock.accept()
-        except BlockingIOError:
-            return
+    def start_work(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
         if self.threadless and \
                 self.threadless_client_queue and \
                 self.threadless_process:
@@ -1098,16 +1086,22 @@ class Acceptor(multiprocessing.Process):
             )
             conn.close()
         else:
-            # Starting a new thread per client request simply means
-            # we need 1 million threads to handle a million concurrent
-            # connections.  Since most of the client requests are short
-            # lived (even with keep-alive), starting threads is excessive.
             work = self.work_klass(
                 fileno=conn.fileno(),
                 addr=addr,
                 **self.kwargs)
-            # work.setDaemon(True)
             work.start()
+
+    def run_once(self) -> None:
+        assert self.selector and self.sock
+        with self.lock:
+            events = self.selector.select(timeout=1)
+            if len(events) == 0:
+                return
+            conn, addr = self.sock.accept()
+        # now = time.time()
+        self.start_work(conn, addr)
+        # logger.info('work started in %f seconds', time.time() - now)
 
     def run(self) -> None:
         self.running = True
@@ -2070,7 +2064,6 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
             args=(self.event_dispatcher_shutdown,
                   self.config.devtools_event_queue,
                   self.client))
-        # self.event_dispatcher_thread.setDaemon(True)
         self.event_dispatcher_thread.start()
 
     def stop_dispatcher(self) -> None:

@@ -29,7 +29,7 @@ if (!destinationFolderExists) {
 const chromeDevTools = path.dirname(require.resolve('chrome-devtools-frontend/front_end/inspector.html'));
 
 console.log(chromeDevTools + ' ---> ' + destinationFolderPath);
-ncp(chromeDevTools, destinationFolderPath, (err) => {
+ncp(chromeDevTools, destinationFolderPath, (err: any) => {
     if (err) {
         return console.error(err);
     }
