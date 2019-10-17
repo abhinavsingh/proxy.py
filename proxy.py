@@ -1814,7 +1814,7 @@ class WebsocketFrame:
         self.data: Optional[bytes] = None
 
     @classmethod
-    def text(cls: Type[T], data: bytes) -> bytes:
+    def text(cls: Type[V], data: bytes) -> bytes:
         frame = cls()
         frame.fin = True
         frame.opcode = websocketOpcodes.TEXT_FRAME
