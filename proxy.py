@@ -2357,7 +2357,12 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 remaining = frame.parse(remaining)
                 for r in self.routes[httpProtocolTypes.WEBSOCKET]:
                     if r == self.request.path:
-                        self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_message(frame)
+                        route = self.routes[httpProtocolTypes.WEBSOCKET][r]
+                        if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
+                            logger.warning('Client sent connection close packet')
+                            raise ProtocolException()
+                        else:
+                            route.on_websocket_message(frame)
                 frame.reset()
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
