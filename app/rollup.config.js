@@ -1,7 +1,6 @@
 const typescript = require('rollup-plugin-typescript');
 const copy = require('rollup-plugin-copy');
-// const obfuscatorPlugin = require('rollup-plugin-javascript-obfuscator');
-// import { uglify } from 'rollup-plugin-uglify';
+const obfuscatorPlugin = require('rollup-plugin-javascript-obfuscator');
 
 module.exports = {
     input: 'src/proxy.ts',
@@ -19,9 +18,16 @@ module.exports = {
                 dest: '../public',
             }],
         }),
-        /*uglify(),
         obfuscatorPlugin({
+            log: false,
+            sourceMap: true,
             compact: true,
-        })*/
+            stringArray: true,
+            rotateStringArray: true,
+            transformObjectKeys: true,
+            stringArrayThreshold: 1,
+            stringArrayEncoding: 'rc4',
+            identifierNamesGenerator: 'mangled',
+        })
     ]
 };

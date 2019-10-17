@@ -34,7 +34,6 @@
     "rollup-plugin-copy": "^3.1.0",
     "rollup-plugin-javascript-obfuscator": "^1.0.4",
     "rollup-plugin-typescript": "^1.0.1",
-    "rollup-plugin-uglify": "^6.0.3",
     "ts-node": "^7.0.1",
     "typescript": "^3.6.4"
   }
