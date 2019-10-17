@@ -2259,6 +2259,22 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
 
+    @staticmethod
+    def read_and_build_static_file_response(path: str) -> bytes:
+        with open(path, 'rb') as f:
+            content = f.read()
+        content_type = mimetypes.guess_type(path)[0]
+        if content_type is None:
+            content_type = 'text/plain'
+        return build_http_response(
+            httpStatusCodes.OK,
+            reason=b'OK',
+            headers={
+                b'Content-Type': bytes_(content_type),
+                b'Connection': b'close',
+            },
+            body=content)
+
     def serve_file_or_404(self, path: str) -> bool:
         """Read and serves a file from disk.
 
@@ -2266,18 +2282,8 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         Shouldn't this be server error?
         """
         try:
-            with open(path, 'rb') as f:
-                content = f.read()
-            content_type = mimetypes.guess_type(path)[0]
-            if content_type is None:
-                content_type = 'text/plain'
-            self.client.queue(build_http_response(
-                httpStatusCodes.OK,
-                reason=b'OK',
-                headers={
-                    b'Content-Type': bytes_(content_type),
-                },
-                body=content))
+            self.client.queue(
+                self.read_and_build_static_file_response(path))
         except IOError:
             self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
