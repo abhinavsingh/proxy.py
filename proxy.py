@@ -1794,6 +1794,9 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             raise ProtocolException()
 
 
+V = TypeVar('V', bound='WebsocketFrame')
+
+
 class WebsocketFrame:
     """Websocket frames parser and constructor."""
 
@@ -1809,6 +1812,14 @@ class WebsocketFrame:
         self.payload_length: Optional[int] = None
         self.mask: Optional[bytes] = None
         self.data: Optional[bytes] = None
+
+    @classmethod
+    def text(cls: Type[T], data: bytes) -> bytes:
+        frame = cls()
+        frame.fin = True
+        frame.opcode = websocketOpcodes.TEXT_FRAME
+        frame.data = data
+        return frame.build()
 
     def reset(self) -> None:
         self.fin = False
@@ -2267,7 +2278,6 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                     b'Content-Type': bytes_(content_type),
                 },
                 body=content))
-            return False
         except IOError:
             self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
