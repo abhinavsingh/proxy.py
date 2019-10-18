@@ -16,6 +16,12 @@ module.exports = {
             targets: [{
                 src: 'static/**/*',
                 dest: '../public',
+            }, {
+                src: 'src/proxy.html',
+                dest: '../public',
+            }, {
+                src: 'src/proxy.css',
+                dest: '../public',
             }],
         }),
         obfuscatorPlugin({

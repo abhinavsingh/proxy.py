@@ -1,4 +1,48 @@
-class ProxyDashboard {
+/*
+    proxy.py
+    ~~~~~~~~
+    ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
+
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
+*/
+
+class ApiDevelopment {
+
+    private specs: Map<string, Map<string, JSON>>;
+
+    constructor() {
+        this.fetchExistingSpecs();
+    }
+
+    private fetchExistingSpecs() {
+        // TODO: Fetch list of currently configured APIs from the backend
+        let apiExampleOrgSpec = new Map();
+        apiExampleOrgSpec.set('/v1/users/', {
+            'count': 2,
+            'next': null,
+            'previous': null,
+            'results': [
+                {
+                    'email': 'you@example.com',
+                    'groups': [],
+                    'url': 'api.example.org/v1/users/1/',
+                    'username': 'admin',
+                },
+                {
+                    'email': 'someone@example.com',
+                    'groups': [],
+                    'url': 'api.example.org/v1/users/2/',
+                    'username': 'someone',
+                },
+            ]
+        });
+        this.specs.set('api.example.org', apiExampleOrgSpec);
+    }
+
+}
+
+export class ProxyDashboard {
 
     private hostname: string = 'localhost';
     private port: number = 8899;
@@ -8,6 +52,10 @@ class ProxyDashboard {
 
     private mid: number = 0;
     private last_ping_id: number;
+    private last_ping_time: number;
+
+    private readonly schedule_ping_every_ms: number = 1000;
+    private readonly schedule_reconnect_every_ms: number = 5000;
 
     private server_ping_timer: number;
     private server_connect_timer: number;
@@ -17,7 +65,12 @@ class ProxyDashboard {
         this.scheduleServerConnect(0);
     }
 
-    private scheduleServerConnect(after_ms: number = 5000) {
+    private static getTime() {
+        let date = new Date();
+        return date.getTime();
+    }
+
+    private scheduleServerConnect(after_ms: number = this.schedule_reconnect_every_ms) {
         this.clearServerConnectTimer();
         this.server_connect_timer = window.setTimeout(
             this.connectToServer.bind(this), after_ms);
@@ -33,7 +86,7 @@ class ProxyDashboard {
 
     private onServerWSOpen(ev: MessageEvent) {
         this.clearServerConnectTimer();
-        ProxyDashboard.setServerStatusSuccess();
+        ProxyDashboard.setServerStatusSuccess('Connected...');
         this.scheduleServerPing(0);
     }
 
@@ -48,9 +101,9 @@ class ProxyDashboard {
     private onServerWSMessage(ev: MessageEvent) {
         let message = JSON.parse(ev.data);
         if (message.id == this.last_ping_id) {
-            this.server_ping_timer = null;
-            this.last_ping_id = null;
-            ProxyDashboard.setServerStatusSuccess();
+            ProxyDashboard.setServerStatusSuccess(
+                String((ProxyDashboard.getTime() - this.last_ping_time) + ' ms'));
+            this.clearServerPingTimer();
             this.scheduleServerPing();
         }
     }
@@ -65,7 +118,7 @@ class ProxyDashboard {
         ProxyDashboard.setServerStatusDanger();
     }
 
-    private scheduleServerPing(after_ms: number = 5000) {
+    private scheduleServerPing(after_ms: number = this.schedule_ping_every_ms) {
         this.clearServerPingTimer();
         this.server_ping_timer = window.setTimeout(
             this.pingServer.bind(this), after_ms);
@@ -76,12 +129,15 @@ class ProxyDashboard {
             window.clearTimeout(this.server_ping_timer);
             this.server_ping_timer = null;
         }
+        this.last_ping_time = null;
+        this.last_ping_id = null;
     }
 
     private pingServer() {
         this.last_ping_id = this.mid;
-        // console.log('Pinging server with id:%d', this.last_ping_id);
+        this.last_ping_time = ProxyDashboard.getTime();
         this.mid++;
+        // console.log('Pinging server with id:%d', this.last_ping_id);
         this.ws.send(JSON.stringify({'id': this.last_ping_id, 'method': 'ping'}));
     }
 
@@ -91,10 +147,12 @@ class ProxyDashboard {
             .addClass('text-danger');
     }
 
-    private static setServerStatusSuccess() {
+    private static setServerStatusSuccess(summary: string) {
         $('#proxyServerStatus').parent('div')
             .removeClass('text-danger')
             .addClass('text-success');
+        $('#proxyServerStatusSummary').text(
+            '(' + summary + ')');
     }
 }
 

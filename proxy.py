@@ -499,6 +499,33 @@ class TcpClientConnection(TcpConnection):
         return self._conn
 
 
+class Lifecycle:
+    """Defines various lifecycle events for a connection and provides
+    utilities to publish events into global lifecycle events queue.
+
+    When enabled, a multiprocessing.Queue is created and attached to
+    ProtocolConfig.  This queue can then be used for dispatching any event
+    defined in this class or even outside of it.
+
+    When enabled, core also assigned a unique id to each accepted client
+    connection. This allows consumers to stitch several events
+    together for an accepted client connection.
+
+    Each published event contains at-least:
+    1. Client ID        - Globally unique
+    2. Timestamp        - When did this event occur
+    3. Event Name       - One of the defined or custom event name
+    4. Event Payload    - Optional data associated with the event
+    5. Publisher Process Id
+    6. Publisher Thread Id
+    7. Publisher Name
+
+    Lifecycle event can also be used to hook proxy.py into Devtools Frontend
+    by simply transforming Lifecycle events to Devtools protocol specification.
+    """
+    pass
+
+
 class ChunkParser:
     """HTTP chunked encoding response parser."""
 
