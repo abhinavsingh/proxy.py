@@ -156,10 +156,12 @@ export class ProxyDashboard {
     }
 }
 
-let proxyDashboard = new ProxyDashboard();
-
+// Outside of ProxyDashboard class since $(this.parentNode) usage complains about the
+// parentNode attribute on ProxyDashboard class, even when switchTab is bound to the element.
 function switchTab() {
     $('#proxyTopNav>ul>li.active').removeClass('active');
     $(this.parentNode).addClass('active');
     console.log('%s clicked', $(this).text().trim());
 }
+
+let proxyDashboard = new ProxyDashboard();

@@ -8,7 +8,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import base64
-import ipaddress
 import json
 import logging
 import multiprocessing
@@ -242,26 +241,19 @@ class TestAcceptorPool(unittest.TestCase):
         num_workers = 2
         sock = mock_socket.return_value
         work_klass = mock.MagicMock()
-        kwargs = {'config': proxy.ProtocolConfig()}
-        acceptor = proxy.AcceptorPool(
-            ipaddress.ip_address(proxy.DEFAULT_IPV6_HOSTNAME),
-            proxy.DEFAULT_PORT,
-            proxy.DEFAULT_BACKLOG,
-            num_workers,
-            threadless=proxy.DEFAULT_THREADLESS,
-            work_klass=work_klass,
-            **kwargs
-        )
+        flags = proxy.Flags(num_workers=2)
+        acceptor = proxy.AcceptorPool(flags=flags, work_klass=work_klass)
 
         acceptor.setup()
 
+        work_klass.assert_not_called()
         mock_socket.assert_called_with(
-            socket.AF_INET6 if acceptor.hostname.version == 6 else socket.AF_INET,
+            socket.AF_INET6 if acceptor.flags.hostname.version == 6 else socket.AF_INET,
             socket.SOCK_STREAM
         )
         sock.setsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind.assert_called_with((str(acceptor.hostname), acceptor.port))
-        sock.listen.assert_called_with(acceptor.backlog)
+        sock.bind.assert_called_with((str(acceptor.flags.hostname), acceptor.flags.port))
+        sock.listen.assert_called_with(acceptor.flags.backlog)
         sock.setblocking.assert_called_with(False)
 
         self.assertTrue(mock_pipe.call_count, num_workers)
@@ -286,13 +278,11 @@ class TestWorker(unittest.TestCase):
             mock_protocol_handler: mock.Mock) -> None:
         self.mock_protocol_handler = mock_protocol_handler
         self.pipe = multiprocessing.Pipe()
-        self.protocol_config = proxy.ProtocolConfig()
+        self.flags = proxy.Flags()
         self.worker = proxy.Acceptor(
-            socket.AF_INET6,
-            proxy.DEFAULT_THREADLESS,
             self.pipe[1],
-            mock_protocol_handler,
-            config=self.protocol_config)
+            flags=self.flags,
+            work_klass=mock_protocol_handler)
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -315,29 +305,6 @@ class TestWorker(unittest.TestCase):
         self.worker.run()
 
         sock.accept.assert_not_called()
-        self.mock_protocol_handler.assert_not_called()
-
-    @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
-    @mock.patch('proxy.recv_handle')
-    def test_worker_doesnt_teardown_on_blocking_io_error(
-            self,
-            mock_recv_handle: mock.Mock,
-            mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock) -> None:
-        fileno = 10
-        conn = mock.MagicMock()
-        addr = mock.MagicMock()
-        sock = mock_fromfd.return_value
-        mock_fromfd.return_value.accept.return_value = (conn, addr)
-        mock_recv_handle.return_value = fileno
-
-        selector = mock_selector.return_value
-        selector.select.side_effect = [(None, None), KeyboardInterrupt()]
-        sock.accept.side_effect = BlockingIOError()
-
-        self.worker.run()
-
         self.mock_protocol_handler.assert_not_called()
 
     @mock.patch('selectors.DefaultSelector')
@@ -373,7 +340,7 @@ class TestWorker(unittest.TestCase):
         self.mock_protocol_handler.assert_called_with(
             fileno=conn.fileno(),
             addr=addr,
-            **{'config': self.protocol_config}
+            flags=self.flags
         )
         # self.mock_protocol_handler.return_value.setDaemon.assert_called()
         self.mock_protocol_handler.return_value.start.assert_called()
@@ -1012,13 +979,13 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self._conn = mock_fromfd.return_value
 
         self.http_server_port = 65535
-        self.config = proxy.ProtocolConfig()
-        self.config.plugins = proxy.load_plugins(
+        self.flags = proxy.Flags()
+        self.flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
         self.mock_selector = mock_selector
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=self.config)
+            self.fileno, self._addr, flags=self.flags)
         self.proxy.initialize()
 
     @mock.patch('proxy.TcpServerConnection')
@@ -1140,13 +1107,13 @@ class TestHttpProtocolHandler(unittest.TestCase):
             mock_selector: mock.Mock) -> None:
         self._conn = mock_fromfd.return_value
         self.mock_selector_for_client_read(mock_selector)
-        config = proxy.ProtocolConfig(
+        flags = proxy.Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        config.plugins = proxy.load_plugins(
+        flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=config)
+            self.fileno, self._addr, flags=flags)
         self.proxy.initialize()
         self._conn.recv.return_value = proxy.CRLF.join([
             b'GET http://abhinavsingh.com HTTP/1.1',
@@ -1172,14 +1139,14 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.connect.return_value = True
         server.buffer_size.return_value = 0
 
-        config = proxy.ProtocolConfig(
+        flags = proxy.Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        config.plugins = proxy.load_plugins(
+        flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, addr=self._addr, config=config)
+            self.fileno, addr=self._addr, flags=flags)
         self.proxy.initialize()
         assert self.http_server_port is not None
 
@@ -1219,14 +1186,14 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.mock_selector_for_client_read_read_server_write(mock_selector, server)
 
-        config = proxy.ProtocolConfig(
+        flags = proxy.Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        config.plugins = proxy.load_plugins(
+        flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=config)
+            self.fileno, self._addr, flags=flags)
         self.proxy.initialize()
 
         assert self.http_server_port is not None
@@ -1327,11 +1294,11 @@ class TestWebServerPlugin(unittest.TestCase):
         self._addr = ('127.0.0.1', 54382)
         self._conn = mock_fromfd.return_value
         self.mock_selector = mock_selector
-        self.config = proxy.ProtocolConfig()
-        self.config.plugins = proxy.load_plugins(
+        self.flags = proxy.Flags()
+        self.flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=self.config)
+            self.fileno, self._addr, flags=self.flags)
         self.proxy.initialize()
 
     @mock.patch('selectors.DefaultSelector')
@@ -1384,11 +1351,11 @@ class TestWebServerPlugin(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ), ]
-        config = proxy.ProtocolConfig()
-        config.plugins = proxy.load_plugins(
+        flags = proxy.Flags()
+        flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=config)
+            self.fileno, self._addr, flags=flags)
         self.proxy.initialize()
         self._conn.recv.return_value = proxy.CRLF.join([
             b'GET /hello HTTP/1.1',
@@ -1434,14 +1401,14 @@ class TestWebServerPlugin(unittest.TestCase):
                 events=selectors.EVENT_WRITE,
                 data=None), selectors.EVENT_WRITE)], ]
 
-        config = proxy.ProtocolConfig(
+        flags = proxy.Flags(
             enable_static_server=True,
             static_server_dir=static_server_dir)
-        config.plugins = proxy.load_plugins(
+        flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=config)
+            self.fileno, self._addr, flags=flags)
         self.proxy.initialize()
 
         self.proxy.run_once()
@@ -1452,7 +1419,8 @@ class TestWebServerPlugin(unittest.TestCase):
         self.assertEqual(self._conn.send.call_args[0][0], proxy.build_http_response(
             200, reason=b'OK', headers={
                 b'Content-Type': b'text/html',
-                b'Content-Length': proxy.bytes_(len(html_file_content))
+                b'Connection': b'close',
+                b'Content-Length': proxy.bytes_(len(html_file_content)),
             },
             body=html_file_content
         ))
@@ -1478,12 +1446,12 @@ class TestWebServerPlugin(unittest.TestCase):
                 events=selectors.EVENT_WRITE,
                 data=None), selectors.EVENT_WRITE)], ]
 
-        config = proxy.ProtocolConfig(enable_static_server=True)
-        config.plugins = proxy.load_plugins(
+        flags = proxy.Flags(enable_static_server=True)
+        flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin')
 
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=config)
+            self.fileno, self._addr, flags=flags)
         self.proxy.initialize()
 
         self.proxy.run_once()
@@ -1497,12 +1465,12 @@ class TestWebServerPlugin(unittest.TestCase):
     @mock.patch('socket.fromfd')
     def test_on_client_connection_called_on_teardown(
             self, mock_fromfd: mock.Mock) -> None:
-        config = proxy.ProtocolConfig()
+        flags = proxy.Flags()
         plugin = mock.MagicMock()
-        config.plugins = {b'ProtocolHandlerPlugin': [plugin]}
+        flags.plugins = {b'ProtocolHandlerPlugin': [plugin]}
         self._conn = mock_fromfd.return_value
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=config)
+            self.fileno, self._addr, flags=flags)
         self.proxy.initialize()
         plugin.assert_called()
         with mock.patch.object(self.proxy, 'run_once') as mock_run_once:
@@ -1512,11 +1480,11 @@ class TestWebServerPlugin(unittest.TestCase):
         plugin.return_value.on_client_connection_close.assert_called()
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
-        config = proxy.ProtocolConfig(pac_file=pac_file)
-        config.plugins = proxy.load_plugins(
+        flags = proxy.Flags(pac_file=pac_file)
+        flags.plugins = proxy.load_plugins(
             b'proxy.HttpProxyPlugin,proxy.HttpWebServerPlugin,proxy.HttpWebServerPacFilePlugin')
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=config)
+            self.fileno, self._addr, flags=flags)
         self.proxy.initialize()
         self._conn.recv.return_value = proxy.CRLF.join([
             b'GET / HTTP/1.1',
@@ -1544,15 +1512,15 @@ class TestHttpProxyPlugin(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.config = proxy.ProtocolConfig()
+        self.flags = proxy.Flags()
         self.plugin = mock.MagicMock()
-        self.config.plugins = {
+        self.flags.plugins = {
             b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
             b'HttpProxyBasePlugin': [self.plugin]
         }
         self._conn = mock_fromfd.return_value
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=self.config)
+            self.fileno, self._addr, flags=self.flags)
         self.proxy.initialize()
 
     def test_proxy_plugin_initialized(self) -> None:
@@ -1614,7 +1582,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
               mock_selector: mock.Mock) -> None:
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.config = proxy.ProtocolConfig()
+        self.flags = proxy.Flags()
         self.plugin = mock.MagicMock()
 
         self.mock_fromfd = mock_fromfd
@@ -1622,13 +1590,13 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
 
         plugin = get_plugin_by_test_name(self._testMethodName)
 
-        self.config.plugins = {
+        self.flags.plugins = {
             b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
             b'HttpProxyBasePlugin': [plugin],
         }
         self._conn = mock_fromfd.return_value
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=self.config)
+            self.fileno, self._addr, flags=self.flags)
         self.proxy.initialize()
 
     @mock.patch('proxy.TcpServerConnection')
@@ -1868,27 +1836,27 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.config = proxy.ProtocolConfig(
+        self.flags = proxy.Flags(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem',
         )
         self.plugin = mock.MagicMock()
         self.proxy_plugin = mock.MagicMock()
-        self.config.plugins = {
+        self.flags.plugins = {
             b'ProtocolHandlerPlugin': [self.plugin, proxy.HttpProxyPlugin],
             b'HttpProxyBasePlugin': [self.proxy_plugin],
         }
         self._conn = mock_fromfd.return_value
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=self.config)
+            self.fileno, self._addr, flags=self.flags)
         self.proxy.initialize()
 
         self.plugin.assert_called()
-        self.assertEqual(self.plugin.call_args[0][0], self.config)
+        self.assertEqual(self.plugin.call_args[0][0], self.flags)
         self.assertEqual(self.plugin.call_args[0][1].connection, self._conn)
         self.proxy_plugin.assert_called()
-        self.assertEqual(self.proxy_plugin.call_args[0][0], self.config)
+        self.assertEqual(self.proxy_plugin.call_args[0][0], self.flags)
         self.assertEqual(self.proxy_plugin.call_args[0][1].connection, self._conn)
 
         connect_request = proxy.build_http_request(
@@ -1942,13 +1910,13 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.assertEqual(ssl_connection.setblocking.call_count, 1)
         self.assertEqual(self.mock_server_conn.return_value._conn, ssl_connection)
         self._conn.send.assert_called_with(proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-        assert self.config.ca_cert_dir is not None
+        assert self.flags.ca_cert_dir is not None
         self.mock_ssl_wrap.assert_called_with(
             self._conn,
             server_side=True,
-            keyfile=self.config.ca_signing_key_file,
+            keyfile=self.flags.ca_signing_key_file,
             certfile=proxy.HttpProxyPlugin.generated_cert_file_path(
-                self.config.ca_cert_dir, host)
+                self.flags.ca_cert_dir, host)
         )
         self.assertEqual(self._conn.setblocking.call_count, 2)
         self.assertEqual(self.proxy.client.connection, self.mock_ssl_wrap.return_value)
@@ -1982,7 +1950,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.config = proxy.ProtocolConfig(
+        self.flags = proxy.Flags(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem',)
@@ -1990,14 +1958,14 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
         plugin = get_plugin_by_test_name(self._testMethodName)
 
-        self.config.plugins = {
+        self.flags.plugins = {
             b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
             b'HttpProxyBasePlugin': [plugin],
         }
         self._conn = mock.MagicMock(spec=socket.socket)
         mock_fromfd.return_value = self._conn
         self.proxy = proxy.ProtocolHandler(
-            self.fileno, self._addr, config=self.config)
+            self.fileno, self._addr, flags=self.flags)
         self.proxy.initialize()
 
         self.server = self.mock_server_conn.return_value
@@ -2183,12 +2151,14 @@ class TestMain(unittest.TestCase):
         mock_args.devtools_ws_path = proxy.DEFAULT_DEVTOOLS_WS_PATH
         mock_args.timeout = proxy.DEFAULT_TIMEOUT
         mock_args.threadless = proxy.DEFAULT_THREADLESS
+        mock_args.enable_events = proxy.DEFAULT_ENABLE_EVENTS
+        mock_args.events_queue = proxy.DEFAULT_EVENTS_QUEUE
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.load_plugins')
     @mock.patch('proxy.init_parser')
     @mock.patch('proxy.set_open_file_limit')
-    @mock.patch('proxy.ProtocolConfig')
+    @mock.patch('proxy.Flags')
     @mock.patch('proxy.AcceptorPool')
     @mock.patch('proxy.logging.basicConfig')
     def test_init_with_no_arguments(
@@ -2215,7 +2185,6 @@ class TestMain(unittest.TestCase):
             format=proxy.DEFAULT_LOG_FORMAT
         )
         mock_set_open_file_limit.assert_called_with(mock_args.open_file_limit)
-
         mock_protocol_config.assert_called_with(
             auth_code=mock_args.basic_auth,
             backlog=mock_args.backlog,
@@ -2227,7 +2196,7 @@ class TestMain(unittest.TestCase):
             client_recvbuf_size=mock_args.client_recvbuf_size,
             hostname=mock_args.hostname,
             keyfile=mock_args.key_file,
-            num_workers=multiprocessing.cpu_count(),
+            num_workers=0,
             pac_file=mock_args.pac_file,
             pac_file_url_path=mock_args.pac_file_url_path,
             port=mock_args.port,
@@ -2241,16 +2210,12 @@ class TestMain(unittest.TestCase):
             devtools_ws_path=proxy.DEFAULT_DEVTOOLS_WS_PATH,
             timeout=proxy.DEFAULT_TIMEOUT,
             threadless=proxy.DEFAULT_THREADLESS,
+            enable_events=proxy.DEFAULT_ENABLE_EVENTS,
+            events_queue=proxy.DEFAULT_EVENTS_QUEUE,
         )
-
         mock_acceptor_pool.assert_called_with(
-            hostname=mock_protocol_config.return_value.hostname,
-            port=mock_protocol_config.return_value.port,
-            backlog=mock_protocol_config.return_value.backlog,
-            num_workers=mock_protocol_config.return_value.num_workers,
+            flags=mock_protocol_config.return_value,
             work_klass=proxy.ProtocolHandler,
-            threadless=mock_protocol_config.return_value.threadless,
-            config=mock_protocol_config.return_value,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()
@@ -2286,7 +2251,7 @@ class TestMain(unittest.TestCase):
         mock_remove.assert_called_with(pid_file)
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.ProtocolConfig')
+    @mock.patch('proxy.Flags')
     @mock.patch('proxy.AcceptorPool')
     def test_basic_auth(
             self,
@@ -2295,15 +2260,10 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
         proxy.main(['--basic-auth', 'user:pass'])
-        config = mock_protocol_config.return_value
+        flags = mock_protocol_config.return_value
         mock_acceptor_pool.assert_called_with(
-            hostname=config.hostname,
-            port=config.port,
-            backlog=config.backlog,
-            num_workers=config.num_workers,
-            work_klass=proxy.ProtocolHandler,
-            threadless=config.threadless,
-            config=config)
+            flags=flags,
+            work_klass=proxy.ProtocolHandler)
         self.assertEqual(mock_protocol_config.call_args[1]['auth_code'], b'Basic dXNlcjpwYXNz')
 
     @mock.patch('builtins.print')

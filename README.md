@@ -855,7 +855,7 @@ CLASSES
         AcceptorPool
         ChunkParser
         HttpParser
-        ProtocolConfig
+        Flags
         WebsocketFrame
     builtins.tuple(builtins.object)
         ChunkParserStates

@@ -74,6 +74,8 @@ DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
 DEFAULT_DISABLE_HTTP_PROXY = False
 DEFAULT_ENABLE_DEVTOOLS = False
+DEFAULT_ENABLE_EVENTS = False
+DEFAULT_EVENTS_QUEUE = None
 DEFAULT_ENABLE_STATIC_SERVER = False
 DEFAULT_ENABLE_WEB_SERVER = False
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
@@ -233,6 +235,11 @@ WebsocketOpcodes = NamedTuple('WebsocketOpcodes', [
     ('PONG', int),
 ])
 websocketOpcodes = WebsocketOpcodes(0x0, 0x1, 0x2, 0x8, 0x9, 0xA)
+
+if TYPE_CHECKING:
+    DictQueueType = queue.Queue[Dict[str, Any]]    # pragma: no cover
+else:
+    DictQueueType = queue.Queue
 
 
 def build_http_request(method: bytes, url: bytes,
@@ -504,7 +511,7 @@ class Lifecycle:
     utilities to publish events into global lifecycle events queue.
 
     When enabled, a multiprocessing.Queue is created and attached to
-    ProtocolConfig.  This queue can then be used for dispatching any event
+    Flags.  This queue can then be used for dispatching any event
     defined in this class or even outside of it.
 
     When enabled, core also assigned a unique id to each accepted client
@@ -512,18 +519,24 @@ class Lifecycle:
     together for an accepted client connection.
 
     Each published event contains at-least:
-    1. Client ID        - Globally unique
-    2. Timestamp        - When did this event occur
-    3. Event Name       - One of the defined or custom event name
-    4. Event Payload    - Optional data associated with the event
-    5. Publisher Process Id
-    6. Publisher Thread Id
-    7. Publisher Name
-
-    Lifecycle event can also be used to hook proxy.py into Devtools Frontend
-    by simply transforming Lifecycle events to Devtools protocol specification.
+    1. Client ID                - Globally unique
+    2. Process ID               - Process ID of event publisher
+    3. Event Timestamp          - Time when this event occur
+    4. Event Name               - One of the defined or custom event name
+    5. Event Payload            - Optional data associated with the event
+    6. Publisher ID (optional)  - Optionally, publishing entity unique name / ID
     """
-    pass
+
+    @staticmethod
+    def publish(
+            client_id: bytes,
+            process_id: int,
+            event_timestamp: float,
+            event_name: bytes,
+            event_payload: Dict[str, Any],
+            publisher_id: Optional[bytes] = None
+    ) -> None:
+        pass
 
 
 class ChunkParser:
@@ -813,88 +826,107 @@ class HttpParser:
              self.header(b'Connection').lower() == b'keep-alive')
 
 
-class AcceptorPool:
-    """AcceptorPool.
+class Flags:
+    """Contains all input flags and inferred input parameters."""
 
-    Pre-spawns worker processes to utilize all cores available on the system.  Server socket connection is
-    dispatched over a pipe to workers.  Each worker accepts incoming client request and spawns a
-    separate thread to handle the client request.
-    """
+    ROOT_DATA_DIR_NAME = '.proxy.py'
+    GENERATED_CERTS_DIR_NAME = 'certificates'
 
-    def __init__(self,
-                 hostname: Union[ipaddress.IPv4Address,
-                                 ipaddress.IPv6Address],
-                 port: int, backlog: int, num_workers: int,
-                 threadless: bool,
-                 work_klass: type,
-                 **kwargs: Any) -> None:
+    def __init__(
+            self,
+            auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
+            server_recvbuf_size: int = DEFAULT_SERVER_RECVBUF_SIZE,
+            client_recvbuf_size: int = DEFAULT_CLIENT_RECVBUF_SIZE,
+            pac_file: Optional[str] = DEFAULT_PAC_FILE,
+            pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
+            plugins: Optional[Dict[bytes, List[type]]] = None,
+            disable_headers: Optional[List[bytes]] = None,
+            certfile: Optional[str] = None,
+            keyfile: Optional[str] = None,
+            ca_cert_dir: Optional[str] = None,
+            ca_key_file: Optional[str] = None,
+            ca_cert_file: Optional[str] = None,
+            ca_signing_key_file: Optional[str] = None,
+            num_workers: int = 0,
+            hostname: Union[ipaddress.IPv4Address,
+                            ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
+            port: int = DEFAULT_PORT,
+            backlog: int = DEFAULT_BACKLOG,
+            static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
+            enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
+            devtools_event_queue: Optional[DictQueueType] = None,
+            devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH,
+            timeout: int = DEFAULT_TIMEOUT,
+            threadless: bool = DEFAULT_THREADLESS,
+            enable_events: bool = DEFAULT_ENABLE_EVENTS,
+            events_queue: Optional[DictQueueType] = DEFAULT_EVENTS_QUEUE) -> None:
         self.threadless = threadless
-        self.running: bool = False
-
+        self.timeout = timeout
+        self.auth_code = auth_code
+        self.server_recvbuf_size = server_recvbuf_size
+        self.client_recvbuf_size = client_recvbuf_size
+        self.pac_file = pac_file
+        self.pac_file_url_path = pac_file_url_path
+        if plugins is None:
+            plugins = {}
+        self.plugins: Dict[bytes, List[type]] = plugins
+        if disable_headers is None:
+            disable_headers = DEFAULT_DISABLE_HEADERS
+        self.disable_headers = disable_headers
+        self.certfile: Optional[str] = certfile
+        self.keyfile: Optional[str] = keyfile
+        self.ca_key_file: Optional[str] = ca_key_file
+        self.ca_cert_file: Optional[str] = ca_cert_file
+        self.ca_signing_key_file: Optional[str] = ca_signing_key_file
+        self.num_workers: int = num_workers if num_workers > 0 else multiprocessing.cpu_count()
         self.hostname: Union[ipaddress.IPv4Address,
                              ipaddress.IPv6Address] = hostname
-        self.port: int = port
         self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
+        self.port: int = port
         self.backlog: int = backlog
-        self.socket: Optional[socket.socket] = None
 
-        self.num_acceptors = num_workers
-        self.acceptors: List[Acceptor] = []
-        self.work_queues: List[connection.Connection] = []
+        self.enable_static_server: bool = enable_static_server
+        self.static_server_dir: str = static_server_dir
 
-        self.work_klass = work_klass
-        self.kwargs = kwargs
+        self.devtools_event_queue: Optional[DictQueueType] = devtools_event_queue
+        self.devtools_ws_path: bytes = devtools_ws_path
 
-    def listen(self) -> None:
-        self.socket = socket.socket(self.family, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((str(self.hostname), self.port))
-        self.socket.listen(self.backlog)
-        self.socket.setblocking(False)
-        logger.info('Listening on %s:%d' % (self.hostname, self.port))
+        self.enable_events: bool = enable_events
+        self.events_queue: Optional[DictQueueType] = events_queue
 
-    def start_workers(self) -> None:
-        """Start worker processes."""
-        for _ in range(self.num_acceptors):
-            work_queue = multiprocessing.Pipe()
-            acceptor = Acceptor(
-                self.family,
-                self.threadless,
-                work_queue[1],
-                self.work_klass,
-                **self.kwargs
-            )
-            acceptor.start()
-            self.acceptors.append(acceptor)
-            self.work_queues.append(work_queue[0])
-        logger.info('Started %d workers' % self.num_acceptors)
+        self.proxy_py_data_dir = os.path.join(
+            str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
+        os.makedirs(self.proxy_py_data_dir, exist_ok=True)
 
-    def shutdown(self) -> None:
-        logger.info('Shutting down %d workers' % self.num_acceptors)
-        for acceptor in self.acceptors:
-            acceptor.join()
-        for work_queue in self.work_queues:
-            work_queue.close()
+        self.ca_cert_dir: Optional[str] = ca_cert_dir
+        if self.ca_cert_dir is None:
+            self.ca_cert_dir = os.path.join(
+                self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
+            os.makedirs(self.ca_cert_dir, exist_ok=True)
 
-    def setup(self) -> None:
-        """Listen on port, setup workers and pass server socket to workers."""
-        self.running = True
-        self.listen()
-        self.start_workers()
+    def tls_interception_enabled(self) -> bool:
+        return self.ca_key_file is not None and \
+            self.ca_cert_dir is not None and \
+            self.ca_signing_key_file is not None and \
+            self.ca_cert_file is not None
 
-        # Send server socket to all acceptor processes.
-        assert self.socket is not None
-        for index in range(self.num_acceptors):
-            send_handle(
-                self.work_queues[index],
-                self.socket.fileno(),
-                self.acceptors[index].pid
-            )
-        self.socket.close()
+    def encryption_enabled(self) -> bool:
+        return self.keyfile is not None and \
+            self.certfile is not None
 
 
 class ThreadlessWork(ABC):
     """Implement ThreadlessWork to hook into the event loop provided by Threadless process."""
+
+    @abstractmethod
+    def __init__(
+            self,
+            fileno: int,
+            addr: Tuple[str, int],
+            flags: Optional[Flags]) -> None:
+        self.fileno = fileno
+        self.addr = addr
+        self.flags = flags if flags else Flags()
 
     @abstractmethod
     def initialize(self) -> None:
@@ -920,6 +952,68 @@ class ThreadlessWork(ABC):
         """Must close any opened resources."""
         pass    # pragma: no cover
 
+    @abstractmethod
+    def run(self) -> None:
+        pass
+
+
+class AcceptorPool:
+    """AcceptorPool.
+
+    Pre-spawns worker processes to utilize all cores available on the system.  Server socket connection is
+    dispatched over a pipe to workers.  Each worker accepts incoming client request and spawns a
+    separate thread to handle the client request.
+    """
+
+    def __init__(self, flags: Flags, work_klass: Type[ThreadlessWork]) -> None:
+        self.flags = flags
+        self.running: bool = False
+        self.socket: Optional[socket.socket] = None
+        self.acceptors: List[Acceptor] = []
+        self.work_queues: List[connection.Connection] = []
+        self.work_klass = work_klass
+
+    def listen(self) -> None:
+        self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind((str(self.flags.hostname), self.flags.port))
+        self.socket.listen(self.flags.backlog)
+        self.socket.setblocking(False)
+        logger.info('Listening on %s:%d' % (self.flags.hostname, self.flags.port))
+
+    def start_workers(self) -> None:
+        """Start worker processes."""
+        for _ in range(self.flags.num_workers):
+            work_queue = multiprocessing.Pipe()
+            acceptor = Acceptor(work_queue[1], self.flags, self.work_klass)
+            acceptor.start()
+            self.acceptors.append(acceptor)
+            self.work_queues.append(work_queue[0])
+        logger.info('Started %d workers' % self.flags.num_workers)
+
+    def shutdown(self) -> None:
+        logger.info('Shutting down %d workers' % self.flags.num_workers)
+        for acceptor in self.acceptors:
+            acceptor.join()
+        for work_queue in self.work_queues:
+            work_queue.close()
+
+    def setup(self) -> None:
+        """Listen on port, setup workers and pass server socket to workers."""
+        self.running = True
+        self.listen()
+        self.start_workers()
+
+        # Send server socket to all acceptor processes.
+        assert self.socket is not None
+        for index in range(self.flags.num_workers):
+            send_handle(
+                self.work_queues[index],
+                self.socket.fileno(),
+                self.acceptors[index].pid
+            )
+        self.socket.close()
+
 
 class Threadless(multiprocessing.Process):
     """Threadless provides an event loop.  Use it by implementing Threadless class.
@@ -936,12 +1030,12 @@ class Threadless(multiprocessing.Process):
     def __init__(
             self,
             client_queue: connection.Connection,
-            work_klass: type,
-            **kwargs: Any) -> None:
+            flags: Flags,
+            work_klass: Type[ThreadlessWork]) -> None:
         super().__init__()
         self.client_queue = client_queue
+        self.flags = flags
         self.work_klass = work_klass
-        self.kwargs = kwargs
 
         self.works: Dict[int, ThreadlessWork] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
@@ -993,7 +1087,7 @@ class Threadless(multiprocessing.Process):
         self.works[fileno] = self.work_klass(
             fileno=fileno,
             addr=addr,
-            **self.kwargs)
+            flags=self.flags)
         try:
             self.works[fileno].initialize()
             os.close(fileno)
@@ -1066,17 +1160,13 @@ class Acceptor(multiprocessing.Process):
 
     def __init__(
             self,
-            family: socket.AddressFamily,
-            threadless: bool,
             work_queue: connection.Connection,
-            work_klass: type,
-            **kwargs: Any) -> None:
+            flags: Flags,
+            work_klass: Type[ThreadlessWork]) -> None:
         super().__init__()
-        self.family: socket.AddressFamily = family
-        self.threadless: bool = threadless
         self.work_queue: connection.Connection = work_queue
+        self.flags = flags
         self.work_klass = work_klass
-        self.kwargs = kwargs
 
         self.running = False
         self.selector: Optional[selectors.DefaultSelector] = None
@@ -1085,24 +1175,24 @@ class Acceptor(multiprocessing.Process):
         self.threadless_client_queue: Optional[connection.Connection] = None
 
     def start_threadless_process(self) -> None:
-        if not self.threadless:
+        if not self.flags.threadless:
             return
         pipe = multiprocessing.Pipe()
         self.threadless_client_queue = pipe[0]
         self.threadless_process = Threadless(
-            pipe[1], self.work_klass, **self.kwargs
+            pipe[1], self.flags, self.work_klass
         )
         self.threadless_process.start()
 
     def shutdown_threadless_process(self) -> None:
-        if not self.threadless:
+        if not self.flags.threadless:
             return
         assert self.threadless_process and self.threadless_client_queue
         self.threadless_process.join()
         self.threadless_client_queue.close()
 
     def start_work(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
-        if self.threadless and \
+        if self.flags.threadless and \
                 self.threadless_client_queue and \
                 self.threadless_process:
             self.threadless_client_queue.send(addr)
@@ -1116,8 +1206,10 @@ class Acceptor(multiprocessing.Process):
             work = self.work_klass(
                 fileno=conn.fileno(),
                 addr=addr,
-                **self.kwargs)
-            work.start()
+                flags=self.flags
+            )
+            work_thread = threading.Thread(target=work.run)
+            work_thread.start()
 
     def run_once(self) -> None:
         assert self.selector and self.sock
@@ -1136,7 +1228,7 @@ class Acceptor(multiprocessing.Process):
         fileno = recv_handle(self.work_queue)
         self.sock = socket.fromfd(
             fileno,
-            family=self.family,
+            family=self.flags.family,
             type=socket.SOCK_STREAM
         )
         try:
@@ -1237,97 +1329,6 @@ class ProxyAuthenticationFailed(ProtocolException):
         return self.RESPONSE_PKT
 
 
-if TYPE_CHECKING:
-    DevtoolsEventQueueType = queue.Queue[Dict[str, Any]]    # pragma: no cover
-else:
-    DevtoolsEventQueueType = queue.Queue
-
-
-class ProtocolConfig:
-    """Holds various configuration values applicable to ProtocolHandler.
-
-    This config class helps us avoid passing around bunch of key/value pairs across methods.
-    """
-
-    ROOT_DATA_DIR_NAME = '.proxy.py'
-    GENERATED_CERTS_DIR_NAME = 'certificates'
-
-    def __init__(
-            self,
-            auth_code: Optional[bytes] = DEFAULT_BASIC_AUTH,
-            server_recvbuf_size: int = DEFAULT_SERVER_RECVBUF_SIZE,
-            client_recvbuf_size: int = DEFAULT_CLIENT_RECVBUF_SIZE,
-            pac_file: Optional[str] = DEFAULT_PAC_FILE,
-            pac_file_url_path: Optional[bytes] = DEFAULT_PAC_FILE_URL_PATH,
-            plugins: Optional[Dict[bytes, List[type]]] = None,
-            disable_headers: Optional[List[bytes]] = None,
-            certfile: Optional[str] = None,
-            keyfile: Optional[str] = None,
-            ca_cert_dir: Optional[str] = None,
-            ca_key_file: Optional[str] = None,
-            ca_cert_file: Optional[str] = None,
-            ca_signing_key_file: Optional[str] = None,
-            num_workers: int = 0,
-            hostname: Union[ipaddress.IPv4Address,
-                            ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
-            port: int = DEFAULT_PORT,
-            backlog: int = DEFAULT_BACKLOG,
-            static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
-            enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
-            devtools_event_queue: Optional[DevtoolsEventQueueType] = None,
-            devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH,
-            timeout: int = DEFAULT_TIMEOUT,
-            threadless: bool = DEFAULT_THREADLESS) -> None:
-        self.threadless = threadless
-        self.timeout = timeout
-        self.auth_code = auth_code
-        self.server_recvbuf_size = server_recvbuf_size
-        self.client_recvbuf_size = client_recvbuf_size
-        self.pac_file = pac_file
-        self.pac_file_url_path = pac_file_url_path
-        if plugins is None:
-            plugins = {}
-        self.plugins: Dict[bytes, List[type]] = plugins
-        if disable_headers is None:
-            disable_headers = DEFAULT_DISABLE_HEADERS
-        self.disable_headers = disable_headers
-        self.certfile: Optional[str] = certfile
-        self.keyfile: Optional[str] = keyfile
-        self.ca_key_file: Optional[str] = ca_key_file
-        self.ca_cert_file: Optional[str] = ca_cert_file
-        self.ca_signing_key_file: Optional[str] = ca_signing_key_file
-        self.num_workers: int = num_workers
-        self.hostname: Union[ipaddress.IPv4Address,
-                             ipaddress.IPv6Address] = hostname
-        self.port: int = port
-        self.backlog: int = backlog
-
-        self.enable_static_server: bool = enable_static_server
-        self.static_server_dir: str = static_server_dir
-        self.devtools_event_queue: Optional[DevtoolsEventQueueType] = devtools_event_queue
-        self.devtools_ws_path: bytes = devtools_ws_path
-
-        self.proxy_py_data_dir = os.path.join(
-            str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
-        os.makedirs(self.proxy_py_data_dir, exist_ok=True)
-
-        self.ca_cert_dir: Optional[str] = ca_cert_dir
-        if self.ca_cert_dir is None:
-            self.ca_cert_dir = os.path.join(
-                self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
-            os.makedirs(self.ca_cert_dir, exist_ok=True)
-
-    def tls_interception_enabled(self) -> bool:
-        return self.ca_key_file is not None and \
-            self.ca_cert_dir is not None and \
-            self.ca_signing_key_file is not None and \
-            self.ca_cert_file is not None
-
-    def encryption_enabled(self) -> bool:
-        return self.keyfile is not None and \
-            self.certfile is not None
-
-
 class ProtocolHandlerPlugin(ABC):
     """Base ProtocolHandler Plugin class.
 
@@ -1352,10 +1353,10 @@ class ProtocolHandlerPlugin(ABC):
 
     def __init__(
             self,
-            config: ProtocolConfig,
+            config: Flags,
             client: TcpClientConnection,
             request: HttpParser):
-        self.config: ProtocolConfig = config
+        self.config: Flags = config
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
         super().__init__()
@@ -1408,7 +1409,7 @@ class HttpProxyBasePlugin(ABC):
 
     def __init__(
             self,
-            config: ProtocolConfig,
+            config: Flags,
             client: TcpClientConnection):
         self.config = config        # pragma: no cover
         self.client = client        # pragma: no cover
@@ -1474,7 +1475,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
 
     def __init__(
             self,
-            config: ProtocolConfig,
+            config: Flags,
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
@@ -2047,7 +2048,7 @@ class HttpWebServerBasePlugin(ABC):
 
     def __init__(
             self,
-            config: ProtocolConfig,
+            config: Flags,
             client: TcpClientConnection):
         self.config = config
         self.client = client
@@ -2088,7 +2089,7 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
 
     def __init__(
             self,
-            config: ProtocolConfig,
+            config: Flags,
             client: TcpClientConnection):
         super().__init__(config, client)
         self.event_dispatcher_thread: Optional[threading.Thread] = None
@@ -2114,7 +2115,7 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
     @staticmethod
     def event_dispatcher(
             shutdown: threading.Event,
-            devtools_event_queue: DevtoolsEventQueueType,
+            devtools_event_queue: DictQueueType,
             client: TcpClientConnection) -> None:
         while not shutdown.is_set():
             try:
@@ -2206,7 +2207,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
     def __init__(
             self,
-            config: ProtocolConfig,
+            config: Flags,
             client: TcpClientConnection):
         super().__init__(config, client)
         self.pac_file_response: Optional[bytes] = None
@@ -2266,7 +2267,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
 
     def __init__(
             self,
-            config: ProtocolConfig,
+            config: Flags,
             client: TcpClientConnection,
             request: HttpParser):
         super().__init__(config, client, request)
@@ -2435,25 +2436,20 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         return [], []
 
 
-class ProtocolHandler(threading.Thread, ThreadlessWork):
+class ProtocolHandler(ThreadlessWork):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection object and manages ProtocolHandlerPlugin invocations.
     """
 
     def __init__(self, fileno: int, addr: Tuple[str, int],
-                 config: Optional[ProtocolConfig] = None):
-        super().__init__()
-        self.fileno: int = fileno
-        self.addr: Tuple[str, int] = addr
+                 flags: Optional[Flags] = None):
+        super().__init__(fileno, addr, flags)
 
         self.start_time: float = time.time()
         self.last_activity: float = self.start_time
-
-        self.config: ProtocolConfig = config if config else ProtocolConfig()
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-
         self.selector = selectors.DefaultSelector()
         self.client: TcpClientConnection = TcpClientConnection(
             self.fromfd(self.fileno), self.addr
@@ -2464,17 +2460,17 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
-        if self.config.encryption_enabled():
+        if self.flags.encryption_enabled():
             self.client = TcpClientConnection(conn=conn, addr=self.addr)
-        if b'ProtocolHandlerPlugin' in self.config.plugins:
-            for klass in self.config.plugins[b'ProtocolHandlerPlugin']:
-                instance = klass(self.config, self.client, self.request)
+        if b'ProtocolHandlerPlugin' in self.flags.plugins:
+            for klass in self.flags.plugins[b'ProtocolHandlerPlugin']:
+                instance = klass(self.flags, self.client, self.request)
                 self.plugins[instance.name()] = instance
         logger.debug('Handling connection %r' % self.client.connection)
 
     def is_inactive(self) -> bool:
         if not self.client.has_buffer() and \
-                self.connection_inactive_for() > self.config.timeout:
+                self.connection_inactive_for() > self.flags.timeout:
             return True
         return False
 
@@ -2546,7 +2542,7 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
         conn = self.client.connection
         try:
             # Unwrap if wrapped before shutdown.
-            if self.config.encryption_enabled() and \
+            if self.flags.encryption_enabled() and \
                     isinstance(self.client.connection, ssl.SSLSocket):
                 conn = self.client.connection.unwrap()
             conn.shutdown(socket.SHUT_WR)
@@ -2559,7 +2555,7 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
 
     def fromfd(self, fileno: int) -> socket.socket:
         conn = socket.fromfd(
-            fileno, family=socket.AF_INET if self.config.hostname.version == 4 else socket.AF_INET6,
+            fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM)
         return conn
 
@@ -2569,15 +2565,15 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
 
         Shutdown and closes client connection upon error.
         """
-        if self.config.encryption_enabled():
+        if self.flags.encryption_enabled():
             ctx = ssl.create_default_context(
                 ssl.Purpose.CLIENT_AUTH)
             ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
             ctx.verify_mode = ssl.CERT_NONE
-            assert self.config.keyfile and self.config.certfile
+            assert self.flags.keyfile and self.flags.certfile
             ctx.load_cert_chain(
-                certfile=self.config.certfile,
-                keyfile=self.config.keyfile)
+                certfile=self.flags.certfile,
+                keyfile=self.flags.keyfile)
             conn = ctx.wrap_socket(conn, server_side=True)
         return conn
 
@@ -2627,7 +2623,7 @@ class ProtocolHandler(threading.Thread, ThreadlessWork):
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
             try:
-                client_data = self.client.recv(self.config.client_recvbuf_size)
+                client_data = self.client.recv(self.flags.client_recvbuf_size)
             except ssl.SSLWantReadError:    # Try again later
                 logger.warning('SSLWantReadError encountered while reading from client, will retry ...')
                 return False
@@ -2751,7 +2747,7 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
 
     def __init__(
             self,
-            config: ProtocolConfig,
+            config: Flags,
             client: TcpClientConnection,
             request: HttpParser):
         self.id: str = f'{ os.getpid() }-{ threading.get_ident() }-{ time.time() }'
@@ -3056,6 +3052,13 @@ def init_parser() -> argparse.ArgumentParser:
         help='Default: False.  Enables integration with Chrome Devtool Frontend.'
     )
     parser.add_argument(
+        '--enable-events',
+        action='store_true',
+        default=DEFAULT_ENABLE_EVENTS,
+        help='Default: False.  Enables core to dispatch lifecycle events. '
+             'Plugins can be used to subscribe for core events.'
+    )
+    parser.add_argument(
         '--enable-static-server',
         action='store_true',
         default=DEFAULT_ENABLE_STATIC_SERVER,
@@ -3197,7 +3200,8 @@ def main(input_args: List[str]) -> None:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
         default_plugins = ''
-        devtools_event_queue: Optional[DevtoolsEventQueueType] = None
+        devtools_event_queue: Optional[DictQueueType] = None
+        events_queue: Optional[DictQueueType] = None
         if args.enable_devtools:
             default_plugins += 'proxy.DevtoolsProtocolPlugin,'
             default_plugins += 'proxy.HttpWebServerPlugin,'
@@ -3213,8 +3217,10 @@ def main(input_args: List[str]) -> None:
             devtools_event_queue = multiprocessing.Manager().Queue()
         if args.pac_file is not None:
             default_plugins += 'proxy.HttpWebServerPacFilePlugin,'
+        if args.enable_events:
+            events_queue = multiprocessing.Manager().Queue()
 
-        config = ProtocolConfig(
+        flags = Flags(
             auth_code=auth_code,
             server_recvbuf_size=args.server_recvbuf_size,
             client_recvbuf_size=args.client_recvbuf_size,
@@ -3232,33 +3238,32 @@ def main(input_args: List[str]) -> None:
             hostname=ipaddress.ip_address(args.hostname),
             port=args.port,
             backlog=args.backlog,
-            num_workers=args.num_workers if args.num_workers > 0 else multiprocessing.cpu_count(),
+            num_workers=args.num_workers,
             static_server_dir=args.static_server_dir,
             enable_static_server=args.enable_static_server,
             devtools_event_queue=devtools_event_queue,
             devtools_ws_path=args.devtools_ws_path,
             timeout=args.timeout,
-            threadless=args.threadless)
+            threadless=args.threadless,
+            enable_events=args.enable_events,
+            events_queue=events_queue)
 
-        config.plugins = load_plugins(
+        flags.plugins = load_plugins(
             bytes_(
                 '%s%s' %
                 (default_plugins, args.plugins)))
 
         acceptor_pool = AcceptorPool(
-            hostname=config.hostname,
-            port=config.port,
-            backlog=config.backlog,
-            num_workers=config.num_workers,
-            threadless=config.threadless,
-            work_klass=ProtocolHandler,
-            config=config)
+            flags=flags,
+            work_klass=ProtocolHandler
+        )
+
         if args.pid_file:
             with open(args.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
-        acceptor_pool.setup()
 
         try:
+            acceptor_pool.setup()
             # TODO: Introduce cron feature instead of mindless sleep
             while True:
                 time.sleep(1)

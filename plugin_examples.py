@@ -230,7 +230,7 @@ class CacheResponsesPlugin(proxy.HttpProxyBasePlugin):
 
     def __init__(
             self,
-            config: proxy.ProtocolConfig,
+            config: proxy.Flags,
             client: proxy.TcpClientConnection) -> None:
         super().__init__(config, client)
         self.cache_file_path: Optional[str] = None
