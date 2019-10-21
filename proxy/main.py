@@ -214,7 +214,3 @@ def main(input_args: List[str]) -> None:
 
 def entry_point() -> None:
     main(sys.argv[1:])
-
-
-if __name__ == '__main__':
-    entry_point()

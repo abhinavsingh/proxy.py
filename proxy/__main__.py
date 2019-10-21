@@ -9,4 +9,6 @@
 """
 from proxy.main import entry_point
 
-entry_point()
+
+if __name__ == '__main__':
+    entry_point()

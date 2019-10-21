@@ -9,8 +9,8 @@
 """
 from setuptools import setup, find_packages
 
-from core.version import __version__
-from core.constants import __author__, __author_email__, __homepage__, __description__, __download_url__, __license__
+from proxy.version import __version__
+from proxy.constants import __author__, __author_email__, __homepage__, __description__, __download_url__, __license__
 
 setup(
     name='proxy.py',
@@ -25,10 +25,9 @@ setup(
     license=__license__,
     packages=find_packages(exclude=['benchmark', 'tests', 'plugin_examples']),
     install_requires=open('requirements.txt', 'r').read().strip().split(),
-    test_requires=open('requirements-testing.txt', 'r').read().strip().split(),
-    entry_point={
+    entry_points={
         'console_scripts': [
-            'proxy.py = core.main.entry_point'
+            'proxy = proxy.main:entry_point'
         ]
     },
     classifiers=[
