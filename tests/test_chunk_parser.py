@@ -9,7 +9,7 @@
 """
 import unittest
 
-from core.chunk_parser import chunkParserStates, ChunkParser
+from proxy.chunk_parser import chunkParserStates, ChunkParser
 
 
 class TestChunkParser(unittest.TestCase):

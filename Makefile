@@ -24,10 +24,14 @@ clean:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 	rm -f .coverage
-	rm -rf htmlcov dist build .pytest_cache proxy.py.egg-info
+	rm -rf htmlcov
+	rm -rf dist
+	rm -rf build
+	rm -rf proxy.py.egg-info
+	rm -rf .pytest_cache
 
 test:
-	python -m unittest tests
+	python -m unittest tests/*.py
 
 package: clean
 	python setup.py sdist bdist_wheel

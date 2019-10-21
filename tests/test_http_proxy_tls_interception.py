@@ -7,18 +7,18 @@ import selectors
 from typing import Any
 from unittest import mock
 
-from core.protocol_handler import ProtocolHandler
-from core.http_proxy import HttpProxyPlugin
-from core.http_methods import httpMethods
-from core.utils import build_http_request, bytes_
-from core.flags import Flags
+from proxy.protocol_handler import ProtocolHandler
+from proxy.http_proxy import HttpProxyPlugin
+from proxy.http_methods import httpMethods
+from proxy.utils import build_http_request, bytes_
+from proxy.flags import Flags
 
 
 class TestHttpProxyTlsInterception(unittest.TestCase):
 
     @mock.patch('ssl.wrap_socket')
     @mock.patch('ssl.create_default_context')
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     @mock.patch('subprocess.Popen')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')

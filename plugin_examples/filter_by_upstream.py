@@ -9,9 +9,9 @@
 """
 from typing import Optional
 
-from core.http_proxy import HttpProxyBasePlugin, HttpRequestRejected
-from core.http_parser import HttpParser
-from core.status_codes import httpStatusCodes
+from proxy.http_proxy import HttpProxyBasePlugin, HttpRequestRejected
+from proxy.http_parser import HttpParser
+from proxy.status_codes import httpStatusCodes
 
 
 class FilterByUpstreamHostPlugin(HttpProxyBasePlugin):

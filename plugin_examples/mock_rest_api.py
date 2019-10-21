@@ -10,10 +10,10 @@
 import json
 from typing import Optional
 
-from core.http_parser import HttpParser
-from core.http_proxy import HttpProxyBasePlugin
-from core.status_codes import httpStatusCodes
-from core.utils import bytes_, build_http_response, text_
+from proxy.http_parser import HttpParser
+from proxy.http_proxy import HttpProxyBasePlugin
+from proxy.status_codes import httpStatusCodes
+from proxy.utils import bytes_, build_http_response, text_
 
 
 class ProposedRestApiPlugin(HttpProxyBasePlugin):

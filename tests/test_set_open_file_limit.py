@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest import mock
 
-from core.main import set_open_file_limit
+from proxy.main import set_open_file_limit
 
 if os.name != 'nt':
     import resource

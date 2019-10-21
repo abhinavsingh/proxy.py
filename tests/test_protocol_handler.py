@@ -5,15 +5,15 @@ import base64
 from typing import cast
 from unittest import mock
 
-from core.http_parser import HttpParser
-from core.flags import Flags
-from core.utils import bytes_
-from core.protocol_handler import ProtocolHandler
-from core.http_proxy import HttpProxyPlugin, ProxyAuthenticationFailed, ProxyConnectionFailed
-from core.main import load_plugins
-from core.http_parser import httpParserStates, httpParserTypes
-from core.constants import CRLF
-from core.version import __version__
+from proxy.http_parser import HttpParser
+from proxy.flags import Flags
+from proxy.utils import bytes_
+from proxy.protocol_handler import ProtocolHandler
+from proxy.http_proxy import HttpProxyPlugin, ProxyAuthenticationFailed, ProxyConnectionFailed
+from proxy.main import load_plugins
+from proxy.http_parser import httpParserStates, httpParserTypes
+from proxy.constants import CRLF
+from proxy.version import __version__
 
 
 class TestHttpProtocolHandler(unittest.TestCase):
@@ -30,14 +30,14 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.http_server_port = 65535
         self.flags = Flags()
         self.flags.plugins = load_plugins(
-            b'core.http_proxy.HttpProxyPlugin,core.web_server.HttpWebServerPlugin')
+            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
 
         self.mock_selector = mock_selector
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_http_get(self, mock_server_connection: mock.Mock) -> None:
         server = mock_server_connection.return_value
         server.connect.return_value = True
@@ -88,7 +88,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         assert parser.code is not None
         self.assertEqual(int(parser.code), 200)
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_http_tunnel(self, mock_server_connection: mock.Mock) -> None:
         server = mock_server_connection.return_value
         server.connect.return_value = True
@@ -160,7 +160,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         flags.plugins = load_plugins(
-            b'core.http_proxy.HttpProxyPlugin,core.web_server.HttpWebServerPlugin')
+            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)
         self.protocol_handler.initialize()
@@ -176,7 +176,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_authenticated_proxy_http_get(
             self, mock_server_connection: mock.Mock,
             mock_fromfd: mock.Mock,
@@ -192,7 +192,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         flags.plugins = load_plugins(
-            b'core.http_proxy.HttpProxyPlugin,core.web_server.HttpWebServerPlugin')
+            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
 
         self.protocol_handler = ProtocolHandler(
             self.fileno, addr=self._addr, flags=flags)
@@ -224,7 +224,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_authenticated_proxy_http_tunnel(
             self, mock_server_connection: mock.Mock,
             mock_fromfd: mock.Mock,
@@ -239,7 +239,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         flags.plugins = load_plugins(
-            b'core.http_proxy.HttpProxyPlugin,core.web_server.HttpWebServerPlugin')
+            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
 
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)

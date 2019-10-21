@@ -9,7 +9,7 @@
 """
 import unittest
 
-from core.utils import text_, bytes_
+from proxy.utils import text_, bytes_
 
 
 class TestTextBytes(unittest.TestCase):

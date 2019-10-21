@@ -5,20 +5,20 @@ import os
 
 from unittest import mock
 
-from core.main import main
-from core.utils import bytes_
-from core.protocol_handler import ProtocolHandler
+from proxy.main import main
+from proxy.utils import bytes_
+from proxy.protocol_handler import ProtocolHandler
 
-from core.constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BASIC_AUTH
-from core.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
-from core.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
-from core.constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
-from core.constants import DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
-from core.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
-from core.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
-from core.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE
-from core.constants import DEFAULT_EVENTS_QUEUE, COMMA
-from core.version import __version__
+from proxy.constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BASIC_AUTH
+from proxy.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
+from proxy.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
+from proxy.constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
+from proxy.constants import DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
+from proxy.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
+from proxy.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
+from proxy.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE
+from proxy.constants import DEFAULT_EVENTS_QUEUE, COMMA
+from proxy.version import __version__
 
 
 def get_temp_file(name: str) -> str:
@@ -60,11 +60,11 @@ class TestMain(unittest.TestCase):
         mock_args.events_queue = DEFAULT_EVENTS_QUEUE
 
     @mock.patch('time.sleep')
-    @mock.patch('core.main.load_plugins')
-    @mock.patch('core.main.init_parser')
-    @mock.patch('core.main.set_open_file_limit')
-    @mock.patch('core.main.Flags')
-    @mock.patch('core.main.AcceptorPool')
+    @mock.patch('proxy.main.load_plugins')
+    @mock.patch('proxy.main.init_parser')
+    @mock.patch('proxy.main.set_open_file_limit')
+    @mock.patch('proxy.main.Flags')
+    @mock.patch('proxy.main.AcceptorPool')
     @mock.patch('logging.basicConfig')
     def test_init_with_no_arguments(
             self,
@@ -84,7 +84,7 @@ class TestMain(unittest.TestCase):
         mock_init_parser.assert_called()
         mock_init_parser.return_value.parse_args.called_with([])
 
-        mock_load_plugins.assert_called_with(b'core.http_proxy.HttpProxyPlugin,')
+        mock_load_plugins.assert_called_with(b'proxy.http_proxy.HttpProxyPlugin,')
         mock_logging_config.assert_called_with(
             level=logging.INFO,
             format=DEFAULT_LOG_FORMAT
@@ -130,8 +130,8 @@ class TestMain(unittest.TestCase):
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
-    @mock.patch('core.main.init_parser')
-    @mock.patch('core.main.AcceptorPool')
+    @mock.patch('proxy.main.init_parser')
+    @mock.patch('proxy.main.AcceptorPool')
     def test_pid_file_is_written_and_removed(
             self,
             mock_acceptor_pool: mock.Mock,
@@ -156,8 +156,8 @@ class TestMain(unittest.TestCase):
         mock_remove.assert_called_with(pid_file)
 
     @mock.patch('time.sleep')
-    @mock.patch('core.main.Flags')
-    @mock.patch('core.main.AcceptorPool')
+    @mock.patch('proxy.main.Flags')
+    @mock.patch('proxy.main.AcceptorPool')
     def test_basic_auth(
             self,
             mock_acceptor_pool: mock.Mock,
@@ -181,8 +181,8 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')
-    @mock.patch('core.main.AcceptorPool')
-    @mock.patch('core.main.is_py3')
+    @mock.patch('proxy.main.AcceptorPool')
+    @mock.patch('proxy.main.is_py3')
     def test_main_py3_runs(
             self,
             mock_is_py3: mock.Mock,
@@ -198,7 +198,7 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called()
 
     @mock.patch('builtins.print')
-    @mock.patch('core.main.is_py3')
+    @mock.patch('proxy.main.is_py3')
     def test_main_py2_exit(
             self,
             mock_is_py3: mock.Mock,

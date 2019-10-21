@@ -9,11 +9,11 @@
 import logging
 from typing import List
 
-from core.web_server import HttpWebServerBasePlugin, httpProtocolTypes
-from core.websocket import WebsocketFrame
-from core.http_parser import HttpParser
-from core.status_codes import httpStatusCodes
-from core.utils import build_http_response
+from proxy.web_server import HttpWebServerBasePlugin, httpProtocolTypes
+from proxy.websocket import WebsocketFrame
+from proxy.http_parser import HttpParser
+from proxy.status_codes import httpStatusCodes
+from proxy.utils import build_http_response
 
 logger = logging.getLogger(__name__)
 

@@ -11,10 +11,10 @@ import unittest
 import selectors
 from unittest import mock
 
-from core.flags import Flags
-from core.http_proxy import HttpProxyPlugin
-from core.protocol_handler import ProtocolHandler, ProtocolException
-from core.utils import build_http_request
+from proxy.flags import Flags
+from proxy.http_proxy import HttpProxyPlugin
+from proxy.protocol_handler import ProtocolHandler, ProtocolException
+from proxy.utils import build_http_request
 
 
 class TestHttpProxyPlugin(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
     def test_proxy_plugin_initialized(self) -> None:
         self.plugin.assert_called()
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_proxy_plugin_on_and_before_upstream_connection(
             self,
             mock_server_conn: mock.Mock) -> None:
@@ -67,7 +67,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self.plugin.return_value.before_upstream_connection.assert_called()
         self.plugin.return_value.handle_client_request.assert_called()
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_proxy_plugin_before_upstream_connection_can_teardown(
             self,
             mock_server_conn: mock.Mock) -> None:

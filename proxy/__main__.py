@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
     proxy.py
@@ -8,9 +7,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import sys
-from core.main import main
+from proxy.main import entry_point
 
-
-if __name__ == '__main__':
-    main(sys.argv[1:])  # pragma: no cover
+entry_point()

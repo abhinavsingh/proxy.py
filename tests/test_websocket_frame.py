@@ -1,6 +1,6 @@
 import unittest
 
-from core.websocket import WebsocketFrame, websocketOpcodes
+from proxy.websocket import WebsocketFrame, websocketOpcodes
 
 
 class TestWebsocketFrame(unittest.TestCase):

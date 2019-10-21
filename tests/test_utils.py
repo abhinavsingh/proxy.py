@@ -11,8 +11,8 @@ import socket
 import unittest
 from unittest import mock
 
-from core.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT
-from core.utils import new_socket_connection, socket_connection
+from proxy.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT
+from proxy.utils import new_socket_connection, socket_connection
 
 
 class TestSocketConnectionUtils(unittest.TestCase):
@@ -43,14 +43,14 @@ class TestSocketConnectionUtils(unittest.TestCase):
         mock_socket.assert_called_with(self.addr_dual)
         self.assertEqual(conn, mock_socket.return_value)
 
-    @mock.patch('core.utils.new_socket_connection')
+    @mock.patch('proxy.utils.new_socket_connection')
     def test_decorator(self, mock_new_socket_connection: mock.Mock) -> None:
         @socket_connection(self.addr_ipv4)
         def dummy(conn: socket.socket) -> None:
             self.assertEqual(conn, mock_new_socket_connection.return_value)
         dummy()     # type: ignore
 
-    @mock.patch('core.utils.new_socket_connection')
+    @mock.patch('proxy.utils.new_socket_connection')
     def test_context_manager(self, mock_new_socket_connection: mock.Mock) -> None:
         with socket_connection(self.addr_ipv4) as conn:
             self.assertEqual(conn, mock_new_socket_connection.return_value)

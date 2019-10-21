@@ -8,13 +8,13 @@ from urllib import parse as urlparse
 from unittest import mock
 from typing import Type, cast, Any
 
-from core.flags import Flags
-from core.protocol_handler import ProtocolHandler
-from core.http_proxy import HttpProxyBasePlugin, HttpProxyPlugin
-from core.utils import build_http_request, bytes_, build_http_response
-from core.constants import PROXY_AGENT_HEADER_VALUE, PROXY_AGENT_HEADER_KEY
-from core.status_codes import httpStatusCodes
-from core.http_methods import httpMethods
+from proxy.flags import Flags
+from proxy.protocol_handler import ProtocolHandler
+from proxy.http_proxy import HttpProxyBasePlugin, HttpProxyPlugin
+from proxy.utils import build_http_request, bytes_, build_http_response
+from proxy.constants import PROXY_AGENT_HEADER_VALUE, PROXY_AGENT_HEADER_KEY
+from proxy.status_codes import httpStatusCodes
+from proxy.http_methods import httpMethods
 
 from plugin_examples import modify_post_data
 from plugin_examples import mock_rest_api
@@ -67,7 +67,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_modify_post_data_plugin(self, mock_server_conn: mock.Mock) -> None:
         original = b'{"key": "value"}'
         modified = b'{"key": "modified"}'
@@ -103,7 +103,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_proposed_rest_api_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         path = b'/v1/users/'
@@ -130,7 +130,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 body=bytes_(json.dumps(mock_rest_api.ProposedRestApiPlugin.REST_API_SPEC[path]))
             ))
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_redirect_to_custom_server_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
@@ -161,7 +161,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_filter_by_upstream_host_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
@@ -191,7 +191,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_man_in_the_middle_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
@@ -267,7 +267,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
     @mock.patch('ssl.wrap_socket')
     @mock.patch('ssl.create_default_context')
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     @mock.patch('subprocess.Popen')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -394,7 +394,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
             )
         )
 
-    @mock.patch('core.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http_proxy.TcpServerConnection')
     def test_man_in_the_middle_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(

@@ -10,9 +10,9 @@
 from urllib import parse as urlparse
 from typing import Optional
 
-from core.http_proxy import HttpProxyBasePlugin
-from core.http_parser import HttpParser
-from core.http_methods import httpMethods
+from proxy.http_proxy import HttpProxyBasePlugin
+from proxy.http_parser import HttpParser
+from proxy.http_methods import httpMethods
 
 
 class RedirectToCustomServerPlugin(HttpProxyBasePlugin):

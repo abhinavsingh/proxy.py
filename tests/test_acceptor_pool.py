@@ -11,16 +11,16 @@ import unittest
 import socket
 from unittest import mock
 
-from core.flags import Flags
-from core.acceptor import AcceptorPool
+from proxy.flags import Flags
+from proxy.acceptor import AcceptorPool
 
 
 class TestAcceptorPool(unittest.TestCase):
 
-    @mock.patch('core.acceptor.send_handle')
+    @mock.patch('proxy.acceptor.send_handle')
     @mock.patch('multiprocessing.Pipe')
     @mock.patch('socket.socket')
-    @mock.patch('core.acceptor.Acceptor')
+    @mock.patch('proxy.acceptor.Acceptor')
     def test_setup_and_shutdown(
             self,
             mock_worker: mock.Mock,

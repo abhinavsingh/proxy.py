@@ -136,20 +136,20 @@ def main(input_args: List[str]) -> None:
         devtools_event_queue: Optional[DictQueueType] = None
         events_queue: Optional[DictQueueType] = None
         if args.enable_devtools:
-            default_plugins += 'core.devtools.DevtoolsProtocolPlugin,'
-            default_plugins += 'core.web_server.HttpWebServerPlugin,'
+            default_plugins += 'proxy.devtools.DevtoolsProtocolPlugin,'
+            default_plugins += 'proxy.web_server.HttpWebServerPlugin,'
         if not args.disable_http_proxy:
-            default_plugins += 'core.http_proxy.HttpProxyPlugin,'
+            default_plugins += 'proxy.http_proxy.HttpProxyPlugin,'
         if args.enable_web_server or \
                 args.pac_file is not None or \
                 args.enable_static_server:
-            if 'core.web_server.HttpWebServerPlugin' not in default_plugins:
-                default_plugins += 'core.web_server.HttpWebServerPlugin,'
+            if 'proxy.web_server.HttpWebServerPlugin' not in default_plugins:
+                default_plugins += 'proxy.web_server.HttpWebServerPlugin,'
         if args.enable_devtools:
-            default_plugins += 'core.devtools.DevtoolsWebsocketPlugin,'
+            default_plugins += 'proxy.devtools.DevtoolsWebsocketPlugin,'
             devtools_event_queue = multiprocessing.Manager().Queue()
         if args.pac_file is not None:
-            default_plugins += 'core.web_server.HttpWebServerPacFilePlugin,'
+            default_plugins += 'proxy.web_server.HttpWebServerPacFilePlugin,'
         if args.enable_events:
             events_queue = multiprocessing.Manager().Queue()
 
@@ -210,3 +210,11 @@ def main(input_args: List[str]) -> None:
         if args.pid_file:
             if os.path.exists(args.pid_file):
                 os.remove(args.pid_file)
+
+
+def entry_point() -> None:
+    main(sys.argv[1:])
+
+
+if __name__ == '__main__':
+    entry_point()
