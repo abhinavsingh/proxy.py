@@ -12,7 +12,7 @@ import time
 import ipaddress
 from typing import List
 
-from .version import __version__bytes__
+from .version import __version__
 
 PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
 PROXY_PY_START_TIME = time.time()
@@ -33,7 +33,7 @@ SLASH = b'/'
 HTTP_1_1 = b'HTTP/1.1'
 
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
-PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + __version__bytes__
+PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + __version__.encode('utf-8', 'strict')
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
                      COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 

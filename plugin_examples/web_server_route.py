@@ -1,36 +1,46 @@
 """
-    proxy.py
+    py
     ~~~~~~~~
     ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import logging
+from typing import List
+
+from core.web_server import HttpWebServerBasePlugin, httpProtocolTypes
+from core.websocket import WebsocketFrame
+from core.http_parser import HttpParser
+from core.status_codes import httpStatusCodes
+from core.utils import build_http_response
+
+logger = logging.getLogger(__name__)
 
 
-class WebServerPlugin(proxy.HttpWebServerBasePlugin):
+class WebServerPlugin(HttpWebServerBasePlugin):
     """Demonstration of inbuilt web server routing via plugin."""
 
     def routes(self) -> List[Tuple[int, bytes]]:
         return [
-            (proxy.httpProtocolTypes.HTTP, b'/http-route-example'),
-            (proxy.httpProtocolTypes.HTTPS, b'/https-route-example'),
-            (proxy.httpProtocolTypes.WEBSOCKET, b'/ws-route-example'),
+            (httpProtocolTypes.HTTP, b'/http-route-example'),
+            (httpProtocolTypes.HTTPS, b'/https-route-example'),
+            (httpProtocolTypes.WEBSOCKET, b'/ws-route-example'),
         ]
 
-    def handle_request(self, request: proxy.HttpParser) -> None:
+    def handle_request(self, request: HttpParser) -> None:
         if request.path == b'/http-route-example':
-            self.client.queue(proxy.build_http_response(
-                proxy.httpStatusCodes.OK, body=b'HTTP route response'))
+            self.client.queue(build_http_response(
+                httpStatusCodes.OK, body=b'HTTP route response'))
         elif request.path == b'/https-route-example':
-            self.client.queue(proxy.build_http_response(
-                proxy.httpStatusCodes.OK, body=b'HTTPS route response'))
+            self.client.queue(build_http_response(
+                httpStatusCodes.OK, body=b'HTTPS route response'))
 
     def on_websocket_open(self) -> None:
-        proxy.logger.info('Websocket open')
+        logger.info('Websocket open')
 
-    def on_websocket_message(self, frame: proxy.WebsocketFrame) -> None:
-        proxy.logger.info(frame.data)
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        logger.info(frame.data)
 
     def on_websocket_close(self) -> None:
-        proxy.logger.info('Websocket close')
+        logger.info('Websocket close')

@@ -105,12 +105,12 @@ def main(input_args: List[str]) -> None:
         print(
             'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
             'If for some reasons you cannot upgrade, consider using "master" branch or simply '
-            '"pip install proxy.py".'
+            '"pip install proxy.py==0.3".'
             '\n\n'
             'DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. '
             'Please upgrade your Python as Python 2.7 won\'t be maintained after that date. '
             'A future version of pip will drop support for Python 2.7.')
-        sys.exit(0)
+        sys.exit(1)
 
     args = init_parser().parse_args(input_args)
 
@@ -122,7 +122,7 @@ def main(input_args: List[str]) -> None:
             (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
         print('You can either enable end-to-end encryption OR TLS interception,'
               'not both together.')
-        sys.exit(0)
+        sys.exit(1)
 
     try:
         setup_logger(args.log_file, args.log_level, args.log_format)

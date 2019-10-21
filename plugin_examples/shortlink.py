@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-    proxy.py
+    py
     ~~~~~~~~
     ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from typing import Optional
+
+from core.http_proxy import HttpProxyBasePlugin
+from core.http_parser import HttpParser
+from core.status_codes import httpStatusCodes
+from core.constants import DOT
+from core.utils import build_http_response
 
 
-class ShortLinkPlugin(proxy.HttpProxyBasePlugin):
+class ShortLinkPlugin(HttpProxyBasePlugin):
     """Add support for short links in your favorite browsers / applications.
 
     Enable ShortLinkPlugin and speed up your daily browsing experience.
@@ -19,7 +26,7 @@ class ShortLinkPlugin(proxy.HttpProxyBasePlugin):
     * g/ for google.com
     * t/ for twitter.com
     * y/ for youtube.com
-    * proxy/ for proxy.py internal web servers.
+    * proxy/ for py internal web servers.
     Customize map below for your taste and need.
 
     Paths are also preserved. E.g. t/imoracle will
@@ -39,17 +46,17 @@ class ShortLinkPlugin(proxy.HttpProxyBasePlugin):
     }
 
     def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
-        if request.host and request.host != b'localhost' and proxy.DOT not in request.host:
+        if request.host and request.host != b'localhost' and DOT not in request.host:
             # Avoid connecting to upstream
             return None
         return request
 
     def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
-        if request.host and request.host != b'localhost' and proxy.DOT not in request.host:
+        if request.host and request.host != b'localhost' and DOT not in request.host:
             if request.host in self.SHORT_LINKS:
-                path = proxy.SLASH if not request.path else request.path
-                self.client.queue(proxy.build_http_response(
-                    proxy.httpStatusCodes.SEE_OTHER, reason=b'See Other',
+                path = SLASH if not request.path else request.path
+                self.client.queue(build_http_response(
+                    httpStatusCodes.SEE_OTHER, reason=b'See Other',
                     headers={
                         b'Location': b'http://' + self.SHORT_LINKS[request.host] + path,
                         b'Content-Length': b'0',
@@ -57,8 +64,8 @@ class ShortLinkPlugin(proxy.HttpProxyBasePlugin):
                     }
                 ))
             else:
-                self.client.queue(proxy.build_http_response(
-                    proxy.httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+                self.client.queue(build_http_response(
+                    httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
                     headers={
                         b'Content-Length': b'0',
                         b'Connection': b'close',

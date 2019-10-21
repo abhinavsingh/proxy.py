@@ -1,26 +1,32 @@
 # -*- coding: utf-8 -*-
 """
-    proxy.py
+    py
     ~~~~~~~~
     ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from typing import Optional
+
+from core.http_proxy import HttpProxyBasePlugin
+from core.http_parser import HttpParser
+from core.status_codes import httpStatusCodes
+from core.utils import build_http_response
 
 
-class ManInTheMiddlePlugin(proxy.HttpProxyBasePlugin):
+class ManInTheMiddlePlugin(HttpProxyBasePlugin):
     """Modifies upstream server responses."""
 
-    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
-    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:
-        return proxy.build_http_response(
-            proxy.httpStatusCodes.OK,
+        return build_http_response(
+            httpStatusCodes.OK,
             reason=b'OK', body=b'Hello from man in the middle')
 
     def on_upstream_connection_close(self) -> None:

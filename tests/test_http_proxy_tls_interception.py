@@ -1,9 +1,24 @@
+import uuid
+import unittest
+import socket
+import ssl
+import selectors
+
+from typing import Any
+from unittest import mock
+
+from core.protocol_handler import ProtocolHandler
+from core.http_proxy import HttpProxyPlugin
+from core.http_methods import httpMethods
+from core.utils import build_http_request, bytes_
+from core.flags import Flags
+
 
 class TestHttpProxyTlsInterception(unittest.TestCase):
 
     @mock.patch('ssl.wrap_socket')
     @mock.patch('ssl.create_default_context')
-    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('core.http_proxy.TcpServerConnection')
     @mock.patch('subprocess.Popen')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -40,7 +55,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = proxy.Flags(
+        self.flags = Flags(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem',
@@ -48,13 +63,13 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.plugin = mock.MagicMock()
         self.proxy_plugin = mock.MagicMock()
         self.flags.plugins = {
-            b'ProtocolHandlerPlugin': [self.plugin, proxy.HttpProxyPlugin],
+            b'ProtocolHandlerPlugin': [self.plugin, HttpProxyPlugin],
             b'HttpProxyBasePlugin': [self.proxy_plugin],
         }
         self._conn = mock_fromfd.return_value
-        self.proxy = proxy.ProtocolHandler(
+        self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
-        self.proxy.initialize()
+        self.protocol_handler.initialize()
 
         self.plugin.assert_called()
         self.assertEqual(self.plugin.call_args[0][0], self.flags)
@@ -63,10 +78,10 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.assertEqual(self.proxy_plugin.call_args[0][0], self.flags)
         self.assertEqual(self.proxy_plugin.call_args[0][1].connection, self._conn)
 
-        connect_request = proxy.build_http_request(
-            proxy.httpMethods.CONNECT, proxy.bytes_(netloc),
+        connect_request = build_http_request(
+            httpMethods.CONNECT, bytes_(netloc),
             headers={
-                b'Host': proxy.bytes_(netloc),
+                b'Host': bytes_(netloc),
             })
         self._conn.recv.return_value = connect_request
 
@@ -89,7 +104,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ)], ]
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
 
         # Assert our mocked plugins invocations
         self.plugin.return_value.get_descriptors.assert_called()
@@ -113,17 +128,17 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.assertEqual(self.mock_popen.call_count, 2)
         self.assertEqual(ssl_connection.setblocking.call_count, 1)
         self.assertEqual(self.mock_server_conn.return_value._conn, ssl_connection)
-        self._conn.send.assert_called_with(proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+        self._conn.send.assert_called_with(HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         assert self.flags.ca_cert_dir is not None
         self.mock_ssl_wrap.assert_called_with(
             self._conn,
             server_side=True,
             keyfile=self.flags.ca_signing_key_file,
-            certfile=proxy.HttpProxyPlugin.generated_cert_file_path(
+            certfile=HttpProxyPlugin.generated_cert_file_path(
                 self.flags.ca_cert_dir, host)
         )
         self.assertEqual(self._conn.setblocking.call_count, 2)
-        self.assertEqual(self.proxy.client.connection, self.mock_ssl_wrap.return_value)
+        self.assertEqual(self.protocol_handler.client.connection, self.mock_ssl_wrap.return_value)
 
         # Assert connection references for all other plugins is updated
         self.assertEqual(self.plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)

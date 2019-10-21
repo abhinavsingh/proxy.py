@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-    proxy.py
+    py
     ~~~~~~~~
     ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import json
+from typing import Optional
+
+from core.http_parser import HttpParser
+from core.http_proxy import HttpProxyBasePlugin
+from core.status_codes import httpStatusCodes
+from core.utils import bytes_, build_http_response, text_
 
 
-class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
+class ProposedRestApiPlugin(HttpProxyBasePlugin):
     """Mock responses for your upstream REST API.
 
     Used to test and develop client side applications
@@ -33,39 +40,39 @@ class ProposedRestApiPlugin(proxy.HttpProxyBasePlugin):
                 {
                     'email': 'you@example.com',
                     'groups': [],
-                    'url': proxy.text_(API_SERVER) + '/v1/users/1/',
+                    'url': text_(API_SERVER) + '/v1/users/1/',
                     'username': 'admin',
                 },
                 {
                     'email': 'someone@example.com',
                     'groups': [],
-                    'url': proxy.text_(API_SERVER) + '/v1/users/2/',
+                    'url': text_(API_SERVER) + '/v1/users/2/',
                     'username': 'someone',
                 },
             ]
         },
     }
 
-    def before_upstream_connection(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
         # Return None to disable establishing connection to upstream
         # Most likely our api.example.com won't even exist under development scenario
         return None
 
-    def handle_client_request(self, request: proxy.HttpParser) -> Optional[proxy.HttpParser]:
+    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
         if request.host != self.API_SERVER:
             return request
         assert request.path
         if request.path in self.REST_API_SPEC:
-            self.client.queue(proxy.build_http_response(
-                proxy.httpStatusCodes.OK,
+            self.client.queue(build_http_response(
+                httpStatusCodes.OK,
                 reason=b'OK',
                 headers={b'Content-Type': b'application/json'},
-                body=proxy.bytes_(json.dumps(
+                body=bytes_(json.dumps(
                     self.REST_API_SPEC[request.path]))
             ))
         else:
-            self.client.queue(proxy.build_http_response(
-                proxy.httpStatusCodes.NOT_FOUND,
+            self.client.queue(build_http_response(
+                httpStatusCodes.NOT_FOUND,
                 reason=b'NOT FOUND', body=b'Not Found'
             ))
         return None

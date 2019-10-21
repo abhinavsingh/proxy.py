@@ -1,3 +1,45 @@
+import unittest
+import selectors
+import ssl
+import socket
+import json
+
+from urllib import parse as urlparse
+from unittest import mock
+from typing import Type, cast, Any
+
+from core.flags import Flags
+from core.protocol_handler import ProtocolHandler
+from core.http_proxy import HttpProxyBasePlugin, HttpProxyPlugin
+from core.utils import build_http_request, bytes_, build_http_response
+from core.constants import PROXY_AGENT_HEADER_VALUE, PROXY_AGENT_HEADER_KEY
+from core.status_codes import httpStatusCodes
+from core.http_methods import httpMethods
+
+from plugin_examples import modify_post_data
+from plugin_examples import mock_rest_api
+from plugin_examples import redirect_to_custom_server
+from plugin_examples import filter_by_upstream
+from plugin_examples import cache_responses
+from plugin_examples import man_in_the_middle
+
+
+def get_plugin_by_test_name(test_name: str) -> Type[HttpProxyBasePlugin]:
+    plugin: Type[HttpProxyBasePlugin] = modify_post_data.ModifyPostDataPlugin
+    if test_name == 'test_modify_post_data_plugin':
+        plugin = modify_post_data.ModifyPostDataPlugin
+    elif test_name == 'test_proposed_rest_api_plugin':
+        plugin = mock_rest_api.ProposedRestApiPlugin
+    elif test_name == 'test_redirect_to_custom_server_plugin':
+        plugin = redirect_to_custom_server.RedirectToCustomServerPlugin
+    elif test_name == 'test_filter_by_upstream_host_plugin':
+        plugin = filter_by_upstream.FilterByUpstreamHostPlugin
+    elif test_name == 'test_cache_responses_plugin':
+        plugin = cache_responses.CacheResponsesPlugin
+    elif test_name == 'test_man_in_the_middle_plugin':
+        plugin = man_in_the_middle.ManInTheMiddlePlugin
+    return plugin
+
 
 class TestHttpProxyPluginExamples(unittest.TestCase):
 
@@ -8,7 +50,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
               mock_selector: mock.Mock) -> None:
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = proxy.Flags()
+        self.flags = Flags()
         self.plugin = mock.MagicMock()
 
         self.mock_fromfd = mock_fromfd
@@ -17,25 +59,25 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         plugin = get_plugin_by_test_name(self._testMethodName)
 
         self.flags.plugins = {
-            b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
+            b'ProtocolHandlerPlugin': [HttpProxyPlugin],
             b'HttpProxyBasePlugin': [plugin],
         }
         self._conn = mock_fromfd.return_value
-        self.proxy = proxy.ProtocolHandler(
+        self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
-        self.proxy.initialize()
+        self.protocol_handler.initialize()
 
-    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('core.http_proxy.TcpServerConnection')
     def test_modify_post_data_plugin(self, mock_server_conn: mock.Mock) -> None:
         original = b'{"key": "value"}'
         modified = b'{"key": "modified"}'
 
-        self._conn.recv.return_value = proxy.build_http_request(
+        self._conn.recv.return_value = build_http_request(
             b'POST', b'http://httpbin.org/post',
             headers={
                 b'Host': b'httpbin.org',
                 b'Content-Type': b'application/x-www-form-urlencoded',
-                b'Content-Length': proxy.bytes_(len(original)),
+                b'Content-Length': bytes_(len(original)),
             },
             body=original
         )
@@ -46,29 +88,29 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ)], ]
 
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
         mock_server_conn.assert_called_with('httpbin.org', 80)
         mock_server_conn.return_value.queue.assert_called_with(
-            proxy.build_http_request(
+            build_http_request(
                 b'POST', b'/post',
                 headers={
                     b'Host': b'httpbin.org',
-                    b'Content-Length': proxy.bytes_(len(modified)),
+                    b'Content-Length': bytes_(len(modified)),
                     b'Content-Type': b'application/json',
-                    b'Via': b'1.1 %s' % proxy.PROXY_AGENT_HEADER_VALUE,
+                    b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
                 body=modified
             )
         )
 
-    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('core.http_proxy.TcpServerConnection')
     def test_proposed_rest_api_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         path = b'/v1/users/'
-        self._conn.recv.return_value = proxy.build_http_request(
-            b'GET', b'http://%s%s' % (plugin_examples.ProposedRestApiPlugin.API_SERVER, path),
+        self._conn.recv.return_value = build_http_request(
+            b'GET', b'http://%s%s' % (mock_rest_api.ProposedRestApiPlugin.API_SERVER, path),
             headers={
-                b'Host': plugin_examples.ProposedRestApiPlugin.API_SERVER,
+                b'Host': mock_rest_api.ProposedRestApiPlugin.API_SERVER,
             }
         )
         self.mock_selector.return_value.select.side_effect = [
@@ -77,21 +119,21 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ)], ]
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
 
         mock_server_conn.assert_not_called()
         self.assertEqual(
-            self.proxy.client.buffer,
-            proxy.build_http_response(
-                proxy.httpStatusCodes.OK, reason=b'OK',
+            self.protocol_handler.client.buffer,
+            build_http_response(
+                httpStatusCodes.OK, reason=b'OK',
                 headers={b'Content-Type': b'application/json'},
-                body=proxy.bytes_(json.dumps(plugin_examples.ProposedRestApiPlugin.REST_API_SPEC[path]))
+                body=bytes_(json.dumps(mock_rest_api.ProposedRestApiPlugin.REST_API_SPEC[path]))
             ))
 
-    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('core.http_proxy.TcpServerConnection')
     def test_redirect_to_custom_server_plugin(
             self, mock_server_conn: mock.Mock) -> None:
-        request = proxy.build_http_request(
+        request = build_http_request(
             b'GET', b'http://example.org/get',
             headers={
                 b'Host': b'example.org',
@@ -104,25 +146,25 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ)], ]
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
 
         upstream = urlparse.urlsplit(
-            plugin_examples.RedirectToCustomServerPlugin.UPSTREAM_SERVER)
+            redirect_to_custom_server.RedirectToCustomServerPlugin.UPSTREAM_SERVER)
         mock_server_conn.assert_called_with('localhost', 8899)
         mock_server_conn.return_value.queue.assert_called_with(
-            proxy.build_http_request(
+            build_http_request(
                 b'GET', upstream.path,
                 headers={
                     b'Host': upstream.netloc,
-                    b'Via': b'1.1 %s' % proxy.PROXY_AGENT_HEADER_VALUE,
+                    b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 }
             )
         )
 
-    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('core.http_proxy.TcpServerConnection')
     def test_filter_by_upstream_host_plugin(
             self, mock_server_conn: mock.Mock) -> None:
-        request = proxy.build_http_request(
+        request = build_http_request(
             b'GET', b'http://google.com/',
             headers={
                 b'Host': b'google.com',
@@ -135,24 +177,24 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ)], ]
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
 
         mock_server_conn.assert_not_called()
         self.assertEqual(
-            self.proxy.client.buffer,
-            proxy.build_http_response(
-                proxy.httpStatusCodes.I_AM_A_TEAPOT,
+            self.protocol_handler.client.buffer,
+            build_http_response(
+                httpStatusCodes.I_AM_A_TEAPOT,
                 reason=b'I\'m a tea pot',
                 headers={
-                    proxy.PROXY_AGENT_HEADER_KEY: proxy.PROXY_AGENT_HEADER_VALUE
+                    PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE
                 },
             )
         )
 
-    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('core.http_proxy.TcpServerConnection')
     def test_man_in_the_middle_plugin(
             self, mock_server_conn: mock.Mock) -> None:
-        request = proxy.build_http_request(
+        request = build_http_request(
             b'GET', b'http://super.secure/',
             headers={
                 b'Host': b'super.secure',
@@ -190,33 +232,33 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 data=None), selectors.EVENT_READ)], ]
 
         # Client read
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
         mock_server_conn.assert_called_with('super.secure', 80)
         server.connect.assert_called_once()
         queued_request = \
-            proxy.build_http_request(
+            build_http_request(
                 b'GET', b'/',
                 headers={
                     b'Host': b'super.secure',
-                    b'Via': b'1.1 %s' % proxy.PROXY_AGENT_HEADER_VALUE
+                    b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE
                 }
             )
         server.queue.assert_called_once_with(queued_request)
 
         # Server write
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
         server.flush.assert_called_once()
 
         # Server read
         server.recv.return_value = \
-            proxy.build_http_response(
-                proxy.httpStatusCodes.OK,
+            build_http_response(
+                httpStatusCodes.OK,
                 reason=b'OK', body=b'Original Response From Upstream')
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
         self.assertEqual(
-            self.proxy.client.buffer,
-            proxy.build_http_response(
-                proxy.httpStatusCodes.OK,
+            self.protocol_handler.client.buffer,
+            build_http_response(
+                httpStatusCodes.OK,
                 reason=b'OK', body=b'Hello from man in the middle')
         )
 
@@ -225,7 +267,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
     @mock.patch('ssl.wrap_socket')
     @mock.patch('ssl.create_default_context')
-    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('core.http_proxy.TcpServerConnection')
     @mock.patch('subprocess.Popen')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -245,7 +287,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = proxy.Flags(
+        self.flags = Flags(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem',)
@@ -254,14 +296,14 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         plugin = get_plugin_by_test_name(self._testMethodName)
 
         self.flags.plugins = {
-            b'ProtocolHandlerPlugin': [proxy.HttpProxyPlugin],
+            b'ProtocolHandlerPlugin': [HttpProxyPlugin],
             b'HttpProxyBasePlugin': [plugin],
         }
         self._conn = mock.MagicMock(spec=socket.socket)
         mock_fromfd.return_value = self._conn
-        self.proxy = proxy.ProtocolHandler(
+        self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
-        self.proxy.initialize()
+        self.protocol_handler.initialize()
 
         self.server = self.mock_server_conn.return_value
 
@@ -312,50 +354,50 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
             return len(raw)
 
         self._conn.send.side_effect = send
-        self._conn.recv.return_value = proxy.build_http_request(
-            proxy.httpMethods.CONNECT, b'uni.corn:443'
+        self._conn.recv.return_value = build_http_request(
+            httpMethods.CONNECT, b'uni.corn:443'
         )
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
 
         self.mock_popen.assert_called()
         self.mock_server_conn.assert_called_once_with('uni.corn', 443)
         self.server.connect.assert_called()
-        self.assertEqual(self.proxy.client.connection, self.client_ssl_connection)
+        self.assertEqual(self.protocol_handler.client.connection, self.client_ssl_connection)
         self.assertEqual(self.server.connection, self.server_ssl_connection)
         self._conn.send.assert_called_with(
-            proxy.HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
+            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
         )
-        self.assertEqual(self.proxy.client.buffer, b'')
+        self.assertEqual(self.protocol_handler.client.buffer, b'')
 
     def test_modify_post_data_plugin(self) -> None:
         original = b'{"key": "value"}'
         modified = b'{"key": "modified"}'
-        self.client_ssl_connection.recv.return_value = proxy.build_http_request(
+        self.client_ssl_connection.recv.return_value = build_http_request(
             b'POST', b'/',
             headers={
                 b'Host': b'uni.corn',
                 b'Content-Type': b'application/x-www-form-urlencoded',
-                b'Content-Length': proxy.bytes_(len(original)),
+                b'Content-Length': bytes_(len(original)),
             },
             body=original
         )
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
         self.server.queue.assert_called_with(
-            proxy.build_http_request(
+            build_http_request(
                 b'POST', b'/',
                 headers={
                     b'Host': b'uni.corn',
-                    b'Content-Length': proxy.bytes_(len(modified)),
+                    b'Content-Length': bytes_(len(modified)),
                     b'Content-Type': b'application/json',
                 },
                 body=modified
             )
         )
 
-    @mock.patch('proxy.TcpServerConnection')
+    @mock.patch('core.http_proxy.TcpServerConnection')
     def test_man_in_the_middle_plugin(
             self, mock_server_conn: mock.Mock) -> None:
-        request = proxy.build_http_request(
+        request = build_http_request(
             b'GET', b'/',
             headers={
                 b'Host': b'uni.corn',
@@ -364,22 +406,22 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         self.client_ssl_connection.recv.return_value = request
 
         # Client read
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
         self.server.queue.assert_called_once_with(request)
 
         # Server write
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
         self.server.flush.assert_called_once()
 
         # Server read
         self.server.recv.return_value = \
-            proxy.build_http_response(
-                proxy.httpStatusCodes.OK,
+            build_http_response(
+                httpStatusCodes.OK,
                 reason=b'OK', body=b'Original Response From Upstream')
-        self.proxy.run_once()
+        self.protocol_handler.run_once()
         self.assertEqual(
-            self.proxy.client.buffer,
-            proxy.build_http_response(
-                proxy.httpStatusCodes.OK,
+            self.protocol_handler.client.buffer,
+            build_http_response(
+                httpStatusCodes.OK,
                 reason=b'OK', body=b'Hello from man in the middle')
         )
