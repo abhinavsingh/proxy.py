@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-    py
+    proxy.py
     ~~~~~~~~
     ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
 
