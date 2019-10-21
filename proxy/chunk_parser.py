@@ -78,4 +78,3 @@ class ChunkParser:
         chunks.append(bytes_('{:x}'.format(0)))
         chunks.append(b'')
         return CRLF.join(chunks) + CRLF
-

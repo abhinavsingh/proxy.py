@@ -40,8 +40,8 @@ class TestHttpParser(unittest.TestCase):
             ]))
         self.assertEqual(
             build_http_request(b'GET', b'http://localhost:12345', b'HTTP/1.1',
-                                     headers={b'key': b'value'},
-                                     body=b'Hello from py'),
+                               headers={b'key': b'value'},
+                               body=b'Hello from py'),
             CRLF.join([
                 b'GET http://localhost:12345 HTTP/1.1',
                 b'key: value',
@@ -58,7 +58,7 @@ class TestHttpParser(unittest.TestCase):
             ]))
         self.assertEqual(
             build_http_response(200, reason=b'OK', protocol_version=b'HTTP/1.1',
-                                      headers={b'key': b'value'}),
+                                headers={b'key': b'value'}),
             CRLF.join([
                 b'HTTP/1.1 200 OK',
                 b'key: value',
@@ -69,8 +69,8 @@ class TestHttpParser(unittest.TestCase):
         body = b'Hello world!!!'
         self.assertEqual(
             build_http_response(200, reason=b'OK', protocol_version=b'HTTP/1.1',
-                                      headers={b'key': b'value'},
-                                      body=body),
+                                headers={b'key': b'value'},
+                                body=body),
             CRLF.join([
                 b'HTTP/1.1 200 OK',
                 b'key: value',
@@ -517,4 +517,3 @@ class TestHttpParser(unittest.TestCase):
                                  dictionary: Dict[bytes, Tuple[bytes, bytes]]) -> None:
         for k in subset.keys():
             self.assertTrue(k in dictionary)
-

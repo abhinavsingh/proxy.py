@@ -26,7 +26,8 @@ from .utils import bytes_, build_http_response, text_
 from .status_codes import httpStatusCodes
 from .flags import Flags
 from .connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
-from .protocol_handler import ProtocolException, ProtocolHandlerPlugin
+from .protocol_handler import ProtocolHandlerPlugin
+from .exception import ProtocolException
 from .types import _HasFileno
 
 logger = logging.getLogger(__name__)

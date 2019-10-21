@@ -22,7 +22,7 @@ from .flags import Flags, init_parser
 from .utils import text_, bytes_
 from .acceptor import AcceptorPool
 from .protocol_handler import ProtocolHandler
-from .dictqueue import DictQueueType
+from .types import DictQueueType
 from .constants import DOT, COMMA
 from .constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL, UNDER_TEST
 from .version import __version__

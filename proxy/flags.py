@@ -16,7 +16,7 @@ import pathlib
 from typing import Optional, Union, Dict, List
 
 from .utils import text_
-from .dictqueue import DictQueueType
+from .types import DictQueueType
 from .constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BACKLOG, DEFAULT_BASIC_AUTH
 from .constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_DISABLE_HEADERS
 from .constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
@@ -311,10 +311,10 @@ class Flags:
 
     def tls_interception_enabled(self) -> bool:
         return self.ca_key_file is not None and \
-               self.ca_cert_dir is not None and \
-               self.ca_signing_key_file is not None and \
-               self.ca_cert_file is not None
+            self.ca_cert_dir is not None and \
+            self.ca_signing_key_file is not None and \
+            self.ca_cert_file is not None
 
     def encryption_enabled(self) -> bool:
         return self.keyfile is not None and \
-               self.certfile is not None
+            self.certfile is not None

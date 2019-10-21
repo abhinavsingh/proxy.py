@@ -22,7 +22,8 @@ from .connection import TcpClientConnection
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .websocket import WebsocketFrame, websocketOpcodes
 from .utils import build_http_response, build_websocket_handshake_response
-from .protocol_handler import ProtocolException, ProtocolHandlerPlugin
+from .protocol_handler import ProtocolHandlerPlugin
+from .exception import ProtocolException
 from .constants import PROXY_AGENT_HEADER_VALUE
 from .types import _HasFileno
 

@@ -257,4 +257,3 @@ class WebsocketClient(TcpConnection):
                 logging.exception('Exception while shutdown of websocket client', exc_info=e)
             self.sock.close()
         logger.info('done')
-

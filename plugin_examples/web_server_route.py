@@ -8,7 +8,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-from typing import List
+from typing import List, Tuple
 
 from proxy.web_server import HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.websocket import WebsocketFrame

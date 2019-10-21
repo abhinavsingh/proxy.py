@@ -236,4 +236,3 @@ class TestWebServerPlugin(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ), ]
-

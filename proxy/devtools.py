@@ -22,10 +22,9 @@ from .flags import Flags
 from .http_parser import httpParserStates, httpParserTypes, HttpParser
 from .connection import TcpClientConnection
 from .web_server import HttpWebServerBasePlugin, httpProtocolTypes
-from .dictqueue import DictQueueType
 from .websocket import WebsocketFrame, websocketOpcodes
 from .constants import COLON, PROXY_PY_START_TIME
-from .types import _HasFileno
+from .types import _HasFileno, DictQueueType
 from .protocol_handler import ProtocolHandlerPlugin
 
 logger = logging.getLogger(__name__)

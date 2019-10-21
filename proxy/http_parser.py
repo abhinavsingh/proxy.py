@@ -257,5 +257,5 @@ class HttpParser:
 
     def is_http_1_1_keep_alive(self) -> bool:
         return self.version == HTTP_1_1 and \
-               (not self.has_header(b'Connection') or
-                self.header(b'Connection').lower() == b'keep-alive')
+            (not self.has_header(b'Connection') or
+             self.header(b'Connection').lower() == b'keep-alive')

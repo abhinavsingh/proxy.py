@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-VERSION ?= v$(shell python proxy.py --version)
+VERSION ?= v$(shell python -m proxy --version)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
@@ -43,18 +43,21 @@ release: package
 	twine upload dist/*
 
 coverage:
-	coverage3 run --source=proxy,plugin_examples tests.py
+	coverage3 run tests/*.py
 	coverage3 html
 	open htmlcov/index.html
 
 lint:
-	flake8 --ignore=W504 --max-line-length=127 proxy.py plugin_examples.py tests.py setup.py benchmark.py
-	mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py benchmark.py
+	flake8 --ignore=W504 --max-line-length=127 proxy/*.py tests/*.py benchmark/*.py plugin_examples/*.py dashboard/dashboard.py setup.py
+	mypy --strict --ignore-missing-imports proxy/*.py tests/*.py benchmark/*.py plugin_examples/*.py dashboard/dashboard.py setup.py
 
 autopep8:
-	autopep8 --recursive --in-place --aggressive proxy.py
-	autopep8 --recursive --in-place --aggressive tests.py
-	autopep8 --recursive --in-place --aggressive plugin_examples.py
+	autopep8 --recursive --in-place --aggressive proxy/*.py
+	autopep8 --recursive --in-place --aggressive tests/*.py
+	autopep8 --recursive --in-place --aggressive plugin_examples/*.py
+	autopep8 --recursive --in-place --aggressive benchmark/*.py
+	autopep8 --recursive --in-place --aggressive dashboard/dashboard.py
+	autopep8 --recursive --in-place --aggressive setup.py
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .

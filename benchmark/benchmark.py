@@ -14,7 +14,10 @@ import sys
 import time
 from typing import List, Tuple
 
-import proxy
+from proxy.constants import __homepage__, DEFAULT_BUFFER_SIZE
+from proxy.utils import build_http_request
+from proxy.http_methods import httpMethods
+from proxy.http_parser import httpParserStates, httpParserTypes, HttpParser
 
 DEFAULT_N = 1
 
@@ -27,7 +30,7 @@ def init_parser() -> argparse.ArgumentParser:
                     'keep-alive connections are opened. Over each opened '
                     'connection multiple pipelined request / response '
                     'packets are exchanged with proxy.py web server.',
-        epilog='Proxy.py not working? Report at: %s/issues/new' % proxy.__homepage__
+        epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
     )
     parser.add_argument(
         '--n', '-n',
@@ -53,18 +56,18 @@ class Benchmark:
     async def send(writer: asyncio.StreamWriter) -> None:
         try:
             while True:
-                writer.write(proxy.build_http_request(
-                    proxy.httpMethods.GET, b'/'
+                writer.write(build_http_request(
+                    httpMethods.GET, b'/'
                 ))
                 await asyncio.sleep(0.01)
         except KeyboardInterrupt:
             pass
 
     @staticmethod
-    def parse_pipeline_response(response: proxy.HttpParser, raw: bytes, counter: int = 0) -> \
-            Tuple[proxy.HttpParser, int]:
+    def parse_pipeline_response(response: HttpParser, raw: bytes, counter: int = 0) -> \
+            Tuple[HttpParser, int]:
         response.parse(raw)
-        if response.state != proxy.httpParserStates.COMPLETE:
+        if response.state != httpParserStates.COMPLETE:
             # Need more data
             return response, counter
 
@@ -73,7 +76,7 @@ class Benchmark:
             return response, counter + 1
 
         # For pipelined requests we may have pending buffer, try parse them as responses
-        pipelined_response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+        pipelined_response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         return Benchmark.parse_pipeline_response(pipelined_response, response.buffer, counter + 1)
 
     @staticmethod
@@ -81,13 +84,13 @@ class Benchmark:
         print_every = 1000
         last_print = time.time()
         num_completed_requests: int = 0
-        response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         try:
             while True:
-                raw = await reader.read(proxy.DEFAULT_BUFFER_SIZE)
+                raw = await reader.read(DEFAULT_BUFFER_SIZE)
                 response, total_parsed = Benchmark.parse_pipeline_response(response, raw)
-                if response.state == proxy.httpParserStates.COMPLETE:
-                    response = proxy.HttpParser(proxy.httpParserTypes.RESPONSE_PARSER)
+                if response.state == httpParserStates.COMPLETE:
+                    response = HttpParser(httpParserTypes.RESPONSE_PARSER)
                 if total_parsed > 0:
                     num_completed_requests += total_parsed
                     # print('total parsed %d' % total_parsed)
