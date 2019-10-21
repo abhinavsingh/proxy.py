@@ -25,8 +25,8 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         return [
             (httpProtocolTypes.HTTP, b'/'),
             (httpProtocolTypes.HTTPS, b'/'),
-            (httpProtocolTypes.HTTP, b'/html'),
-            (httpProtocolTypes.HTTPS, b'/html'),
+            (httpProtocolTypes.HTTP, b'/proxy.html'),
+            (httpProtocolTypes.HTTPS, b'/proxy.html'),
             (httpProtocolTypes.WEBSOCKET, b'/app'),
         ]
 
@@ -34,8 +34,8 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         if request.path == b'/':
             self.client.queue(
                 HttpWebServerPlugin.read_and_build_static_file_response(
-                    self.config.static_server_dir + text_(b'/html')))
-        elif request.path == b'/html':
+                    self.config.static_server_dir + text_(b'/proxy.html')))
+        elif request.path == b'/proxy.html':
             self.client.queue(build_http_response(
                 httpStatusCodes.PERMANENT_REDIRECT, reason=b'Permanent Redirect',
                 headers={

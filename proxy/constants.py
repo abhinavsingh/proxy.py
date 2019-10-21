@@ -14,15 +14,15 @@ from typing import List
 
 from .version import __version__
 
-PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
-PROXY_PY_START_TIME = time.time()
-
 __description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 __download_url__ = '%s/archive/master.zip' % __homepage__
 __license__ = 'BSD'
+
+PROXY_PY_DIR = os.path.dirname(os.path.realpath(__file__))
+PROXY_PY_START_TIME = time.time()
 
 CRLF = b'\r\n'
 COLON = b':'
@@ -69,8 +69,7 @@ DEFAULT_PID_FILE = None
 DEFAULT_PLUGINS = ''
 DEFAULT_PORT = 8899
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
-DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, 'public')
+DEFAULT_STATIC_SERVER_DIR = os.path.join(os.path.dirname(PROXY_PY_DIR), 'public')
 DEFAULT_THREADLESS = False
 DEFAULT_TIMEOUT = 10
 DEFAULT_VERSION = False
-UNDER_TEST = False  # Set to True if under test

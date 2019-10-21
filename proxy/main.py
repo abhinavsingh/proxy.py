@@ -24,7 +24,7 @@ from .acceptor import AcceptorPool
 from .protocol_handler import ProtocolHandler
 from .types import DictQueueType
 from .constants import DOT, COMMA
-from .constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL, UNDER_TEST
+from .constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
 from .version import __version__
 
 if os.name != 'nt':
@@ -101,7 +101,7 @@ def setup_logger(
 
 
 def main(input_args: List[str]) -> None:
-    if not is_py3() and not UNDER_TEST:
+    if not is_py3():
         print(
             'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
             'If for some reasons you cannot upgrade, consider using "master" branch or simply '
