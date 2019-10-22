@@ -15,7 +15,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 .PHONY: all clean test package test-release release coverage lint autopep8
 .PHONY: container run-container release-container https-certificates ca-certificates
-.PHONY: profile app
+.PHONY: profile dashboard clean-dashboard
 
 all: clean test
 
@@ -87,5 +87,8 @@ ca-certificates:
 profile:
 	sudo py-spy -F -f profile.svg -d 3600 proxy.py
 
-app:
-	pushd app && npm run build && popd
+dashboard:
+	pushd dashboard && npm run build && popd
+
+clean-dashboard:
+	rm -rf public/dashboard

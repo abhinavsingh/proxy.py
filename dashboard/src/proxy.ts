@@ -46,9 +46,11 @@ export class ProxyDashboard {
 
     private hostname: string = 'localhost';
     private port: number = 8899;
+    private ws_prefix: string = '/dashboard';
+    private ws_scheme: string = 'ws';
 
     private ws: WebSocket;
-    private ws_path: string = 'ws://' + this.hostname + ':' + this.port + '/app';
+    private ws_path: string = this.ws_scheme + '://' + this.hostname + ':' + this.port + this.ws_prefix;
 
     private mid: number = 0;
     private last_ping_id: number;

@@ -5,7 +5,7 @@ const obfuscatorPlugin = require('rollup-plugin-javascript-obfuscator');
 module.exports = {
     input: 'src/proxy.ts',
     output: {
-        file: '../public/proxy.js',
+        file: '../public/dashboard/proxy.js',
         format: 'umd',
         name: 'projectbundle',
         sourcemap: true
@@ -15,13 +15,13 @@ module.exports = {
         copy({
             targets: [{
                 src: 'static/**/*',
-                dest: '../public',
+                dest: '../public/dashboard',
             }, {
                 src: 'src/proxy.html',
-                dest: '../public',
+                dest: '../public/dashboard',
             }, {
                 src: 'src/proxy.css',
-                dest: '../public',
+                dest: '../public/dashboard',
             }],
         }),
         obfuscatorPlugin({
