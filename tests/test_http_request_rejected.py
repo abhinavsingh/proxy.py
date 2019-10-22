@@ -12,6 +12,8 @@ import unittest
 from proxy.http_parser import HttpParser, httpParserTypes
 from proxy.http_proxy import HttpRequestRejected
 from proxy.constants import CRLF
+from proxy.utils import build_http_response
+from proxy.status_codes import httpStatusCodes
 
 
 class TestHttpRequestRejected(unittest.TestCase):
@@ -32,11 +34,8 @@ class TestHttpRequestRejected(unittest.TestCase):
 
     def test_body_response(self) -> None:
         e = HttpRequestRejected(
-            status_code=404, reason=b'NOT FOUND',
+            status_code=httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
             body=b'Nothing here')
-        self.assertEqual(e.response(self.request), CRLF.join([
-            b'HTTP/1.1 404 NOT FOUND',
-            b'Content-Length: 12',
-            CRLF,
-            b'Nothing here'
-        ]))
+        self.assertEqual(
+            e.response(self.request),
+            build_http_response(httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND', body=b'Nothing here'))
