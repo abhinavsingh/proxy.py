@@ -23,7 +23,7 @@ from .utils import text_, bytes_
 from .acceptor import AcceptorPool
 from .protocol_handler import ProtocolHandler
 from .types import DictQueueType
-from .constants import DOT, COMMA, SLASH
+from .constants import DOT, COMMA
 from .constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
 from .version import __version__
 
