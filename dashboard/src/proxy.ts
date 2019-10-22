@@ -12,7 +12,7 @@ class ApiDevelopment {
     private specs: Map<string, Map<string, JSON>>;
 
     constructor() {
-        this.fetchExistingSpecs();
+        this.fetchExistingSpecs()
     }
 
     private fetchExistingSpecs() {
@@ -61,6 +61,8 @@ export class ProxyDashboard {
 
     private server_ping_timer: number;
     private server_connect_timer: number;
+
+    private api_development: ApiDevelopment;
 
     constructor() {
         $('#proxyTopNav>ul>li>a').on('click', switchTab);
@@ -166,4 +168,4 @@ function switchTab() {
     console.log('%s clicked', $(this).text().trim());
 }
 
-let proxyDashboard = new ProxyDashboard();
+(window as any).ProxyDashboard = ProxyDashboard;

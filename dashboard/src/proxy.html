@@ -129,6 +129,11 @@
 <script src="popper-1.14.7.min.js"></script>
 <script src="bootstrap-4.3.1.min.js"></script>
 <script src="renderjson-b31d877.js"></script>
-<script src="proxy.js" async></script>
+<script src="proxy.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let proxyDashboard = new window.ProxyDashboard();
+    }, false);
+</script>
 </body>
 </html>
