@@ -24,12 +24,12 @@ class ProxyDashboard(HttpWebServerBasePlugin):
 
     def routes(self) -> List[Tuple[int, bytes]]:
         return [
-            (httpProtocolTypes.HTTP, b'/dashboard'),
+            (httpProtocolTypes.HTTP, b'/dashboard'),                # Redirects to /dashboard/
+            (httpProtocolTypes.HTTPS, b'/dashboard'),               # Redirects to /dashboard/
+            (httpProtocolTypes.HTTP, b'/dashboard/proxy.html'),     # Redirects to /dashboard/
+            (httpProtocolTypes.HTTPS, b'/dashboard/proxy.html'),    # Redirects to /dashboard/
             (httpProtocolTypes.HTTP, b'/dashboard/'),
-            (httpProtocolTypes.HTTPS, b'/dashboard'),
             (httpProtocolTypes.HTTPS, b'/dashboard/'),
-            (httpProtocolTypes.HTTP, b'/dashboard/proxy.html'),
-            (httpProtocolTypes.HTTPS, b'/dashboard/proxy.html'),
             (httpProtocolTypes.WEBSOCKET, b'/dashboard'),
         ]
 
