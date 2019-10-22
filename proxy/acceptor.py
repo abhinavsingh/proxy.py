@@ -22,8 +22,8 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Type, Tuple, Dict, Generator, Union, Any
 
 from .flags import Flags
-from .constants import DEFAULT_TIMEOUT
-from .types import _HasFileno
+from .common.constants import DEFAULT_TIMEOUT
+from .common.types import HasFileno
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +55,8 @@ class ThreadlessWork(ABC):
 
     @abstractmethod
     def handle_events(self,
-                      readables: List[Union[int, _HasFileno]],
-                      writables: List[Union[int, _HasFileno]]) -> bool:
+                      readables: List[Union[int, HasFileno]],
+                      writables: List[Union[int, HasFileno]]) -> bool:
         """Return True to shutdown work."""
         return False    # pragma: no cover
 
@@ -155,8 +155,8 @@ class Threadless(multiprocessing.Process):
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 
     @contextlib.contextmanager
-    def selected_events(self) -> Generator[Tuple[List[Union[int, _HasFileno]],
-                                                 List[Union[int, _HasFileno]]],
+    def selected_events(self) -> Generator[Tuple[List[Union[int, HasFileno]],
+                                                 List[Union[int, HasFileno]]],
                                            None, None]:
         events: Dict[socket.socket, int] = {}
         for work in self.works.values():
@@ -178,8 +178,8 @@ class Threadless(multiprocessing.Process):
 
     async def handle_events(
             self, fileno: int,
-            readables: List[Union[int, _HasFileno]],
-            writables: List[Union[int, _HasFileno]]) -> bool:
+            readables: List[Union[int, HasFileno]],
+            writables: List[Union[int, HasFileno]]) -> bool:
         return self.works[fileno].handle_events(readables, writables)
 
     # TODO: Use correct future typing annotations

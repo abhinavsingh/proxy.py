@@ -15,7 +15,7 @@ from proxy.flags import Flags
 from proxy.http_proxy import HttpProxyPlugin
 from proxy.protocol_handler import ProtocolHandler
 from proxy.exception import ProtocolException
-from proxy.utils import build_http_request
+from proxy.common.utils import build_http_request
 
 
 class TestHttpProxyPlugin(unittest.TestCase):

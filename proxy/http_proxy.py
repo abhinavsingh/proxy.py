@@ -20,14 +20,14 @@ from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .http_methods import httpMethods
-from .constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
-from .utils import build_http_response, text_
+from .common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
+from .common.utils import build_http_response, text_
 from .status_codes import httpStatusCodes
 from .flags import Flags
 from .connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
 from .protocol_handler import ProtocolHandlerPlugin
 from .exception import ProtocolException
-from .types import _HasFileno
+from .common.types import HasFileno
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
             w.append(self.server.connection)
         return r, w
 
-    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
         if self.request.has_upstream_server() and \
                 self.server and not self.server.closed and \
                 self.server.has_buffer() and \
@@ -219,7 +219,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 return True
         return False
 
-    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
         if self.request.has_upstream_server(
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading...')

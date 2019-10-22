@@ -13,8 +13,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import NamedTuple, Optional, Union, Tuple
 
-from .constants import DEFAULT_BUFFER_SIZE
-from .utils import new_socket_connection
+from .common.constants import DEFAULT_BUFFER_SIZE
+from .common.utils import new_socket_connection
 
 logger = logging.getLogger(__name__)
 

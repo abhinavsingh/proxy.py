@@ -17,14 +17,14 @@ import logging
 import json
 from typing import Optional, Union, List, Tuple, Dict, Any
 
-from .utils import bytes_, text_
+from .common.utils import bytes_, text_
 from .flags import Flags
 from .http_parser import httpParserStates, httpParserTypes, HttpParser
 from .connection import TcpClientConnection
 from .web_server import HttpWebServerBasePlugin, httpProtocolTypes
 from .websocket import WebsocketFrame, websocketOpcodes
-from .constants import COLON, PROXY_PY_START_TIME
-from .types import _HasFileno, DictQueueType
+from .common.constants import COLON, PROXY_PY_START_TIME
+from .common.types import HasFileno, DictQueueType
 from .protocol_handler import ProtocolHandlerPlugin
 
 logger = logging.getLogger(__name__)
@@ -178,10 +178,10 @@ class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
     def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
         return [], []
 
-    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
         return False
 
-    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
         return False
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:

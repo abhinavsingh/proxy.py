@@ -19,7 +19,7 @@ from unittest import mock
 from proxy.protocol_handler import ProtocolHandler
 from proxy.http_proxy import HttpProxyPlugin
 from proxy.http_methods import httpMethods
-from proxy.utils import build_http_request, bytes_
+from proxy.common.utils import build_http_request, bytes_
 from proxy.flags import Flags
 
 

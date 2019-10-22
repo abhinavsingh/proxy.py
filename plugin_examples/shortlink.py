@@ -12,8 +12,8 @@ from typing import Optional
 from proxy.http_proxy import HttpProxyBasePlugin
 from proxy.http_parser import HttpParser
 from proxy.status_codes import httpStatusCodes
-from proxy.constants import DOT, SLASH
-from proxy.utils import build_http_response
+from proxy.common.constants import DOT, SLASH
+from proxy.common.utils import build_http_response
 
 
 class ShortLinkPlugin(HttpProxyBasePlugin):

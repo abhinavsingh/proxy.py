@@ -11,8 +11,8 @@ import unittest
 
 from proxy.http_parser import HttpParser, httpParserTypes
 from proxy.http_proxy import HttpRequestRejected
-from proxy.constants import CRLF
-from proxy.utils import build_http_response
+from proxy.common.constants import CRLF
+from proxy.common.utils import build_http_response
 from proxy.status_codes import httpStatusCodes
 
 

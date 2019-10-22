@@ -17,7 +17,7 @@ from proxy.flags import Flags
 from proxy.connection import TcpClientConnection
 from proxy.http_parser import HttpParser
 from proxy.http_proxy import HttpProxyBasePlugin
-from proxy.utils import text_
+from proxy.common.utils import text_
 
 logger = logging.getLogger(__name__)
 

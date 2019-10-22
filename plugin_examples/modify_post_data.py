@@ -12,7 +12,7 @@ from typing import Optional
 from proxy.http_parser import HttpParser
 from proxy.http_proxy import HttpProxyBasePlugin
 from proxy.http_methods import httpMethods
-from proxy.utils import bytes_
+from proxy.common.utils import bytes_
 
 
 class ModifyPostDataPlugin(HttpProxyBasePlugin):

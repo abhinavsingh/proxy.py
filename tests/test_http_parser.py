@@ -11,10 +11,10 @@ import unittest
 from typing import Dict, Tuple
 
 from proxy.http_parser import HttpParser, httpParserTypes, httpParserStates
-from proxy.utils import build_http_request, find_http_line, build_http_response, build_http_header, bytes_
+from proxy.common.utils import build_http_request, find_http_line, build_http_response, build_http_header, bytes_
 from proxy.http_methods import httpMethods
 from proxy.status_codes import httpStatusCodes
-from proxy.constants import CRLF
+from proxy.common.constants import CRLF
 
 
 class TestHttpParser(unittest.TestCase):

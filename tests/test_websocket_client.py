@@ -10,9 +10,9 @@
 import unittest
 from unittest import mock
 
-from proxy.utils import build_websocket_handshake_response, build_websocket_handshake_request
+from proxy.common.utils import build_websocket_handshake_response, build_websocket_handshake_request
 from proxy.websocket import WebsocketClient, WebsocketFrame
-from proxy.constants import DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT
+from proxy.common.constants import DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT
 
 
 class TestWebsocketClient(unittest.TestCase):

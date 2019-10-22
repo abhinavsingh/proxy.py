@@ -20,7 +20,7 @@ from typing import Tuple, List, Union, Optional, Generator, Dict
 from .flags import Flags
 from .connection import TcpClientConnection
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
-from .types import _HasFileno
+from .common.types import HasFileno
 from .acceptor import ThreadlessWork
 from .exception import ProtocolException
 
@@ -72,11 +72,11 @@ class ProtocolHandlerPlugin(ABC):
         return [], []  # pragma: no cover
 
     @abstractmethod
-    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
         pass  # pragma: no cover
 
     @abstractmethod
-    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
         pass  # pragma: no cover
 
     @abstractmethod
@@ -163,8 +163,8 @@ class ProtocolHandler(ThreadlessWork):
 
     def handle_events(
             self,
-            readables: List[Union[int, _HasFileno]],
-            writables: List[Union[int, _HasFileno]]) -> bool:
+            readables: List[Union[int, HasFileno]],
+            writables: List[Union[int, HasFileno]]) -> bool:
         """Returns True if proxy must teardown."""
         # Flush buffer for ready to write sockets
         teardown = self.handle_writables(writables)
@@ -259,7 +259,7 @@ class ProtocolHandler(ThreadlessWork):
         finally:
             self.selector.unregister(self.client.connection)
 
-    def handle_writables(self, writables: List[Union[int, _HasFileno]]) -> bool:
+    def handle_writables(self, writables: List[Union[int, HasFileno]]) -> bool:
         if self.client.buffer_size() > 0 and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
@@ -282,7 +282,7 @@ class ProtocolHandler(ThreadlessWork):
                 return True
         return False
 
-    def handle_readables(self, readables: List[Union[int, _HasFileno]]) -> bool:
+    def handle_readables(self, readables: List[Union[int, HasFileno]]) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
@@ -347,8 +347,8 @@ class ProtocolHandler(ThreadlessWork):
 
     @contextlib.contextmanager
     def selected_events(self) -> \
-            Generator[Tuple[List[Union[int, _HasFileno]],
-                            List[Union[int, _HasFileno]]],
+            Generator[Tuple[List[Union[int, HasFileno]],
+                            List[Union[int, HasFileno]]],
                       None, None]:
         events = self.get_events()
         for fd in events:

@@ -19,12 +19,12 @@ import time
 from typing import Dict, List, Optional
 
 from .flags import Flags, init_parser
-from .utils import text_, bytes_
+from .common.utils import text_, bytes_
 from .acceptor import AcceptorPool
 from .protocol_handler import ProtocolHandler
-from .types import DictQueueType
-from .constants import DOT, COMMA
-from .constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
+from .common.types import DictQueueType
+from .common.constants import DOT, COMMA
+from .common.constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
 from .version import __version__
 
 if os.name != 'nt':

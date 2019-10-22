@@ -17,8 +17,8 @@ from proxy.main import load_plugins
 from proxy.flags import Flags
 from proxy.protocol_handler import ProtocolHandler
 from proxy.http_parser import httpParserStates
-from proxy.utils import build_http_response, build_http_request, bytes_, text_
-from proxy.constants import CRLF, PROXY_PY_DIR
+from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
+from proxy.common.constants import CRLF, PROXY_PY_DIR
 from proxy.web_server import HttpWebServerPlugin
 
 

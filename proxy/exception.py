@@ -8,6 +8,7 @@
     :license: BSD, see LICENSE for more details.
 """
 from typing import Optional
+
 from .http_parser import HttpParser
 
 

@@ -16,16 +16,15 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional, NamedTuple, Dict, Union
 
 from .status_codes import httpStatusCodes
-from .utils import bytes_, text_
+from .common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
 from .flags import Flags
 from .connection import TcpClientConnection
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .websocket import WebsocketFrame, websocketOpcodes
-from .utils import build_http_response, build_websocket_handshake_response
 from .protocol_handler import ProtocolHandlerPlugin
 from .exception import ProtocolException
-from .constants import PROXY_AGENT_HEADER_VALUE
-from .types import _HasFileno
+from .common.constants import PROXY_AGENT_HEADER_VALUE
+from .common.types import HasFileno
 
 logger = logging.getLogger(__name__)
 
@@ -241,10 +240,10 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
 
-    def write_to_descriptors(self, w: List[Union[int, _HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
         pass
 
-    def read_from_descriptors(self, r: List[Union[int, _HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
         pass
 
     def on_client_data(self, raw: bytes) -> Optional[bytes]:

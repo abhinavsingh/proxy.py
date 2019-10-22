@@ -15,7 +15,7 @@ from typing import Optional, Union
 
 from proxy.connection import tcpConnectionTypes, TcpConnectionUninitializedException
 from proxy.connection import TcpServerConnection, TcpConnection, TcpClientConnection
-from proxy.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME
+from proxy.common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME
 
 
 class TestTcpConnection(unittest.TestCase):

@@ -14,8 +14,8 @@ import sys
 import time
 from typing import List, Tuple
 
-from proxy.constants import __homepage__, DEFAULT_BUFFER_SIZE
-from proxy.utils import build_http_request
+from proxy.common.constants import __homepage__, DEFAULT_BUFFER_SIZE
+from proxy.common.utils import build_http_request
 from proxy.http_methods import httpMethods
 from proxy.http_parser import httpParserStates, httpParserTypes, HttpParser
 

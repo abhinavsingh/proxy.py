@@ -20,8 +20,8 @@ from typing import Type, cast, Any
 from proxy.flags import Flags
 from proxy.protocol_handler import ProtocolHandler
 from proxy.http_proxy import HttpProxyBasePlugin, HttpProxyPlugin
-from proxy.utils import build_http_request, bytes_, build_http_response
-from proxy.constants import PROXY_AGENT_HEADER_VALUE
+from proxy.common.utils import build_http_request, bytes_, build_http_response
+from proxy.common.constants import PROXY_AGENT_HEADER_VALUE
 from proxy.status_codes import httpStatusCodes
 from proxy.http_methods import httpMethods
 

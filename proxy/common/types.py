@@ -18,6 +18,6 @@ else:
     DictQueueType = queue.Queue
 
 
-class _HasFileno(Protocol):
+class HasFileno(Protocol):
     def fileno(self) -> int:
         ...     # pragma: no cover

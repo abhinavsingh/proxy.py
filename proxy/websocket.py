@@ -19,10 +19,10 @@ import logging
 import io
 from typing import TypeVar, Type, Optional, NamedTuple, Union, Callable
 
-from .utils import new_socket_connection, build_websocket_handshake_request
+from .common.utils import new_socket_connection, build_websocket_handshake_request
 from .connection import tcpConnectionTypes, TcpConnection
 from .http_parser import httpParserTypes, HttpParser
-from .constants import DEFAULT_BUFFER_SIZE
+from .common.constants import DEFAULT_BUFFER_SIZE
 
 
 WebsocketOpcodes = NamedTuple('WebsocketOpcodes', [

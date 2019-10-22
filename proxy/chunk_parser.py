@@ -9,8 +9,8 @@
 """
 from typing import NamedTuple, Tuple, List, Optional
 
-from .utils import bytes_, find_http_line
-from .constants import CRLF, DEFAULT_BUFFER_SIZE
+from .common.utils import bytes_, find_http_line
+from .common.constants import CRLF, DEFAULT_BUFFER_SIZE
 
 
 ChunkParserStates = NamedTuple('ChunkParserStates', [
