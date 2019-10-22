@@ -12,15 +12,15 @@ import socket
 from unittest import mock
 
 from proxy.common.flags import Flags
-from proxy.acceptor import AcceptorPool
+from proxy.core.acceptor import AcceptorPool
 
 
 class TestAcceptorPool(unittest.TestCase):
 
-    @mock.patch('proxy.acceptor.send_handle')
+    @mock.patch('proxy.core.acceptor.send_handle')
     @mock.patch('multiprocessing.Pipe')
     @mock.patch('socket.socket')
-    @mock.patch('proxy.acceptor.Acceptor')
+    @mock.patch('proxy.core.acceptor.Acceptor')
     def test_setup_and_shutdown(
             self,
             mock_worker: mock.Mock,

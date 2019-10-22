@@ -21,7 +21,7 @@ from .common.flags import Flags
 from .connection import TcpClientConnection
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .common.types import HasFileno
-from .acceptor import ThreadlessWork
+from .core.acceptor import ThreadlessWork
 from .exception import ProtocolException
 
 logger = logging.getLogger(__name__)

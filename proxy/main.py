@@ -20,7 +20,7 @@ from typing import Dict, List, Optional
 
 from .common.flags import Flags, init_parser
 from .common.utils import text_, bytes_
-from .acceptor import AcceptorPool
+from .core.acceptor import AcceptorPool
 from .protocol_handler import ProtocolHandler
 from .common.types import DictQueueType
 from .common.constants import DOT, COMMA

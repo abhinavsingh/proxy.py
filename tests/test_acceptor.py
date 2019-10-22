@@ -14,7 +14,7 @@ import multiprocessing
 from unittest import mock
 
 from proxy.common.flags import Flags
-from proxy.acceptor import Acceptor
+from proxy.core.acceptor import Acceptor
 
 
 class TestAcceptor(unittest.TestCase):
@@ -30,7 +30,7 @@ class TestAcceptor(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    @mock.patch('proxy.acceptor.recv_handle')
+    @mock.patch('proxy.core.acceptor.recv_handle')
     def test_continues_when_no_events(
             self,
             mock_recv_handle: mock.Mock,
@@ -54,7 +54,7 @@ class TestAcceptor(unittest.TestCase):
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    @mock.patch('proxy.acceptor.recv_handle')
+    @mock.patch('proxy.core.acceptor.recv_handle')
     def test_accepts_client_from_server_socket(
             self,
             mock_recv_handle: mock.Mock,

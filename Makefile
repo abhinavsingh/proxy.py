@@ -30,7 +30,7 @@ clean:
 	rm -rf proxy.py.egg-info
 	rm -rf .pytest_cache
 
-test:
+test: lint
 	python -m unittest tests/*.py
 
 package: clean
