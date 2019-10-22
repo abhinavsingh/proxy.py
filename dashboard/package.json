@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "clean": "rm -rf build",
-    "lint": "eslint src/*",
-    "pretest": "npm run clean && tsc --target es5 --outDir build test/test.ts",
+    "lint": "eslint --global $ src/*.ts",
+    "pretest": "npm run clean && tsc --target es5 --outDir build test/test.ts && npm run lint",
     "test": "jasmine build/test/test.js",
     "build": "npm test && rollup -c",
     "start": "pushd ../public && http-server -g true -i false -d false -c-1 --no-dotfiles . && popd",
