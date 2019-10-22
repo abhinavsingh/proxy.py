@@ -23,7 +23,7 @@ from .utils import text_, bytes_
 from .acceptor import AcceptorPool
 from .protocol_handler import ProtocolHandler
 from .types import DictQueueType
-from .constants import DOT, COMMA
+from .constants import DOT, COMMA, SLASH
 from .constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
 from .version import __version__
 
@@ -65,7 +65,7 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
             continue
         module_name, klass_name = plugin.rsplit(text_(DOT), 1)
         klass = getattr(
-            importlib.import_module(module_name),
+            importlib.import_module(module_name.replace(os.path.sep, text_(DOT))),
             klass_name)
         base_klass = inspect.getmro(klass)[1]
         p[bytes_(base_klass.__name__)].append(klass)
