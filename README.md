@@ -61,6 +61,7 @@ Table of Contents
         * [proxy.WebsocketClient](#proxywebsocketclient)
     * [Embed proxy.py](#embed-proxypy)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
+    * [Start proxy.py from repo source](#start-proxypy-from-repo-source)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
     * [Internal Documentation](#internal-documentation)
@@ -100,7 +101,6 @@ Features
           0.022 [332]	|■
         ```
 - Lightweight
-    - Distributed as a single file module `~100KB`
     - Uses only `~5-20MB` RAM
     - No external dependency other than standard Python library
 - Programmable
@@ -108,6 +108,10 @@ Features
     - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
     - Enable plugin using command line option e.g. `--plugins plugin_examples.CacheResponsesPlugin`
     - Plugin API is currently in development state, expect breaking changes.
+- Realtime Dashboard
+    - Optionally enable bundled dashboard. Available at `http://localhost:8899/dashboard`.
+    - Inspect, Monitor, Control and Configure `proxy.py` at runtime.
+    - Extend dashboard using plugins.
 - Secure
     - Enable end-to-end encryption between clients and `proxy.py` using TLS
     - See [End-to-End Encryption](#end-to-end-encryption)
@@ -138,39 +142,33 @@ or from GitHub `master` branch
 
     $ pip install git+https://github.com/abhinavsingh/proxy.py.git@master
 
-or simply `wget` it:
-
-    $ wget -q https://raw.githubusercontent.com/abhinavsingh/proxy.py/master/proxy.py
-
-or download from here [proxy.py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/master/proxy.py)
-
 ## Development version
 
     $ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
 
-For `Docker` usage see [Docker Image](#docker-image).
+For `Docker` installation see [Docker Image](#docker-image).
 
 Start proxy.py
 ==============
 
 ## Command line
 
-Simply type `proxy.py` on command line to start it with default configuration.
+Simply type `proxy` on command line to start it with default configuration.
 
 ```
-$ proxy.py
-...[redacted]... - Loaded plugin <class 'proxy.HttpProxyPlugin'>
+$ proxy
+...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
 ...[redacted]... - Starting 8 workers
 ...[redacted]... - Started server on ::1:8899
 ```
 
 Things to notice from above logs:
 
-- `Loaded plugin` - `proxy.py` will load `HttpProxyPlugin` by default. It adds `http(s)` 
-  proxy server capabilities to `proxy.py`
+- `Loaded plugin` - `proxy.py` will load `proxy.http_proxy.HttpProxyPlugin` by default.
+  As name suggests, this core plugin adds `http(s)` proxy server capabilities to `proxy.py`
 
-- `Started N workers` - Use `--num-workers` flag to customize number of `Worker` processes. 
-  By default, `proxy.py` will start as many workers as there are CPU cores on the machine.
+- `Started N workers` - Use `--num-workers` flag to customize number of `Acceptor` processes. 
+  By default, `proxy.py` will start as many acceptors as there are CPU cores on the machine.
 
 - `Started server on ::1:8899` - By default, `proxy.py` listens on IPv6 `::1`, which 
   is equivalent of IPv4 `127.0.0.1`.  If you want to access `proxy.py` externally, 
@@ -184,9 +182,9 @@ All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`.
 Lets start `proxy.py` with `DEBUG` level logging:
 
 ```
-$ proxy.py --log-level d
+$ proxy --log-level d
 ...[redacted]... - Open file descriptor soft limit set to 1024
-...[redacted]... - Loaded plugin <class 'proxy.HttpProxyPlugin'>
+...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
 ...[redacted]... - Started 8 workers
 ...[redacted]... - Started server on ::1:8899
 ```
@@ -210,7 +208,7 @@ See [flags](#flags) for full list of available configuration options.
     $ git clone https://github.com/abhinavsingh/proxy.py.git
     $ cd proxy.py
     $ make container
-    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:v$(./proxy.py -v)
+    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 
 By default `docker` binary is started with IPv4 networking flags:
 
@@ -242,7 +240,7 @@ Add support for short links in your favorite browsers / applications.
 Start `proxy.py` as:
 
 ```
-$ proxy.py \
+$ proxy \
     --plugins plugin_examples.ShortLinkPlugin
 ```
 
@@ -271,7 +269,7 @@ Modifies POST request body before sending request to upstream server.
 Start `proxy.py` as:
 
 ```
-$ proxy.py \
+$ proxy \
     --plugins plugin_examples.ModifyPostDataPlugin
 ```
 
@@ -325,7 +323,7 @@ without need of an actual upstream REST API server.
 Start `proxy.py` as:
 
 ```
-$ proxy.py \
+$ proxy \
     --plugins plugin_examples.ProposedRestApiPlugin
 ```
 
@@ -356,7 +354,7 @@ also running on `8899` port.
 Start `proxy.py` and enable inbuilt web server:
 
 ```
-$ proxy.py \
+$ proxy \
     --enable-web-server \
     --plugins plugin_examples.RedirectToCustomServerPlugin
 ```
@@ -390,7 +388,7 @@ By default, plugin drops traffic for `google.com` and `www.google.com`.
 Start `proxy.py` as:
 
 ```
-$ proxy.py \
+$ proxy \
     --plugins plugin_examples.FilterByUpstreamHostPlugin
 ```
 
@@ -423,7 +421,7 @@ Caches Upstream Server Responses.
 Start `proxy.py` as:
 
 ```
-$ proxy.py \
+$ proxy \
     --plugins plugin_examples.CacheResponsesPlugin
 ```
 
@@ -499,7 +497,7 @@ Modifies upstream server responses.
 Start `proxy.py` as:
 
 ```
-$ proxy.py \
+$ proxy \
     --plugins plugin_examples.ManInTheMiddlePlugin
 ```
 
@@ -547,7 +545,7 @@ make https-certificates
 Start `proxy.py` as:
 
 ```
-$ proxy.py \
+$ proxy \
     --cert-file https-cert.pem \
     --key-file https-key.pem
 ```
@@ -570,7 +568,7 @@ Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https
 TLS Interception
 =================
 
-By default, `proxy.py` doesn't decrypt `https` traffic between client and server. 
+By default, `proxy.py` will not decrypt `https` traffic between client and server. 
 To enable TLS interception first generate CA certificates:
 
 ```
@@ -581,7 +579,7 @@ Lets also enable `CacheResponsePlugin` so that we can verify decrypted
 response from the server. Start `proxy.py` as:
 
 ```
-$ proxy.py \
+$ proxy \
     --plugins plugin_examples.CacheResponsesPlugin \
     --ca-key-file ca-key.pem \
     --ca-cert-file ca-cert.pem \
@@ -753,6 +751,16 @@ for all available classes and utility methods.
 
 Plugin Developer and Contributor Guide
 ======================================
+
+## Start proxy.py from repo source
+
+Contributors must start `proxy.py` from source to verify and develop new features / fixes.
+
+Start `proxy.py` as:
+
+    $ git clone https://github.com/abhinavsingh/proxy.py.git
+    $ cd proxy.py
+    $ python -m proxy
 
 ## Everything is a plugin
 
