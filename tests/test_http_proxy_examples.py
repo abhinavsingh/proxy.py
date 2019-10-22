@@ -192,10 +192,10 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.assertEqual(
             self.protocol_handler.client.buffer,
             build_http_response(
-                httpStatusCodes.I_AM_A_TEAPOT,
+                status_code=httpStatusCodes.I_AM_A_TEAPOT,
                 reason=b'I\'m a tea pot',
                 headers={
-                    PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE
+                    b'Connection': b'close'
                 },
             )
         )

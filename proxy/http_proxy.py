@@ -20,9 +20,9 @@ from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .http_methods import httpMethods
-from .constants import HTTP_1_1, WHITESPACE, PROXY_AGENT_HEADER, PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
+from .constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
 from .constants import CRLF
-from .utils import bytes_, build_http_response, text_
+from .utils import build_http_response, text_
 from .status_codes import httpStatusCodes
 from .flags import Flags
 from .connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
@@ -42,27 +42,22 @@ class HttpRequestRejected(ProtocolException):
     def __init__(self,
                  status_code: Optional[int] = None,
                  reason: Optional[bytes] = None,
+                 headers: Optional[Dict[bytes, bytes]] = None,
                  body: Optional[bytes] = None):
         self.status_code: Optional[int] = status_code
         self.reason: Optional[bytes] = reason
+        self.headers: Optional[Dict[bytes, bytes]] = headers
         self.body: Optional[bytes] = body
 
     def response(self, _request: HttpParser) -> Optional[bytes]:
-        pkt = []
-        if self.status_code is not None:
-            line = HTTP_1_1 + WHITESPACE + bytes_(self.status_code)
-            if self.reason:
-                line += WHITESPACE + self.reason
-            pkt.append(line)
-            pkt.append(PROXY_AGENT_HEADER)
-        if self.body:
-            pkt.append(b'Content-Length: ' + bytes_(len(self.body)))
-            pkt.append(CRLF)
-            pkt.append(self.body)
-        else:
-            if len(pkt) > 0:
-                pkt.append(CRLF)
-        return CRLF.join(pkt) if len(pkt) > 0 else None
+        if self.status_code:
+            return build_http_response(
+                status_code=self.status_code,
+                reason=self.reason,
+                headers=self.headers,
+                body=self.body
+            )
+        return None
 
 
 class ProxyConnectionFailed(ProtocolException):

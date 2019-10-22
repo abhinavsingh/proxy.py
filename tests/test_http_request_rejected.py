@@ -27,7 +27,6 @@ class TestHttpRequestRejected(unittest.TestCase):
         e = HttpRequestRejected(status_code=200, reason=b'OK')
         self.assertEqual(e.response(self.request), CRLF.join([
             b'HTTP/1.1 200 OK',
-            PROXY_AGENT_HEADER,
             CRLF
         ]))
 
@@ -37,7 +36,6 @@ class TestHttpRequestRejected(unittest.TestCase):
             body=b'Nothing here')
         self.assertEqual(e.response(self.request), CRLF.join([
             b'HTTP/1.1 404 NOT FOUND',
-            PROXY_AGENT_HEADER,
             b'Content-Length: 12',
             CRLF,
             b'Nothing here'
