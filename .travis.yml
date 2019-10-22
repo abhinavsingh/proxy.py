@@ -12,6 +12,6 @@ matrix:
       python: 3.7
 install:
   - pip3 install -r requirements-testing.txt
-script: python3 -m coverage run --source=proxy tests.py || python -m coverage run --source=proxy tests.py
+script: python3 -m pytest --cov=proxy tests/ || python -m pytest --cov=proxy tests/
 after_success:
   - coveralls
