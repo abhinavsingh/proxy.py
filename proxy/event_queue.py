@@ -15,4 +15,3 @@ class EventQueueBasePlugin(ABC):
     @abstractmethod
     def handle_event(self) -> None:
         pass
-
