@@ -23,7 +23,7 @@ from .http_methods import httpMethods
 from .common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
 from .common.utils import build_http_response, text_
 from .status_codes import httpStatusCodes
-from .flags import Flags
+from .common.flags import Flags
 from .connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
 from .protocol_handler import ProtocolHandlerPlugin
 from .exception import ProtocolException

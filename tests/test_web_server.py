@@ -14,7 +14,7 @@ import selectors
 from unittest import mock
 
 from proxy.main import load_plugins
-from proxy.flags import Flags
+from proxy.common.flags import Flags
 from proxy.protocol_handler import ProtocolHandler
 from proxy.http_parser import httpParserStates
 from proxy.common.utils import build_http_response, build_http_request, bytes_, text_

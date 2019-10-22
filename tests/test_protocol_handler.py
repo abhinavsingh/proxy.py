@@ -15,7 +15,7 @@ from typing import cast
 from unittest import mock
 
 from proxy.http_parser import HttpParser
-from proxy.flags import Flags
+from proxy.common.flags import Flags
 from proxy.common.utils import bytes_
 from proxy.protocol_handler import ProtocolHandler
 from proxy.http_proxy import HttpProxyPlugin, ProxyAuthenticationFailed, ProxyConnectionFailed

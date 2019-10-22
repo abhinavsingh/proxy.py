@@ -8,6 +8,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import queue
+
 from typing import TYPE_CHECKING, Dict, Any
 from typing_extensions import Protocol
 

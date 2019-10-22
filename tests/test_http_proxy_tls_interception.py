@@ -20,7 +20,7 @@ from proxy.protocol_handler import ProtocolHandler
 from proxy.http_proxy import HttpProxyPlugin
 from proxy.http_methods import httpMethods
 from proxy.common.utils import build_http_request, bytes_
-from proxy.flags import Flags
+from proxy.common.flags import Flags
 
 
 class TestHttpProxyTlsInterception(unittest.TestCase):

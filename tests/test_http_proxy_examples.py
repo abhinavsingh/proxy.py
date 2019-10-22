@@ -17,7 +17,7 @@ from urllib import parse as urlparse
 from unittest import mock
 from typing import Type, cast, Any
 
-from proxy.flags import Flags
+from proxy.common.flags import Flags
 from proxy.protocol_handler import ProtocolHandler
 from proxy.http_proxy import HttpProxyBasePlugin, HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_, build_http_response

@@ -11,7 +11,7 @@ import unittest
 import selectors
 from unittest import mock
 
-from proxy.flags import Flags
+from proxy.common.flags import Flags
 from proxy.http_proxy import HttpProxyPlugin
 from proxy.protocol_handler import ProtocolHandler
 from proxy.exception import ProtocolException

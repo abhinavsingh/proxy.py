@@ -17,7 +17,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Union, Optional, Generator, Dict
 
-from .flags import Flags
+from .common.flags import Flags
 from .connection import TcpClientConnection
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .common.types import HasFileno

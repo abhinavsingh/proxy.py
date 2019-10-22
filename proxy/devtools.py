@@ -18,7 +18,7 @@ import json
 from typing import Optional, Union, List, Tuple, Dict, Any
 
 from .common.utils import bytes_, text_
-from .flags import Flags
+from .common.flags import Flags
 from .http_parser import httpParserStates, httpParserTypes, HttpParser
 from .connection import TcpClientConnection
 from .web_server import HttpWebServerBasePlugin, httpProtocolTypes

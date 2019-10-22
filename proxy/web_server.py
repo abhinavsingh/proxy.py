@@ -15,16 +15,16 @@ import socket
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional, NamedTuple, Dict, Union
 
-from .status_codes import httpStatusCodes
 from .common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from .flags import Flags
+from .common.flags import Flags
+from .common.constants import PROXY_AGENT_HEADER_VALUE
+from .common.types import HasFileno
+from .status_codes import httpStatusCodes
 from .connection import TcpClientConnection
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .websocket import WebsocketFrame, websocketOpcodes
 from .protocol_handler import ProtocolHandlerPlugin
 from .exception import ProtocolException
-from .common.constants import PROXY_AGENT_HEADER_VALUE
-from .common.types import HasFileno
 
 logger = logging.getLogger(__name__)
 

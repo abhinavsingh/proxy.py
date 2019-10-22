@@ -13,7 +13,7 @@ import selectors
 import multiprocessing
 from unittest import mock
 
-from proxy.flags import Flags
+from proxy.common.flags import Flags
 from proxy.acceptor import Acceptor
 
 

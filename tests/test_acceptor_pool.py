@@ -11,7 +11,7 @@ import unittest
 import socket
 from unittest import mock
 
-from proxy.flags import Flags
+from proxy.common.flags import Flags
 from proxy.acceptor import AcceptorPool
 
 

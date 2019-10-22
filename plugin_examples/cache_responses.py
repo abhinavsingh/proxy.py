@@ -13,7 +13,7 @@ import time
 import logging
 from typing import Optional, BinaryIO
 
-from proxy.flags import Flags
+from proxy.common.flags import Flags
 from proxy.connection import TcpClientConnection
 from proxy.http_parser import HttpParser
 from proxy.http_proxy import HttpProxyBasePlugin

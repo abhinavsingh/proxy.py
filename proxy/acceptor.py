@@ -21,7 +21,7 @@ from multiprocessing.reduction import send_handle, recv_handle
 from abc import ABC, abstractmethod
 from typing import List, Optional, Type, Tuple, Dict, Generator, Union, Any
 
-from .flags import Flags
+from .common.flags import Flags
 from .common.constants import DEFAULT_TIMEOUT
 from .common.types import HasFileno
 
