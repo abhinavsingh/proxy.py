@@ -18,10 +18,10 @@ from abc import ABC, abstractmethod
 from typing import Tuple, List, Union, Optional, Generator, Dict
 
 from .common.flags import Flags
-from .connection import TcpClientConnection
-from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .common.types import HasFileno
 from .core.acceptor import ThreadlessWork
+from .core.connection import TcpClientConnection
+from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .exception import ProtocolException
 
 logger = logging.getLogger(__name__)

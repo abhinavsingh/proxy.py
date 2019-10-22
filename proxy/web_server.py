@@ -19,8 +19,8 @@ from .common.utils import bytes_, text_, build_http_response, build_websocket_ha
 from .common.flags import Flags
 from .common.constants import PROXY_AGENT_HEADER_VALUE
 from .common.types import HasFileno
+from .core.connection import TcpClientConnection
 from .status_codes import httpStatusCodes
-from .connection import TcpClientConnection
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .websocket import WebsocketFrame, websocketOpcodes
 from .protocol_handler import ProtocolHandlerPlugin

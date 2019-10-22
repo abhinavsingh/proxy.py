@@ -24,7 +24,7 @@ from .common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
 from .common.utils import build_http_response, text_
 from .status_codes import httpStatusCodes
 from .common.flags import Flags
-from .connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
+from .core.connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
 from .protocol_handler import ProtocolHandlerPlugin
 from .exception import ProtocolException
 from .common.types import HasFileno

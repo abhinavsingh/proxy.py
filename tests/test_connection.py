@@ -13,8 +13,8 @@ import ssl
 from unittest import mock
 from typing import Optional, Union
 
-from proxy.connection import tcpConnectionTypes, TcpConnectionUninitializedException
-from proxy.connection import TcpServerConnection, TcpConnection, TcpClientConnection
+from proxy.core.connection import tcpConnectionTypes, TcpConnectionUninitializedException
+from proxy.core.connection import TcpServerConnection, TcpConnection, TcpClientConnection
 from proxy.common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME
 
 
@@ -72,7 +72,7 @@ class TestTcpConnection(unittest.TestCase):
         mock_socket.return_value.connect.assert_called_with(
             (str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT, 0, 0))
 
-    @mock.patch('proxy.connection.new_socket_connection')
+    @mock.patch('proxy.core.connection.new_socket_connection')
     def testTcpServerIgnoresDoubleConnectSilently(
             self,
             mock_new_socket_connection: mock.Mock) -> None:
@@ -92,7 +92,7 @@ class TestTcpConnection(unittest.TestCase):
         mock_socket.return_value.connect.assert_called_with(
             (str(DEFAULT_IPV4_HOSTNAME), DEFAULT_PORT))
 
-    @mock.patch('proxy.connection.new_socket_connection')
+    @mock.patch('proxy.core.connection.new_socket_connection')
     def testTcpServerConnectionProperty(
             self,
             mock_new_socket_connection: mock.Mock) -> None:
