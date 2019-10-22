@@ -10,7 +10,7 @@
 from urllib import parse as urlparse
 from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
-from .chunk_parser import ChunkParser, chunkParserStates
+from .http.chunk_parser import ChunkParser, chunkParserStates
 from .common.constants import DEFAULT_DISABLE_HEADERS, COLON, CRLF, WHITESPACE, HTTP_1_1
 from .common.utils import build_http_request, find_http_line, text_
 from .http_methods import httpMethods
