@@ -11,7 +11,7 @@ import unittest
 
 from proxy.http_parser import HttpParser, httpParserTypes
 from proxy.http_proxy import HttpRequestRejected
-from proxy.constants import CRLF, PROXY_AGENT_HEADER
+from proxy.constants import CRLF
 
 
 class TestHttpRequestRejected(unittest.TestCase):

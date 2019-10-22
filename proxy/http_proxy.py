@@ -21,7 +21,6 @@ from typing import Optional, List, Union, Dict, cast, Any, Tuple
 from .http_parser import HttpParser, httpParserStates, httpParserTypes
 from .http_methods import httpMethods
 from .constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
-from .constants import CRLF
 from .utils import build_http_response, text_
 from .status_codes import httpStatusCodes
 from .flags import Flags
