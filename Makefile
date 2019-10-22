@@ -47,8 +47,8 @@ coverage:
 	open htmlcov/index.html
 
 lint:
-	flake8 --ignore=W504 --max-line-length=127 proxy/*.py tests/*.py benchmark/*.py plugin_examples/*.py dashboard/dashboard.py setup.py
-	mypy --strict --ignore-missing-imports proxy/*.py tests/*.py benchmark/*.py plugin_examples/*.py dashboard/dashboard.py setup.py
+	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
+	mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
 
 autopep8:
 	autopep8 --recursive --in-place --aggressive proxy/*.py
