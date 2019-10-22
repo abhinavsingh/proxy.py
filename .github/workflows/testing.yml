@@ -31,4 +31,4 @@ jobs:
           # mypy compliance check
           mypy --strict --ignore-missing-imports proxy/*.py tests/*.py benchmark/*.py plugin_examples/*.py dashboard/dashboard.py setup.py
       - name: Run Tests
-        run: pytest tests.py
+        run: pytest tests/*
