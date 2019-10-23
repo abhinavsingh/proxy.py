@@ -14,14 +14,15 @@ import base64
 from typing import cast
 from unittest import mock
 
-from proxy.http.parser import HttpParser
 from proxy.common.flags import Flags
 from proxy.common.utils import bytes_
-from proxy.protocol_handler import ProtocolHandler
-from proxy.http.proxy import HttpProxyPlugin, ProxyAuthenticationFailed, ProxyConnectionFailed
-from proxy.main import load_plugins
-from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.common.constants import CRLF
+from proxy.http.parser import HttpParser
+from proxy.http.proxy import HttpProxyPlugin
+from proxy.http.parser import httpParserStates, httpParserTypes
+from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
+from proxy.protocol_handler import ProtocolHandler
+from proxy.main import load_plugins
 from proxy.version import __version__
 
 

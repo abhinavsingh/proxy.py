@@ -15,6 +15,8 @@ import socket
 from abc import ABC, abstractmethod
 from typing import List, Tuple, Optional, NamedTuple, Dict, Union
 
+from .exception import HttpProtocolException
+from .websocket import WebsocketFrame, websocketOpcodes
 from .codes import httpStatusCodes
 from .parser import HttpParser, httpParserStates, httpParserTypes
 
@@ -24,9 +26,7 @@ from ..common.constants import PROXY_AGENT_HEADER_VALUE
 from ..common.types import HasFileno
 from ..core.connection import TcpClientConnection
 
-from proxy.http.websocket import WebsocketFrame, websocketOpcodes
 from ..protocol_handler import ProtocolHandlerPlugin
-from ..exception import ProtocolException
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +260,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                         route = self.routes[httpProtocolTypes.WEBSOCKET][r]
                         if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
                             logger.warning('Client sent connection close packet')
-                            raise ProtocolException()
+                            raise HttpProtocolException()
                         else:
                             route.on_websocket_message(frame)
                 frame.reset()
@@ -277,7 +277,7 @@ class HttpWebServerPlugin(ProtocolHandlerPlugin):
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive():
                     logger.error('Pipelined request is not keep-alive, will teardown request...')
-                    raise ProtocolException()
+                    raise HttpProtocolException()
                 self.pipeline_request = None
         return raw
 

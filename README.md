@@ -408,7 +408,7 @@ Above `418 I'm a tea pot` is sent by our plugin.
 Verify the same by inspecting logs for `proxy.py`:
 
 ```
-2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - ProtocolException type raised
+2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
 Traceback (most recent call last):
 ... [redacted] ...
 2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
@@ -854,7 +854,7 @@ CLASSES
         ThreadlessWork
             ProtocolHandler(threading.Thread, ThreadlessWork)
     builtins.Exception(builtins.BaseException)
-        ProtocolException
+        HttpProtocolException
             HttpRequestRejected
             ProxyAuthenticationFailed
             ProxyConnectionFailed

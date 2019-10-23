@@ -9,7 +9,8 @@
 """
 from typing import Optional
 
-from proxy.http.proxy import HttpProxyBasePlugin, HttpRequestRejected
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.http.exception import HttpRequestRejected
 from proxy.http.parser import HttpParser
 from proxy.http.codes import httpStatusCodes
 

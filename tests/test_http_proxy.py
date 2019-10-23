@@ -14,7 +14,7 @@ from unittest import mock
 from proxy.common.flags import Flags
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.protocol_handler import ProtocolHandler
-from proxy.exception import ProtocolException
+from proxy.http.exception import HttpProtocolException
 from proxy.common.utils import build_http_request
 
 
@@ -72,7 +72,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
     def test_proxy_plugin_before_upstream_connection_can_teardown(
             self,
             mock_server_conn: mock.Mock) -> None:
-        self.plugin.return_value.before_upstream_connection.side_effect = ProtocolException()
+        self.plugin.return_value.before_upstream_connection.side_effect = HttpProtocolException()
 
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',

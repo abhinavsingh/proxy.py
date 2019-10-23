@@ -22,7 +22,7 @@ from .common.types import HasFileno
 from .core.acceptor import ThreadlessWork
 from .core.connection import TcpClientConnection
 from .http.parser import HttpParser, httpParserStates, httpParserTypes
-from .exception import ProtocolException
+from .http.exception import HttpProtocolException
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,7 @@ class ProtocolHandler(ThreadlessWork):
 
             try:
                 # ProtocolHandlerPlugin.on_client_data
-                # Can raise ProtocolException to teardown the connection
+                # Can raise HttpProtocolException to teardown the connection
                 plugin_index = 0
                 plugins = list(self.plugins.values())
                 while plugin_index < len(plugins) and client_data:
@@ -336,9 +336,9 @@ class ProtocolHandler(ThreadlessWork):
                                         plugin_.client._conn = upgraded_sock
                             elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                                 return True
-            except ProtocolException as e:
+            except HttpProtocolException as e:
                 logger.exception(
-                    'ProtocolException type raised', exc_info=e)
+                    'HttpProtocolException type raised', exc_info=e)
                 response = e.response(self.request)
                 if response:
                     self.client.queue(response)

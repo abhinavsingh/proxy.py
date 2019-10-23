@@ -18,85 +18,18 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
+from .exception import HttpProtocolException, ProxyConnectionFailed, ProxyAuthenticationFailed
 from .codes import httpStatusCodes
 from .parser import HttpParser, httpParserStates, httpParserTypes
 from .methods import httpMethods
 from ..common.types import HasFileno
 from ..common.flags import Flags
-from ..common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
+from ..common.constants import PROXY_AGENT_HEADER_VALUE
 from ..common.utils import build_http_response, text_
 from ..core.connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
 from ..protocol_handler import ProtocolHandlerPlugin
-from ..exception import ProtocolException
 
 logger = logging.getLogger(__name__)
-
-
-class HttpRequestRejected(ProtocolException):
-    """Generic exception that can be used to reject the client requests.
-
-    Connections can either be dropped/closed or optionally an
-    HTTP status code can be returned."""
-
-    def __init__(self,
-                 status_code: Optional[int] = None,
-                 reason: Optional[bytes] = None,
-                 headers: Optional[Dict[bytes, bytes]] = None,
-                 body: Optional[bytes] = None):
-        self.status_code: Optional[int] = status_code
-        self.reason: Optional[bytes] = reason
-        self.headers: Optional[Dict[bytes, bytes]] = headers
-        self.body: Optional[bytes] = body
-
-    def response(self, _request: HttpParser) -> Optional[bytes]:
-        if self.status_code:
-            return build_http_response(
-                status_code=self.status_code,
-                reason=self.reason,
-                headers=self.headers,
-                body=self.body
-            )
-        return None
-
-
-class ProxyConnectionFailed(ProtocolException):
-    """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
-
-    RESPONSE_PKT = build_http_response(
-        httpStatusCodes.BAD_GATEWAY,
-        reason=b'Bad Gateway',
-        headers={
-            PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-            b'Connection': b'close'
-        },
-        body=b'Bad Gateway'
-    )
-
-    def __init__(self, host: str, port: int, reason: str):
-        self.host: str = host
-        self.port: int = port
-        self.reason: str = reason
-
-    def response(self, _request: HttpParser) -> bytes:
-        return self.RESPONSE_PKT
-
-
-class ProxyAuthenticationFailed(ProtocolException):
-    """Exception raised when Http Proxy auth is enabled and
-    incoming request doesn't present necessary credentials."""
-
-    RESPONSE_PKT = build_http_response(
-        httpStatusCodes.PROXY_AUTH_REQUIRED,
-        reason=b'Proxy Authentication Required',
-        headers={
-            PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-            b'Proxy-Authenticate': b'Basic',
-            b'Connection': b'close',
-        },
-        body=b'Proxy Authentication Required')
-
-    def response(self, _request: HttpParser) -> bytes:
-        return self.RESPONSE_PKT
 
 
 class HttpProxyBasePlugin(ABC):
@@ -123,7 +56,7 @@ class HttpProxyBasePlugin(ABC):
         """Handler called just before Proxy upstream connection is established.
 
         Return optionally modified request object.
-        Raise HttpRequestRejected or ProtocolException directly to drop the connection."""
+        Raise HttpRequestRejected or HttpProtocolException directly to drop the connection."""
         return request  # pragma: no cover
 
     @abstractmethod
@@ -139,7 +72,7 @@ class HttpProxyBasePlugin(ABC):
 
         Return optionally modified request object to dispatch to upstream.
         Return None to drop the request data, e.g. in case a response has already been queued.
-        Raise HttpRequestRejected or ProtocolException directly to
+        Raise HttpRequestRejected or HttpProtocolException directly to
             teardown the connection with client.
         """
         return request  # pragma: no cover
@@ -368,7 +301,7 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
     def generate_upstream_certificate(self, _certificate: Optional[Dict[str, Any]]) -> str:
         if not (self.config.ca_cert_dir and self.config.ca_signing_key_file and
                 self.config.ca_cert_file and self.config.ca_key_file):
-            raise ProtocolException(
+            raise HttpProtocolException(
                 f'For certificate generation all the following flags are mandatory: '
                 f'--ca-cert-file:{ self.config.ca_cert_file }, '
                 f'--ca-key-file:{ self.config.ca_key_file }, '
@@ -516,4 +449,4 @@ class HttpProxyPlugin(ProtocolHandlerPlugin):
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
         else:
             logger.exception('Both host and port must exist')
-            raise ProtocolException()
+            raise HttpProtocolException()
