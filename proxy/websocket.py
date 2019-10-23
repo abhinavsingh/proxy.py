@@ -22,7 +22,7 @@ from typing import TypeVar, Type, Optional, NamedTuple, Union, Callable
 from .common.constants import DEFAULT_BUFFER_SIZE
 from .common.utils import new_socket_connection, build_websocket_handshake_request
 from .core.connection import tcpConnectionTypes, TcpConnection
-from .http_parser import httpParserTypes, HttpParser
+from .http.parser import httpParserTypes, HttpParser
 
 
 WebsocketOpcodes = NamedTuple('WebsocketOpcodes', [

@@ -10,7 +10,7 @@
 import json
 from typing import Optional
 
-from proxy.http_parser import HttpParser
+from proxy.http.parser import HttpParser
 from proxy.http_proxy import HttpProxyBasePlugin
 from proxy.status_codes import httpStatusCodes
 from proxy.common.utils import bytes_, build_http_response, text_

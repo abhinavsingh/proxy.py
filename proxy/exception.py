@@ -9,7 +9,7 @@
 """
 from typing import Optional
 
-from .http_parser import HttpParser
+from .http.parser import HttpParser
 
 
 class ProtocolException(Exception):

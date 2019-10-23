@@ -21,7 +21,7 @@ from .common.constants import PROXY_AGENT_HEADER_VALUE
 from .common.types import HasFileno
 from .core.connection import TcpClientConnection
 from .status_codes import httpStatusCodes
-from .http_parser import HttpParser, httpParserStates, httpParserTypes
+from .http.parser import HttpParser, httpParserStates, httpParserTypes
 from .websocket import WebsocketFrame, websocketOpcodes
 from .protocol_handler import ProtocolHandlerPlugin
 from .exception import ProtocolException

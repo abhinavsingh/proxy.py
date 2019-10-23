@@ -18,7 +18,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
-from .http_parser import HttpParser, httpParserStates, httpParserTypes
+from .http.parser import HttpParser, httpParserStates, httpParserTypes
 from .http_methods import httpMethods
 from .common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
 from .common.utils import build_http_response, text_
