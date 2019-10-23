@@ -16,7 +16,7 @@ import selectors
 from typing import Any
 from unittest import mock
 
-from proxy.protocol_handler import ProtocolHandler
+from proxy.http.handler import ProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.methods import httpMethods
 from proxy.common.utils import build_http_request, bytes_
@@ -72,7 +72,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.plugin = mock.MagicMock()
         self.proxy_plugin = mock.MagicMock()
         self.flags.plugins = {
-            b'ProtocolHandlerPlugin': [self.plugin, HttpProxyPlugin],
+            b'HttpProtocolHandlerPlugin': [self.plugin, HttpProxyPlugin],
             b'HttpProxyBasePlugin': [self.proxy_plugin],
         }
         self._conn = mock_fromfd.return_value
@@ -94,7 +94,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             })
         self._conn.recv.return_value = connect_request
 
-        # Prepare mocked ProtocolHandlerPlugin
+        # Prepare mocked HttpProtocolHandlerPlugin
         self.plugin.return_value.get_descriptors.return_value = ([], [])
         self.plugin.return_value.write_to_descriptors.return_value = False
         self.plugin.return_value.read_from_descriptors.return_value = False

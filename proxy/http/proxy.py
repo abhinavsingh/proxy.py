@@ -18,16 +18,18 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
+from .handler import HttpProtocolHandlerPlugin
 from .exception import HttpProtocolException, ProxyConnectionFailed, ProxyAuthenticationFailed
 from .codes import httpStatusCodes
 from .parser import HttpParser, httpParserStates, httpParserTypes
 from .methods import httpMethods
+
 from ..common.types import HasFileno
 from ..common.flags import Flags
 from ..common.constants import PROXY_AGENT_HEADER_VALUE
 from ..common.utils import build_http_response, text_
+
 from ..core.connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
-from ..protocol_handler import ProtocolHandlerPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +93,7 @@ class HttpProxyBasePlugin(ABC):
         pass  # pragma: no cover
 
 
-class HttpProxyPlugin(ProtocolHandlerPlugin):
+class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     """ProtocolHandler plugin which implements HttpProxy specifications."""
 
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = build_http_response(

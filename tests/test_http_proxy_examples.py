@@ -18,7 +18,7 @@ from unittest import mock
 from typing import Type, cast, Any
 
 from proxy.common.flags import Flags
-from proxy.protocol_handler import ProtocolHandler
+from proxy.http.handler import ProtocolHandler
 from proxy.http.proxy import HttpProxyBasePlugin, HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_, build_http_response
 from proxy.common.constants import PROXY_AGENT_HEADER_VALUE
@@ -68,7 +68,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         plugin = get_plugin_by_test_name(self._testMethodName)
 
         self.flags.plugins = {
-            b'ProtocolHandlerPlugin': [HttpProxyPlugin],
+            b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],
             b'HttpProxyBasePlugin': [plugin],
         }
         self._conn = mock_fromfd.return_value
@@ -305,7 +305,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         plugin = get_plugin_by_test_name(self._testMethodName)
 
         self.flags.plugins = {
-            b'ProtocolHandlerPlugin': [HttpProxyPlugin],
+            b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],
             b'HttpProxyBasePlugin': [plugin],
         }
         self._conn = mock.MagicMock(spec=socket.socket)

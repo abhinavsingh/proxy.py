@@ -17,17 +17,18 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Union, Optional, Generator, Dict
 
-from .common.flags import Flags
-from .common.types import HasFileno
-from .core.acceptor import ThreadlessWork
-from .core.connection import TcpClientConnection
-from .http.parser import HttpParser, httpParserStates, httpParserTypes
-from .http.exception import HttpProtocolException
+from .parser import HttpParser, httpParserStates, httpParserTypes
+from .exception import HttpProtocolException
+
+from ..common.flags import Flags
+from ..common.types import HasFileno
+from ..core.acceptor import ThreadlessWork
+from ..core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
 
 
-class ProtocolHandlerPlugin(ABC):
+class HttpProtocolHandlerPlugin(ABC):
     """Base ProtocolHandler Plugin class.
 
     NOTE: This is an internal plugin and in most cases only useful for core contributors.
@@ -103,7 +104,7 @@ class ProtocolHandlerPlugin(ABC):
 class ProtocolHandler(ThreadlessWork):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
-    Accepts `Client` connection object and manages ProtocolHandlerPlugin invocations.
+    Accepts `Client` connection object and manages HttpProtocolHandlerPlugin invocations.
     """
 
     def __init__(self, fileno: int, addr: Tuple[str, int],
@@ -118,7 +119,7 @@ class ProtocolHandler(ThreadlessWork):
         self.client: TcpClientConnection = TcpClientConnection(
             self.fromfd(self.fileno), self.addr
         )
-        self.plugins: Dict[str, ProtocolHandlerPlugin] = {}
+        self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
@@ -126,8 +127,8 @@ class ProtocolHandler(ThreadlessWork):
         conn.setblocking(False)
         if self.flags.encryption_enabled():
             self.client = TcpClientConnection(conn=conn, addr=self.addr)
-        if b'ProtocolHandlerPlugin' in self.flags.plugins:
-            for klass in self.flags.plugins[b'ProtocolHandlerPlugin']:
+        if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
+            for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
                 instance = klass(self.flags, self.client, self.request)
                 self.plugins[instance.name()] = instance
         logger.debug('Handling connection %r' % self.client.connection)
@@ -145,7 +146,7 @@ class ProtocolHandler(ThreadlessWork):
         if self.client.has_buffer():
             events[self.client.connection] |= selectors.EVENT_WRITE
 
-        # ProtocolHandlerPlugin.get_descriptors
+        # HttpProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
             for r in plugin_read_desc:
@@ -306,7 +307,7 @@ class ProtocolHandler(ThreadlessWork):
                 return True
 
             try:
-                # ProtocolHandlerPlugin.on_client_data
+                # HttpProtocolHandlerPlugin.on_client_data
                 # Can raise HttpProtocolException to teardown the connection
                 plugin_index = 0
                 plugins = list(self.plugins.values())

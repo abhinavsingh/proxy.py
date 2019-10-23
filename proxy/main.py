@@ -21,7 +21,7 @@ from typing import Dict, List, Optional
 from .common.flags import Flags, init_parser
 from .common.utils import text_, bytes_
 from .core.acceptor import AcceptorPool
-from .protocol_handler import ProtocolHandler
+from .http.handler import ProtocolHandler
 from .common.types import DictQueueType
 from .common.constants import DOT, COMMA
 from .common.constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
@@ -55,7 +55,7 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
     """Accepts a comma separated list of Python modules and returns
     a list of respective Python classes."""
     p: Dict[bytes, List[type]] = {
-        b'ProtocolHandlerPlugin': [],
+        b'HttpProtocolHandlerPlugin': [],
         b'HttpProxyBasePlugin': [],
         b'HttpWebServerBasePlugin': [],
     }

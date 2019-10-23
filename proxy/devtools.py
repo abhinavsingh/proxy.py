@@ -25,7 +25,7 @@ from .http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from .http.websocket import WebsocketFrame, websocketOpcodes
 from .common.constants import COLON, PROXY_PY_START_TIME
 from .common.types import HasFileno, DictQueueType
-from .protocol_handler import ProtocolHandlerPlugin
+from .http.handler import HttpProtocolHandlerPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
         self.client.queue(frame.build())
 
 
-class DevtoolsProtocolPlugin(ProtocolHandlerPlugin):
+class DevtoolsProtocolPlugin(HttpProtocolHandlerPlugin):
     """
     DevtoolsProtocolPlugin taps into core `ProtocolHandler`
     events and converts them into Devtools Protocol json messages.

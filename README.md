@@ -775,25 +775,25 @@ As you might have guessed by now, in `proxy.py` everything is a plugin.
   Example, [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
 
 - We also enabled inbuilt web server using `--enable-web-server`. 
-  Inbuilt web server implements `ProtocolHandlerPlugin` plugin. 
-  See documentation of [ProtocolHandlerPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L793-L850) 
-  for available lifecycle hooks. Use `ProtocolHandlerPlugin` to add 
+  Inbuilt web server implements `HttpProtocolHandlerPlugin` plugin. 
+  See documentation of [HttpProtocolHandlerPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L793-L850) 
+  for available lifecycle hooks. Use `HttpProtocolHandlerPlugin` to add 
   new features for http(s) clients. Example, 
   [HttpWebServerPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1185-L1260).
 
 - There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
   Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
   http(s) server. [HttpProxyPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L941-L1182) 
-  also implements `ProtocolHandlerPlugin`.
+  also implements `HttpProtocolHandlerPlugin`.
 
 ## Internal Architecture
 
 - [ProtocolHandler](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1263-L1440) 
 thread is started with the accepted [TcpClientConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L230-L237).
 `ProtocolHandler` is responsible for parsing incoming client request and invoking
-`ProtocolHandlerPlugin` lifecycle hooks.
+`HttpProtocolHandlerPlugin` lifecycle hooks.
 
-- `HttpProxyPlugin` which implements `ProtocolHandlerPlugin` also has its own plugin 
+- `HttpProxyPlugin` which implements `HttpProtocolHandlerPlugin` also has its own plugin 
 mechanism. Its responsibility is to establish connection between client and 
 upstream [TcpServerConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L204-L227)
 and invoke `HttpProxyBasePlugin` lifecycle hooks.
@@ -843,7 +843,7 @@ CLASSES
         HttpWebServerBasePlugin
             DevtoolsWebsocketPlugin
             HttpWebServerPacFilePlugin
-        ProtocolHandlerPlugin
+        HttpProtocolHandlerPlugin
             DevtoolsProtocolPlugin
             HttpProxyPlugin
             HttpWebServerPlugin

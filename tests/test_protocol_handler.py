@@ -21,7 +21,7 @@ from proxy.http.parser import HttpParser
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
-from proxy.protocol_handler import ProtocolHandler
+from proxy.http.handler import ProtocolHandler
 from proxy.main import load_plugins
 from proxy.version import __version__
 

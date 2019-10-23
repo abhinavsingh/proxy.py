@@ -16,7 +16,7 @@ from unittest import mock
 
 from proxy.main import main
 from proxy.common.utils import bytes_
-from proxy.protocol_handler import ProtocolHandler
+from proxy.http.handler import ProtocolHandler
 
 from proxy.common.constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BASIC_AUTH
 from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY

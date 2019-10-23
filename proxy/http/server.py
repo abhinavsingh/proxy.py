@@ -19,14 +19,13 @@ from .exception import HttpProtocolException
 from .websocket import WebsocketFrame, websocketOpcodes
 from .codes import httpStatusCodes
 from .parser import HttpParser, httpParserStates, httpParserTypes
+from .handler import HttpProtocolHandlerPlugin
 
 from ..common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
 from ..common.flags import Flags
 from ..common.constants import PROXY_AGENT_HEADER_VALUE
 from ..common.types import HasFileno
 from ..core.connection import TcpClientConnection
-
-from ..protocol_handler import ProtocolHandlerPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +119,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
         pass    # pragma: no cover
 
 
-class HttpWebServerPlugin(ProtocolHandlerPlugin):
+class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     """ProtocolHandler plugin which handles incoming requests to local web server."""
 
     DEFAULT_404_RESPONSE = build_http_response(

@@ -15,7 +15,7 @@ from unittest import mock
 
 from proxy.main import load_plugins
 from proxy.common.flags import Flags
-from proxy.protocol_handler import ProtocolHandler
+from proxy.http.handler import ProtocolHandler
 from proxy.http.parser import httpParserStates
 from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
 from proxy.common.constants import CRLF, PROXY_PY_DIR
@@ -204,7 +204,7 @@ class TestWebServerPlugin(unittest.TestCase):
             self, mock_fromfd: mock.Mock) -> None:
         flags = Flags()
         plugin = mock.MagicMock()
-        flags.plugins = {b'ProtocolHandlerPlugin': [plugin]}
+        flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
         self._conn = mock_fromfd.return_value
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)
