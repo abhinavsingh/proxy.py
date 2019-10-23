@@ -21,7 +21,7 @@ from .common.utils import bytes_, text_
 from .common.flags import Flags
 from .http.parser import httpParserStates, httpParserTypes, HttpParser
 from .core.connection import TcpClientConnection
-from .web_server import HttpWebServerBasePlugin, httpProtocolTypes
+from .http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from .websocket import WebsocketFrame, websocketOpcodes
 from .common.constants import COLON, PROXY_PY_START_TIME
 from .common.types import HasFileno, DictQueueType

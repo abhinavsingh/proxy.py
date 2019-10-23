@@ -10,7 +10,7 @@
 import logging
 from typing import List, Tuple
 
-from proxy.web_server import HttpWebServerBasePlugin, httpProtocolTypes
+from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.websocket import WebsocketFrame
 from proxy.http.parser import HttpParser
 from proxy.status_codes import httpStatusCodes

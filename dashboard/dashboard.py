@@ -11,7 +11,7 @@ import json
 import logging
 from typing import List, Tuple
 
-from proxy.web_server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
+from proxy.http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.http.parser import HttpParser
 from proxy.common.utils import build_http_response, bytes_
 from proxy.websocket import WebsocketFrame

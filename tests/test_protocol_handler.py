@@ -39,7 +39,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.http_server_port = 65535
         self.flags = Flags()
         self.flags.plugins = load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.mock_selector = mock_selector
         self.protocol_handler = ProtocolHandler(
@@ -169,7 +169,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         flags.plugins = load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)
         self.protocol_handler.initialize()
@@ -201,7 +201,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         flags.plugins = load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = ProtocolHandler(
             self.fileno, addr=self._addr, flags=flags)
@@ -248,7 +248,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
         flags.plugins = load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)
