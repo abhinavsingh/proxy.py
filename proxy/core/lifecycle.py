@@ -7,7 +7,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from abc import ABC, abstractmethod
 from typing import Dict, Optional, Any
+
+
+class EventQueueBasePlugin(ABC):
+
+    @abstractmethod
+    def handle_event(self) -> None:
+        pass
 
 
 class Lifecycle:

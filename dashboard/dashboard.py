@@ -15,7 +15,7 @@ from proxy.http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, http
 from proxy.http.parser import HttpParser
 from proxy.common.utils import build_http_response, bytes_
 from proxy.websocket import WebsocketFrame
-from proxy.status_codes import httpStatusCodes
+from proxy.http.codes import httpStatusCodes
 
 logger = logging.getLogger(__name__)
 

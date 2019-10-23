@@ -13,7 +13,7 @@ from typing import List, Tuple
 from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.websocket import WebsocketFrame
 from proxy.http.parser import HttpParser
-from proxy.status_codes import httpStatusCodes
+from proxy.http.codes import httpStatusCodes
 from proxy.common.utils import build_http_response
 
 logger = logging.getLogger(__name__)

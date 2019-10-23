@@ -13,7 +13,7 @@ from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.http.proxy import HttpRequestRejected
 from proxy.common.constants import CRLF
 from proxy.common.utils import build_http_response
-from proxy.status_codes import httpStatusCodes
+from proxy.http.codes import httpStatusCodes
 
 
 class TestHttpRequestRejected(unittest.TestCase):
