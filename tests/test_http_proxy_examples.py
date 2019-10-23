@@ -23,7 +23,7 @@ from proxy.http_proxy import HttpProxyBasePlugin, HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_, build_http_response
 from proxy.common.constants import PROXY_AGENT_HEADER_VALUE
 from proxy.status_codes import httpStatusCodes
-from proxy.http_methods import httpMethods
+from proxy.http.methods import httpMethods
 
 from plugin_examples import modify_post_data
 from plugin_examples import mock_rest_api

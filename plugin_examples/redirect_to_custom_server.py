@@ -12,7 +12,7 @@ from typing import Optional
 
 from proxy.http_proxy import HttpProxyBasePlugin
 from proxy.http.parser import HttpParser
-from proxy.http_methods import httpMethods
+from proxy.http.methods import httpMethods
 
 
 class RedirectToCustomServerPlugin(HttpProxyBasePlugin):

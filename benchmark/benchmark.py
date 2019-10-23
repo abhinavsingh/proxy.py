@@ -16,7 +16,7 @@ from typing import List, Tuple
 
 from proxy.common.constants import __homepage__, DEFAULT_BUFFER_SIZE
 from proxy.common.utils import build_http_request
-from proxy.http_methods import httpMethods
+from proxy.http.methods import httpMethods
 from proxy.http.parser import httpParserStates, httpParserTypes, HttpParser
 
 DEFAULT_N = 1

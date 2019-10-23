@@ -12,7 +12,7 @@ from typing import Dict, Tuple
 
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
 from proxy.common.utils import build_http_request, find_http_line, build_http_response, build_http_header, bytes_
-from proxy.http_methods import httpMethods
+from proxy.http.methods import httpMethods
 from proxy.status_codes import httpStatusCodes
 from proxy.common.constants import CRLF
 
