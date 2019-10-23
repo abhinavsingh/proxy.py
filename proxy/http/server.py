@@ -24,7 +24,7 @@ from ..common.constants import PROXY_AGENT_HEADER_VALUE
 from ..common.types import HasFileno
 from ..core.connection import TcpClientConnection
 
-from ..websocket import WebsocketFrame, websocketOpcodes
+from proxy.http.websocket import WebsocketFrame, websocketOpcodes
 from ..protocol_handler import ProtocolHandlerPlugin
 from ..exception import ProtocolException
 

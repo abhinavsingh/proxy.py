@@ -17,12 +17,14 @@ import ssl
 import ipaddress
 import logging
 import io
+
 from typing import TypeVar, Type, Optional, NamedTuple, Union, Callable
 
-from .common.constants import DEFAULT_BUFFER_SIZE
-from .common.utils import new_socket_connection, build_websocket_handshake_request
-from .core.connection import tcpConnectionTypes, TcpConnection
-from .http.parser import httpParserTypes, HttpParser
+from .parser import httpParserTypes, HttpParser
+
+from ..common.constants import DEFAULT_BUFFER_SIZE
+from ..common.utils import new_socket_connection, build_websocket_handshake_request
+from ..core.connection import tcpConnectionTypes, TcpConnection
 
 
 WebsocketOpcodes = NamedTuple('WebsocketOpcodes', [

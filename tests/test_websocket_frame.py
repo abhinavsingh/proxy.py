@@ -9,7 +9,7 @@
 """
 import unittest
 
-from proxy.websocket import WebsocketFrame, websocketOpcodes
+from proxy.http.websocket import WebsocketFrame, websocketOpcodes
 
 
 class TestWebsocketFrame(unittest.TestCase):
