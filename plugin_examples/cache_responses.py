@@ -16,7 +16,7 @@ from typing import Optional, BinaryIO
 from proxy.common.flags import Flags
 from proxy.core.connection import TcpClientConnection
 from proxy.http.parser import HttpParser
-from proxy.http_proxy import HttpProxyBasePlugin
+from proxy.http.proxy import HttpProxyBasePlugin
 from proxy.common.utils import text_
 
 logger = logging.getLogger(__name__)

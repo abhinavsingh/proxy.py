@@ -10,7 +10,7 @@
 from typing import Optional
 
 from proxy.http.parser import HttpParser
-from proxy.http_proxy import HttpProxyBasePlugin
+from proxy.http.proxy import HttpProxyBasePlugin
 from proxy.http.methods import httpMethods
 from proxy.common.utils import bytes_
 

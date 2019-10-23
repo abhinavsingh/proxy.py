@@ -33,7 +33,7 @@ class TestWebServerPlugin(unittest.TestCase):
         self.mock_selector = mock_selector
         self.flags = Flags()
         self.flags.plugins = load_plugins(
-            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
@@ -90,7 +90,7 @@ class TestWebServerPlugin(unittest.TestCase):
                 data=None), selectors.EVENT_READ), ]
         flags = Flags()
         flags.plugins = load_plugins(
-            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)
         self.protocol_handler.initialize()
@@ -142,7 +142,7 @@ class TestWebServerPlugin(unittest.TestCase):
             enable_static_server=True,
             static_server_dir=static_server_dir)
         flags.plugins = load_plugins(
-            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
 
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)
@@ -185,7 +185,7 @@ class TestWebServerPlugin(unittest.TestCase):
 
         flags = Flags(enable_static_server=True)
         flags.plugins = load_plugins(
-            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin')
 
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)
@@ -219,7 +219,7 @@ class TestWebServerPlugin(unittest.TestCase):
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
         flags = Flags(pac_file=pac_file)
         flags.plugins = load_plugins(
-            b'proxy.http_proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin,'
+            b'proxy.http.proxy.HttpProxyPlugin,proxy.web_server.HttpWebServerPlugin,'
             b'proxy.web_server.HttpWebServerPacFilePlugin')
         self.protocol_handler = ProtocolHandler(
             self.fileno, self._addr, flags=flags)

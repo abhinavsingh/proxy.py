@@ -139,7 +139,7 @@ def main(input_args: List[str]) -> None:
             default_plugins += 'proxy.devtools.DevtoolsProtocolPlugin,'
             default_plugins += 'proxy.web_server.HttpWebServerPlugin,'
         if not args.disable_http_proxy:
-            default_plugins += 'proxy.http_proxy.HttpProxyPlugin,'
+            default_plugins += 'proxy.http.proxy.HttpProxyPlugin,'
         if args.enable_web_server or \
                 args.pac_file is not None or \
                 args.enable_static_server:

@@ -93,7 +93,7 @@ class TestMain(unittest.TestCase):
         mock_init_parser.assert_called()
         mock_init_parser.return_value.parse_args.called_with([])
 
-        mock_load_plugins.assert_called_with(b'proxy.http_proxy.HttpProxyPlugin,')
+        mock_load_plugins.assert_called_with(b'proxy.http.proxy.HttpProxyPlugin,')
         mock_logging_config.assert_called_with(
             level=logging.INFO,
             format=DEFAULT_LOG_FORMAT

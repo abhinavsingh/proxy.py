@@ -18,16 +18,16 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
-from .common.types import HasFileno
-from .common.flags import Flags
-from .common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
-from .common.utils import build_http_response, text_
-from .core.connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
-from .http.parser import HttpParser, httpParserStates, httpParserTypes
-from .http.methods import httpMethods
-from .status_codes import httpStatusCodes
-from .protocol_handler import ProtocolHandlerPlugin
-from .exception import ProtocolException
+from .parser import HttpParser, httpParserStates, httpParserTypes
+from .methods import httpMethods
+from ..common.types import HasFileno
+from ..common.flags import Flags
+from ..common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
+from ..common.utils import build_http_response, text_
+from ..core.connection import TcpClientConnection, TcpServerConnection, TcpConnectionUninitializedException
+from ..status_codes import httpStatusCodes
+from ..protocol_handler import ProtocolHandlerPlugin
+from ..exception import ProtocolException
 
 logger = logging.getLogger(__name__)
 

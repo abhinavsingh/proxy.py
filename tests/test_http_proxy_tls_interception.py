@@ -17,7 +17,7 @@ from typing import Any
 from unittest import mock
 
 from proxy.protocol_handler import ProtocolHandler
-from proxy.http_proxy import HttpProxyPlugin
+from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.methods import httpMethods
 from proxy.common.utils import build_http_request, bytes_
 from proxy.common.flags import Flags
@@ -27,7 +27,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
 
     @mock.patch('ssl.wrap_socket')
     @mock.patch('ssl.create_default_context')
-    @mock.patch('proxy.http_proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.TcpServerConnection')
     @mock.patch('subprocess.Popen')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
