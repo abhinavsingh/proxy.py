@@ -13,7 +13,7 @@ import ipaddress
 
 from typing import List
 
-from ..version import __version__
+from .version import __version__
 
 __description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
 __author__ = 'Abhinav Singh'

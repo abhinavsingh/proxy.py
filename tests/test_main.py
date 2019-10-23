@@ -27,7 +27,7 @@ from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PI
 from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE
 from proxy.common.constants import DEFAULT_EVENTS_QUEUE, COMMA
-from proxy.version import __version__
+from proxy.common.version import __version__
 
 
 def get_temp_file(name: str) -> str:

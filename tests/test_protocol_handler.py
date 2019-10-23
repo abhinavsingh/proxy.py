@@ -23,7 +23,7 @@ from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
 from proxy.http.handler import ProtocolHandler
 from proxy.main import load_plugins
-from proxy.version import __version__
+from proxy.common.version import __version__
 
 
 class TestHttpProtocolHandler(unittest.TestCase):

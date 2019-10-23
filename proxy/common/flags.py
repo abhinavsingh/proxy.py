@@ -28,8 +28,7 @@ from .constants import DEFAULT_NUM_WORKERS, DEFAULT_VERSION, DEFAULT_OPEN_FILE_L
 from .constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR
 from .constants import DEFAULT_EVENTS_QUEUE, COMMA
 from .constants import __homepage__
-
-from ..version import __version__
+from .version import __version__
 
 
 def init_parser() -> argparse.ArgumentParser:

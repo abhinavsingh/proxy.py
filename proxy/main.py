@@ -20,12 +20,12 @@ from typing import Dict, List, Optional
 
 from .common.flags import Flags, init_parser
 from .common.utils import text_, bytes_
-from .core.acceptor import AcceptorPool
-from .http.handler import ProtocolHandler
 from .common.types import DictQueueType
 from .common.constants import DOT, COMMA
 from .common.constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
-from .version import __version__
+from .common.version import __version__
+from .core.acceptor import AcceptorPool
+from .http.handler import ProtocolHandler
 
 if os.name != 'nt':
     import resource

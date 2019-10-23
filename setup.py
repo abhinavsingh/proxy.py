@@ -9,7 +9,7 @@
 """
 from setuptools import setup, find_packages
 
-from proxy.version import __version__
+from proxy.common.version import __version__
 from proxy.common.constants import __author__, __author_email__, __homepage__, __description__, __download_url__, __license__
 
 setup(
