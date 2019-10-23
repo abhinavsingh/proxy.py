@@ -17,15 +17,17 @@ import logging
 import json
 from typing import Optional, Union, List, Tuple, Dict, Any
 
-from .common.utils import bytes_, text_
-from .common.flags import Flags
-from .http.parser import httpParserStates, httpParserTypes, HttpParser
-from .core.connection import TcpClientConnection
-from .http.server import HttpWebServerBasePlugin, httpProtocolTypes
-from .http.websocket import WebsocketFrame, websocketOpcodes
-from .common.constants import COLON, PROXY_PY_START_TIME
-from .common.types import HasFileno, DictQueueType
-from .http.handler import HttpProtocolHandlerPlugin
+from .parser import httpParserStates, httpParserTypes, HttpParser
+from .server import HttpWebServerBasePlugin, httpProtocolTypes
+from .websocket import WebsocketFrame, websocketOpcodes
+from .handler import HttpProtocolHandlerPlugin
+
+from ..common.constants import COLON, PROXY_PY_START_TIME
+from ..common.types import HasFileno, DictQueueType
+from ..common.utils import bytes_, text_
+from ..common.flags import Flags
+
+from ..core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
 
