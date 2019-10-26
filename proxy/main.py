@@ -65,7 +65,9 @@ def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
             continue
         module_name, klass_name = plugin.rsplit(text_(DOT), 1)
         klass = getattr(
-            importlib.import_module(module_name.replace(os.path.sep, text_(DOT))),
+            importlib.import_module(
+                module_name.replace(
+                    os.path.sep, text_(DOT))),
             klass_name)
         base_klass = inspect.getmro(klass)[1]
         p[bytes_(base_klass.__name__)].append(klass)

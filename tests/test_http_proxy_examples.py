@@ -77,7 +77,8 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.protocol_handler.initialize()
 
     @mock.patch('proxy.http.proxy.TcpServerConnection')
-    def test_modify_post_data_plugin(self, mock_server_conn: mock.Mock) -> None:
+    def test_modify_post_data_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
         original = b'{"key": "value"}'
         modified = b'{"key": "modified"}'
 
@@ -117,7 +118,8 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             self, mock_server_conn: mock.Mock) -> None:
         path = b'/v1/users/'
         self._conn.recv.return_value = build_http_request(
-            b'GET', b'http://%s%s' % (mock_rest_api.ProposedRestApiPlugin.API_SERVER, path),
+            b'GET', b'http://%s%s' % (
+                mock_rest_api.ProposedRestApiPlugin.API_SERVER, path),
             headers={
                 b'Host': mock_rest_api.ProposedRestApiPlugin.API_SERVER,
             }
@@ -136,7 +138,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             build_http_response(
                 httpStatusCodes.OK, reason=b'OK',
                 headers={b'Content-Type': b'application/json'},
-                body=bytes_(json.dumps(mock_rest_api.ProposedRestApiPlugin.REST_API_SPEC[path]))
+                body=bytes_(
+                    json.dumps(
+                        mock_rest_api.ProposedRestApiPlugin.REST_API_SPEC[path]))
             ))
 
     @mock.patch('proxy.http.proxy.TcpServerConnection')
@@ -334,7 +338,9 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
         self.server.has_buffer.side_effect = has_buffer
         type(self.server).closed = mock.PropertyMock(side_effect=closed)
-        type(self.server).connection = mock.PropertyMock(side_effect=mock_connection)
+        type(
+            self.server).connection = mock.PropertyMock(
+            side_effect=mock_connection)
 
         self.mock_selector.return_value.select.side_effect = [
             [(selectors.SelectorKey(
@@ -371,7 +377,9 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         self.mock_popen.assert_called()
         self.mock_server_conn.assert_called_once_with('uni.corn', 443)
         self.server.connect.assert_called()
-        self.assertEqual(self.protocol_handler.client.connection, self.client_ssl_connection)
+        self.assertEqual(
+            self.protocol_handler.client.connection,
+            self.client_ssl_connection)
         self.assertEqual(self.server.connection, self.server_ssl_connection)
         self._conn.send.assert_called_with(
             HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT

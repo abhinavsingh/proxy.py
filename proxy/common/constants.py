@@ -34,7 +34,8 @@ SLASH = b'/'
 HTTP_1_1 = b'HTTP/1.1'
 
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
-PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + __version__.encode('utf-8', 'strict')
+PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + \
+    __version__.encode('utf-8', 'strict')
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
     COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE
 
@@ -70,7 +71,8 @@ DEFAULT_PID_FILE = None
 DEFAULT_PLUGINS = ''
 DEFAULT_PORT = 8899
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
-DEFAULT_STATIC_SERVER_DIR = os.path.join(os.path.dirname(PROXY_PY_DIR), 'public')
+DEFAULT_STATIC_SERVER_DIR = os.path.join(
+    os.path.dirname(PROXY_PY_DIR), 'public')
 DEFAULT_THREADLESS = False
 DEFAULT_TIMEOUT = 10
 DEFAULT_VERSION = False

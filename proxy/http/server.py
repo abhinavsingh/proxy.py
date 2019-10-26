@@ -235,7 +235,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if self.config.enable_static_server:
             path = text_(self.request.path).split('?')[0]
             if os.path.isfile(self.config.static_server_dir + path):
-                return self.serve_file_or_404(self.config.static_server_dir + path)
+                return self.serve_file_or_404(
+                    self.config.static_server_dir + path)
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
@@ -258,7 +259,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     if r == self.request.path:
                         route = self.routes[httpProtocolTypes.WEBSOCKET][r]
                         if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
-                            logger.warning('Client sent connection close packet')
+                            logger.warning(
+                                'Client sent connection close packet')
                             raise HttpProtocolException()
                         else:
                             route.on_websocket_message(frame)
@@ -270,12 +272,14 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.request.is_http_1_1_keep_alive() and \
                 self.route is not None:
             if self.pipeline_request is None:
-                self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
+                self.pipeline_request = HttpParser(
+                    httpParserTypes.REQUEST_PARSER)
             self.pipeline_request.parse(raw)
             if self.pipeline_request.state == httpParserStates.COMPLETE:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive():
-                    logger.error('Pipelined request is not keep-alive, will teardown request...')
+                    logger.error(
+                        'Pipelined request is not keep-alive, will teardown request...')
                     raise HttpProtocolException()
                 self.pipeline_request = None
         return raw

@@ -189,11 +189,14 @@ class WebsocketClient(TcpConnection):
                  path: bytes = b'/',
                  on_message: Optional[Callable[[WebsocketFrame], None]] = None) -> None:
         super().__init__(tcpConnectionTypes.CLIENT)
-        self.hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address] = hostname
+        self.hostname: Union[ipaddress.IPv4Address,
+                             ipaddress.IPv6Address] = hostname
         self.port: int = port
         self.path: bytes = path
-        self.sock: socket.socket = new_socket_connection((str(self.hostname), self.port))
-        self.on_message: Optional[Callable[[WebsocketFrame], None]] = on_message
+        self.sock: socket.socket = new_socket_connection(
+            (str(self.hostname), self.port))
+        self.on_message: Optional[Callable[[
+            WebsocketFrame], None]] = on_message
         self.upgrade()
         self.sock.setblocking(False)
         self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
@@ -256,6 +259,7 @@ class WebsocketClient(TcpConnection):
                 self.selector.unregister(self.sock)
                 self.sock.shutdown(socket.SHUT_WR)
             except Exception as e:
-                logging.exception('Exception while shutdown of websocket client', exc_info=e)
+                logging.exception(
+                    'Exception while shutdown of websocket client', exc_info=e)
             self.sock.close()
         logger.info('done')

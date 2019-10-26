@@ -54,7 +54,8 @@ class HttpProxyBasePlugin(ABC):
         return self.__class__.__name__      # pragma: no cover
 
     @abstractmethod
-    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+    def before_upstream_connection(
+            self, request: HttpParser) -> Optional[HttpParser]:
         """Handler called just before Proxy upstream connection is established.
 
         Return optionally modified request object.
@@ -62,7 +63,8 @@ class HttpProxyBasePlugin(ABC):
         return request  # pragma: no cover
 
     @abstractmethod
-    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+    def handle_client_request(
+            self, request: HttpParser) -> Optional[HttpParser]:
         """Handler called before dispatching client request to upstream.
 
         Note: For pipelined (keep-alive) connections, this handler can be
@@ -189,7 +191,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 # or self.config.tls_interception_enabled():
                 if self.response.state == httpParserStates.COMPLETE:
                     if self.pipeline_response is None:
-                        self.pipeline_response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+                        self.pipeline_response = HttpParser(
+                            httpParserTypes.RESPONSE_PARSER)
                     self.pipeline_response.parse(raw)
                     if self.pipeline_response.state == httpParserStates.COMPLETE:
                         self.pipeline_response = None
@@ -278,7 +281,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.request.method != httpMethods.CONNECT or
                     self.config.tls_interception_enabled()):
                 if self.pipeline_request is None:
-                    self.pipeline_request = HttpParser(httpParserTypes.REQUEST_PARSER)
+                    self.pipeline_request = HttpParser(
+                        httpParserTypes.REQUEST_PARSER)
                 self.pipeline_request.parse(raw)
                 if self.pipeline_request.state == httpParserStates.COMPLETE:
                     for plugin in self.plugins.values():
@@ -300,7 +304,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def generated_cert_file_path(ca_cert_dir: str, host: str) -> str:
         return os.path.join(ca_cert_dir, '%s.pem' % host)
 
-    def generate_upstream_certificate(self, _certificate: Optional[Dict[str, Any]]) -> str:
+    def generate_upstream_certificate(
+            self, _certificate: Optional[Dict[str, Any]]) -> str:
         if not (self.config.ca_cert_dir and self.config.ca_signing_key_file and
                 self.config.ca_cert_file and self.config.ca_key_file):
             raise HttpProtocolException(
@@ -420,7 +425,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection
             # connection headers are meant for communication between client and
             # first intercepting proxy.
-            self.request.add_headers([(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)])
+            self.request.add_headers(
+                [(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)])
             # Disable args.disable_headers before dispatching to upstream
             self.server.queue(
                 self.request.build(

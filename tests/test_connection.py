@@ -99,7 +99,9 @@ class TestTcpConnection(unittest.TestCase):
         conn = TcpServerConnection(
             str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT)
         conn.connect()
-        self.assertEqual(conn.connection, mock_new_socket_connection.return_value)
+        self.assertEqual(
+            conn.connection,
+            mock_new_socket_connection.return_value)
 
     def testTcpServerRaisesTcpConnectionUninitializedException(self) -> None:
         conn = TcpServerConnection(

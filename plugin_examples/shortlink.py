@@ -45,13 +45,15 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
         b'proxy': b'localhost:8899',
     }
 
-    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+    def before_upstream_connection(
+            self, request: HttpParser) -> Optional[HttpParser]:
         if request.host and request.host != b'localhost' and DOT not in request.host:
             # Avoid connecting to upstream
             return None
         return request
 
-    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+    def handle_client_request(
+            self, request: HttpParser) -> Optional[HttpParser]:
         if request.host and request.host != b'localhost' and DOT not in request.host:
             if request.host in self.SHORT_LINKS:
                 path = SLASH if not request.path else request.path

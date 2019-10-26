@@ -18,10 +18,12 @@ from proxy.common.utils import build_http_response
 class ManInTheMiddlePlugin(HttpProxyBasePlugin):
     """Modifies upstream server responses."""
 
-    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+    def before_upstream_connection(
+            self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
-    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+    def handle_client_request(
+            self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:

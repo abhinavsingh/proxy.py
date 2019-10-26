@@ -84,4 +84,6 @@ class TestChunkParser(unittest.TestCase):
         self.assertEqual(self.parser.state, chunkParserStates.COMPLETE)
 
     def test_to_chunks(self) -> None:
-        self.assertEqual(b'f\r\n{"key":"value"}\r\n0\r\n\r\n', ChunkParser.to_chunks(b'{"key":"value"}'))
+        self.assertEqual(
+            b'f\r\n{"key":"value"}\r\n0\r\n\r\n',
+            ChunkParser.to_chunks(b'{"key":"value"}'))

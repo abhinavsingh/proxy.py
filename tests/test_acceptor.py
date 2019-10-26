@@ -88,6 +88,7 @@ class TestAcceptor(unittest.TestCase):
             addr=addr,
             flags=self.flags
         )
-        mock_thread.assert_called_with(target=self.mock_protocol_handler.return_value.run)
+        mock_thread.assert_called_with(
+            target=self.mock_protocol_handler.return_value.run)
         mock_thread.return_value.start.assert_called()
         sock.close.assert_called()

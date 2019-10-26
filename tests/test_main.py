@@ -93,7 +93,8 @@ class TestMain(unittest.TestCase):
         mock_init_parser.assert_called()
         mock_init_parser.return_value.parse_args.called_with([])
 
-        mock_load_plugins.assert_called_with(b'proxy.http.proxy.HttpProxyPlugin,')
+        mock_load_plugins.assert_called_with(
+            b'proxy.http.proxy.HttpProxyPlugin,')
         mock_logging_config.assert_called_with(
             level=logging.INFO,
             format=DEFAULT_LOG_FORMAT
@@ -178,7 +179,9 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.assert_called_with(
             flags=flags,
             work_klass=ProtocolHandler)
-        self.assertEqual(mock_protocol_config.call_args[1]['auth_code'], b'Basic dXNlcjpwYXNz')
+        self.assertEqual(
+            mock_protocol_config.call_args[1]['auth_code'],
+            b'Basic dXNlcjpwYXNz')
 
     @mock.patch('builtins.print')
     def test_main_version(

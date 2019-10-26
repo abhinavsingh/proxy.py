@@ -52,7 +52,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server = mock_server_connection.return_value
         server.connect.return_value = True
         server.buffer_size.return_value = 0
-        self.mock_selector_for_client_read_read_server_write(self.mock_selector, server)
+        self.mock_selector_for_client_read_read_server_write(
+            self.mock_selector, server)
 
         # Send request line
         assert self.http_server_port is not None
@@ -156,7 +157,9 @@ class TestHttpProtocolHandler(unittest.TestCase):
             CRLF
         ])
         self.protocol_handler.run_once()
-        self.assertEqual(self.protocol_handler.client.buffer, ProxyConnectionFailed.RESPONSE_PKT)
+        self.assertEqual(
+            self.protocol_handler.client.buffer,
+            ProxyConnectionFailed.RESPONSE_PKT)
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -243,7 +246,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.connect.return_value = True
         server.buffer_size.return_value = 0
         self._conn = mock_fromfd.return_value
-        self.mock_selector_for_client_read_read_server_write(mock_selector, server)
+        self.mock_selector_for_client_read_read_server_write(
+            mock_selector, server)
 
         flags = Flags(
             auth_code=b'Basic %s' %
@@ -271,7 +275,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.protocol_handler.run_once()
         server.flush.assert_called_once()
 
-    def mock_selector_for_client_read_read_server_write(self, mock_selector: mock.Mock, server: mock.Mock) -> None:
+    def mock_selector_for_client_read_read_server_write(
+            self, mock_selector: mock.Mock, server: mock.Mock) -> None:
         mock_selector.return_value.select.side_effect = [
             [(selectors.SelectorKey(
                 fileobj=self._conn,

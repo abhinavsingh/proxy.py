@@ -85,7 +85,9 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.assertEqual(self.plugin.call_args[0][1].connection, self._conn)
         self.proxy_plugin.assert_called()
         self.assertEqual(self.proxy_plugin.call_args[0][0], self.flags)
-        self.assertEqual(self.proxy_plugin.call_args[0][1].connection, self._conn)
+        self.assertEqual(
+            self.proxy_plugin.call_args[0][1].connection,
+            self._conn)
 
         connect_request = build_http_request(
             httpMethods.CONNECT, bytes_(netloc),
@@ -118,26 +120,33 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         # Assert our mocked plugins invocations
         self.plugin.return_value.get_descriptors.assert_called()
         self.plugin.return_value.write_to_descriptors.assert_called_with([])
-        self.plugin.return_value.on_client_data.assert_called_with(connect_request)
+        self.plugin.return_value.on_client_data.assert_called_with(
+            connect_request)
         self.plugin.return_value.on_request_complete.assert_called()
-        self.plugin.return_value.read_from_descriptors.assert_called_with([self._conn])
+        self.plugin.return_value.read_from_descriptors.assert_called_with([
+                                                                          self._conn])
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
         self.proxy_plugin.return_value.handle_client_request.assert_called()
 
         self.mock_server_conn.assert_called_with(host, port)
-        self.mock_server_conn.return_value.connection.setblocking.assert_called_with(False)
+        self.mock_server_conn.return_value.connection.setblocking.assert_called_with(
+            False)
 
         self.mock_ssl_context.assert_called_with(ssl.Purpose.SERVER_AUTH)
         # self.assertEqual(self.mock_ssl_context.return_value.options,
-        #                  ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
+        # ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 |
+        # ssl.OP_NO_TLSv1_1)
         self.assertEqual(plain_connection.setblocking.call_count, 2)
         self.mock_ssl_context.return_value.wrap_socket.assert_called_with(
             plain_connection, server_hostname=host)
         # TODO: Assert Popen arguments, piping, success condition
         self.assertEqual(self.mock_popen.call_count, 2)
         self.assertEqual(ssl_connection.setblocking.call_count, 1)
-        self.assertEqual(self.mock_server_conn.return_value._conn, ssl_connection)
-        self._conn.send.assert_called_with(HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+        self.assertEqual(
+            self.mock_server_conn.return_value._conn,
+            ssl_connection)
+        self._conn.send.assert_called_with(
+            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         assert self.flags.ca_cert_dir is not None
         self.mock_ssl_wrap.assert_called_with(
             self._conn,
@@ -147,8 +156,14 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
                 self.flags.ca_cert_dir, host)
         )
         self.assertEqual(self._conn.setblocking.call_count, 2)
-        self.assertEqual(self.protocol_handler.client.connection, self.mock_ssl_wrap.return_value)
+        self.assertEqual(
+            self.protocol_handler.client.connection,
+            self.mock_ssl_wrap.return_value)
 
         # Assert connection references for all other plugins is updated
-        self.assertEqual(self.plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
-        self.assertEqual(self.proxy_plugin.return_value.client._conn, self.mock_ssl_wrap.return_value)
+        self.assertEqual(
+            self.plugin.return_value.client._conn,
+            self.mock_ssl_wrap.return_value)
+        self.assertEqual(
+            self.proxy_plugin.return_value.client._conn,
+            self.mock_ssl_wrap.return_value)

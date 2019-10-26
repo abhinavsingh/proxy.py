@@ -249,9 +249,12 @@ class ProtocolHandler(ThreadlessWork):
         if not self.client.has_buffer():
             return
         try:
-            self.selector.register(self.client.connection, selectors.EVENT_WRITE)
+            self.selector.register(
+                self.client.connection,
+                selectors.EVENT_WRITE)
             while self.client.has_buffer():
-                ev: List[Tuple[selectors.SelectorKey, int]] = self.selector.select(timeout=1)
+                ev: List[Tuple[selectors.SelectorKey, int]
+                         ] = self.selector.select(timeout=1)
                 if len(ev) == 0:
                     continue
                 self.client.flush()
@@ -290,7 +293,8 @@ class ProtocolHandler(ThreadlessWork):
             try:
                 client_data = self.client.recv(self.flags.client_recvbuf_size)
             except ssl.SSLWantReadError:    # Try again later
-                logger.warning('SSLWantReadError encountered while reading from client, will retry ...')
+                logger.warning(
+                    'SSLWantReadError encountered while reading from client, will retry ...')
                 return False
             except socket.error as e:
                 if e.errno == errno.ECONNRESET:
@@ -312,7 +316,8 @@ class ProtocolHandler(ThreadlessWork):
                 plugin_index = 0
                 plugins = list(self.plugins.values())
                 while plugin_index < len(plugins) and client_data:
-                    client_data = plugins[plugin_index].on_client_data(client_data)
+                    client_data = plugins[plugin_index].on_client_data(
+                        client_data)
                     if client_data is None:
                         break
                     plugin_index += 1
@@ -320,7 +325,8 @@ class ProtocolHandler(ThreadlessWork):
                 # Don't parse request any further after 1st request has completed.
                 # This specially does happen for pipeline requests.
                 # Plugins can utilize on_client_data for such cases and
-                # apply custom logic to handle request data sent after 1st valid request.
+                # apply custom logic to handle request data sent after 1st
+                # valid request.
                 if client_data and self.request.state != httpParserStates.COMPLETE:
                     # Parse http request
                     self.request.parse(client_data)

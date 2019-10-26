@@ -35,7 +35,8 @@ class CacheResponsesPlugin(HttpProxyBasePlugin):
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 
-    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+    def before_upstream_connection(
+            self, request: HttpParser) -> Optional[HttpParser]:
         # Ideally should only create file if upstream connection succeeds.
         self.cache_file_path = os.path.join(
             self.CACHE_DIR,
@@ -43,7 +44,8 @@ class CacheResponsesPlugin(HttpProxyBasePlugin):
         self.cache_file = open(self.cache_file_path, "wb")
         return request
 
-    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+    def handle_client_request(
+            self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self,

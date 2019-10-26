@@ -44,8 +44,10 @@ class TestAcceptorPool(unittest.TestCase):
             socket.AF_INET6 if acceptor.flags.hostname.version == 6 else socket.AF_INET,
             socket.SOCK_STREAM
         )
-        sock.setsockopt.assert_called_with(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind.assert_called_with((str(acceptor.flags.hostname), acceptor.flags.port))
+        sock.setsockopt.assert_called_with(
+            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind.assert_called_with(
+            (str(acceptor.flags.hostname), acceptor.flags.port))
         sock.listen.assert_called_with(acceptor.flags.backlog)
         sock.setblocking.assert_called_with(False)
 

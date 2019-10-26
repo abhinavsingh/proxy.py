@@ -92,7 +92,9 @@ class AcceptorPool:
         self.socket.bind((str(self.flags.hostname), self.flags.port))
         self.socket.listen(self.flags.backlog)
         self.socket.setblocking(False)
-        logger.info('Listening on %s:%d' % (self.flags.hostname, self.flags.port))
+        logger.info(
+            'Listening on %s:%d' %
+            (self.flags.hostname, self.flags.port))
 
     def start_workers(self) -> None:
         """Start worker processes."""
@@ -186,7 +188,8 @@ class Threadless(multiprocessing.Process):
     async def wait_for_tasks(
             self, tasks: Dict[int, Any]) -> None:
         for work_id in tasks:
-            # TODO: Resolving one handle_events here can block resolution of other tasks
+            # TODO: Resolving one handle_events here can block resolution of
+            # other tasks
             try:
                 teardown = await asyncio.wait_for(tasks[work_id], DEFAULT_TIMEOUT)
                 if teardown:
@@ -232,7 +235,8 @@ class Threadless(multiprocessing.Process):
         # until all the logic below completes.
         #
         # Invoke Threadless.handle_events
-        # TODO: Only send readable / writables that client originally registered.
+        # TODO: Only send readable / writables that client originally
+        # registered.
         tasks = {}
         for fileno in self.works:
             tasks[fileno] = self.loop.create_task(

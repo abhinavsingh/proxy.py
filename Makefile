@@ -52,10 +52,11 @@ lint:
 
 autopep8:
 	autopep8 --recursive --in-place --aggressive proxy/*.py
+	autopep8 --recursive --in-place --aggressive proxy/*/*.py
 	autopep8 --recursive --in-place --aggressive tests/*.py
 	autopep8 --recursive --in-place --aggressive plugin_examples/*.py
 	autopep8 --recursive --in-place --aggressive benchmark/*.py
-	autopep8 --recursive --in-place --aggressive dashboard/dashboard.py
+	autopep8 --recursive --in-place --aggressive dashboard/*.py
 	autopep8 --recursive --in-place --aggressive setup.py
 
 container:

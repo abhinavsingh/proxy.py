@@ -53,12 +53,15 @@ class ProposedRestApiPlugin(HttpProxyBasePlugin):
         },
     }
 
-    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+    def before_upstream_connection(
+            self, request: HttpParser) -> Optional[HttpParser]:
         # Return None to disable establishing connection to upstream
-        # Most likely our api.example.com won't even exist under development scenario
+        # Most likely our api.example.com won't even exist under development
+        # scenario
         return None
 
-    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+    def handle_client_request(
+            self, request: HttpParser) -> Optional[HttpParser]:
         if request.host != self.API_SERVER:
             return request
         assert request.path

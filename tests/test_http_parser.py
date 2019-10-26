@@ -489,7 +489,8 @@ class TestHttpParser(unittest.TestCase):
         ))
         self.assertTrue(self.parser.is_http_1_1_keep_alive())
 
-    def test_is_http_1_1_keep_alive_with_non_close_connection_header(self) -> None:
+    def test_is_http_1_1_keep_alive_with_non_close_connection_header(
+            self) -> None:
         self.parser.parse(build_http_request(
             httpMethods.GET, b'/',
             headers={

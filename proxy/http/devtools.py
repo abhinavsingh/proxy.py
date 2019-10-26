@@ -177,7 +177,8 @@ class DevtoolsProtocolPlugin(HttpProtocolHandlerPlugin):
         self.response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         super().__init__(config, client, request)
 
-    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(
+            self) -> Tuple[List[socket.socket], List[socket.socket]]:
         return [], []
 
     def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:

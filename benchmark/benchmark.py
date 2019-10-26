@@ -36,7 +36,8 @@ def init_parser() -> argparse.ArgumentParser:
         '--n', '-n',
         type=int,
         default=DEFAULT_N,
-        help='Default: ' + str(DEFAULT_N) + '.  See description above for meaning of N.'
+        help='Default: ' + str(DEFAULT_N) +
+        '.  See description above for meaning of N.'
     )
     return parser
 
@@ -45,7 +46,8 @@ class Benchmark:
 
     def __init__(self, n: int = DEFAULT_N) -> None:
         self.n = n
-        self.clients: List[Tuple[asyncio.StreamReader, asyncio.StreamWriter]] = []
+        self.clients: List[Tuple[asyncio.StreamReader,
+                                 asyncio.StreamWriter]] = []
 
     async def open_connections(self) -> None:
         for _ in range(self.n):
@@ -75,9 +77,11 @@ class Benchmark:
             # No more buffer left to parse
             return response, counter + 1
 
-        # For pipelined requests we may have pending buffer, try parse them as responses
+        # For pipelined requests we may have pending buffer, try parse them as
+        # responses
         pipelined_response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        return Benchmark.parse_pipeline_response(pipelined_response, response.buffer, counter + 1)
+        return Benchmark.parse_pipeline_response(
+            pipelined_response, response.buffer, counter + 1)
 
     @staticmethod
     async def recv(idd: int, reader: asyncio.StreamReader) -> None:
@@ -88,7 +92,8 @@ class Benchmark:
         try:
             while True:
                 raw = await reader.read(DEFAULT_BUFFER_SIZE)
-                response, total_parsed = Benchmark.parse_pipeline_response(response, raw)
+                response, total_parsed = Benchmark.parse_pipeline_response(
+                    response, raw)
                 if response.state == httpParserStates.COMPLETE:
                     response = HttpParser(httpParserTypes.RESPONSE_PARSER)
                 if total_parsed > 0:

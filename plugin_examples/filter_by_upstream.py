@@ -20,7 +20,8 @@ class FilterByUpstreamHostPlugin(HttpProxyBasePlugin):
 
     FILTERED_DOMAINS = [b'google.com', b'www.google.com']
 
-    def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+    def before_upstream_connection(
+            self, request: HttpParser) -> Optional[HttpParser]:
         if request.host in self.FILTERED_DOMAINS:
             raise HttpRequestRejected(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT, reason=b'I\'m a tea pot',
@@ -30,7 +31,8 @@ class FilterByUpstreamHostPlugin(HttpProxyBasePlugin):
             )
         return request
 
-    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+    def handle_client_request(
+            self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self, chunk: bytes) -> bytes:

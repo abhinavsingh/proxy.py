@@ -51,6 +51,7 @@ class TestSocketConnectionUtils(unittest.TestCase):
         dummy()     # type: ignore
 
     @mock.patch('proxy.common.utils.new_socket_connection')
-    def test_context_manager(self, mock_new_socket_connection: mock.Mock) -> None:
+    def test_context_manager(
+            self, mock_new_socket_connection: mock.Mock) -> None:
         with socket_connection(self.addr_ipv4) as conn:
             self.assertEqual(conn, mock_new_socket_connection.return_value)

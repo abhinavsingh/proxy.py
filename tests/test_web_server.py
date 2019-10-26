@@ -42,7 +42,10 @@ class TestWebServerPlugin(unittest.TestCase):
     @mock.patch('socket.fromfd')
     def test_pac_file_served_from_disk(
             self, mock_fromfd: mock.Mock, mock_selector: mock.Mock) -> None:
-        pac_file = os.path.join(os.path.dirname(PROXY_PY_DIR), 'helper', 'proxy.pac')
+        pac_file = os.path.join(
+            os.path.dirname(PROXY_PY_DIR),
+            'helper',
+            'proxy.pac')
         self._conn = mock_fromfd.return_value
         self.mock_selector_for_client_read(mock_selector)
         self.init_and_make_pac_file_request(pac_file)
@@ -124,7 +127,8 @@ class TestWebServerPlugin(unittest.TestCase):
             f.write(html_file_content)
 
         self._conn = mock_fromfd.return_value
-        self._conn.recv.return_value = build_http_request(b'GET', b'/index.html')
+        self._conn.recv.return_value = build_http_request(
+            b'GET', b'/index.html')
 
         mock_selector.return_value.select.side_effect = [
             [(selectors.SelectorKey(
@@ -169,7 +173,8 @@ class TestWebServerPlugin(unittest.TestCase):
             mock_fromfd: mock.Mock,
             mock_selector: mock.Mock) -> None:
         self._conn = mock_fromfd.return_value
-        self._conn.recv.return_value = build_http_request(b'GET', b'/not-found.html')
+        self._conn.recv.return_value = build_http_request(
+            b'GET', b'/not-found.html')
 
         mock_selector.return_value.select.side_effect = [
             [(selectors.SelectorKey(

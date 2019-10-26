@@ -219,7 +219,8 @@ def init_parser() -> argparse.ArgumentParser:
         '--timeout',
         type=int,
         default=DEFAULT_TIMEOUT,
-        help='Default: ' + str(DEFAULT_TIMEOUT) + '.  Number of seconds after which '
+        help='Default: ' + str(DEFAULT_TIMEOUT) +
+        '.  Number of seconds after which '
              'an inactive connection must be dropped.  Inactivity is defined by no '
              'data sent or received by the client.'
     )
