@@ -207,9 +207,8 @@ def main(input_args: List[str]) -> None:
     except KeyboardInterrupt:  # pragma: no cover
         pass
     finally:
-        if args.pid_file:
-            if os.path.exists(args.pid_file):
-                os.remove(args.pid_file)
+        if args.pid_file and os.path.exists(args.pid_file):
+            os.remove(args.pid_file)
 
 
 def entry_point() -> None:

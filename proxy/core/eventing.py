@@ -18,7 +18,7 @@ class EventQueueBasePlugin(ABC):
         pass
 
 
-class Lifecycle:
+class Event:
     """Defines various lifecycle events for a connection and provides
     utilities to publish events into global lifecycle events queue.
 
