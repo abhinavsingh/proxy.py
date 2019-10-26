@@ -23,6 +23,7 @@ from .exception import HttpProtocolException
 from ..common.flags import Flags
 from ..common.types import HasFileno
 from ..core.acceptor import ThreadlessWork
+from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
@@ -108,8 +109,10 @@ class ProtocolHandler(ThreadlessWork):
     """
 
     def __init__(self, fileno: int, addr: Tuple[str, int],
-                 flags: Optional[Flags] = None):
-        super().__init__(fileno, addr, flags)
+                 flags: Optional[Flags] = None,
+                 event_queue: Optional[EventQueue] = None,
+                 uid: Optional[bytes] = None):
+        super().__init__(fileno, addr, flags, event_queue, uid)
 
         self.start_time: float = time.time()
         self.last_activity: float = self.start_time
@@ -192,20 +195,20 @@ class ProtocolHandler(ThreadlessWork):
         return False
 
     def shutdown(self) -> None:
-        # Flush pending buffer if any
-        self.flush()
-
-        # Invoke plugin.on_client_connection_close
-        for plugin in self.plugins.values():
-            plugin.on_client_connection_close()
-
-        logger.debug(
-            'Closing client connection %r '
-            'at address %r with pending client buffer size %d bytes' %
-            (self.client.connection, self.client.addr, self.client.buffer_size()))
-
-        conn = self.client.connection
         try:
+            # Flush pending buffer if any
+            self.flush()
+
+            # Invoke plugin.on_client_connection_close
+            for plugin in self.plugins.values():
+                plugin.on_client_connection_close()
+
+            logger.debug(
+                'Closing client connection %r '
+                'at address %r with pending client buffer size %d bytes' %
+                (self.client.connection, self.client.addr, self.client.buffer_size()))
+
+            conn = self.client.connection
             # Unwrap if wrapped before shutdown.
             if self.flags.encryption_enabled() and \
                     isinstance(self.client.connection, ssl.SSLSocket):
@@ -215,8 +218,9 @@ class ProtocolHandler(ThreadlessWork):
         except OSError:
             pass
         finally:
-            conn.close()
+            self.client.connection.close()
             logger.debug('Client connection closed')
+            super().shutdown()
 
     def fromfd(self, fileno: int) -> socket.socket:
         conn = socket.fromfd(

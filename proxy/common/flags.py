@@ -265,8 +265,7 @@ class Flags:
             devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH,
             timeout: int = DEFAULT_TIMEOUT,
             threadless: bool = DEFAULT_THREADLESS,
-            enable_events: bool = DEFAULT_ENABLE_EVENTS,
-            events_queue: Optional[DictQueueType] = DEFAULT_EVENTS_QUEUE) -> None:
+            enable_events: bool = DEFAULT_ENABLE_EVENTS) -> None:
         self.threadless = threadless
         self.timeout = timeout
         self.auth_code = auth_code
@@ -299,7 +298,6 @@ class Flags:
         self.devtools_ws_path: bytes = devtools_ws_path
 
         self.enable_events: bool = enable_events
-        self.events_queue: Optional[DictQueueType] = events_queue
 
         self.proxy_py_data_dir = os.path.join(
             str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)

@@ -9,20 +9,22 @@
 """
 import asyncio
 import contextlib
-import os
-import socket
-import ssl
-import selectors
-import threading
 import logging
 import multiprocessing
+import os
+import selectors
+import socket
+import ssl
+import threading
+import uuid
+from abc import ABC, abstractmethod
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from abc import ABC, abstractmethod
 from typing import List, Optional, Type, Tuple, Dict, Generator, Union, Any
 
-from ..common.flags import Flags
+from .event import EventQueue, EventDispatcher, eventNames
 from ..common.constants import DEFAULT_TIMEOUT
+from ..common.flags import Flags
 from ..common.types import HasFileno
 
 logger = logging.getLogger(__name__)
@@ -36,10 +38,37 @@ class ThreadlessWork(ABC):
             self,
             fileno: int,
             addr: Tuple[str, int],
-            flags: Optional[Flags]) -> None:
+            flags: Optional[Flags],
+            event_queue: Optional[EventQueue] = None,
+            uid: Optional[str] = None) -> None:
         self.fileno = fileno
         self.addr = addr
         self.flags = flags if flags else Flags()
+
+        self.event_queue = event_queue
+        self.uid: str = uid if uid is not None else uuid.uuid4().hex
+
+    def publish_event(
+            self,
+            event_name: int,
+            event_payload: Dict[str, Any],
+            publisher_id: Optional[str] = None) -> None:
+        if not self.flags.enable_events:
+            return
+        self.event_queue.publish(
+            self.uid,
+            event_name,
+            event_payload,
+            publisher_id
+        )
+
+    def shutdown(self) -> None:
+        """Must close any opened resources and call super().shutdown()."""
+        self.publish_event(
+            event_name=eventNames.WORK_FINISHED,
+            event_payload={},
+            publisher_id=self.__class__.__name__
+        )
 
     @abstractmethod
     def initialize(self) -> None:
@@ -59,11 +88,6 @@ class ThreadlessWork(ABC):
                       writables: List[Union[int, HasFileno]]) -> bool:
         """Return True to shutdown work."""
         return False    # pragma: no cover
-
-    @abstractmethod
-    def shutdown(self) -> None:
-        """Must close any opened resources."""
-        pass    # pragma: no cover
 
     @abstractmethod
     def run(self) -> None:
@@ -86,6 +110,13 @@ class AcceptorPool:
         self.work_queues: List[connection.Connection] = []
         self.work_klass = work_klass
 
+        self.event_queue: Optional[EventQueue] = None
+        self.event_dispatcher: Optional[EventDispatcher] = None
+        self.event_dispatcher_thread: Optional[threading.Thread] = None
+        self.event_dispatcher_shutdown: Optional[threading.Event] = None
+        if self.flags.enable_events:
+            self.event_queue = EventQueue()
+
     def listen(self) -> None:
         self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -100,14 +131,33 @@ class AcceptorPool:
         """Start worker processes."""
         for _ in range(self.flags.num_workers):
             work_queue = multiprocessing.Pipe()
-            acceptor = Acceptor(work_queue[1], self.flags, self.work_klass)
+            acceptor = Acceptor(
+                work_queue=work_queue[1],
+                flags=self.flags,
+                work_klass=self.work_klass,
+                event_queue=self.event_queue
+            )
             acceptor.start()
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.flags.num_workers)
 
+    def start_event_dispatcher(self) -> None:
+        self.event_dispatcher_shutdown = threading.Event()
+        self.event_dispatcher = EventDispatcher(
+            shutdown=self.event_dispatcher_shutdown,
+            event_queue=self.event_queue
+        )
+        self.event_dispatcher_thread = threading.Thread(
+            target=self.event_dispatcher.run
+        )
+        self.event_dispatcher_thread.start()
+
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.flags.num_workers)
+        if self.flags.enable_events:
+            self.event_dispatcher_shutdown.set()
+            self.event_dispatcher_thread.join()
         for acceptor in self.acceptors:
             acceptor.join()
         for work_queue in self.work_queues:
@@ -117,6 +167,8 @@ class AcceptorPool:
         """Listen on port, setup workers and pass server socket to workers."""
         self.running = True
         self.listen()
+        if self.flags.enable_events:
+            self.start_event_dispatcher()
         self.start_workers()
 
         # Send server socket to all acceptor processes.
@@ -146,11 +198,13 @@ class Threadless(multiprocessing.Process):
             self,
             client_queue: connection.Connection,
             flags: Flags,
-            work_klass: Type[ThreadlessWork]) -> None:
+            work_klass: Type[ThreadlessWork],
+            event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()
         self.client_queue = client_queue
         self.flags = flags
         self.work_klass = work_klass
+        self.event_queue = event_queue
 
         self.works: Dict[int, ThreadlessWork] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
@@ -203,7 +257,14 @@ class Threadless(multiprocessing.Process):
         self.works[fileno] = self.work_klass(
             fileno=fileno,
             addr=addr,
-            flags=self.flags)
+            flags=self.flags,
+            event_queue=self.event_queue
+        )
+        self.works[fileno].publish_event(
+            event_name=eventNames.WORK_STARTED,
+            event_payload={'fileno': fileno, 'addr': addr},
+            publisher_id=self.__class__.__name__
+        )
         try:
             self.works[fileno].initialize()
             os.close(fileno)
@@ -279,11 +340,13 @@ class Acceptor(multiprocessing.Process):
             self,
             work_queue: connection.Connection,
             flags: Flags,
-            work_klass: Type[ThreadlessWork]) -> None:
+            work_klass: Type[ThreadlessWork],
+            event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()
         self.work_queue: connection.Connection = work_queue
         self.flags = flags
         self.work_klass = work_klass
+        self.event_queue = event_queue
 
         self.running = False
         self.selector: Optional[selectors.DefaultSelector] = None
@@ -292,18 +355,17 @@ class Acceptor(multiprocessing.Process):
         self.threadless_client_queue: Optional[connection.Connection] = None
 
     def start_threadless_process(self) -> None:
-        if not self.flags.threadless:
-            return
         pipe = multiprocessing.Pipe()
         self.threadless_client_queue = pipe[0]
         self.threadless_process = Threadless(
-            pipe[1], self.flags, self.work_klass
+            client_queue=pipe[1],
+            flags=self.flags,
+            work_klass=self.work_klass,
+            event_queue=self.event_queue
         )
         self.threadless_process.start()
 
     def shutdown_threadless_process(self) -> None:
-        if not self.flags.threadless:
-            return
         assert self.threadless_process and self.threadless_client_queue
         self.threadless_process.join()
         self.threadless_client_queue.close()
@@ -323,9 +385,15 @@ class Acceptor(multiprocessing.Process):
             work = self.work_klass(
                 fileno=conn.fileno(),
                 addr=addr,
-                flags=self.flags
+                flags=self.flags,
+                event_queue=self.event_queue
             )
             work_thread = threading.Thread(target=work.run)
+            work.publish_event(
+                event_name=eventNames.WORK_STARTED,
+                event_payload={'fileno': conn.fileno(), 'addr': addr},
+                publisher_id=self.__class__.__name__
+            )
             work_thread.start()
 
     def run_once(self) -> None:
@@ -350,14 +418,16 @@ class Acceptor(multiprocessing.Process):
         )
         try:
             self.selector.register(self.sock, selectors.EVENT_READ)
-            self.start_threadless_process()
+            if self.flags.threadless:
+                self.start_threadless_process()
             while self.running:
                 self.run_once()
         except KeyboardInterrupt:
             pass
         finally:
             self.selector.unregister(self.sock)
-            self.shutdown_threadless_process()
+            if self.flags.threadless:
+                self.shutdown_threadless_process()
             self.sock.close()
             self.work_queue.close()
             self.running = False

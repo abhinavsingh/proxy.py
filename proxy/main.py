@@ -136,7 +136,6 @@ def main(input_args: List[str]) -> None:
 
         default_plugins = ''
         devtools_event_queue: Optional[DictQueueType] = None
-        events_queue: Optional[DictQueueType] = None
         if args.enable_devtools:
             default_plugins += 'proxy.http.devtools.DevtoolsProtocolPlugin,'
             default_plugins += 'proxy.http.server.HttpWebServerPlugin,'
@@ -152,8 +151,6 @@ def main(input_args: List[str]) -> None:
             devtools_event_queue = multiprocessing.Manager().Queue()
         if args.pac_file is not None:
             default_plugins += 'proxy.http.server.HttpWebServerPacFilePlugin,'
-        if args.enable_events:
-            events_queue = multiprocessing.Manager().Queue()
 
         flags = Flags(
             auth_code=auth_code,
@@ -180,8 +177,7 @@ def main(input_args: List[str]) -> None:
             devtools_ws_path=args.devtools_ws_path,
             timeout=args.timeout,
             threadless=args.threadless,
-            enable_events=args.enable_events,
-            events_queue=events_queue)
+            enable_events=args.enable_events)
 
         flags.plugins = load_plugins(
             bytes_(
