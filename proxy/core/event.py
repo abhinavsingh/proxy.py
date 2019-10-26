@@ -14,8 +14,7 @@ import threading
 import multiprocessing
 import logging
 
-from abc import ABC, abstractmethod
-from typing import Dict, Optional, Any, NamedTuple
+from typing import Dict, Optional, Any, NamedTuple, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +24,6 @@ EventNames = NamedTuple('EventNames', [
     ('WORK_FINISHED', int),
 ])
 eventNames = EventNames(1, 2)
-
-
-class EventQueueBasePlugin(ABC):
-
-    @abstractmethod
-    def handle_event(self, ev: Dict[str, Any]) -> None:
-        pass
 
 
 class EventQueue:
@@ -105,6 +97,13 @@ class EventDispatcher:
             event_queue: EventQueue) -> None:
         self.shutdown: threading.Event = shutdown
         self.event_queue: EventQueue = event_queue
+        self.handlers: Dict[str, Callable[[Dict[str, Any]], None]] = {}
+
+    def register_handler(self, name: str, handler: Callable[[Dict[str, Any]], None]):
+        self.handlers[name] = handler
+
+    def unregister_handler(self, name: str):
+        del self.handlers[name]
 
     def run(self):
         try:

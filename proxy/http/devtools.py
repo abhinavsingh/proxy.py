@@ -50,11 +50,11 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
 
     def start_dispatcher(self) -> None:
         self.event_dispatcher_shutdown = threading.Event()
-        assert self.config.devtools_event_queue is not None
+        assert self.flags.devtools_event_queue is not None
         self.event_dispatcher_thread = threading.Thread(
             target=DevtoolsWebsocketPlugin.event_dispatcher,
             args=(self.event_dispatcher_shutdown,
-                  self.config.devtools_event_queue,
+                  self.flags.devtools_event_queue,
                   self.client))
         self.event_dispatcher_thread.start()
 
@@ -89,7 +89,7 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
 
     def routes(self) -> List[Tuple[int, bytes]]:
         return [
-            (httpProtocolTypes.WEBSOCKET, self.config.devtools_ws_path)
+            (httpProtocolTypes.WEBSOCKET, self.flags.devtools_ws_path)
         ]
 
     def handle_request(self, request: HttpParser) -> None:

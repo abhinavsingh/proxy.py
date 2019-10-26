@@ -43,9 +43,9 @@ class HttpWebServerBasePlugin(ABC):
 
     def __init__(
             self,
-            config: Flags,
+            flags: Flags,
             client: TcpClientConnection):
-        self.config = config
+        self.flags = flags
         self.client = client
 
     @abstractmethod
@@ -85,12 +85,12 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
         self.cache_pac_file_response()
 
     def cache_pac_file_response(self) -> None:
-        if self.config.pac_file:
+        if self.flags.pac_file:
             try:
-                with open(self.config.pac_file, 'rb') as f:
+                with open(self.flags.pac_file, 'rb') as f:
                     content = f.read()
             except IOError:
-                content = bytes_(self.config.pac_file)
+                content = bytes_(self.flags.pac_file)
             self.pac_file_response = build_http_response(
                 200, reason=b'OK', headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
@@ -98,15 +98,15 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
             )
 
     def routes(self) -> List[Tuple[int, bytes]]:
-        if self.config.pac_file_url_path:
+        if self.flags.pac_file_url_path:
             return [
-                (httpProtocolTypes.HTTP, bytes_(self.config.pac_file_url_path)),
-                (httpProtocolTypes.HTTPS, bytes_(self.config.pac_file_url_path)),
+                (httpProtocolTypes.HTTP, bytes_(self.flags.pac_file_url_path)),
+                (httpProtocolTypes.HTTPS, bytes_(self.flags.pac_file_url_path)),
             ]
         return []   # pragma: no cover
 
     def handle_request(self, request: HttpParser) -> None:
-        if self.config.pac_file and self.pac_file_response:
+        if self.flags.pac_file and self.pac_file_response:
             self.client.queue(self.pac_file_response)
 
     def on_websocket_open(self) -> None:

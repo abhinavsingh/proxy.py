@@ -41,7 +41,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         if request.path == b'/dashboard/':
             self.client.queue(
                 HttpWebServerPlugin.read_and_build_static_file_response(
-                    os.path.join(self.config.static_server_dir, 'dashboard', 'proxy.html')))
+                    os.path.join(self.flags.static_server_dir, 'dashboard', 'proxy.html')))
         elif request.path in (
                 b'/dashboard',
                 b'/dashboard/proxy.html'):
@@ -68,6 +68,20 @@ class ProxyDashboard(HttpWebServerBasePlugin):
 
         if message['method'] == 'ping':
             self.reply_pong(message['id'])
+        elif message['method'] == 'enable_inspection':
+            # inspection can only be enabled if --enable-events is used
+            if not self.flags.enable_events:
+                self.client.queue(
+                    WebsocketFrame.text(
+                        bytes_(
+                            json.dumps({'id': message['id'], 'response': 'not enabled'})
+                        )
+                    )
+                )
+            else:
+                # Dynamically register a plugin for EventQueueBasePlugin and start
+                # relaying data to frontend.
+                pass
         else:
             logger.info(frame.data)
             logger.info(frame.opcode)
