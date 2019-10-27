@@ -47,8 +47,7 @@ def set_open_file_limit(soft_limit: int) -> None:
             resource.setrlimit(
                 resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit))
             logger.debug(
-                'Open file descriptor soft limit set to %d' %
-                soft_limit)
+                'Open file soft limit set to %d', soft_limit)
 
 
 def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:

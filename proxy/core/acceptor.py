@@ -157,7 +157,7 @@ class AcceptorPool:
             target=self.event_dispatcher.run
         )
         self.event_dispatcher_thread.start()
-        logger.debug('Started global event dispatcher thread %d', self.event_dispatcher_thread.ident)
+        logger.debug('Thread ID: %d', self.event_dispatcher_thread.ident)
 
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.flags.num_workers)
@@ -169,10 +169,7 @@ class AcceptorPool:
             logger.debug('Shutdown of global event dispatcher thread %d successful', self.event_dispatcher_thread.ident)
         for acceptor in self.acceptors:
             acceptor.join()
-        logger.debug('Acceptors shutdown successful')
-        for work_queue in self.work_queues:
-            work_queue.close()
-        logger.debug('Acceptor work queues closed successfully')
+        logger.debug('Acceptors shutdown')
 
     def setup(self) -> None:
         """Listen on port, setup workers and pass server socket to workers."""
@@ -190,6 +187,7 @@ class AcceptorPool:
                 self.socket.fileno(),
                 self.acceptors[index].pid
             )
+            self.work_queues[index].close()
         self.socket.close()
 
 
@@ -377,11 +375,11 @@ class Acceptor(multiprocessing.Process):
             event_queue=self.event_queue
         )
         self.threadless_process.start()
-        logger.debug('Started threadless process: %d', self.threadless_process.pid)
+        logger.debug('Started process %d', self.threadless_process.pid)
 
     def shutdown_threadless_process(self) -> None:
         assert self.threadless_process and self.threadless_client_queue
-        logger.debug('Shutdown threadless process: %d', self.threadless_process.pid)
+        logger.debug('Stopped process %d', self.threadless_process.pid)
         self.threadless_process.join()
         self.threadless_client_queue.close()
 
@@ -426,6 +424,7 @@ class Acceptor(multiprocessing.Process):
         self.running = True
         self.selector = selectors.DefaultSelector()
         fileno = recv_handle(self.work_queue)
+        self.work_queue.close()
         self.sock = socket.fromfd(
             fileno,
             family=self.flags.family,
@@ -444,5 +443,4 @@ class Acceptor(multiprocessing.Process):
             if self.flags.threadless:
                 self.shutdown_threadless_process()
             self.sock.close()
-            self.work_queue.close()
             self.running = False
