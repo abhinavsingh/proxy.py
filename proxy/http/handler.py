@@ -55,10 +55,12 @@ class HttpProtocolHandlerPlugin(ABC):
             self,
             config: Flags,
             client: TcpClientConnection,
-            request: HttpParser):
+            request: HttpParser,
+            event_queue: EventQueue):
         self.config: Flags = config
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
+        self.event_queue = event_queue
         super().__init__()
 
     def name(self) -> str:
@@ -132,7 +134,7 @@ class ProtocolHandler(ThreadlessWork):
             self.client = TcpClientConnection(conn=conn, addr=self.addr)
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
-                instance = klass(self.flags, self.client, self.request)
+                instance = klass(self.flags, self.client, self.request, self.event_queue)
                 self.plugins[instance.name()] = instance
         logger.debug('Handling connection %r' % self.client.connection)
 

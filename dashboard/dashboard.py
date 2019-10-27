@@ -8,19 +8,32 @@
 """
 import os
 import json
+import queue
 import logging
-from typing import List, Tuple
+import threading
+import multiprocessing
+import uuid
+from typing import List, Tuple, Optional
 
 from proxy.http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.http.parser import HttpParser
-from proxy.common.utils import build_http_response, bytes_
 from proxy.http.websocket import WebsocketFrame
 from proxy.http.codes import httpStatusCodes
+from proxy.common.utils import build_http_response, bytes_
+from proxy.core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
 
 
 class ProxyDashboard(HttpWebServerBasePlugin):
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.inspection_enabled: bool = False
+        self.relay_thread: Optional[threading.Thread] = None
+        self.relay_shutdown: Optional[threading.Event] = None
+        self.relay_channel: Optional[queue.Queue] = None
+        self.relay_sub_id: Optional[str] = None
 
     def routes(self) -> List[Tuple[int, bytes]]:
         return [
@@ -79,18 +92,59 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                     )
                 )
             else:
-                # Dynamically register a plugin for EventQueueBasePlugin and start
-                # relaying data to frontend.
-                pass
+                self.inspection_enabled = True
+
+                self.relay_shutdown = threading.Event()
+                self.relay_channel = multiprocessing.Manager().Queue()
+                self.relay_thread = threading.Thread(
+                    target=self.relay_events,
+                    args=(self.relay_shutdown, self.relay_channel, self.client))
+                self.relay_thread.start()
+
+                self.relay_sub_id = uuid.uuid4().hex
+                self.event_queue.subscribe(self.relay_sub_id, self.relay_channel)
+        elif message['method'] == 'disable_inspection':
+            if self.inspection_enabled:
+                self.shutdown_relay()
+            self.inspection_enabled = False
         else:
             logger.info(frame.data)
             logger.info(frame.opcode)
 
+    def shutdown_relay(self):
+        self.relay_shutdown.set()
+        self.relay_thread.join()
+        self.relay_thread = None
+        self.relay_shutdown = None
+        self.relay_channel = None
+        self.relay_sub_id = None
+
     def on_websocket_close(self) -> None:
         logger.info('app ws closed')
+        if self.inspection_enabled:
+            self.shutdown_relay()
 
     def reply_pong(self, idd: int) -> None:
         self.client.queue(
             WebsocketFrame.text(
                 bytes_(
                     json.dumps({'id': idd, 'response': 'pong'}))))
+
+    @staticmethod
+    def relay_events(
+            shutdown: threading.Event,
+            channel: queue.Queue,
+            client: TcpClientConnection) -> None:
+        while not shutdown.is_set():
+            try:
+                ev = channel.get(timeout=1)
+                client.queue(
+                    WebsocketFrame.text(
+                        bytes_(
+                            json.dumps(ev))))
+            except queue.Empty:
+                pass
+            except EOFError:
+                break
+            except KeyboardInterrupt:
+                break

@@ -26,6 +26,7 @@ from ..common.flags import Flags
 from ..common.constants import PROXY_AGENT_HEADER_VALUE
 from ..common.types import HasFileno
 from ..core.connection import TcpClientConnection
+from ..core.event import EventQueue
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +45,11 @@ class HttpWebServerBasePlugin(ABC):
     def __init__(
             self,
             flags: Flags,
-            client: TcpClientConnection):
+            client: TcpClientConnection,
+            event_queue: EventQueue):
         self.flags = flags
         self.client = client
+        self.event_queue = event_queue
 
     @abstractmethod
     def routes(self) -> List[Tuple[int, bytes]]:
@@ -76,11 +79,8 @@ class HttpWebServerBasePlugin(ABC):
 
 class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
-    def __init__(
-            self,
-            config: Flags,
-            client: TcpClientConnection):
-        super().__init__(config, client)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.pac_file_response: Optional[bytes] = None
         self.cache_pac_file_response()
 
@@ -138,10 +138,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
     def __init__(
             self,
-            config: Flags,
-            client: TcpClientConnection,
-            request: HttpParser):
-        super().__init__(config, client, request)
+            *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.start_time: float = time.time()
         self.pipeline_request: Optional[HttpParser] = None
         self.switched_protocol: Optional[int] = None
@@ -154,7 +152,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         if b'HttpWebServerBasePlugin' in self.config.plugins:
             for klass in self.config.plugins[b'HttpWebServerBasePlugin']:
-                instance = klass(self.config, self.client)
+                instance = klass(self.config, self.client, self.event_queue)
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
 

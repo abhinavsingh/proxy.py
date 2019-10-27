@@ -14,7 +14,7 @@ import threading
 import multiprocessing
 import logging
 
-from typing import Dict, Optional, Any, NamedTuple, Callable
+from typing import Dict, Optional, Any, NamedTuple, List
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 EventNames = NamedTuple('EventNames', [
     ('WORK_STARTED', int),
     ('WORK_FINISHED', int),
+    ('SUBSCRIBE', int),
+    ('UNSUBSCRIBE', int),
 ])
-eventNames = EventNames(1, 2)
+eventNames = EventNames(1, 2, 3, 4)
 
 
 class EventQueue:
@@ -65,6 +67,15 @@ class EventQueue:
             'publisher_id': publisher_id,
         })
 
+    def subscribe(
+            self,
+            sub_id: str,
+            channel: queue.Queue):
+        self.queue.put({
+            'event_name': eventNames.SUBSCRIBE,
+            'event_payload': {'sub_id': sub_id, 'channel': channel},
+        })
+
 
 class EventDispatcher:
     """Core EventDispatcher.
@@ -97,20 +108,28 @@ class EventDispatcher:
             event_queue: EventQueue) -> None:
         self.shutdown: threading.Event = shutdown
         self.event_queue: EventQueue = event_queue
-        self.handlers: Dict[str, Callable[[Dict[str, Any]], None]] = {}
-
-    def register_handler(self, name: str, handler: Callable[[Dict[str, Any]], None]):
-        self.handlers[name] = handler
-
-    def unregister_handler(self, name: str):
-        del self.handlers[name]
+        self.subscribers: Dict[str, queue.Queue] = {}
 
     def run(self):
         try:
             while not self.shutdown.is_set():
                 try:
                     ev = self.event_queue.queue.get(timeout=1)
-                    logger.info(ev)
+                    if ev['event_name'] == eventNames.SUBSCRIBE:
+                        self.subscribers[ev['event_payload']['sub_id']] = \
+                            ev['event_payload']['channel']
+                    elif ev['event_name'] == eventNames.UNSUBSCRIBE:
+                        del self.subscribers[ev['event_payload']['sub_id']]
+                    else:
+                        # logger.info(ev)
+                        unsub_ids: List[str] = []
+                        for sub_id in self.subscribers:
+                            try:
+                                self.subscribers[sub_id].put(ev)
+                            except BrokenPipeError:
+                                unsub_ids.append(sub_id)
+                        for sub_id in unsub_ids:
+                            del self.subscribers[sub_id]
                 except queue.Empty:
                     pass
         except EOFError:

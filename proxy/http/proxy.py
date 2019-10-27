@@ -109,10 +109,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def __init__(
             self,
-            config: Flags,
-            client: TcpClientConnection,
-            request: HttpParser):
-        super().__init__(config, client, request)
+            *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.start_time: float = time.time()
         self.server: Optional[TcpServerConnection] = None
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)

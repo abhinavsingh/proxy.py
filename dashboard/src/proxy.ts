@@ -63,9 +63,20 @@ export class ProxyDashboard {
     private apiDevelopment: ApiDevelopment;
 
     constructor () {
-      $('#proxyTopNav>ul>li>a').on('click', switchTab)
+      const that = this
+      $('#proxyTopNav>ul>li>a').on('click', function () {
+        that.switchTab(this)
+      })
       this.apiDevelopment = new ApiDevelopment()
       this.scheduleServerConnect(0)
+    }
+
+    // Outside of ProxyDashboard class since $(this.parentNode) usage complains about the
+    // parentNode attribute on ProxyDashboard class, even when switchTab is bound to the element.
+    private switchTab (element: HTMLElement) {
+      $('#proxyTopNav>ul>li.active').removeClass('active')
+      $(element.parentNode).addClass('active')
+      console.log('%s clicked, id %s', $(element).text().trim(), $(element).attr('id'))
     }
 
     private static getTime () {
@@ -90,7 +101,18 @@ export class ProxyDashboard {
     private onServerWSOpen (ev: MessageEvent) {
       this.clearServerConnectTimer()
       ProxyDashboard.setServerStatusSuccess('Connected...')
+      // this.enableInspection()
       this.scheduleServerPing(0)
+    }
+
+    private enableInspection () {
+      this.ws.send(JSON.stringify({ id: this.mid, method: 'enable_inspection' }))
+      this.mid++
+    }
+
+    private disableInspection () {
+      this.ws.send(JSON.stringify({ id: this.mid, method: 'disable_inspection' }))
+      this.mid++
     }
 
     private clearServerConnectTimer () {
@@ -108,6 +130,8 @@ export class ProxyDashboard {
           String((ProxyDashboard.getTime() - this.lastPingTime) + ' ms'))
         this.clearServerPingTimer()
         this.scheduleServerPing()
+      } else {
+        console.log(message)
       }
     }
 
@@ -157,14 +181,6 @@ export class ProxyDashboard {
       $('#proxyServerStatusSummary').text(
         '(' + summary + ')')
     }
-}
-
-// Outside of ProxyDashboard class since $(this.parentNode) usage complains about the
-// parentNode attribute on ProxyDashboard class, even when switchTab is bound to the element.
-function switchTab () {
-  $('#proxyTopNav>ul>li.active').removeClass('active')
-  $(this.parentNode).addClass('active')
-  console.log('%s clicked', $(this).text().trim())
 }
 
 (window as any).ProxyDashboard = ProxyDashboard
