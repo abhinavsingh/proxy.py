@@ -13,13 +13,14 @@ import logging
 import threading
 import multiprocessing
 import uuid
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 
 from proxy.http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.http.parser import HttpParser
 from proxy.http.websocket import WebsocketFrame
 from proxy.http.codes import httpStatusCodes
 from proxy.common.utils import build_http_response, bytes_
+from proxy.common.types import DictQueueType
 from proxy.core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
@@ -27,12 +28,12 @@ logger = logging.getLogger(__name__)
 
 class ProxyDashboard(HttpWebServerBasePlugin):
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.inspection_enabled: bool = False
         self.relay_thread: Optional[threading.Thread] = None
         self.relay_shutdown: Optional[threading.Event] = None
-        self.relay_channel: Optional[queue.Queue] = None
+        self.relay_channel: Optional[DictQueueType] = None
         self.relay_sub_id: Optional[str] = None
 
     def routes(self) -> List[Tuple[int, bytes]]:
@@ -111,7 +112,9 @@ class ProxyDashboard(HttpWebServerBasePlugin):
             logger.info(frame.data)
             logger.info(frame.opcode)
 
-    def shutdown_relay(self):
+    def shutdown_relay(self) -> None:
+        assert self.relay_shutdown
+        assert self.relay_thread
         self.relay_shutdown.set()
         self.relay_thread.join()
         self.relay_thread = None
@@ -133,7 +136,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
     @staticmethod
     def relay_events(
             shutdown: threading.Event,
-            channel: queue.Queue,
+            channel: DictQueueType,
             client: TcpClientConnection) -> None:
         while not shutdown.is_set():
             try:

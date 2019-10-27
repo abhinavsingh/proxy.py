@@ -26,7 +26,7 @@ from .constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY
 from .constants import DEFAULT_PAC_FILE_URL_PATH, DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
 from .constants import DEFAULT_NUM_WORKERS, DEFAULT_VERSION, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from .constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR
-from .constants import DEFAULT_EVENTS_QUEUE, COMMA
+from .constants import COMMA
 from .constants import __homepage__
 from .version import __version__
 

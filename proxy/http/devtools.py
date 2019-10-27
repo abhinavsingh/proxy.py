@@ -25,7 +25,6 @@ from .handler import HttpProtocolHandlerPlugin
 from ..common.constants import COLON, PROXY_PY_START_TIME
 from ..common.types import HasFileno, DictQueueType
 from ..common.utils import bytes_, text_
-from ..common.flags import Flags
 
 from ..core.connection import TcpClientConnection
 
@@ -40,11 +39,8 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
 
     Dispatcher thread is terminated when Devtools Frontend disconnects."""
 
-    def __init__(
-            self,
-            config: Flags,
-            client: TcpClientConnection):
-        super().__init__(config, client)
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
         self.event_dispatcher_thread: Optional[threading.Thread] = None
         self.event_dispatcher_shutdown: Optional[threading.Event] = None
 
@@ -168,14 +164,10 @@ class DevtoolsProtocolPlugin(HttpProtocolHandlerPlugin):
     frame_id = secrets.token_hex(8)
     loader_id = secrets.token_hex(8)
 
-    def __init__(
-            self,
-            config: Flags,
-            client: TcpClientConnection,
-            request: HttpParser):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
         self.id: str = f'{ os.getpid() }-{ threading.get_ident() }-{ time.time() }'
         self.response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        super().__init__(config, client, request)
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:

@@ -109,7 +109,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def __init__(
             self,
-            *args, **kwargs):
+            *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.start_time: float = time.time()
         self.server: Optional[TcpServerConnection] = None

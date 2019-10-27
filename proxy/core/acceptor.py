@@ -55,6 +55,7 @@ class ThreadlessWork(ABC):
             publisher_id: Optional[str] = None) -> None:
         if not self.flags.enable_events:
             return
+        assert self.event_queue
         self.event_queue.publish(
             self.uid,
             event_name,
@@ -144,6 +145,8 @@ class AcceptorPool:
 
     def start_event_dispatcher(self) -> None:
         self.event_dispatcher_shutdown = threading.Event()
+        assert self.event_dispatcher_shutdown
+        assert self.event_queue
         self.event_dispatcher = EventDispatcher(
             shutdown=self.event_dispatcher_shutdown,
             event_queue=self.event_queue
@@ -156,6 +159,8 @@ class AcceptorPool:
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.flags.num_workers)
         if self.flags.enable_events:
+            assert self.event_dispatcher_shutdown
+            assert self.event_dispatcher_thread
             self.event_dispatcher_shutdown.set()
             self.event_dispatcher_thread.join()
         for acceptor in self.acceptors:

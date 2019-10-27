@@ -113,7 +113,7 @@ class ProtocolHandler(ThreadlessWork):
     def __init__(self, fileno: int, addr: Tuple[str, int],
                  flags: Optional[Flags] = None,
                  event_queue: Optional[EventQueue] = None,
-                 uid: Optional[bytes] = None):
+                 uid: Optional[str] = None):
         super().__init__(fileno, addr, flags, event_queue, uid)
 
         self.start_time: float = time.time()

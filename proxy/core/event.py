@@ -16,6 +16,8 @@ import logging
 
 from typing import Dict, Optional, Any, NamedTuple, List
 
+from ..common.types import DictQueueType
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,7 +33,7 @@ eventNames = EventNames(1, 2, 3, 4)
 class EventQueue:
     """Global event queue."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.queue = multiprocessing.Manager().Queue()
 
@@ -70,7 +72,7 @@ class EventQueue:
     def subscribe(
             self,
             sub_id: str,
-            channel: queue.Queue):
+            channel: DictQueueType) -> None:
         self.queue.put({
             'event_name': eventNames.SUBSCRIBE,
             'event_payload': {'sub_id': sub_id, 'channel': channel},
@@ -108,9 +110,9 @@ class EventDispatcher:
             event_queue: EventQueue) -> None:
         self.shutdown: threading.Event = shutdown
         self.event_queue: EventQueue = event_queue
-        self.subscribers: Dict[str, queue.Queue] = {}
+        self.subscribers: Dict[str, DictQueueType] = {}
 
-    def run(self):
+    def run(self) -> None:
         try:
             while not self.shutdown.is_set():
                 try:

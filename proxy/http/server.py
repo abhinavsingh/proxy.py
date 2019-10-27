@@ -13,7 +13,7 @@ import os
 import mimetypes
 import socket
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional, NamedTuple, Dict, Union
+from typing import List, Tuple, Optional, NamedTuple, Dict, Union, Any
 
 from .exception import HttpProtocolException
 from .websocket import WebsocketFrame, websocketOpcodes
@@ -79,7 +79,7 @@ class HttpWebServerBasePlugin(ABC):
 
 class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.pac_file_response: Optional[bytes] = None
         self.cache_pac_file_response()
@@ -138,7 +138,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
     def __init__(
             self,
-            *args, **kwargs):
+            *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.start_time: float = time.time()
         self.pipeline_request: Optional[HttpParser] = None
