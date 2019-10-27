@@ -96,7 +96,7 @@ class HttpProxyBasePlugin(ABC):
 
 
 class HttpProxyPlugin(HttpProtocolHandlerPlugin):
-    """ProtocolHandler plugin which implements HttpProxy specifications."""
+    """HttpProtocolHandler plugin which implements HttpProxy specifications."""
 
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = build_http_response(
         httpStatusCodes.OK,

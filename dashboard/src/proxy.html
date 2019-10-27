@@ -60,51 +60,53 @@
 </nav>
 
 <div id="app">
-    <div id="app-header">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-6">
-                    <p class="h3">API Development</p>
-                </div>
-                <div class="col-6 text-right">
-                    <button type="button" class="btn btn-primary">
-                        <i class="fa fa-fw fa-plus-circle"></i>
-                        Create New API
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div id="app-body">
-        <div class="list-group position-relative">
-            <a href="#" class="list-group-item default text-decoration-none bg-light"
-               data-toggle="collapse" data-target="#api-example-com-path-specs" data-parent="#app">
-                api.example.com <span class="badge badge-info">3 Resources</span>
-            </a>
-            <button class="position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec"
-                    title="Delete api.example.com"></button>
-            <div id="api-example-com-path-specs" class="collapse api-path-spec">
-                <div class="list-group-item bg-light">
-                    /v1/users/
-                </div>
-                <div class="list-group-item bg-light">
-                    /v1/groups/
-                </div>
-                <div class="list-group-item bg-light">
-                    /v1/messages/
+    <div id="api-development" class="proxy-data">
+        <div id="app-header">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-6">
+                        <p class="h3">API Development</p>
+                    </div>
+                    <div class="col-6 text-right">
+                        <button type="button" class="btn btn-primary">
+                            <i class="fa fa-fw fa-plus-circle"></i>
+                            Create New API
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="list-group position-relative">
-            <a href="#" class="list-group-item default text-decoration-none bg-light"
-               data-toggle="collapse" data-target="#my-api" data-parent="#app">
-                my.api <span class="badge badge-info">1 Resource</span>
-            </a>
-            <button class="position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec"
-                    title="Delete my.api"></button>
-            <div id="my-api" class="collapse api-path-spec">
-                <div class="list-group-item bg-light">
-                    /api/
+        <div id="app-body">
+            <div class="list-group position-relative">
+                <a href="#" class="list-group-item default text-decoration-none bg-light"
+                   data-toggle="collapse" data-target="#api-example-com-path-specs" data-parent="#app">
+                    api.example.com <span class="badge badge-info">3 Resources</span>
+                </a>
+                <button class="position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec"
+                        title="Delete api.example.com"></button>
+                <div id="api-example-com-path-specs" class="collapse api-path-spec">
+                    <div class="list-group-item bg-light">
+                        /v1/users/
+                    </div>
+                    <div class="list-group-item bg-light">
+                        /v1/groups/
+                    </div>
+                    <div class="list-group-item bg-light">
+                        /v1/messages/
+                    </div>
+                </div>
+            </div>
+            <div class="list-group position-relative">
+                <a href="#" class="list-group-item default text-decoration-none bg-light"
+                   data-toggle="collapse" data-target="#my-api" data-parent="#app">
+                    my.api <span class="badge badge-info">1 Resource</span>
+                </a>
+                <button class="position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec"
+                        title="Delete my.api"></button>
+                <div id="my-api" class="collapse api-path-spec">
+                    <div class="list-group-item bg-light">
+                        /api/
+                    </div>
                 </div>
             </div>
         </div>

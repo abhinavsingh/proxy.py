@@ -16,7 +16,7 @@ from unittest import mock
 
 from proxy.main import main
 from proxy.common.utils import bytes_
-from proxy.http.handler import ProtocolHandler
+from proxy.http.handler import HttpProtocolHandler
 
 from proxy.common.constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BASIC_AUTH
 from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
@@ -26,7 +26,7 @@ from proxy.common.constants import DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DE
 from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
 from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE
-from proxy.common.constants import DEFAULT_EVENTS_QUEUE, COMMA
+from proxy.common.constants import COMMA
 from proxy.common.version import __version__
 
 
@@ -66,7 +66,6 @@ class TestMain(unittest.TestCase):
         mock_args.timeout = DEFAULT_TIMEOUT
         mock_args.threadless = DEFAULT_THREADLESS
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
-        mock_args.events_queue = DEFAULT_EVENTS_QUEUE
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.main.load_plugins')
@@ -126,15 +125,14 @@ class TestMain(unittest.TestCase):
             timeout=DEFAULT_TIMEOUT,
             threadless=DEFAULT_THREADLESS,
             enable_events=DEFAULT_ENABLE_EVENTS,
-            events_queue=DEFAULT_EVENTS_QUEUE,
         )
         mock_acceptor_pool.assert_called_with(
             flags=mock_protocol_config.return_value,
-            work_klass=ProtocolHandler,
+            work_klass=HttpProtocolHandler,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()
-        mock_sleep.assert_called_with(1)
+        mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
     @mock.patch('os.remove')
@@ -178,7 +176,7 @@ class TestMain(unittest.TestCase):
         flags = mock_protocol_config.return_value
         mock_acceptor_pool.assert_called_with(
             flags=flags,
-            work_klass=ProtocolHandler)
+            work_klass=HttpProtocolHandler)
         self.assertEqual(
             mock_protocol_config.call_args[1]['auth_code'],
             b'Basic dXNlcjpwYXNz')

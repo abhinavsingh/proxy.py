@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class HttpProtocolHandlerPlugin(ABC):
-    """Base ProtocolHandler Plugin class.
+    """Base HttpProtocolHandler Plugin class.
 
     NOTE: This is an internal plugin and in most cases only useful for core contributors.
     If you are looking for proxy server plugins see `<proxy.HttpProxyBasePlugin>`.
@@ -104,7 +104,7 @@ class HttpProtocolHandlerPlugin(ABC):
         pass  # pragma: no cover
 
 
-class ProtocolHandler(ThreadlessWork):
+class HttpProtocolHandler(ThreadlessWork):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection object and manages HttpProtocolHandlerPlugin invocations.

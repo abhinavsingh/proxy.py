@@ -130,15 +130,17 @@ class AcceptorPool:
 
     def start_workers(self) -> None:
         """Start worker processes."""
-        for _ in range(self.flags.num_workers):
+        for acceptor_id in range(self.flags.num_workers):
             work_queue = multiprocessing.Pipe()
             acceptor = Acceptor(
+                idd=acceptor_id,
                 work_queue=work_queue[1],
                 flags=self.flags,
                 work_klass=self.work_klass,
                 event_queue=self.event_queue
             )
             acceptor.start()
+            logger.debug('Started acceptor process %d', acceptor.pid)
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.flags.num_workers)
@@ -155,6 +157,7 @@ class AcceptorPool:
             target=self.event_dispatcher.run
         )
         self.event_dispatcher_thread.start()
+        logger.debug('Started global event dispatcher thread %d', self.event_dispatcher_thread.ident)
 
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.flags.num_workers)
@@ -163,10 +166,13 @@ class AcceptorPool:
             assert self.event_dispatcher_thread
             self.event_dispatcher_shutdown.set()
             self.event_dispatcher_thread.join()
+            logger.debug('Shutdown of global event dispatcher thread %d successful', self.event_dispatcher_thread.ident)
         for acceptor in self.acceptors:
             acceptor.join()
+        logger.debug('Acceptors shutdown successful')
         for work_queue in self.work_queues:
             work_queue.close()
+        logger.debug('Acceptor work queues closed successfully')
 
     def setup(self) -> None:
         """Listen on port, setup workers and pass server socket to workers."""
@@ -195,7 +201,7 @@ class Threadless(multiprocessing.Process):
     for each accepted client connection, Acceptor process sends
     accepted client connection to Threadless process over a pipe.
 
-    ProtocolHandler implements ThreadlessWork class and hooks into the
+    HttpProtocolHandler implements ThreadlessWork class and hooks into the
     event loop provided by Threadless.
     """
 
@@ -286,7 +292,7 @@ class Threadless(multiprocessing.Process):
             self.cleanup(work_id)
 
     def cleanup(self, work_id: int) -> None:
-        # TODO: ProtocolHandler.shutdown can call flush which may block
+        # TODO: HttpProtocolHandler.shutdown can call flush which may block
         self.works[work_id].shutdown()
         del self.works[work_id]
 
@@ -343,11 +349,13 @@ class Acceptor(multiprocessing.Process):
 
     def __init__(
             self,
+            idd: int,
             work_queue: connection.Connection,
             flags: Flags,
             work_klass: Type[ThreadlessWork],
             event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()
+        self.idd = idd
         self.work_queue: connection.Connection = work_queue
         self.flags = flags
         self.work_klass = work_klass
@@ -369,9 +377,11 @@ class Acceptor(multiprocessing.Process):
             event_queue=self.event_queue
         )
         self.threadless_process.start()
+        logger.debug('Started threadless process: %d', self.threadless_process.pid)
 
     def shutdown_threadless_process(self) -> None:
         assert self.threadless_process and self.threadless_client_queue
+        logger.debug('Shutdown threadless process: %d', self.threadless_process.pid)
         self.threadless_process.join()
         self.threadless_client_queue.close()
 

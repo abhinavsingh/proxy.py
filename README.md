@@ -811,9 +811,9 @@ As you might have guessed by now, in `proxy.py` everything is a plugin.
 
 ## Internal Architecture
 
-- [ProtocolHandler](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1263-L1440) 
+- [HttpProtocolHandler](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1263-L1440) 
 thread is started with the accepted [TcpClientConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L230-L237).
-`ProtocolHandler` is responsible for parsing incoming client request and invoking
+`HttpProtocolHandler` is responsible for parsing incoming client request and invoking
 `HttpProtocolHandlerPlugin` lifecycle hooks.
 
 - `HttpProxyPlugin` which implements `HttpProtocolHandlerPlugin` also has its own plugin 
@@ -821,7 +821,7 @@ mechanism. Its responsibility is to establish connection between client and
 upstream [TcpServerConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L204-L227)
 and invoke `HttpProxyBasePlugin` lifecycle hooks.
 
-- `ProtocolHandler` threads are started by [Acceptor](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
+- `HttpProtocolHandler` threads are started by [Acceptor](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472) 
   processes.
 
 - `--num-workers` `Acceptor` processes are started by 
@@ -830,7 +830,7 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
 
 - `AcceptorPool` listens on server socket and pass the handler to `Acceptor` processes.
   Workers are responsible for accepting new client connections and starting
-  `ProtocolHandler` thread.
+  `HttpProtocolHandler` thread.
 
 ## Sending a Pull Request
 

@@ -59,14 +59,37 @@ class WebsocketApi {
   private serverPingTimer: number;
   private serverConnectTimer: number;
 
+  private inspectionEnabled: boolean;
+
   constructor () {
     this.scheduleServerConnect(0)
+  }
+
+  public enableInspection () {
+    // TODO: Set flag to true only once response has been received from the server
+    this.inspectionEnabled = true
+    this.ws.send(JSON.stringify({ id: this.mid, method: 'enable_inspection' }))
+    this.mid++
+  }
+
+  public disableInspection () {
+    this.inspectionEnabled = false
+    this.ws.send(JSON.stringify({ id: this.mid, method: 'disable_inspection' }))
+    this.mid++
   }
 
   private scheduleServerConnect (after_ms: number = this.scheduleReconnectEveryMs) {
     this.clearServerConnectTimer()
     this.serverConnectTimer = window.setTimeout(
       this.connectToServer.bind(this), after_ms)
+  }
+
+  private connectToServer () {
+    this.ws = new WebSocket(this.wsPath)
+    this.ws.onopen = this.onServerWSOpen.bind(this)
+    this.ws.onmessage = this.onServerWSMessage.bind(this)
+    this.ws.onerror = this.onServerWSError.bind(this)
+    this.ws.onclose = this.onServerWSClose.bind(this)
   }
 
   private clearServerConnectTimer () {
@@ -81,6 +104,14 @@ class WebsocketApi {
     this.clearServerPingTimer()
     this.serverPingTimer = window.setTimeout(
       this.pingServer.bind(this), after_ms)
+  }
+
+  private pingServer () {
+    this.lastPingId = this.mid
+    this.lastPingTime = ProxyDashboard.getTime()
+    this.mid++
+    // console.log('Pinging server with id:%d', this.last_ping_id);
+    this.ws.send(JSON.stringify({ id: this.lastPingId, method: 'ping' }))
   }
 
   private clearServerPingTimer () {
@@ -119,32 +150,6 @@ class WebsocketApi {
     this.scheduleServerConnect()
     ProxyDashboard.setServerStatusDanger()
   }
-
-  private connectToServer () {
-    this.ws = new WebSocket(this.wsPath)
-    this.ws.onopen = this.onServerWSOpen.bind(this)
-    this.ws.onmessage = this.onServerWSMessage.bind(this)
-    this.ws.onerror = this.onServerWSError.bind(this)
-    this.ws.onclose = this.onServerWSClose.bind(this)
-  }
-
-  private pingServer () {
-    this.lastPingId = this.mid
-    this.lastPingTime = ProxyDashboard.getTime()
-    this.mid++
-    // console.log('Pinging server with id:%d', this.last_ping_id);
-    this.ws.send(JSON.stringify({ id: this.lastPingId, method: 'ping' }))
-  }
-
-  private enableInspection () {
-    this.ws.send(JSON.stringify({ id: this.mid, method: 'enable_inspection' }))
-    this.mid++
-  }
-
-  private disableInspection () {
-    this.ws.send(JSON.stringify({ id: this.mid, method: 'disable_inspection' }))
-    this.mid++
-  }
 }
 
 export class ProxyDashboard {
@@ -153,8 +158,9 @@ export class ProxyDashboard {
 
   constructor () {
     this.websocketApi = new WebsocketApi()
+    const that = this
     $('#proxyTopNav>ul>li>a').on('click', function () {
-      ProxyDashboard.switchTab(this)
+      that.switchTab(this)
     })
     this.apiDevelopment = new ApiDevelopment()
   }
@@ -178,12 +184,28 @@ export class ProxyDashboard {
       '(' + summary + ')')
   }
 
-  // Outside of ProxyDashboard class since $(this.parentNode) usage complains about the
-  // parentNode attribute on ProxyDashboard class, even when switchTab is bound to the element.
-  private static switchTab (element: HTMLElement) {
-    $('#proxyTopNav>ul>li.active').removeClass('active')
+  private switchTab (element: HTMLElement) {
+    const activeLi = $('#proxyTopNav>ul>li.active')
+    const activeTabId = activeLi.children('a').attr('id')
+    const clickedTabId = $(element).attr('id')
+
+    activeLi.removeClass('active')
     $(element.parentNode).addClass('active')
-    console.log('%s clicked, id %s', $(element).text().trim(), $(element).attr('id'))
+    console.log('%s clicked, id %s', $(element).text().trim(), clickedTabId)
+
+    // TODO: Tab ids shouldn't be hardcoded.
+    // Templatize proxy.html and refer to tab_id via enum or constants
+    //
+    // 1. Enable inspection if user moved to inspect tab
+    // 2. Disable inspection if user moved away from inspect tab
+    // 3. Do nothing if activeTabId == clickedTabId
+    if (clickedTabId !== activeTabId) {
+      if (clickedTabId === 'proxyInspect') {
+        this.websocketApi.enableInspection()
+      } else if (activeTabId === 'proxyInspect') {
+        this.websocketApi.disableInspection()
+      }
+    }
   }
 }
 

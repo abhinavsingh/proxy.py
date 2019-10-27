@@ -13,7 +13,7 @@ from unittest import mock
 
 from proxy.common.flags import Flags
 from proxy.http.proxy import HttpProxyPlugin
-from proxy.http.handler import ProtocolHandler
+from proxy.http.handler import HttpProtocolHandler
 from proxy.http.exception import HttpProtocolException
 from proxy.common.utils import build_http_request
 
@@ -37,7 +37,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
             b'HttpProxyBasePlugin': [self.plugin]
         }
         self._conn = mock_fromfd.return_value
-        self.protocol_handler = ProtocolHandler(
+        self.protocol_handler = HttpProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
 

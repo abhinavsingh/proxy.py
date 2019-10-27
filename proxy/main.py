@@ -25,7 +25,7 @@ from .common.constants import DOT, COMMA
 from .common.constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
 from .common.version import __version__
 from .core.acceptor import AcceptorPool
-from .http.handler import ProtocolHandler
+from .http.handler import HttpProtocolHandler
 
 if os.name != 'nt':
     import resource
@@ -186,7 +186,7 @@ def main(input_args: List[str]) -> None:
 
         acceptor_pool = AcceptorPool(
             flags=flags,
-            work_klass=ProtocolHandler
+            work_klass=HttpProtocolHandler
         )
 
         if args.pid_file:
@@ -197,7 +197,7 @@ def main(input_args: List[str]) -> None:
             acceptor_pool.setup()
             # TODO: Introduce cron feature instead of mindless sleep
             while True:
-                time.sleep(1)
+                time.sleep(2**10)
         except Exception as e:
             logger.exception('exception', exc_info=e)
         finally:

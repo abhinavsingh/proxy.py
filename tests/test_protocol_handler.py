@@ -21,7 +21,7 @@ from proxy.http.parser import HttpParser
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
-from proxy.http.handler import ProtocolHandler
+from proxy.http.handler import HttpProtocolHandler
 from proxy.main import load_plugins
 from proxy.common.version import __version__
 
@@ -43,7 +43,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.mock_selector = mock_selector
-        self.protocol_handler = ProtocolHandler(
+        self.protocol_handler = HttpProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
 
@@ -174,7 +174,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
                       base64.b64encode(b'user:pass'))
         flags.plugins = load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
-        self.protocol_handler = ProtocolHandler(
+        self.protocol_handler = HttpProtocolHandler(
             self.fileno, self._addr, flags=flags)
         self.protocol_handler.initialize()
         self._conn.recv.return_value = CRLF.join([
@@ -207,7 +207,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags.plugins = load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
-        self.protocol_handler = ProtocolHandler(
+        self.protocol_handler = HttpProtocolHandler(
             self.fileno, addr=self._addr, flags=flags)
         self.protocol_handler.initialize()
         assert self.http_server_port is not None
@@ -255,7 +255,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags.plugins = load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
-        self.protocol_handler = ProtocolHandler(
+        self.protocol_handler = HttpProtocolHandler(
             self.fileno, self._addr, flags=flags)
         self.protocol_handler.initialize()
 

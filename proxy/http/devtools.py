@@ -154,7 +154,7 @@ class DevtoolsWebsocketPlugin(HttpWebServerBasePlugin):
 
 class DevtoolsProtocolPlugin(HttpProtocolHandlerPlugin):
     """
-    DevtoolsProtocolPlugin taps into core `ProtocolHandler`
+    DevtoolsProtocolPlugin taps into core `HttpProtocolHandler`
     events and converts them into Devtools Protocol json messages.
 
     A DevtoolsProtocolPlugin instance is created per request.

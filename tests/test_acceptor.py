@@ -20,11 +20,13 @@ from proxy.core.acceptor import Acceptor
 class TestAcceptor(unittest.TestCase):
 
     def setUp(self) -> None:
+        self.acceptor_id = 1
         self.mock_protocol_handler = mock.MagicMock()
         self.pipe = multiprocessing.Pipe()
         self.flags = Flags()
         self.acceptor = Acceptor(
-            self.pipe[1],
+            idd=self.acceptor_id,
+            work_queue=self.pipe[1],
             flags=self.flags,
             work_klass=self.mock_protocol_handler)
 
@@ -86,7 +88,8 @@ class TestAcceptor(unittest.TestCase):
         self.mock_protocol_handler.assert_called_with(
             fileno=conn.fileno(),
             addr=addr,
-            flags=self.flags
+            flags=self.flags,
+            event_queue=None,
         )
         mock_thread.assert_called_with(
             target=self.mock_protocol_handler.return_value.run)

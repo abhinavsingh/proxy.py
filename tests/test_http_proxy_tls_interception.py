@@ -16,7 +16,7 @@ import selectors
 from typing import Any
 from unittest import mock
 
-from proxy.http.handler import ProtocolHandler
+from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.methods import httpMethods
 from proxy.common.utils import build_http_request, bytes_
@@ -76,7 +76,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             b'HttpProxyBasePlugin': [self.proxy_plugin],
         }
         self._conn = mock_fromfd.return_value
-        self.protocol_handler = ProtocolHandler(
+        self.protocol_handler = HttpProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
 

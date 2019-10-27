@@ -120,7 +120,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
 
 class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
-    """ProtocolHandler plugin which handles incoming requests to local web server."""
+    """HttpProtocolHandler plugin which handles incoming requests to local web server."""
 
     DEFAULT_404_RESPONSE = build_http_response(
         httpStatusCodes.NOT_FOUND,
