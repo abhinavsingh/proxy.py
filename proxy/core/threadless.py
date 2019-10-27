@@ -34,21 +34,6 @@ logger = logging.getLogger(__name__)
 class ThreadlessWork(ABC):
     """Implement ThreadlessWork to hook into the event loop provided by Threadless process."""
 
-    @abstractmethod
-    def __init__(
-            self,
-            fileno: int,
-            addr: Tuple[str, int],
-            flags: Optional[Flags],
-            event_queue: Optional[EventQueue] = None,
-            uid: Optional[str] = None) -> None:
-        self.fileno = fileno
-        self.addr = addr
-        self.flags = flags if flags else Flags()
-
-        self.event_queue = event_queue
-        self.uid: str = uid if uid is not None else uuid.uuid4().hex
-
     def publish_event(
             self,
             event_name: int,
@@ -71,6 +56,21 @@ class ThreadlessWork(ABC):
             event_payload={},
             publisher_id=self.__class__.__name__
         )
+
+    @abstractmethod
+    def __init__(
+            self,
+            fileno: int,
+            addr: Tuple[str, int],
+            flags: Optional[Flags],
+            event_queue: Optional[EventQueue] = None,
+            uid: Optional[str] = None) -> None:
+        self.fileno = fileno
+        self.addr = addr
+        self.flags = flags if flags else Flags()
+
+        self.event_queue = event_queue
+        self.uid: str = uid if uid is not None else uuid.uuid4().hex
 
     @abstractmethod
     def initialize(self) -> None:

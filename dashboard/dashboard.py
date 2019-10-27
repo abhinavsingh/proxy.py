@@ -33,6 +33,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         self.inspection_enabled: bool = False
         self.relay_thread: Optional[threading.Thread] = None
         self.relay_shutdown: Optional[threading.Event] = None
+        self.relay_manager: Optional[multiprocessing.Manager] = None
         self.relay_channel: Optional[DictQueueType] = None
         self.relay_sub_id: Optional[str] = None
 
@@ -96,7 +97,8 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                 self.inspection_enabled = True
 
                 self.relay_shutdown = threading.Event()
-                self.relay_channel = multiprocessing.Manager().Queue()
+                self.relay_manager = multiprocessing.Manager()
+                self.relay_channel = self.relay_manager.Queue()
                 self.relay_thread = threading.Thread(
                     target=self.relay_events,
                     args=(self.relay_shutdown, self.relay_channel, self.client))
@@ -113,10 +115,15 @@ class ProxyDashboard(HttpWebServerBasePlugin):
             logger.info(frame.opcode)
 
     def shutdown_relay(self) -> None:
+        assert self.relay_manager
         assert self.relay_shutdown
         assert self.relay_thread
+
         self.relay_shutdown.set()
         self.relay_thread.join()
+        self.relay_manager.shutdown()
+
+        self.relay_manager = None
         self.relay_thread = None
         self.relay_shutdown = None
         self.relay_channel = None
