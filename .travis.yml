@@ -20,7 +20,7 @@ matrix:
         - PATH=/c/Python37:/c/Python37/Scripts:$PATH
         - TESTING_ON_TRAVIS=1
 install:
-  - pip3 install -r requirements-testing.txt
+  - python3 -m pip install -r requirements-testing.txt || python -m pip install -r requirements-testing.txt
 script: python3 -m pytest --cov=proxy tests/ || python -m pytest --cov=proxy tests/
 after_success:
   - coveralls
