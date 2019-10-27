@@ -33,7 +33,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         self.inspection_enabled: bool = False
         self.relay_thread: Optional[threading.Thread] = None
         self.relay_shutdown: Optional[threading.Event] = None
-        self.relay_manager: Optional[multiprocessing.Manager] = None
+        self.relay_manager: Optional[multiprocessing.managers.SyncManager] = None
         self.relay_channel: Optional[DictQueueType] = None
         self.relay_sub_id: Optional[str] = None
 
