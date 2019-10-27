@@ -23,14 +23,17 @@ export class ProxyDashboard {
   private controls: Controls
 
   constructor () {
-    this.websocketApi = new WebsocketApi()
+   
     const that = this
     $('#proxyTopNav>ul>li>a').on('click', function () {
       that.switchTab(this)
     })
-    this.apiDevelopment = new ApiDevelopment()
     this.home = new Home();
+    this.apiDevelopment = new ApiDevelopment();
+    this.websocketApi = new WebsocketApi()
     this.shortLinks = new ShortLinks();
+    this.controls = new Controls();
+    this.settings = new Settings();
   }
 
   public static getTime () {
@@ -68,8 +71,7 @@ export class ProxyDashboard {
     // 2. Disable inspection if user moved away from inspect tab
     // 3. Do nothing if activeTabId == clickedTabId
     if (clickedTabId !== activeTabId) {
-      //deactivateAll()
-      console.log("%s",clickedTabId);
+      //deactivateAll
       this.websocketApi.disable(); 
       this.apiDevelopment.disable();
       this.home.disable();
