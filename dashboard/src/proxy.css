@@ -33,3 +33,15 @@
 .proxy-data {
     display: none;
 }
+
+.app-tab {
+    display: none;
+    text-align: center;
+}
+
+.app-tab h1 {
+    display: inline-block;
+    font-size: 100px;
+    
+    margin-top: 20%; 
+}

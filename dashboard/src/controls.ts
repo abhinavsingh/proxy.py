@@ -1,5 +1,5 @@
 export class Controls {
-    
+    private name = "proxyControls"
   
     constructor () {
       
@@ -7,11 +7,10 @@ export class Controls {
  
 
     public enable(){
-
+      $("#"+ this.name + "Section").show();
     }
     
     public disable(){
-
+      $("#"+ this.name + "Section").hide();
     }
-
 }

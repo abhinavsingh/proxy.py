@@ -1,4 +1,5 @@
 export class WebsocketApi {
+    private name:string = "proxyInspect"
     private hostname: string = 'localhost';
     private port: number = 8899;
     private wsPrefix: string = '/dashboard';
@@ -108,13 +109,18 @@ export class WebsocketApi {
       ProxyDashboard.setServerStatusDanger()
     }
 
+    
+     
 
     public enable(){
+      
       this.enableInspection();
+      $("#"+ this.name +"Section").show();
     }
     
     public disable(){
       this.disableInspection();
+      $("#"+ this.name + "Section").hide();
     }
 
     

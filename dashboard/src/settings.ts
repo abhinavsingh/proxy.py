@@ -1,5 +1,5 @@
 export class Settings {
-    
+    private name:string = "proxySettings"
   
     constructor () {
       
@@ -7,11 +7,11 @@ export class Settings {
  
 
     public enable(){
-
+      $("#"+ this.name + "Section").show();
     }
     
     public disable(){
-
+      $("#"+ this.name + "Section").hide();
     }
 
 }

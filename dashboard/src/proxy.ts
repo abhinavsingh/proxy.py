@@ -15,12 +15,13 @@ import {Settings} from "./settings"
 
 
 export class ProxyDashboard {
-  private websocketApi: WebsocketApi
-  private apiDevelopment: ApiDevelopment
+  
   private home : Home
+  private apiDevelopment: ApiDevelopment
+  private websocketApi: WebsocketApi
   private shortLinks: ShortLinks
-  private settings: Settings
   private controls: Controls
+  private settings: Settings 
 
   constructor () {
    
@@ -72,9 +73,9 @@ export class ProxyDashboard {
     // 3. Do nothing if activeTabId == clickedTabId
     if (clickedTabId !== activeTabId) {
       //deactivateAll
-      this.websocketApi.disable(); 
-      this.apiDevelopment.disable();
       this.home.disable();
+      this.apiDevelopment.disable();
+      this.websocketApi.disable();  
       this.shortLinks.disable();
       this.controls.disable();
       this.settings.disable();

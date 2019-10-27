@@ -1,4 +1,5 @@
 export class ShortLinks {
+    private name:string = "proxyShortLinks"
     private links: Map<string, string>;
   
     constructor () {
@@ -11,11 +12,11 @@ export class ShortLinks {
     }
 
     public enable(){
-
+      $("#"+ this.name + "Section").show();
     }
     
     public disable(){
-
+      $("#"+ this.name + "Section").hide();
     }
 
 

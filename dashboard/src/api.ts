@@ -1,6 +1,7 @@
 export class ApiDevelopment {
+    private name:string = "proxyApiDevelopment"
     private specs: Map<string, Map<string, JSON>>;
-  
+   
     constructor () {
       this.specs = new Map()
       this.fetchExistingSpecs()
@@ -32,11 +33,12 @@ export class ApiDevelopment {
     }
 
     public enable(){
-
+      $("#"+ this.name + "Section").show();
     }
     
     public disable(){
-
+      $("#"+ this.name + "Section").hide();
     }
+
 
 }
