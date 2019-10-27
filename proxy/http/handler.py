@@ -22,7 +22,7 @@ from .exception import HttpProtocolException
 
 from ..common.flags import Flags
 from ..common.types import HasFileno
-from ..core.acceptor import ThreadlessWork
+from ..core.threadless import ThreadlessWork
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 
