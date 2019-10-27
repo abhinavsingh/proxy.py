@@ -343,7 +343,7 @@ class Acceptor(multiprocessing.Process):
     starts a new work thread.
     """
 
-    lock = multiprocessing.Manager().Lock()
+    lock = multiprocessing.Lock()
 
     def __init__(
             self,
