@@ -12,6 +12,7 @@ import multiprocessing
 import selectors
 import socket
 import threading
+# import time
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from typing import List, Optional, Type, Tuple
@@ -200,8 +201,9 @@ class Acceptor(multiprocessing.Process):
                 return
             conn, addr = self.sock.accept()
         # now = time.time()
+        # fileno: int = conn.fileno()
         self.start_work(conn, addr)
-        # logger.info('work started in %f seconds', time.time() - now)
+        # logger.info('Work started for fd %d in %f seconds', fileno, time.time() - now)
 
     def run(self) -> None:
         self.running = True

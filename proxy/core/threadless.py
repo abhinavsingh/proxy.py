@@ -182,7 +182,6 @@ class Threadless(multiprocessing.Process):
         )
         try:
             self.works[fileno].initialize()
-            os.close(fileno)
         except ssl.SSLError as e:
             logger.exception('ssl.SSLError', exc_info=e)
             self.cleanup(fileno)
@@ -199,6 +198,7 @@ class Threadless(multiprocessing.Process):
         # TODO: HttpProtocolHandler.shutdown can call flush which may block
         self.works[work_id].shutdown()
         del self.works[work_id]
+        os.close(work_id)
 
     def run_once(self) -> None:
         assert self.loop is not None
