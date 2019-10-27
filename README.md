@@ -34,14 +34,16 @@ Table of Contents
     * [Stable version](#stable-version)
     * [Development version](#development-version)
 * [Start proxy.py](#start-proxypy)
-    * [Command Line](#command-line)
+    * [From command line when installed using PIP](#from-command-line-when-installed-using-pip)
+    * [From command line using repo source](#from-command-line-using-repo-source)
     * [Docker Image](#docker-image)
         * [Stable version](#stable-version-from-docker-hub)
         * [Development version](#build-development-version-locally)
+        * [Customize Startup Flags](#customize-startup-flags)
 * [Plugin Examples](#plugin-examples)
     * [ShortLinkPlugin](#shortlinkplugin)
     * [ModifyPostDataPlugin](#modifypostdataplugin)
-    * [ProposedRestApiPlugin](#proposedrestapiplugin)
+    * [MockRestApiPlugin](#mockrestapiplugin)
     * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
     * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
     * [CacheResponsesPlugin](#cacheresponsesplugin)
@@ -67,6 +69,7 @@ Table of Contents
     * [Internal Documentation](#internal-documentation)
     * [Sending a Pull Request](#sending-a-pull-request)
 * [Frequently Asked Questions](#frequently-asked-questions)
+    * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
     * [Basic auth not working with a browser](#basic-auth-not-working-with-a-browser)
     * [Docker image not working on MacOS](#docker-image-not-working-on-macos)
@@ -151,7 +154,7 @@ For `Docker` installation see [Docker Image](#docker-image).
 Start proxy.py
 ==============
 
-## Command line
+## From command line when installed using PIP
 
 Simply type `proxy` on command line to start it with default configuration.
 
@@ -164,11 +167,11 @@ $ proxy
 
 Things to notice from above logs:
 
-- `Loaded plugin` - `proxy.py` will load `proxy.http_proxy.HttpProxyPlugin` by default.
+- `Loaded plugin` - `proxy.py` will load `proxy.http.proxy.HttpProxyPlugin` by default.
   As name suggests, this core plugin adds `http(s)` proxy server capabilities to `proxy.py`
 
-- `Started N workers` - Use `--num-workers` flag to customize number of `Acceptor` processes. 
-  By default, `proxy.py` will start as many acceptors as there are CPU cores on the machine.
+- `Started N workers` - Use `--num-workers` flag to customize number of worker processes. 
+  By default, `proxy.py` will start as many workers as there are CPU cores on the machine.
 
 - `Started server on ::1:8899` - By default, `proxy.py` listens on IPv6 `::1`, which 
   is equivalent of IPv4 `127.0.0.1`.  If you want to access `proxy.py` externally, 
@@ -197,6 +200,24 @@ As we can see, before starting up:
 
 See [flags](#flags) for full list of available configuration options.
 
+## From command line using repo source
+
+When `proxy.py` is installed using `pip`,
+a binary file named `proxy` is added under the `bin` folder.
+
+If you are trying to run `proxy.py` from source code,
+there is no binary file named `proxy` in the source code.
+To start `proxy.py` from source code, use:
+
+```
+$ git clone https://github.com/abhinavsingh/proxy.py.git
+$ cd proxy.py
+$ python -m proxy
+```
+
+Also see [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
+if you plan to work with `proxy.py` source code.
+
 ## Docker image
 
 #### Stable Version from Docker Hub
@@ -209,6 +230,8 @@ See [flags](#flags) for full list of available configuration options.
     $ cd proxy.py
     $ make container
     $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
+
+### Customize startup flags
 
 By default `docker` binary is started with IPv4 networking flags:
 
@@ -228,7 +251,7 @@ For example, to check `proxy.py` version within Docker image:
 Plugin Examples
 ===============
 
-See [plugin_examples.py](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py) for full code.
+See [plugin_examples](https://github.com/abhinavsingh/proxy.py/tree/develop/plugin_examples) for full code.
 
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
 See [TLS Interception](#tls-interception).
@@ -241,7 +264,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples.ShortLinkPlugin
+    --plugins plugin_examples/shortlink.ShortLinkPlugin
 ```
 
 Now you can speed up your daily browsing experience by visiting your
@@ -270,7 +293,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples.ModifyPostDataPlugin
+    --plugins plugin_examples/modify_post_data.ModifyPostDataPlugin
 ```
 
 By default plugin replaces POST body content with hardcoded `b'{"key": "modified"}'`
@@ -303,7 +326,7 @@ Note following from the response above:
 
 1. POST data was modified `"data": "{\"key\": \"modified\"}"`.
    Original `curl` command data was `{"key": "value"}`.
-2. Our `curl` command didn't add any `Content-Type` header,
+2. Our `curl` command did not add any `Content-Type` header,
    but our plugin did add one `"Content-Type": "application/json"`.
    Same can also be verified by looking at `json` field in the output above:
    ```
@@ -314,7 +337,7 @@ Note following from the response above:
 3. Our plugin also added a `Content-Length` header to match length
    of modified body.
 
-## ProposedRestApiPlugin
+## MockRestApiPlugin
 
 Mock responses for your server REST API.
 Use to test and develop client side applications
@@ -324,7 +347,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples.ProposedRestApiPlugin
+    --plugins plugin_examples/mock_rest_api.ProposedRestApiPlugin
 ```
 
 Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1/users/`
@@ -356,7 +379,7 @@ Start `proxy.py` and enable inbuilt web server:
 ```
 $ proxy \
     --enable-web-server \
-    --plugins plugin_examples.RedirectToCustomServerPlugin
+    --plugins plugin_examples/redirect_to_custom_server.RedirectToCustomServerPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`
@@ -389,7 +412,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples.FilterByUpstreamHostPlugin
+    --plugins plugin_examples/filter_by_upstream.FilterByUpstreamHostPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`:
@@ -422,7 +445,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples.CacheResponsesPlugin
+    --plugins plugin_examples/cache_responses.CacheResponsesPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
@@ -498,7 +521,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples.ManInTheMiddlePlugin
+    --plugins plugin_examples/man_in_the_middle.ManInTheMiddlePlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`:
@@ -580,7 +603,7 @@ response from the server. Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples.CacheResponsesPlugin \
+    --plugins plugin_examples/cache_responses.CacheResponsesPlugin \
     --ca-key-file ca-key.pem \
     --ca-cert-file ca-cert.pem \
     --ca-signing-key-file ca-signing-key.pem
@@ -837,54 +860,25 @@ Example:
 ```
 $ pydoc3 proxy
 
-CLASSES
-    abc.ABC(builtins.object)
-        HttpProxyBasePlugin
-        HttpWebServerBasePlugin
-            DevtoolsWebsocketPlugin
-            HttpWebServerPacFilePlugin
-        HttpProtocolHandlerPlugin
-            DevtoolsProtocolPlugin
-            HttpProxyPlugin
-            HttpWebServerPlugin
-        TcpConnection
-            TcpClientConnection
-            TcpServerConnection
-            WebsocketClient
-        ThreadlessWork
-            ProtocolHandler(threading.Thread, ThreadlessWork)
-    builtins.Exception(builtins.BaseException)
-        HttpProtocolException
-            HttpRequestRejected
-            ProxyAuthenticationFailed
-            ProxyConnectionFailed
-        TcpConnectionUninitializedException
-    builtins.object
-        AcceptorPool
-        ChunkParser
-        HttpParser
-        Flags
-        WebsocketFrame
-    builtins.tuple(builtins.object)
-        ChunkParserStates
-        HttpMethods
-        HttpParserStates
-        HttpParserTypes
-        HttpProtocolTypes
-        HttpStatusCodes
-        TcpConnectionTypes
-        WebsocketOpcodes
-    contextlib.ContextDecorator(builtins.object)
-        socket_connection
-    multiprocessing.context.Process(multiprocessing.process.BaseProcess)
-        Acceptor
-        Threadless
-    threading.Thread(builtins.object)
-        ProtocolHandler(threading.Thread, ThreadlessWork)
+PACKAGE CONTENTS
+    __main__
+    common (package)
+    core (package)
+    http (package)
+    main
+
+FILE
+    /Users/abhinav/Dev/proxy.py/proxy/__init__.py
 ```
 
 Frequently Asked Questions
 ==========================
+
+## SyntaxError: invalid syntax
+
+Make sure you are using `Python 3`. Verify the version before running `proxy.py`:
+
+`$ python --version`
 
 ## Unable to connect with proxy.py from remote host
 
