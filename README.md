@@ -76,6 +76,7 @@ Table of Contents
     * [Unable to load custom plugins](#unable-to-load-custom-plugins)
     * [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
 * [Flags](#flags)
+* [Changelog](#changelog)
 
 Features
 ========
@@ -1079,3 +1080,20 @@ optional arguments:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
+
+Changelog
+=========
+
+- `v2.x`
+    - No longer ~~a single file module~~.
+    - Added dashboard app.
+- `v1.x`
+    - `Python3` only.
+        - Deprecated support for ~~Python 2.x~~.
+    - Added support for multi accept.
+    - Added plugin support.
+- `v0.x`
+    - Single file.
+    - Single threaded server.
+
+For detailed changelog refer
