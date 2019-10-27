@@ -30,4 +30,13 @@ export class ApiDevelopment {
       })
       this.specs.set('api.example.org', apiExampleOrgSpec)
     }
+
+    public enable(){
+
+    }
+    
+    public disable(){
+
+    }
+
 }

@@ -107,4 +107,15 @@ export class WebsocketApi {
       this.scheduleServerConnect()
       ProxyDashboard.setServerStatusDanger()
     }
+
+
+    public enable(){
+      this.enableInspection();
+    }
+    
+    public disable(){
+      this.disableInspection();
+    }
+
+    
   }

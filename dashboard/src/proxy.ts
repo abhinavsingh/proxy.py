@@ -8,10 +8,19 @@
 */
 import {WebsocketApi} from "./inspect"
 import {ApiDevelopment} from "./api"
+import {Home} from "./home"
+import {ShortLinks} from "./shortLinks"
+import {Controls} from "./controls"
+import {Settings} from "./settings"
+
 
 export class ProxyDashboard {
   private websocketApi: WebsocketApi
   private apiDevelopment: ApiDevelopment
+  private home : Home
+  private shortLinks: ShortLinks
+  private settings: Settings
+  private controls: Controls
 
   constructor () {
     this.websocketApi = new WebsocketApi()
@@ -20,6 +29,8 @@ export class ProxyDashboard {
       that.switchTab(this)
     })
     this.apiDevelopment = new ApiDevelopment()
+    this.home = new Home();
+    this.shortLinks = new ShortLinks();
   }
 
   public static getTime () {
@@ -57,13 +68,41 @@ export class ProxyDashboard {
     // 2. Disable inspection if user moved away from inspect tab
     // 3. Do nothing if activeTabId == clickedTabId
     if (clickedTabId !== activeTabId) {
-      if (clickedTabId === 'proxyInspect') {
-        this.websocketApi.enableInspection()
-      } else if (activeTabId === 'proxyInspect') {
-        this.websocketApi.disableInspection()
+      //deactivateAll()
+      console.log("%s",clickedTabId);
+      this.websocketApi.disable(); 
+      this.apiDevelopment.disable();
+      this.home.disable();
+      this.shortLinks.disable();
+      this.controls.disable();
+      this.settings.disable();
+
+      switch(clickedTabId) {
+        case "proxyHome": 
+          this.home.enable()
+          break;
+        case "proxyApiDevelopment":
+          this.apiDevelopment.enable()
+          break;
+        case "proxyInspect":
+          this.websocketApi.enable()
+          break;
+        case "proxyShortLinks":
+          this.shortLinks.enable();
+          break;
+        case "proxyControls":
+            this.controls.enable()
+          break;
+        case "proxySettings":
+          this.settings.enable();
+          break;
       }
+
     }
   }
+
+
+
 }
 
 (window as any).ProxyDashboard = ProxyDashboard
