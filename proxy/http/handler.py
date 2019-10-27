@@ -350,8 +350,8 @@ class ProtocolHandler(ThreadlessWork):
                             elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                                 return True
             except HttpProtocolException as e:
-                logger.exception(
-                    'HttpProtocolException type raised', exc_info=e)
+                logger.debug(
+                    'HttpProtocolException type raised')
                 response = e.response(self.request)
                 if response:
                     self.client.queue(response)
