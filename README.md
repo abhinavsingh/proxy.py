@@ -210,13 +210,40 @@ a binary file named `proxy` is added under the `bin` folder.
 
 If you are trying to run `proxy.py` from source code,
 there is no binary file named `proxy` in the source code.
-To start `proxy.py` from source code, use:
+To start `proxy.py` from source code, do:
 
-```
-$ git clone https://github.com/abhinavsingh/proxy.py.git
-$ cd proxy.py
-$ python -m proxy
-```
+- Clone repo
+
+    ```
+    $ git clone https://github.com/abhinavsingh/proxy.py.git
+    $ cd proxy.py
+    ```
+
+- Create a Python 3 virtual env
+
+    ```
+    $ python3 -m venv venv
+    $ source venv/bin/activate
+    ```
+
+- Install deps
+
+    ```
+    $ pip install -r requirements.txt
+    $ pip install -r requirements-testing.txt
+    ```
+
+- Run tests
+
+    ```
+    $ make
+    ```
+
+- Run proxy.py
+
+    ```
+    $ python -m proxy
+    ```
 
 Also see [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
 if you plan to work with `proxy.py` source code.
@@ -778,15 +805,9 @@ for all available classes and utility methods.
 Plugin Developer and Contributor Guide
 ======================================
 
-## Start proxy.py from repo source
-
 Contributors must start `proxy.py` from source to verify and develop new features / fixes.
 
-Start `proxy.py` as:
-
-    $ git clone https://github.com/abhinavsingh/proxy.py.git
-    $ cd proxy.py
-    $ python -m proxy
+See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
 
 ## Everything is a plugin
 
@@ -951,14 +972,7 @@ If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issue
 with `requests per second` sent and output of following debug script:
 
 ```
-# PID of proxy.py
-PROXY_PY_PID=<... Put value here or use --pid-file option ...>;
-
-# Prints number of open files by main process
-lsof -p $PROXY_PY_PID | wc -l;
-
-# Prints number of open files per worker process
-pgrep -P $PROXY_PY_PID | while read pid; do lsof -p $pid | wc -l; done;
+$ ./helper/monitor_open_files.sh <proxy-py-pid>
 ```
 
 Flags
