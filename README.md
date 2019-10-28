@@ -111,11 +111,13 @@ Features
     - Optionally enable builtin Web Server
     - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
     - Enable plugin using command line option e.g. `--plugins plugin_examples.CacheResponsesPlugin`
-    - Plugin API is currently in development state, expect breaking changes.
+    - Plugin API is currently in development phase, expect breaking changes.
 - Realtime Dashboard
-    - Optionally enable bundled dashboard. Available at `http://localhost:8899/dashboard`.
+    - Optionally enable bundled dashboard.
+        - Available at `http://localhost:8899/dashboard`.
     - Inspect, Monitor, Control and Configure `proxy.py` at runtime.
     - Extend dashboard using plugins.
+    - Dashboard is currently in development phase, expect breaking changes.
 - Secure
     - Enable end-to-end encryption between clients and `proxy.py` using TLS
     - See [End-to-End Encryption](#end-to-end-encryption)
@@ -963,28 +965,27 @@ Flags
 =====
 
 ```
-$ proxy.py -h
-usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
-                [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
-                [--ca-cert-file CA_CERT_FILE]
-                [--ca-signing-key-file CA_SIGNING_KEY_FILE]
-                [--cert-file CERT_FILE]
-                [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
-                [--devtools-ws-path DEVTOOLS_WS_PATH]
-                [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
-                [--enable-devtools] [--enable-static-server]
-                [--enable-web-server] [--hostname HOSTNAME]
-                [--key-file KEY_FILE] [--log-level LOG_LEVEL]
-                [--log-file LOG_FILE] [--log-format LOG_FORMAT]
-                [--num-workers NUM_WORKERS]
-                [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
-                [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
-                [--plugins PLUGINS] [--port PORT]
-                [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-                [--static-server-dir STATIC_SERVER_DIR] [--threadless]
-                [--timeout TIMEOUT] [--version]
+❯ proxy -h
+usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
+             [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
+             [--ca-cert-file CA_CERT_FILE]
+             [--ca-signing-key-file CA_SIGNING_KEY_FILE]
+             [--cert-file CERT_FILE]
+             [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+             [--devtools-ws-path DEVTOOLS_WS_PATH]
+             [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
+             [--enable-devtools] [--enable-events] [--enable-static-server]
+             [--enable-web-server] [--hostname HOSTNAME] [--key-file KEY_FILE]
+             [--log-level LOG_LEVEL] [--log-file LOG_FILE]
+             [--log-format LOG_FORMAT] [--num-workers NUM_WORKERS]
+             [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
+             [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
+             [--plugins PLUGINS] [--port PORT]
+             [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+             [--static-server-dir STATIC_SERVER_DIR] [--threadless]
+             [--timeout TIMEOUT] [--version]
 
-proxy.py v1.2.0
+proxy.py v2.0.0
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -1029,6 +1030,9 @@ optional arguments:
                         proxy.HttpProxyPlugin.
   --enable-devtools     Default: False. Enables integration with Chrome
                         Devtool Frontend.
+  --enable-events       Default: False. Enables core to dispatch lifecycle
+                        events. Plugins can be used to subscribe for core
+                        events.
   --enable-static-server
                         Default: False. Enable inbuilt static file server.
                         Optionally, also use --static-server-dir to serve
