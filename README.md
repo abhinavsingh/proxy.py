@@ -945,12 +945,16 @@ for some background.
 
 Make sure your plugin modules are discoverable by adding them to `PYTHONPATH`.  Example:
 
-`PYTHONPATH=/path/to/my/app proxy.py --plugins my_app.proxyPlugin`
+`PYTHONPATH=/path/to/my/app proxy --plugins my_app.proxyPlugin`
 
 ```
 ...[redacted]... - Loaded plugin proxy.HttpProxyPlugin
 ...[redacted]... - Loaded plugin my_app.proxyPlugin
 ```
+
+or, make sure to pass fully-qualified path as parameter, e.g.
+
+`proxy --plugins /path/to/my/app/my_app.proxyPlugin`
 
 ## GCE log viewer integration for proxy.py
 
@@ -972,7 +976,8 @@ Now `proxy.py` logs can be browsed using
 
 ## ValueError: filedescriptor out of range in select
 
-`proxy.py` is made to handle thousands of connections per second.
+`proxy.py` is made to handle thousands of connections per second
+without any socket leaks.
 
 1. Make use of `--open-file-limit` flag to customize `ulimit -n`.
     - To set a value upper than the hard limit, run as root.
