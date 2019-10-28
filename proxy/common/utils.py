@@ -14,6 +14,7 @@ import socket
 
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
+from typing_extensions import Literal
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF
 
@@ -185,7 +186,7 @@ class socket_connection(contextlib.ContextDecorator):
             self,
             exc_type: Optional[Type[BaseException]],
             exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType]) -> bool:
+            exc_tb: Optional[TracebackType]) -> Literal[False]:
         if self.conn:
             self.conn.close()
         return False
