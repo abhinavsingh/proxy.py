@@ -28,4 +28,6 @@ jobs:
           flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
           mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
       - name: Run Tests
-        run: pytest tests/
+        run: pytest --cov=proxy tests/
+      - name: Report Coverage
+        run: coveralls
