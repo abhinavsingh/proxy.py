@@ -19,6 +19,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Install Dependencies
-        run: pushd dashboard && npm install && popd
+        run: |
+          cd dashboard
+          npm install
+          cd ..
       - name: Build Dashboard
-        run: pushd dashboard && npm run build && popd
+        run: |
+          cd dashboard
+          npm run build
+          cd ..
