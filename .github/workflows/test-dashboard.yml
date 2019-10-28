@@ -2,7 +2,7 @@ name: Proxy.py Dashboard
 
 on: [push]
 
-job:
+jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
     name: Test dashboard with Node {{ matrix.node }} on ${{ matrix.os }}
