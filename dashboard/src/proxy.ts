@@ -46,6 +46,7 @@ export class ProxyDashboard {
     $('#proxyServerStatus').parent('div')
       .removeClass('text-success')
       .addClass('text-danger')
+    $('#proxyServerStatusSummary').text('')
   }
 
   public static setServerStatusSuccess (summary: string) {
@@ -60,10 +61,14 @@ export class ProxyDashboard {
     const activeLi = $('#proxyTopNav>ul>li.active')
     const activeTabId = activeLi.children('a').attr('id')
     const clickedTabId = $(element).attr('id')
+    const clickedTabContentId = $(element).text().trim().toLowerCase().replace(' ', '-')
 
     activeLi.removeClass('active')
     $(element.parentNode).addClass('active')
-    console.log('%s clicked, id %s', $(element).text().trim(), clickedTabId)
+    console.log('Clicked id %s, showing %s', clickedTabId, clickedTabContentId)
+
+    $('#app>div.proxy-data').hide()
+    $('#' + clickedTabContentId).show()
 
     // TODO: Tab ids shouldn't be hardcoded.
     // Templatize proxy.html and refer to tab_id via enum or constants

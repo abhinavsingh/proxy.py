@@ -5,6 +5,7 @@
 .pydevproject
 .settings
 .mypy_cache
+coverage.xml
 node_modules
 venv
 cover
