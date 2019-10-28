@@ -54,23 +54,22 @@ Table of Contents
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
-* [import proxy.py](#import-proxypy)
-    * [TCP Sockets](#tcp-sockets)
-        * [proxy.new_socket_connection](#proxynew_socket_connection)
-        * [proxy.socket_connection](#proxysocket_connection)
-    * [Http Client](#http-client)
-        * [proxy.build_http_request](#proxybuild_http_request)
-        * [proxy.build_http_response](#proxybuild_http_response)
-    * [Websocket Client](#websocket-client)
-        * [proxy.WebsocketFrame](#proxywebsocketframe)
-        * [proxy.WebsocketClient](#proxywebsocketclient)
-    * [Embed proxy.py](#embed-proxypy)
+* [Embed proxy.py](#embed-proxypy)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
-    * [Start proxy.py from repo source](#start-proxypy-from-repo-source)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
     * [Internal Documentation](#internal-documentation)
     * [Sending a Pull Request](#sending-a-pull-request)
+    * [Utilities](#utilities)
+        * [TCP](#tcp-sockets)
+            * [new_socket_connection](#new_socket_connection)
+            * [socket_connection](#socket_connection)
+        * [Http](#http-client)
+            * [build_http_request](#build_http_request)
+            * [build_http_response](#build_http_response)
+        * [Websocket](#websocket)
+            * [WebsocketFrame](#websocketframe)
+            * [WebsocketClient](#websocketclient)
 * [Frequently Asked Questions](#frequently-asked-questions)
     * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
@@ -271,7 +270,7 @@ if you plan to work with `proxy.py` source code.
     $ make container
     $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 
-### Customize startup flags
+#### Customize startup flags
 
 By default `docker` binary is started with IPv4 networking flags:
 
@@ -709,108 +708,29 @@ cached file instead of plain text.
 Now use CA flags with other 
 [plugin examples](#plugin-examples) to see them work with `https` traffic.
 
-import proxy.py
-===============
+Embed proxy.py
+==============
 
-You can directly import `proxy.py` into your `Python` code.  Example:
-
-```
-$ python
->>> import proxy
->>>
-```
-
-## TCP Sockets
-
-### proxy.new_socket_connection
-
-Attempts to create an IPv4 connection, then IPv6 and
-finally a dual stack connection to provided address.
+To start `proxy.py` in embedded mode:
 
 ```
->>> conn = proxy.new_socket_connection(('httpbin.org', 80))
->>> ...[ use connection ]...
->>> conn.close()
-```
-
-### proxy.socket_connection
-
-`socket_connection` is a convenient decorator + context manager
-around `new_socket_connection` which ensures `conn.close` is implicit.
-
-As a context manager:
-
-```
->>> with proxy.new_socket_connection(('httpbin.org', 80)) as conn:
->>>   ... [ use connection ] ...
-```
-
-As a decorator:
-
-```
->>> @proxy.new_socket_connection(('httpbin.org', 80))
->>> def my_api_call(conn, *args, **kwargs):
->>>   ... [ use connection ] ...
-```
-
-## Http Client
-
-### proxy.build_http_request
-
-##### Generate HTTP GET request
-
-```
->>> proxy.build_http_request(b'GET', b'/')
-b'GET / HTTP/1.1\r\n\r\n'
->>>
-```
-
-##### Generate HTTP GET request with headers
-
-```
->>> proxy.build_http_request(b'GET', b'/', 
-        headers={b'Connection': b'close'})
-b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
->>>
-```
-
-##### Generate HTTP POST request with headers and body
-
-```
->>> import json
->>> proxy.build_http_request(b'POST', b'/form', 
-        headers={b'Content-type': b'application/json'}, 
-        body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
-    b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
-```
-
-### proxy.build_http_response
-
-TODO
-
-## Websocket Client
-
-### proxy.WebsocketFrame
-
-TODO
-
-### proxy.WebsocketClient
-
-TODO
-
-## Embed proxy.py
-
-To start `proxy.py` server from imported `proxy.py` module, simply do:
-
-```
-import proxy
+from proxy.main import main
 
 if __name__ == '__main__':
-  proxy.main(['--hostname', '::1', '--port', 8899])
+  main([])
 ```
 
-See [Internal Documentation](#internal-documentation)
-for all available classes and utility methods.
+or, to start with arguments:
+
+```
+from proxy.main import main
+
+if __name__ == '__main__':
+  main([
+    '--hostname', '::1',
+    '--port', '8899'
+  ])
+```
 
 Plugin Developer and Contributor Guide
 ======================================
@@ -885,6 +805,86 @@ Every pull request goes through set of tests which must pass:
   `autopep8` is run with `--aggresive` flag.  Sometimes it _may_ result in
   weird formatting.  But let's stick to one consistent formatting tool.
   I am open to flag changes for `autopep8`.
+
+## Utilities
+
+## TCP Sockets
+
+#### new_socket_connection
+
+Attempts to create an IPv4 connection, then IPv6 and
+finally a dual stack connection to provided address.
+
+```
+>>> conn = new_socket_connection(('httpbin.org', 80))
+>>> ...[ use connection ]...
+>>> conn.close()
+```
+
+#### socket_connection
+
+`socket_connection` is a convenient decorator + context manager
+around `new_socket_connection` which ensures `conn.close` is implicit.
+
+As a context manager:
+
+```
+>>> with socket_connection(('httpbin.org', 80)) as conn:
+>>>   ... [ use connection ] ...
+```
+
+As a decorator:
+
+```
+>>> @socket_connection(('httpbin.org', 80))
+>>> def my_api_call(conn, *args, **kwargs):
+>>>   ... [ use connection ] ...
+```
+
+## Http Client
+
+#### build_http_request
+
+##### Generate HTTP GET request
+
+```
+>>> build_http_request(b'GET', b'/')
+b'GET / HTTP/1.1\r\n\r\n'
+>>>
+```
+
+##### Generate HTTP GET request with headers
+
+```
+>>> build_http_request(b'GET', b'/', 
+        headers={b'Connection': b'close'})
+b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
+>>>
+```
+
+##### Generate HTTP POST request with headers and body
+
+```
+>>> import json
+>>> build_http_request(b'POST', b'/form', 
+        headers={b'Content-type': b'application/json'}, 
+        body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
+    b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
+```
+
+#### build_http_response
+
+TODO
+
+## Websocket
+
+#### WebsocketFrame
+
+TODO
+
+#### WebsocketClient
+
+TODO
 
 ## Internal Documentation
 
