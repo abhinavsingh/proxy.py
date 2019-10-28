@@ -30,9 +30,5 @@ jobs:
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1.0.3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
+        run: |
+          CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} codecov
