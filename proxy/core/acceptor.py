@@ -95,7 +95,9 @@ class AcceptorPool:
             assert self.event_dispatcher_thread
             self.event_dispatcher_shutdown.set()
             self.event_dispatcher_thread.join()
-            logger.debug('Shutdown of global event dispatcher thread %d successful', self.event_dispatcher_thread.ident)
+            logger.debug(
+                'Shutdown of global event dispatcher thread %d successful',
+                self.event_dispatcher_thread.ident)
         for acceptor in self.acceptors:
             acceptor.join()
         logger.debug('Acceptors shutdown')

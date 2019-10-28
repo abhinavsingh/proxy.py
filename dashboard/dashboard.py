@@ -89,7 +89,8 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                 self.client.queue(
                     WebsocketFrame.text(
                         bytes_(
-                            json.dumps({'id': message['id'], 'response': 'not enabled'})
+                            json.dumps(
+                                {'id': message['id'], 'response': 'not enabled'})
                         )
                     )
                 )
@@ -105,7 +106,8 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                 self.relay_thread.start()
 
                 self.relay_sub_id = uuid.uuid4().hex
-                self.event_queue.subscribe(self.relay_sub_id, self.relay_channel)
+                self.event_queue.subscribe(
+                    self.relay_sub_id, self.relay_channel)
         elif message['method'] == 'disable_inspection':
             if self.inspection_enabled:
                 self.shutdown_relay()
