@@ -29,5 +29,5 @@ jobs:
           mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
       - name: Run Tests
         run: pytest --cov=proxy tests/
-      - name: Report Coverage
-        run: coveralls
+      - name: Code coverage
+        run: codecov

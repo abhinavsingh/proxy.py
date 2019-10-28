@@ -6,3 +6,4 @@ pytest-cov==2.8.1
 autopep8==1.4.4
 mypy==0.730
 py-spy==0.2.2
+codecov==2.0.15
