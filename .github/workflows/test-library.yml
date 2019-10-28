@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
-    name: Test library with Python ${{ matrix.python }} on ${{ matrix.os }}
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}
     strategy:
       matrix:
         os: [macOS, ubuntu, windows]

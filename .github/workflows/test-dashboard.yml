@@ -5,11 +5,11 @@ on: [push]
 jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
-    name: Test dashboard with Node {{ matrix.node }} on ${{ matrix.os }}
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
     strategy:
       matrix:
         os: [macOS, ubuntu, windows]
-        node: [10]
+        node: [10.x]
       max-parallel: 4
       fail-fast: false
     steps:
