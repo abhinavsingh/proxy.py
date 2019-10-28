@@ -109,8 +109,8 @@ Features
     - No external dependency other than standard Python library
 - Programmable
     - Optionally enable builtin Web Server
-    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
-    - Enable plugin using command line option e.g. `--plugins plugin_examples.CacheResponsesPlugin`
+    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples)
+    - Enable plugin using command line option e.g. `--plugins plugin_examples/cache_responses.CacheResponsesPlugin`
     - Plugin API is currently in development phase, expect breaking changes.
 - Realtime Dashboard
     - Optionally enable bundled dashboard.
@@ -159,6 +159,9 @@ Start proxy.py
 
 ## From command line when installed using PIP
 
+When `proxy.py` is installed using `pip`,
+a binary file named `proxy` is added under the `bin` folder.
+
 Simply type `proxy` on command line to start it with default configuration.
 
 ```
@@ -205,12 +208,10 @@ See [flags](#flags) for full list of available configuration options.
 
 ## From command line using repo source
 
-When `proxy.py` is installed using `pip`,
-a binary file named `proxy` is added under the `bin` folder.
-
 If you are trying to run `proxy.py` from source code,
 there is no binary file named `proxy` in the source code.
-To start `proxy.py` from source code, do:
+
+To start `proxy.py` from source code follow these instructions:
 
 - Clone repo
 
