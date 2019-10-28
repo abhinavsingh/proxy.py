@@ -30,4 +30,5 @@ jobs:
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Code coverage
+        env: CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }}
         run: codecov
