@@ -1,0 +1,147 @@
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <link rel="stylesheet" href="proxy.css">
+    <link rel="stylesheet" href="bootstrap-4.3.1.min.css">
+    <link rel="stylesheet" href="font-awesome-4.7.0.min.css">
+    <title>Proxy.py Dashboard</title>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">
+        <i class="fa fa-fw fa-dashboard"></i>
+        PROXY.PY
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#proxyTopNav" aria-controls="proxyTopNav"
+            aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="proxyTopNav">
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="proxyHome">
+                    <i class="fa fa-fw fa-home"></i>
+                    Home
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="proxyApiDevelopment">
+                    <i class="fa fa-fw fa-connectdevelop"></i>
+                    API Development
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="proxyInspect">
+                    <i class="fa fa-fw fa-binoculars"></i>
+                    Inspect Traffic
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="proxyShortLinks">
+                    <i class="fa fa-fw fa-bolt"></i>
+                    Short Links
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="proxyControls">
+                    <i class="fa fa-fw fa-lock"></i>
+                    Traffic Controls
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="proxySettings">
+                    <i class="fa fa-fw fa-cogs"></i>
+                    Settings
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<div id="app">
+    <div id="home" class="proxy-data"></div>
+    <div id="api-development" class="proxy-data">
+        <div id="app-header">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-6">
+                        <p class="h3">API Development</p>
+                    </div>
+                    <div class="col-6 text-right">
+                        <button type="button" class="btn btn-primary">
+                            <i class="fa fa-fw fa-plus-circle"></i>
+                            Create New API
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="app-body">
+            <div class="list-group position-relative">
+                <a href="#" class="list-group-item default text-decoration-none bg-light"
+                   data-toggle="collapse" data-target="#api-example-com-path-specs" data-parent="#app">
+                    api.example.com <span class="badge badge-info">3 Resources</span>
+                </a>
+                <button class="position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec"
+                        title="Delete api.example.com"></button>
+                <div id="api-example-com-path-specs" class="collapse api-path-spec">
+                    <div class="list-group-item bg-light">
+                        /v1/users/
+                    </div>
+                    <div class="list-group-item bg-light">
+                        /v1/groups/
+                    </div>
+                    <div class="list-group-item bg-light">
+                        /v1/messages/
+                    </div>
+                </div>
+            </div>
+            <div class="list-group position-relative">
+                <a href="#" class="list-group-item default text-decoration-none bg-light"
+                   data-toggle="collapse" data-target="#my-api" data-parent="#app">
+                    my.api <span class="badge badge-info">1 Resource</span>
+                </a>
+                <button class="position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec"
+                        title="Delete my.api"></button>
+                <div id="my-api" class="collapse api-path-spec">
+                    <div class="list-group-item bg-light">
+                        /api/
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="inspect-traffic" class="proxy-data"></div>
+    <div id="short-links" class="proxy-data"></div>
+    <div id="traffic-controls" class="proxy-data"></div>
+    <div id="settings" class="proxy-data"></div>
+</div>
+
+<nav class="navbar fixed-bottom navbar-dark bg-dark" id="proxyBottomNav">
+    <div class="mr-auto text-danger">
+        <a class="text-reset small" href="#" id="proxyServerStatus">
+            <i class="fa fa-fw fa-signal"></i>
+            Server Status <i id="proxyServerStatusSummary"></i>
+        </a>
+    </div>
+    <div class="ml-auto text-white-50">
+        <a class="text-reset small" href="#">
+            <i class="fa fa-fw fa-copyright"></i>
+            Abhinav Singh and contributors
+        </a>
+    </div>
+</nav>
+<script src="jquery-3.3.1.slim.min.js"></script>
+<script src="popper-1.14.7.min.js"></script>
+<script src="bootstrap-4.3.1.min.js"></script>
+<script src="js.cookie-v3.0.0-beta.0.min.js"></script>
+<script src="renderjson-b31d877.js"></script>
+<script src="proxy.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let proxyDashboard = new window.ProxyDashboard();
+    }, false);
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+#app {
+    background-color: #eeeeee;
+    height: 100%;
+}
+#app .remove-api-spec {
+    top: 10px;
+    right: 15px;
+}
+
+.api-path-spec .list-group-item {
+    padding-left: 50px;
+}
+
+#app-header {
+    padding-top: 10px;
+    padding-bottom: 5px;
+}
+
+#app-body .list-group {
+    margin-left: 15px;
+    margin-right: 15px;
+    margin-bottom: 10px;
+}
+
+.sunny-morning-white-gradient{
+    background-image: linear-gradient(120deg,#eeeeee 0,#ffecd2 100%);
+}
+
+.mean-fruit-white-gradient{
+    background-image:linear-gradient(120deg,#eeeeee 0,#ffefbf 100%);
+}
+
+.proxy-data {
+    display: none;
+}

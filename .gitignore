@@ -1,10 +1,11 @@
-.coverage
+.coverage*
 .idea
 .vscode
 .project
 .pydevproject
 .settings
 .mypy_cache
+coverage.xml
 node_modules
 venv
 cover

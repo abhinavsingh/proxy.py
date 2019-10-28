@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-VERSION ?= v$(shell python proxy.py --version)
+VERSION ?= v$(shell python -m proxy --version)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
@@ -15,7 +15,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 .PHONY: all clean test package test-release release coverage lint autopep8
 .PHONY: container run-container release-container https-certificates ca-certificates
-.PHONY: profile
+.PHONY: profile dashboard clean-dashboard
 
 all: clean test
 
@@ -24,10 +24,14 @@ clean:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 	rm -f .coverage
-	rm -rf htmlcov dist build .pytest_cache proxy.py.egg-info
+	rm -rf htmlcov
+	rm -rf dist
+	rm -rf build
+	rm -rf proxy.py.egg-info
+	rm -rf .pytest_cache
 
-test:
-	python -m unittest tests
+test: lint
+	python -m unittest tests/*.py
 
 package: clean
 	python setup.py sdist bdist_wheel
@@ -39,18 +43,21 @@ release: package
 	twine upload dist/*
 
 coverage:
-	coverage3 run --source=proxy,plugin_examples tests.py
-	coverage3 html
+	pytest --cov=proxy --cov-report=html tests/
 	open htmlcov/index.html
 
 lint:
-	flake8 --ignore=W504 --max-line-length=127 proxy.py plugin_examples.py tests.py setup.py benchmark.py
-	mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py benchmark.py
+	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
+	mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
 
 autopep8:
-	autopep8 --recursive --in-place --aggressive proxy.py
-	autopep8 --recursive --in-place --aggressive tests.py
-	autopep8 --recursive --in-place --aggressive plugin_examples.py
+	autopep8 --recursive --in-place --aggressive proxy/*.py
+	autopep8 --recursive --in-place --aggressive proxy/*/*.py
+	autopep8 --recursive --in-place --aggressive tests/*.py
+	autopep8 --recursive --in-place --aggressive plugin_examples/*.py
+	autopep8 --recursive --in-place --aggressive benchmark/*.py
+	autopep8 --recursive --in-place --aggressive dashboard/*.py
+	autopep8 --recursive --in-place --aggressive setup.py
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .
@@ -79,3 +86,9 @@ ca-certificates:
 
 profile:
 	sudo py-spy -F -f profile.svg -d 3600 proxy.py
+
+dashboard:
+	pushd dashboard && npm run build && popd
+
+clean-dashboard:
+	rm -rf public/dashboard
