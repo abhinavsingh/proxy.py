@@ -1,4 +1,4 @@
-import { ProxyDashboard } from '../src/proxy';
+import { ProxyDashboard } from "../src/proxy";
 
 describe("test suite", () => {
     it("initializes", () => {
