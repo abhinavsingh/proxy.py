@@ -35,6 +35,9 @@ Table of Contents
     * [Development version](#development-version)
 * [Start proxy.py](#start-proxypy)
     * [From command line when installed using PIP](#from-command-line-when-installed-using-pip)
+        * [Run it](#run-it)
+        * [Reading logs](#reading-logs)
+        * [Enable DEBUG logging](#enable-debug-logging)
     * [From command line using repo source](#from-command-line-using-repo-source)
     * [Docker Image](#docker-image)
         * [Stable version](#stable-version-from-docker-hub)
@@ -51,23 +54,22 @@ Table of Contents
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
-* [import proxy.py](#import-proxypy)
-    * [TCP Sockets](#tcp-sockets)
-        * [proxy.new_socket_connection](#proxynew_socket_connection)
-        * [proxy.socket_connection](#proxysocket_connection)
-    * [Http Client](#http-client)
-        * [proxy.build_http_request](#proxybuild_http_request)
-        * [proxy.build_http_response](#proxybuild_http_response)
-    * [Websocket Client](#websocket-client)
-        * [proxy.WebsocketFrame](#proxywebsocketframe)
-        * [proxy.WebsocketClient](#proxywebsocketclient)
-    * [Embed proxy.py](#embed-proxypy)
+* [Embed proxy.py](#embed-proxypy)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
-    * [Start proxy.py from repo source](#start-proxypy-from-repo-source)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
     * [Internal Documentation](#internal-documentation)
     * [Sending a Pull Request](#sending-a-pull-request)
+    * [Utilities](#utilities)
+        * [TCP](#tcp-sockets)
+            * [new_socket_connection](#new_socket_connection)
+            * [socket_connection](#socket_connection)
+        * [Http](#http-client)
+            * [build_http_request](#build_http_request)
+            * [build_http_response](#build_http_response)
+        * [Websocket](#websocket)
+            * [WebsocketFrame](#websocketframe)
+            * [WebsocketClient](#websocketclient)
 * [Frequently Asked Questions](#frequently-asked-questions)
     * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
@@ -109,13 +111,15 @@ Features
     - No external dependency other than standard Python library
 - Programmable
     - Optionally enable builtin Web Server
-    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples.py)
-    - Enable plugin using command line option e.g. `--plugins plugin_examples.CacheResponsesPlugin`
-    - Plugin API is currently in development state, expect breaking changes.
+    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples)
+    - Enable plugin using command line option e.g. `--plugins plugin_examples/cache_responses.CacheResponsesPlugin`
+    - Plugin API is currently in development phase, expect breaking changes.
 - Realtime Dashboard
-    - Optionally enable bundled dashboard. Available at `http://localhost:8899/dashboard`.
+    - Optionally enable bundled dashboard.
+        - Available at `http://localhost:8899/dashboard`.
     - Inspect, Monitor, Control and Configure `proxy.py` at runtime.
     - Extend dashboard using plugins.
+    - Dashboard is currently in development phase, expect breaking changes.
 - Secure
     - Enable end-to-end encryption between clients and `proxy.py` using TLS
     - See [End-to-End Encryption](#end-to-end-encryption)
@@ -157,6 +161,11 @@ Start proxy.py
 
 ## From command line when installed using PIP
 
+When `proxy.py` is installed using `pip`,
+an executable named `proxy` is added under your `$PATH`.
+
+#### Run it
+
 Simply type `proxy` on command line to start it with default configuration.
 
 ```
@@ -165,6 +174,8 @@ $ proxy
 ...[redacted]... - Starting 8 workers
 ...[redacted]... - Started server on ::1:8899
 ```
+
+#### Reading logs
 
 Things to notice from above logs:
 
@@ -180,6 +191,8 @@ Things to notice from above logs:
   on your machine.
 
 - `Port 8899` - Use `--port` flag to customize default TCP port.
+
+#### Enable DEBUG logging
 
 All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`. 
 
@@ -203,18 +216,43 @@ See [flags](#flags) for full list of available configuration options.
 
 ## From command line using repo source
 
-When `proxy.py` is installed using `pip`,
-a binary file named `proxy` is added under the `bin` folder.
-
 If you are trying to run `proxy.py` from source code,
 there is no binary file named `proxy` in the source code.
-To start `proxy.py` from source code, use:
 
-```
-$ git clone https://github.com/abhinavsingh/proxy.py.git
-$ cd proxy.py
-$ python -m proxy
-```
+To start `proxy.py` from source code follow these instructions:
+
+- Clone repo
+
+    ```
+    $ git clone https://github.com/abhinavsingh/proxy.py.git
+    $ cd proxy.py
+    ```
+
+- Create a Python 3 virtual env
+
+    ```
+    $ python3 -m venv venv
+    $ source venv/bin/activate
+    ```
+
+- Install deps
+
+    ```
+    $ pip install -r requirements.txt
+    $ pip install -r requirements-testing.txt
+    ```
+
+- Run tests
+
+    ```
+    $ make
+    ```
+
+- Run proxy.py
+
+    ```
+    $ python -m proxy
+    ```
 
 Also see [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
 if you plan to work with `proxy.py` source code.
@@ -232,7 +270,7 @@ if you plan to work with `proxy.py` source code.
     $ make container
     $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 
-### Customize startup flags
+#### Customize startup flags
 
 By default `docker` binary is started with IPv4 networking flags:
 
@@ -670,121 +708,36 @@ cached file instead of plain text.
 Now use CA flags with other 
 [plugin examples](#plugin-examples) to see them work with `https` traffic.
 
-import proxy.py
-===============
+Embed proxy.py
+==============
 
-You can directly import `proxy.py` into your `Python` code.  Example:
-
-```
-$ python
->>> import proxy
->>>
-```
-
-## TCP Sockets
-
-### proxy.new_socket_connection
-
-Attempts to create an IPv4 connection, then IPv6 and
-finally a dual stack connection to provided address.
+To start `proxy.py` in embedded mode:
 
 ```
->>> conn = proxy.new_socket_connection(('httpbin.org', 80))
->>> ...[ use connection ]...
->>> conn.close()
-```
-
-### proxy.socket_connection
-
-`socket_connection` is a convenient decorator + context manager
-around `new_socket_connection` which ensures `conn.close` is implicit.
-
-As a context manager:
-
-```
->>> with proxy.new_socket_connection(('httpbin.org', 80)) as conn:
->>>   ... [ use connection ] ...
-```
-
-As a decorator:
-
-```
->>> @proxy.new_socket_connection(('httpbin.org', 80))
->>> def my_api_call(conn, *args, **kwargs):
->>>   ... [ use connection ] ...
-```
-
-## Http Client
-
-### proxy.build_http_request
-
-##### Generate HTTP GET request
-
-```
->>> proxy.build_http_request(b'GET', b'/')
-b'GET / HTTP/1.1\r\n\r\n'
->>>
-```
-
-##### Generate HTTP GET request with headers
-
-```
->>> proxy.build_http_request(b'GET', b'/', 
-        headers={b'Connection': b'close'})
-b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
->>>
-```
-
-##### Generate HTTP POST request with headers and body
-
-```
->>> import json
->>> proxy.build_http_request(b'POST', b'/form', 
-        headers={b'Content-type': b'application/json'}, 
-        body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
-    b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
-```
-
-### proxy.build_http_response
-
-TODO
-
-## Websocket Client
-
-### proxy.WebsocketFrame
-
-TODO
-
-### proxy.WebsocketClient
-
-TODO
-
-## Embed proxy.py
-
-To start `proxy.py` server from imported `proxy.py` module, simply do:
-
-```
-import proxy
+from proxy.main import main
 
 if __name__ == '__main__':
-  proxy.main(['--hostname', '::1', '--port', 8899])
+  main([])
 ```
 
-See [Internal Documentation](#internal-documentation)
-for all available classes and utility methods.
+or, to start with arguments:
+
+```
+from proxy.main import main
+
+if __name__ == '__main__':
+  main([
+    '--hostname', '::1',
+    '--port', '8899'
+  ])
+```
 
 Plugin Developer and Contributor Guide
 ======================================
 
-## Start proxy.py from repo source
-
 Contributors must start `proxy.py` from source to verify and develop new features / fixes.
 
-Start `proxy.py` as:
-
-    $ git clone https://github.com/abhinavsingh/proxy.py.git
-    $ cd proxy.py
-    $ python -m proxy
+See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
 
 ## Everything is a plugin
 
@@ -853,6 +806,86 @@ Every pull request goes through set of tests which must pass:
   weird formatting.  But let's stick to one consistent formatting tool.
   I am open to flag changes for `autopep8`.
 
+## Utilities
+
+## TCP Sockets
+
+#### new_socket_connection
+
+Attempts to create an IPv4 connection, then IPv6 and
+finally a dual stack connection to provided address.
+
+```
+>>> conn = new_socket_connection(('httpbin.org', 80))
+>>> ...[ use connection ]...
+>>> conn.close()
+```
+
+#### socket_connection
+
+`socket_connection` is a convenient decorator + context manager
+around `new_socket_connection` which ensures `conn.close` is implicit.
+
+As a context manager:
+
+```
+>>> with socket_connection(('httpbin.org', 80)) as conn:
+>>>   ... [ use connection ] ...
+```
+
+As a decorator:
+
+```
+>>> @socket_connection(('httpbin.org', 80))
+>>> def my_api_call(conn, *args, **kwargs):
+>>>   ... [ use connection ] ...
+```
+
+## Http Client
+
+#### build_http_request
+
+##### Generate HTTP GET request
+
+```
+>>> build_http_request(b'GET', b'/')
+b'GET / HTTP/1.1\r\n\r\n'
+>>>
+```
+
+##### Generate HTTP GET request with headers
+
+```
+>>> build_http_request(b'GET', b'/', 
+        headers={b'Connection': b'close'})
+b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
+>>>
+```
+
+##### Generate HTTP POST request with headers and body
+
+```
+>>> import json
+>>> build_http_request(b'POST', b'/form', 
+        headers={b'Content-type': b'application/json'}, 
+        body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
+    b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
+```
+
+#### build_http_response
+
+TODO
+
+## Websocket
+
+#### WebsocketFrame
+
+TODO
+
+#### WebsocketClient
+
+TODO
+
 ## Internal Documentation
 
 Browse through internal class hierarchy and documentation using `pydoc3`.
@@ -912,12 +945,16 @@ for some background.
 
 Make sure your plugin modules are discoverable by adding them to `PYTHONPATH`.  Example:
 
-`PYTHONPATH=/path/to/my/app proxy.py --plugins my_app.proxyPlugin`
+`PYTHONPATH=/path/to/my/app proxy --plugins my_app.proxyPlugin`
 
 ```
 ...[redacted]... - Loaded plugin proxy.HttpProxyPlugin
 ...[redacted]... - Loaded plugin my_app.proxyPlugin
 ```
+
+or, make sure to pass fully-qualified path as parameter, e.g.
+
+`proxy --plugins /path/to/my/app/my_app.proxyPlugin`
 
 ## GCE log viewer integration for proxy.py
 
@@ -939,7 +976,8 @@ Now `proxy.py` logs can be browsed using
 
 ## ValueError: filedescriptor out of range in select
 
-`proxy.py` is made to handle thousands of connections per second.
+`proxy.py` is made to handle thousands of connections per second
+without any socket leaks.
 
 1. Make use of `--open-file-limit` flag to customize `ulimit -n`.
     - To set a value upper than the hard limit, run as root.
@@ -949,42 +987,34 @@ If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issue
 with `requests per second` sent and output of following debug script:
 
 ```
-# PID of proxy.py
-PROXY_PY_PID=<... Put value here or use --pid-file option ...>;
-
-# Prints number of open files by main process
-lsof -p $PROXY_PY_PID | wc -l;
-
-# Prints number of open files per worker process
-pgrep -P $PROXY_PY_PID | while read pid; do lsof -p $pid | wc -l; done;
+$ ./helper/monitor_open_files.sh <proxy-py-pid>
 ```
 
 Flags
 =====
 
 ```
-$ proxy.py -h
-usage: proxy.py [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
-                [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
-                [--ca-cert-file CA_CERT_FILE]
-                [--ca-signing-key-file CA_SIGNING_KEY_FILE]
-                [--cert-file CERT_FILE]
-                [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
-                [--devtools-ws-path DEVTOOLS_WS_PATH]
-                [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
-                [--enable-devtools] [--enable-static-server]
-                [--enable-web-server] [--hostname HOSTNAME]
-                [--key-file KEY_FILE] [--log-level LOG_LEVEL]
-                [--log-file LOG_FILE] [--log-format LOG_FORMAT]
-                [--num-workers NUM_WORKERS]
-                [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
-                [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
-                [--plugins PLUGINS] [--port PORT]
-                [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-                [--static-server-dir STATIC_SERVER_DIR] [--threadless]
-                [--timeout TIMEOUT] [--version]
+❯ proxy -h
+usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
+             [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
+             [--ca-cert-file CA_CERT_FILE]
+             [--ca-signing-key-file CA_SIGNING_KEY_FILE]
+             [--cert-file CERT_FILE]
+             [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+             [--devtools-ws-path DEVTOOLS_WS_PATH]
+             [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
+             [--enable-devtools] [--enable-events] [--enable-static-server]
+             [--enable-web-server] [--hostname HOSTNAME] [--key-file KEY_FILE]
+             [--log-level LOG_LEVEL] [--log-file LOG_FILE]
+             [--log-format LOG_FORMAT] [--num-workers NUM_WORKERS]
+             [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
+             [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
+             [--plugins PLUGINS] [--port PORT]
+             [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+             [--static-server-dir STATIC_SERVER_DIR] [--threadless]
+             [--timeout TIMEOUT] [--version]
 
-proxy.py v1.2.0
+proxy.py v2.0.0
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -1029,6 +1059,9 @@ optional arguments:
                         proxy.HttpProxyPlugin.
   --enable-devtools     Default: False. Enables integration with Chrome
                         Devtool Frontend.
+  --enable-events       Default: False. Enables core to dispatch lifecycle
+                        events. Plugins can be used to subscribe for core
+                        events.
   --enable-static-server
                         Default: False. Enable inbuilt static file server.
                         Optionally, also use --static-server-dir to serve

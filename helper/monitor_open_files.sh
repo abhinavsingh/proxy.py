@@ -8,13 +8,13 @@
 # :license: BSD, see LICENSE for more details.
 #
 # Usage
-# ./monitor <proxy-py-pid>
+# ./monitor_open_files <proxy-py-pid>
 #
 # Alternately, just run:
 # watch -n 1 'lsof -i TCP:8899 | grep -v LISTEN'
 
 PROXY_PY_PID=$1
-if [ -z "$PROXY_PY_PID" ]; then
+if [[ -z "$PROXY_PY_PID" ]]; then
   echo "PROXY_PY_PID required as argument."
   exit 1
 fi
