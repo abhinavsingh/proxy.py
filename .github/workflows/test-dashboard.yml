@@ -9,14 +9,16 @@ jobs:
     strategy:
       matrix:
         os: [macOS, ubuntu, windows]
-        node: [ '10' ]
+        node: [10]
       max-parallel: 4
       fail-fast: false
     steps:
+      - uses: actions/checkout@v1
       - name: Setup Node
         uses: actions/setup-node@v1
         with:
-          node-version: '10.x'
+          node-version: ${{ matrix.node }}
+      - name: Install Dependencies
+        run: pushd dashboard && npm install && popd
       - name: Build Dashboard
-        run: |
-          pushd dashboard && npm install && npm run build && popd
+        run: pushd dashboard && npm run build && popd
