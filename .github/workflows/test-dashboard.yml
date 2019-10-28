@@ -1,0 +1,22 @@
+name: Proxy.py Dashboard
+
+on: [push]
+
+job:
+  build:
+    runs-on: ${{ matrix.os }}-latest
+    name: Test dashboard with Node {{ matrix.node }} on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macOS, ubuntu, windows]
+        node: [ '10' ]
+      max-parallel: 4
+      fail-fast: false
+    steps:
+      - name: Setup Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: '10.x'
+      - name: Build Dashboard
+        run: |
+          pushd dashboard && npm install && npm run build && popd

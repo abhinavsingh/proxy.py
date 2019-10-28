@@ -1,11 +1,11 @@
-name: Proxy.py
+name: Proxy.py Library
 
 on: [push]
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
-    name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    name: Test library with Python ${{ matrix.python }} on ${{ matrix.os }}
     strategy:
       matrix:
         os: [macOS, ubuntu, windows]
@@ -29,12 +29,6 @@ jobs:
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Upload coverage to Codecov
-        run: |
-          CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }} codecov
-      - name: Setup Node
-        uses: actions/setup-node@v1
-        with:
-          node-version: '10.x'
-      - name: Build Dashboard
-        run: |
-          pushd dashboard && npm install && npm run build && popd
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: codecov
