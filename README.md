@@ -35,6 +35,9 @@ Table of Contents
     * [Development version](#development-version)
 * [Start proxy.py](#start-proxypy)
     * [From command line when installed using PIP](#from-command-line-when-installed-using-pip)
+        * [Run it](#run-it)
+        * [Reading logs](#reading-logs)
+        * [Enable DEBUG logging](#enable-debug-logging)
     * [From command line using repo source](#from-command-line-using-repo-source)
     * [Docker Image](#docker-image)
         * [Stable version](#stable-version-from-docker-hub)
@@ -160,7 +163,9 @@ Start proxy.py
 ## From command line when installed using PIP
 
 When `proxy.py` is installed using `pip`,
-a binary file named `proxy` is added under the `bin` folder.
+an executable named `proxy` is added under your `$PATH`.
+
+#### Run it
 
 Simply type `proxy` on command line to start it with default configuration.
 
@@ -170,6 +175,8 @@ $ proxy
 ...[redacted]... - Starting 8 workers
 ...[redacted]... - Started server on ::1:8899
 ```
+
+#### Reading logs
 
 Things to notice from above logs:
 
@@ -185,6 +192,8 @@ Things to notice from above logs:
   on your machine.
 
 - `Port 8899` - Use `--port` flag to customize default TCP port.
+
+#### Enable DEBUG logging
 
 All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`. 
 
