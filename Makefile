@@ -47,6 +47,7 @@ clean-lib:
 	rm -rf build
 	rm -rf proxy.py.egg-info
 	rm -rf .pytest_cache
+	rm -rf .hypothesis
 
 clean-dashboard:
 	rm -rf public/dashboard

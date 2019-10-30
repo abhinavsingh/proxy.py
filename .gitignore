@@ -1,11 +1,18 @@
-.coverage*
+.coverage
 .idea
 .vscode
 .project
 .pydevproject
 .settings
 .mypy_cache
+.hypothesis
+
 coverage.xml
+proxy.py.iml
+*.pyc
+ca-*.pem
+https-*.pem
+
 node_modules
 venv
 cover
@@ -13,7 +20,3 @@ htmlcov
 dist
 build
 proxy.py.egg-info
-proxy.py.iml
-*.pyc
-ca-*.pem
-https-*.pem

@@ -1119,14 +1119,15 @@ Changelog
 
 - `v2.x`
     - No longer ~~a single file module~~.
+    - Added support for threadless execution.
     - Added dashboard app.
 - `v1.x`
     - `Python3` only.
         - Deprecated support for ~~Python 2.x~~.
-    - Added support for multi accept.
+    - Added support multi core accept.
     - Added plugin support.
 - `v0.x`
     - Single file.
     - Single threaded server.
 
-For detailed changelog refer
+For detailed changelog refer either to release PRs or commit history.
