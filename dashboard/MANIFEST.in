@@ -1,0 +1,3 @@
+include src/proxy.html
+include src/proxy.css
+include build/src/proxy.js

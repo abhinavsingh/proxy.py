@@ -7,7 +7,7 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 
 [Makefile]
-indent_size = tab
+indent_size = 8
 
 [*.py]
 indent_style = space
