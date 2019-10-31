@@ -13,7 +13,6 @@ proxy.py.iml
 ca-*.pem
 https-*.pem
 
-node_modules
 venv
 cover
 htmlcov

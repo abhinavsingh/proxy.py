@@ -89,7 +89,7 @@ dashboard-package-clean:
 	pushd dashboard && rm -rf build && rm -rf dist && popd
 
 dashboard-package: dashboard-package-clean
-	pushd dashboard && python setup.py sdist bdist_wheel && popd
+	pushd dashboard && npm test && PYTHONPATH=.. python setup.py sdist bdist_wheel && popd
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .
