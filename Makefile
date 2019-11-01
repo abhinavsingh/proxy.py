@@ -63,18 +63,18 @@ lib-lint:
 lib-test: lib-lint
 	python -m unittest discover
 
-lib-release-test: package
+lib-package: lib-clean
+	python setup.py sdist bdist_wheel
+
+lib-release-test: lib-package
 	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
+
+lib-release: lib-package
+	twine upload dist/*
 
 lib-coverage:
 	pytest --cov=proxy --cov-report=html tests/
 	open htmlcov/index.html
-
-lib-package: lib-clean
-	python setup.py sdist bdist_wheel
-
-lib-release: lib-package
-	twine upload dist/*
 
 lib-profile:
 	sudo py-spy -F -f profile.svg -d 3600 proxy.py
