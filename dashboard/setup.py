@@ -8,11 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from setuptools import setup
+from setuptools import setup, find_packages
 
-from proxy.common.version import __version__
 from proxy.common.constants import __author__, __author_email__
 from proxy.common.constants import __homepage__, __description__, __download_url__, __license__
+
+from dashboard import __version__
 
 setup(
     name='proxy.py-dashboard',
@@ -25,7 +26,7 @@ setup(
     long_description_content_type='text/markdown',
     download_url=__download_url__,
     license=__license__,
-    py_modules=['dashboard'],
+    packages=find_packages(),
     install_requires=['proxy.py'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
