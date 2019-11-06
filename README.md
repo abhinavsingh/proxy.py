@@ -753,11 +753,11 @@ if __name__ == '__main__':
     # ... your logic here ...
 ```
 
-`start` is simply a context manager which:
+Note that:
 
-1. Starts `proxy.py`.
+1. `start` is simply a context manager.
 2. Is similar to calling `main` except `start` won't block.
-3. Will automatically shut down `proxy.py` when your logic finishes execution.
+3. It automatically shut down `proxy.py`.
 
 Plugin Developer and Contributor Guide
 ======================================
