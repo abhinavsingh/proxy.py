@@ -10,12 +10,13 @@
 """
 from setuptools import setup, find_packages
 
-from proxy.common.version import __version__
 from proxy.common.constants import __author__, __author_email__
 from proxy.common.constants import __homepage__, __description__, __download_url__, __license__
 
+from dashboard import __version__
+
 setup(
-    name='proxy.py',
+    name='proxy.py-dashboard',
     version=__version__,
     author=__author__,
     author_email=__author_email__,
@@ -25,13 +26,8 @@ setup(
     long_description_content_type='text/markdown',
     download_url=__download_url__,
     license=__license__,
-    packages=find_packages(exclude=['benchmark', 'dashboard', 'plugin_examples', 'tests']),
-    install_requires=open('requirements.txt', 'r').read().strip().split(),
-    entry_points={
-        'console_scripts': [
-            'proxy = proxy.main:entry_point'
-        ]
-    },
+    packages=find_packages(),
+    install_requires=['proxy.py'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
