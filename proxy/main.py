@@ -17,7 +17,7 @@ import multiprocessing
 import os
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Generator
 
 from .common.flags import Flags, init_parser
 from .common.utils import text_, bytes_
@@ -103,7 +103,7 @@ def setup_logger(
 
 
 @contextlib.contextmanager
-def start(input_args: List[str]) -> None:
+def start(input_args: List[str]) -> Generator[None, None, None]:
     if not is_py3():
         print(
             'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
