@@ -55,6 +55,8 @@ Table of Contents
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
 * [Embed proxy.py](#embed-proxypy)
+    * [Blocking Mode](#blocking-mode)
+    * [Non-blocking Mode](#non-blocking-mode)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
@@ -711,7 +713,9 @@ Now use CA flags with other
 Embed proxy.py
 ==============
 
-To start `proxy.py` in embedded mode:
+## Blocking Mode
+
+Start `proxy.py` in embedded mode by using `main` method:
 
 ```
 from proxy.main import main
@@ -731,6 +735,29 @@ if __name__ == '__main__':
     '--port', '8899'
   ])
 ```
+
+Note that:
+
+1. Calling `main` is simply equivalent to starting `proxy.py` from command line.
+2. `main` will block until `proxy.py` shuts down.
+
+## Non-blocking Mode
+
+Start `proxy.py` in embedded mode by using `start` method:
+
+```
+from proxy.main import start
+
+if __name__ == '__main__':
+  with start([]):
+    # ... your logic here ...
+```
+
+`start` is simply a context manager which:
+
+1. Starts `proxy.py`.
+2. Is similar to calling `main` except `start` won't block.
+3. Will automatically shut down `proxy.py` when your logic finishes execution.
 
 Plugin Developer and Contributor Guide
 ======================================

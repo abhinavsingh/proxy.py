@@ -8,6 +8,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import base64
+import contextlib
 import importlib
 import inspect
 import ipaddress
@@ -101,7 +102,8 @@ def setup_logger(
         logging.basicConfig(level=ll, format=log_format)
 
 
-def main(input_args: List[str]) -> None:
+@contextlib.contextmanager
+def start(input_args: List[str]) -> None:
     if not is_py3():
         print(
             'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
@@ -112,7 +114,6 @@ def main(input_args: List[str]) -> None:
             'Please upgrade your Python as Python 2.7 won\'t be maintained after that date. '
             'A future version of pip will drop support for Python 2.7.')
         sys.exit(1)
-
     args = init_parser().parse_args(input_args)
 
     if args.version:
@@ -194,9 +195,7 @@ def main(input_args: List[str]) -> None:
 
         try:
             acceptor_pool.setup()
-            # TODO: Introduce cron feature instead of mindless sleep
-            while True:
-                time.sleep(2**10)
+            yield
         except Exception as e:
             logger.exception('exception', exc_info=e)
         finally:
@@ -206,6 +205,13 @@ def main(input_args: List[str]) -> None:
     finally:
         if args.pid_file and os.path.exists(args.pid_file):
             os.remove(args.pid_file)
+
+
+def main(input_args: List[str]) -> None:
+    with start(input_args):
+        # TODO: Introduce cron feature instead of mindless sleep
+        while True:
+            time.sleep(1)
 
 
 def entry_point() -> None:
