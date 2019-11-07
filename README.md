@@ -127,7 +127,7 @@ Features
     - See [End-to-End Encryption](#end-to-end-encryption)
 - Man-In-The-Middle
     - Can decrypt TLS traffic between clients and upstream servers
-    - See [TLS Encryption](#tls-interception)
+    - See [TLS Interception](#tls-interception)
 - Supported proxy protocols
     - `http`
     - `https`
@@ -164,7 +164,7 @@ Start proxy.py
 ## From command line when installed using PIP
 
 When `proxy.py` is installed using `pip`,
-an executable named `proxy` is added under your `$PATH`.
+an executable named `proxy` is placed under your `$PATH`.
 
 #### Run it
 
