@@ -34,7 +34,6 @@ class AcceptorPool:
 
     def __init__(self, flags: Flags, work_klass: Type[ThreadlessWork]) -> None:
         self.flags = flags
-        self.running: bool = False
         self.socket: Optional[socket.socket] = None
         self.acceptors: List[Acceptor] = []
         self.work_queues: List[connection.Connection] = []
@@ -69,7 +68,7 @@ class AcceptorPool:
                 event_queue=self.event_queue
             )
             acceptor.start()
-            logger.debug('Started acceptor process %d', acceptor.pid)
+            logger.debug('Started acceptor#%d process %d', acceptor_id, acceptor.pid)
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.flags.num_workers)
@@ -90,6 +89,8 @@ class AcceptorPool:
 
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.flags.num_workers)
+        for acceptor in self.acceptors:
+            acceptor.running.set()
         if self.flags.enable_events:
             assert self.event_dispatcher_shutdown
             assert self.event_dispatcher_thread
@@ -104,7 +105,6 @@ class AcceptorPool:
 
     def setup(self) -> None:
         """Listen on port, setup workers and pass server socket to workers."""
-        self.running = True
         self.listen()
         if self.flags.enable_events:
             self.start_event_dispatcher()
@@ -145,7 +145,7 @@ class Acceptor(multiprocessing.Process):
         self.work_klass = work_klass
         self.event_queue = event_queue
 
-        self.running = False
+        self.running = multiprocessing.Event()
         self.selector: Optional[selectors.DefaultSelector] = None
         self.sock: Optional[socket.socket] = None
         self.threadless_process: Optional[multiprocessing.Process] = None
@@ -208,7 +208,6 @@ class Acceptor(multiprocessing.Process):
         # logger.info('Work started for fd %d in %f seconds', fileno, time.time() - now)
 
     def run(self) -> None:
-        self.running = True
         self.selector = selectors.DefaultSelector()
         fileno = recv_handle(self.work_queue)
         self.work_queue.close()
@@ -221,7 +220,7 @@ class Acceptor(multiprocessing.Process):
             self.selector.register(self.sock, selectors.EVENT_READ)
             if self.flags.threadless:
                 self.start_threadless_process()
-            while self.running:
+            while not self.running.is_set():
                 self.run_once()
         except KeyboardInterrupt:
             pass
@@ -230,4 +229,4 @@ class Acceptor(multiprocessing.Process):
             if self.flags.threadless:
                 self.shutdown_threadless_process()
             self.sock.close()
-            self.running = False
+            logger.debug('Acceptor#%d shutdown', self.idd)

@@ -25,7 +25,13 @@ setup(
     long_description_content_type='text/markdown',
     download_url=__download_url__,
     license=__license__,
-    packages=find_packages(exclude=['benchmark', 'dashboard', 'plugin_examples', 'tests']),
+    packages=find_packages(
+        exclude=[
+            'benchmark',
+            'dashboard',
+            'plugin_examples',
+            'tests'
+        ]),
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
         'console_scripts': [
