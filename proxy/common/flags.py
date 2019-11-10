@@ -137,10 +137,11 @@ def init_parser() -> argparse.ArgumentParser:
         action='store_true',
         default=DEFAULT_ENABLE_WEB_SERVER,
         help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.')
-    parser.add_argument('--hostname',
-                        type=str,
-                        default=str(DEFAULT_IPV6_HOSTNAME),
-                        help='Default: ::1. Server IP address.')
+    parser.add_argument(
+        '--hostname',
+        type=str,
+        default=str(DEFAULT_IPV6_HOSTNAME),
+        help='Default: ::1. Server IP address.')
     parser.add_argument(
         '--key-file',
         type=str,

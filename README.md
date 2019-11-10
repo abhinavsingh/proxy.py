@@ -129,8 +129,9 @@ Features
     - Can decrypt TLS traffic between clients and upstream servers
     - See [TLS Interception](#tls-interception)
 - Supported proxy protocols
-    - `http`
-    - `https`
+    - `http(s)`
+        - `http1`
+        - `http1.1` pipeline
     - `http2`
     - `websockets`
 - Optimized for large file uploads and downloads

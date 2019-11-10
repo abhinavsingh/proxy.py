@@ -249,7 +249,10 @@ class HttpProtocolHandler(ThreadlessWork):
             ctx.load_cert_chain(
                 certfile=self.flags.certfile,
                 keyfile=self.flags.keyfile)
-            conn = ctx.wrap_socket(conn, server_side=True)
+            conn = ctx.wrap_socket(
+                conn,
+                server_side=True
+            )
         return conn
 
     def connection_inactive_for(self) -> float:

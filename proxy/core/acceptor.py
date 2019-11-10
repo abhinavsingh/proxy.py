@@ -68,7 +68,10 @@ class AcceptorPool:
                 event_queue=self.event_queue
             )
             acceptor.start()
-            logger.debug('Started acceptor#%d process %d', acceptor_id, acceptor.pid)
+            logger.debug(
+                'Started acceptor#%d process %d',
+                acceptor_id,
+                acceptor.pid)
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.flags.num_workers)
