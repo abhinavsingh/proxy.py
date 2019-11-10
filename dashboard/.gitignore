@@ -2,5 +2,3 @@ tsbuild
 node_modules
 build
 dist
-
-proxy.py_dashboard.egg-info

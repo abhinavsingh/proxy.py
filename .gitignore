@@ -18,4 +18,5 @@ cover
 htmlcov
 dist
 build
-proxy.py.egg-info
+
+*.egg-info
