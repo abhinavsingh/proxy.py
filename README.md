@@ -77,7 +77,7 @@ Table of Contents
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
     * [Basic auth not working with a browser](#basic-auth-not-working-with-a-browser)
     * [Docker image not working on MacOS](#docker-image-not-working-on-macos)
-    * [Unable to load custom plugins](#unable-to-load-custom-plugins)
+    * [Unable to load plugins](#unable-to-load-plugins)
     * [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
 * [Flags](#flags)
 * [Changelog](#changelog)
@@ -969,9 +969,9 @@ See [moby/vpnkit exhausts docker resources](https://github.com/abhinavsingh/prox
 and [Connection refused: The proxy could not connect](https://github.com/moby/vpnkit/issues/469)
 for some background.
 
-## Unable to load custom plugins
+## Unable to load plugins
 
-Make sure your plugin modules are discoverable by adding them to `PYTHONPATH`.  Example:
+Make sure plugin modules are discoverable by adding them to `PYTHONPATH`.  Example:
 
 `PYTHONPATH=/path/to/my/app proxy --plugins my_app.proxyPlugin`
 
@@ -983,6 +983,8 @@ Make sure your plugin modules are discoverable by adding them to `PYTHONPATH`.  
 or, make sure to pass fully-qualified path as parameter, e.g.
 
 `proxy --plugins /path/to/my/app/my_app.proxyPlugin`
+
+Note that `pip install proxy.py` don't ship [plugin_examples](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples).
 
 ## GCE log viewer integration for proxy.py
 

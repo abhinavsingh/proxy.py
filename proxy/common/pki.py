@@ -203,8 +203,7 @@ def ssl_config(
     os.remove(config_path)
 
 
-def run_openssl_command(command, timeout) -> bool:
-    print(' '.join(command))
+def run_openssl_command(command: List[str], timeout: int) -> bool:
     cmd = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
