@@ -10,8 +10,10 @@
 coverage.xml
 proxy.py.iml
 *.pyc
-ca-*.pem
-https-*.pem
+
+*.csr
+*.crt
+*.key
 
 venv
 cover

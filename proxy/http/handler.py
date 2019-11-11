@@ -251,7 +251,7 @@ class HttpProtocolHandler(ThreadlessWork):
                 keyfile=self.flags.keyfile)
             conn = ctx.wrap_socket(
                 conn,
-                server_side=True
+                server_side=True,
             )
         return conn
 
