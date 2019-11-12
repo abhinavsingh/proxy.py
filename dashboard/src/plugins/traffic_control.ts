@@ -7,7 +7,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 */
-import { DashboardPlugin } from '../plugin'
+import { DashboardPlugin } from '../core/plugin'
 
 export class TrafficControlPlugin extends DashboardPlugin {
   public name: string = 'traffic_control'
