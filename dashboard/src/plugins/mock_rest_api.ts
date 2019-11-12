@@ -26,6 +26,40 @@ export class MockRestApiPlugin extends DashboardPlugin {
   }
 
   public initializeSkeleton (): JQuery<HTMLElement> {
+    return this.getAppHeader()
+      .add(this.getAppBody())
+  }
+
+  public activated (): void {}
+
+  public deactivated (): void {}
+
+  private fetchExistingSpecs () {
+    // TODO: Fetch list of currently configured APIs from the backend
+    const apiExampleOrgSpec = new Map()
+    apiExampleOrgSpec.set('/v1/users/', {
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        {
+          email: 'you@example.com',
+          groups: [],
+          url: 'api.example.org/v1/users/1/',
+          username: 'admin'
+        },
+        {
+          email: 'someone@example.com',
+          groups: [],
+          url: 'api.example.org/v1/users/2/',
+          username: 'someone'
+        }
+      ]
+    })
+    this.specs.set('api.example.org', apiExampleOrgSpec)
+  }
+
+  private getAppHeader (): JQuery<HTMLElement> {
     return $('<div></div>')
       .attr('id', 'app-header')
       .append(
@@ -63,116 +97,88 @@ export class MockRestApiPlugin extends DashboardPlugin {
               )
           )
       )
-      .add(
+  }
+
+  private getAppBody (): JQuery<HTMLElement> {
+    return $('<div></div>')
+      .attr('id', 'app-body')
+      .append(
         $('<div></div>')
-          .attr('id', 'app-body')
+          .addClass('list-group')
+          .addClass('position-relative')
           .append(
-            $('<div></div>')
-              .addClass('list-group')
-              .addClass('position-relative')
+            $('<a></a>')
+              .attr('href', '#')
+              .addClass('list-group-item default text-decoration-none bg-light')
+              .attr('data-toggle', 'collapse')
+              .attr('data-target', '#api-example-com-path-specs')
+              .attr('data-parent', '#proxyDashboard')
+              .text('api.example.com')
               .append(
-                $('<a></a>')
-                  .attr('href', '#')
-                  .addClass('list-group-item default text-decoration-none bg-light')
-                  .attr('data-toggle', 'collapse')
-                  .attr('data-target', '#api-example-com-path-specs')
-                  .attr('data-parent', '#proxyDashboard')
-                  .text('api.example.com')
-                  .append(
-                    $('<span></span>')
-                      .addClass('badge badge-info')
-                      .text('3 Resources')
-                  )
-              )
-              .append(
-                $('<button></button>')
-                  .addClass('position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec')
-                  .attr('title', 'Delete api.example.com')
-              )
-              .append(
-                $('<div></div>')
-                  .addClass('collapse api-path-spec')
-                  .attr('id', 'api-example-com-path-specs')
-                  .append(
-                    $('<div></div>')
-                      .addClass('list-group-item bg-light')
-                      .text('/v1/users/')
-                  )
-                  .append(
-                    $('<div></div>')
-                      .addClass('list-group-item bg-light')
-                      .text('/v1/groups/')
-                  )
-                  .append(
-                    $('<div></div>')
-                      .addClass('list-group-item bg-light')
-                      .text('/v1/messages/')
-                  )
+                $('<span></span>')
+                  .addClass('badge badge-info')
+                  .text('3 Resources')
               )
           )
           .append(
+            $('<button></button>')
+              .addClass('position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec')
+              .attr('title', 'Delete api.example.com')
+          )
+          .append(
             $('<div></div>')
-              .addClass('list-group')
-              .addClass('position-relative')
+              .addClass('collapse api-path-spec')
+              .attr('id', 'api-example-com-path-specs')
               .append(
-                $('<a></a>')
-                  .attr('href', '#')
-                  .addClass('list-group-item default text-decoration-none bg-light')
-                  .attr('data-toggle', 'collapse')
-                  .attr('data-target', '#my-api')
-                  .attr('data-parent', '#proxyDashboard')
-                  .text('my.api')
-                  .append(
-                    $('<span></span>')
-                      .addClass('badge badge-info')
-                      .text('1 Resource')
-                  )
-              )
-              .append(
-                $('<button></button>')
-                  .addClass('position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec')
-                  .attr('title', 'Delete my.api')
+                $('<div></div>')
+                  .addClass('list-group-item bg-light')
+                  .text('/v1/users/')
               )
               .append(
                 $('<div></div>')
-                  .addClass('collapse api-path-spec')
-                  .attr('id', 'my-api')
-                  .append(
-                    $('<div></div>')
-                      .addClass('list-group-item bg-light')
-                      .text('/api/')
-                  )
+                  .addClass('list-group-item bg-light')
+                  .text('/v1/groups/')
+              )
+              .append(
+                $('<div></div>')
+                  .addClass('list-group-item bg-light')
+                  .text('/v1/messages/')
               )
           )
       )
-  }
-
-  public activated (): void {}
-
-  public deactivated (): void {}
-
-  private fetchExistingSpecs () {
-    // TODO: Fetch list of currently configured APIs from the backend
-    const apiExampleOrgSpec = new Map()
-    apiExampleOrgSpec.set('/v1/users/', {
-      count: 2,
-      next: null,
-      previous: null,
-      results: [
-        {
-          email: 'you@example.com',
-          groups: [],
-          url: 'api.example.org/v1/users/1/',
-          username: 'admin'
-        },
-        {
-          email: 'someone@example.com',
-          groups: [],
-          url: 'api.example.org/v1/users/2/',
-          username: 'someone'
-        }
-      ]
-    })
-    this.specs.set('api.example.org', apiExampleOrgSpec)
+      .append(
+        $('<div></div>')
+          .addClass('list-group')
+          .addClass('position-relative')
+          .append(
+            $('<a></a>')
+              .attr('href', '#')
+              .addClass('list-group-item default text-decoration-none bg-light')
+              .attr('data-toggle', 'collapse')
+              .attr('data-target', '#my-api')
+              .attr('data-parent', '#proxyDashboard')
+              .text('my.api')
+              .append(
+                $('<span></span>')
+                  .addClass('badge badge-info')
+                  .text('1 Resource')
+              )
+          )
+          .append(
+            $('<button></button>')
+              .addClass('position-absolute fa fa-close ml-auto btn btn-danger remove-api-spec')
+              .attr('title', 'Delete my.api')
+          )
+          .append(
+            $('<div></div>')
+              .addClass('collapse api-path-spec')
+              .attr('id', 'my-api')
+              .append(
+                $('<div></div>')
+                  .addClass('list-group-item bg-light')
+                  .text('/api/')
+              )
+          )
+      )
   }
 }
