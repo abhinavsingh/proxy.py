@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "clean": "rm -rf tsbuild",
-    "lint": "eslint --global $ src/*.ts src/**/*.ts test/*.ts",
+    "lint": "eslint --global $ src/**/*.ts test/**/*.ts",
     "pretest": "npm run clean && npm run lint && tsc --target es5 --outDir tsbuild test/test.ts",
     "test": "jasmine tsbuild/test/test.js",
     "build": "npm test && rollup -c",
