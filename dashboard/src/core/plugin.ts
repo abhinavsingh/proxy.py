@@ -8,14 +8,21 @@
     :license: BSD, see LICENSE for more details.
 */
 
-export class DashboardPlugin {
-  private readonly name: string;
+export interface IDashboardPlugin {
+  name: string
+  getTab(): JQuery<HTMLElement>
+}
 
-  constructor (name: string) {
+export interface IPluginConstructor {
+  new (name: string): IDashboardPlugin
+}
+
+export abstract class DashboardPlugin implements IDashboardPlugin {
+  public readonly name: string
+
+  protected constructor (name: string) {
     this.name = name
   }
 
-  public getTab() : JQuery<HTMLElement> {
-    return $('')
-  }
+  public abstract getTab() : JQuery<HTMLElement>
 }

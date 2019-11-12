@@ -9,7 +9,7 @@
 */
 
 import { WebsocketApi } from './core/ws'
-import { DashboardPlugin } from './core/plugin'
+import { IDashboardPlugin, IPluginConstructor } from './core/plugin'
 
 import { HomePlugin } from './core/plugins/home'
 import { InspectTrafficPlugin } from './core/plugins/inspect_traffic'
@@ -20,7 +20,7 @@ import { MockRestApiPlugin } from './plugins/mock_rest_api'
 import { ShortlinkPlugin } from './plugins/shortlink'
 
 export class ProxyDashboard {
-  private static plugins: Map<string, DashboardPlugin> = new Map();
+  private static plugins: Map<string, IDashboardPlugin> = new Map();
 
   private websocketApi: WebsocketApi
 
@@ -33,14 +33,14 @@ export class ProxyDashboard {
     })
   }
 
-  public static addPlugin (name: string, Plugin: typeof DashboardPlugin) {
+  public static addPlugin (name: string, Plugin: IPluginConstructor) {
     const p = new Plugin(name)
     $('#proxyTopNav ul').append(
       $('<li/>')
         .addClass('nav-item')
         .append(p.getTab())
     )
-    ProxyDashboard.plugins.set(name, new Plugin(name))
+    ProxyDashboard.plugins.set(name, p)
   }
 
   private switchTab (element: HTMLElement) {

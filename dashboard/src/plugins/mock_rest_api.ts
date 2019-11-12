@@ -14,7 +14,7 @@ export class MockRestApiPlugin extends DashboardPlugin {
   private specs: Map<string, Map<string, JSON>>;
 
   constructor (name: string) {
-    super(name);
+    super(name)
     this.specs = new Map()
     this.fetchExistingSpecs()
   }
