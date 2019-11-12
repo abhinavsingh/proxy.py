@@ -17,30 +17,14 @@ export class HomePlugin extends DashboardPlugin {
   }
 
   public initializeTab() : JQuery<HTMLElement> {
-    return $('<a/>')
-      .attr({
-        href: '#',
-        id: 'proxyHome'
-      })
-      .addClass('nav-link')
-      .text('Home')
-      .prepend(
-        $('<i/>')
-          .addClass('fa')
-          .addClass('fa-fw')
-          .addClass('fa-home')
-      )
+    return this.makeTab('Home', 'fa-home')
   }
 
   public initializeAppSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 
-  public activated(): void {
-    throw new Error("Method not implemented.");
-  }
+  public activated(): void {}
 
-  public deactivated(): void {
-    throw new Error("Method not implemented.");
-  }
+  public deactivated(): void {}
 }

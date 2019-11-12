@@ -40,7 +40,7 @@ export class ProxyDashboard {
         .addClass('nav-item')
         .append(p.initializeTab())
     )
-    $('#proxyAppBody').append(
+    $('#proxyDashboard').append(
       $('<div></div>')
         .attr('id', p.name)
         .addClass('proxy-data')
@@ -51,31 +51,24 @@ export class ProxyDashboard {
 
   private switchTab (element: HTMLElement) {
     const activeLi = $('#proxyTopNav>ul>li.active')
-    const activeTabId = activeLi.children('a').attr('id')
-    const clickedTabId = $(element).attr('id')
-    const clickedTabContentId = $(element).text().trim().toLowerCase().replace(' ', '-')
+    const activeTabPluginName = activeLi.children('a').attr('plugin_name')
+    const clickedTabPluginName = $(element).attr('plugin_name')
 
     activeLi.removeClass('active')
     $(element.parentNode).addClass('active')
-    console.log('Clicked id %s, showing %s', clickedTabId, clickedTabContentId)
+    console.log('Showing plugin content', clickedTabPluginName)
 
-    if (clickedTabId === activeTabId) {
+    if (clickedTabPluginName === activeTabPluginName) {
       return
     }
 
-    $('#app>div.proxy-data').hide()
-    $('#' + clickedTabContentId).show()
+    $('#proxyDashboard>div.proxy-data').hide()
+    $('#' + clickedTabPluginName).show()
 
-    // TODO: Tab ids shouldn't be hardcoded.
-    // Templatize proxy.html and refer to tab_id via enum or constants
-    //
-    // 1. Enable inspection if user moved to inspect tab
-    // 2. Disable inspection if user moved away from inspect tab
-    if (clickedTabId === 'proxyInspect') {
-      this.websocketApi.enableInspection()
-    } else if (activeTabId === 'proxyInspect') {
-      this.websocketApi.disableInspection()
+    if (activeTabPluginName !== undefined) {
+      ProxyDashboard.plugins.get(activeTabPluginName).deactivated()
     }
+    ProxyDashboard.plugins.get(clickedTabPluginName).activated()
   }
 }
 

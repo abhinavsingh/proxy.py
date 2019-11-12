@@ -17,30 +17,14 @@ export class SettingsPlugin extends DashboardPlugin {
   }
 
   public initializeTab() : JQuery<HTMLElement> {
-    return $('<a/>')
-      .attr({
-        href: '#',
-        id: 'proxySettings'
-      })
-      .addClass('nav-link')
-      .text('Settings')
-      .prepend(
-        $('<i/>')
-          .addClass('fa')
-          .addClass('fa-fw')
-          .addClass('fa-cogs')
-      )
+    return this.makeTab('Settings', 'fa-clog')
   }
 
   public initializeAppSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 
-  public activated(): void {
-    throw new Error("Method not implemented.");
-  }
+  public activated(): void {}
 
-  public deactivated(): void {
-    throw new Error("Method not implemented.");
-  }
+  public deactivated(): void {}
 }

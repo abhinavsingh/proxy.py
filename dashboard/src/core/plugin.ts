@@ -27,6 +27,22 @@ export abstract class DashboardPlugin implements IDashboardPlugin {
     this.name = name
   }
 
+  public makeTab(name: string, icon: string) : JQuery<HTMLElement> {
+    return $('<a/>')
+      .attr({
+        href: '#',
+        plugin_name: this.name
+      })
+      .addClass('nav-link')
+      .text(name)
+      .prepend(
+        $('<i/>')
+          .addClass('fa')
+          .addClass('fa-fw')
+          .addClass(icon)
+      )
+  }
+
   public abstract initializeTab() : JQuery<HTMLElement>
   public abstract initializeAppSkeleton(): JQuery<HTMLElement>
   public abstract activated(): void

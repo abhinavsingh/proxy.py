@@ -20,32 +20,66 @@ export class MockRestApiPlugin extends DashboardPlugin {
   }
 
   public initializeTab() : JQuery<HTMLElement> {
-    return $('<a/>')
-      .attr({
-        href: '#',
-        id: 'proxyApiDevelopment'
-      })
-      .addClass('nav-link')
-      .text('API Development')
-      .prepend(
-        $('<i/>')
-          .addClass('fa')
-          .addClass('fa-fw')
-          .addClass('fa-connectdevelop')
-      )
+    return this.makeTab('API Development', 'fa-connectdevelop')
   }
 
   public initializeAppSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
+      .attr('id', 'app-header')
+      .append(
+        $('<div></div>')
+          .addClass('container-fluid')
+          .append(
+            $('<div></div>')
+              .addClass('row')
+              .append(
+                $('<div></div>')
+                  .addClass('col-6')
+                  .append(
+                    $('<p></p>')
+                      .addClass('h3')
+                      .text('API Development')
+                  )
+              )
+              .append(
+                $('<div></div>')
+                  .addClass('col-6')
+                  .addClass('text-right')
+                  .append(
+                    $('<button></button>')
+                      .attr('type', 'button')
+                      .addClass('btn')
+                      .addClass('btn-primary')
+                      .text('Create New API')
+                      .prepend(
+                        $('<i></i>')
+                          .addClass('fa')
+                          .addClass('fa-fw')
+                          .addClass('fa-plus-circle')
+                      )
+                  )
+              )
+          )
+      )
+      .add(
+        $('<div></div>')
+          .attr('id', 'app-body')
+          .append(
+            $('<div></div>')
+              .addClass('list-group')
+              .addClass('position-relative')
+          )
+          .append(
+            $('<div></div>')
+              .addClass('list-group')
+              .addClass('position-relative')
+          )
+      )
   }
 
-  public activated(): void {
-    throw new Error("Method not implemented.");
-  }
+  public activated(): void {}
 
-  public deactivated(): void {
-    throw new Error("Method not implemented.");
-  }
+  public deactivated(): void {}
 
   private fetchExistingSpecs () {
     // TODO: Fetch list of currently configured APIs from the backend

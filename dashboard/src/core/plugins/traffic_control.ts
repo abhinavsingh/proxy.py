@@ -17,30 +17,14 @@ export class TrafficControlPlugin extends DashboardPlugin {
   }
 
   public initializeTab() : JQuery<HTMLElement> {
-    return $('<a/>')
-      .attr({
-        href: '#',
-        id: 'proxyControls'
-      })
-      .addClass('nav-link')
-      .text('Traffic Controls')
-      .prepend(
-        $('<i/>')
-          .addClass('fa')
-          .addClass('fa-fw')
-          .addClass('fa-lock')
-      )
+    return this.makeTab('Traffic Controls', 'fa-lock')
   }
 
   public initializeAppSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 
-  public activated(): void {
-    throw new Error("Method not implemented.");
-  }
+  public activated(): void {}
 
-  public deactivated(): void {
-    throw new Error("Method not implemented.");
-  }
+  public deactivated(): void {}
 }

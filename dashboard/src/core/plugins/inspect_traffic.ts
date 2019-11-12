@@ -17,19 +17,7 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   }
 
   public initializeTab() : JQuery<HTMLElement> {
-    return $('<a/>')
-      .attr({
-        href: '#',
-        id: 'proxyInspect'
-      })
-      .addClass('nav-link')
-      .text('Inspect Traffic')
-      .prepend(
-        $('<i/>')
-          .addClass('fa')
-          .addClass('fa-fw')
-          .addClass('fa-binoculars')
-      )
+    return this.makeTab('Inspect Traffic', 'fa-binoculars')
   }
 
   public initializeAppSkeleton(): JQuery<HTMLElement> {
@@ -37,10 +25,10 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   }
 
   public activated(): void {
-    throw new Error("Method not implemented.");
+    // this.websocketApi.enableInspection()
   }
 
   public deactivated(): void {
-    throw new Error("Method not implemented.");
+    // this.websocketApi.disableInspection()
   }
 }
