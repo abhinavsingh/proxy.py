@@ -32,12 +32,13 @@ logger = logging.getLogger(__name__)
 
 class ProxyDashboard(HttpWebServerBasePlugin):
 
+    RELAY_MANAGER: multiprocessing.managers.SyncManager = multiprocessing.Manager()
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.inspection_enabled: bool = False
         self.relay_thread: Optional[threading.Thread] = None
         self.relay_shutdown: Optional[threading.Event] = None
-        self.relay_manager: Optional[multiprocessing.managers.SyncManager] = None
         self.relay_channel: Optional[DictQueueType] = None
         self.relay_sub_id: Optional[str] = None
 
@@ -102,8 +103,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                 self.inspection_enabled = True
 
                 self.relay_shutdown = threading.Event()
-                self.relay_manager = multiprocessing.Manager()
-                self.relay_channel = self.relay_manager.Queue()
+                self.relay_channel = ProxyDashboard.RELAY_MANAGER.Queue()
                 self.relay_thread = threading.Thread(
                     target=self.relay_events,
                     args=(self.relay_shutdown, self.relay_channel, self.client))
@@ -123,11 +123,14 @@ class ProxyDashboard(HttpWebServerBasePlugin):
             logger.info(frame.opcode)
             self.reply({'id': message['id'], 'response': 'not_implemented'})
 
+    def on_websocket_close(self) -> None:
+        logger.info('app ws closed')
+        self.shutdown_relay()
+
     def shutdown_relay(self) -> None:
         if not self.inspection_enabled:
             return
 
-        assert self.relay_manager
         assert self.relay_shutdown
         assert self.relay_thread
         assert self.relay_sub_id
@@ -135,17 +138,11 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         self.event_queue.unsubscribe(self.relay_sub_id)
         self.relay_shutdown.set()
         self.relay_thread.join()
-        self.relay_manager.shutdown()
 
-        self.relay_manager = None
         self.relay_thread = None
         self.relay_shutdown = None
         self.relay_channel = None
         self.relay_sub_id = None
-
-    def on_websocket_close(self) -> None:
-        logger.info('app ws closed')
-        self.shutdown_relay()
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
