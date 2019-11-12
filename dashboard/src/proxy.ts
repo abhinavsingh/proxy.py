@@ -13,11 +13,11 @@ import { IDashboardPlugin, IPluginConstructor } from './core/plugin'
 
 import { HomePlugin } from './core/plugins/home'
 import { InspectTrafficPlugin } from './core/plugins/inspect_traffic'
-import { TrafficControlPlugin } from './core/plugins/traffic_control'
 import { SettingsPlugin } from './core/plugins/settings'
 
 import { MockRestApiPlugin } from './plugins/mock_rest_api'
 import { ShortlinkPlugin } from './plugins/shortlink'
+import { TrafficControlPlugin } from './plugins/traffic_control'
 
 export class ProxyDashboard {
   private static plugins: IPluginConstructor[] = [];
