@@ -16,7 +16,7 @@ export class InspectTrafficPlugin extends DashboardPlugin {
     super(name);
   }
 
-  public getTab() : JQuery<HTMLElement> {
+  public initializeTab() : JQuery<HTMLElement> {
     return $('<a/>')
       .attr({
         href: '#',
@@ -30,5 +30,17 @@ export class InspectTrafficPlugin extends DashboardPlugin {
           .addClass('fa-fw')
           .addClass('fa-binoculars')
       )
+  }
+
+  public initializeAppSkeleton(): JQuery<HTMLElement> {
+    return $('<div></div>')
+  }
+
+  public activated(): void {
+    throw new Error("Method not implemented.");
+  }
+
+  public deactivated(): void {
+    throw new Error("Method not implemented.");
   }
 }

@@ -11,12 +11,11 @@
 import { DashboardPlugin} from "../core/plugin";
 
 export class ShortlinkPlugin extends DashboardPlugin {
-
   constructor (name: string) {
     super(name);
   }
 
-  public getTab() : JQuery<HTMLElement> {
+  public initializeTab() : JQuery<HTMLElement> {
     return $('<a/>')
       .attr({
         href: '#',
@@ -30,5 +29,17 @@ export class ShortlinkPlugin extends DashboardPlugin {
           .addClass('fa-fw')
           .addClass('fa-bolt')
       )
+  }
+
+  public initializeAppSkeleton(): JQuery<HTMLElement> {
+    return $('<div></div>')
+  }
+
+  public activated(): void {
+    throw new Error("Method not implemented.");
+  }
+
+  public deactivated(): void {
+    throw new Error("Method not implemented.");
   }
 }

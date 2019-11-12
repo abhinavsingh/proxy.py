@@ -19,7 +19,7 @@ export class MockRestApiPlugin extends DashboardPlugin {
     this.fetchExistingSpecs()
   }
 
-  public getTab() : JQuery<HTMLElement> {
+  public initializeTab() : JQuery<HTMLElement> {
     return $('<a/>')
       .attr({
         href: '#',
@@ -33,6 +33,18 @@ export class MockRestApiPlugin extends DashboardPlugin {
           .addClass('fa-fw')
           .addClass('fa-connectdevelop')
       )
+  }
+
+  public initializeAppSkeleton(): JQuery<HTMLElement> {
+    return $('<div></div>')
+  }
+
+  public activated(): void {
+    throw new Error("Method not implemented.");
+  }
+
+  public deactivated(): void {
+    throw new Error("Method not implemented.");
   }
 
   private fetchExistingSpecs () {

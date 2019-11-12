@@ -10,7 +10,10 @@
 
 export interface IDashboardPlugin {
   name: string
-  getTab(): JQuery<HTMLElement>
+  initializeTab(): JQuery<HTMLElement>
+  initializeAppSkeleton(): JQuery<HTMLElement>
+  activated(): void
+  deactivated(): void
 }
 
 export interface IPluginConstructor {
@@ -24,5 +27,8 @@ export abstract class DashboardPlugin implements IDashboardPlugin {
     this.name = name
   }
 
-  public abstract getTab() : JQuery<HTMLElement>
+  public abstract initializeTab() : JQuery<HTMLElement>
+  public abstract initializeAppSkeleton(): JQuery<HTMLElement>
+  public abstract activated(): void
+  public abstract deactivated(): void
 }

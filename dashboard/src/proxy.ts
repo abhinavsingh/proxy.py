@@ -38,7 +38,13 @@ export class ProxyDashboard {
     $('#proxyTopNav ul').append(
       $('<li/>')
         .addClass('nav-item')
-        .append(p.getTab())
+        .append(p.initializeTab())
+    )
+    $('#proxyAppBody').append(
+      $('<div></div>')
+        .attr('id', p.name)
+        .addClass('proxy-data')
+        .append(p.initializeAppSkeleton())
     )
     ProxyDashboard.plugins.set(name, p)
   }

@@ -16,7 +16,7 @@ export class TrafficControlPlugin extends DashboardPlugin {
     super(name);
   }
 
-  public getTab() : JQuery<HTMLElement> {
+  public initializeTab() : JQuery<HTMLElement> {
     return $('<a/>')
       .attr({
         href: '#',
@@ -30,5 +30,17 @@ export class TrafficControlPlugin extends DashboardPlugin {
           .addClass('fa-fw')
           .addClass('fa-lock')
       )
+  }
+
+  public initializeAppSkeleton(): JQuery<HTMLElement> {
+    return $('<div></div>')
+  }
+
+  public activated(): void {
+    throw new Error("Method not implemented.");
+  }
+
+  public deactivated(): void {
+    throw new Error("Method not implemented.");
   }
 }
