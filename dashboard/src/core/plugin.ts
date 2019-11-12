@@ -7,7 +7,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 */
-import { WebsocketApi } from "./ws"
+import { WebsocketApi } from './ws'
 
 export interface IDashboardPlugin {
   name: string
@@ -29,7 +29,7 @@ export abstract class DashboardPlugin implements IDashboardPlugin {
     this.websocketApi = websocketApi
   }
 
-  public makeTab(name: string, icon: string) : JQuery<HTMLElement> {
+  public makeTab (name: string, icon: string) : JQuery<HTMLElement> {
     return $('<a/>')
       .attr({
         href: '#',

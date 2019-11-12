@@ -7,9 +7,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 */
-
-import { DashboardPlugin} from "../core/plugin";
-import { WebsocketApi } from "../core/ws";
+import { DashboardPlugin } from '../core/plugin'
+import { WebsocketApi } from '../core/ws'
 
 export class MockRestApiPlugin extends DashboardPlugin {
   public name: string = 'api_development';
@@ -22,11 +21,11 @@ export class MockRestApiPlugin extends DashboardPlugin {
     this.fetchExistingSpecs()
   }
 
-  public initializeTab() : JQuery<HTMLElement> {
+  public initializeTab () : JQuery<HTMLElement> {
     return this.makeTab('API Development', 'fa-connectdevelop')
   }
 
-  public initializeSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton (): JQuery<HTMLElement> {
     return $('<div></div>')
       .attr('id', 'app-header')
       .append(
@@ -148,9 +147,9 @@ export class MockRestApiPlugin extends DashboardPlugin {
       )
   }
 
-  public activated(): void {}
+  public activated (): void {}
 
-  public deactivated(): void {}
+  public deactivated (): void {}
 
   private fetchExistingSpecs () {
     // TODO: Fetch list of currently configured APIs from the backend
