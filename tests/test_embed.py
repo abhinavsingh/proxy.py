@@ -10,7 +10,7 @@
 import unittest
 import socket
 
-from typing import Optional
+from typing import Optional, Any
 from contextlib import closing
 
 from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
@@ -20,11 +20,11 @@ from proxy.http.methods import httpMethods
 from proxy.main import start
 
 
-def get_available_port():
+def get_available_port() -> int:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
         sock.bind(('', 0))
         _, port = sock.getsockname()
-        return port
+    return int(port)
 
 
 class TestProxyPyEmbedded(unittest.TestCase):
@@ -46,7 +46,7 @@ class TestProxyPyEmbedded(unittest.TestCase):
             )
         )
 
-    def test_proxy_py_proxy_server(self):
+    def test_proxy_py_proxy_server(self) -> None:
         with socket_connection(('localhost', self.port)) as conn:
             conn.send(
                 build_http_request(
@@ -65,7 +65,7 @@ class TestProxyPyEmbedded(unittest.TestCase):
             )
         )
 
-    def run(self, result: Optional[unittest.TestResult] = ...):
+    def run(self, result: Optional[unittest.TestResult] = None) -> Any:
         self.port = get_available_port()
         with start([
                 '--num-workers', '1',
