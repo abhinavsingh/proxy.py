@@ -154,7 +154,7 @@ def get_ext_config(
         alt_names = []
         for cname in alt_subj_names:
             alt_names.append(b'DNS:%s' % bytes_(cname))
-        config += b'subjectAltName=' + COMMA.join(alt_names)
+        config += b'\nsubjectAltName=' + COMMA.join(alt_names)
     # Add extendedKeyUsage section
     if extended_key_usage is not None:
         config += b'\nextendedKeyUsage=' + bytes_(extended_key_usage)
@@ -187,7 +187,7 @@ def ssl_config(
     if (alt_subj_names is not None and len(alt_subj_names) > 0) or \
             extended_key_usage is not None:
         has_extension = True
-        config += b'\n[PROXY]\n'
+        config += b'\n[PROXY]'
 
     # Add custom extensions
     config += get_ext_config(alt_subj_names, extended_key_usage)
@@ -210,5 +210,4 @@ def run_openssl_command(command: List[str], timeout: int) -> bool:
         stderr=subprocess.PIPE
     )
     cmd.communicate(timeout=timeout)
-    assert cmd.returncode == 0
-    return True
+    return cmd.returncode == 0
