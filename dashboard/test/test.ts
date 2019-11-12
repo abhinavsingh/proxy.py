@@ -7,11 +7,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 */
+/* global describe, it, expect */
 
-import { ProxyDashboard } from "../src/proxy";
+import { ProxyDashboard } from '../src/proxy'
 
-describe("test suite", () => {
-    it("initializes", () => {
-        expect(new ProxyDashboard()).toBeTruthy();
-    });
-});
+describe('test suite', () => {
+  it('initializes', () => {
+    expect(new ProxyDashboard()).toBeTruthy()
+  })
+})
