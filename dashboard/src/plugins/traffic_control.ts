@@ -17,10 +17,32 @@ export class TrafficControlPlugin extends DashboardPlugin {
   }
 
   public initializeSkeleton (): JQuery<HTMLElement> {
-    return $('<div></div>')
+    return this.getAppHeader()
   }
 
   public activated (): void {}
 
   public deactivated (): void {}
+
+  private getAppHeader (): JQuery<HTMLElement> {
+    return $('<div></div>')
+      .addClass('app-header')
+      .append(
+        $('<div></div>')
+          .addClass('container-fluid')
+          .append(
+            $('<div></div>')
+              .addClass('row')
+              .append(
+                $('<div></div>')
+                  .addClass('col-6')
+                  .append(
+                    $('<p></p>')
+                      .addClass('h3')
+                      .text('Traffic Control')
+                  )
+              )
+          )
+      )
+  }
 }

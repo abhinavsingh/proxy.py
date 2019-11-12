@@ -17,7 +17,7 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   }
 
   public initializeSkeleton (): JQuery<HTMLElement> {
-    return $('<div></div>')
+    return this.getAppHeader()
   }
 
   public activated (): void {
@@ -30,5 +30,27 @@ export class InspectTrafficPlugin extends DashboardPlugin {
 
   public handleEvents (message: Record<string, any>): void {
     console.log(message)
+  }
+
+  private getAppHeader (): JQuery<HTMLElement> {
+    return $('<div></div>')
+      .addClass('app-header')
+      .append(
+        $('<div></div>')
+          .addClass('container-fluid')
+          .append(
+            $('<div></div>')
+              .addClass('row')
+              .append(
+                $('<div></div>')
+                  .addClass('col-6')
+                  .append(
+                    $('<p></p>')
+                      .addClass('h3')
+                      .text('Inspect Traffic')
+                  )
+              )
+          )
+      )
   }
 }

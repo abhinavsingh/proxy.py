@@ -61,7 +61,7 @@ export class MockRestApiPlugin extends DashboardPlugin {
 
   private getAppHeader (): JQuery<HTMLElement> {
     return $('<div></div>')
-      .attr('id', 'app-header')
+      .addClass('app-header')
       .append(
         $('<div></div>')
           .addClass('container-fluid')
@@ -101,7 +101,7 @@ export class MockRestApiPlugin extends DashboardPlugin {
 
   private getAppBody (): JQuery<HTMLElement> {
     return $('<div></div>')
-      .attr('id', 'app-body')
+      .addClass('app-body')
       .append(
         $('<div></div>')
           .addClass('list-group')
@@ -113,7 +113,7 @@ export class MockRestApiPlugin extends DashboardPlugin {
               .attr('data-toggle', 'collapse')
               .attr('data-target', '#api-example-com-path-specs')
               .attr('data-parent', '#proxyDashboard')
-              .text('api.example.com')
+              .text('api.example.com ')
               .append(
                 $('<span></span>')
                   .addClass('badge badge-info')
@@ -157,7 +157,7 @@ export class MockRestApiPlugin extends DashboardPlugin {
               .attr('data-toggle', 'collapse')
               .attr('data-target', '#my-api')
               .attr('data-parent', '#proxyDashboard')
-              .text('my.api')
+              .text('my.api ')
               .append(
                 $('<span></span>')
                   .addClass('badge badge-info')
