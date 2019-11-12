@@ -25,7 +25,7 @@ export abstract class DashboardPlugin implements IDashboardPlugin {
   public abstract readonly name: string
   protected websocketApi: WebsocketApi
 
-  protected constructor (websocketApi: WebsocketApi) {
+  public constructor (websocketApi: WebsocketApi) {
     this.websocketApi = websocketApi
   }
 

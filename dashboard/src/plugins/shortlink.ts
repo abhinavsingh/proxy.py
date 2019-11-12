@@ -8,15 +8,9 @@
     :license: BSD, see LICENSE for more details.
 */
 import { DashboardPlugin } from '../core/plugin'
-import { WebsocketApi } from '../core/ws'
 
 export class ShortlinkPlugin extends DashboardPlugin {
   public name: string = 'shortlink';
-
-  constructor (websocketApi: WebsocketApi) {
-    super(websocketApi)
-    console.log('initialized')
-  }
 
   public initializeTab () : JQuery<HTMLElement> {
     return this.makeTab('Short Links', 'fa-bolt')

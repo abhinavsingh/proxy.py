@@ -7,26 +7,20 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 */
-
-import {DashboardPlugin} from "../plugin";
-import { WebsocketApi } from "../ws";
+import { DashboardPlugin } from '../plugin'
 
 export class TrafficControlPlugin extends DashboardPlugin {
-  public name: string = 'traffic_control';
+  public name: string = 'traffic_control'
 
-  constructor (websocketApi: WebsocketApi) {
-    super(websocketApi)
-  }
-
-  public initializeTab() : JQuery<HTMLElement> {
+  public initializeTab () : JQuery<HTMLElement> {
     return this.makeTab('Traffic Controls', 'fa-lock')
   }
 
-  public initializeSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton (): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 
-  public activated(): void {}
+  public activated (): void {}
 
-  public deactivated(): void {}
+  public deactivated (): void {}
 }

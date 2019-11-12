@@ -7,26 +7,20 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 */
-
-import {DashboardPlugin} from "../plugin";
-import { WebsocketApi } from "../ws";
+import { DashboardPlugin } from '../plugin'
 
 export class SettingsPlugin extends DashboardPlugin {
-  public name: string = 'settings';
+  public name: string = 'settings'
 
-  constructor (websocketApi: WebsocketApi) {
-    super(websocketApi)
-  }
-
-  public initializeTab() : JQuery<HTMLElement> {
+  public initializeTab () : JQuery<HTMLElement> {
     return this.makeTab('Settings', 'fa-clog')
   }
 
-  public initializeSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton (): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 
-  public activated(): void {}
+  public activated (): void {}
 
-  public deactivated(): void {}
+  public deactivated (): void {}
 }
