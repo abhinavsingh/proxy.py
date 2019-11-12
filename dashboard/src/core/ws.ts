@@ -8,6 +8,8 @@
     :license: BSD, see LICENSE for more details.
 */
 
+type MessageHandler = (message: Record<string, any>) => void
+
 export class WebsocketApi {
   private hostname: string = window.location.hostname ? window.location.hostname : 'localhost';
   private port: number = window.location.port ? Number(window.location.port) : 8899;
@@ -18,7 +20,6 @@ export class WebsocketApi {
   private wsPath: string = this.wsScheme + '://' + this.hostname + ':' + this.port + this.wsPrefix;
 
   private mid: number = 0;
-  private lastPingId: number;
   private lastPingTime: number;
 
   private readonly schedulePingEveryMs: number = 1000;
@@ -28,6 +29,7 @@ export class WebsocketApi {
   private serverConnectTimer: number;
 
   private inspectionEnabled: boolean;
+  private callbacks: Map<number, MessageHandler> = new Map()
 
   constructor () {
     this.scheduleServerConnect(0)
@@ -41,14 +43,12 @@ export class WebsocketApi {
   public enableInspection () {
     // TODO: Set flag to true only once response has been received from the server
     this.inspectionEnabled = true
-    this.ws.send(JSON.stringify({ id: this.mid, method: 'enable_inspection' }))
-    this.mid++
+    this.sendMessage({ method: 'enable_inspection' })
   }
 
   public disableInspection () {
     this.inspectionEnabled = false
-    this.ws.send(JSON.stringify({ id: this.mid, method: 'disable_inspection' }))
-    this.mid++
+    this.sendMessage({ method: 'disable_inspection' })
   }
 
   private scheduleServerConnect (after_ms: number = this.scheduleReconnectEveryMs) {
@@ -80,11 +80,16 @@ export class WebsocketApi {
   }
 
   private pingServer () {
-    this.lastPingId = this.mid
     this.lastPingTime = WebsocketApi.getTime()
-    this.mid++
     // console.log('Pinging server with id:%d', this.last_ping_id);
-    this.ws.send(JSON.stringify({ id: this.lastPingId, method: 'ping' }))
+    this.sendMessage({ method: 'ping' }, this.handlePong.bind(this))
+  }
+
+  private handlePong (message: Record<string, any>) {
+    WebsocketApi.setServerStatusSuccess(
+      String((WebsocketApi.getTime() - this.lastPingTime) + ' ms'))
+    this.clearServerPingTimer()
+    this.scheduleServerPing()
   }
 
   private clearServerPingTimer () {
@@ -93,7 +98,6 @@ export class WebsocketApi {
       this.serverPingTimer = null
     }
     this.lastPingTime = null
-    this.lastPingId = null
   }
 
   private onServerWSOpen (ev: MessageEvent) {
@@ -102,13 +106,21 @@ export class WebsocketApi {
     this.scheduleServerPing(0)
   }
 
+  public sendMessage (data: Record<string, any>, callback?: MessageHandler) {
+    data.id = this.mid
+    if (callback) {
+      this.callbacks.set(this.mid, callback)
+    }
+    this.mid++
+    this.ws.send(JSON.stringify(data))
+  }
+
   private onServerWSMessage (ev: MessageEvent) {
     const message = JSON.parse(ev.data)
-    if (message.id === this.lastPingId) {
-      WebsocketApi.setServerStatusSuccess(
-        String((WebsocketApi.getTime() - this.lastPingTime) + ' ms'))
-      this.clearServerPingTimer()
-      this.scheduleServerPing()
+    if (this.callbacks.has(message.id)) {
+      const callback = this.callbacks.get(message.id)
+      this.callbacks.delete(message.id)
+      callback(message)
     } else {
       console.log(message)
     }
