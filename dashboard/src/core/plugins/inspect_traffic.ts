@@ -21,10 +21,14 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   }
 
   public activated (): void {
-    this.websocketApi.enableInspection()
+    this.websocketApi.enableInspection(this.handleEvents.bind(this))
   }
 
   public deactivated (): void {
     this.websocketApi.disableInspection()
+  }
+
+  public handleEvents (message: Record<string, any>): void {
+    console.log(message)
   }
 }
