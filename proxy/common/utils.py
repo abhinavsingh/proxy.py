@@ -196,3 +196,11 @@ class socket_connection(contextlib.ContextDecorator):
             with self as conn:
                 return func(conn, *args, **kwargs)
         return decorated
+
+
+def get_available_port() -> int:
+    """Finds and returns an available port on the system."""
+    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock.bind(('', 0))
+        _, port = sock.getsockname()
+    return int(port)

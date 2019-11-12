@@ -7,36 +7,28 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import socket
-
-from typing import Optional, Any
-from contextlib import closing
-
 from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
 from proxy.common.utils import socket_connection, build_http_request, build_http_response
 from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
-from proxy.main import start
+from proxy.main import TestCase
 
 
-def get_available_port() -> int:
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-        sock.bind(('', 0))
-        _, port = sock.getsockname()
-    return int(port)
+class TestProxyPyEmbedded(TestCase):
 
-
-class TestProxyPyEmbedded(unittest.TestCase):
+    PROXY_PY_STARTUP_FLAGS = [
+        '--num-workers', '1',
+        '--enable-web-server',
+    ]
 
     def test_with_proxy(self) -> None:
         """Makes a HTTP request to in-build web server via proxy server"""
-        with socket_connection(('localhost', self.port)) as conn:
+        with socket_connection(('localhost', self.proxy_port)) as conn:
             conn.send(
                 build_http_request(
-                    httpMethods.GET, b'http://localhost:%d/' % self.port,
+                    httpMethods.GET, b'http://localhost:%d/' % self.proxy_port,
                     headers={
-                        b'Host': b'localhost:%d' % self.port,
+                        b'Host': b'localhost:%d' % self.proxy_port,
                     })
             )
             response = conn.recv(DEFAULT_CLIENT_RECVBUF_SIZE)
@@ -50,11 +42,3 @@ class TestProxyPyEmbedded(unittest.TestCase):
                 }
             )
         )
-
-    def run(self, result: Optional[unittest.TestResult] = None) -> Any:
-        self.port = get_available_port()
-        with start([
-                '--num-workers', '1',
-                '--port', str(self.port),
-                '--enable-web-server']):
-            super().run(result)

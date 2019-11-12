@@ -17,10 +17,11 @@ import multiprocessing
 import os
 import sys
 import time
-from typing import Dict, List, Optional, Generator
+import unittest
+from typing import Dict, List, Optional, Generator, Any
 
 from .common.flags import Flags, init_parser
-from .common.utils import text_, bytes_
+from .common.utils import text_, bytes_, get_available_port, new_socket_connection
 from .common.types import DictQueueType
 from .common.constants import DOT, COMMA
 from .common.constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
@@ -205,6 +206,36 @@ def start(input_args: List[str]) -> Generator[None, None, None]:
     finally:
         if args.pid_file and os.path.exists(args.pid_file):
             os.remove(args.pid_file)
+
+
+class TestCase(unittest.TestCase):
+    """TestCase class that automatically setup and teardown proxy.py."""
+
+    DEFAULT_PROXY_PY_STARTUP_FLAGS = [
+        '--num-workers', '1',
+    ]
+
+    def run(self, result: Optional[unittest.TestResult] = None) -> Any:
+        self.proxy_port = get_available_port()
+
+        flags = getattr(self, 'PROXY_PY_STARTUP_FLAGS') \
+            if hasattr(self, 'PROXY_PY_STARTUP_FLAGS') \
+            else self.DEFAULT_PROXY_PY_STARTUP_FLAGS
+        flags.append('--port')
+        flags.append(str(self.proxy_port))
+
+        with start(flags):
+            # Wait for proxy.py server to come up
+            while True:
+                try:
+                    conn = new_socket_connection(('localhost', self.proxy_port))
+                    break
+                except ConnectionRefusedError:
+                    time.sleep(0.1)
+                finally:
+                    conn.close()
+            # Run tests
+            super().run(result)
 
 
 def main(input_args: List[str]) -> None:
