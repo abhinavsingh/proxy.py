@@ -8,25 +8,27 @@
     :license: BSD, see LICENSE for more details.
 */
 
-import { WebsocketApi } from './ws'
-import { ApiDevelopment } from './plugins/mock_rest_api'
+import { WebsocketApi } from './core/ws'
+import { DashboardPlugin } from './core/plugin'
+
+import { MockRestApiPlugin } from './plugins/mock_rest_api'
 
 export class ProxyDashboard {
+  private static plugins: Map<string, DashboardPlugin> = new Map();
+
   private websocketApi: WebsocketApi
-  private apiDevelopment: ApiDevelopment
 
   constructor () {
     this.websocketApi = new WebsocketApi()
+
     const that = this
     $('#proxyTopNav>ul>li>a').on('click', function () {
       that.switchTab(this)
     })
-    this.apiDevelopment = new ApiDevelopment()
   }
 
-  public static getTime () {
-    const date = new Date()
-    return date.getTime()
+  public static addPlugin (name: string, Plugin: typeof DashboardPlugin) {
+    ProxyDashboard.plugins.set(name, new Plugin(name))
   }
 
   private switchTab (element: HTMLElement) {
@@ -39,6 +41,10 @@ export class ProxyDashboard {
     $(element.parentNode).addClass('active')
     console.log('Clicked id %s, showing %s', clickedTabId, clickedTabContentId)
 
+    if (clickedTabId === activeTabId) {
+      return
+    }
+
     $('#app>div.proxy-data').hide()
     $('#' + clickedTabContentId).show()
 
@@ -47,15 +53,13 @@ export class ProxyDashboard {
     //
     // 1. Enable inspection if user moved to inspect tab
     // 2. Disable inspection if user moved away from inspect tab
-    // 3. Do nothing if activeTabId == clickedTabId
-    if (clickedTabId !== activeTabId) {
-      if (clickedTabId === 'proxyInspect') {
-        this.websocketApi.enableInspection()
-      } else if (activeTabId === 'proxyInspect') {
-        this.websocketApi.disableInspection()
-      }
+    if (clickedTabId === 'proxyInspect') {
+      this.websocketApi.enableInspection()
+    } else if (activeTabId === 'proxyInspect') {
+      this.websocketApi.disableInspection()
     }
   }
 }
 
+ProxyDashboard.addPlugin('mock_rest_api', MockRestApiPlugin);
 (window as any).ProxyDashboard = ProxyDashboard

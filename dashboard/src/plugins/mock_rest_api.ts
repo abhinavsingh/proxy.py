@@ -8,10 +8,13 @@
     :license: BSD, see LICENSE for more details.
 */
 
-export class ApiDevelopment {
+import { DashboardPlugin} from "../core/plugin";
+
+export class MockRestApiPlugin extends DashboardPlugin {
   private specs: Map<string, Map<string, JSON>>;
 
-  constructor () {
+  constructor (name: string) {
+    super(name);
     this.specs = new Map()
     this.fetchExistingSpecs()
   }
