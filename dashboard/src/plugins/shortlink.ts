@@ -10,13 +10,18 @@
 import { DashboardPlugin } from '../core/plugin'
 
 export class ShortlinkPlugin extends DashboardPlugin {
-  public name: string = 'shortlink';
+  public name: string = 'shortlink'
+  public title: string = 'Short Links'
 
   public initializeTab () : JQuery<HTMLElement> {
-    return this.makeTab('Short Links', 'fa-bolt')
+    return this.makeTab(this.title, 'fa-bolt')
   }
 
-  public initializeSkeleton (): JQuery<HTMLElement> {
+  public initializeHeader (): JQuery<HTMLElement> {
+    return this.makeHeader(this.title)
+  }
+
+  public initializeBody (): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 

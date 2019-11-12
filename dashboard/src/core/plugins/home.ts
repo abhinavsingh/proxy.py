@@ -11,12 +11,17 @@ import { DashboardPlugin } from '../plugin'
 
 export class HomePlugin extends DashboardPlugin {
   public name: string = 'home'
+  public title: string = 'Home'
 
   public initializeTab () : JQuery<HTMLElement> {
     return this.makeTab('Home', 'fa-home')
   }
 
-  public initializeSkeleton (): JQuery<HTMLElement> {
+  public initializeHeader (): JQuery<HTMLElement> {
+    return this.makeHeader(this.title)
+  }
+
+  public initializeBody (): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 

@@ -228,7 +228,8 @@ class TestCase(unittest.TestCase):
             # Wait for proxy.py server to come up
             while True:
                 try:
-                    conn = new_socket_connection(('localhost', self.proxy_port))
+                    conn = new_socket_connection(
+                        ('localhost', self.proxy_port))
                     break
                 except ConnectionRefusedError:
                     time.sleep(0.1)

@@ -24,7 +24,7 @@
 [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=mypy&message=checked&color=blue)](http://mypy-lang.org/)
 
-[![Become a Backer](https://opencollective.com/proxypy/tiers/backer.svg?avatarHeight=36)](https://opencollective.com/proxypy)
+[![Become a Backer](https://opencollective.com/proxypy/tiers/backer.svg?avatarHeight=72)](https://opencollective.com/proxypy)
 
 Table of Contents
 =================
@@ -78,13 +78,16 @@ Table of Contents
             * [WebsocketClient](#websocketclient)
 * [Frequently Asked Questions](#frequently-asked-questions)
     * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
+    * [Unable to load plugins](#unable-to-load-plugins)
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
     * [Basic auth not working with a browser](#basic-auth-not-working-with-a-browser)
     * [Docker image not working on MacOS](#docker-image-not-working-on-macos)
-    * [Unable to load plugins](#unable-to-load-plugins)
     * [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
 * [Flags](#flags)
 * [Changelog](#changelog)
+    * [v2.x](#v2x)
+    * [v1.x](#v1x)
+    * [v0.x](#v0x)
 
 Features
 ========
@@ -1016,6 +1019,23 @@ Make sure you are using `Python 3`. Verify the version before running `proxy.py`
 
 `$ python --version`
 
+## Unable to load plugins
+
+Make sure plugin modules are discoverable by adding them to `PYTHONPATH`.  Example:
+
+`PYTHONPATH=/path/to/my/app proxy --plugins my_app.proxyPlugin`
+
+```
+...[redacted]... - Loaded plugin proxy.HttpProxyPlugin
+...[redacted]... - Loaded plugin my_app.proxyPlugin
+```
+
+or, make sure to pass fully-qualified path as parameter, e.g.
+
+`proxy --plugins /path/to/my/app/my_app.proxyPlugin`
+
+Note that `pip install proxy.py` don't ship [plugin_examples](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples).
+
 ## Unable to connect with proxy.py from remote host
 
 Make sure `proxy.py` is listening on correct network interface.
@@ -1042,23 +1062,6 @@ It's a compatibility issue with `vpnkit`.
 See [moby/vpnkit exhausts docker resources](https://github.com/abhinavsingh/proxy.py/issues/43)
 and [Connection refused: The proxy could not connect](https://github.com/moby/vpnkit/issues/469)
 for some background.
-
-## Unable to load plugins
-
-Make sure plugin modules are discoverable by adding them to `PYTHONPATH`.  Example:
-
-`PYTHONPATH=/path/to/my/app proxy --plugins my_app.proxyPlugin`
-
-```
-...[redacted]... - Loaded plugin proxy.HttpProxyPlugin
-...[redacted]... - Loaded plugin my_app.proxyPlugin
-```
-
-or, make sure to pass fully-qualified path as parameter, e.g.
-
-`proxy --plugins /path/to/my/app/my_app.proxyPlugin`
-
-Note that `pip install proxy.py` don't ship [plugin_examples](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples).
 
 ## GCE log viewer integration for proxy.py
 
@@ -1221,17 +1224,22 @@ https://github.com/abhinavsingh/proxy.py/issues/new
 Changelog
 =========
 
-- `v2.x`
-    - No longer ~~a single file module~~.
-    - Added support for threadless execution.
-    - Added dashboard app.
-- `v1.x`
-    - `Python3` only.
-        - Deprecated support for ~~Python 2.x~~.
-    - Added support multi core accept.
-    - Added plugin support.
-- `v0.x`
-    - Single file.
-    - Single threaded server.
+## v2.x
 
-For detailed changelog refer either to release PRs or commit history.
+- No longer ~~a single file module~~.
+- Added support for threadless execution.
+- Added dashboard app.
+
+## v1.x
+
+- `Python3` only.
+    - Deprecated support for ~~Python 2.x~~.
+- Added support multi core accept.
+- Added plugin support.
+
+## v0.x
+
+- Single file.
+- Single threaded server.
+
+For detailed changelog refer to release PRs or commit history.

@@ -22,10 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 EventNames = NamedTuple('EventNames', [
-    ('WORK_STARTED', int),
-    ('WORK_FINISHED', int),
     ('SUBSCRIBE', int),
     ('UNSUBSCRIBE', int),
+    ('WORK_STARTED', int),
+    ('WORK_FINISHED', int),
 ])
 eventNames = EventNames(1, 2, 3, 4)
 
@@ -73,9 +73,19 @@ class EventQueue:
             self,
             sub_id: str,
             channel: DictQueueType) -> None:
+        """Subscribe to global events."""
         self.queue.put({
             'event_name': eventNames.SUBSCRIBE,
             'event_payload': {'sub_id': sub_id, 'channel': channel},
+        })
+
+    def unsubscribe(
+            self,
+            sub_id: str) -> None:
+        """Unsubscribe by subscriber id."""
+        self.queue.put({
+            'event_name': eventNames.UNSUBSCRIBE,
+            'event_payload': {'sub_id': sub_id},
         })
 
 
@@ -112,26 +122,29 @@ class EventDispatcher:
         self.event_queue: EventQueue = event_queue
         self.subscribers: Dict[str, DictQueueType] = {}
 
+    def handle_event(self, ev: Dict[str, Any]) -> None:
+        if ev['event_name'] == eventNames.SUBSCRIBE:
+            self.subscribers[ev['event_payload']['sub_id']] = \
+                ev['event_payload']['channel']
+        elif ev['event_name'] == eventNames.UNSUBSCRIBE:
+            del self.subscribers[ev['event_payload']['sub_id']]
+        else:
+            # logger.info(ev)
+            unsub_ids: List[str] = []
+            for sub_id in self.subscribers:
+                try:
+                    self.subscribers[sub_id].put(ev)
+                except BrokenPipeError:
+                    unsub_ids.append(sub_id)
+            for sub_id in unsub_ids:
+                del self.subscribers[sub_id]
+
     def run(self) -> None:
         try:
             while not self.shutdown.is_set():
                 try:
-                    ev = self.event_queue.queue.get(timeout=1)
-                    if ev['event_name'] == eventNames.SUBSCRIBE:
-                        self.subscribers[ev['event_payload']['sub_id']] = \
-                            ev['event_payload']['channel']
-                    elif ev['event_name'] == eventNames.UNSUBSCRIBE:
-                        del self.subscribers[ev['event_payload']['sub_id']]
-                    else:
-                        # logger.info(ev)
-                        unsub_ids: List[str] = []
-                        for sub_id in self.subscribers:
-                            try:
-                                self.subscribers[sub_id].put(ev)
-                            except BrokenPipeError:
-                                unsub_ids.append(sub_id)
-                        for sub_id in unsub_ids:
-                            del self.subscribers[sub_id]
+                    ev: Dict[str, Any] = self.event_queue.queue.get(timeout=1)
+                    self.handle_event(ev)
                 except queue.Empty:
                     pass
         except EOFError:
