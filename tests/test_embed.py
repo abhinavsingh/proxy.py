@@ -29,29 +29,15 @@ def get_available_port() -> int:
 
 class TestProxyPyEmbedded(unittest.TestCase):
 
-    def test_proxy_py_web_server(self) -> None:
-        with socket_connection(('localhost', self.port)) as conn:
-            conn.send(
-                build_http_request(httpMethods.GET, b'/')
-            )
-            response = conn.recv(DEFAULT_CLIENT_RECVBUF_SIZE)
-        self.assertEqual(
-            response,
-            build_http_response(
-                httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
-                headers={
-                    b'Server': PROXY_AGENT_HEADER_VALUE,
-                    b'Connection': b'close'
-                }
-            )
-        )
-
-    def test_proxy_py_proxy_server(self) -> None:
+    def test_with_proxy(self) -> None:
+        """Makes a HTTP request to in-build web server via proxy server"""
         with socket_connection(('localhost', self.port)) as conn:
             conn.send(
                 build_http_request(
                     httpMethods.GET, b'http://localhost:%d/' % self.port,
-                    headers={b'Host': b'localhost:%d' % self.port})
+                    headers={
+                        b'Host': b'localhost:%d' % self.port,
+                    })
             )
             response = conn.recv(DEFAULT_CLIENT_RECVBUF_SIZE)
         self.assertEqual(
