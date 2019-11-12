@@ -9,18 +9,20 @@
 */
 
 import {DashboardPlugin} from "../plugin";
+import { WebsocketApi } from "../ws";
 
 export class SettingsPlugin extends DashboardPlugin {
+  public name: string = 'settings';
 
-  constructor (name: string) {
-    super(name);
+  constructor (websocketApi: WebsocketApi) {
+    super(websocketApi)
   }
 
   public initializeTab() : JQuery<HTMLElement> {
     return this.makeTab('Settings', 'fa-clog')
   }
 
-  public initializeAppSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 

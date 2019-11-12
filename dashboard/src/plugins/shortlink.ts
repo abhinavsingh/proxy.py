@@ -9,17 +9,20 @@
 */
 
 import { DashboardPlugin} from "../core/plugin";
+import { WebsocketApi } from "../core/ws";
 
 export class ShortlinkPlugin extends DashboardPlugin {
-  constructor (name: string) {
-    super(name);
+  public name: string = 'shortlink';
+
+  constructor (websocketApi: WebsocketApi) {
+    super(websocketApi)
   }
 
   public initializeTab() : JQuery<HTMLElement> {
     return this.makeTab('Short Links', 'fa-bolt')
   }
 
-  public initializeAppSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 

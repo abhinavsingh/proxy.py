@@ -20,12 +20,29 @@ import { MockRestApiPlugin } from './plugins/mock_rest_api'
 import { ShortlinkPlugin } from './plugins/shortlink'
 
 export class ProxyDashboard {
-  private static plugins: Map<string, IDashboardPlugin> = new Map();
+  private static plugins: IPluginConstructor[] = [];
+  private plugins: Map<string, IDashboardPlugin> = new Map();
 
   private websocketApi: WebsocketApi
 
   constructor () {
     this.websocketApi = new WebsocketApi()
+
+    for (const Plugin of ProxyDashboard.plugins) {
+      const p = new Plugin(this.websocketApi)
+      $('#proxyTopNav ul').append(
+        $('<li/>')
+          .addClass('nav-item')
+          .append(p.initializeTab())
+      )
+      $('#proxyDashboard').append(
+        $('<div></div>')
+          .attr('id', p.name)
+          .addClass('proxy-data')
+          .append(p.initializeSkeleton())
+      )
+      this.plugins.set(p.name, p)
+    }
 
     const that = this
     $('#proxyTopNav>ul>li>a').on('click', function () {
@@ -33,20 +50,8 @@ export class ProxyDashboard {
     })
   }
 
-  public static addPlugin (name: string, Plugin: IPluginConstructor) {
-    const p = new Plugin(name)
-    $('#proxyTopNav ul').append(
-      $('<li/>')
-        .addClass('nav-item')
-        .append(p.initializeTab())
-    )
-    $('#proxyDashboard').append(
-      $('<div></div>')
-        .attr('id', p.name)
-        .addClass('proxy-data')
-        .append(p.initializeAppSkeleton())
-    )
-    ProxyDashboard.plugins.set(name, p)
+  public static addPlugin (Plugin: IPluginConstructor) {
+    ProxyDashboard.plugins.push(Plugin)
   }
 
   private switchTab (element: HTMLElement) {
@@ -66,17 +71,17 @@ export class ProxyDashboard {
     $('#' + clickedTabPluginName).show()
 
     if (activeTabPluginName !== undefined) {
-      ProxyDashboard.plugins.get(activeTabPluginName).deactivated()
+      this.plugins.get(activeTabPluginName).deactivated()
     }
-    ProxyDashboard.plugins.get(clickedTabPluginName).activated()
+    this.plugins.get(clickedTabPluginName).activated()
   }
 }
 
-ProxyDashboard.addPlugin('home', HomePlugin)
-ProxyDashboard.addPlugin('api_development', MockRestApiPlugin)
-ProxyDashboard.addPlugin('inspect_traffic', InspectTrafficPlugin)
-ProxyDashboard.addPlugin('shortlink', ShortlinkPlugin)
-ProxyDashboard.addPlugin('traffic_control', TrafficControlPlugin)
-ProxyDashboard.addPlugin('settings', SettingsPlugin);
+ProxyDashboard.addPlugin(HomePlugin)
+ProxyDashboard.addPlugin(MockRestApiPlugin)
+ProxyDashboard.addPlugin(InspectTrafficPlugin)
+ProxyDashboard.addPlugin(ShortlinkPlugin)
+ProxyDashboard.addPlugin(TrafficControlPlugin)
+ProxyDashboard.addPlugin(SettingsPlugin);
 
 (window as any).ProxyDashboard = ProxyDashboard

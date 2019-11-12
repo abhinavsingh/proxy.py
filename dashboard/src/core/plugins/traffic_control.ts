@@ -9,18 +9,20 @@
 */
 
 import {DashboardPlugin} from "../plugin";
+import { WebsocketApi } from "../ws";
 
 export class TrafficControlPlugin extends DashboardPlugin {
+  public name: string = 'traffic_control';
 
-  constructor (name: string) {
-    super(name);
+  constructor (websocketApi: WebsocketApi) {
+    super(websocketApi)
   }
 
   public initializeTab() : JQuery<HTMLElement> {
     return this.makeTab('Traffic Controls', 'fa-lock')
   }
 
-  public initializeAppSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 

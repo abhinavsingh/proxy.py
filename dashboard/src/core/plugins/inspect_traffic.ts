@@ -9,26 +9,28 @@
 */
 
 import {DashboardPlugin} from "../plugin";
+import { WebsocketApi } from "../ws";
 
 export class InspectTrafficPlugin extends DashboardPlugin {
+  public name: string = 'inspect_traffic';
 
-  constructor (name: string) {
-    super(name);
+  constructor (websocketApi: WebsocketApi) {
+    super(websocketApi)
   }
 
   public initializeTab() : JQuery<HTMLElement> {
     return this.makeTab('Inspect Traffic', 'fa-binoculars')
   }
 
-  public initializeAppSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 
   public activated(): void {
-    // this.websocketApi.enableInspection()
+    this.websocketApi.enableInspection()
   }
 
   public deactivated(): void {
-    // this.websocketApi.disableInspection()
+    this.websocketApi.disableInspection()
   }
 }

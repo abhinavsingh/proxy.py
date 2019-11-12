@@ -9,12 +9,15 @@
 */
 
 import { DashboardPlugin} from "../core/plugin";
+import { WebsocketApi } from "../core/ws";
 
 export class MockRestApiPlugin extends DashboardPlugin {
+  public name: string = 'api_development';
+
   private specs: Map<string, Map<string, JSON>>;
 
-  constructor (name: string) {
-    super(name)
+  constructor (websocketApi: WebsocketApi) {
+    super(websocketApi)
     this.specs = new Map()
     this.fetchExistingSpecs()
   }
@@ -23,7 +26,7 @@ export class MockRestApiPlugin extends DashboardPlugin {
     return this.makeTab('API Development', 'fa-connectdevelop')
   }
 
-  public initializeAppSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
       .attr('id', 'app-header')
       .append(

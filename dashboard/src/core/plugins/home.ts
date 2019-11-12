@@ -9,18 +9,20 @@
 */
 
 import {DashboardPlugin} from "../plugin";
+import { WebsocketApi } from "../ws";
 
 export class HomePlugin extends DashboardPlugin {
+  public name: string = 'home';
 
-  constructor (name: string) {
-    super(name);
+  constructor (websocketApi: WebsocketApi) {
+    super(websocketApi)
   }
 
   public initializeTab() : JQuery<HTMLElement> {
     return this.makeTab('Home', 'fa-home')
   }
 
-  public initializeAppSkeleton(): JQuery<HTMLElement> {
+  public initializeSkeleton(): JQuery<HTMLElement> {
     return $('<div></div>')
   }
 
