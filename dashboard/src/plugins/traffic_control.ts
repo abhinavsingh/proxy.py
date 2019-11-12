@@ -18,6 +18,7 @@ export class TrafficControlPlugin extends DashboardPlugin {
 
   public initializeSkeleton (): JQuery<HTMLElement> {
     return this.getAppHeader()
+      .add(this.getAppBody())
   }
 
   public activated (): void {}
@@ -44,5 +45,10 @@ export class TrafficControlPlugin extends DashboardPlugin {
               )
           )
       )
+  }
+
+  private getAppBody (): JQuery<HTMLElement> {
+    return $('<div></div>')
+      .addClass('app-body')
   }
 }
