@@ -78,6 +78,14 @@ class EventQueue:
             'event_payload': {'sub_id': sub_id, 'channel': channel},
         })
 
+    def unsubscribe(
+            self,
+            sub_id: str) -> None:
+        self.queue.put({
+            'event_name': eventNames.UNSUBSCRIBE,
+            'event_payload': {'sub_id': sub_id},
+        })
+
 
 class EventDispatcher:
     """Core EventDispatcher.

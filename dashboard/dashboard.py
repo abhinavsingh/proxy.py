@@ -115,19 +115,24 @@ class ProxyDashboard(HttpWebServerBasePlugin):
 
                 self.reply({'id': message['id'], 'response': 'inspection_enabled'})
         elif message['method'] == 'disable_inspection':
-            if self.inspection_enabled:
-                self.shutdown_relay()
+            self.shutdown_relay()
             self.inspection_enabled = False
             self.reply({'id': message['id'], 'response': 'inspection_disabled'})
         else:
             logger.info(frame.data)
             logger.info(frame.opcode)
+            self.reply({'id': message['id'], 'response': 'not_implemented'})
 
     def shutdown_relay(self) -> None:
+        if not self.inspection_enabled:
+            return
+
         assert self.relay_manager
         assert self.relay_shutdown
         assert self.relay_thread
+        assert self.relay_sub_id
 
+        self.event_queue.unsubscribe(self.relay_sub_id)
         self.relay_shutdown.set()
         self.relay_thread.join()
         self.relay_manager.shutdown()
@@ -140,8 +145,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
 
     def on_websocket_close(self) -> None:
         logger.info('app ws closed')
-        if self.inspection_enabled:
-            self.shutdown_relay()
+        self.shutdown_relay()
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
