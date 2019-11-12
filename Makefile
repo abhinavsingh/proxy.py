@@ -17,6 +17,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 .PHONY: lib-clean lib-test lib-package lib-release-test lib-release lib-coverage lib-lint lib-profile
 .PHONY: container container-run container-release
 .PHONY: dashboard dashboard-clean dashboard-package
+.PHONY: plugin-package-clean plugin-package
 
 all: lib-clean lib-test
 
@@ -90,6 +91,12 @@ dashboard-package-clean:
 
 dashboard-package: dashboard-package-clean
 	pushd dashboard && npm test && PYTHONPATH=.. python setup.py sdist bdist_wheel && popd
+
+plugin-package-clean:
+	pushd plugin_examples && rm -rf build && rm -rf dist && popd
+
+plugin-package: plugin-package-clean
+	pushd plugin_examples && PYTHONPATH=.. python setup.py sdist bdist_wheel && popd
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .

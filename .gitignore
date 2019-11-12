@@ -10,12 +10,15 @@
 coverage.xml
 proxy.py.iml
 *.pyc
-ca-*.pem
-https-*.pem
+
+*.csr
+*.crt
+*.key
 
 venv
 cover
 htmlcov
 dist
 build
-proxy.py.egg-info
+
+*.egg-info

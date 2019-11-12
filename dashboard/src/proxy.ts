@@ -43,10 +43,10 @@ class ApiDevelopment {
 }
 
 class WebsocketApi {
-  private hostname: string = 'localhost';
-  private port: number = 8899;
+  private hostname: string = window.location.hostname ? window.location.hostname : 'localhost';
+  private port: number = window.location.port ? Number(window.location.port) : 8899;
   private wsPrefix: string = '/dashboard';
-  private wsScheme: string = 'ws';
+  private wsScheme: string = window.location.protocol === 'http:' ? 'ws' : 'wss';
   private ws: WebSocket;
   private wsPath: string = this.wsScheme + '://' + this.hostname + ':' + this.port + this.wsPrefix;
 
