@@ -12,7 +12,8 @@ import { WebsocketApi } from './ws'
 export interface IDashboardPlugin {
   name: string
   initializeTab(): JQuery<HTMLElement>
-  initializeSkeleton(): JQuery<HTMLElement>
+  initializeHeader(): JQuery<HTMLElement>
+  initializeBody(): JQuery<HTMLElement>
   activated(): void
   deactivated(): void
 }
@@ -46,7 +47,8 @@ export abstract class DashboardPlugin implements IDashboardPlugin {
   }
 
   public abstract initializeTab() : JQuery<HTMLElement>
-  public abstract initializeSkeleton(): JQuery<HTMLElement>
+  public abstract initializeHeader(): JQuery<HTMLElement>
+  public abstract initializeBody(): JQuery<HTMLElement>
   public abstract activated(): void
   public abstract deactivated(): void
 }

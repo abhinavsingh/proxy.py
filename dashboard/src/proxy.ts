@@ -39,7 +39,16 @@ export class ProxyDashboard {
         $('<div></div>')
           .attr('id', p.name)
           .addClass('proxy-data')
-          .append(p.initializeSkeleton())
+          .append(
+            $('<div></div>')
+              .addClass('app-header')
+              .append(p.initializeHeader())
+          )
+          .append(
+            $('<div></div>')
+              .addClass('app-body')
+              .append(p.initializeBody())
+          )
       )
       this.plugins.set(p.name, p)
     }

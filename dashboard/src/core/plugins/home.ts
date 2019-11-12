@@ -16,39 +16,29 @@ export class HomePlugin extends DashboardPlugin {
     return this.makeTab('Home', 'fa-home')
   }
 
-  public initializeSkeleton (): JQuery<HTMLElement> {
-    return this.getAppHeader()
-      .add(this.getAppBody())
-  }
-
-  public activated (): void {}
-
-  public deactivated (): void {}
-
-  private getAppHeader (): JQuery<HTMLElement> {
+  public initializeHeader (): JQuery<HTMLElement> {
     return $('<div></div>')
-      .addClass('app-header')
+      .addClass('container-fluid')
       .append(
         $('<div></div>')
-          .addClass('container-fluid')
+          .addClass('row')
           .append(
             $('<div></div>')
-              .addClass('row')
+              .addClass('col-6')
               .append(
-                $('<div></div>')
-                  .addClass('col-6')
-                  .append(
-                    $('<p></p>')
-                      .addClass('h3')
-                      .text('Home')
-                  )
+                $('<p></p>')
+                  .addClass('h3')
+                  .text('Home')
               )
           )
       )
   }
 
-  private getAppBody (): JQuery<HTMLElement> {
+  public initializeBody (): JQuery<HTMLElement> {
     return $('<div></div>')
-      .addClass('app-body')
   }
+
+  public activated (): void {}
+
+  public deactivated (): void {}
 }
