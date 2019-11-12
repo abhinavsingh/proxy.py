@@ -11,7 +11,13 @@
 import { WebsocketApi } from './core/ws'
 import { DashboardPlugin } from './core/plugin'
 
+import { HomePlugin } from './core/plugins/home'
+import { InspectTrafficPlugin } from './core/plugins/inspect_traffic'
+import { TrafficControlPlugin } from './core/plugins/traffic_control'
+import { SettingsPlugin } from './core/plugins/settings'
+
 import { MockRestApiPlugin } from './plugins/mock_rest_api'
+import { ShortlinkPlugin } from './plugins/shortlink'
 
 export class ProxyDashboard {
   private static plugins: Map<string, DashboardPlugin> = new Map();
@@ -28,6 +34,12 @@ export class ProxyDashboard {
   }
 
   public static addPlugin (name: string, Plugin: typeof DashboardPlugin) {
+    const p = new Plugin(name)
+    $('#proxyTopNav ul').append(
+      $('<li/>')
+        .addClass('nav-item')
+        .append(p.getTab())
+    )
     ProxyDashboard.plugins.set(name, new Plugin(name))
   }
 
@@ -61,5 +73,11 @@ export class ProxyDashboard {
   }
 }
 
-ProxyDashboard.addPlugin('mock_rest_api', MockRestApiPlugin);
+ProxyDashboard.addPlugin('home', HomePlugin)
+ProxyDashboard.addPlugin('api_development', MockRestApiPlugin)
+ProxyDashboard.addPlugin('inspect_traffic', InspectTrafficPlugin)
+ProxyDashboard.addPlugin('shortlink', ShortlinkPlugin)
+ProxyDashboard.addPlugin('traffic_control', TrafficControlPlugin)
+ProxyDashboard.addPlugin('settings', SettingsPlugin);
+
 (window as any).ProxyDashboard = ProxyDashboard

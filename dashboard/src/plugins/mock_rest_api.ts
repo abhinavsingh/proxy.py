@@ -19,6 +19,22 @@ export class MockRestApiPlugin extends DashboardPlugin {
     this.fetchExistingSpecs()
   }
 
+  public getTab() : JQuery<HTMLElement> {
+    return $('<a/>')
+      .attr({
+        href: '#',
+        id: 'proxyApiDevelopment'
+      })
+      .addClass('nav-link')
+      .text('API Development')
+      .prepend(
+        $('<i/>')
+          .addClass('fa')
+          .addClass('fa-fw')
+          .addClass('fa-connectdevelop')
+      )
+  }
+
   private fetchExistingSpecs () {
     // TODO: Fetch list of currently configured APIs from the backend
     const apiExampleOrgSpec = new Map()
