@@ -23,7 +23,7 @@ export class ProxyDashboard {
   private static plugins: IPluginConstructor[] = [];
   private plugins: Map<string, IDashboardPlugin> = new Map();
 
-  private websocketApi: WebsocketApi
+  private readonly websocketApi: WebsocketApi
 
   constructor () {
     this.websocketApi = new WebsocketApi()

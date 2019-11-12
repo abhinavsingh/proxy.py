@@ -25,10 +25,11 @@ export class WebsocketApi {
   private readonly schedulePingEveryMs: number = 1000;
   private readonly scheduleReconnectEveryMs: number = 5000;
 
-  private serverPingTimer: number;
-  private serverConnectTimer: number;
+  private serverPingTimer: number = null;
+  private serverConnectTimer: number = null;
 
-  private inspectionEnabled: boolean;
+  private inspectionEnabled: boolean = false;
+  private inspectionCallback: MessageHandler = null;
   private callbacks: Map<number, MessageHandler> = new Map()
 
   constructor () {
@@ -40,14 +41,16 @@ export class WebsocketApi {
     return date.getTime()
   }
 
-  public enableInspection () {
+  public enableInspection (eventCallback?: MessageHandler) {
     // TODO: Set flag to true only once response has been received from the server
     this.inspectionEnabled = true
+    this.inspectionCallback = eventCallback
     this.sendMessage({ method: 'enable_inspection' })
   }
 
   public disableInspection () {
     this.inspectionEnabled = false
+    this.inspectionCallback = null
     this.sendMessage({ method: 'disable_inspection' })
   }
 
@@ -116,8 +119,10 @@ export class WebsocketApi {
   }
 
   private onServerWSMessage (ev: MessageEvent) {
-    const message = JSON.parse(ev.data)
-    if (this.callbacks.has(message.id)) {
+    const message: Record<string, any> = JSON.parse(ev.data)
+    if (message.push !== undefined && message.push === 'inspect_traffic' && this.inspectionCallback !== null) {
+      this.inspectionCallback(message)
+    } else if (this.callbacks.has(message.id)) {
       const callback = this.callbacks.get(message.id)
       this.callbacks.delete(message.id)
       callback(message)

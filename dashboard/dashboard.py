@@ -14,7 +14,7 @@ import logging
 import threading
 import multiprocessing
 import uuid
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, Dict
 
 from proxy.http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.http.parser import HttpParser
@@ -86,7 +86,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
             return
 
         if message['method'] == 'ping':
-            self.reply_pong(message['id'])
+            self.reply({'id': message['id'], 'response': 'pong'})
         elif message['method'] == 'enable_inspection':
             # inspection can only be enabled if --enable-events is used
             if not self.flags.enable_events:
@@ -112,10 +112,13 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                 self.relay_sub_id = uuid.uuid4().hex
                 self.event_queue.subscribe(
                     self.relay_sub_id, self.relay_channel)
+
+                self.reply({'id': message['id'], 'response': 'inspection_enabled'})
         elif message['method'] == 'disable_inspection':
             if self.inspection_enabled:
                 self.shutdown_relay()
             self.inspection_enabled = False
+            self.reply({'id': message['id'], 'response': 'inspection_disabled'})
         else:
             logger.info(frame.data)
             logger.info(frame.opcode)
@@ -140,11 +143,11 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         if self.inspection_enabled:
             self.shutdown_relay()
 
-    def reply_pong(self, idd: int) -> None:
+    def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
             WebsocketFrame.text(
                 bytes_(
-                    json.dumps({'id': idd, 'response': 'pong'}))))
+                    json.dumps(data))))
 
     @staticmethod
     def relay_events(
@@ -154,6 +157,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         while not shutdown.is_set():
             try:
                 ev = channel.get(timeout=1)
+                ev['push'] = 'inspect_traffic'
                 client.queue(
                     WebsocketFrame.text(
                         bytes_(
