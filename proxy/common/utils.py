@@ -186,7 +186,7 @@ class socket_connection(contextlib.ContextDecorator):
             self,
             exc_type: Optional[Type[BaseException]],
             exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType]) -> Literal[False]:
+            exc_tb: Optional[TracebackType]) -> bool:
         if self.conn:
             self.conn.close()
         return False
