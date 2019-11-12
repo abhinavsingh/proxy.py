@@ -11,6 +11,7 @@ import { WebsocketApi } from './ws'
 
 export interface IDashboardPlugin {
   name: string
+  title: string
   initializeTab(): JQuery<HTMLElement>
   initializeHeader(): JQuery<HTMLElement>
   initializeBody(): JQuery<HTMLElement>
@@ -23,7 +24,6 @@ export interface IPluginConstructor {
 }
 
 export abstract class DashboardPlugin implements IDashboardPlugin {
-  public abstract readonly name: string
   protected websocketApi: WebsocketApi
 
   public constructor (websocketApi: WebsocketApi) {
@@ -46,6 +46,26 @@ export abstract class DashboardPlugin implements IDashboardPlugin {
       )
   }
 
+  public makeHeader (title: string) : JQuery<HTMLElement> {
+    return $('<div></div>')
+      .addClass('container-fluid')
+      .append(
+        $('<div></div>')
+          .addClass('row')
+          .append(
+            $('<div></div>')
+              .addClass('col-6')
+              .append(
+                $('<p></p>')
+                  .addClass('h3')
+                  .text(title)
+              )
+          )
+      )
+  }
+
+  public abstract readonly name: string
+  public abstract readonly title: string
   public abstract initializeTab() : JQuery<HTMLElement>
   public abstract initializeHeader(): JQuery<HTMLElement>
   public abstract initializeBody(): JQuery<HTMLElement>

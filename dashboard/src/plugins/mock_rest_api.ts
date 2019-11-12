@@ -11,7 +11,8 @@ import { DashboardPlugin } from '../core/plugin'
 import { WebsocketApi } from '../core/ws'
 
 export class MockRestApiPlugin extends DashboardPlugin {
-  public name: string = 'api_development';
+  public name: string = 'api_development'
+  public title: string = 'API Development'
 
   private specs: Map<string, Map<string, JSON>>;
 
@@ -22,43 +23,31 @@ export class MockRestApiPlugin extends DashboardPlugin {
   }
 
   public initializeTab () : JQuery<HTMLElement> {
-    return this.makeTab('API Development', 'fa-connectdevelop')
+    return this.makeTab(this.title, 'fa-connectdevelop')
   }
 
   public initializeHeader (): JQuery<HTMLElement> {
-    return $('<div></div>')
-      .addClass('container-fluid')
+    return this.makeHeader(this.title)
+      .children('div.row')
       .append(
         $('<div></div>')
-          .addClass('row')
+          .addClass('col-6')
+          .addClass('text-right')
           .append(
-            $('<div></div>')
-              .addClass('col-6')
-              .append(
-                $('<p></p>')
-                  .addClass('h3')
-                  .text('API Development')
-              )
-          )
-          .append(
-            $('<div></div>')
-              .addClass('col-6')
-              .addClass('text-right')
-              .append(
-                $('<button></button>')
-                  .attr('type', 'button')
-                  .addClass('btn')
-                  .addClass('btn-primary')
-                  .text('Create New API')
-                  .prepend(
-                    $('<i></i>')
-                      .addClass('fa')
-                      .addClass('fa-fw')
-                      .addClass('fa-plus-circle')
-                  )
+            $('<button></button>')
+              .attr('type', 'button')
+              .addClass('btn')
+              .addClass('btn-primary')
+              .text('Create New API')
+              .prepend(
+                $('<i></i>')
+                  .addClass('fa')
+                  .addClass('fa-fw')
+                  .addClass('fa-plus-circle')
               )
           )
       )
+      .end()
   }
 
   public initializeBody (): JQuery<HTMLElement> {

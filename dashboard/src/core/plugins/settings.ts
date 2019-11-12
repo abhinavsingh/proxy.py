@@ -11,27 +11,14 @@ import { DashboardPlugin } from '../plugin'
 
 export class SettingsPlugin extends DashboardPlugin {
   public name: string = 'settings'
+  public title: string = 'Settings'
 
   public initializeTab () : JQuery<HTMLElement> {
-    return this.makeTab('Settings', 'fa-clog')
+    return this.makeTab(this.title, 'fa-clog')
   }
 
   public initializeHeader (): JQuery<HTMLElement> {
-    return $('<div></div>')
-      .addClass('container-fluid')
-      .append(
-        $('<div></div>')
-          .addClass('row')
-          .append(
-            $('<div></div>')
-              .addClass('col-6')
-              .append(
-                $('<p></p>')
-                  .addClass('h3')
-                  .text('Settings')
-              )
-          )
-      )
+    return this.makeHeader(this.title)
   }
 
   public initializeBody (): JQuery<HTMLElement> {

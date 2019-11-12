@@ -11,27 +11,14 @@ import { DashboardPlugin } from '../core/plugin'
 
 export class TrafficControlPlugin extends DashboardPlugin {
   public name: string = 'traffic_control'
+  public title: string = 'Traffic Control'
 
   public initializeTab () : JQuery<HTMLElement> {
-    return this.makeTab('Traffic Controls', 'fa-lock')
+    return this.makeTab(this.title, 'fa-lock')
   }
 
   public initializeHeader (): JQuery<HTMLElement> {
-    return $('<div></div>')
-      .addClass('container-fluid')
-      .append(
-        $('<div></div>')
-          .addClass('row')
-          .append(
-            $('<div></div>')
-              .addClass('col-6')
-              .append(
-                $('<p></p>')
-                  .addClass('h3')
-                  .text('Traffic Control')
-              )
-          )
-      )
+    return this.makeHeader(this.title)
   }
 
   public initializeBody (): JQuery<HTMLElement> {
