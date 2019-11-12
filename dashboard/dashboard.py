@@ -113,11 +113,13 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                 self.event_queue.subscribe(
                     self.relay_sub_id, self.relay_channel)
 
-                self.reply({'id': message['id'], 'response': 'inspection_enabled'})
+                self.reply(
+                    {'id': message['id'], 'response': 'inspection_enabled'})
         elif message['method'] == 'disable_inspection':
             self.shutdown_relay()
             self.inspection_enabled = False
-            self.reply({'id': message['id'], 'response': 'inspection_disabled'})
+            self.reply({'id': message['id'],
+                        'response': 'inspection_disabled'})
         else:
             logger.info(frame.data)
             logger.info(frame.opcode)
