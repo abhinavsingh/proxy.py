@@ -14,7 +14,6 @@ import socket
 
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
-from typing_extensions import Literal
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF
 
@@ -186,10 +185,9 @@ class socket_connection(contextlib.ContextDecorator):
             self,
             exc_type: Optional[Type[BaseException]],
             exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType]) -> Literal[False]:
+            exc_tb: Optional[TracebackType]) -> None:
         if self.conn:
             self.conn.close()
-        return False
 
     def __call__(self, func: Callable[..., Any]
                  ) -> Callable[[socket.socket], Any]:
@@ -198,3 +196,11 @@ class socket_connection(contextlib.ContextDecorator):
             with self as conn:
                 return func(conn, *args, **kwargs)
         return decorated
+
+
+def get_available_port() -> int:
+    """Finds and returns an available port on the system."""
+    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock.bind(('', 0))
+        _, port = sock.getsockname()
+    return int(port)

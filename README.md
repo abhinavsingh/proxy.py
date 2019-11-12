@@ -57,6 +57,10 @@ Table of Contents
 * [Embed proxy.py](#embed-proxypy)
     * [Blocking Mode](#blocking-mode)
     * [Non-blocking Mode](#non-blocking-mode)
+* [Unit testing with proxy.py](#unit-testing-with-proxypy)
+    * [proxy.main.TestCase](#proxymaintestcase)
+    * [Override Startup Flags](#override-startup-flags)
+    * [With unittest.TestCase](#with-unittesttestcase)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
@@ -759,6 +763,76 @@ Note that:
 1. `start` is simply a context manager.
 2. Is similar to calling `main` except `start` won't block.
 3. It automatically shut down `proxy.py`.
+
+Unit testing with proxy.py
+==========================
+
+## proxy.main.TestCase
+
+To setup and teardown `proxy.py` for your Python unittest classes,
+simply use `proxy.main.TestCase` instead of `unittest.TestCase`.
+Example:
+
+```
+from proxy.main import TestCase
+
+
+class TestProxyPyEmbedded(TestCase):
+
+    def test_my_application_with_proxy(self) -> None:
+        self.assertTrue(True)
+```
+
+Note that:
+
+1. `proxy.main.TestCase` overrides `unittest.TestCase.run()` method to setup and teardown `proxy.py`.
+2. `proxy.py` server will listen on a random available port on the system.
+   This random port is available as `self.proxy_port` within your test cases.
+3. Only a single worker is started by default (`--num-workers 1`) for faster setup and teardown.
+
+## Override startup flags
+
+To override default startup flags, define a `PROXY_PY_STARTUP_FLAGS` variable in your test class.
+Example:
+
+```
+class TestProxyPyEmbedded(TestCase):
+
+    PROXY_PY_STARTUP_FLAGS = [
+        '--num-workers', '1',
+        '--enable-web-server',
+    ]
+
+    def test_my_application_with_proxy(self) -> None:
+        self.assertTrue(True)
+```
+
+See [test_embed.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/test_embed.py)
+for full working example.
+
+## With unittest.TestCase
+
+If for some reasons you are unable to directly use `proxy.main.TestCase`,
+then simply override `unittest.TestCase.run` yourself to setup and teardown `proxy.py`.
+Example:
+
+```
+import unittest
+
+from proxy.main import start
+
+
+class TestProxyPyEmbedded(unittest.TestCase):
+
+    def test_my_application_with_proxy(self) -> None:
+        self.assertTrue(True)
+
+    def run(self, result: Optional[unittest.TestResult] = None) -> Any:
+        with start([
+                '--num-workers', '1',
+                '--port', '... random port ...']):
+            super().run(result)
+```
 
 Plugin Developer and Contributor Guide
 ======================================
