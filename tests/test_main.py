@@ -169,16 +169,16 @@ class TestMain(unittest.TestCase):
     def test_basic_auth(
             self,
             mock_acceptor_pool: mock.Mock,
-            mock_protocol_config: mock.Mock,
+            mock_protocol_flags: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
         main(['--basic-auth', 'user:pass'])
-        flags = mock_protocol_config.return_value
+        flags = mock_protocol_flags.return_value
         mock_acceptor_pool.assert_called_with(
             flags=flags,
             work_klass=HttpProtocolHandler)
         self.assertEqual(
-            mock_protocol_config.call_args[1]['auth_code'],
+            mock_protocol_flags.call_args[1]['auth_code'],
             b'Basic dXNlcjpwYXNz')
 
     @mock.patch('builtins.print')
