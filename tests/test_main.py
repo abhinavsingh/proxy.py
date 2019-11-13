@@ -15,6 +15,7 @@ import os
 from unittest import mock
 
 from proxy.main import main
+from proxy.common.flags import Flags
 from proxy.common.utils import bytes_
 from proxy.http.handler import HttpProtocolHandler
 
@@ -163,30 +164,33 @@ class TestMain(unittest.TestCase):
     def test_basic_auth(
             self,
             mock_acceptor_pool: mock.Mock,
-            mock_protocol_flags: mock.Mock,
+            mock_flags: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
+
+        mock_flags.initialize = lambda *args, **kwargs: Flags.initialize(*args, **kwargs)
+
         main(['--basic-auth', 'user:pass'])
-        flags = mock_protocol_flags.return_value
         mock_acceptor_pool.assert_called_with(
             flags=flags,
             work_klass=HttpProtocolHandler)
         self.assertEqual(
-            mock_protocol_flags.call_args[1]['auth_code'],
+            mock_flags.call_args[1]['auth_code'],
             b'Basic dXNlcjpwYXNz')
 
     @mock.patch('builtins.print')
     def test_main_version(
             self,
             mock_print: mock.Mock) -> None:
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(SystemExit) as e:
             main(['--version'])
             mock_print.assert_called_with(__version__)
+        self.assertEqual(e.exception.code, 0)
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')
     @mock.patch('proxy.main.AcceptorPool')
-    @mock.patch('proxy.main.is_py3')
+    @mock.patch('proxy.common.flags.Flags.is_py3')
     def test_main_py3_runs(
             self,
             mock_is_py3: mock.Mock,
@@ -195,21 +199,21 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_is_py3.return_value = True
-        main([])
+        main(num_workers=1)
         mock_is_py3.assert_called()
         mock_print.assert_not_called()
         mock_acceptor_pool.assert_called()
         mock_acceptor_pool.return_value.setup.assert_called()
 
     @mock.patch('builtins.print')
-    @mock.patch('proxy.main.is_py3')
+    @mock.patch('proxy.common.flags.Flags.is_py3')
     def test_main_py2_exit(
             self,
             mock_is_py3: mock.Mock,
             mock_print: mock.Mock) -> None:
         mock_is_py3.return_value = False
         with self.assertRaises(SystemExit) as e:
-            main([])
+            main(num_workers=1)
         mock_print.assert_called_with(
             'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
             'If for some reasons you cannot upgrade, consider using "master" branch or simply '

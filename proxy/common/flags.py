@@ -19,7 +19,7 @@ import sys
 import inspect
 import pathlib
 
-from typing import Optional, Union, Dict, List, TypeVar, Type, cast
+from typing import Optional, Union, Dict, List, TypeVar, Type, cast, Any
 
 from .utils import text_, bytes_
 from .types import DictQueueType
@@ -122,7 +122,10 @@ class Flags:
             os.makedirs(self.ca_cert_dir, exist_ok=True)
 
     @classmethod
-    def initialize(cls: Type[T], input_args: Optional[List[str]], **opts: Dict[str, Union[bool, str, int]]) -> T:
+    def initialize(
+            cls: Type[T],
+            input_args: Optional[List[str]],
+            **opts: Any) -> T:
         if not Flags.is_py3():
             print(
                 'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
