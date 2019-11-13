@@ -9,6 +9,8 @@
 */
 import { DashboardPlugin } from '../plugin'
 
+declare const Root: any
+
 export class InspectTrafficPlugin extends DashboardPlugin {
   public name: string = 'inspect_traffic'
   public title: string = 'Inspect Traffic'
@@ -23,10 +25,13 @@ export class InspectTrafficPlugin extends DashboardPlugin {
 
   public initializeBody (): JQuery<HTMLElement> {
     return $('<div></div>')
+      .attr('id', '-blink-dev-tools')
+      .addClass('undocked')
   }
 
   public activated (): void {
     this.websocketApi.enableInspection(this.handleEvents.bind(this))
+    Root.Runtime.startApplication('devtools/inspect_traffic')
   }
 
   public deactivated (): void {

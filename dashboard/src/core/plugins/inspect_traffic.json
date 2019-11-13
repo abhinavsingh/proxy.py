@@ -1,9 +1,8 @@
 {
     "modules" : [
-      { "name": "emulation", "type": "autostart" },
       { "name": "inspector_main", "type": "autostart" },
-      { "name": "mobile_throttling", "type": "autostart" },
-  
+      { "name": "emulation" },
+      { "name": "mobile_throttling" },
       { "name": "cookie_table" },
       { "name": "har_importer" },
       { "name": "network" }
