@@ -177,32 +177,76 @@ class Flags:
 
         return cls(
             auth_code=cast(Optional[bytes], opts.get('auth_code', auth_code)),
-            server_recvbuf_size=cast(int, opts.get('server_recvbuf_size', args.server_recvbuf_size)),
-            client_recvbuf_size=cast(int, opts.get('client_recvbuf_size', args.client_recvbuf_size)),
-            pac_file=cast(Optional[str], opts.get('pac_file', bytes_(args.pac_file))),
-            pac_file_url_path=cast(Optional[bytes], opts.get('pac_file_url_path', bytes_(args.pac_file_url_path))),
+            server_recvbuf_size=cast(
+                int,
+                opts.get(
+                    'server_recvbuf_size',
+                    args.server_recvbuf_size)),
+            client_recvbuf_size=cast(
+                int,
+                opts.get(
+                    'client_recvbuf_size',
+                    args.client_recvbuf_size)),
+            pac_file=cast(
+                Optional[str], opts.get(
+                    'pac_file', bytes_(
+                        args.pac_file))),
+            pac_file_url_path=cast(
+                Optional[bytes], opts.get(
+                    'pac_file_url_path', bytes_(
+                        args.pac_file_url_path))),
             disable_headers=cast(Optional[List[bytes]], opts.get('disable_headers', [
                 header.lower() for header in bytes_(
                     args.disable_headers).split(COMMA) if header.strip() != b''])),
-            certfile=cast(Optional[str], opts.get('cert_file', args.cert_file)),
+            certfile=cast(
+                Optional[str], opts.get(
+                    'cert_file', args.cert_file)),
             keyfile=cast(Optional[str], opts.get('key_file', args.key_file)),
-            ca_cert_dir=cast(Optional[str], opts.get('ca_cert_dir', args.ca_cert_dir)),
-            ca_key_file=cast(Optional[str], opts.get('ca_key_file', args.ca_key_file)),
-            ca_cert_file=cast(Optional[str], opts.get('ca_cert_file', args.ca_cert_file)),
-            ca_signing_key_file=cast(Optional[str], opts.get('ca_signing_key_file', args.ca_signing_key_file)),
+            ca_cert_dir=cast(
+                Optional[str], opts.get(
+                    'ca_cert_dir', args.ca_cert_dir)),
+            ca_key_file=cast(
+                Optional[str], opts.get(
+                    'ca_key_file', args.ca_key_file)),
+            ca_cert_file=cast(
+                Optional[str], opts.get(
+                    'ca_cert_file', args.ca_cert_file)),
+            ca_signing_key_file=cast(
+                Optional[str],
+                opts.get(
+                    'ca_signing_key_file',
+                    args.ca_signing_key_file)),
             hostname=cast(Union[ipaddress.IPv4Address,
                                 ipaddress.IPv6Address],
                           opts.get('hostname', ipaddress.ip_address(args.hostname))),
             port=cast(int, opts.get('port', args.port)),
             backlog=cast(int, opts.get('backlog', args.backlog)),
             num_workers=cast(int, opts.get('num_workers', args.num_workers)),
-            static_server_dir=cast(str, opts.get('static_server_dir', args.static_server_dir)),
-            enable_static_server=cast(bool, opts.get('enable_static_server', args.enable_static_server)),
-            devtools_ws_path=cast(bytes, opts.get('devtools_ws_path', args.devtools_ws_path)),
+            static_server_dir=cast(
+                str,
+                opts.get(
+                    'static_server_dir',
+                    args.static_server_dir)),
+            enable_static_server=cast(
+                bool,
+                opts.get(
+                    'enable_static_server',
+                    args.enable_static_server)),
+            devtools_ws_path=cast(
+                bytes,
+                opts.get(
+                    'devtools_ws_path',
+                    args.devtools_ws_path)),
             timeout=cast(int, opts.get('timeout', args.timeout)),
             threadless=cast(bool, opts.get('threadless', args.threadless)),
-            enable_events=cast(bool, opts.get('enable_events', args.enable_events)),
-            devtools_event_queue=cast(Optional[DictQueueType], opts.get('devtools_event_queue', devtools_event_queue)),
+            enable_events=cast(
+                bool,
+                opts.get(
+                    'enable_events',
+                    args.enable_events)),
+            devtools_event_queue=cast(
+                Optional[DictQueueType], opts.get(
+                    'devtools_event_queue', devtools_event_queue)),
             plugins=Flags.load_plugins(
                 bytes_(
                     '%s%s' %
