@@ -35,7 +35,7 @@ setup(
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
         'console_scripts': [
-            'proxy = proxy.main:entry_point'
+            'proxy = proxy.entry_point'
         ]
     },
     classifiers=[
