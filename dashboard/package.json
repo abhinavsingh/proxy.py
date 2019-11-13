@@ -10,7 +10,9 @@
     "test": "jasmine tsbuild/test/test.js",
     "build": "npm test && rollup -c",
     "start": "pushd ../public && http-server -g true -i false -d false -c-1 --no-dotfiles . && popd",
-    "watch": "rollup -c -w"
+    "watch": "rollup -c -w",
+    "build-devtools": "tsc --target es5 --outDir tsbuild src/core/devtools.ts",
+    "devtools": "npm run build-devtools && node tsbuild/devtools.js"
   },
   "repository": {
     "type": "git",
