@@ -13,7 +13,7 @@ import sys
 import time
 import unittest
 import logging
-from typing import List, Optional, Generator, Any, Dict, Union
+from typing import List, Optional, Generator, Any
 
 from .common.flags import Flags
 from .common.utils import bytes_, get_available_port, new_socket_connection
@@ -57,7 +57,7 @@ class TestCase(unittest.TestCase):
 @contextlib.contextmanager
 def start(
         input_args: Optional[List[str]] = None,
-        **opts: Dict[str, Union[str, bool, int]]) -> Generator[None, None, None]:
+        **opts: Any) -> Generator[None, None, None]:
     flags = Flags.initialize(input_args, **opts)
     try:
         acceptor_pool = AcceptorPool(
@@ -85,7 +85,7 @@ def start(
 
 def main(
         input_args: Optional[List[str]] = None,
-        **opts: Dict[str, Union[str, bool, int]]) -> None:
+        **opts: Any) -> None:
     with start(input_args=input_args, **opts):
         # TODO: Introduce cron feature instead of mindless sleep
         while True:
