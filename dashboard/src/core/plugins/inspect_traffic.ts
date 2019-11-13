@@ -31,7 +31,7 @@ export class InspectTrafficPlugin extends DashboardPlugin {
 
   public activated (): void {
     this.websocketApi.enableInspection(this.handleEvents.bind(this))
-    Root.Runtime.startApplication('devtools/inspect_traffic')
+    Root.Runtime.startApplication('inspect_traffic')
   }
 
   public deactivated (): void {
