@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from setuptools import setup, find_packages
+from setuptools import setup
 
 from proxy.common.version import __version__
 from proxy.common.constants import __author__, __author_email__
@@ -25,17 +25,11 @@ setup(
     long_description_content_type='text/markdown',
     download_url=__download_url__,
     license=__license__,
-    packages=find_packages(
-        exclude=[
-            'benchmark',
-            'dashboard',
-            'plugin_examples',
-            'tests'
-        ]),
+    packages=['proxy', 'proxy.common', 'proxy.core', 'proxy.http'],
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
         'console_scripts': [
-            'proxy = proxy.entry_point'
+            'proxy = proxy:entry_point'
         ]
     },
     classifiers=[

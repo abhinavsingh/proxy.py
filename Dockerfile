@@ -7,7 +7,6 @@ COPY README.md /app/
 COPY proxy/ /app/proxy/
 WORKDIR /app
 RUN pip install --upgrade pip && \
-    pip install --install-option="--prefix=/deps" -r requirements.txt && \
     pip install --install-option="--prefix=/deps" .
 
 FROM base

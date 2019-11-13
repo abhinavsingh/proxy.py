@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class TestCase(unittest.TestCase):
-    """TestCase class that automatically setup and teardown proxy.py."""
+    """Base TestCase class that automatically setup and teardown proxy.py."""
 
     DEFAULT_PROXY_PY_STARTUP_FLAGS = [
         '--num-workers', '1',
@@ -44,7 +44,7 @@ class TestCase(unittest.TestCase):
             while True:
                 try:
                     conn = new_socket_connection(
-                        ('localhost', self.proxy_port))
+                        ('::1', self.proxy_port))
                     break
                 except ConnectionRefusedError:
                     time.sleep(0.1)
