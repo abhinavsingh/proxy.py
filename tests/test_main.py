@@ -68,9 +68,6 @@ class TestMain(unittest.TestCase):
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.main.load_plugins')
-    @mock.patch('proxy.main.init_parser')
-    @mock.patch('proxy.main.set_open_file_limit')
     @mock.patch('proxy.main.Flags')
     @mock.patch('proxy.main.AcceptorPool')
     @mock.patch('logging.basicConfig')
@@ -78,28 +75,25 @@ class TestMain(unittest.TestCase):
             self,
             mock_logging_config: mock.Mock,
             mock_acceptor_pool: mock.Mock,
-            mock_protocol_config: mock.Mock,
-            mock_set_open_file_limit: mock.Mock,
-            mock_init_parser: mock.Mock,
-            mock_load_plugins: mock.Mock,
+            mock_flags: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
-        mock_args = mock_init_parser.return_value.parse_args.return_value
+        mock_args = mock_flags.init_parser.return_value.parse_args.return_value
         self.mock_default_args(mock_args)
         main([])
 
-        mock_init_parser.assert_called()
-        mock_init_parser.return_value.parse_args.called_with([])
+        mock_flags.init_parser.assert_called()
+        mock_flags.init_parser.return_value.parse_args.called_with([])
 
-        mock_load_plugins.assert_called_with(
+        mock_flags.load_plugins.assert_called_with(
             b'proxy.http.proxy.HttpProxyPlugin,')
         mock_logging_config.assert_called_with(
             level=logging.INFO,
             format=DEFAULT_LOG_FORMAT
         )
-        mock_set_open_file_limit.assert_called_with(mock_args.open_file_limit)
-        mock_protocol_config.assert_called_with(
+        mock_flags.set_open_file_limit.assert_called_with(mock_args.open_file_limit)
+        mock_flags.assert_called_with(
             auth_code=mock_args.basic_auth,
             backlog=mock_args.backlog,
             ca_cert_dir=mock_args.ca_cert_dir,
@@ -127,7 +121,7 @@ class TestMain(unittest.TestCase):
             enable_events=DEFAULT_ENABLE_EVENTS,
         )
         mock_acceptor_pool.assert_called_with(
-            flags=mock_protocol_config.return_value,
+            flags=mock_flags.return_value,
             work_klass=HttpProtocolHandler,
         )
         mock_acceptor_pool.return_value.setup.assert_called()

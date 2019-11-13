@@ -13,7 +13,6 @@ import unittest
 import selectors
 from unittest import mock
 
-from proxy.main import load_plugins
 from proxy.common.flags import Flags
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.parser import httpParserStates
@@ -32,7 +31,7 @@ class TestWebServerPlugin(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.mock_selector = mock_selector
         self.flags = Flags()
-        self.flags.plugins = load_plugins(
+        self.flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
         self.protocol_handler = HttpProtocolHandler(
             self.fileno, self._addr, flags=self.flags)
@@ -92,7 +91,7 @@ class TestWebServerPlugin(unittest.TestCase):
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ), ]
         flags = Flags()
-        flags.plugins = load_plugins(
+        flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
         self.protocol_handler = HttpProtocolHandler(
             self.fileno, self._addr, flags=flags)
@@ -145,7 +144,7 @@ class TestWebServerPlugin(unittest.TestCase):
         flags = Flags(
             enable_static_server=True,
             static_server_dir=static_server_dir)
-        flags.plugins = load_plugins(
+        flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = HttpProtocolHandler(
@@ -189,7 +188,7 @@ class TestWebServerPlugin(unittest.TestCase):
                 data=None), selectors.EVENT_WRITE)], ]
 
         flags = Flags(enable_static_server=True)
-        flags.plugins = load_plugins(
+        flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = HttpProtocolHandler(
@@ -223,7 +222,7 @@ class TestWebServerPlugin(unittest.TestCase):
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
         flags = Flags(pac_file=pac_file)
-        flags.plugins = load_plugins(
+        flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin,'
             b'proxy.http.server.HttpWebServerPacFilePlugin')
         self.protocol_handler = HttpProtocolHandler(

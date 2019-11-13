@@ -203,7 +203,7 @@ class Flags:
                 bytes_(
                     '%s%s' %
                     (default_plugins, opts.get('plugins', args.plugins)))),
-            pid_file=cast(str, opts.get('pid_file', args.pid_file)))
+            pid_file=cast(Optional[str], opts.get('pid_file', args.pid_file)))
 
     def tls_interception_enabled(self) -> bool:
         return self.ca_key_file is not None and \

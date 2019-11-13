@@ -64,7 +64,7 @@ def start(input_args: Optional[List[str]] = None, **opts: Dict[str, Union[str, b
             work_klass=HttpProtocolHandler
         )
 
-        if flags.pid_file:
+        if flags.pid_file is not None:
             with open(flags.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
 

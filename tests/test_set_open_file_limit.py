@@ -11,7 +11,7 @@ import os
 import unittest
 from unittest import mock
 
-from proxy.main import set_open_file_limit
+from proxy.common.flags import Flags
 
 if os.name != 'nt':
     import resource
@@ -28,7 +28,7 @@ class TestSetOpenFileLimit(unittest.TestCase):
             self,
             mock_set_rlimit: mock.Mock,
             mock_get_rlimit: mock.Mock) -> None:
-        set_open_file_limit(256)
+        Flags.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_called_with(resource.RLIMIT_NOFILE, (256, 1024))
 
@@ -38,7 +38,7 @@ class TestSetOpenFileLimit(unittest.TestCase):
             self,
             mock_set_rlimit: mock.Mock,
             mock_get_rlimit: mock.Mock) -> None:
-        set_open_file_limit(256)
+        Flags.set_open_file_limit(256)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
 
@@ -48,6 +48,6 @@ class TestSetOpenFileLimit(unittest.TestCase):
             self,
             mock_set_rlimit: mock.Mock,
             mock_get_rlimit: mock.Mock) -> None:
-        set_open_file_limit(1024)
+        Flags.set_open_file_limit(1024)
         mock_get_rlimit.assert_called_with(resource.RLIMIT_NOFILE)
         mock_set_rlimit.assert_not_called()
