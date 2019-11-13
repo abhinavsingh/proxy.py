@@ -13,8 +13,9 @@ import tempfile
 import os
 
 from unittest import mock
+from typing import List
 
-from proxy.main import main
+from proxy import main
 from proxy.common.flags import Flags
 from proxy.common.utils import bytes_
 from proxy.http.handler import HttpProtocolHandler
@@ -27,7 +28,6 @@ from proxy.common.constants import DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DE
 from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
 from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE
-from proxy.common.constants import COMMA
 from proxy.common.version import __version__
 
 
@@ -69,8 +69,8 @@ class TestMain(unittest.TestCase):
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.main.Flags')
-    @mock.patch('proxy.main.AcceptorPool')
+    @mock.patch('proxy.Flags')
+    @mock.patch('proxy.AcceptorPool')
     @mock.patch('logging.basicConfig')
     def test_init_with_no_arguments(
             self,
@@ -80,49 +80,18 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
-        mock_args = mock_flags.init_parser.return_value.parse_args.return_value
-        self.mock_default_args(mock_args)
-        main([])
+        input_args: List[str] = []
+        flags = Flags.initialize(input_args=input_args)
+        mock_flags.initialize = lambda *args, **kwargs: flags
 
-        mock_flags.init_parser.assert_called()
-        mock_flags.init_parser.return_value.parse_args.called_with([])
+        main()
 
-        mock_flags.load_plugins.assert_called_with(
-            b'proxy.http.proxy.HttpProxyPlugin,')
         mock_logging_config.assert_called_with(
             level=logging.INFO,
             format=DEFAULT_LOG_FORMAT
         )
-        mock_flags.set_open_file_limit.assert_called_with(mock_args.open_file_limit)
-        mock_flags.assert_called_with(
-            auth_code=mock_args.basic_auth,
-            backlog=mock_args.backlog,
-            ca_cert_dir=mock_args.ca_cert_dir,
-            ca_cert_file=mock_args.ca_cert_file,
-            ca_key_file=mock_args.ca_key_file,
-            ca_signing_key_file=mock_args.ca_signing_key_file,
-            certfile=mock_args.cert_file,
-            client_recvbuf_size=mock_args.client_recvbuf_size,
-            hostname=mock_args.hostname,
-            keyfile=mock_args.key_file,
-            num_workers=0,
-            pac_file=mock_args.pac_file,
-            pac_file_url_path=mock_args.pac_file_url_path,
-            port=mock_args.port,
-            server_recvbuf_size=mock_args.server_recvbuf_size,
-            disable_headers=[
-                header.lower() for header in bytes_(
-                    mock_args.disable_headers).split(COMMA) if header.strip() != b''],
-            static_server_dir=mock_args.static_server_dir,
-            enable_static_server=mock_args.enable_static_server,
-            devtools_event_queue=None,
-            devtools_ws_path=DEFAULT_DEVTOOLS_WS_PATH,
-            timeout=DEFAULT_TIMEOUT,
-            threadless=DEFAULT_THREADLESS,
-            enable_events=DEFAULT_ENABLE_EVENTS,
-        )
         mock_acceptor_pool.assert_called_with(
-            flags=mock_flags.return_value,
+            flags=flags,
             work_klass=HttpProtocolHandler,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
@@ -133,8 +102,8 @@ class TestMain(unittest.TestCase):
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
-    @mock.patch('proxy.main.init_parser')
-    @mock.patch('proxy.main.AcceptorPool')
+    @mock.patch('proxy.Flags.init_parser')
+    @mock.patch('proxy.AcceptorPool')
     def test_pid_file_is_written_and_removed(
             self,
             mock_acceptor_pool: mock.Mock,
@@ -159,8 +128,8 @@ class TestMain(unittest.TestCase):
         mock_remove.assert_called_with(pid_file)
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.main.Flags')
-    @mock.patch('proxy.main.AcceptorPool')
+    @mock.patch('proxy.Flags')
+    @mock.patch('proxy.AcceptorPool')
     def test_basic_auth(
             self,
             mock_acceptor_pool: mock.Mock,
@@ -168,36 +137,36 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
-        mock_flags.initialize = lambda *args, **kwargs: Flags.initialize(*args, **kwargs)
+        input_args = ['--basic-auth', 'user:pass']
+        flags = Flags.initialize(input_args=input_args)
+        mock_flags.initialize = lambda *args, **kwargs: flags
 
-        main(['--basic-auth', 'user:pass'])
+        main(input_args=input_args)
         mock_acceptor_pool.assert_called_with(
             flags=flags,
             work_klass=HttpProtocolHandler)
         self.assertEqual(
-            mock_flags.call_args[1]['auth_code'],
+            flags.auth_code,
             b'Basic dXNlcjpwYXNz')
-
-    @mock.patch('builtins.print')
-    def test_main_version(
-            self,
-            mock_print: mock.Mock) -> None:
-        with self.assertRaises(SystemExit) as e:
-            main(['--version'])
-            mock_print.assert_called_with(__version__)
-        self.assertEqual(e.exception.code, 0)
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')
-    @mock.patch('proxy.main.AcceptorPool')
-    @mock.patch('proxy.common.flags.Flags.is_py3')
+    @mock.patch('proxy.Flags')
+    @mock.patch('proxy.AcceptorPool')
+    @mock.patch('proxy.Flags.is_py3')
     def test_main_py3_runs(
             self,
             mock_is_py3: mock.Mock,
             mock_acceptor_pool: mock.Mock,
+            mock_flags: mock.Mock,
             mock_print: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
+
+        input_args = ['--basic-auth', 'user:pass']
+        flags = Flags.initialize(input_args=input_args)
+        mock_flags.initialize = lambda *args, **kwargs: flags
+
         mock_is_py3.return_value = True
         main(num_workers=1)
         mock_is_py3.assert_called()
@@ -206,7 +175,7 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called()
 
     @mock.patch('builtins.print')
-    @mock.patch('proxy.common.flags.Flags.is_py3')
+    @mock.patch('proxy.Flags.is_py3')
     def test_main_py2_exit(
             self,
             mock_is_py3: mock.Mock,
@@ -225,3 +194,12 @@ class TestMain(unittest.TestCase):
         )
         self.assertEqual(e.exception.code, 1)
         mock_is_py3.assert_called()
+
+    @mock.patch('builtins.print')
+    def test_main_version(
+            self,
+            mock_print: mock.Mock) -> None:
+        with self.assertRaises(SystemExit) as e:
+            main(['--version'])
+            mock_print.assert_called_with(__version__)
+        self.assertEqual(e.exception.code, 0)
