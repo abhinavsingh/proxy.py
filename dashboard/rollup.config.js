@@ -23,7 +23,7 @@ export const plugins = [
             dest: '../public/dashboard',
         }, {
             src: 'src/core/plugins/inspect_traffic.json',
-            dest: '../public/dashboard/devtools'
+            dest: '../public/dashboard'
         }],
     }),
     /* obfuscatorPlugin({

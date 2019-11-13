@@ -27,6 +27,11 @@ export class InspectTrafficPlugin extends DashboardPlugin {
     return $('<div></div>')
       .attr('id', '-blink-dev-tools')
       .addClass('undocked')
+      .add(
+        $('<script></script>')
+          .attr('type', 'module')
+          .attr('src', 'root.js')
+      )
   }
 
   public activated (): void {
