@@ -7,3 +7,4 @@ autopep8==1.4.4
 mypy==0.740
 py-spy==0.3.0
 codecov==2.0.15
+typing-extensions==3.7.4.1
