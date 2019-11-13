@@ -15,7 +15,7 @@ import os
 from unittest import mock
 from typing import List
 
-from proxy import main
+from proxy.proxy import main
 from proxy.common.flags import Flags
 from proxy.common.utils import bytes_
 from proxy.http.handler import HttpProtocolHandler
@@ -69,8 +69,8 @@ class TestMain(unittest.TestCase):
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.Flags')
-    @mock.patch('proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.Flags')
+    @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('logging.basicConfig')
     def test_init_with_no_arguments(
             self,
@@ -102,8 +102,8 @@ class TestMain(unittest.TestCase):
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
-    @mock.patch('proxy.Flags.init_parser')
-    @mock.patch('proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.Flags.init_parser')
+    @mock.patch('proxy.proxy.AcceptorPool')
     def test_pid_file_is_written_and_removed(
             self,
             mock_acceptor_pool: mock.Mock,
@@ -128,8 +128,8 @@ class TestMain(unittest.TestCase):
         mock_remove.assert_called_with(pid_file)
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.Flags')
-    @mock.patch('proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.Flags')
+    @mock.patch('proxy.proxy.AcceptorPool')
     def test_basic_auth(
             self,
             mock_acceptor_pool: mock.Mock,
@@ -151,9 +151,9 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')
-    @mock.patch('proxy.Flags')
-    @mock.patch('proxy.AcceptorPool')
-    @mock.patch('proxy.Flags.is_py3')
+    @mock.patch('proxy.proxy.Flags')
+    @mock.patch('proxy.proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.Flags.is_py3')
     def test_main_py3_runs(
             self,
             mock_is_py3: mock.Mock,
@@ -175,7 +175,7 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called()
 
     @mock.patch('builtins.print')
-    @mock.patch('proxy.Flags.is_py3')
+    @mock.patch('proxy.proxy.Flags.is_py3')
     def test_main_py2_exit(
             self,
             mock_is_py3: mock.Mock,

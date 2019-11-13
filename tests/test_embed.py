@@ -7,11 +7,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from proxy.proxy import TestCase
 from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
 from proxy.common.utils import socket_connection, build_http_request, build_http_response
 from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
-from proxy import TestCase
 
 
 class TestProxyPyEmbedded(TestCase):

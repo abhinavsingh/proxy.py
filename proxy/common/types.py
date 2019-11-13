@@ -10,11 +10,7 @@
 import queue
 
 from typing import TYPE_CHECKING, Dict, Any
-
-try:
-    from typing_extensions import Protocol
-except ImportError:
-    Protocol = object
+from typing_extensions import Protocol
 
 if TYPE_CHECKING:
     DictQueueType = queue.Queue[Dict[str, Any]]    # pragma: no cover
