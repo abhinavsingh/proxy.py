@@ -44,7 +44,7 @@ class TestCase(unittest.TestCase):
             while True:
                 try:
                     conn = new_socket_connection(
-                        ('::1', self.proxy_port))
+                        ('127.0.0.1', self.proxy_port))
                     break
                 except ConnectionRefusedError:
                     time.sleep(0.1)
