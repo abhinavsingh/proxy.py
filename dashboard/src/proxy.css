@@ -11,13 +11,10 @@
     background-color: #eeeeee;
     height: 100%;
 }
+
 #proxyDashboard .remove-api-spec {
     top: 10px;
     right: 15px;
-}
-
-.api-path-spec .list-group-item {
-    padding-left: 50px;
 }
 
 .app-header {
@@ -25,12 +22,16 @@
     padding-bottom: 5px;
 }
 
-.app-body .list-group {
-    margin-left: 15px;
-    margin-right: 15px;
-    margin-bottom: 10px;
+.app-body {
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-bottom: 50px;
 }
 
 .proxy-data {
     display: none;
+}
+
+.api-path-spec .list-group-item {
+    padding-left: 50px;
 }

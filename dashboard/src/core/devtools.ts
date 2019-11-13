@@ -14,7 +14,7 @@ const ncp = require('ncp').ncp
 ncp.limit = 16
 
 function setUpDevTools () {
-  const destinationFolderPath = path.join(path.dirname(path.dirname(__dirname)), 'public', 'dashboard')
+  const destinationFolderPath = path.join(path.dirname(path.dirname(__dirname)), 'public', 'dashboard', 'devtools')
 
   const destinationFolderExists = fs.existsSync(destinationFolderPath)
   if (!destinationFolderExists) {

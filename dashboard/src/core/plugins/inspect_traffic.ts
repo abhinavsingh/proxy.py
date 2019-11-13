@@ -24,19 +24,11 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   }
 
   public initializeBody (): JQuery<HTMLElement> {
-    return $('<div></div>')
-      .attr('id', '-blink-dev-tools')
-      .addClass('undocked')
-      .add(
-        $('<script></script>')
-          .attr('type', 'module')
-          .attr('src', 'root.js')
-      )
+    return $('')
   }
 
   public activated (): void {
     this.websocketApi.enableInspection(this.handleEvents.bind(this))
-    Root.Runtime.startApplication('inspect_traffic')
   }
 
   public deactivated (): void {
@@ -45,5 +37,14 @@ export class InspectTrafficPlugin extends DashboardPlugin {
 
   public handleEvents (message: Record<string, any>): void {
     console.log(message)
+  }
+
+  private getDevtoolsIFrame (): JQuery<HTMLElement> {
+    return $('<iframe></iframe>')
+      .attr('height', '80%')
+      .attr('width', '100%')
+      .attr('frameBorder', '0')
+      .attr('scrolling', 'no')
+      .attr('src', 'devtools/inspect_traffic.html')
   }
 }

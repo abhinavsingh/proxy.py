@@ -23,7 +23,13 @@ export const plugins = [
             dest: '../public/dashboard',
         }, {
             src: 'src/core/plugins/inspect_traffic.json',
-            dest: '../public/dashboard'
+            dest: '../public/dashboard/devtools'
+        }, {
+            src: 'src/core/plugins/inspect_traffic.js',
+            dest: '../public/dashboard/devtools'
+        }, {
+            src: 'src/core/plugins/inspect_traffic.html',
+            dest: '../public/dashboard/devtools'
         }],
     }),
     /* obfuscatorPlugin({
