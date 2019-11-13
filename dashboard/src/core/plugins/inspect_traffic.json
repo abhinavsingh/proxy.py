@@ -1,0 +1,13 @@
+{
+    "modules" : [
+      { "name": "inspector_main", "type": "autostart" },
+      { "name": "emulation" },
+      { "name": "mobile_throttling" },
+      { "name": "cookie_table" },
+      { "name": "har_importer" },
+      { "name": "network" }
+    ],
+    "extends": "shell",
+    "has_html": true
+  }
+  

@@ -10,7 +10,7 @@
 import { DashboardPlugin } from '../plugin'
 
 export class HomePlugin extends DashboardPlugin {
-  public name: string = 'home'
+  public name: string = 'home';
   public title: string = 'Home'
 
   public initializeTab () : JQuery<HTMLElement> {

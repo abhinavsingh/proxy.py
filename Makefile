@@ -13,13 +13,16 @@ CA_KEY_FILE_PATH := ca-key.pem
 CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
-.PHONY: all https-certificates ca-certificates autopep8
+.PHONY: all https-certificates ca-certificates autopep8 devtools
 .PHONY: lib-clean lib-test lib-package lib-release-test lib-release lib-coverage lib-lint lib-profile
 .PHONY: container container-run container-release
 .PHONY: dashboard dashboard-clean dashboard-package
 .PHONY: plugin-package-clean plugin-package
 
 all: lib-clean lib-test
+
+devtools:
+	pushd dashboard && npm run devtools && popd
 
 autopep8:
 	autopep8 --recursive --in-place --aggressive proxy/*.py
