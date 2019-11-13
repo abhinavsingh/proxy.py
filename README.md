@@ -58,7 +58,7 @@ Table of Contents
     * [Blocking Mode](#blocking-mode)
     * [Non-blocking Mode](#non-blocking-mode)
 * [Unit testing with proxy.py](#unit-testing-with-proxypy)
-    * [proxy.main.TestCase](#proxymaintestcase)
+    * [proxy.TestCase](#proxytestcase)
     * [Override Startup Flags](#override-startup-flags)
     * [With unittest.TestCase](#with-unittesttestcase)
 * [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
@@ -723,25 +723,39 @@ Embed proxy.py
 
 ## Blocking Mode
 
-Start `proxy.py` in embedded mode by using `main` method:
+Start `proxy.py` in embedded mode with default configuration
+by using the `main` method. Example:
 
 ```
-from proxy.main import main
+import proxy
 
 if __name__ == '__main__':
-  main([])
+  proxy.main()
 ```
 
-or, to start with arguments:
+Customize startup flags by passing list of input arguments:
 
 ```
-from proxy.main import main
+import proxy
 
 if __name__ == '__main__':
-  main([
+  proxy.main([
     '--hostname', '::1',
     '--port', '8899'
   ])
+```
+
+or, customize startup flags by passing them as kwargs:
+
+```
+import ipaddress
+import proxy
+
+if __name__ == '__main__':
+  proxy.main(
+    hostname=ipaddress.IPv6Address('::1'),
+    port=8899
+  )
 ```
 
 Note that:
@@ -751,36 +765,42 @@ Note that:
 
 ## Non-blocking Mode
 
-Start `proxy.py` in embedded mode by using `start` method:
+Start `proxy.py` in non-blocking embedded mode with default configuration
+by using `start` method:  Example:
 
 ```
-from proxy.main import start
+import proxy
 
 if __name__ == '__main__':
-  with start([]):
+  with proxy.start([]):
     # ... your logic here ...
 ```
 
 Note that:
 
-1. `start` is simply a context manager.
-2. Is similar to calling `main` except `start` won't block.
-3. It automatically shut down `proxy.py`.
+1. `start` is similar to `main`, except `start` won't block.
+1. `start` is a context manager.
+   It will start `proxy.py` when called and will shut it down
+   once scope ends.
+3. Just like `main`, startup flags with `start` method too
+   can be customized by either passing flags as list of
+   input arguments `start(['--port', '8899'])` or by using passing
+   flags as kwargs `start(port=8899)`.
 
 Unit testing with proxy.py
 ==========================
 
-## proxy.main.TestCase
+## proxy.TestCase
 
 To setup and teardown `proxy.py` for your Python unittest classes,
-simply use `proxy.main.TestCase` instead of `unittest.TestCase`.
+simply use `proxy.TestCase` instead of `unittest.TestCase`.
 Example:
 
 ```
-from proxy.main import TestCase
+import proxy
 
 
-class TestProxyPyEmbedded(TestCase):
+class TestProxyPyEmbedded(proxy.TestCase):
 
     def test_my_application_with_proxy(self) -> None:
         self.assertTrue(True)
@@ -788,10 +808,12 @@ class TestProxyPyEmbedded(TestCase):
 
 Note that:
 
-1. `proxy.main.TestCase` overrides `unittest.TestCase.run()` method to setup and teardown `proxy.py`.
+1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and teardown `proxy.py`.
 2. `proxy.py` server will listen on a random available port on the system.
    This random port is available as `self.proxy_port` within your test cases.
 3. Only a single worker is started by default (`--num-workers 1`) for faster setup and teardown.
+4. Most importantly, `proxy.TestCase` also ensures `proxy.py` server
+   is up and running before proceeding with execution of tests.
 
 ## Override startup flags
 
@@ -815,14 +837,13 @@ for full working example.
 
 ## With unittest.TestCase
 
-If for some reasons you are unable to directly use `proxy.main.TestCase`,
+If for some reasons you are unable to directly use `proxy.TestCase`,
 then simply override `unittest.TestCase.run` yourself to setup and teardown `proxy.py`.
 Example:
 
 ```
 import unittest
-
-from proxy.main import start
+import proxy
 
 
 class TestProxyPyEmbedded(unittest.TestCase):
@@ -831,7 +852,7 @@ class TestProxyPyEmbedded(unittest.TestCase):
         self.assertTrue(True)
 
     def run(self, result: Optional[unittest.TestResult] = None) -> Any:
-        with start([
+        with proxy.start([
                 '--num-workers', '1',
                 '--port', '... random port ...']):
             super().run(result)

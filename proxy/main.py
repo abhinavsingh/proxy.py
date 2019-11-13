@@ -55,8 +55,9 @@ class TestCase(unittest.TestCase):
 
 
 @contextlib.contextmanager
-def start(input_args: Optional[List[str]] = None, **opts: Dict[str, Union[str, bool, int]]) -> \
-        Generator[None, None, None]:
+def start(
+        input_args: Optional[List[str]] = None,
+        **opts: Dict[str, Union[str, bool, int]]) -> Generator[None, None, None]:
     flags = Flags.initialize(input_args, **opts)
     try:
         acceptor_pool = AcceptorPool(
@@ -82,7 +83,9 @@ def start(input_args: Optional[List[str]] = None, **opts: Dict[str, Union[str, b
             os.remove(flags.pid_file)
 
 
-def main(input_args: Optional[List[str]] = None, **opts: Dict[str, Union[str, bool, int]]) -> None:
+def main(
+        input_args: Optional[List[str]] = None,
+        **opts: Dict[str, Union[str, bool, int]]) -> None:
     with start(input_args=input_args, **opts):
         # TODO: Introduce cron feature instead of mindless sleep
         while True:
