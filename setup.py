@@ -10,9 +10,14 @@
 """
 from setuptools import setup
 
-from proxy.common.version import __version__
-from proxy.common.constants import __author__, __author_email__
-from proxy.common.constants import __homepage__, __description__, __download_url__, __license__
+VERSION = (2, 0, 0)
+__version__ = '.'.join(map(str, VERSION[0:3]))
+__description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
+__author__ = 'Abhinav Singh'
+__author_email__ = 'mailsforabhinav@gmail.com'
+__homepage__ = 'https://github.com/abhinavsingh/proxy.py'
+__download_url__ = '%s/archive/master.zip' % __homepage__
+__license__ = 'BSD'
 
 setup(
     name='proxy.py',

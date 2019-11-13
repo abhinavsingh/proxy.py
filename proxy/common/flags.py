@@ -32,8 +32,9 @@ from .constants import DEFAULT_PAC_FILE_URL_PATH, DEFAULT_PAC_FILE, DEFAULT_PLUG
 from .constants import DEFAULT_NUM_WORKERS, DEFAULT_VERSION, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from .constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR
 from .constants import COMMA, DOT
-from .constants import __homepage__
 from .version import __version__
+
+__homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 
 if os.name != 'nt':
     import resource

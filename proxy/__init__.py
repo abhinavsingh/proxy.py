@@ -7,10 +7,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .proxy import main, start, TestCase
+from .proxy import entry_point
+from .proxy import main, start
+from .proxy import TestCase
 
 __all__ = [
-    'main',
-    'start',
+    # PyPi package entry_point.  See https://github.com/abhinavsingh/proxy.py#from-command-line-when-installed-using-pip
+    'entry_point',
+    # Embed mode.  See https://github.com/abhinavsingh/proxy.py#embed-proxypy
+    'main', 'start',
+    # Unit testing with proxy.py.  See https://github.com/abhinavsingh/proxy.py#unit-testing-with-proxypy
     'TestCase'
 ]

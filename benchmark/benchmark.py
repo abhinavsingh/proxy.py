@@ -15,10 +15,12 @@ import sys
 import time
 from typing import List, Tuple
 
-from proxy.common.constants import __homepage__, DEFAULT_BUFFER_SIZE
+from proxy.common.constants import DEFAULT_BUFFER_SIZE
 from proxy.common.utils import build_http_request
 from proxy.http.methods import httpMethods
 from proxy.http.parser import httpParserStates, httpParserTypes, HttpParser
+
+__homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 
 DEFAULT_N = 1
 

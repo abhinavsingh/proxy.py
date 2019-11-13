@@ -10,6 +10,7 @@
 import queue
 
 from typing import TYPE_CHECKING, Dict, Any
+
 from typing_extensions import Protocol
 
 if TYPE_CHECKING:
