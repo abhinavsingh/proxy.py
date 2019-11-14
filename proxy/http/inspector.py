@@ -7,7 +7,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Any
 
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
