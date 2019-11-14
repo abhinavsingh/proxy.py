@@ -57,10 +57,7 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   private getDevtoolsIFrame (): JQuery<HTMLElement> {
     return $('<iframe></iframe>')
       .attr('id', this.getDevtoolsIFrameID())
-      .attr('height', '80%')
-      .attr('width', '100%')
-      .attr('padding', '0')
-      .attr('margin', '0')
+      .attr('style', 'position: relative; height: 80%; width: 100%; padding: 0; margin: 0')
       .attr('frameBorder', '0')
       .attr('scrolling', 'no')
       .attr('src', 'devtools/inspect_traffic.html')

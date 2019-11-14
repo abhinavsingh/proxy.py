@@ -13,8 +13,9 @@ import time
 import threading
 import multiprocessing
 import logging
+import uuid
 
-from typing import Dict, Optional, Any, NamedTuple, List
+from typing import Dict, Optional, Any, NamedTuple, List, Callable
 
 from ..common.types import DictQueueType
 
@@ -153,3 +154,57 @@ class EventDispatcher:
             pass
         except Exception as e:
             logger.exception('Event dispatcher exception', exc_info=e)
+
+
+class EventSubscriber:
+    """Core event subscriber."""
+
+    MANAGER: multiprocessing.managers.SyncManager = multiprocessing.Manager()
+
+    def __init__(self, event_queue: EventQueue) -> None:
+        self.event_queue = event_queue
+        self.relay_thread: Optional[threading.Thread] = None
+        self.relay_shutdown: Optional[threading.Event] = None
+        self.relay_channel: Optional[DictQueueType] = None
+        self.relay_sub_id: Optional[str] = None
+
+    def subscribe(self, callback: Callable[[Dict[str, Any]], None]) -> None:
+        self.relay_shutdown = threading.Event()
+        self.relay_channel = EventSubscriber.MANAGER.Queue()
+        self.relay_thread = threading.Thread(
+            target=self.relay,
+            args=(self.relay_shutdown, self.relay_channel, callback))
+        self.relay_thread.start()
+        self.relay_sub_id = uuid.uuid4().hex
+        self.event_queue.subscribe(self.relay_sub_id, self.relay_channel)
+
+    def unsubscribe(self) -> None:
+        assert self.relay_thread
+        assert self.relay_shutdown
+        assert self.relay_channel
+        assert self.relay_sub_id
+
+        self.event_queue.unsubscribe(self.relay_sub_id)
+        self.relay_shutdown.set()
+        self.relay_thread.join()
+
+        self.relay_thread = None
+        self.relay_shutdown = None
+        self.relay_channel = None
+        self.relay_sub_id = None
+
+    @staticmethod
+    def relay(
+            shutdown: threading.Event,
+            channel: DictQueueType,
+            callback: Callable[[Dict[str, Any]], None]) -> None:
+        while not shutdown.is_set():
+            try:
+                ev = channel.get(timeout=1)
+                callback(ev)
+            except queue.Empty:
+                pass
+            except EOFError:
+                break
+            except KeyboardInterrupt:
+                break
