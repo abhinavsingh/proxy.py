@@ -35,7 +35,7 @@ export class ProxyDashboard {
           .append(p.initializeTab())
       )
       $('#proxyDashboard').append(
-        $('<div></div>')
+        $('<section></section>')
           .attr('id', p.name)
           .addClass('proxy-data')
           .append(
