@@ -724,7 +724,7 @@ Embed proxy.py
 ## Blocking Mode
 
 Start `proxy.py` in embedded mode with default configuration
-by using the `main` method. Example:
+by using `proxy.main` method. Example:
 
 ```
 import proxy
@@ -782,10 +782,10 @@ Note that:
 1. `start` is a context manager.
    It will start `proxy.py` when called and will shut it down
    once scope ends.
-3. Just like `main`, startup flags with `start` method too
+3. Just like `main`, startup flags with `start` method
    can be customized by either passing flags as list of
-   input arguments `start(['--port', '8899'])` or by using passing
-   flags as kwargs `start(port=8899)`.
+   input arguments e.g. `start(['--port', '8899'])` or
+   by using passing flags as kwargs e.g. `start(port=8899)`.
 
 Unit testing with proxy.py
 ==========================
