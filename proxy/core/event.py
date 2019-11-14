@@ -161,6 +161,8 @@ class EventDispatcher:
 class EventSubscriber:
     """Core event subscriber."""
 
+    MANAGER: multiprocessing.managers.SyncManager = multiprocessing.Manager()
+
     def __init__(self, event_queue: EventQueue) -> None:
         self.event_queue = event_queue
         self.relay_thread: Optional[threading.Thread] = None
@@ -170,7 +172,7 @@ class EventSubscriber:
 
     def subscribe(self, callback: Callable[[Dict[str, Any]], None]) -> None:
         self.relay_shutdown = threading.Event()
-        self.relay_channel = EventQueue.MANAGER.Queue()
+        self.relay_channel = EventSubscriber.MANAGER.Queue()
         self.relay_thread = threading.Thread(
             target=self.relay,
             args=(self.relay_shutdown, self.relay_channel, callback))

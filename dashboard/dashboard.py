@@ -10,7 +10,6 @@
 import os
 import json
 import logging
-import multiprocessing
 from typing import List, Tuple, Any, Dict
 
 from proxy.core.event import EventSubscriber
@@ -25,8 +24,6 @@ logger = logging.getLogger(__name__)
 
 
 class ProxyDashboard(HttpWebServerBasePlugin):
-
-    RELAY_MANAGER: multiprocessing.managers.SyncManager = multiprocessing.Manager()
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
