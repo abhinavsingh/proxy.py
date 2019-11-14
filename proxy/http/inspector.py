@@ -66,11 +66,12 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         frame.fin = True
         frame.opcode = websocketOpcodes.TEXT_FRAME
 
+        # logger.info(message)
         method = message['method']
         if method in (
             'Page.canScreencast',
             'Network.canEmulateNetworkConditions',
-            'Emulation.canEmulate'
+            'Emulation.canEmulate',
         ):
             data: Dict[str, Any] = {
                 'result': False
@@ -99,9 +100,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
             }
         else:
             logging.warning('Unhandled devtools method %s', method)
-            data = {
-                'result': {},
-            }
+            data = {}
 
         data['id'] = message['id']
         frame.data = bytes_(json.dumps(data))
@@ -117,13 +116,13 @@ class CoreEventsToDevtoolsProtocol:
                     event: Dict[str, Any]) -> None:
         event_name = event['event_name']
         if event_name == eventNames.REQUEST_COMPLETE:
-            data = CoreEventsToDevtoolsProtocol.request_will_be_sent(event)
+            data = CoreEventsToDevtoolsProtocol.request_complete(event)
         elif event_name == eventNames.RESPONSE_HEADERS_COMPLETE:
-            data = CoreEventsToDevtoolsProtocol.response_received(event)
+            data = CoreEventsToDevtoolsProtocol.response_headers_complete(event)
         elif event_name == eventNames.RESPONSE_CHUNK_RECEIVED:
-            data = CoreEventsToDevtoolsProtocol.data_received(event)
+            data = CoreEventsToDevtoolsProtocol.response_chunk_received(event)
         elif event_name == eventNames.RESPONSE_COMPLETE:
-            data = CoreEventsToDevtoolsProtocol.loading_finished(event)
+            data = CoreEventsToDevtoolsProtocol.response_complete(event)
         else:
             # drop core events unrelated to Devtools
             return
@@ -133,49 +132,43 @@ class CoreEventsToDevtoolsProtocol:
                     json.dumps(data))))
 
     @staticmethod
-    def request_will_be_sent(event: Dict[str, Any]) -> Dict[str, Any]:
+    def request_complete(event: Dict[str, Any]) -> Dict[str, Any]:
         now = time.time()
         return {
             'requestId': event['request_id'],
             'frameId': DevtoolsProtocolPlugin.FRAME_ID,
             'loaderId': DevtoolsProtocolPlugin.LOADER_ID,
             'documentURL': DevtoolsProtocolPlugin.DOC_URL,
-            'request': {
-                # 'url': text_(
-                # self.request.path
-                # if self.request.has_upstream_server() else
-                # b'http://' + bytes_(str(self.config.hostname)) +
-                # COLON + bytes_(self.config.port) + self.request.path
-                # ),
-                'urlFragment': '',
-                # 'method': text_(self.request.method),
-                # 'headers': {text_(v[0]): text_(v[1]) for v in self.request.headers.values()},
-                'initialPriority': 'High',
-                'mixedContentType': 'none',
-                # 'postData': None if self.request.method != 'POST'
-                # else text_(self.request.body)
-            },
             'timestamp': now - PROXY_PY_START_TIME,
             'wallTime': now,
+            'hasUserGesture': False,
+            'type': event['event_payload']['headers']['content-type']
+            if event['event_payload']['headers'].has_header('content-type')
+            else 'Other',
+            'request': {
+                'url': event['event_payload']['url'],
+                'method': event['event_payload']['method'],
+                'headers': event['event_payload']['headers'],
+                'postData': event['event_payload']['body'],
+                'initialPriority': 'High',
+                'urlFragment': '',
+                'mixedContentType': 'none',
+            },
             'initiator': {
                 'type': 'other'
             },
-            # 'type': text_(self.request.header(b'content-type'))
-            # if self.request.has_header(b'content-type')
-            # else 'Other',
-            'hasUserGesture': False
         }
 
     @staticmethod
-    def response_received(event: Dict[str, Any]) -> Dict[str, Any]:
+    def response_headers_complete(event: Dict[str, Any]) -> Dict[str, Any]:
         return {
             'requestId': event['request_id'],
             'frameId': DevtoolsProtocolPlugin.FRAME_ID,
             'loaderId': DevtoolsProtocolPlugin.LOADER_ID,
             'timestamp': time.time(),
-            # 'type': text_(self.response.header(b'content-type'))
-            # if self.response.has_header(b'content-type')
-            # else 'Other',
+            'type': event['event_payload']['headers']['content-type']
+            if event['event_payload']['headers'].has_header('content-type')
+            else 'Other',
             'response': {
                 'url': '',
                 'status': '',
@@ -211,18 +204,19 @@ class CoreEventsToDevtoolsProtocol:
         }
 
     @staticmethod
-    def data_received(event: Dict[str, Any]) -> Dict[str, Any]:
+    def response_chunk_received(event: Dict[str, Any]) -> Dict[str, Any]:
         return {
             'requestId': event['request_id'],
             'timestamp': time.time(),
-            # 'dataLength': len(chunk),
-            # 'encodedDataLength': len(chunk),
+            'dataLength': event['event_payload']['chunk_size'],
+            'encodedDataLength': event['event_payload']['encoded_chunk_size'],
         }
 
     @staticmethod
-    def loading_finished(event: Dict[str, Any]) -> Dict[str, Any]:
+    def response_complete(event: Dict[str, Any]) -> Dict[str, Any]:
         return {
             'requestId': event['request_id'],
             'timestamp': time.time(),
-            # 'encodedDataLength': self.response.total_size
+            'encodedDataLength': event['event_payload']['encoded_response_size'],
+            'shouldReportCorbBlocking': False,
         }

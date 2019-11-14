@@ -486,7 +486,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.request.method == httpMethods.CONNECT
                 else 'http://%s:%d%s' % (text_(self.request.host), self.request.port, text_(self.request.path)),
                 'method': text_(self.request.method),
-                'headers': {text_(v[0]): text_(v[1]) for v in self.request.headers.values()},
+                'headers': {text_(k): text_(v[1]) for k, v in self.request.headers},
                 'body': text_(self.request.body)
                 if self.request.method == httpMethods.POST
                 else None
