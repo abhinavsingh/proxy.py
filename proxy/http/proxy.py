@@ -197,45 +197,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 #
                 # or self.config.tls_interception_enabled():
                 if self.response.state == httpParserStates.COMPLETE:
-                    if self.pipeline_response is None:
-                        self.pipeline_response = HttpParser(
-                            httpParserTypes.RESPONSE_PARSER)
-                    self.pipeline_response.parse(raw)
-                    if self.pipeline_response.state == httpParserStates.COMPLETE:
-                        self.pipeline_response = None
+                    self.handle_pipeline_response(raw)
                 else:
                     self.response.parse(raw)
+                    self.emit_response_events()
             else:
                 self.response.total_size += len(raw)
             # queue raw data for client
             self.client.queue(raw)
         return False
-
-    def access_log(self) -> None:
-        server_host, server_port = self.server.addr if self.server else (
-            None, None)
-        connection_time_ms = (time.time() - self.start_time) * 1000
-        if self.request.method == b'CONNECT':
-            logger.info(
-                '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
-                (self.client.addr[0],
-                 self.client.addr[1],
-                 text_(self.request.method),
-                 text_(server_host),
-                 text_(server_port),
-                 self.response.total_size,
-                 connection_time_ms))
-        elif self.request.method:
-            logger.info(
-                '%s:%s - %s %s:%s%s - %s %s - %s bytes - %.2f ms' %
-                (self.client.addr[0], self.client.addr[1],
-                 text_(self.request.method),
-                 text_(server_host), server_port,
-                 text_(self.request.path),
-                 text_(self.response.code),
-                 text_(self.response.reason),
-                 self.response.total_size,
-                 connection_time_ms))
 
     def on_client_connection_close(self) -> None:
         if not self.request.has_upstream_server():
@@ -380,6 +350,40 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     disable_headers=self.flags.disable_headers))
         return False
 
+    def handle_pipeline_response(self, raw: bytes) -> None:
+        if self.pipeline_response is None:
+            self.pipeline_response = HttpParser(
+                httpParserTypes.RESPONSE_PARSER)
+        self.pipeline_response.parse(raw)
+        if self.pipeline_response.state == httpParserStates.COMPLETE:
+            self.pipeline_response = None
+
+    def access_log(self) -> None:
+        server_host, server_port = self.server.addr if self.server else (
+            None, None)
+        connection_time_ms = (time.time() - self.start_time) * 1000
+        if self.request.method == b'CONNECT':
+            logger.info(
+                '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
+                (self.client.addr[0],
+                 self.client.addr[1],
+                 text_(self.request.method),
+                 text_(server_host),
+                 text_(server_port),
+                 self.response.total_size,
+                 connection_time_ms))
+        elif self.request.method:
+            logger.info(
+                '%s:%s - %s %s:%s%s - %s %s - %s bytes - %.2f ms' %
+                (self.client.addr[0], self.client.addr[1],
+                 text_(self.request.method),
+                 text_(server_host), server_port,
+                 text_(self.request.path),
+                 text_(self.response.code),
+                 text_(self.response.reason),
+                 self.response.total_size,
+                 connection_time_ms))
+
     @staticmethod
     def generated_cert_file_path(ca_cert_dir: str, host: str) -> str:
         return os.path.join(ca_cert_dir, '%s.pem' % host)
@@ -473,11 +477,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             return
 
         assert self.request.path
+        assert self.request.port
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.REQUEST_COMPLETE,
             event_payload={
-                'url': text_(self.request.path),
+                'url': text_(self.request.path)
+                if self.request.method == httpMethods.CONNECT
+                else 'http://%s:%d%s' % (text_(self.request.host), self.request.port, text_(self.request.path)),
                 'method': text_(self.request.method),
                 'headers': {text_(v[0]): text_(v[1]) for v in self.request.headers.values()},
                 'body': text_(self.request.body)
@@ -486,3 +493,26 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             },
             publisher_id=self.__class__.__name__
         )
+
+    def emit_response_events(self) -> None:
+        if not self.flags.enable_events:
+            return
+
+        if self.response.state == httpParserStates.COMPLETE:
+            self.emit_response_complete()
+        elif self.response.state == httpParserStates.RCVING_BODY:
+            self.emit_response_chunk_received()
+        elif self.response.state == httpParserStates.HEADERS_COMPLETE:
+            self.emit_response_headers_complete()
+
+    def emit_response_headers_complete(self) -> None:
+        if not self.flags.enable_events:
+            return
+
+    def emit_response_chunk_received(self) -> None:
+        if not self.flags.enable_events:
+            return
+
+    def emit_response_complete(self) -> None:
+        if not self.flags.enable_events:
+            return
