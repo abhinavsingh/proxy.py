@@ -22,7 +22,6 @@ from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
 from proxy.http.handler import HttpProtocolHandler
-from proxy.main import load_plugins
 from proxy.common.version import __version__
 
 
@@ -39,7 +38,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         self.http_server_port = 65535
         self.flags = Flags()
-        self.flags.plugins = load_plugins(
+        self.flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.mock_selector = mock_selector
@@ -172,7 +171,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = load_plugins(
+        flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
         self.protocol_handler = HttpProtocolHandler(
             self.fileno, self._addr, flags=flags)
@@ -204,7 +203,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = load_plugins(
+        flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = HttpProtocolHandler(
@@ -252,7 +251,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = load_plugins(
+        flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = HttpProtocolHandler(

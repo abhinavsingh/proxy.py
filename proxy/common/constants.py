@@ -15,13 +15,6 @@ from typing import List
 
 from .version import __version__
 
-__description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
-__author__ = 'Abhinav Singh'
-__author_email__ = 'mailsforabhinav@gmail.com'
-__homepage__ = 'https://github.com/abhinavsingh/proxy.py'
-__download_url__ = '%s/archive/master.zip' % __homepage__
-__license__ = 'BSD'
-
 PROXY_PY_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 PROXY_PY_START_TIME = time.time()
 

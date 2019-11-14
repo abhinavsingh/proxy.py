@@ -24,9 +24,6 @@ from proxy.common.utils import build_http_response, bytes_
 from proxy.common.types import DictQueueType
 from proxy.core.connection import TcpClientConnection
 
-VERSION = (0, 1, 0)
-__version__ = '.'.join(map(str, VERSION[0:3]))
-
 logger = logging.getLogger(__name__)
 
 

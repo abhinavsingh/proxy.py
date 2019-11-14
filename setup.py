@@ -8,11 +8,16 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from setuptools import setup, find_packages
+from setuptools import setup
 
-from proxy.common.version import __version__
-from proxy.common.constants import __author__, __author_email__
-from proxy.common.constants import __homepage__, __description__, __download_url__, __license__
+VERSION = (2, 0, 0)
+__version__ = '.'.join(map(str, VERSION[0:3]))
+__description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
+__author__ = 'Abhinav Singh'
+__author_email__ = 'mailsforabhinav@gmail.com'
+__homepage__ = 'https://github.com/abhinavsingh/proxy.py'
+__download_url__ = '%s/archive/master.zip' % __homepage__
+__license__ = 'BSD'
 
 setup(
     name='proxy.py',
@@ -25,17 +30,11 @@ setup(
     long_description_content_type='text/markdown',
     download_url=__download_url__,
     license=__license__,
-    packages=find_packages(
-        exclude=[
-            'benchmark',
-            'dashboard',
-            'plugin_examples',
-            'tests'
-        ]),
+    packages=['proxy', 'proxy.common', 'proxy.core', 'proxy.http'],
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
         'console_scripts': [
-            'proxy = proxy.main:entry_point'
+            'proxy = proxy:entry_point'
         ]
     },
     classifiers=[
