@@ -1,6 +1,6 @@
 import typescript from 'rollup-plugin-typescript';
 import copy from 'rollup-plugin-copy';
-// import obfuscatorPlugin from 'rollup-plugin-javascript-obfuscator';
+import obfuscatorPlugin from 'rollup-plugin-javascript-obfuscator';
 
 export const input = 'src/proxy.ts';
 export const output = {
@@ -35,7 +35,7 @@ export const plugins = [
             dest: '../public/dashboard/devtools'
         }],
     }),
-    /* obfuscatorPlugin({
+    obfuscatorPlugin({
         log: false,
         sourceMap: true,
         compact: true,
@@ -45,5 +45,5 @@ export const plugins = [
         stringArrayThreshold: 1,
         stringArrayEncoding: 'rc4',
         identifierNamesGenerator: 'mangled',
-    }) */
+    })
 ];
