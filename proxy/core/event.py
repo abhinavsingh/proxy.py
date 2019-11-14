@@ -27,8 +27,12 @@ EventNames = NamedTuple('EventNames', [
     ('UNSUBSCRIBE', int),
     ('WORK_STARTED', int),
     ('WORK_FINISHED', int),
+    ('REQUEST_COMPLETE', int),
+    ('RESPONSE_HEADERS_COMPLETE', int),
+    ('RESPONSE_CHUNK_RECEIVED', int),
+    ('RESPONSE_COMPLETE', int),
 ])
-eventNames = EventNames(1, 2, 3, 4)
+eventNames = EventNames(1, 2, 3, 4, 5, 6, 7, 8)
 
 
 class EventQueue:

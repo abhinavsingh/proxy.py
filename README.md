@@ -1131,13 +1131,14 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
              [--devtools-ws-path DEVTOOLS_WS_PATH]
              [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
-             [--enable-devtools] [--enable-events] [--enable-static-server]
-             [--enable-web-server] [--hostname HOSTNAME] [--key-file KEY_FILE]
+             [--enable-devtools] [--enable-events]
+             [--enable-static-server] [--enable-web-server]
+             [--hostname HOSTNAME] [--key-file KEY_FILE]
              [--log-level LOG_LEVEL] [--log-file LOG_FILE]
              [--log-format LOG_FORMAT] [--num-workers NUM_WORKERS]
              [--open-file-limit OPEN_FILE_LIMIT] [--pac-file PAC_FILE]
-             [--pac-file-url-path PAC_FILE_URL_PATH] [--pid-file PID_FILE]
-             [--plugins PLUGINS] [--port PORT]
+             [--pac-file-url-path PAC_FILE_URL_PATH]
+             [--pid-file PID_FILE] [--plugins PLUGINS] [--port PORT]
              [--server-recvbuf-size SERVER_RECVBUF_SIZE]
              [--static-server-dir STATIC_SERVER_DIR] [--threadless]
              [--timeout TIMEOUT] [--version]
@@ -1186,7 +1187,7 @@ optional arguments:
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
   --enable-devtools     Default: False. Enables integration with Chrome
-                        Devtool Frontend.
+                        Devtool Frontend. Also see --devtools-ws-path.
   --enable-events       Default: False. Enables core to dispatch lifecycle
                         events. Plugins can be used to subscribe for core
                         events.

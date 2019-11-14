@@ -15,7 +15,8 @@ __all__ = [
     # PyPi package entry_point. See
     # https://github.com/abhinavsingh/proxy.py#from-command-line-when-installed-using-pip
     'entry_point',
-    # Embed proxy.py. See https://github.com/abhinavsingh/proxy.py#embed-proxypy
+    # Embed proxy.py. See
+    # https://github.com/abhinavsingh/proxy.py#embed-proxypy
     'main', 'start',
     # Unit testing with proxy.py. See
     # https://github.com/abhinavsingh/proxy.py#unit-testing-with-proxypy

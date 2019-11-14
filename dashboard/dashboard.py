@@ -89,7 +89,9 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                 )
             else:
                 self.inspection_enabled = True
-                self.subscriber.subscribe(lambda event: ProxyDashboard.callback(self.client, event))
+                self.subscriber.subscribe(
+                    lambda event: ProxyDashboard.callback(
+                        self.client, event))
                 self.reply(
                     {'id': message['id'], 'response': 'inspection_enabled'})
         elif message['method'] == 'disable_inspection':
