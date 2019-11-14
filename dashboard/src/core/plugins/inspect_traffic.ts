@@ -41,13 +41,13 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   }
 
   private ensureIFrame (): void {
-    if ($('#' + this.getDevtoolsIFrameID()).length === 0) {
+    /** if ($('#' + this.getDevtoolsIFrameID()).length === 0) {
       $('#' + this.name)
         .children('.app-body')
         .append(
           this.getDevtoolsIFrame()
         )
-    }
+    } */
   }
 
   private getDevtoolsIFrameID (): string {

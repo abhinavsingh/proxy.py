@@ -160,9 +160,9 @@ class Flags:
             default_plugins += 'proxy.http.proxy.HttpProxyPlugin,'
         if args.enable_web_server or \
                 args.pac_file is not None or \
-                args.enable_static_server:
-            if 'proxy.http.server.HttpWebServerPlugin' not in default_plugins:
-                default_plugins += 'proxy.http.server.HttpWebServerPlugin,'
+                args.enable_static_server and \
+                'proxy.http.server.HttpWebServerPlugin' not in default_plugins:
+            default_plugins += 'proxy.http.server.HttpWebServerPlugin,'
         if args.pac_file is not None:
             default_plugins += 'proxy.http.server.HttpWebServerPacFilePlugin,'
 

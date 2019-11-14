@@ -67,14 +67,12 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         frame.opcode = websocketOpcodes.TEXT_FRAME
 
         method = message['method']
-        data: Dict[str, Any] = {}
-
         if method in (
             'Page.canScreencast',
             'Network.canEmulateNetworkConditions',
             'Emulation.canEmulate'
         ):
-            data = {
+            data: Dict[str, Any] = {
                 'result': False
             }
         elif method == 'Page.getResourceTree':
@@ -134,7 +132,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
             # 'requestId': self.id,
             'frameId': DevtoolsProtocolPlugin.FRAME_ID,
             'loaderId': DevtoolsProtocolPlugin.LOADER_ID,
-            'documentURL': 'http://proxy-py',
+            'documentURL': DevtoolsProtocolPlugin.DOC_URL,
             'request': {
                 # 'url': text_(
                 # self.request.path

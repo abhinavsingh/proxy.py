@@ -44,9 +44,11 @@ class HttpWebServerBasePlugin(ABC):
 
     def __init__(
             self,
+            uid: str,
             flags: Flags,
             client: TcpClientConnection,
             event_queue: EventQueue):
+        self.uid = uid
         self.flags = flags
         self.client = client
         self.event_queue = event_queue
@@ -150,9 +152,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         }
         self.route: Optional[HttpWebServerBasePlugin] = None
 
-        if b'HttpWebServerBasePlugin' in self.config.plugins:
-            for klass in self.config.plugins[b'HttpWebServerBasePlugin']:
-                instance = klass(self.config, self.client, self.event_queue)
+        if b'HttpWebServerBasePlugin' in self.flags.plugins:
+            for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
+                instance = klass(self.uid, self.flags, self.client, self.event_queue)
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
 
@@ -221,7 +223,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
-            if self.config.encryption_enabled() else \
+            if self.flags.encryption_enabled() else \
             httpProtocolTypes.HTTP
         for r in self.routes[protocol]:
             if r == self.request.path:
@@ -230,11 +232,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 return False
 
         # No-route found, try static serving if enabled
-        if self.config.enable_static_server:
+        if self.flags.enable_static_server:
             path = text_(self.request.path).split('?')[0]
-            if os.path.isfile(self.config.static_server_dir + path):
+            if os.path.isfile(self.flags.static_server_dir + path):
                 return self.serve_file_or_404(
-                    self.config.static_server_dir + path)
+                    self.flags.static_server_dir + path)
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
