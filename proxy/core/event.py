@@ -34,9 +34,11 @@ eventNames = EventNames(1, 2, 3, 4)
 class EventQueue:
     """Global event queue."""
 
+    MANAGER: multiprocessing.managers.SyncManager = multiprocessing.Manager()
+
     def __init__(self) -> None:
         super().__init__()
-        self.queue = multiprocessing.Manager().Queue()
+        self.queue = EventQueue.MANAGER.Queue()
 
     def publish(
         self,
@@ -159,8 +161,6 @@ class EventDispatcher:
 class EventSubscriber:
     """Core event subscriber."""
 
-    MANAGER: multiprocessing.managers.SyncManager = multiprocessing.Manager()
-
     def __init__(self, event_queue: EventQueue) -> None:
         self.event_queue = event_queue
         self.relay_thread: Optional[threading.Thread] = None
@@ -170,7 +170,7 @@ class EventSubscriber:
 
     def subscribe(self, callback: Callable[[Dict[str, Any]], None]) -> None:
         self.relay_shutdown = threading.Event()
-        self.relay_channel = EventSubscriber.MANAGER.Queue()
+        self.relay_channel = EventQueue.MANAGER.Queue()
         self.relay_thread = threading.Thread(
             target=self.relay,
             args=(self.relay_shutdown, self.relay_channel, callback))
