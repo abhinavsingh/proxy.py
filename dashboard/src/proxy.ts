@@ -37,7 +37,7 @@ export class ProxyDashboard {
       $('#proxyDashboard').append(
         $('<section></section>')
           .attr('id', p.name)
-          .addClass('proxy-data')
+          .addClass('proxy-dashboard-plugin')
           .append(
             $('<div></div>')
               .addClass('app-header')
@@ -75,7 +75,7 @@ export class ProxyDashboard {
       return
     }
 
-    $('#proxyDashboard>div.proxy-data').hide()
+    $('#proxyDashboard>.proxy-dashboard-plugin').hide()
     $('#' + clickedTabPluginName).show()
 
     if (activeTabPluginName !== undefined) {

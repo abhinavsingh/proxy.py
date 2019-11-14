@@ -11,9 +11,8 @@
     background-color: #eeeeee;
 }
 
-#proxyDashboard .remove-api-spec {
-    top: 10px;
-    right: 15px;
+.proxy-dashboard-plugin {
+    display: none;
 }
 
 .app-header {
@@ -27,8 +26,9 @@
     padding-bottom: 50px;
 }
 
-.proxy-data {
-    display: none;
+.remove-api-spec {
+    top: 10px;
+    right: 15px;
 }
 
 .api-path-spec .list-group-item {
