@@ -14,7 +14,6 @@ import logging
 import asyncio
 import selectors
 import contextlib
-import ssl
 import multiprocessing
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
@@ -182,8 +181,8 @@ class Threadless(multiprocessing.Process):
         )
         try:
             self.works[fileno].initialize()
-        except ssl.SSLError as e:
-            logger.exception('ssl.SSLError', exc_info=e)
+        except Exception as e:
+            logger.exception('Exception occurred during initialization', exc_info=e)
             self.cleanup(fileno)
 
     def cleanup_inactive(self) -> None:
