@@ -125,7 +125,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
         if b'HttpProxyBasePlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProxyBasePlugin']:
-                instance = klass(self.uid, self.flags, self.client, self.event_queue)
+                instance = klass(
+                    self.uid,
+                    self.flags,
+                    self.client,
+                    self.event_queue)
                 self.plugins[instance.name()] = instance
 
     def get_descriptors(
@@ -464,7 +468,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             logger.exception('Both host and port must exist')
             raise HttpProtocolException()
 
-    def emit_request_complete(self):
+    def emit_request_complete(self) -> None:
+        if not self.flags.enable_events:
+            return
+
         assert self.request.path
         self.event_queue.publish(
             request_id=self.uid,

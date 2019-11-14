@@ -154,7 +154,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
-                instance = klass(self.uid, self.flags, self.client, self.event_queue)
+                instance = klass(
+                    self.uid,
+                    self.flags,
+                    self.client,
+                    self.event_queue)
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
 

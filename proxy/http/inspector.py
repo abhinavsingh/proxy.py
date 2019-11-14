@@ -18,7 +18,7 @@ from .websocket import WebsocketFrame, websocketOpcodes
 from .server import HttpWebServerBasePlugin, httpProtocolTypes
 
 from ..common.constants import PROXY_PY_START_TIME
-from ..common.utils import bytes_
+from ..common.utils import bytes_, text_
 from ..core.connection import TcpClientConnection
 from ..core.event import EventSubscriber, eventNames
 
@@ -46,7 +46,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
 
     def on_websocket_open(self) -> None:
         self.subscriber.subscribe(
-            lambda event: DevtoolsProtocolPlugin.transformer(self.client, event))
+            lambda event: CoreEventsToDevtoolsProtocol.transformer(self.client, event))
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         try:
@@ -90,9 +90,10 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
                 }
             }
         elif method == 'Network.getResponseBody':
+            connection_id = message['params']['requestId']
             data = {
                 'result': {
-                    'body': '',
+                    'body': text_(CoreEventsToDevtoolsProtocol.RESPONSES[connection_id]),
                     'base64Encoded': False,
                 }
             }
@@ -106,30 +107,36 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         frame.data = bytes_(json.dumps(data))
         self.client.queue(frame.build())
 
+
+class CoreEventsToDevtoolsProtocol:
+
+    RESPONSES: Dict[str, bytes] = {}
+
     @staticmethod
     def transformer(client: TcpClientConnection,
                     event: Dict[str, Any]) -> None:
         event_name = event['event_name']
         if event_name == eventNames.REQUEST_COMPLETE:
-            pass
+            data = CoreEventsToDevtoolsProtocol.request_will_be_sent(event)
         elif event_name == eventNames.RESPONSE_HEADERS_COMPLETE:
-            pass
+            data = CoreEventsToDevtoolsProtocol.response_received(event)
         elif event_name == eventNames.RESPONSE_CHUNK_RECEIVED:
-            pass
+            data = CoreEventsToDevtoolsProtocol.data_received(event)
         elif event_name == eventNames.RESPONSE_COMPLETE:
-            pass
+            data = CoreEventsToDevtoolsProtocol.loading_finished(event)
         else:
-            # drop the event, unrelated to Devtools
-            pass
+            # drop core events unrelated to Devtools
+            return
         client.queue(
             WebsocketFrame.text(
                 bytes_(
-                    json.dumps(event))))
+                    json.dumps(data))))
 
-    def request_will_be_sent(self) -> Dict[str, Any]:
+    @staticmethod
+    def request_will_be_sent(event: Dict[str, Any]) -> Dict[str, Any]:
         now = time.time()
         return {
-            # 'requestId': self.id,
+            'requestId': event['request_id'],
             'frameId': DevtoolsProtocolPlugin.FRAME_ID,
             'loaderId': DevtoolsProtocolPlugin.LOADER_ID,
             'documentURL': DevtoolsProtocolPlugin.DOC_URL,
@@ -159,9 +166,10 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
             'hasUserGesture': False
         }
 
-    def response_received(self) -> Dict[str, Any]:
+    @staticmethod
+    def response_received(event: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            # 'requestId': self.id,
+            'requestId': event['request_id'],
             'frameId': DevtoolsProtocolPlugin.FRAME_ID,
             'loaderId': DevtoolsProtocolPlugin.LOADER_ID,
             'timestamp': time.time(),
@@ -202,17 +210,19 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
             }
         }
 
-    def data_received(self, chunk: bytes) -> Dict[str, Any]:
+    @staticmethod
+    def data_received(event: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            # 'requestId': self.id,
+            'requestId': event['request_id'],
             'timestamp': time.time(),
-            'dataLength': len(chunk),
-            'encodedDataLength': len(chunk),
+            # 'dataLength': len(chunk),
+            # 'encodedDataLength': len(chunk),
         }
 
-    def loading_finished(self) -> Dict[str, Any]:
+    @staticmethod
+    def loading_finished(event: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            # 'requestId': self.id,
+            'requestId': event['request_id'],
             'timestamp': time.time(),
             # 'encodedDataLength': self.response.total_size
         }
