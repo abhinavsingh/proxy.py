@@ -22,6 +22,9 @@ export const plugins = [
             src: 'src/proxy.css',
             dest: '../public/dashboard',
         }, {
+            src: 'src/manifest.json',
+            dest: '../public/dashboard',
+        }, {
             src: 'src/core/plugins/inspect_traffic.json',
             dest: '../public/dashboard/devtools'
         }, {
