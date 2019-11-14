@@ -7,47 +7,62 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 -->
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="referrer" content="no-referrer">
+    <meta name="Description" content="⚡⚡⚡ Fast, Lightweight, Programmable, TLS interception capable
+    proxy server for Application debugging, testing and development.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Proxy.py Dashboard</title>
+
     <link rel="stylesheet" href="proxy.css">
     <link rel="stylesheet" href="bootstrap-4.3.1.min.css">
-    <link rel="stylesheet" href="font-awesome-4.7.0.min.css">
-    <title>Proxy.py Dashboard</title>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <a class="navbar-brand" href="#">
-        <i class="fa fa-fw fa-dashboard"></i>
-        PROXY.PY
-    </a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse"
-            data-target="#proxyTopNav" aria-controls="proxyTopNav"
-            aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="proxyTopNav">
-        <ul class="navbar-nav ml-auto"></ul>
-    </div>
-</nav>
-
-<div id="proxyDashboard"></div>
-
-<nav class="navbar fixed-bottom navbar-dark bg-dark" id="proxyBottomNav">
-    <div class="mr-auto text-danger">
-        <a class="text-reset small" href="#" id="proxyServerStatus">
-            <i class="fa fa-fw fa-signal"></i>
-            Server Status <i id="proxyServerStatusSummary"></i>
+<header>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">
+            <i class="fa fa-fw fa-dashboard"></i>
+            PROXY.PY
         </a>
-    </div>
-    <div class="ml-auto text-white-50">
-        <a class="text-reset small" href="#">
-            <i class="fa fa-fw fa-copyright"></i>
-            Abhinav Singh and contributors
-        </a>
-    </div>
-</nav>
+        <button class="navbar-toggler" type="button" data-toggle="collapse"
+                data-target="#proxyTopNav" aria-controls="proxyTopNav"
+                aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="proxyTopNav">
+            <ul class="navbar-nav ml-auto"></ul>
+        </div>
+    </nav>
+</header>
+
+<main>
+    <section>
+        <div id="proxyDashboard"></div>
+    </section>
+</main>
+
+<footer>
+    <nav class="navbar fixed-bottom navbar-dark bg-dark" id="proxyBottomNav">
+        <div class="mr-auto text-danger">
+            <a class="text-reset small" href="#" id="proxyServerStatus">
+                <i class="fa fa-fw fa-signal"></i>
+                Server Status <i id="proxyServerStatusSummary"></i>
+            </a>
+        </div>
+        <div class="ml-auto text-white-50">
+            <a class="text-reset small" href="#">
+                <i class="fa fa-fw fa-copyright"></i>
+                Abhinav Singh and contributors
+            </a>
+        </div>
+    </nav>
+</footer>
+
+<link rel="stylesheet" href="font-awesome-4.7.0.min.css">
 <script src="jquery-3.4.1.min.js"></script>
 <script src="popper-1.14.7.min.js"></script>
 <script src="bootstrap-4.3.1.min.js"></script>

@@ -7,6 +7,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import gzip
 import os
 import tempfile
 import unittest
@@ -156,13 +157,16 @@ class TestWebServerPlugin(unittest.TestCase):
 
         self.assertEqual(mock_selector.return_value.select.call_count, 2)
         self.assertEqual(self._conn.send.call_count, 1)
+        encoded_html_file_content = gzip.compress(html_file_content)
         self.assertEqual(self._conn.send.call_args[0][0], build_http_response(
             200, reason=b'OK', headers={
                 b'Content-Type': b'text/html',
+                b'Cache-Control': b'max-age=86400',
+                b'Content-Encoding': b'gzip',
                 b'Connection': b'close',
-                b'Content-Length': bytes_(len(html_file_content)),
+                b'Content-Length': bytes_(len(encoded_html_file_content)),
             },
-            body=html_file_content
+            body=encoded_html_file_content
         ))
 
     @mock.patch('selectors.DefaultSelector')
