@@ -11,22 +11,20 @@
 <html lang="en">
 <head>
     <link rel="manifest" href="manifest.json">
-
-    <meta name="theme-color" content="#2F3BA2" />
     <link rel="apple-touch-icon" href="images/icons/icon-152x152.png">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src https: wss: data:; object-src 'none'; script-src 'self'; style-src 'self'">
+
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="referrer" content="same-origin">
+    <meta name="theme-color" content="#2F3BA2" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Proxy.py Dashboard">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="referrer" content="no-referrer">
-    <meta name="Description" content="⚡⚡⚡ Fast, Lightweight, Programmable, TLS interception capable
-    proxy server for Application debugging, testing and development.">
+    <meta name="Description" content="⚡⚡⚡ Fast, Lightweight, Programmable, TLS interception capable proxy server for Application debugging, testing and development.">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>Proxy.py Dashboard</title>
-
-    <link rel="stylesheet" href="proxy.css">
-    <link rel="stylesheet" href="bootstrap-4.3.1.min.css">
 </head>
 <body>
 <header>
@@ -70,16 +68,12 @@
 </footer>
 
 <link rel="stylesheet" href="font-awesome-4.7.0.min.css">
+<link rel="stylesheet" href="bootstrap-4.3.1.min.css">
+<link rel="stylesheet" href="proxy.css">
+
 <script src="jquery-3.4.1.min.js"></script>
 <script src="popper-1.14.7.min.js"></script>
 <script src="bootstrap-4.3.1.min.js"></script>
-<script src="js.cookie-v3.0.0-beta.0.min.js"></script>
-<script src="renderjson-b31d877.js"></script>
-<script src="proxy.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        new window.ProxyDashboard();
-    }, false);
-</script>
+<script defer src="proxy.js"></script>
 </body>
 </html>

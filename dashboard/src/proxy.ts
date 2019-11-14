@@ -22,7 +22,6 @@ import { TrafficControlPlugin } from './plugins/traffic_control'
 export class ProxyDashboard {
   private static plugins: IPluginConstructor[] = [];
   private plugins: Map<string, IDashboardPlugin> = new Map();
-
   private readonly websocketApi: WebsocketApi
 
   constructor () {
@@ -91,6 +90,7 @@ ProxyDashboard.addPlugin(MockRestApiPlugin)
 ProxyDashboard.addPlugin(InspectTrafficPlugin)
 ProxyDashboard.addPlugin(ShortlinkPlugin)
 ProxyDashboard.addPlugin(TrafficControlPlugin)
-ProxyDashboard.addPlugin(SettingsPlugin);
+ProxyDashboard.addPlugin(SettingsPlugin)
 
-(window as any).ProxyDashboard = ProxyDashboard
+const dashboard = new ProxyDashboard()
+console.log(dashboard)

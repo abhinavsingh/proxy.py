@@ -14,7 +14,7 @@ export class SettingsPlugin extends DashboardPlugin {
   public title: string = 'Settings'
 
   public initializeTab () : JQuery<HTMLElement> {
-    return this.makeTab(this.title, 'fa-clog')
+    return this.makeTab(this.title, 'fa-cog')
   }
 
   public initializeHeader (): JQuery<HTMLElement> {
