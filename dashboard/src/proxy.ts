@@ -59,6 +59,9 @@ export class ProxyDashboard {
     window.onhashchange = function () {
       that.onHashChange()
     }
+    if (window.location.hash === '#' || window.location.hash === '') {
+      window.location.hash = '#home'
+    }
   }
 
   public static addPlugin (Plugin: IPluginConstructor) {
