@@ -7,6 +7,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 */
+
+/** Main dashboard CSS **/
+
 html, body {
     height: 100%;
 }
@@ -39,6 +42,8 @@ section {
     padding-bottom: 5px;
     height: 92%;
 }
+
+/** mock_rest_api.ts plugin CSS **/
 
 .remove-api-spec {
     top: 6px;

@@ -41,19 +41,6 @@ export class WebsocketApi {
     return date.getTime()
   }
 
-  public enableInspection (eventCallback?: MessageHandler) {
-    // TODO: Set flag to true only once response has been received from the server
-    this.inspectionEnabled = true
-    this.inspectionCallback = eventCallback
-    this.sendMessage({ method: 'enable_inspection' })
-  }
-
-  public disableInspection () {
-    this.inspectionEnabled = false
-    this.inspectionCallback = null
-    this.sendMessage({ method: 'disable_inspection' })
-  }
-
   private scheduleServerConnect (after_ms: number = this.scheduleReconnectEveryMs) {
     this.clearServerConnectTimer()
     this.serverConnectTimer = window.setTimeout(

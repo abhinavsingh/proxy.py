@@ -28,12 +28,15 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   }
 
   public activated (): void {
-    this.websocketApi.enableInspection(this.handleEvents.bind(this))
+    this.websocketApi.sendMessage(
+      { method: 'enable_inspection' },
+      this.handleEvents.bind(this))
     this.ensureIFrame()
   }
 
   public deactivated (): void {
-    this.websocketApi.disableInspection()
+    this.websocketApi.sendMessage(
+      { method: 'disable_inspection' })
   }
 
   public handleEvents (message: Record<string, any>): void {
@@ -57,7 +60,11 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   private getDevtoolsIFrame (): JQuery<HTMLElement> {
     return $('<iframe></iframe>')
       .attr('id', this.getDevtoolsIFrameID())
-      .attr('style', 'position: relative; height: 80%; width: 100%; padding: 0; margin: 0')
+      .attr('position', 'relative')
+      .attr('height', '100%')
+      .attr('width', '100%')
+      .attr('padding', '0')
+      .attr('margin', '0')
       .attr('frameBorder', '0')
       .attr('scrolling', 'no')
       .attr('src', 'devtools/inspect_traffic.html')
