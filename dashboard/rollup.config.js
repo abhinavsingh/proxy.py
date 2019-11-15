@@ -6,7 +6,7 @@ export const input = 'src/proxy.ts';
 export const output = {
     file: '../public/dashboard/proxy.js',
     format: 'umd',
-    name: 'projectbundle',
+    name: 'proxy',
     sourcemap: true
 };
 export const plugins = [

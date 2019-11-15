@@ -16,8 +16,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 .PHONY: all https-certificates ca-certificates autopep8 devtools
 .PHONY: lib-clean lib-test lib-package lib-release-test lib-release lib-coverage lib-lint lib-profile
 .PHONY: container container-run container-release
-.PHONY: dashboard dashboard-clean dashboard-package
-.PHONY: plugin-package-clean plugin-package
+.PHONY: dashboard dashboard-clean
 
 all: lib-clean lib-test
 
@@ -30,7 +29,6 @@ autopep8:
 	autopep8 --recursive --in-place --aggressive tests/*.py
 	autopep8 --recursive --in-place --aggressive plugin_examples/*.py
 	autopep8 --recursive --in-place --aggressive benchmark/*.py
-	autopep8 --recursive --in-place --aggressive dashboard/*.py
 	autopep8 --recursive --in-place --aggressive setup.py
 
 https-certificates:
@@ -61,8 +59,8 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-lint:
-	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
-	mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
+	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ plugin_examples/ setup.py
+	mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ setup.py
 
 lib-test: lib-lint
 	python -m unittest discover
@@ -88,18 +86,6 @@ dashboard:
 
 dashboard-clean:
 	if [[ -d public/dashboard ]]; then rm -rf public/dashboard; fi
-
-dashboard-package-clean:
-	pushd dashboard && rm -rf build && rm -rf dist && popd
-
-dashboard-package: dashboard-package-clean
-	pushd dashboard && npm test && PYTHONPATH=.. python setup.py sdist bdist_wheel && popd
-
-plugin-package-clean:
-	pushd plugin_examples && rm -rf build && rm -rf dist && popd
-
-plugin-package: plugin-package-clean
-	pushd plugin_examples && PYTHONPATH=.. python setup.py sdist bdist_wheel && popd
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .

@@ -110,6 +110,7 @@ class AcceptorPool:
         """Listen on port, setup workers and pass server socket to workers."""
         self.listen()
         if self.flags.enable_events:
+            logger.info('Core Event enabled')
             self.start_event_dispatcher()
         self.start_workers()
 

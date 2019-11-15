@@ -15,8 +15,10 @@ from typing import List
 
 from .version import __version__
 
-PROXY_PY_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 PROXY_PY_START_TIME = time.time()
+
+# /path/to/proxy.py/proxy folder
+PROXY_PY_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 CRLF = b'\r\n'
 COLON = b':'
@@ -45,6 +47,7 @@ DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
 DEFAULT_DISABLE_HTTP_PROXY = False
+DEFAULT_ENABLE_DASHBOARD = False
 DEFAULT_ENABLE_DEVTOOLS = False
 DEFAULT_ENABLE_EVENTS = False
 DEFAULT_EVENTS_QUEUE = None
