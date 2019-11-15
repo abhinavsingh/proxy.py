@@ -163,6 +163,7 @@ class Flags:
         default_plugins: List[Tuple[str, bool]] = []
         if args.enable_dashboard:
             default_plugins.append((web_server_plugin, True))
+            args.enable_static_server = True
             default_plugins.append((dashboard_plugin, True))
             default_plugins.append((inspect_traffic_plugin, True))
             args.enable_events = True
