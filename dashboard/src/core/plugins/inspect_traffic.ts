@@ -9,8 +9,6 @@
 */
 import { DashboardPlugin } from '../plugin'
 
-declare const Root: any
-
 export class InspectTrafficPlugin extends DashboardPlugin {
   public name: string = 'inspect_traffic'
   public title: string = 'Inspect Traffic'

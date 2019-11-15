@@ -182,7 +182,9 @@ class Threadless(multiprocessing.Process):
         try:
             self.works[fileno].initialize()
         except Exception as e:
-            logger.exception('Exception occurred during initialization', exc_info=e)
+            logger.exception(
+                'Exception occurred during initialization',
+                exc_info=e)
             self.cleanup(fileno)
 
     def cleanup_inactive(self) -> None:

@@ -1,6 +1,6 @@
 {
     "name": "Proxy.py Dashboard",
-    "short_name": "Proxy Dash",
+    "short_name": "Proxy.py Dashboard",
     "start_url": "/dashboard/",
     "display": "standalone",
     "background_color": "#3E4EB8",

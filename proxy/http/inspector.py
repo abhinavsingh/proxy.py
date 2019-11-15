@@ -118,7 +118,8 @@ class CoreEventsToDevtoolsProtocol:
         if event_name == eventNames.REQUEST_COMPLETE:
             data = CoreEventsToDevtoolsProtocol.request_complete(event)
         elif event_name == eventNames.RESPONSE_HEADERS_COMPLETE:
-            data = CoreEventsToDevtoolsProtocol.response_headers_complete(event)
+            data = CoreEventsToDevtoolsProtocol.response_headers_complete(
+                event)
         elif event_name == eventNames.RESPONSE_CHUNK_RECEIVED:
             data = CoreEventsToDevtoolsProtocol.response_chunk_received(event)
         elif event_name == eventNames.RESPONSE_COMPLETE:

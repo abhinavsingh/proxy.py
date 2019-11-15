@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class ProxyDashboardWebsocketPlugin(ABC):
+    """Abstract class for plugins extending dashboard websocket API."""
 
     def __init__(
             self,
@@ -54,6 +55,7 @@ class ProxyDashboardWebsocketPlugin(ABC):
 
 
 class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
+    """Websocket API for inspect_traffic.ts frontend plugin."""
 
     def methods(self) -> List[str]:
         return [
@@ -88,6 +90,7 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
 
 
 class ProxyDashboard(HttpWebServerBasePlugin):
+    """Proxy Dashboard."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
