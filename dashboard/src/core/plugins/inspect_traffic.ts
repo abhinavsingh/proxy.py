@@ -60,7 +60,6 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   private getDevtoolsIFrame (): JQuery<HTMLElement> {
     return $('<iframe></iframe>')
       .attr('id', this.getDevtoolsIFrameID())
-      .attr('position', 'relative')
       .attr('height', '100%')
       .attr('width', '100%')
       .attr('padding', '0')
