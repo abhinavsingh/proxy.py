@@ -6,7 +6,20 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
- */
+*/
+html, body {
+    height: 100%;
+}
+
+main {
+    height: 88%;
+}
+
+section {
+    position: relative;
+    height: 100%;
+}
+
 #proxyDashboard {
     background-color: #eeeeee;
 }
@@ -23,12 +36,13 @@
 .app-body {
     padding-left: 15px;
     padding-right: 15px;
-    padding-bottom: 50px;
+    padding-bottom: 5px;
+    height: 92%;
 }
 
 .remove-api-spec {
-    top: 10px;
-    right: 15px;
+    top: 6px;
+    right: 7px;
 }
 
 .api-path-spec .list-group-item {
