@@ -31,12 +31,12 @@ setup(
     download_url=__download_url__,
     license=__license__,
     packages=[
+        'proxy',
         'proxy.common',
         'proxy.core',
         'proxy.dashboard',
         'proxy.http',
         'proxy.plugin'
-        'proxy',
     ],
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
