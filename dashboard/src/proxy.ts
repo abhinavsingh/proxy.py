@@ -61,6 +61,12 @@ export class ProxyDashboard {
     }
     if (window.location.hash === '#' || window.location.hash === '') {
       window.location.hash = '#home'
+    } else {
+      // This can cause race condition where plugin is activated and
+      // it tries to use WebsocketAPI before it has successfully connected to the server.
+      // A solution is to have buffer management within WebsocketAPI or raise an exception
+      // to try again.
+      $('#' + this.plugins.get(window.location.hash.substring(1)).tabId()).click()
     }
   }
 
