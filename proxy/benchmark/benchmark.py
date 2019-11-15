@@ -9,40 +9,18 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
 import asyncio
-import sys
 import time
 from typing import List, Tuple
 
-from proxy.common.constants import DEFAULT_BUFFER_SIZE
-from proxy.common.utils import build_http_request
-from proxy.http.methods import httpMethods
-from proxy.http.parser import httpParserStates, httpParserTypes, HttpParser
+from ..common.constants import DEFAULT_BUFFER_SIZE
+from ..common.utils import build_http_request
+from ..http.methods import httpMethods
+from ..http.parser import httpParserStates, httpParserTypes, HttpParser
 
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 
 DEFAULT_N = 1
-
-
-def init_parser() -> argparse.ArgumentParser:
-    """Initializes and returns argument parser."""
-    parser = argparse.ArgumentParser(
-        description='Benchmark opens N concurrent connections '
-                    'to proxy.py web server. Currently, HTTP/1.1 '
-                    'keep-alive connections are opened. Over each opened '
-                    'connection multiple pipelined request / response '
-                    'packets are exchanged with proxy.py web server.',
-        epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
-    )
-    parser.add_argument(
-        '--n', '-n',
-        type=int,
-        default=DEFAULT_N,
-        help='Default: ' + str(DEFAULT_N) +
-        '.  See description above for meaning of N.'
-    )
-    return parser
 
 
 class Benchmark:
@@ -143,14 +121,9 @@ class Benchmark:
                 pass
 
 
-def main(input_args: List[str]) -> None:
-    args = init_parser().parse_args(input_args)
-    benchmark = Benchmark(n=args.n)
+def main() -> None:
+    benchmark = Benchmark(n=DEFAULT_N)
     try:
         asyncio.run(benchmark.run())
     except KeyboardInterrupt:
         pass
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])  # pragma: no cover
