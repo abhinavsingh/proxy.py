@@ -65,7 +65,10 @@ Table of Contents
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
     * [Internal Documentation](#internal-documentation)
-    * [Sending a Pull Request](#sending-a-pull-request)
+    * [Development Guide](#development-guide)
+        * [Setup Local Environment](#setup-local-environment)
+        * [Setup pre-commit hook](#setup-pre-commit-hook)
+        * [Sending a Pull Request](#sending-a-pull-request)
     * [Utilities](#utilities)
         * [TCP](#tcp-sockets)
             * [new_socket_connection](#new_socket_connection)
@@ -861,10 +864,6 @@ class TestProxyPyEmbedded(unittest.TestCase):
 Plugin Developer and Contributor Guide
 ======================================
 
-Contributors must start `proxy.py` from source to verify and develop new features / fixes.
-
-See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
-
 ## Everything is a plugin
 
 As you might have guessed by now, in `proxy.py` everything is a plugin.
@@ -912,25 +911,25 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
   Workers are responsible for accepting new client connections and starting
   `HttpProtocolHandler` thread.
 
-## Sending a Pull Request
+## Development Guide
 
-Install dependencies for local development testing:
+#### Setup Local Environment
 
-`$ pip install -r requirements-testing.txt`
+Contributors must start `proxy.py` from source to verify and develop new features / fixes.
+See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
 
-Every pull request goes through set of tests which must pass:
+#### Setup pre-commit hook
 
-- `mypy`: Run `make lint` locally for compliance check. 
-  Fix all warnings and errors before sending out a PR.
+1. `cd /path/to/proxy.py`
+2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
 
-- `coverage`: Run `make coverage` locally for coverage report.
-  Its ideal to add tests for any critical change. Depending upon
-  the change, it's ok if test coverage falls by `<0.5%`.
+Pre-commit hook ensures lint checking and library tests passes.
 
-- `formatting`: Run `make autopep8` locally to format the code in-place.
-  `autopep8` is run with `--aggresive` flag.  Sometimes it _may_ result in
-  weird formatting.  But let's stick to one consistent formatting tool.
-  I am open to flag changes for `autopep8`.
+#### Sending a Pull Request
+
+Every pull request is tested using GitHub actions.
+See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
+for list of tests.
 
 ## Utilities
 
@@ -1131,7 +1130,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
              [--devtools-ws-path DEVTOOLS_WS_PATH]
              [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
-             [--enable-devtools] [--enable-events]
+             [--enable-dashboard] [--enable-devtools] [--enable-events]
              [--enable-static-server] [--enable-web-server]
              [--hostname HOSTNAME] [--key-file KEY_FILE]
              [--log-level LOG_LEVEL] [--log-file LOG_FILE]
@@ -1186,6 +1185,7 @@ optional arguments:
                         server.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
+  --enable-dashboard    Default: False. Enables proxy.py dashboard.
   --enable-devtools     Default: False. Enables integration with Chrome
                         Devtool Frontend. Also see --devtools-ws-path.
   --enable-events       Default: False. Enables core to dispatch lifecycle
