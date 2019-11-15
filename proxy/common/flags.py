@@ -9,6 +9,7 @@
 """
 import logging
 import importlib
+import collections
 import argparse
 import base64
 import ipaddress
@@ -19,7 +20,7 @@ import sys
 import inspect
 import pathlib
 
-from typing import Optional, Union, Dict, List, TypeVar, Type, cast, Any
+from typing import Optional, Union, Dict, List, TypeVar, Type, cast, Any, Tuple
 
 from .utils import text_, bytes_
 from .constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BACKLOG, DEFAULT_BASIC_AUTH
@@ -30,7 +31,7 @@ from .constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY
 from .constants import DEFAULT_PAC_FILE_URL_PATH, DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
 from .constants import DEFAULT_NUM_WORKERS, DEFAULT_VERSION, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from .constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR
-from .constants import COMMA, DOT
+from .constants import DEFAULT_ENABLE_DASHBOARD, COMMA, DOT
 from .version import __version__
 
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
@@ -152,19 +153,31 @@ class Flags:
         Flags.setup_logger(args.log_file, args.log_level, args.log_format)
         Flags.set_open_file_limit(args.open_file_limit)
 
-        default_plugins = ''
+        http_proxy_plugin = 'proxy.http.proxy.HttpProxyPlugin'
+        web_server_plugin = 'proxy.http.server.HttpWebServerPlugin'
+        pac_file_plugin = 'proxy.http.server.HttpWebServerPacFilePlugin'
+        devtools_protocol_plugin = 'proxy.http.inspector.DevtoolsProtocolPlugin'
+        dashboard_plugin = 'proxy.dashboard.dashboard.ProxyDashboard'
+        inspect_traffic_plugin = 'proxy.dashboard.inspect_traffic.InspectTrafficPlugin'
+
+        default_plugins: List[Tuple[str, bool]] = []
+        if args.enable_dashboard:
+            default_plugins.append((web_server_plugin, True))
+            default_plugins.append((dashboard_plugin, True))
+            default_plugins.append((inspect_traffic_plugin, True))
+            args.enable_events = True
+            args.enable_devtools = True
         if args.enable_devtools:
-            default_plugins += 'proxy.http.inspector.DevtoolsProtocolPlugin,'
-            default_plugins += 'proxy.http.server.HttpWebServerPlugin,'
+            default_plugins.append((devtools_protocol_plugin, True))
+            default_plugins.append((web_server_plugin, True))
         if not args.disable_http_proxy:
-            default_plugins += 'proxy.http.proxy.HttpProxyPlugin,'
+            default_plugins.append((http_proxy_plugin, True))
         if args.enable_web_server or \
                 args.pac_file is not None or \
-                args.enable_static_server and \
-                'proxy.http.server.HttpWebServerPlugin' not in default_plugins:
-            default_plugins += 'proxy.http.server.HttpWebServerPlugin,'
+                args.enable_static_server:
+            default_plugins.append((web_server_plugin, True))
         if args.pac_file is not None:
-            default_plugins += 'proxy.http.server.HttpWebServerPacFilePlugin,'
+            default_plugins.append((pac_file_plugin, True))
 
         return cls(
             auth_code=cast(Optional[bytes], opts.get('auth_code', auth_code)),
@@ -238,7 +251,8 @@ class Flags:
             plugins=Flags.load_plugins(
                 bytes_(
                     '%s%s' %
-                    (default_plugins, opts.get('plugins', args.plugins)))),
+                    (text_(COMMA).join(collections.OrderedDict(default_plugins).keys()),
+                     opts.get('plugins', args.plugins)))),
             pid_file=cast(Optional[str], opts.get('pid_file', args.pid_file)))
 
     def tls_interception_enabled(self) -> bool:
@@ -331,6 +345,12 @@ class Flags:
             action='store_true',
             default=DEFAULT_DISABLE_HTTP_PROXY,
             help='Default: False.  Whether to disable proxy.HttpProxyPlugin.')
+        parser.add_argument(
+            '--enable-dashboard',
+            action='store_true',
+            default=DEFAULT_ENABLE_DASHBOARD,
+            help='Default: False.  Enables proxy.py dashboard.'
+        )
         parser.add_argument(
             '--enable-devtools',
             action='store_true',
@@ -474,6 +494,7 @@ class Flags:
             b'HttpProtocolHandlerPlugin': [],
             b'HttpProxyBasePlugin': [],
             b'HttpWebServerBasePlugin': [],
+            b'ProxyDashboardWebsocketPlugin': []
         }
         for plugin_ in plugins.split(COMMA):
             plugin = text_(plugin_.strip())
