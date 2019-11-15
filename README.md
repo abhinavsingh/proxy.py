@@ -123,8 +123,8 @@ Features
     - No external dependency other than standard Python library
 - Programmable
     - Optionally enable builtin Web Server
-    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples)
-    - Enable plugin using command line option e.g. `--plugins plugin_examples/cache_responses.CacheResponsesPlugin`
+    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin)
+    - Enable plugin using command line option e.g. `--plugins proxy.plugin.CacheResponsesPlugin`
     - Plugin API is currently in development phase, expect breaking changes.
 - Realtime Dashboard
     - Optionally enable bundled dashboard.
@@ -303,7 +303,7 @@ For example, to check `proxy.py` version within Docker image:
 Plugin Examples
 ===============
 
-See [plugin_examples](https://github.com/abhinavsingh/proxy.py/tree/develop/plugin_examples) for full code.
+See [plugin](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin) module for full code.
 
 All the examples below also works with `https` traffic but require additional flags and certificate generation. 
 See [TLS Interception](#tls-interception).
@@ -316,7 +316,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/shortlink.ShortLinkPlugin
+    --plugins proxy.plugin.ShortLinkPlugin
 ```
 
 Now you can speed up your daily browsing experience by visiting your
@@ -345,7 +345,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/modify_post_data.ModifyPostDataPlugin
+    --plugins proxy.plugin.ModifyPostDataPlugin
 ```
 
 By default plugin replaces POST body content with hardcoded `b'{"key": "modified"}'`
@@ -399,7 +399,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/mock_rest_api.ProposedRestApiPlugin
+    --plugins proxy.plugin.ProposedRestApiPlugin
 ```
 
 Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1/users/`
@@ -431,7 +431,7 @@ Start `proxy.py` and enable inbuilt web server:
 ```
 $ proxy \
     --enable-web-server \
-    --plugins plugin_examples/redirect_to_custom_server.RedirectToCustomServerPlugin
+    --plugins proxy.plugin.RedirectToCustomServerPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`
@@ -464,7 +464,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/filter_by_upstream.FilterByUpstreamHostPlugin
+    --plugins proxy.plugin.FilterByUpstreamHostPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`:
@@ -497,7 +497,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/cache_responses.CacheResponsesPlugin
+    --plugins proxy.plugin.CacheResponsesPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
@@ -573,7 +573,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/man_in_the_middle.ManInTheMiddlePlugin
+    --plugins proxy.plugin.ManInTheMiddlePlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`:
@@ -655,7 +655,7 @@ response from the server. Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/cache_responses.CacheResponsesPlugin \
+    --plugins proxy.plugin.CacheResponsesPlugin \
     --ca-key-file ca-key.pem \
     --ca-cert-file ca-cert.pem \
     --ca-signing-key-file ca-signing-key.pem
