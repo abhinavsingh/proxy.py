@@ -303,10 +303,12 @@ For example, to check `proxy.py` version within Docker image:
 Plugin Examples
 ===============
 
-See [plugin](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin) module for full code.
-
-All the examples below also works with `https` traffic but require additional flags and certificate generation. 
-See [TLS Interception](#tls-interception).
+- See [plugin](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin) module for full code.
+- All the bundled plugin examples also works with `https` traffic
+    - Require additional flags and certificate generation
+    - See [TLS Interception](#tls-interception).
+- Plugin examples are also bundled with Docker image.
+    - See [Customize startup flags](#customize-startup-flags) to try plugins with Docker image.
 
 ## ShortLinkPlugin
 
