@@ -10,10 +10,10 @@
 """
 from typing import Optional
 
-from proxy.http.proxy import HttpProxyBasePlugin
-from proxy.http.exception import HttpRequestRejected
-from proxy.http.parser import HttpParser
-from proxy.http.codes import httpStatusCodes
+from ..http.exception import HttpRequestRejected
+from ..http.parser import HttpParser
+from ..http.codes import httpStatusCodes
+from ..http.proxy import HttpProxyBasePlugin
 
 
 class FilterByUpstreamHostPlugin(HttpProxyBasePlugin):

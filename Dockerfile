@@ -21,5 +21,4 @@ COPY --from=builder /deps /usr/local
 
 EXPOSE 8899/tcp
 ENTRYPOINT [ "proxy" ]
-CMD [ "--hostname=0.0.0.0", \
-      "--port=8899" ]
+CMD [ "--hostname=0.0.0.0" ]

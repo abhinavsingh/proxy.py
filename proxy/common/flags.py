@@ -251,7 +251,7 @@ class Flags:
                     args.enable_events)),
             plugins=Flags.load_plugins(
                 bytes_(
-                    '%s%s' %
+                    '%s,%s' %
                     (text_(COMMA).join(collections.OrderedDict(default_plugins).keys()),
                      opts.get('plugins', args.plugins)))),
             pid_file=cast(Optional[str], opts.get('pid_file', args.pid_file)))

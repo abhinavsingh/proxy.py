@@ -22,8 +22,7 @@ from proxy.common.utils import build_http_request, bytes_, build_http_response
 from proxy.common.constants import PROXY_AGENT_HEADER_VALUE
 from proxy.http.codes import httpStatusCodes
 
-from plugin_examples import mock_rest_api
-from plugin_examples import redirect_to_custom_server
+from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
 
 from .utils import get_plugin_by_test_name
 
@@ -97,9 +96,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         path = b'/v1/users/'
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://%s%s' % (
-                mock_rest_api.ProposedRestApiPlugin.API_SERVER, path),
+                ProposedRestApiPlugin.API_SERVER, path),
             headers={
-                b'Host': mock_rest_api.ProposedRestApiPlugin.API_SERVER,
+                b'Host': ProposedRestApiPlugin.API_SERVER,
             }
         )
         self.mock_selector.return_value.select.side_effect = [
@@ -118,7 +117,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 headers={b'Content-Type': b'application/json'},
                 body=bytes_(
                     json.dumps(
-                        mock_rest_api.ProposedRestApiPlugin.REST_API_SPEC[path]))
+                        ProposedRestApiPlugin.REST_API_SPEC[path]))
             ))
 
     @mock.patch('proxy.http.proxy.TcpServerConnection')
@@ -140,7 +139,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.protocol_handler.run_once()
 
         upstream = urlparse.urlsplit(
-            redirect_to_custom_server.RedirectToCustomServerPlugin.UPSTREAM_SERVER)
+            RedirectToCustomServerPlugin.UPSTREAM_SERVER)
         mock_server_conn.assert_called_with('localhost', 8899)
         mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(

@@ -65,7 +65,10 @@ Table of Contents
     * [Everything is a plugin](#everything-is-a-plugin)
     * [Internal Architecture](#internal-architecture)
     * [Internal Documentation](#internal-documentation)
-    * [Sending a Pull Request](#sending-a-pull-request)
+    * [Development Guide](#development-guide)
+        * [Setup Local Environment](#setup-local-environment)
+        * [Setup pre-commit hook](#setup-pre-commit-hook)
+        * [Sending a Pull Request](#sending-a-pull-request)
     * [Utilities](#utilities)
         * [TCP](#tcp-sockets)
             * [new_socket_connection](#new_socket_connection)
@@ -120,8 +123,8 @@ Features
     - No external dependency other than standard Python library
 - Programmable
     - Optionally enable builtin Web Server
-    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples)
-    - Enable plugin using command line option e.g. `--plugins plugin_examples/cache_responses.CacheResponsesPlugin`
+    - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin)
+    - Enable plugin using command line option e.g. `--plugins proxy.plugin.CacheResponsesPlugin`
     - Plugin API is currently in development phase, expect breaking changes.
 - Realtime Dashboard
     - Optionally enable bundled dashboard.
@@ -300,10 +303,12 @@ For example, to check `proxy.py` version within Docker image:
 Plugin Examples
 ===============
 
-See [plugin_examples](https://github.com/abhinavsingh/proxy.py/tree/develop/plugin_examples) for full code.
-
-All the examples below also works with `https` traffic but require additional flags and certificate generation. 
-See [TLS Interception](#tls-interception).
+- See [plugin](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin) module for full code.
+- All the bundled plugin examples also works with `https` traffic
+    - Require additional flags and certificate generation
+    - See [TLS Interception](#tls-interception).
+- Plugin examples are also bundled with Docker image.
+    - See [Customize startup flags](#customize-startup-flags) to try plugins with Docker image.
 
 ## ShortLinkPlugin
 
@@ -313,7 +318,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/shortlink.ShortLinkPlugin
+    --plugins proxy.plugin.ShortLinkPlugin
 ```
 
 Now you can speed up your daily browsing experience by visiting your
@@ -342,7 +347,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/modify_post_data.ModifyPostDataPlugin
+    --plugins proxy.plugin.ModifyPostDataPlugin
 ```
 
 By default plugin replaces POST body content with hardcoded `b'{"key": "modified"}'`
@@ -396,7 +401,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/mock_rest_api.ProposedRestApiPlugin
+    --plugins proxy.plugin.ProposedRestApiPlugin
 ```
 
 Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1/users/`
@@ -428,7 +433,7 @@ Start `proxy.py` and enable inbuilt web server:
 ```
 $ proxy \
     --enable-web-server \
-    --plugins plugin_examples/redirect_to_custom_server.RedirectToCustomServerPlugin
+    --plugins proxy.plugin.RedirectToCustomServerPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`
@@ -461,7 +466,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/filter_by_upstream.FilterByUpstreamHostPlugin
+    --plugins proxy.plugin.FilterByUpstreamHostPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`:
@@ -494,7 +499,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/cache_responses.CacheResponsesPlugin
+    --plugins proxy.plugin.CacheResponsesPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
@@ -570,7 +575,7 @@ Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/man_in_the_middle.ManInTheMiddlePlugin
+    --plugins proxy.plugin.ManInTheMiddlePlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`:
@@ -652,7 +657,7 @@ response from the server. Start `proxy.py` as:
 
 ```
 $ proxy \
-    --plugins plugin_examples/cache_responses.CacheResponsesPlugin \
+    --plugins proxy.plugin.CacheResponsesPlugin \
     --ca-key-file ca-key.pem \
     --ca-cert-file ca-cert.pem \
     --ca-signing-key-file ca-signing-key.pem
@@ -861,10 +866,6 @@ class TestProxyPyEmbedded(unittest.TestCase):
 Plugin Developer and Contributor Guide
 ======================================
 
-Contributors must start `proxy.py` from source to verify and develop new features / fixes.
-
-See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
-
 ## Everything is a plugin
 
 As you might have guessed by now, in `proxy.py` everything is a plugin.
@@ -912,25 +913,25 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
   Workers are responsible for accepting new client connections and starting
   `HttpProtocolHandler` thread.
 
-## Sending a Pull Request
+## Development Guide
 
-Install dependencies for local development testing:
+#### Setup Local Environment
 
-`$ pip install -r requirements-testing.txt`
+Contributors must start `proxy.py` from source to verify and develop new features / fixes.
+See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
 
-Every pull request goes through set of tests which must pass:
+#### Setup pre-commit hook
 
-- `mypy`: Run `make lint` locally for compliance check. 
-  Fix all warnings and errors before sending out a PR.
+1. `cd /path/to/proxy.py`
+2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
 
-- `coverage`: Run `make coverage` locally for coverage report.
-  Its ideal to add tests for any critical change. Depending upon
-  the change, it's ok if test coverage falls by `<0.5%`.
+Pre-commit hook ensures lint checking and library tests passes.
 
-- `formatting`: Run `make autopep8` locally to format the code in-place.
-  `autopep8` is run with `--aggresive` flag.  Sometimes it _may_ result in
-  weird formatting.  But let's stick to one consistent formatting tool.
-  I am open to flag changes for `autopep8`.
+#### Sending a Pull Request
+
+Every pull request is tested using GitHub actions.
+See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
+for list of tests.
 
 ## Utilities
 
@@ -1051,11 +1052,9 @@ Make sure plugin modules are discoverable by adding them to `PYTHONPATH`.  Examp
 ...[redacted]... - Loaded plugin my_app.proxyPlugin
 ```
 
-or, make sure to pass fully-qualified path as parameter, e.g.
+OR, simply pass fully-qualified path as parameter, e.g.
 
 `proxy --plugins /path/to/my/app/my_app.proxyPlugin`
-
-Note that `pip install proxy.py` don't ship [plugin_examples](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples).
 
 ## Unable to connect with proxy.py from remote host
 
@@ -1108,7 +1107,6 @@ Now `proxy.py` logs can be browsed using
 without any socket leaks.
 
 1. Make use of `--open-file-limit` flag to customize `ulimit -n`.
-    - To set a value upper than the hard limit, run as root.
 2. Make sure to adjust `--backlog` flag for higher concurrency.
 
 If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issues/new)
@@ -1131,7 +1129,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
              [--devtools-ws-path DEVTOOLS_WS_PATH]
              [--disable-headers DISABLE_HEADERS] [--disable-http-proxy]
-             [--enable-devtools] [--enable-events]
+             [--enable-dashboard] [--enable-devtools] [--enable-events]
              [--enable-static-server] [--enable-web-server]
              [--hostname HOSTNAME] [--key-file KEY_FILE]
              [--log-level LOG_LEVEL] [--log-file LOG_FILE]
@@ -1186,6 +1184,7 @@ optional arguments:
                         server.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
+  --enable-dashboard    Default: False. Enables proxy.py dashboard.
   --enable-devtools     Default: False. Enables integration with Chrome
                         Devtool Frontend. Also see --devtools-ws-path.
   --enable-events       Default: False. Enables core to dispatch lifecycle

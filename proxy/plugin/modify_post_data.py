@@ -10,10 +10,10 @@
 """
 from typing import Optional
 
-from proxy.http.parser import HttpParser
-from proxy.http.proxy import HttpProxyBasePlugin
-from proxy.http.methods import httpMethods
-from proxy.common.utils import bytes_
+from ..common.utils import bytes_
+from ..http.parser import HttpParser
+from ..http.proxy import HttpProxyBasePlugin
+from ..http.methods import httpMethods
 
 
 class ModifyPostDataPlugin(HttpProxyBasePlugin):

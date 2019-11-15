@@ -30,7 +30,14 @@ setup(
     long_description_content_type='text/markdown',
     download_url=__download_url__,
     license=__license__,
-    packages=['proxy', 'proxy.common', 'proxy.core', 'proxy.http'],
+    packages=[
+        'proxy',
+        'proxy.common',
+        'proxy.core',
+        'proxy.dashboard',
+        'proxy.http',
+        'proxy.plugin'
+    ],
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
         'console_scripts': [
