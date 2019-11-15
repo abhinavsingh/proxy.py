@@ -53,11 +53,13 @@ class HttpProtocolHandlerPlugin(ABC):
 
     def __init__(
             self,
-            config: Flags,
+            uid: str,
+            flags: Flags,
             client: TcpClientConnection,
             request: HttpParser,
             event_queue: EventQueue):
-        self.config: Flags = config
+        self.uid: str = uid
+        self.flags: Flags = flags
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
         self.event_queue = event_queue
@@ -77,11 +79,11 @@ class HttpProtocolHandlerPlugin(ABC):
 
     @abstractmethod
     def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
-        pass  # pragma: no cover
+        return False  # pragma: no cover
 
     @abstractmethod
     def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
-        pass  # pragma: no cover
+        return False  # pragma: no cover
 
     @abstractmethod
     def on_client_data(self, raw: bytes) -> Optional[bytes]:
@@ -90,7 +92,7 @@ class HttpProtocolHandlerPlugin(ABC):
     @abstractmethod
     def on_request_complete(self) -> Union[socket.socket, bool]:
         """Called right after client request parser has reached COMPLETE state."""
-        pass  # pragma: no cover
+        return False  # pragma: no cover
 
     @abstractmethod
     def on_response_chunk(self, chunk: bytes) -> bytes:
@@ -135,6 +137,7 @@ class HttpProtocolHandler(ThreadlessWork):
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
                 instance = klass(
+                    self.uid,
                     self.flags,
                     self.client,
                     self.request,

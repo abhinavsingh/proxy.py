@@ -12,10 +12,8 @@ import os
 import tempfile
 import time
 import logging
-from typing import Optional, BinaryIO
+from typing import Optional, BinaryIO, Any
 
-from proxy.common.flags import Flags
-from proxy.core.connection import TcpClientConnection
 from proxy.http.parser import HttpParser
 from proxy.http.proxy import HttpProxyBasePlugin
 from proxy.common.utils import text_
@@ -29,10 +27,8 @@ class CacheResponsesPlugin(HttpProxyBasePlugin):
     CACHE_DIR = tempfile.gettempdir()
 
     def __init__(
-            self,
-            config: Flags,
-            client: TcpClientConnection) -> None:
-        super().__init__(config, client)
+            self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 

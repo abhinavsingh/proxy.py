@@ -7,14 +7,27 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 -->
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
-    <meta name="referrer" content="no-referrer">
-    <link rel="stylesheet" href="proxy.css">
-    <link rel="stylesheet" href="bootstrap-4.3.1.min.css">
-    <link rel="stylesheet" href="font-awesome-4.7.0.min.css">
     <title>Proxy.py Dashboard</title>
+
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src https: wss: data:; object-src 'none'; script-src 'self'; style-src 'self'">
+    <meta name="referrer" content="same-origin">
+    <meta name="theme-color" content="#2F3BA2" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Proxy.py Dashboard">
+    <meta name="Description" content="⚡⚡⚡ Fast, Lightweight, Programmable, TLS interception capable proxy server for Application debugging, testing and development.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="images/icons/icon-152x152.png">
+    <link rel="stylesheet" href="font-awesome-4.7.0.min.css">
+    <link rel="stylesheet" href="bootstrap-4.3.1.min.css">
+    <link rel="stylesheet" href="proxy.css">
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -32,7 +45,9 @@
     </div>
 </nav>
 
-<div id="proxyDashboard"></div>
+<header></header>
+<main role="main" id="proxyDashboard"></main>
+<footer></footer>
 
 <nav class="navbar fixed-bottom navbar-dark bg-dark" id="proxyBottomNav">
     <div class="mr-auto text-danger">
@@ -48,16 +63,10 @@
         </a>
     </div>
 </nav>
+
 <script src="jquery-3.4.1.min.js"></script>
 <script src="popper-1.14.7.min.js"></script>
 <script src="bootstrap-4.3.1.min.js"></script>
-<script src="js.cookie-v3.0.0-beta.0.min.js"></script>
-<script src="renderjson-b31d877.js"></script>
-<script src="proxy.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        new window.ProxyDashboard();
-    }, false);
-</script>
+<script defer src="proxy.js"></script>
 </body>
 </html>

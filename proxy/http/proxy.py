@@ -18,6 +18,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
+from proxy.core.event import eventNames, EventQueue
 from .handler import HttpProtocolHandlerPlugin
 from .exception import HttpProtocolException, ProxyConnectionFailed, ProxyAuthenticationFailed
 from .codes import httpStatusCodes
@@ -41,10 +42,14 @@ class HttpProxyBasePlugin(ABC):
 
     def __init__(
             self,
-            config: Flags,
-            client: TcpClientConnection):
-        self.config = config        # pragma: no cover
-        self.client = client        # pragma: no cover
+            uid: str,
+            flags: Flags,
+            client: TcpClientConnection,
+            event_queue: EventQueue):
+        self.uid = uid                  # pragma: no cover
+        self.flags = flags              # pragma: no cover
+        self.client = client            # pragma: no cover
+        self.event_queue = event_queue  # pragma: no cover
 
     def name(self) -> str:
         """A unique name for your plugin.
@@ -118,9 +123,13 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.pipeline_response: Optional[HttpParser] = None
 
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
-        if b'HttpProxyBasePlugin' in self.config.plugins:
-            for klass in self.config.plugins[b'HttpProxyBasePlugin']:
-                instance = klass(self.config, self.client)
+        if b'HttpProxyBasePlugin' in self.flags.plugins:
+            for klass in self.flags.plugins[b'HttpProxyBasePlugin']:
+                instance = klass(
+                    self.uid,
+                    self.flags,
+                    self.client,
+                    self.event_queue)
                 self.plugins[instance.name()] = instance
 
     def get_descriptors(
@@ -159,7 +168,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading...')
             try:
-                raw = self.server.recv(self.config.server_recvbuf_size)
+                raw = self.server.recv(self.flags.server_recvbuf_size)
             except ssl.SSLWantReadError:    # Try again later
                 # logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
                 return False
@@ -188,45 +197,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 #
                 # or self.config.tls_interception_enabled():
                 if self.response.state == httpParserStates.COMPLETE:
-                    if self.pipeline_response is None:
-                        self.pipeline_response = HttpParser(
-                            httpParserTypes.RESPONSE_PARSER)
-                    self.pipeline_response.parse(raw)
-                    if self.pipeline_response.state == httpParserStates.COMPLETE:
-                        self.pipeline_response = None
+                    self.handle_pipeline_response(raw)
                 else:
                     self.response.parse(raw)
+                    self.emit_response_events()
             else:
                 self.response.total_size += len(raw)
             # queue raw data for client
             self.client.queue(raw)
         return False
-
-    def access_log(self) -> None:
-        server_host, server_port = self.server.addr if self.server else (
-            None, None)
-        connection_time_ms = (time.time() - self.start_time) * 1000
-        if self.request.method == b'CONNECT':
-            logger.info(
-                '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
-                (self.client.addr[0],
-                 self.client.addr[1],
-                 text_(self.request.method),
-                 text_(server_host),
-                 text_(server_port),
-                 self.response.total_size,
-                 connection_time_ms))
-        elif self.request.method:
-            logger.info(
-                '%s:%s - %s %s:%s%s - %s %s - %s bytes - %.2f ms' %
-                (self.client.addr[0], self.client.addr[1],
-                 text_(self.request.method),
-                 text_(server_host), server_port,
-                 text_(self.request.path),
-                 text_(self.response.code),
-                 text_(self.response.reason),
-                 self.response.total_size,
-                 connection_time_ms))
 
     def on_client_connection_close(self) -> None:
         if not self.request.has_upstream_server():
@@ -277,7 +256,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.server and not self.server.closed:
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
-                    self.config.tls_interception_enabled()):
+                    self.flags.tls_interception_enabled()):
                 if self.pipeline_request is None:
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER)
@@ -298,71 +277,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         else:
             return raw
 
-    @staticmethod
-    def generated_cert_file_path(ca_cert_dir: str, host: str) -> str:
-        return os.path.join(ca_cert_dir, '%s.pem' % host)
-
-    def generate_upstream_certificate(
-            self, _certificate: Optional[Dict[str, Any]]) -> str:
-        if not (self.config.ca_cert_dir and self.config.ca_signing_key_file and
-                self.config.ca_cert_file and self.config.ca_key_file):
-            raise HttpProtocolException(
-                f'For certificate generation all the following flags are mandatory: '
-                f'--ca-cert-file:{ self.config.ca_cert_file }, '
-                f'--ca-key-file:{ self.config.ca_key_file }, '
-                f'--ca-signing-key-file:{ self.config.ca_signing_key_file }')
-        cert_file_path = HttpProxyPlugin.generated_cert_file_path(
-            self.config.ca_cert_dir, text_(self.request.host))
-        with self.lock:
-            if not os.path.isfile(cert_file_path):
-                logger.debug('Generating certificates %s', cert_file_path)
-                # TODO: Parse subject from certificate
-                # Currently we only set CN= field for generated certificates.
-                gen_cert = subprocess.Popen(
-                    ['openssl', 'req', '-new', '-key', self.config.ca_signing_key_file, '-subj',
-                     f'/C=/ST=/L=/O=/OU=/CN={ text_(self.request.host) }'],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-                sign_cert = subprocess.Popen(
-                    ['openssl', 'x509', '-req', '-days', '365', '-CA', self.config.ca_cert_file, '-CAkey',
-                     self.config.ca_key_file, '-set_serial', str(int(time.time())), '-out', cert_file_path],
-                    stdin=gen_cert.stdout,
-                    stderr=subprocess.PIPE)
-                # TODO: Ensure sign_cert success.
-                sign_cert.communicate(timeout=10)
-        return cert_file_path
-
-    def wrap_server(self) -> None:
-        assert self.server is not None
-        assert isinstance(self.server.connection, socket.socket)
-        ctx = ssl.create_default_context(
-            ssl.Purpose.SERVER_AUTH)
-        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-        self.server.connection.setblocking(True)
-        self.server._conn = ctx.wrap_socket(
-            self.server.connection,
-            server_hostname=text_(self.request.host))
-        self.server.connection.setblocking(False)
-
-    def wrap_client(self) -> None:
-        assert self.server is not None
-        assert isinstance(self.server.connection, ssl.SSLSocket)
-        generated_cert = self.generate_upstream_certificate(
-            cast(Dict[str, Any], self.server.connection.getpeercert()))
-        self.client.connection.setblocking(True)
-        self.client.flush()
-        self.client._conn = ssl.wrap_socket(
-            self.client.connection,
-            server_side=True,
-            keyfile=self.config.ca_signing_key_file,
-            certfile=generated_cert)
-        self.client.connection.setblocking(False)
-        logger.debug(
-            'TLS interception using %s', generated_cert)
-
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if not self.request.has_upstream_server():
             return False
+
+        self.emit_request_complete()
 
         self.authenticate()
 
@@ -391,7 +310,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled
-            if self.config.tls_interception_enabled():
+            if self.flags.tls_interception_enabled():
                 # Perform SSL/TLS handshake with upstream
                 self.wrap_server()
                 # Generate certificate and perform handshake with client
@@ -428,13 +347,109 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # Disable args.disable_headers before dispatching to upstream
             self.server.queue(
                 self.request.build(
-                    disable_headers=self.config.disable_headers))
+                    disable_headers=self.flags.disable_headers))
         return False
 
+    def handle_pipeline_response(self, raw: bytes) -> None:
+        if self.pipeline_response is None:
+            self.pipeline_response = HttpParser(
+                httpParserTypes.RESPONSE_PARSER)
+        self.pipeline_response.parse(raw)
+        if self.pipeline_response.state == httpParserStates.COMPLETE:
+            self.pipeline_response = None
+
+    def access_log(self) -> None:
+        server_host, server_port = self.server.addr if self.server else (
+            None, None)
+        connection_time_ms = (time.time() - self.start_time) * 1000
+        if self.request.method == b'CONNECT':
+            logger.info(
+                '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
+                (self.client.addr[0],
+                 self.client.addr[1],
+                 text_(self.request.method),
+                 text_(server_host),
+                 text_(server_port),
+                 self.response.total_size,
+                 connection_time_ms))
+        elif self.request.method:
+            logger.info(
+                '%s:%s - %s %s:%s%s - %s %s - %s bytes - %.2f ms' %
+                (self.client.addr[0], self.client.addr[1],
+                 text_(self.request.method),
+                 text_(server_host), server_port,
+                 text_(self.request.path),
+                 text_(self.response.code),
+                 text_(self.response.reason),
+                 self.response.total_size,
+                 connection_time_ms))
+
+    @staticmethod
+    def generated_cert_file_path(ca_cert_dir: str, host: str) -> str:
+        return os.path.join(ca_cert_dir, '%s.pem' % host)
+
+    def generate_upstream_certificate(
+            self, _certificate: Optional[Dict[str, Any]]) -> str:
+        if not (self.flags.ca_cert_dir and self.flags.ca_signing_key_file and
+                self.flags.ca_cert_file and self.flags.ca_key_file):
+            raise HttpProtocolException(
+                f'For certificate generation all the following flags are mandatory: '
+                f'--ca-cert-file:{ self.flags.ca_cert_file }, '
+                f'--ca-key-file:{ self.flags.ca_key_file }, '
+                f'--ca-signing-key-file:{ self.flags.ca_signing_key_file }')
+        cert_file_path = HttpProxyPlugin.generated_cert_file_path(
+            self.flags.ca_cert_dir, text_(self.request.host))
+        with self.lock:
+            if not os.path.isfile(cert_file_path):
+                logger.debug('Generating certificates %s', cert_file_path)
+                # TODO: Parse subject from certificate
+                # Currently we only set CN= field for generated certificates.
+                gen_cert = subprocess.Popen(
+                    ['openssl', 'req', '-new', '-key', self.flags.ca_signing_key_file, '-subj',
+                     f'/C=/ST=/L=/O=/OU=/CN={ text_(self.request.host) }'],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+                sign_cert = subprocess.Popen(
+                    ['openssl', 'x509', '-req', '-days', '365', '-CA', self.flags.ca_cert_file, '-CAkey',
+                     self.flags.ca_key_file, '-set_serial', str(int(time.time())), '-out', cert_file_path],
+                    stdin=gen_cert.stdout,
+                    stderr=subprocess.PIPE)
+                # TODO: Ensure sign_cert success.
+                sign_cert.communicate(timeout=10)
+        return cert_file_path
+
+    def wrap_server(self) -> None:
+        assert self.server is not None
+        assert isinstance(self.server.connection, socket.socket)
+        ctx = ssl.create_default_context(
+            ssl.Purpose.SERVER_AUTH)
+        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        self.server.connection.setblocking(True)
+        self.server._conn = ctx.wrap_socket(
+            self.server.connection,
+            server_hostname=text_(self.request.host))
+        self.server.connection.setblocking(False)
+
+    def wrap_client(self) -> None:
+        assert self.server is not None
+        assert isinstance(self.server.connection, ssl.SSLSocket)
+        generated_cert = self.generate_upstream_certificate(
+            cast(Dict[str, Any], self.server.connection.getpeercert()))
+        self.client.connection.setblocking(True)
+        self.client.flush()
+        self.client._conn = ssl.wrap_socket(
+            self.client.connection,
+            server_side=True,
+            keyfile=self.flags.ca_signing_key_file,
+            certfile=generated_cert)
+        self.client.connection.setblocking(False)
+        logger.debug(
+            'TLS interception using %s', generated_cert)
+
     def authenticate(self) -> None:
-        if self.config.auth_code:
+        if self.flags.auth_code:
             if b'proxy-authorization' not in self.request.headers or \
-                    self.request.headers[b'proxy-authorization'][1] != self.config.auth_code:
+                    self.request.headers[b'proxy-authorization'][1] != self.flags.auth_code:
                 raise ProxyAuthenticationFailed()
 
     def connect_upstream(self) -> None:
@@ -456,3 +471,48 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         else:
             logger.exception('Both host and port must exist')
             raise HttpProtocolException()
+
+    def emit_request_complete(self) -> None:
+        if not self.flags.enable_events:
+            return
+
+        assert self.request.path
+        assert self.request.port
+        self.event_queue.publish(
+            request_id=self.uid,
+            event_name=eventNames.REQUEST_COMPLETE,
+            event_payload={
+                'url': text_(self.request.path)
+                if self.request.method == httpMethods.CONNECT
+                else 'http://%s:%d%s' % (text_(self.request.host), self.request.port, text_(self.request.path)),
+                'method': text_(self.request.method),
+                'headers': {text_(k): text_(v[1]) for k, v in self.request.headers.items()},
+                'body': text_(self.request.body)
+                if self.request.method == httpMethods.POST
+                else None
+            },
+            publisher_id=self.__class__.__name__
+        )
+
+    def emit_response_events(self) -> None:
+        if not self.flags.enable_events:
+            return
+
+        if self.response.state == httpParserStates.COMPLETE:
+            self.emit_response_complete()
+        elif self.response.state == httpParserStates.RCVING_BODY:
+            self.emit_response_chunk_received()
+        elif self.response.state == httpParserStates.HEADERS_COMPLETE:
+            self.emit_response_headers_complete()
+
+    def emit_response_headers_complete(self) -> None:
+        if not self.flags.enable_events:
+            return
+
+    def emit_response_chunk_received(self) -> None:
+        if not self.flags.enable_events:
+            return
+
+    def emit_response_complete(self) -> None:
+        if not self.flags.enable_events:
+            return

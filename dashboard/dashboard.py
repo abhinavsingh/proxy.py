@@ -9,35 +9,99 @@
 """
 import os
 import json
-import queue
 import logging
-import threading
-import multiprocessing
-import uuid
-from typing import List, Tuple, Optional, Any, Dict
+from abc import ABC, abstractmethod
+from typing import List, Tuple, Any, Dict
 
+from proxy.common.flags import Flags
+from proxy.core.event import EventSubscriber
 from proxy.http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.http.parser import HttpParser
 from proxy.http.websocket import WebsocketFrame
 from proxy.http.codes import httpStatusCodes
 from proxy.common.utils import build_http_response, bytes_
-from proxy.common.types import DictQueueType
 from proxy.core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
 
 
-class ProxyDashboard(HttpWebServerBasePlugin):
+class ProxyDashboardWebsocketPlugin(ABC):
+    """Abstract class for plugins extending dashboard websocket API."""
 
-    RELAY_MANAGER: multiprocessing.managers.SyncManager = multiprocessing.Manager()
+    def __init__(
+            self,
+            flags: Flags,
+            client: TcpClientConnection,
+            subscriber: EventSubscriber) -> None:
+        self.flags = flags
+        self.client = client
+        self.subscriber = subscriber
+
+    @abstractmethod
+    def methods(self) -> List[str]:
+        """Return list of methods that this plugin will handle."""
+        pass
+
+    @abstractmethod
+    def handle_message(self, message: Dict[str, Any]) -> None:
+        """Handle messages for registered methods."""
+        pass
+
+    def reply(self, data: Dict[str, Any]) -> None:
+        self.client.queue(
+            WebsocketFrame.text(
+                bytes_(
+                    json.dumps(data))))
+
+
+class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
+    """Websocket API for inspect_traffic.ts frontend plugin."""
+
+    def methods(self) -> List[str]:
+        return [
+            'enable_inspection',
+            'disable_inspection',
+        ]
+
+    def handle_message(self, message: Dict[str, Any]) -> None:
+        if message['method'] == 'enable_inspection':
+            # inspection can only be enabled if --enable-events is used
+            if not self.flags.enable_events:
+                self.client.queue(
+                    WebsocketFrame.text(
+                        bytes_(
+                            json.dumps(
+                                {'id': message['id'], 'response': 'not enabled'})
+                        )
+                    )
+                )
+            else:
+                self.subscriber.subscribe(
+                    lambda event: ProxyDashboard.callback(
+                        self.client, event))
+                self.reply(
+                    {'id': message['id'], 'response': 'inspection_enabled'})
+        elif message['method'] == 'disable_inspection':
+            self.subscriber.unsubscribe()
+            self.reply({'id': message['id'],
+                        'response': 'inspection_disabled'})
+        else:
+            raise NotImplementedError()
+
+
+class ProxyDashboard(HttpWebServerBasePlugin):
+    """Proxy Dashboard."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.inspection_enabled: bool = False
-        self.relay_thread: Optional[threading.Thread] = None
-        self.relay_shutdown: Optional[threading.Event] = None
-        self.relay_channel: Optional[DictQueueType] = None
-        self.relay_sub_id: Optional[str] = None
+        self.subscriber = EventSubscriber(self.event_queue)
+        # Initialize Websocket API plugins
+        self.plugins: Dict[str, ProxyDashboardWebsocketPlugin] = {}
+        plugins = [InspectTrafficPlugin]
+        for plugin in plugins:
+            p = plugin(self.flags, self.client, self.subscriber)
+            for method in p.methods():
+                self.plugins[method] = p
 
     def routes(self) -> List[Tuple[int, bytes]]:
         return [
@@ -83,40 +147,11 @@ class ProxyDashboard(HttpWebServerBasePlugin):
             logger.info(frame.opcode)
             return
 
-        if message['method'] == 'ping':
+        method = message['method']
+        if method == 'ping':
             self.reply({'id': message['id'], 'response': 'pong'})
-        elif message['method'] == 'enable_inspection':
-            # inspection can only be enabled if --enable-events is used
-            if not self.flags.enable_events:
-                self.client.queue(
-                    WebsocketFrame.text(
-                        bytes_(
-                            json.dumps(
-                                {'id': message['id'], 'response': 'not enabled'})
-                        )
-                    )
-                )
-            else:
-                self.inspection_enabled = True
-
-                self.relay_shutdown = threading.Event()
-                self.relay_channel = ProxyDashboard.RELAY_MANAGER.Queue()
-                self.relay_thread = threading.Thread(
-                    target=self.relay_events,
-                    args=(self.relay_shutdown, self.relay_channel, self.client))
-                self.relay_thread.start()
-
-                self.relay_sub_id = uuid.uuid4().hex
-                self.event_queue.subscribe(
-                    self.relay_sub_id, self.relay_channel)
-
-                self.reply(
-                    {'id': message['id'], 'response': 'inspection_enabled'})
-        elif message['method'] == 'disable_inspection':
-            self.shutdown_relay()
-            self.inspection_enabled = False
-            self.reply({'id': message['id'],
-                        'response': 'inspection_disabled'})
+        elif method in self.plugins:
+            self.plugins[method].handle_message(message)
         else:
             logger.info(frame.data)
             logger.info(frame.opcode)
@@ -124,24 +159,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
 
     def on_websocket_close(self) -> None:
         logger.info('app ws closed')
-        self.shutdown_relay()
-
-    def shutdown_relay(self) -> None:
-        if not self.inspection_enabled:
-            return
-
-        assert self.relay_shutdown
-        assert self.relay_thread
-        assert self.relay_sub_id
-
-        self.event_queue.unsubscribe(self.relay_sub_id)
-        self.relay_shutdown.set()
-        self.relay_thread.join()
-
-        self.relay_thread = None
-        self.relay_shutdown = None
-        self.relay_channel = None
-        self.relay_sub_id = None
+        # unsubscribe
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
@@ -150,21 +168,9 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                     json.dumps(data))))
 
     @staticmethod
-    def relay_events(
-            shutdown: threading.Event,
-            channel: DictQueueType,
-            client: TcpClientConnection) -> None:
-        while not shutdown.is_set():
-            try:
-                ev = channel.get(timeout=1)
-                ev['push'] = 'inspect_traffic'
-                client.queue(
-                    WebsocketFrame.text(
-                        bytes_(
-                            json.dumps(ev))))
-            except queue.Empty:
-                pass
-            except EOFError:
-                break
-            except KeyboardInterrupt:
-                break
+    def callback(client: TcpClientConnection, event: Dict[str, Any]) -> None:
+        event['push'] = 'inspect_traffic'
+        client.queue(
+            WebsocketFrame.text(
+                bytes_(
+                    json.dumps(event))))

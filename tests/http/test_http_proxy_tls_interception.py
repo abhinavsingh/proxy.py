@@ -81,12 +81,12 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.protocol_handler.initialize()
 
         self.plugin.assert_called()
-        self.assertEqual(self.plugin.call_args[0][0], self.flags)
-        self.assertEqual(self.plugin.call_args[0][1].connection, self._conn)
+        self.assertEqual(self.plugin.call_args[0][1], self.flags)
+        self.assertEqual(self.plugin.call_args[0][2].connection, self._conn)
         self.proxy_plugin.assert_called()
-        self.assertEqual(self.proxy_plugin.call_args[0][0], self.flags)
+        self.assertEqual(self.proxy_plugin.call_args[0][1], self.flags)
         self.assertEqual(
-            self.proxy_plugin.call_args[0][1].connection,
+            self.proxy_plugin.call_args[0][2].connection,
             self._conn)
 
         connect_request = build_http_request(

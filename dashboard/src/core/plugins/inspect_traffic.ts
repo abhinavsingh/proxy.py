@@ -9,8 +9,6 @@
 */
 import { DashboardPlugin } from '../plugin'
 
-declare const Root: any
-
 export class InspectTrafficPlugin extends DashboardPlugin {
   public name: string = 'inspect_traffic'
   public title: string = 'Inspect Traffic'
@@ -28,12 +26,15 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   }
 
   public activated (): void {
-    this.websocketApi.enableInspection(this.handleEvents.bind(this))
+    this.websocketApi.sendMessage(
+      { method: 'enable_inspection' },
+      this.handleEvents.bind(this))
     this.ensureIFrame()
   }
 
   public deactivated (): void {
-    this.websocketApi.disableInspection()
+    this.websocketApi.sendMessage(
+      { method: 'disable_inspection' })
   }
 
   public handleEvents (message: Record<string, any>): void {
@@ -57,7 +58,7 @@ export class InspectTrafficPlugin extends DashboardPlugin {
   private getDevtoolsIFrame (): JQuery<HTMLElement> {
     return $('<iframe></iframe>')
       .attr('id', this.getDevtoolsIFrameID())
-      .attr('height', '80%')
+      .attr('height', '100%')
       .attr('width', '100%')
       .attr('padding', '0')
       .attr('margin', '0')

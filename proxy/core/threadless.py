@@ -14,7 +14,6 @@ import logging
 import asyncio
 import selectors
 import contextlib
-import ssl
 import multiprocessing
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
@@ -33,29 +32,6 @@ logger = logging.getLogger(__name__)
 
 class ThreadlessWork(ABC):
     """Implement ThreadlessWork to hook into the event loop provided by Threadless process."""
-
-    def publish_event(
-            self,
-            event_name: int,
-            event_payload: Dict[str, Any],
-            publisher_id: Optional[str] = None) -> None:
-        if not self.flags.enable_events:
-            return
-        assert self.event_queue
-        self.event_queue.publish(
-            self.uid,
-            event_name,
-            event_payload,
-            publisher_id
-        )
-
-    def shutdown(self) -> None:
-        """Must close any opened resources and call super().shutdown()."""
-        self.publish_event(
-            event_name=eventNames.WORK_FINISHED,
-            event_payload={},
-            publisher_id=self.__class__.__name__
-        )
 
     @abstractmethod
     def __init__(
@@ -95,6 +71,29 @@ class ThreadlessWork(ABC):
     @abstractmethod
     def run(self) -> None:
         pass
+
+    def publish_event(
+            self,
+            event_name: int,
+            event_payload: Dict[str, Any],
+            publisher_id: Optional[str] = None) -> None:
+        if not self.flags.enable_events:
+            return
+        assert self.event_queue
+        self.event_queue.publish(
+            self.uid,
+            event_name,
+            event_payload,
+            publisher_id
+        )
+
+    def shutdown(self) -> None:
+        """Must close any opened resources and call super().shutdown()."""
+        self.publish_event(
+            event_name=eventNames.WORK_FINISHED,
+            event_payload={},
+            publisher_id=self.__class__.__name__
+        )
 
 
 class Threadless(multiprocessing.Process):
@@ -182,8 +181,10 @@ class Threadless(multiprocessing.Process):
         )
         try:
             self.works[fileno].initialize()
-        except ssl.SSLError as e:
-            logger.exception('ssl.SSLError', exc_info=e)
+        except Exception as e:
+            logger.exception(
+                'Exception occurred during initialization',
+                exc_info=e)
             self.cleanup(fileno)
 
     def cleanup_inactive(self) -> None:

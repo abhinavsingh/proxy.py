@@ -6,15 +6,29 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
- */
-#proxyDashboard {
-    background-color: #eeeeee;
+*/
+
+/** Main dashboard CSS **/
+
+html, body {
     height: 100%;
 }
 
-#proxyDashboard .remove-api-spec {
-    top: 10px;
-    right: 15px;
+main {
+    height: 88%;
+}
+
+section {
+    position: relative;
+    height: 100%;
+}
+
+#proxyDashboard {
+    background-color: #eeeeee;
+}
+
+.proxy-dashboard-plugin {
+    display: none;
 }
 
 .app-header {
@@ -25,11 +39,15 @@
 .app-body {
     padding-left: 15px;
     padding-right: 15px;
-    padding-bottom: 50px;
+    padding-bottom: 5px;
+    height: 92%;
 }
 
-.proxy-data {
-    display: none;
+/** mock_rest_api.ts plugin CSS **/
+
+.remove-api-spec {
+    top: 6px;
+    right: 7px;
 }
 
 .api-path-spec .list-group-item {

@@ -7,6 +7,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import gzip
 import time
 import logging
 import os
@@ -44,9 +45,11 @@ class HttpWebServerBasePlugin(ABC):
 
     def __init__(
             self,
+            uid: str,
             flags: Flags,
             client: TcpClientConnection,
             event_queue: EventQueue):
+        self.uid = uid
         self.flags = flags
         self.client = client
         self.event_queue = event_queue
@@ -84,19 +87,6 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
         self.pac_file_response: Optional[bytes] = None
         self.cache_pac_file_response()
 
-    def cache_pac_file_response(self) -> None:
-        if self.flags.pac_file:
-            try:
-                with open(self.flags.pac_file, 'rb') as f:
-                    content = f.read()
-            except IOError:
-                content = bytes_(self.flags.pac_file)
-            self.pac_file_response = build_http_response(
-                200, reason=b'OK', headers={
-                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                }, body=content
-            )
-
     def routes(self) -> List[Tuple[int, bytes]]:
         if self.flags.pac_file_url_path:
             return [
@@ -117,6 +107,20 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
     def on_websocket_close(self) -> None:
         pass    # pragma: no cover
+
+    def cache_pac_file_response(self) -> None:
+        if self.flags.pac_file:
+            try:
+                with open(self.flags.pac_file, 'rb') as f:
+                    content = f.read()
+            except IOError:
+                content = bytes_(self.flags.pac_file)
+            self.pac_file_response = build_http_response(
+                200, reason=b'OK', headers={
+                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                    b'Content-Encoding': b'gzip',
+                }, body=gzip.compress(content)
+            )
 
 
 class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
@@ -150,9 +154,13 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         }
         self.route: Optional[HttpWebServerBasePlugin] = None
 
-        if b'HttpWebServerBasePlugin' in self.config.plugins:
-            for klass in self.config.plugins[b'HttpWebServerBasePlugin']:
-                instance = klass(self.config, self.client, self.event_queue)
+        if b'HttpWebServerBasePlugin' in self.flags.plugins:
+            for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
+                instance = klass(
+                    self.uid,
+                    self.flags,
+                    self.client,
+                    self.event_queue)
                 for (protocol, path) in instance.routes():
                     self.routes[protocol][path] = instance
 
@@ -168,9 +176,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             reason=b'OK',
             headers={
                 b'Content-Type': bytes_(content_type),
+                b'Cache-Control': b'max-age=86400',
+                b'Content-Encoding': b'gzip',
                 b'Connection': b'close',
             },
-            body=content)
+            body=gzip.compress(content))
 
     def serve_file_or_404(self, path: str) -> bool:
         """Read and serves a file from disk.
@@ -221,7 +231,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
-            if self.config.encryption_enabled() else \
+            if self.flags.encryption_enabled() else \
             httpProtocolTypes.HTTP
         for r in self.routes[protocol]:
             if r == self.request.path:
@@ -230,11 +240,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 return False
 
         # No-route found, try static serving if enabled
-        if self.config.enable_static_server:
+        if self.flags.enable_static_server:
             path = text_(self.request.path).split('?')[0]
-            if os.path.isfile(self.config.static_server_dir + path):
+            if os.path.isfile(self.flags.static_server_dir + path):
                 return self.serve_file_or_404(
-                    self.config.static_server_dir + path)
+                    self.flags.static_server_dir + path)
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)

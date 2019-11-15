@@ -22,7 +22,6 @@ import pathlib
 from typing import Optional, Union, Dict, List, TypeVar, Type, cast, Any
 
 from .utils import text_, bytes_
-from .types import DictQueueType
 from .constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BACKLOG, DEFAULT_BASIC_AUTH
 from .constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_DISABLE_HEADERS
 from .constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
@@ -72,7 +71,6 @@ class Flags:
             backlog: int = DEFAULT_BACKLOG,
             static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
             enable_static_server: bool = DEFAULT_ENABLE_STATIC_SERVER,
-            devtools_event_queue: Optional[DictQueueType] = None,
             devtools_ws_path: bytes = DEFAULT_DEVTOOLS_WS_PATH,
             timeout: int = DEFAULT_TIMEOUT,
             threadless: bool = DEFAULT_THREADLESS,
@@ -106,10 +104,7 @@ class Flags:
 
         self.enable_static_server: bool = enable_static_server
         self.static_server_dir: str = static_server_dir
-
-        self.devtools_event_queue: Optional[DictQueueType] = devtools_event_queue
         self.devtools_ws_path: bytes = devtools_ws_path
-
         self.enable_events: bool = enable_events
 
         self.proxy_py_data_dir = os.path.join(
@@ -158,20 +153,16 @@ class Flags:
         Flags.set_open_file_limit(args.open_file_limit)
 
         default_plugins = ''
-        devtools_event_queue: Optional[DictQueueType] = None
         if args.enable_devtools:
-            default_plugins += 'proxy.http.devtools.DevtoolsProtocolPlugin,'
+            default_plugins += 'proxy.http.inspector.DevtoolsProtocolPlugin,'
             default_plugins += 'proxy.http.server.HttpWebServerPlugin,'
         if not args.disable_http_proxy:
             default_plugins += 'proxy.http.proxy.HttpProxyPlugin,'
         if args.enable_web_server or \
                 args.pac_file is not None or \
-                args.enable_static_server:
-            if 'proxy.http.server.HttpWebServerPlugin' not in default_plugins:
-                default_plugins += 'proxy.http.server.HttpWebServerPlugin,'
-        if args.enable_devtools:
-            default_plugins += 'proxy.http.devtools.DevtoolsWebsocketPlugin,'
-            devtools_event_queue = multiprocessing.Manager().Queue()
+                args.enable_static_server and \
+                'proxy.http.server.HttpWebServerPlugin' not in default_plugins:
+            default_plugins += 'proxy.http.server.HttpWebServerPlugin,'
         if args.pac_file is not None:
             default_plugins += 'proxy.http.server.HttpWebServerPacFilePlugin,'
 
@@ -244,9 +235,6 @@ class Flags:
                 opts.get(
                     'enable_events',
                     args.enable_events)),
-            devtools_event_queue=cast(
-                Optional[DictQueueType], opts.get(
-                    'devtools_event_queue', devtools_event_queue)),
             plugins=Flags.load_plugins(
                 bytes_(
                     '%s%s' %
@@ -347,7 +335,7 @@ class Flags:
             '--enable-devtools',
             action='store_true',
             default=DEFAULT_ENABLE_DEVTOOLS,
-            help='Default: False.  Enables integration with Chrome Devtool Frontend.'
+            help='Default: False.  Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.'
         )
         parser.add_argument(
             '--enable-events',
