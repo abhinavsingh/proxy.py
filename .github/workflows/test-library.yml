@@ -25,8 +25,8 @@ jobs:
           pip install -r requirements-testing.txt
       - name: Quality Check
         run: |
-          flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
-          mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ dashboard/dashboard.py setup.py
+          flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ plugin_examples/ setup.py
+          mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ setup.py
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Upload coverage to Codecov

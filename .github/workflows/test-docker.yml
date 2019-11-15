@@ -4,11 +4,11 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}-latest
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu]
         python: [3.7]
       max-parallel: 1
       fail-fast: false
