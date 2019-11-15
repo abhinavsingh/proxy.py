@@ -14,9 +14,9 @@ import time
 import logging
 from typing import Optional, BinaryIO, Any
 
-from proxy.http.parser import HttpParser
-from proxy.http.proxy import HttpProxyBasePlugin
-from proxy.common.utils import text_
+from ..common.utils import text_
+from ..http.parser import HttpParser
+from ..http.proxy import HttpProxyBasePlugin
 
 logger = logging.getLogger(__name__)
 

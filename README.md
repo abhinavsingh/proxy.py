@@ -1050,11 +1050,9 @@ Make sure plugin modules are discoverable by adding them to `PYTHONPATH`.  Examp
 ...[redacted]... - Loaded plugin my_app.proxyPlugin
 ```
 
-or, make sure to pass fully-qualified path as parameter, e.g.
+OR, simply pass fully-qualified path as parameter, e.g.
 
 `proxy --plugins /path/to/my/app/my_app.proxyPlugin`
-
-Note that `pip install proxy.py` don't ship [plugin_examples](https://github.com/abhinavsingh/proxy.py/blob/develop/plugin_examples).
 
 ## Unable to connect with proxy.py from remote host
 
@@ -1107,7 +1105,6 @@ Now `proxy.py` logs can be browsed using
 without any socket leaks.
 
 1. Make use of `--open-file-limit` flag to customize `ulimit -n`.
-    - To set a value upper than the hard limit, run as root.
 2. Make sure to adjust `--backlog` flag for higher concurrency.
 
 If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issues/new)

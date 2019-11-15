@@ -10,10 +10,10 @@
 """
 from typing import Optional
 
-from proxy.http.proxy import HttpProxyBasePlugin
-from proxy.http.parser import HttpParser
-from proxy.http.codes import httpStatusCodes
-from proxy.common.utils import build_http_response
+from ..common.utils import build_http_response
+from ..http.parser import HttpParser
+from ..http.codes import httpStatusCodes
+from ..http.proxy import HttpProxyBasePlugin
 
 
 class ManInTheMiddlePlugin(HttpProxyBasePlugin):

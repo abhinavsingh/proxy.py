@@ -11,11 +11,11 @@
 import logging
 from typing import List, Tuple
 
-from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
-from proxy.http.websocket import WebsocketFrame
-from proxy.http.parser import HttpParser
-from proxy.http.codes import httpStatusCodes
-from proxy.common.utils import build_http_response
+from ..common.utils import build_http_response
+from ..http.parser import HttpParser
+from ..http.codes import httpStatusCodes
+from ..http.websocket import WebsocketFrame
+from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 
 logger = logging.getLogger(__name__)
 

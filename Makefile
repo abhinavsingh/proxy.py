@@ -27,7 +27,6 @@ autopep8:
 	autopep8 --recursive --in-place --aggressive proxy/*.py
 	autopep8 --recursive --in-place --aggressive proxy/*/*.py
 	autopep8 --recursive --in-place --aggressive tests/*.py
-	autopep8 --recursive --in-place --aggressive plugin_examples/*.py
 	autopep8 --recursive --in-place --aggressive benchmark/*.py
 	autopep8 --recursive --in-place --aggressive setup.py
 
@@ -59,8 +58,8 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-lint:
-	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ plugin_examples/ setup.py
-	mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ plugin_examples/ setup.py
+	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ setup.py
+	mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ setup.py
 
 lib-test: lib-lint
 	python -m unittest discover
