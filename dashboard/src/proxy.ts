@@ -56,24 +56,41 @@ export class ProxyDashboard {
     $('#proxyTopNav>ul>li>a').on('click', function () {
       that.switchTab(this)
     })
+    window.onhashchange = function () {
+      that.onHashChange()
+    }
   }
 
   public static addPlugin (Plugin: IPluginConstructor) {
     ProxyDashboard.plugins.push(Plugin)
   }
 
-  private switchTab (element: HTMLElement) {
+  private onHashChange () {
     const activeLi = $('#proxyTopNav>ul>li.active')
     const activeTabPluginName = activeLi.children('a').attr('plugin_name')
+    const activeTabHash = activeLi.children('a').attr('href')
+    if (window.location.hash !== activeTabHash) {
+      this.navigate(activeTabPluginName, window.location.hash.substring(1))
+    }
+  }
+
+  private switchTab (element: HTMLElement) {
+    const activeTabPluginName = $('#proxyTopNav>ul>li.active').children('a').attr('plugin_name')
     const clickedTabPluginName = $(element).attr('plugin_name')
-
-    activeLi.removeClass('active')
-    $(element.parentNode).addClass('active')
-    console.log('Showing plugin content', clickedTabPluginName)
-
     if (clickedTabPluginName === activeTabPluginName) {
       return
     }
+
+    this.navigate(activeTabPluginName, clickedTabPluginName)
+    window.history.pushState(null, null, '/dashboard/#' + clickedTabPluginName)
+  }
+
+  private navigate (activeTabPluginName: string, clickedTabPluginName: string) {
+    console.log('Navigating from', activeTabPluginName, 'to', clickedTabPluginName)
+    if (activeTabPluginName !== undefined) {
+      $('#' + this.plugins.get(activeTabPluginName).tabId()).parent('li').removeClass('active')
+    }
+    $('#' + this.plugins.get(clickedTabPluginName).tabId()).parent('li').addClass('active')
 
     $('#proxyDashboard>.proxy-dashboard-plugin').hide()
     $('#' + clickedTabPluginName).show()

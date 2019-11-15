@@ -12,6 +12,7 @@ import { WebsocketApi } from './ws'
 export interface IDashboardPlugin {
   name: string
   title: string
+  tabId(): string
   initializeTab(): JQuery<HTMLElement>
   initializeHeader(): JQuery<HTMLElement>
   initializeBody(): JQuery<HTMLElement>
@@ -30,11 +31,16 @@ export abstract class DashboardPlugin implements IDashboardPlugin {
     this.websocketApi = websocketApi
   }
 
+  public tabId () : string {
+    return this.name + '_tab'
+  }
+
   public makeTab (name: string, icon: string) : JQuery<HTMLElement> {
     return $('<a/>')
       .attr({
-        href: '#',
-        plugin_name: this.name
+        href: '#' + this.name,
+        plugin_name: this.name,
+        id: this.tabId()
       })
       .addClass('nav-link')
       .text(name)
