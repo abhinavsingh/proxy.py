@@ -32,6 +32,7 @@ setup(
     license=__license__,
     packages=[
         'proxy',
+        'proxy.benchmark',
         'proxy.common',
         'proxy.core',
         'proxy.dashboard',

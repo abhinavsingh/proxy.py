@@ -69,16 +69,16 @@ Table of Contents
         * [Setup Local Environment](#setup-local-environment)
         * [Setup pre-commit hook](#setup-pre-commit-hook)
         * [Sending a Pull Request](#sending-a-pull-request)
-    * [Utilities](#utilities)
-        * [TCP](#tcp-sockets)
-            * [new_socket_connection](#new_socket_connection)
-            * [socket_connection](#socket_connection)
-        * [Http](#http-client)
-            * [build_http_request](#build_http_request)
-            * [build_http_response](#build_http_response)
-        * [Websocket](#websocket)
-            * [WebsocketFrame](#websocketframe)
-            * [WebsocketClient](#websocketclient)
+* [Utilities](#utilities)
+    * [TCP](#tcp-sockets)
+        * [new_socket_connection](#new_socket_connection)
+        * [socket_connection](#socket_connection)
+    * [Http](#http-client)
+        * [build_http_request](#build_http_request)
+        * [build_http_response](#build_http_response)
+    * [Websocket](#websocket)
+        * [WebsocketFrame](#websocketframe)
+        * [WebsocketClient](#websocketclient)
 * [Frequently Asked Questions](#frequently-asked-questions)
     * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
     * [Unable to load plugins](#unable-to-load-plugins)
@@ -915,25 +915,28 @@ and invoke `HttpProxyBasePlugin` lifecycle hooks.
 
 ## Development Guide
 
-#### Setup Local Environment
+### Setup Local Environment
 
 Contributors must start `proxy.py` from source to verify and develop new features / fixes.
+
 See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
 
-#### Setup pre-commit hook
+### Setup pre-commit hook
+
+Pre-commit hook ensures lint checking and tests execution.
 
 1. `cd /path/to/proxy.py`
 2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
 
-Pre-commit hook ensures lint checking and library tests passes.
-
-#### Sending a Pull Request
+### Sending a Pull Request
 
 Every pull request is tested using GitHub actions.
+
 See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
 for list of tests.
 
-## Utilities
+Utilities
+=========
 
 ## TCP Sockets
 

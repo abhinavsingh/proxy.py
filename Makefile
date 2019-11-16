@@ -27,7 +27,6 @@ autopep8:
 	autopep8 --recursive --in-place --aggressive proxy/*.py
 	autopep8 --recursive --in-place --aggressive proxy/*/*.py
 	autopep8 --recursive --in-place --aggressive tests/*.py
-	autopep8 --recursive --in-place --aggressive benchmark/*.py
 	autopep8 --recursive --in-place --aggressive setup.py
 
 https-certificates:
@@ -58,8 +57,8 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-lint:
-	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ benchmark/ setup.py
-	mypy --strict --ignore-missing-imports proxy/ tests/ benchmark/ setup.py
+	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ setup.py
+	mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
 
 lib-test: lib-lint
 	python -m unittest discover
