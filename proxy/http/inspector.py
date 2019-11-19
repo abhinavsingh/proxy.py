@@ -26,7 +26,14 @@ logger = logging.getLogger(__name__)
 
 
 class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
-    """Speaks DevTools protocol with client over websocket."""
+    """Speaks DevTools protocol with client over websocket.
+
+    - It responds to DevTools client request methods and also
+      relay proxy.py core events to the client.
+    - Core events are transformed into DevTools protocol format before
+      dispatching to client.
+    - Core events unrelated to DevTools protocol are dropped.
+    """
 
     DOC_URL = 'http://dashboard.proxy.py'
     FRAME_ID = secrets.token_hex(8)

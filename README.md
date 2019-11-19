@@ -36,7 +36,7 @@ Table of Contents
 * [Start proxy.py](#start-proxypy)
     * [From command line when installed using PIP](#from-command-line-when-installed-using-pip)
         * [Run it](#run-it)
-        * [Reading logs](#reading-logs)
+        * [Understanding logs](#understanding-logs)
         * [Enable DEBUG logging](#enable-debug-logging)
     * [From command line using repo source](#from-command-line-using-repo-source)
     * [Docker Image](#docker-image)
@@ -86,6 +86,7 @@ Table of Contents
     * [Basic auth not working with a browser](#basic-auth-not-working-with-a-browser)
     * [Docker image not working on MacOS](#docker-image-not-working-on-macos)
     * [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
+    * [None:None in access logs](#nonenone-in-access-logs)
 * [Flags](#flags)
 * [Changelog](#changelog)
     * [v2.x](#v2x)
@@ -188,7 +189,7 @@ $ proxy
 ...[redacted]... - Started server on ::1:8899
 ```
 
-#### Reading logs
+#### Understanding logs
 
 Things to notice from above logs:
 
@@ -1118,6 +1119,18 @@ with `requests per second` sent and output of following debug script:
 ```
 $ ./helper/monitor_open_files.sh <proxy-py-pid>
 ```
+
+## None:None in access logs
+
+Sometimes you may see `None:None` in access logs.  It simply means
+that an upstream server connection was never established i.e.
+`upstream_host=None`, `upstream_port=None`.
+
+There can be several reasons for no upstream connection,
+few obvious ones include:
+
+1. Client established a connection but never completed the request. 
+2. A plugin returned a response prematurely, avoiding connection to upstream server.
 
 Flags
 =====
