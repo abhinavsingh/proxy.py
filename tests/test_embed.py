@@ -16,19 +16,18 @@ from proxy.http.methods import httpMethods
 
 class TestProxyPyEmbedded(TestCase):
 
-    PROXY_PY_STARTUP_FLAGS = [
-        '--num-workers', '1',
+    PROXY_PY_STARTUP_FLAGS = TestCase.DEFAULT_PROXY_PY_STARTUP_FLAGS + [
         '--enable-web-server',
     ]
 
     def test_with_proxy(self) -> None:
-        """Makes a HTTP request to in-build web server via proxy server"""
-        with socket_connection(('localhost', self.proxy_port)) as conn:
+        """Makes a HTTP request to in-build web server via proxy server."""
+        with socket_connection(('localhost', self.PROXY_PORT)) as conn:
             conn.send(
                 build_http_request(
-                    httpMethods.GET, b'http://localhost:%d/' % self.proxy_port,
+                    httpMethods.GET, b'http://localhost:%d/' % self.PROXY_PORT,
                     headers={
-                        b'Host': b'localhost:%d' % self.proxy_port,
+                        b'Host': b'localhost:%d' % self.PROXY_PORT,
                     })
             )
             response = conn.recv(DEFAULT_CLIENT_RECVBUF_SIZE)
@@ -42,3 +41,14 @@ class TestProxyPyEmbedded(TestCase):
                 }
             )
         )
+
+    def test_proxy_vcr(self) -> None:
+        """With VCR enabled, proxy.py will cache responses for all HTTP(s)
+        requests made during the test.  When test is re-run, until explicitly
+        disabled, proxy.py will replay responses from cache avoiding calls to
+        upstream servers.
+
+        This feature only works iff proxy.py is used as a proxy server
+        for all HTTP(s) requests made during the test."""
+        with self.vcr():
+            self.assertEqual(1, 1)
