@@ -121,6 +121,7 @@ class Threadless(multiprocessing.Process):
         self.work_klass = work_klass
         self.event_queue = event_queue
 
+        self.running = multiprocessing.Event()
         self.works: Dict[int, ThreadlessWork] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
@@ -232,7 +233,7 @@ class Threadless(multiprocessing.Process):
             self.selector = selectors.DefaultSelector()
             self.selector.register(self.client_queue, selectors.EVENT_READ)
             self.loop = asyncio.get_event_loop()
-            while True:
+            while not self.running.is_set():
                 self.run_once()
         except KeyboardInterrupt:
             pass
