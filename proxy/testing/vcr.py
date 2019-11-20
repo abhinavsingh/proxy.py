@@ -2,24 +2,26 @@
 """
     proxy.py
     ~~~~~~~~
-    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
-    Network monitoring, controls & Application development, testing, debugging.
+    ⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import multiprocessing
 import os
 
 from ..common.utils import text_
 from ..http.parser import HttpParser
+from ..plugin import BaseCacheResponsesPlugin
 
-from .cache_responses_base import BaseCacheResponsesPlugin
 
+class VCRPlugin(BaseCacheResponsesPlugin):
 
-class CacheResponsesPlugin(BaseCacheResponsesPlugin):
-    """Customizes response cache path to /tmp/hostname-unique_request_id."""
+    ENABLED = multiprocessing.Event()
 
     def get_cache_file_path(self, request: HttpParser) -> str:
+        if not VCRPlugin.ENABLED.is_set():
+            raise Exception('VCR not enabled')
         return os.path.join(
             self.CACHE_DIR,
             '%s-%s.txt' % (text_(request.host), self.uid))

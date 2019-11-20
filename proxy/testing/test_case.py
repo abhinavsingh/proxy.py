@@ -15,6 +15,8 @@ from typing import Optional, List, Generator, Any
 from ..proxy import Proxy
 from ..common.utils import get_available_port, new_socket_connection
 
+from .vcr import VCRPlugin
+
 
 class TestCase(unittest.TestCase):
     """Base TestCase class that automatically setup and teardown proxy.py."""
@@ -27,7 +29,6 @@ class TestCase(unittest.TestCase):
     PROXY_PORT: int = 8899
     PROXY: Optional[Proxy] = None
     INPUT_ARGS: Optional[List[str]] = None
-    ENABLE_VCR: bool = False
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -38,6 +39,7 @@ class TestCase(unittest.TestCase):
         cls.INPUT_ARGS.append('--port')
         cls.INPUT_ARGS.append(str(cls.PROXY_PORT))
         cls.PROXY = Proxy(input_args=cls.INPUT_ARGS)
+        cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(VCRPlugin)
         cls.PROXY.__enter__()
         cls.wait_for_server(cls.PROXY_PORT)
 
@@ -60,15 +62,14 @@ class TestCase(unittest.TestCase):
         cls.PROXY_PORT = 8899
         cls.PROXY = None
         cls.INPUT_ARGS = None
-        cls.ENABLE_VCR = False
 
     @contextlib.contextmanager
     def vcr(self) -> Generator[None, None, None]:
-        self.ENABLE_VCR = True
         try:
+            VCRPlugin.ENABLED.set()
             yield
         finally:
-            self.ENABLE_VCR = False
+            VCRPlugin.ENABLED.clear()
 
     def run(self, result: Optional[unittest.TestResult] = None) -> Any:
         super().run(result)

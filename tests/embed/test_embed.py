@@ -59,12 +59,18 @@ class TestProxyPyEmbedded(TestCase):
 
         Below we make a HTTP GET request using Python's urllib library."""
         with self.vcr():
-            proxy_handler = urllib.request.ProxyHandler({
-                'http': 'http://localhost:%d' % self.PROXY_PORT,
-            })
-            opener = urllib.request.build_opener(proxy_handler)
-            r: http.client.HTTPResponse = opener.open('http://httpbin.org/get')
-            self.assertEqual(r.status, 200)
-            data = json.loads(r.read(DEFAULT_CLIENT_RECVBUF_SIZE))
-            self.assertEqual(data['args'], {})
-            self.assertEqual(data['headers']['Host'], 'httpbin.org')
+            self.make_http_request_using_proxy()
+
+    def test_proxy_no_vcr(self) -> None:
+        self.make_http_request_using_proxy()
+
+    def make_http_request_using_proxy(self) -> None:
+        proxy_handler = urllib.request.ProxyHandler({
+            'http': 'http://localhost:%d' % self.PROXY_PORT,
+        })
+        opener = urllib.request.build_opener(proxy_handler)
+        r: http.client.HTTPResponse = opener.open('http://httpbin.org/get')
+        self.assertEqual(r.status, 200)
+        data = json.loads(r.read(DEFAULT_CLIENT_RECVBUF_SIZE))
+        self.assertEqual(data['args'], {})
+        self.assertEqual(data['headers']['Host'], 'httpbin.org')
