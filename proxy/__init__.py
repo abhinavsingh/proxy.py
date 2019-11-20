@@ -10,6 +10,7 @@
 """
 from .proxy import entry_point
 from .proxy import main, start
+from .proxy import Proxy
 from .proxy import TestCase
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     'main', 'start',
     # Unit testing with proxy.py. See
     # https://github.com/abhinavsingh/proxy.py#unit-testing-with-proxypy
-    'TestCase'
+    'TestCase',
+    'Proxy',
 ]
