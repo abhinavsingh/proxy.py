@@ -7,7 +7,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from proxy.proxy import TestCase
+import json
+import http.client
+import urllib.request
+
+from proxy import TestCase
 from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
 from proxy.common.utils import socket_connection, build_http_request, build_http_response
 from proxy.http.codes import httpStatusCodes
@@ -15,6 +19,8 @@ from proxy.http.methods import httpMethods
 
 
 class TestProxyPyEmbedded(TestCase):
+    """This test case is a demonstration of proxy.TestCase and also serves as
+    integration test suite for proxy.py."""
 
     PROXY_PY_STARTUP_FLAGS = TestCase.DEFAULT_PROXY_PY_STARTUP_FLAGS + [
         '--enable-web-server',
@@ -49,6 +55,16 @@ class TestProxyPyEmbedded(TestCase):
         upstream servers.
 
         This feature only works iff proxy.py is used as a proxy server
-        for all HTTP(s) requests made during the test."""
+        for all HTTP(s) requests made during the test.
+
+        Below we make a HTTP GET request using Python's urllib library."""
         with self.vcr():
-            self.assertEqual(1, 1)
+            proxy_handler = urllib.request.ProxyHandler({
+                'http': 'http://localhost:%d' % self.PROXY_PORT,
+            })
+            opener = urllib.request.build_opener(proxy_handler)
+            r: http.client.HTTPResponse = opener.open('http://httpbin.org/get')
+            self.assertEqual(r.status, 200)
+            data = json.loads(r.read(DEFAULT_CLIENT_RECVBUF_SIZE))
+            self.assertEqual(data['args'], {})
+            self.assertEqual(data['headers']['Host'], 'httpbin.org')

@@ -11,7 +11,7 @@
 from .proxy import entry_point
 from .proxy import main, start
 from .proxy import Proxy
-from .proxy import TestCase
+from .testing.test_case import TestCase
 
 __all__ = [
     # PyPi package entry_point. See

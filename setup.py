@@ -37,7 +37,8 @@ setup(
         'proxy.core',
         'proxy.dashboard',
         'proxy.http',
-        'proxy.plugin'
+        'proxy.plugin',
+        'proxy.testing',
     ],
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
