@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import abc
 import logging
 import importlib
 import collections
@@ -508,7 +509,12 @@ class Flags:
                     module_name.replace(
                         os.path.sep, text_(DOT))),
                 klass_name)
-            base_klass = inspect.getmro(klass)[1]
+            mro = list(inspect.getmro(klass))
+            mro.reverse()
+            iterator = iter(mro)
+            while next(iterator) is not abc.ABC:
+                pass
+            base_klass = next(iterator)
             p[bytes_(base_klass.__name__)].append(klass)
             logger.info(
                 'Loaded %s %s.%s',

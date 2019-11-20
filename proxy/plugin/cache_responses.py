@@ -10,8 +10,8 @@
 """
 import os
 import tempfile
-import time
 import logging
+from abc import ABC, abstractmethod
 from typing import Optional, BinaryIO, Any
 
 from ..common.utils import text_
@@ -21,8 +21,8 @@ from ..http.proxy import HttpProxyBasePlugin
 logger = logging.getLogger(__name__)
 
 
-class CacheResponsesPlugin(HttpProxyBasePlugin):
-    """Caches Upstream Server Responses."""
+class BaseCacheResponsesPlugin(HttpProxyBasePlugin, ABC):
+    """Base cache plugin."""
 
     CACHE_DIR = tempfile.gettempdir()
 
@@ -34,10 +34,7 @@ class CacheResponsesPlugin(HttpProxyBasePlugin):
 
     def before_upstream_connection(
             self, request: HttpParser) -> Optional[HttpParser]:
-        # Ideally should only create file if upstream connection succeeds.
-        self.cache_file_path = os.path.join(
-            self.CACHE_DIR,
-            '%s-%s.txt' % (text_(request.host), str(time.time())))
+        self.cache_file_path = self.get_cache_file_path(request)
         self.cache_file = open(self.cache_file_path, "wb")
         return request
 
@@ -45,8 +42,9 @@ class CacheResponsesPlugin(HttpProxyBasePlugin):
             self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
-    def handle_upstream_chunk(self,
-                              chunk: bytes) -> bytes:
+    def handle_upstream_chunk(
+            self,
+            chunk: bytes) -> bytes:
         if self.cache_file:
             self.cache_file.write(chunk)
         return chunk
@@ -55,3 +53,17 @@ class CacheResponsesPlugin(HttpProxyBasePlugin):
         if self.cache_file:
             self.cache_file.close()
         logger.info('Cached response at %s', self.cache_file_path)
+
+    @abstractmethod
+    def get_cache_file_path(self, request: HttpParser) -> str:
+        """Override for customizing cache paths."""
+        raise NotImplementedError()
+
+
+class CacheResponsesPlugin(BaseCacheResponsesPlugin):
+    """Customizes response cache path to /tmp/hostname-unique_request_id."""
+
+    def get_cache_file_path(self, request: HttpParser) -> str:
+        return os.path.join(
+            self.CACHE_DIR,
+            '%s-%s.txt' % (text_(request.host), self.uid))
