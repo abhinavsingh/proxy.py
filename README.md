@@ -1266,6 +1266,7 @@ Changelog
 - No longer ~~a single file module~~.
 - Added support for threadless execution.
 - Added dashboard app.
+- Added support for unit testing.
 
 ## v1.x
 

@@ -14,8 +14,7 @@ from typing import Optional, List, Generator, Any
 
 from ..proxy import Proxy
 from ..common.utils import get_available_port, new_socket_connection
-
-from .vcr import VCRPlugin
+from ..plugin import CacheResponsesPlugin
 
 
 class TestCase(unittest.TestCase):
@@ -33,13 +32,16 @@ class TestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.PROXY_PORT = get_available_port()
+
         cls.INPUT_ARGS = getattr(cls, 'PROXY_PY_STARTUP_FLAGS') \
             if hasattr(cls, 'PROXY_PY_STARTUP_FLAGS') \
             else cls.DEFAULT_PROXY_PY_STARTUP_FLAGS
         cls.INPUT_ARGS.append('--port')
         cls.INPUT_ARGS.append(str(cls.PROXY_PORT))
+
         cls.PROXY = Proxy(input_args=cls.INPUT_ARGS)
-        cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(VCRPlugin)
+        cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(CacheResponsesPlugin)
+
         cls.PROXY.__enter__()
         cls.wait_for_server(cls.PROXY_PORT)
 
@@ -66,10 +68,10 @@ class TestCase(unittest.TestCase):
     @contextlib.contextmanager
     def vcr(self) -> Generator[None, None, None]:
         try:
-            VCRPlugin.ENABLED.set()
+            CacheResponsesPlugin.ENABLED.set()
             yield
         finally:
-            VCRPlugin.ENABLED.clear()
+            CacheResponsesPlugin.ENABLED.clear()
 
     def run(self, result: Optional[unittest.TestResult] = None) -> Any:
         super().run(result)

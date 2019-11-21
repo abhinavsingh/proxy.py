@@ -46,7 +46,7 @@ class HttpProxyBasePlugin(ABC):
             uid: str,
             flags: Flags,
             client: TcpClientConnection,
-            event_queue: EventQueue):
+            event_queue: EventQueue) -> None:
         self.uid = uid                  # pragma: no cover
         self.flags = flags              # pragma: no cover
         self.client = client            # pragma: no cover
