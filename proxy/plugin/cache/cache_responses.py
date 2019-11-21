@@ -17,7 +17,7 @@ from .base import BaseCacheResponsesPlugin
 
 
 class CacheResponsesPlugin(BaseCacheResponsesPlugin):
-    """Caches responses on disk."""
+    """Caches response using OnDiskCacheStore."""
 
     # Dynamically enable / disable cache
     ENABLED = multiprocessing.Event()

@@ -97,9 +97,13 @@ export class ProxyDashboard {
   private navigate (activeTabPluginName: string, clickedTabPluginName: string) {
     console.log('Navigating from', activeTabPluginName, 'to', clickedTabPluginName)
     if (activeTabPluginName !== undefined) {
-      $('#' + this.plugins.get(activeTabPluginName).tabId()).parent('li').removeClass('active')
+      $('#' + this.plugins.get(activeTabPluginName).tabId())
+        .parent('li')
+        .removeClass('active')
     }
-    $('#' + this.plugins.get(clickedTabPluginName).tabId()).parent('li').addClass('active')
+    $('#' + this.plugins.get(clickedTabPluginName).tabId())
+      .parent('li')
+      .addClass('active')
 
     $('#proxyDashboard>.proxy-dashboard-plugin').hide()
     $('#' + clickedTabPluginName).show()
