@@ -26,6 +26,25 @@ logger = logging.getLogger(__name__)
 class ProxyDashboard(HttpWebServerBasePlugin):
     """Proxy Dashboard."""
 
+    # Redirects to /dashboard/
+    REDIRECT_ROUTES = [
+        (httpProtocolTypes.HTTP, b'/dashboard'),
+        (httpProtocolTypes.HTTPS, b'/dashboard'),
+        (httpProtocolTypes.HTTP, b'/dashboard/proxy.html'),
+        (httpProtocolTypes.HTTPS, b'/dashboard/proxy.html'),
+    ]
+
+    # Index html route
+    INDEX_ROUTES = [
+        (httpProtocolTypes.HTTP, b'/dashboard/'),
+        (httpProtocolTypes.HTTPS, b'/dashboard/'),
+    ]
+
+    # Handles WebsocketAPI requests for dashboard
+    WS_ROUTES = [
+        (httpProtocolTypes.WEBSOCKET, b'/dashboard'),
+    ]
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.plugins: Dict[str, ProxyDashboardWebsocketPlugin] = {}
@@ -36,19 +55,9 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                     self.plugins[method] = p
 
     def routes(self) -> List[Tuple[int, bytes]]:
-        return [
-            # Redirects to /dashboard/
-            (httpProtocolTypes.HTTP, b'/dashboard'),
-            # Redirects to /dashboard/
-            (httpProtocolTypes.HTTPS, b'/dashboard'),
-            # Redirects to /dashboard/
-            (httpProtocolTypes.HTTP, b'/dashboard/proxy.html'),
-            # Redirects to /dashboard/
-            (httpProtocolTypes.HTTPS, b'/dashboard/proxy.html'),
-            (httpProtocolTypes.HTTP, b'/dashboard/'),
-            (httpProtocolTypes.HTTPS, b'/dashboard/'),
-            (httpProtocolTypes.WEBSOCKET, b'/dashboard'),
-        ]
+        return ProxyDashboard.REDIRECT_ROUTES + \
+            ProxyDashboard.INDEX_ROUTES + \
+            ProxyDashboard.WS_ROUTES
 
     def handle_request(self, request: HttpParser) -> None:
         if request.path == b'/dashboard/':

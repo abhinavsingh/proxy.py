@@ -80,7 +80,7 @@ lib-profile:
 	sudo py-spy -F -f profile.svg -d 3600 proxy.py
 
 dashboard:
-	pushd dashboard && npm run build && popd
+	pushd dashboard && npm run build && popd && ln -s $(PWD)/dashboard/public/dashboard $(PWD)/public/dashboard
 
 dashboard-clean:
 	if [[ -d public/dashboard ]]; then rm -rf public/dashboard; fi

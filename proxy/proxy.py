@@ -12,12 +12,12 @@ import contextlib
 import os
 import sys
 import time
-import unittest
 import logging
 
-from typing import List, Optional, Generator, Any
+from types import TracebackType
+from typing import List, Optional, Generator, Any, Type
 
-from .common.utils import bytes_, get_available_port, new_socket_connection
+from .common.utils import bytes_
 from .common.flags import Flags
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
@@ -25,70 +25,64 @@ from .http.handler import HttpProtocolHandler
 logger = logging.getLogger(__name__)
 
 
-class TestCase(unittest.TestCase):
-    """Base TestCase class that automatically setup and teardown proxy.py."""
+class Proxy:
 
-    DEFAULT_PROXY_PY_STARTUP_FLAGS = [
-        '--num-workers', '1',
-    ]
+    def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
+        self.flags = Flags.initialize(input_args, **opts)
+        self.acceptors: Optional[AcceptorPool] = None
 
-    def run(self, result: Optional[unittest.TestResult] = None) -> Any:
-        self.proxy_port = get_available_port()
+    def write_pid_file(self) -> None:
+        if self.flags.pid_file is not None:
+            with open(self.flags.pid_file, 'wb') as pid_file:
+                pid_file.write(bytes_(os.getpid()))
 
-        flags = getattr(self, 'PROXY_PY_STARTUP_FLAGS') \
-            if hasattr(self, 'PROXY_PY_STARTUP_FLAGS') \
-            else self.DEFAULT_PROXY_PY_STARTUP_FLAGS
-        flags.append('--port')
-        flags.append(str(self.proxy_port))
+    def delete_pid_file(self) -> None:
+        if self.flags.pid_file and os.path.exists(self.flags.pid_file):
+            os.remove(self.flags.pid_file)
 
-        with start(flags):
-            # Wait for proxy.py server to come up
-            while True:
-                try:
-                    conn = new_socket_connection(
-                        ('localhost', self.proxy_port))
-                    conn.close()
-                    break
-                except ConnectionRefusedError:
-                    time.sleep(0.1)
-            # Run tests
-            super().run(result)
+    def __enter__(self) -> 'Proxy':
+        self.acceptors = AcceptorPool(
+            flags=self.flags,
+            work_klass=HttpProtocolHandler
+        )
+        self.acceptors.setup()
+        self.write_pid_file()
+        return self
+
+    def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_val: Optional[BaseException],
+            exc_tb: Optional[TracebackType]) -> None:
+        assert self.acceptors
+        self.acceptors.shutdown()
+        self.delete_pid_file()
 
 
 @contextlib.contextmanager
 def start(
         input_args: Optional[List[str]] = None,
-        **opts: Any) -> Generator[None, None, None]:
-    flags = Flags.initialize(input_args, **opts)
+        **opts: Any) -> Generator[Proxy, None, None]:
+    """Deprecated.  Kept for backward compatibility.
+
+    New users must directly use proxy.Proxy context manager class."""
     try:
-        acceptor_pool = AcceptorPool(
-            flags=flags,
-            work_klass=HttpProtocolHandler
-        )
-        if flags.pid_file is not None:
-            with open(flags.pid_file, 'wb') as pid_file:
-                pid_file.write(bytes_(os.getpid()))
-        try:
-            acceptor_pool.setup()
-            yield
-        except Exception as e:
-            logger.exception('exception', exc_info=e)
-        finally:
-            acceptor_pool.shutdown()
-    except KeyboardInterrupt:  # pragma: no cover
+        with Proxy(input_args, **opts) as p:
+            yield p
+    except KeyboardInterrupt:
         pass
-    finally:
-        if flags.pid_file and os.path.exists(flags.pid_file):
-            os.remove(flags.pid_file)
 
 
 def main(
         input_args: Optional[List[str]] = None,
         **opts: Any) -> None:
-    with start(input_args=input_args, **opts):
-        # TODO: Introduce cron feature instead of mindless sleep
-        while True:
-            time.sleep(1)
+    try:
+        with Proxy(input_args=input_args, **opts):
+            # TODO: Introduce cron feature instead of mindless sleep
+            while True:
+                time.sleep(1)
+    except KeyboardInterrupt:
+        pass
 
 
 def entry_point() -> None:

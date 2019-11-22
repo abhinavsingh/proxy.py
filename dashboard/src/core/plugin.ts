@@ -25,6 +25,14 @@ export interface IPluginConstructor {
 }
 
 export abstract class DashboardPlugin implements IDashboardPlugin {
+  public abstract readonly name: string
+  public abstract readonly title: string
+  public abstract initializeTab() : JQuery<HTMLElement>
+  public abstract initializeHeader(): JQuery<HTMLElement>
+  public abstract initializeBody(): JQuery<HTMLElement>
+  public abstract activated(): void
+  public abstract deactivated(): void
+
   protected websocketApi: WebsocketApi
 
   public constructor (websocketApi: WebsocketApi) {
@@ -69,12 +77,4 @@ export abstract class DashboardPlugin implements IDashboardPlugin {
           )
       )
   }
-
-  public abstract readonly name: string
-  public abstract readonly title: string
-  public abstract initializeTab() : JQuery<HTMLElement>
-  public abstract initializeHeader(): JQuery<HTMLElement>
-  public abstract initializeBody(): JQuery<HTMLElement>
-  public abstract activated(): void
-  public abstract deactivated(): void
 }

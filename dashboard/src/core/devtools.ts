@@ -14,7 +14,7 @@ const ncp = require('ncp').ncp
 ncp.limit = 16
 
 function setUpDevTools () {
-  const destinationFolderPath = path.join(path.dirname(path.dirname(__dirname)), 'public', 'dashboard', 'devtools')
+  const destinationFolderPath = path.join(path.dirname(__dirname), 'public', 'dashboard', 'devtools')
 
   const destinationFolderExists = fs.existsSync(destinationFolderPath)
   if (!destinationFolderExists) {
@@ -24,12 +24,12 @@ function setUpDevTools () {
 
   const chromeDevTools = path.dirname(require.resolve('chrome-devtools-frontend/front_end/inspector.html'))
 
-  console.log(chromeDevTools + ' ---> ' + destinationFolderPath)
+  console.log('Destination folder: ' + destinationFolderPath)
   ncp(chromeDevTools, destinationFolderPath, (err: any) => {
     if (err) {
       return console.error(err)
     }
-    console.log('Copy successful!!!')
+    console.log('Done!!!')
   })
 }
 

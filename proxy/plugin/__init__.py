@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .cache_responses import CacheResponsesPlugin
+from .cache import CacheResponsesPlugin, BaseCacheResponsesPlugin
 from .filter_by_upstream import FilterByUpstreamHostPlugin
 from .man_in_the_middle import ManInTheMiddlePlugin
 from .mock_rest_api import ProposedRestApiPlugin
@@ -19,6 +19,7 @@ from .web_server_route import WebServerPlugin
 
 __all__ = [
     'CacheResponsesPlugin',
+    'BaseCacheResponsesPlugin',
     'FilterByUpstreamHostPlugin',
     'ManInTheMiddlePlugin',
     'ProposedRestApiPlugin',

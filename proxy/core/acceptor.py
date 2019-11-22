@@ -153,7 +153,7 @@ class Acceptor(multiprocessing.Process):
         self.running = multiprocessing.Event()
         self.selector: Optional[selectors.DefaultSelector] = None
         self.sock: Optional[socket.socket] = None
-        self.threadless_process: Optional[multiprocessing.Process] = None
+        self.threadless_process: Optional[Threadless] = None
         self.threadless_client_queue: Optional[connection.Connection] = None
 
     def start_threadless_process(self) -> None:
@@ -171,6 +171,7 @@ class Acceptor(multiprocessing.Process):
     def shutdown_threadless_process(self) -> None:
         assert self.threadless_process and self.threadless_client_queue
         logger.debug('Stopped process %d', self.threadless_process.pid)
+        self.threadless_process.running.set()
         self.threadless_process.join()
         self.threadless_client_queue.close()
 

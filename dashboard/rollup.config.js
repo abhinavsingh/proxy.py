@@ -4,7 +4,7 @@ import obfuscatorPlugin from 'rollup-plugin-javascript-obfuscator';
 
 export const input = 'src/proxy.ts';
 export const output = {
-    file: '../public/dashboard/proxy.js',
+    file: 'public/dashboard/proxy.js',
     format: 'umd',
     name: 'proxy',
     sourcemap: true
@@ -14,25 +14,25 @@ export const plugins = [
     copy({
         targets: [{
             src: 'static/**/*',
-            dest: '../public/dashboard',
+            dest: 'public/dashboard',
         }, {
             src: 'src/proxy.html',
-            dest: '../public/dashboard',
+            dest: 'public/dashboard',
         }, {
             src: 'src/proxy.css',
-            dest: '../public/dashboard',
+            dest: 'public/dashboard',
         }, {
             src: 'src/manifest.json',
-            dest: '../public/dashboard',
+            dest: 'public/dashboard',
         }, {
             src: 'src/core/plugins/inspect_traffic.json',
-            dest: '../public/dashboard/devtools'
+            dest: 'public/dashboard/devtools'
         }, {
             src: 'src/core/plugins/inspect_traffic.js',
-            dest: '../public/dashboard/devtools'
+            dest: 'public/dashboard/devtools'
         }, {
             src: 'src/core/plugins/inspect_traffic.html',
-            dest: '../public/dashboard/devtools'
+            dest: 'public/dashboard/devtools'
         }],
     }),
     obfuscatorPlugin({

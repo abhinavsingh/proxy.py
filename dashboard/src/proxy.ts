@@ -7,7 +7,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 */
-
 import { WebsocketApi } from './core/ws'
 import { IDashboardPlugin, IPluginConstructor } from './core/plugin'
 
@@ -23,6 +22,7 @@ export class ProxyDashboard {
   private static plugins: IPluginConstructor[] = [];
   private plugins: Map<string, IDashboardPlugin> = new Map();
   private readonly websocketApi: WebsocketApi
+  private readonly route: string = '/dashboard/'
 
   constructor () {
     this.websocketApi = new WebsocketApi()
@@ -91,15 +91,19 @@ export class ProxyDashboard {
     }
 
     this.navigate(activeTabPluginName, clickedTabPluginName)
-    window.history.pushState(null, null, '/dashboard/#' + clickedTabPluginName)
+    window.history.pushState(null, null, this.route + '#' + clickedTabPluginName)
   }
 
   private navigate (activeTabPluginName: string, clickedTabPluginName: string) {
     console.log('Navigating from', activeTabPluginName, 'to', clickedTabPluginName)
     if (activeTabPluginName !== undefined) {
-      $('#' + this.plugins.get(activeTabPluginName).tabId()).parent('li').removeClass('active')
+      $('#' + this.plugins.get(activeTabPluginName).tabId())
+        .parent('li')
+        .removeClass('active')
     }
-    $('#' + this.plugins.get(clickedTabPluginName).tabId()).parent('li').addClass('active')
+    $('#' + this.plugins.get(clickedTabPluginName).tabId())
+      .parent('li')
+      .addClass('active')
 
     $('#proxyDashboard>.proxy-dashboard-plugin').hide()
     $('#' + clickedTabPluginName).show()
@@ -111,6 +115,8 @@ export class ProxyDashboard {
   }
 }
 
+// TODO: Decouple plugin scripts from proxy.ts
+// Plugin scripts must load independently
 ProxyDashboard.addPlugin(HomePlugin)
 ProxyDashboard.addPlugin(MockRestApiPlugin)
 ProxyDashboard.addPlugin(InspectTrafficPlugin)

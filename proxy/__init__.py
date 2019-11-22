@@ -10,7 +10,8 @@
 """
 from .proxy import entry_point
 from .proxy import main, start
-from .proxy import TestCase
+from .proxy import Proxy
+from .testing.test_case import TestCase
 
 __all__ = [
     # PyPi package entry_point. See
@@ -21,5 +22,6 @@ __all__ = [
     'main', 'start',
     # Unit testing with proxy.py. See
     # https://github.com/abhinavsingh/proxy.py#unit-testing-with-proxypy
-    'TestCase'
+    'TestCase',
+    'Proxy',
 ]
