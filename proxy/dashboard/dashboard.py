@@ -100,7 +100,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
 
     def on_websocket_close(self) -> None:
         logger.info('app ws closed')
-        # unsubscribe
+        # TODO(abhinavsingh): unsubscribe
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
