@@ -194,6 +194,7 @@ class Acceptor(multiprocessing.Process):
                 event_queue=self.event_queue
             )
             work_thread = threading.Thread(target=work.run)
+            work_thread.daemon = True
             work.publish_event(
                 event_name=eventNames.WORK_STARTED,
                 event_payload={'fileno': conn.fileno(), 'addr': addr},
