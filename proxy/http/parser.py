@@ -45,8 +45,7 @@ class HttpParser:
         self.type: int = parser_type
         self.state: int = httpParserStates.INITIALIZED
 
-        # Raw bytes as passed to parse(raw) method and its total size
-        self.bytes: bytes = b''
+        # Total size of raw bytes passed for parsing
         self.total_size: int = 0
 
         # Buffer to hold unprocessed bytes
@@ -118,7 +117,7 @@ class HttpParser:
                 self.host, self.port = self.url.hostname, self.url.port \
                     if self.url.port else 80
             else:
-                raise KeyError(b'Invalid request\n%b' % self.bytes)
+                raise KeyError('Invalid request. Method: %r, Url: %r' % (self.method, self.url))
             self.path = self.build_url()
 
     def is_chunked_encoded(self) -> bool:
@@ -129,7 +128,6 @@ class HttpParser:
         """Parses Http request out of raw bytes.
 
         Check HttpParser state after parse has successfully returned."""
-        self.bytes += raw
         self.total_size += len(raw)
 
         # Prepend past buffer
@@ -166,6 +164,7 @@ class HttpParser:
 
     def process(self, raw: bytes) -> Tuple[bool, bytes]:
         """Returns False when no CRLF could be found in received bytes."""
+        ends_with_crlf = raw.endswith(CRLF)
         line, raw = find_http_line(raw)
         if line is None:
             return False, raw
@@ -196,7 +195,7 @@ class HttpParser:
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
                 self.type == httpParserTypes.REQUEST_PARSER and \
                 self.method != httpMethods.POST and \
-                self.bytes.endswith(CRLF * 2):
+                ends_with_crlf:
             self.state = httpParserStates.COMPLETE
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
                 self.type == httpParserTypes.REQUEST_PARSER and \
@@ -205,7 +204,7 @@ class HttpParser:
                 (b'content-length' not in self.headers or
                  (b'content-length' in self.headers and
                   int(self.headers[b'content-length'][1]) == 0)) and \
-                self.bytes.endswith(CRLF * 2):
+                ends_with_crlf:
             self.state = httpParserStates.COMPLETE
 
         return len(raw) > 0, raw
