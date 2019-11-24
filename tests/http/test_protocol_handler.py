@@ -322,20 +322,16 @@ class TestHttpProtocolHandler(unittest.TestCase):
             self._conn.send.call_args[0][0],
             HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
 
-        self._conn.recv.return_value = CRLF.join([
-            b'GET / HTTP/1.1',
-            b'Host: localhost:%d' % self.http_server_port,
-            b'User-Agent: proxy.py/%s' % bytes_(__version__),
-            CRLF
-        ])
-        self.protocol_handler.run_once()
-
         pkt = CRLF.join([
             b'GET / HTTP/1.1',
             b'Host: localhost:%d' % self.http_server_port,
             b'User-Agent: proxy.py/%s' % bytes_(__version__),
             CRLF
         ])
+
+        self._conn.recv.return_value = pkt
+        self.protocol_handler.run_once()
+
         server.queue.assert_called_once_with(pkt)
         server.buffer_size.return_value = len(pkt)
         server.flush.assert_not_called()
