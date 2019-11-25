@@ -55,7 +55,7 @@ class TcpConnection(ABC):
         """Users must handle BrokenPipeError exceptions"""
         return self.connection.send(data)
 
-    def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[bytes]:
+    def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[memoryview]:
         """Users must handle socket.error exceptions"""
         data: bytes = self.connection.recv(buffer_size)
         if len(data) == 0:
@@ -64,7 +64,7 @@ class TcpConnection(ABC):
             'received %d bytes from %s' %
             (len(data), self.tag))
         # logger.info(data)
-        return data
+        return memoryview(data)
 
     def close(self) -> bool:
         if not self.closed:

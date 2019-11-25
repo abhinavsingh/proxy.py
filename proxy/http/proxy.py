@@ -88,7 +88,7 @@ class HttpProxyBasePlugin(ABC):
         return request  # pragma: no cover
 
     @abstractmethod
-    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
+    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         """Handler called right after receiving raw response from upstream server.
 
         For HTTPS connections, chunk will be encrypted unless
@@ -182,7 +182,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         (self.server.tag, self.server.connection, e))
                 return True
 
-            if not raw:
+            if raw is None:
                 logger.debug('Server closed connection, tearing down...')
                 return True
 
@@ -200,12 +200,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.response.state == httpParserStates.COMPLETE:
                     self.handle_pipeline_response(raw)
                 else:
-                    self.response.parse(raw)
+                    # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+                    self.response.parse(raw.tobytes())
                     self.emit_response_events()
             else:
                 self.response.total_size += len(raw)
             # queue raw data for client
-            self.client.queue(raw)
+            # TODO(abhinavsingh): Remove .tobytes after queue management is memoryview compliant
+            self.client.queue(raw.tobytes())
         return False
 
     def on_client_connection_close(self) -> None:
@@ -250,7 +252,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         #     self.access_log()
         return chunk
 
-    def on_client_data(self, raw: bytes) -> Optional[bytes]:
+    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
         if not self.request.has_upstream_server():
             return raw
 
@@ -261,7 +263,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.pipeline_request is None:
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER)
-                self.pipeline_request.parse(raw)
+                # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+                self.pipeline_request.parse(raw.tobytes())
                 if self.pipeline_request.state == httpParserStates.COMPLETE:
                     for plugin in self.plugins.values():
                         assert self.pipeline_request is not None
@@ -273,7 +276,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.server.queue(self.pipeline_request.build())
                     self.pipeline_request = None
             else:
-                self.server.queue(raw)
+                # TODO(abhinavsingh): Remove .tobytes after queue management is memoryview compliant
+                self.server.queue(raw.tobytes())
             return None
         else:
             return raw
@@ -351,11 +355,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     disable_headers=self.flags.disable_headers))
         return False
 
-    def handle_pipeline_response(self, raw: bytes) -> None:
+    def handle_pipeline_response(self, raw: memoryview) -> None:
         if self.pipeline_response is None:
             self.pipeline_response = HttpParser(
                 httpParserTypes.RESPONSE_PARSER)
-        self.pipeline_response.parse(raw)
+        # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+        self.pipeline_response.parse(raw.tobytes())
         if self.pipeline_response.state == httpParserStates.COMPLETE:
             self.pipeline_response = None
 

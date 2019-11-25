@@ -87,7 +87,7 @@ class HttpProtocolHandlerPlugin(ABC):
         return False  # pragma: no cover
 
     @abstractmethod
-    def on_client_data(self, raw: bytes) -> Optional[bytes]:
+    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
         return raw  # pragma: no cover
 
     @abstractmethod
@@ -322,7 +322,7 @@ class HttpProtocolHandler(ThreadlessWork):
                         (self.client.tag, self.client.connection, e))
                 return True
 
-            if not client_data:
+            if client_data is None:
                 logger.debug('Client closed connection, tearing down...')
                 self.client.closed = True
                 return True
@@ -346,7 +346,8 @@ class HttpProtocolHandler(ThreadlessWork):
                 # valid request.
                 if client_data and self.request.state != httpParserStates.COMPLETE:
                     # Parse http request
-                    self.request.parse(client_data)
+                    # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+                    self.request.parse(client_data.tobytes())
                     if self.request.state == httpParserStates.COMPLETE:
                         # Invoke plugin.on_request_complete
                         for plugin in self.plugins.values():

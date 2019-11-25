@@ -257,9 +257,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
         pass
 
-    def on_client_data(self, raw: bytes) -> Optional[bytes]:
+    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
-            remaining = raw
+            # TODO(abhinavsingh): Remove .tobytes after websocket frame parser is memoryview compliant
+            remaining = raw.tobytes()
             frame = WebsocketFrame()
             while remaining != b'':
                 # TODO: Teardown if invalid protocol exception
@@ -283,7 +284,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(
                     httpParserTypes.REQUEST_PARSER)
-            self.pipeline_request.parse(raw)
+            # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+            self.pipeline_request.parse(raw.tobytes())
             if self.pipeline_request.state == httpParserStates.COMPLETE:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive():

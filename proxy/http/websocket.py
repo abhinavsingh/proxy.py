@@ -234,12 +234,13 @@ class WebsocketClient(TcpConnection):
         for key, mask in events:
             if mask & selectors.EVENT_READ and self.on_message:
                 raw = self.recv()
-                if raw is None or raw == b'':
+                if raw is None or raw.tobytes() == b'':
                     self.closed = True
                     logger.debug('Websocket connection closed by server')
                     return True
                 frame = WebsocketFrame()
-                frame.parse(raw)
+                # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+                frame.parse(raw.tobytes())
                 self.on_message(frame)
             elif mask & selectors.EVENT_WRITE:
                 logger.debug(self.buffer)
