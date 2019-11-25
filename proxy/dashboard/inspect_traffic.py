@@ -37,12 +37,12 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
             # inspection can only be enabled if --enable-events is used
             if not self.flags.enable_events:
                 self.client.queue(
-                    WebsocketFrame.text(
+                    memoryview(WebsocketFrame.text(
                         bytes_(
                             json.dumps(
                                 {'id': message['id'], 'response': 'not enabled'})
                         )
-                    )
+                    ))
                 )
             else:
                 self.subscriber.subscribe(
@@ -61,6 +61,6 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
     def callback(client: TcpClientConnection, event: Dict[str, Any]) -> None:
         event['push'] = 'inspect_traffic'
         client.queue(
-            WebsocketFrame.text(
+            memoryview(WebsocketFrame.text(
                 bytes_(
-                    json.dumps(event))))
+                    json.dumps(event)))))

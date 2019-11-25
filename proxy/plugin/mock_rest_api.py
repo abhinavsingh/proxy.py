@@ -67,18 +67,18 @@ class ProposedRestApiPlugin(HttpProxyBasePlugin):
             return request
         assert request.path
         if request.path in self.REST_API_SPEC:
-            self.client.queue(build_http_response(
+            self.client.queue(memoryview(build_http_response(
                 httpStatusCodes.OK,
                 reason=b'OK',
                 headers={b'Content-Type': b'application/json'},
                 body=bytes_(json.dumps(
                     self.REST_API_SPEC[request.path]))
-            ))
+            )))
         else:
-            self.client.queue(build_http_response(
+            self.client.queue(memoryview(build_http_response(
                 httpStatusCodes.NOT_FOUND,
                 reason=b'NOT FOUND', body=b'Not Found'
-            ))
+            )))
         return None
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:

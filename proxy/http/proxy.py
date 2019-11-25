@@ -104,10 +104,10 @@ class HttpProxyBasePlugin(ABC):
 class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     """HttpProtocolHandler plugin which implements HttpProxy specifications."""
 
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = build_http_response(
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(build_http_response(
         httpStatusCodes.OK,
         reason=b'Connection established'
-    )
+    ))
 
     # Used to synchronize with other HttpProxyPlugin instances while
     # generating certificates
@@ -206,8 +206,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             else:
                 self.response.total_size += len(raw)
             # queue raw data for client
-            # TODO(abhinavsingh): Remove .tobytes after queue management is memoryview compliant
-            self.client.queue(raw.tobytes())
+            self.client.queue(raw)
         return False
 
     def on_client_connection_close(self) -> None:
@@ -238,10 +237,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             pass
         finally:
             logger.debug(
-                'Closed server connection with pending server buffer size %d bytes' %
-                self.server.buffer_size())
+                'Closed server connection, has buffer %s' %
+                self.server.has_buffer())
 
-    def on_response_chunk(self, chunk: bytes) -> bytes:
+    def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
         # TODO: Allow to output multiple access_log lines
         # for each request over a pipelined HTTP connection (not for HTTPS).
         # However, this must also be accompanied by resetting both request
@@ -273,11 +272,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                             return None
                         self.pipeline_request = r
                     assert self.pipeline_request is not None
-                    self.server.queue(self.pipeline_request.build())
+                    # TODO(abhinavsingh): Remove memoryview wrapping here after parser is fully memoryview compliant
+                    self.server.queue(memoryview(self.pipeline_request.build()))
                     self.pipeline_request = None
             else:
-                # TODO(abhinavsingh): Remove .tobytes after queue management is memoryview compliant
-                self.server.queue(raw.tobytes())
+                self.server.queue(raw)
             return None
         else:
             return raw
@@ -351,8 +350,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 [(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)])
             # Disable args.disable_headers before dispatching to upstream
             self.server.queue(
-                self.request.build(
-                    disable_headers=self.flags.disable_headers))
+                memoryview(self.request.build(
+                    disable_headers=self.flags.disable_headers)))
         return False
 
     def handle_pipeline_response(self, raw: memoryview) -> None:

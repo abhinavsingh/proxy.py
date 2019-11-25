@@ -120,20 +120,20 @@ def build_websocket_handshake_request(
     )
 
 
-def build_websocket_handshake_response(accept: bytes) -> bytes:
+def build_websocket_handshake_response(accept: bytes) -> memoryview:
     """
     Build and returns a Websocket handshake response packet.
 
     :param accept: Sec-WebSocket-Accept header value
     """
-    return build_http_response(
+    return memoryview(build_http_response(
         101, reason=b'Switching Protocols',
         headers={
             b'Upgrade': b'websocket',
             b'Connection': b'Upgrade',
             b'Sec-WebSocket-Accept': accept
         }
-    )
+    ))
 
 
 def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:

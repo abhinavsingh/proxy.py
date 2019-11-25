@@ -58,22 +58,22 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
         if request.host and request.host != b'localhost' and DOT not in request.host:
             if request.host in self.SHORT_LINKS:
                 path = SLASH if not request.path else request.path
-                self.client.queue(build_http_response(
+                self.client.queue(memoryview(build_http_response(
                     httpStatusCodes.SEE_OTHER, reason=b'See Other',
                     headers={
                         b'Location': b'http://' + self.SHORT_LINKS[request.host] + path,
                         b'Content-Length': b'0',
                         b'Connection': b'close',
                     }
-                ))
+                )))
             else:
-                self.client.queue(build_http_response(
+                self.client.queue(memoryview(build_http_response(
                     httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
                     headers={
                         b'Content-Length': b'0',
                         b'Connection': b'close',
                     }
-                ))
+                )))
             return None
         return request
 

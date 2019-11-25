@@ -51,6 +51,6 @@ class ProxyDashboardWebsocketPlugin(ABC):
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
-            WebsocketFrame.text(
+            memoryview(WebsocketFrame.text(
                 bytes_(
-                    json.dumps(data))))
+                    json.dumps(data)))))

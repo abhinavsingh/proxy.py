@@ -107,7 +107,7 @@ class TestWebServerPlugin(unittest.TestCase):
             self.protocol_handler.request.state,
             httpParserStates.COMPLETE)
         self.assertEqual(
-            self.protocol_handler.client.buffer,
+            self.protocol_handler.client.buffer[0],
             HttpWebServerPlugin.DEFAULT_404_RESPONSE)
 
     @mock.patch('selectors.DefaultSelector')

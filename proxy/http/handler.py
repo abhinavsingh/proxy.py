@@ -96,7 +96,7 @@ class HttpProtocolHandlerPlugin(ABC):
         return False  # pragma: no cover
 
     @abstractmethod
-    def on_response_chunk(self, chunk: bytes) -> bytes:
+    def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
         """Handle data chunks as received from the server.
 
         Return optionally modified chunk to return back to client."""
@@ -215,8 +215,8 @@ class HttpProtocolHandler(ThreadlessWork):
 
             logger.debug(
                 'Closing client connection %r '
-                'at address %r with pending client buffer size %d bytes' %
-                (self.client.connection, self.client.addr, self.client.buffer_size()))
+                'at address %r has buffer %s' %
+                (self.client.connection, self.client.addr, self.client.has_buffer()))
 
             conn = self.client.connection
             # Unwrap if wrapped before shutdown.
@@ -281,10 +281,12 @@ class HttpProtocolHandler(ThreadlessWork):
             self.selector.unregister(self.client.connection)
 
     def handle_writables(self, writables: List[Union[int, HasFileno]]) -> bool:
-        if self.client.buffer_size() > 0 and self.client.connection in writables:
+        if self.client.has_buffer() and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
 
+            # TODO(abhinavsingh): This hook could just reside within server recv block
+            # instead of invoking when flushed to client.
             # Invoke plugin.on_response_chunk
             chunk = self.client.buffer
             for plugin in self.plugins.values():

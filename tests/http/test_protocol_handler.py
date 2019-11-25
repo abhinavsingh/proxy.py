@@ -86,7 +86,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.assertTrue(
             cast(HttpProxyPlugin, self.protocol_handler.plugins['HttpProxyPlugin']).server is not None)
         self.assertEqual(
-            self.protocol_handler.client.buffer,
+            self.protocol_handler.client.buffer[0],
             HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
         mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
@@ -94,7 +94,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.closed = False
 
         parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        parser.parse(self.protocol_handler.client.buffer)
+        parser.parse(self.protocol_handler.client.buffer[0].tobytes())
         self.assertEqual(parser.state, httpParserStates.COMPLETE)
         assert parser.code is not None
         self.assertEqual(int(parser.code), 200)
@@ -158,7 +158,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         ])
         self.protocol_handler.run_once()
         self.assertEqual(
-            self.protocol_handler.client.buffer,
+            self.protocol_handler.client.buffer[0],
             ProxyConnectionFailed.RESPONSE_PKT)
 
     @mock.patch('selectors.DefaultSelector')
@@ -184,7 +184,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         ])
         self.protocol_handler.run_once()
         self.assertEqual(
-            self.protocol_handler.client.buffer,
+            self.protocol_handler.client.buffer[0],
             ProxyAuthenticationFailed.RESPONSE_PKT)
 
     @mock.patch('selectors.DefaultSelector')
