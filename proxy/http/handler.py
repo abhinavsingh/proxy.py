@@ -348,7 +348,8 @@ class HttpProtocolHandler(ThreadlessWork):
                 # valid request.
                 if client_data and self.request.state != httpParserStates.COMPLETE:
                     # Parse http request
-                    # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+                    # TODO(abhinavsingh): Remove .tobytes after parser is
+                    # memoryview compliant
                     self.request.parse(client_data.tobytes())
                     if self.request.state == httpParserStates.COMPLETE:
                         # Invoke plugin.on_request_complete

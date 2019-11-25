@@ -239,7 +239,8 @@ class WebsocketClient(TcpConnection):
                     logger.debug('Websocket connection closed by server')
                     return True
                 frame = WebsocketFrame()
-                # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+                # TODO(abhinavsingh): Remove .tobytes after parser is
+                # memoryview compliant
                 frame.parse(raw.tobytes())
                 self.on_message(frame)
             elif mask & selectors.EVENT_WRITE:

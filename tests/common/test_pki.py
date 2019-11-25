@@ -22,13 +22,24 @@ class TestPki(unittest.TestCase):
         command = ['my', 'custom', 'command']
         mock_popen.return_value.returncode = 0
         self.assertTrue(pki.run_openssl_command(command, 10))
-        mock_popen.assert_called_with(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        mock_popen.assert_called_with(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
 
     def test_get_ext_config(self) -> None:
         self.assertEqual(pki.get_ext_config(None, None), b'')
         self.assertEqual(pki.get_ext_config([], None), b'')
-        self.assertEqual(pki.get_ext_config(['proxy.py'], None), b'\nsubjectAltName=DNS:proxy.py')
-        self.assertEqual(pki.get_ext_config(None, 'serverAuth'), b'\nextendedKeyUsage=serverAuth')
+        self.assertEqual(
+            pki.get_ext_config(
+                ['proxy.py'],
+                None),
+            b'\nsubjectAltName=DNS:proxy.py')
+        self.assertEqual(
+            pki.get_ext_config(
+                None,
+                'serverAuth'),
+            b'\nextendedKeyUsage=serverAuth')
         self.assertEqual(pki.get_ext_config(['proxy.py'], 'serverAuth'),
                          b'\nsubjectAltName=DNS:proxy.py\nextendedKeyUsage=serverAuth')
         self.assertEqual(pki.get_ext_config(['proxy.py', 'www.proxy.py'], 'serverAuth'),
@@ -44,7 +55,10 @@ class TestPki(unittest.TestCase):
         with pki.ssl_config(['proxy.py']) as (config_path, has_extension):
             self.assertTrue(has_extension)
             with open(config_path, 'rb') as config:
-                self.assertEqual(config.read(), pki.DEFAULT_CONFIG + b'\n[PROXY]\nsubjectAltName=DNS:proxy.py')
+                self.assertEqual(
+                    config.read(),
+                    pki.DEFAULT_CONFIG +
+                    b'\n[PROXY]\nsubjectAltName=DNS:proxy.py')
 
     def test_extfile_no_ext(self) -> None:
         with pki.ext_file() as config_path:
@@ -54,7 +68,9 @@ class TestPki(unittest.TestCase):
     def test_extfile(self) -> None:
         with pki.ext_file(['proxy.py']) as config_path:
             with open(config_path, 'rb') as config:
-                self.assertEqual(config.read(), b'\nsubjectAltName=DNS:proxy.py')
+                self.assertEqual(
+                    config.read(),
+                    b'\nsubjectAltName=DNS:proxy.py')
 
     def test_gen_private_key(self) -> None:
         pass

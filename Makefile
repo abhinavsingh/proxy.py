@@ -27,6 +27,7 @@ autopep8:
 	autopep8 --recursive --in-place --aggressive proxy/*.py
 	autopep8 --recursive --in-place --aggressive proxy/*/*.py
 	autopep8 --recursive --in-place --aggressive tests/*.py
+	autopep8 --recursive --in-place --aggressive tests/*/*.py
 	autopep8 --recursive --in-place --aggressive setup.py
 
 https-certificates:

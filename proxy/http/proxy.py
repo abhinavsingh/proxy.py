@@ -200,7 +200,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.response.state == httpParserStates.COMPLETE:
                     self.handle_pipeline_response(raw)
                 else:
-                    # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+                    # TODO(abhinavsingh): Remove .tobytes after parser is
+                    # memoryview compliant
                     self.response.parse(raw.tobytes())
                     self.emit_response_events()
             else:
@@ -262,7 +263,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.pipeline_request is None:
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER)
-                # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+                # TODO(abhinavsingh): Remove .tobytes after parser is
+                # memoryview compliant
                 self.pipeline_request.parse(raw.tobytes())
                 if self.pipeline_request.state == httpParserStates.COMPLETE:
                     for plugin in self.plugins.values():
@@ -272,8 +274,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                             return None
                         self.pipeline_request = r
                     assert self.pipeline_request is not None
-                    # TODO(abhinavsingh): Remove memoryview wrapping here after parser is fully memoryview compliant
-                    self.server.queue(memoryview(self.pipeline_request.build()))
+                    # TODO(abhinavsingh): Remove memoryview wrapping here after
+                    # parser is fully memoryview compliant
+                    self.server.queue(
+                        memoryview(
+                            self.pipeline_request.build()))
                     self.pipeline_request = None
             else:
                 self.server.queue(raw)
@@ -358,7 +363,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.pipeline_response is None:
             self.pipeline_response = HttpParser(
                 httpParserTypes.RESPONSE_PARSER)
-        # TODO(abhinavsingh): Remove .tobytes after parser is memoryview compliant
+        # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
+        # compliant
         self.pipeline_response.parse(raw.tobytes())
         if self.pipeline_response.state == httpParserStates.COMPLETE:
             self.pipeline_response = None
