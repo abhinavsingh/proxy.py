@@ -202,9 +202,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if self.request.has_header(b'upgrade') and \
                     self.request.header(b'upgrade').lower() == b'websocket':
                 self.client.queue(
-                    build_websocket_handshake_response(
+                    memoryview(build_websocket_handshake_response(
                         WebsocketFrame.key_to_accept(
-                            self.request.header(b'Sec-WebSocket-Key'))))
+                            self.request.header(b'Sec-WebSocket-Key')))))
                 self.switched_protocol = httpProtocolTypes.WEBSOCKET
             else:
                 self.client.queue(self.DEFAULT_501_RESPONSE)
