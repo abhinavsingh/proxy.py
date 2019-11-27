@@ -61,7 +61,7 @@ class TestCase(unittest.TestCase):
                 time.sleep(0.1)
 
             if time.time() - start_time > wait_for_seconds:
-                break
+                raise TimeoutError('Timed out while waiting for proxy.py to start...')
 
     @classmethod
     def tearDownClass(cls) -> None:
