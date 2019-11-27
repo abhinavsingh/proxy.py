@@ -13,6 +13,7 @@ import unittest
 from typing import Optional, List, Generator, Any
 
 from ..proxy import Proxy
+from ..common.constants import DEFAULT_TIMEOUT
 from ..common.utils import get_available_port, new_socket_connection
 from ..plugin import CacheResponsesPlugin
 
@@ -47,8 +48,9 @@ class TestCase(unittest.TestCase):
         cls.wait_for_server(cls.PROXY_PORT)
 
     @staticmethod
-    def wait_for_server(proxy_port: int) -> None:
+    def wait_for_server(proxy_port: int, wait_for_seconds: int = DEFAULT_TIMEOUT) -> None:
         """Wait for proxy.py server to come up."""
+        start_time = time.time()
         while True:
             try:
                 conn = new_socket_connection(
@@ -57,6 +59,9 @@ class TestCase(unittest.TestCase):
                 break
             except ConnectionRefusedError:
                 time.sleep(0.1)
+
+            if time.time() - start_time > wait_for_seconds:
+                break
 
     @classmethod
     def tearDownClass(cls) -> None:

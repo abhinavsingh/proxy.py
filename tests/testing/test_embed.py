@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
 import unittest
 import http.client
 import urllib.request
@@ -20,7 +21,8 @@ from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
 
 
-@unittest.skipIf(True, 'Disabled as it hang on GitHub actions')
+@unittest.skipIf(os.environ.get('GITHUB_ACTIONS', False),
+                 'Disabled on GitHub actions because proxy.py setup hangs')
 class TestProxyPyEmbedded(TestCase):
     """This test case is a demonstration of proxy.TestCase and also serves as
     integration test suite for proxy.py."""
