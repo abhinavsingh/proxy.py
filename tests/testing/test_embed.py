@@ -70,7 +70,7 @@ class TestProxyPyEmbedded(TestCase):
             'http': 'http://localhost:%d' % self.PROXY_PORT,
         })
         opener = urllib.request.build_opener(proxy_handler)
-        with self.assertRaises(urllib.error.HTTPError) as e:
+        with self.assertRaises(urllib.error.HTTPError):
             r: http.client.HTTPResponse = opener.open(
                 'http://localhost:%d/' %
                 self.PROXY_PORT, timeout=10)

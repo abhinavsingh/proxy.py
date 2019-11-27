@@ -12,7 +12,7 @@ import socket
 import unittest
 from unittest import mock
 
-from proxy.common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT
+from proxy.common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT, DEFAULT_TIMEOUT
 from proxy.common.utils import new_socket_connection, socket_connection
 
 
@@ -41,7 +41,7 @@ class TestSocketConnectionUtils(unittest.TestCase):
     @mock.patch('socket.create_connection')
     def test_new_socket_connection_dual(self, mock_socket: mock.Mock) -> None:
         conn = new_socket_connection(self.addr_dual)
-        mock_socket.assert_called_with(self.addr_dual)
+        mock_socket.assert_called_with(self.addr_dual, timeout=DEFAULT_TIMEOUT)
         self.assertEqual(conn, mock_socket.return_value)
 
     @mock.patch('proxy.common.utils.new_socket_connection')
