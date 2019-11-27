@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
-    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    name: Dashboard - Node ${{ matrix.node }} on ${{ matrix.os }}
     strategy:
       matrix:
         os: [macOS, ubuntu, windows]
