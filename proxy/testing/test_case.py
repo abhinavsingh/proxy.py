@@ -48,7 +48,8 @@ class TestCase(unittest.TestCase):
         cls.wait_for_server(cls.PROXY_PORT)
 
     @staticmethod
-    def wait_for_server(proxy_port: int, wait_for_seconds: int = DEFAULT_TIMEOUT) -> None:
+    def wait_for_server(proxy_port: int,
+                        wait_for_seconds: int = DEFAULT_TIMEOUT) -> None:
         """Wait for proxy.py server to come up."""
         start_time = time.time()
         while True:
@@ -61,7 +62,8 @@ class TestCase(unittest.TestCase):
                 time.sleep(0.1)
 
             if time.time() - start_time > wait_for_seconds:
-                raise TimeoutError('Timed out while waiting for proxy.py to start...')
+                raise TimeoutError(
+                    'Timed out while waiting for proxy.py to start...')
 
     @classmethod
     def tearDownClass(cls) -> None:
