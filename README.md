@@ -809,10 +809,12 @@ Note that:
 
 1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and teardown `proxy.py`.
 2. `proxy.py` server will listen on a random available port on the system.
-   This random port is available as `self.proxy_port` within your test cases.
+   This random port is available as `self.PROXY_PORT` within your test cases.
 3. Only a single worker is started by default (`--num-workers 1`) for faster setup and teardown.
 4. Most importantly, `proxy.TestCase` also ensures `proxy.py` server
-   is up and running before proceeding with execution of tests.
+   is up and running before proceeding with execution of tests. By default,
+   `proxy.TestCase` will wait for `10 seconds` for `proxy.py` server to start, 
+   upon failure a `TimeoutError` exception will be raised.
 
 ## Override startup flags
 
@@ -856,6 +858,9 @@ class TestProxyPyEmbedded(unittest.TestCase):
                 '--port', '... random port ...']):
             super().run(result)
 ```
+
+or simply setup / teardown `proxy.py` within 
+`setUpClass` and `teardownClass` class methods.
 
 Plugin Developer and Contributor Guide
 ======================================

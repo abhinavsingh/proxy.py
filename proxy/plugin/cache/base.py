@@ -46,7 +46,8 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
             logger.info('Caching disabled due to exception message %s', str(e))
         return request
 
-    def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
+    def handle_client_request(
+            self, request: HttpParser) -> Optional[HttpParser]:
         assert self.store
         return self.store.cache_request(request)
 
