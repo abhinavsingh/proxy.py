@@ -24,7 +24,7 @@ class HttpProtocolException(Exception):
     inherit HttpProtocolException base class. Implement response() method
     to optionally return custom response to client."""
 
-    def response(self, request: HttpParser) -> Optional[bytes]:
+    def response(self, request: HttpParser) -> Optional[memoryview]:
         return None  # pragma: no cover
 
 
@@ -44,21 +44,21 @@ class HttpRequestRejected(HttpProtocolException):
         self.headers: Optional[Dict[bytes, bytes]] = headers
         self.body: Optional[bytes] = body
 
-    def response(self, _request: HttpParser) -> Optional[bytes]:
+    def response(self, _request: HttpParser) -> Optional[memoryview]:
         if self.status_code:
-            return build_http_response(
+            return memoryview(build_http_response(
                 status_code=self.status_code,
                 reason=self.reason,
                 headers=self.headers,
                 body=self.body
-            )
+            ))
         return None
 
 
 class ProxyConnectionFailed(HttpProtocolException):
     """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
 
-    RESPONSE_PKT = build_http_response(
+    RESPONSE_PKT = memoryview(build_http_response(
         httpStatusCodes.BAD_GATEWAY,
         reason=b'Bad Gateway',
         headers={
@@ -66,14 +66,14 @@ class ProxyConnectionFailed(HttpProtocolException):
             b'Connection': b'close'
         },
         body=b'Bad Gateway'
-    )
+    ))
 
     def __init__(self, host: str, port: int, reason: str):
         self.host: str = host
         self.port: int = port
         self.reason: str = reason
 
-    def response(self, _request: HttpParser) -> bytes:
+    def response(self, _request: HttpParser) -> memoryview:
         return self.RESPONSE_PKT
 
 
@@ -81,7 +81,7 @@ class ProxyAuthenticationFailed(HttpProtocolException):
     """Exception raised when Http Proxy auth is enabled and
     incoming request doesn't present necessary credentials."""
 
-    RESPONSE_PKT = build_http_response(
+    RESPONSE_PKT = memoryview(build_http_response(
         httpStatusCodes.PROXY_AUTH_REQUIRED,
         reason=b'Proxy Authentication Required',
         headers={
@@ -89,7 +89,7 @@ class ProxyAuthenticationFailed(HttpProtocolException):
             b'Proxy-Authenticate': b'Basic',
             b'Connection': b'close',
         },
-        body=b'Proxy Authentication Required')
+        body=b'Proxy Authentication Required'))
 
-    def response(self, _request: HttpParser) -> bytes:
+    def response(self, _request: HttpParser) -> memoryview:
         return self.RESPONSE_PKT

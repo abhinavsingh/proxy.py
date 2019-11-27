@@ -117,7 +117,9 @@ class HttpParser:
                 self.host, self.port = self.url.hostname, self.url.port \
                     if self.url.port else 80
             else:
-                raise KeyError('Invalid request. Method: %r, Url: %r' % (self.method, self.url))
+                raise KeyError(
+                    'Invalid request. Method: %r, Url: %r' %
+                    (self.method, self.url))
             self.path = self.build_url()
 
     def is_chunked_encoded(self) -> bool:

@@ -135,7 +135,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         self._conn.send.assert_called_with(
             HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
         )
-        self.assertEqual(self.protocol_handler.client.buffer, b'')
+        self.assertFalse(self.protocol_handler.client.has_buffer())
 
     def test_modify_post_data_plugin(self) -> None:
         original = b'{"key": "value"}'
@@ -186,7 +186,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
                 reason=b'OK', body=b'Original Response From Upstream')
         self.protocol_handler.run_once()
         self.assertEqual(
-            self.protocol_handler.client.buffer,
+            self.protocol_handler.client.buffer[0].tobytes(),
             build_http_response(
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Hello from man in the middle')

@@ -37,9 +37,9 @@ class OnDiskCacheStore(CacheStore):
     def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
-    def cache_response_chunk(self, chunk: bytes) -> bytes:
+    def cache_response_chunk(self, chunk: memoryview) -> memoryview:
         if self.cache_file:
-            self.cache_file.write(chunk)
+            self.cache_file.write(chunk.tobytes())
         return chunk
 
     def close(self) -> None:

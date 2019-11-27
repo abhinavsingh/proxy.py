@@ -28,7 +28,7 @@ class CacheStore(ABC):
         return request
 
     @abstractmethod
-    def cache_response_chunk(self, chunk: bytes) -> bytes:
+    def cache_response_chunk(self, chunk: memoryview) -> memoryview:
         return chunk
 
     @abstractmethod

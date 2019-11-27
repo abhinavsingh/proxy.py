@@ -184,7 +184,9 @@ class EventSubscriber:
         self.relay_thread.start()
         self.relay_sub_id = uuid.uuid4().hex
         self.event_queue.subscribe(self.relay_sub_id, self.relay_channel)
-        logger.debug('Subscribed relay sub id %s from core events', self.relay_sub_id)
+        logger.debug(
+            'Subscribed relay sub id %s from core events',
+            self.relay_sub_id)
 
     def unsubscribe(self) -> None:
         if self.relay_sub_id is None:
@@ -199,7 +201,9 @@ class EventSubscriber:
         self.event_queue.unsubscribe(self.relay_sub_id)
         self.relay_shutdown.set()
         self.relay_thread.join()
-        logger.debug('Un-subscribed relay sub id %s from core events', self.relay_sub_id)
+        logger.debug(
+            'Un-subscribed relay sub id %s from core events',
+            self.relay_sub_id)
 
         self.relay_thread = None
         self.relay_shutdown = None

@@ -16,7 +16,7 @@ import socket
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
-from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF
+from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
 
 
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
@@ -148,17 +148,20 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
     return line, rest
 
 
-def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
+def new_socket_connection(
+        addr: Tuple[str, int], timeout: int = DEFAULT_TIMEOUT) -> socket.socket:
     conn = None
     try:
         ip = ipaddress.ip_address(addr[0])
         if ip.version == 4:
             conn = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM, 0)
+            conn.settimeout(timeout)
             conn.connect(addr)
         else:
             conn = socket.socket(
                 socket.AF_INET6, socket.SOCK_STREAM, 0)
+            conn.settimeout(timeout)
             conn.connect((addr[0], addr[1], 0, 0))
     except ValueError:
         pass    # does not appear to be an IPv4 or IPv6 address
@@ -167,7 +170,7 @@ def new_socket_connection(addr: Tuple[str, int]) -> socket.socket:
         return conn
 
     # try to establish dual stack IPv4/IPv6 connection.
-    return socket.create_connection(addr)
+    return socket.create_connection(addr, timeout=timeout)
 
 
 class socket_connection(contextlib.ContextDecorator):

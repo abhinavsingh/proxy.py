@@ -85,7 +85,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.pac_file_response: Optional[bytes] = None
+        self.pac_file_response: Optional[memoryview] = None
         self.cache_pac_file_response()
 
     def routes(self) -> List[Tuple[int, bytes]]:
@@ -116,30 +116,30 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
                     content = f.read()
             except IOError:
                 content = bytes_(self.flags.pac_file)
-            self.pac_file_response = build_http_response(
+            self.pac_file_response = memoryview(build_http_response(
                 200, reason=b'OK', headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
                     b'Content-Encoding': b'gzip',
                 }, body=gzip.compress(content)
-            )
+            ))
 
 
 class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     """HttpProtocolHandler plugin which handles incoming requests to local web server."""
 
-    DEFAULT_404_RESPONSE = build_http_response(
+    DEFAULT_404_RESPONSE = memoryview(build_http_response(
         httpStatusCodes.NOT_FOUND,
         reason=b'NOT FOUND',
         headers={b'Server': PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'}
-    )
+    ))
 
-    DEFAULT_501_RESPONSE = build_http_response(
+    DEFAULT_501_RESPONSE = memoryview(build_http_response(
         httpStatusCodes.NOT_IMPLEMENTED,
         reason=b'NOT IMPLEMENTED',
         headers={b'Server': PROXY_AGENT_HEADER_VALUE,
                  b'Connection': b'close'}
-    )
+    ))
 
     def __init__(
             self,
@@ -166,13 +166,13 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     self.routes[protocol][path] = instance
 
     @staticmethod
-    def read_and_build_static_file_response(path: str) -> bytes:
+    def read_and_build_static_file_response(path: str) -> memoryview:
         with open(path, 'rb') as f:
             content = f.read()
         content_type = mimetypes.guess_type(path)[0]
         if content_type is None:
             content_type = 'text/plain'
-        return build_http_response(
+        return memoryview(build_http_response(
             httpStatusCodes.OK,
             reason=b'OK',
             headers={
@@ -181,7 +181,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 b'Content-Encoding': b'gzip',
                 b'Connection': b'close',
             },
-            body=gzip.compress(content))
+            body=gzip.compress(content)))
 
     def serve_file_or_404(self, path: str) -> bool:
         """Read and serves a file from disk.
@@ -202,9 +202,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if self.request.has_header(b'upgrade') and \
                     self.request.header(b'upgrade').lower() == b'websocket':
                 self.client.queue(
-                    build_websocket_handshake_response(
+                    memoryview(build_websocket_handshake_response(
                         WebsocketFrame.key_to_accept(
-                            self.request.header(b'Sec-WebSocket-Key'))))
+                            self.request.header(b'Sec-WebSocket-Key')))))
                 self.switched_protocol = httpProtocolTypes.WEBSOCKET
             else:
                 self.client.queue(self.DEFAULT_501_RESPONSE)
@@ -257,9 +257,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
         pass
 
-    def on_client_data(self, raw: bytes) -> Optional[bytes]:
+    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
-            remaining = raw
+            # TODO(abhinavsingh): Remove .tobytes after websocket frame parser
+            # is memoryview compliant
+            remaining = raw.tobytes()
             frame = WebsocketFrame()
             while remaining != b'':
                 # TODO: Teardown if invalid protocol exception
@@ -283,7 +285,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(
                     httpParserTypes.REQUEST_PARSER)
-            self.pipeline_request.parse(raw)
+            # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
+            # compliant
+            self.pipeline_request.parse(raw.tobytes())
             if self.pipeline_request.state == httpParserStates.COMPLETE:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive():
@@ -293,7 +297,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.pipeline_request = None
         return raw
 
-    def on_response_chunk(self, chunk: bytes) -> bytes:
+    def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
         return chunk
 
     def on_client_connection_close(self) -> None:

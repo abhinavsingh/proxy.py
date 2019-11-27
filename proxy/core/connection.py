@@ -12,7 +12,7 @@ import socket
 import ssl
 import logging
 from abc import ABC, abstractmethod
-from typing import NamedTuple, Optional, Union, Tuple
+from typing import NamedTuple, Optional, Union, Tuple, List
 
 from ..common.constants import DEFAULT_BUFFER_SIZE
 from ..common.utils import new_socket_connection
@@ -41,7 +41,7 @@ class TcpConnection(ABC):
     a socket connection object."""
 
     def __init__(self, tag: int):
-        self.buffer: bytes = b''
+        self.buffer: List[memoryview] = []
         self.closed: bool = False
         self.tag: str = 'server' if tag == tcpConnectionTypes.SERVER else 'client'
 
@@ -55,7 +55,8 @@ class TcpConnection(ABC):
         """Users must handle BrokenPipeError exceptions"""
         return self.connection.send(data)
 
-    def recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[bytes]:
+    def recv(
+            self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[memoryview]:
         """Users must handle socket.error exceptions"""
         data: bytes = self.connection.recv(buffer_size)
         if len(data) == 0:
@@ -64,7 +65,7 @@ class TcpConnection(ABC):
             'received %d bytes from %s' %
             (len(data), self.tag))
         # logger.info(data)
-        return data
+        return memoryview(data)
 
     def close(self) -> bool:
         if not self.closed:
@@ -72,23 +73,22 @@ class TcpConnection(ABC):
             self.closed = True
         return self.closed
 
-    def buffer_size(self) -> int:
-        return len(self.buffer)
-
     def has_buffer(self) -> bool:
-        return self.buffer_size() > 0
+        return len(self.buffer) > 0
 
-    def queue(self, data: bytes) -> int:
-        self.buffer += data
-        return len(data)
+    def queue(self, mv: memoryview) -> None:
+        self.buffer.append(mv)
 
     def flush(self) -> int:
         """Users must handle BrokenPipeError exceptions"""
-        if self.buffer_size() == 0:
+        if not self.has_buffer():
             return 0
-        sent: int = self.send(self.buffer)
-        # logger.info(self.buffer[:sent])
-        self.buffer = self.buffer[sent:]
+        mv = self.buffer[0]
+        sent: int = self.send(mv.tobytes())
+        if sent == len(mv):
+            self.buffer.pop(0)
+        else:
+            self.buffer[0] = memoryview(mv.tobytes()[sent:])
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
 

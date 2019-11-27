@@ -27,10 +27,10 @@ class ManInTheMiddlePlugin(HttpProxyBasePlugin):
             self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
-    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
-        return build_http_response(
+    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+        return memoryview(build_http_response(
             httpStatusCodes.OK,
-            reason=b'OK', body=b'Hello from man in the middle')
+            reason=b'OK', body=b'Hello from man in the middle'))
 
     def on_upstream_connection_close(self) -> None:
         pass

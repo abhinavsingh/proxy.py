@@ -40,7 +40,7 @@ class ModifyPostDataPlugin(HttpProxyBasePlugin):
             request.add_header(b'Content-Type', b'application/json')
         return request
 
-    def handle_upstream_chunk(self, chunk: bytes) -> bytes:
+    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         return chunk
 
     def on_upstream_connection_close(self) -> None:

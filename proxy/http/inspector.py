@@ -112,7 +112,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
 
         data['id'] = message['id']
         frame.data = bytes_(json.dumps(data))
-        self.client.queue(frame.build())
+        self.client.queue(memoryview(frame.build()))
 
 
 class CoreEventsToDevtoolsProtocol:
@@ -136,9 +136,9 @@ class CoreEventsToDevtoolsProtocol:
             # drop core events unrelated to Devtools
             return
         client.queue(
-            WebsocketFrame.text(
+            memoryview(WebsocketFrame.text(
                 bytes_(
-                    json.dumps(data))))
+                    json.dumps(data)))))
 
     @staticmethod
     def request_complete(event: Dict[str, Any]) -> Dict[str, Any]:
