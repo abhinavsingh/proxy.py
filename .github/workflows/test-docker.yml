@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
-    name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    name: Docker - Python ${{ matrix.python }} on ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu]

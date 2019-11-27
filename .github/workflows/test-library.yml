@@ -5,11 +5,11 @@ on: [push]
 jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
-    name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    name: Library - Python ${{ matrix.python }} on ${{ matrix.os }}
     strategy:
       matrix:
         os: [macOS, ubuntu, windows]
-        python: [3.6, 3.7]
+        python: [3.5, 3.6, 3.7]
       max-parallel: 4
       fail-fast: false
     steps:

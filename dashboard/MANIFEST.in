@@ -1,3 +1,0 @@
-include src/proxy.html
-include src/proxy.css
-include tsbuild/src/proxy.js
