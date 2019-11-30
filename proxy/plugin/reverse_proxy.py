@@ -20,7 +20,7 @@ from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 
 
 class ReverseProxyPlugin(HttpWebServerBasePlugin):
-    """Reverse proxy example.
+    """Extend in-built Web Server to add Reverse Proxy capabilities.
 
     This example plugin is equivalent to following Nginx configuration:
 

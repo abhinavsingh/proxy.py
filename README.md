@@ -595,7 +595,55 @@ Response body `Hello from man in the middle` is sent by our plugin.
 
 ### Reverse Proxy
 
+Extend in-built Web Server to add Reverse Proxy capabilities.
+
+Start `proxy.py` as:
+
+```
+$ proxy \
+    --plugins proxy.plugin.ReverseProxyPlugin
+```
+
+With default configuration, `ReverseProxyPlugin` plugin is equivalent to
+following `Nginx` config:
+
+```
+location /get {
+    proxy_pass http://httpbin.org/get
+}
+```
+
+Verify using `curl -v localhost:8899/get`:
+
+```
+{
+  "args": {},
+  "headers": {
+    "Accept": "*/*",
+    "Host": "localhost",
+    "User-Agent": "curl/7.64.1"
+  },
+  "origin": "1.2.3.4, 5.6.7.8",
+  "url": "https://localhost/get"
+}
+```
+
 ### Web Server Route
+
+Demonstrates inbuilt web server routing using plugin.
+
+Start `proxy.py` as:
+
+```
+$ proxy \
+    --plugins proxy.plugin.WebServerPlugin
+```
+
+Verify using `curl -v localhost:8899/http-route-example`, should return:
+
+```
+HTTP route response
+```
 
 ## Plugin Ordering
 

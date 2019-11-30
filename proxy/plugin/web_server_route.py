@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class WebServerPlugin(HttpWebServerBasePlugin):
-    """Demonstration of inbuilt web server routing via plugin."""
+    """Demonstrates inbuilt web server routing using plugin."""
 
     def routes(self) -> List[Tuple[int, bytes]]:
         return [
