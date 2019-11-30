@@ -37,13 +37,17 @@ Table of Contents
         * [Development version](#build-development-version-locally)
         * [Customize Startup Flags](#customize-startup-flags)
 * [Plugin Examples](#plugin-examples)
-    * [ShortLinkPlugin](#shortlinkplugin)
-    * [ModifyPostDataPlugin](#modifypostdataplugin)
-    * [MockRestApiPlugin](#mockrestapiplugin)
-    * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
-    * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
-    * [CacheResponsesPlugin](#cacheresponsesplugin)
-    * [ManInTheMiddlePlugin](#maninthemiddleplugin)
+    * [HTTP Proxy Plugins](#http-proxy-plugins)
+        * [ShortLinkPlugin](#shortlinkplugin)
+        * [ModifyPostDataPlugin](#modifypostdataplugin)
+        * [MockRestApiPlugin](#mockrestapiplugin)
+        * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
+        * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
+        * [CacheResponsesPlugin](#cacheresponsesplugin)
+        * [ManInTheMiddlePlugin](#maninthemiddleplugin)
+    * [HTTP Web Server Plugins](#http-web-server-plugins)
+        * [Reverse Proxy](#reverse-proxy)
+        * [Web Server Route](#web-server-route)
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
@@ -304,7 +308,9 @@ Plugin Examples
 - Plugin examples are also bundled with Docker image.
     - See [Customize startup flags](#customize-startup-flags) to try plugins with Docker image.
 
-## ShortLinkPlugin
+## HTTP Proxy Plugins
+
+### ShortLinkPlugin
 
 Add support for short links in your favorite browsers / applications.
 
@@ -333,7 +339,7 @@ w/ | web.whatsapp.com
 y/ | youtube.com
 proxy/ | localhost:8899
 
-## ModifyPostDataPlugin
+### ModifyPostDataPlugin
 
 Modifies POST request body before sending request to upstream server.
 
@@ -385,7 +391,7 @@ Note following from the response above:
 3. Our plugin also added a `Content-Length` header to match length
    of modified body.
 
-## MockRestApiPlugin
+### MockRestApiPlugin
 
 Mock responses for your server REST API.
 Use to test and develop client side applications
@@ -416,7 +422,7 @@ the server connection was never made, since response was returned by our plugin.
 Now modify `ProposedRestApiPlugin` to returns REST API mock 
 responses as expected by your clients.
 
-## RedirectToCustomServerPlugin
+### RedirectToCustomServerPlugin
 
 Redirects all incoming `http` requests to custom web server. 
 By default, it redirects client requests to inbuilt web server, 
@@ -451,7 +457,7 @@ Along with the proxy request log, you must also see a http web server request lo
 2019-09-24 19:09:33,603 - INFO - pid:49995 - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
 ```
 
-## FilterByUpstreamHostPlugin
+### FilterByUpstreamHostPlugin
 
 Drops traffic by inspecting upstream host. 
 By default, plugin drops traffic for `google.com` and `www.google.com`.
@@ -485,7 +491,7 @@ Traceback (most recent call last):
 2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
 ```
 
-## CacheResponsesPlugin
+### CacheResponsesPlugin
 
 Caches Upstream Server Responses.
 
@@ -561,7 +567,7 @@ Connection: keep-alive
 }
 ```
 
-## ManInTheMiddlePlugin
+### ManInTheMiddlePlugin
 
 Modifies upstream server responses.
 
@@ -584,6 +590,60 @@ Hello from man in the middle
 ```
 
 Response body `Hello from man in the middle` is sent by our plugin.
+
+## HTTP Web Server Plugins
+
+### Reverse Proxy
+
+Extend in-built Web Server to add Reverse Proxy capabilities.
+
+Start `proxy.py` as:
+
+```
+$ proxy \
+    --plugins proxy.plugin.ReverseProxyPlugin
+```
+
+With default configuration, `ReverseProxyPlugin` plugin is equivalent to
+following `Nginx` config:
+
+```
+location /get {
+    proxy_pass http://httpbin.org/get
+}
+```
+
+Verify using `curl -v localhost:8899/get`:
+
+```
+{
+  "args": {},
+  "headers": {
+    "Accept": "*/*",
+    "Host": "localhost",
+    "User-Agent": "curl/7.64.1"
+  },
+  "origin": "1.2.3.4, 5.6.7.8",
+  "url": "https://localhost/get"
+}
+```
+
+### Web Server Route
+
+Demonstrates inbuilt web server routing using plugin.
+
+Start `proxy.py` as:
+
+```
+$ proxy \
+    --plugins proxy.plugin.WebServerPlugin
+```
+
+Verify using `curl -v localhost:8899/http-route-example`, should return:
+
+```
+HTTP route response
+```
 
 ## Plugin Ordering
 
