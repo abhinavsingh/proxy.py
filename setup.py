@@ -40,6 +40,8 @@ setup(
         'proxy.plugin',
         'proxy.testing',
     ],
+    python_requires='!=2.*, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
+    zip_safe=True,
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
         'console_scripts': [
@@ -98,4 +100,8 @@ setup(
         'Topic :: Utilities',
         'Typing :: Typed',
     ],
+    keywords=(
+        'http, proxy, http proxy server, proxy server, http server,'
+        'http web server, proxy framework, web framework, Python3'
+    )
 )

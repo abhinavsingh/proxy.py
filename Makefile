@@ -60,7 +60,7 @@ lib-lint:
 	mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
 
 lib-test: lib-lint
-	python -m unittest discover
+	pytest -v tests/
 
 lib-package: lib-clean
 	python setup.py sdist bdist_wheel
