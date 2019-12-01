@@ -312,6 +312,8 @@ Plugin Examples
 
 ### ShortLinkPlugin
 
+[![Shortlink Plugin](https://raw.githubusercontent.com/abhinavsingh/proxy.py/testit/shortlink.gif)](https://github.com/abhinavsingh/proxy.py#shortlinkplugin)
+
 Add support for short links in your favorite browsers / applications.
 
 Start `proxy.py` as:
