@@ -1,10 +1,6 @@
 name: Proxy.py Docker
 
-on:
-  push:
-    paths:
-      - '**.py'
-      - 'Dockerfile'
+on: [push]
 
 jobs:
   build:

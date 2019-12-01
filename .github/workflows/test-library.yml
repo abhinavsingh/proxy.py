@@ -1,9 +1,6 @@
 name: Proxy.py Library
 
-on:
-  push:
-    paths:
-      - '**.py'
+on: [push]
 
 jobs:
   build:

@@ -1,9 +1,6 @@
 name: Proxy.py Dashboard
 
-on:
-  push:
-    paths:
-      - 'dashboard/**'
+on: [push]
 
 jobs:
   build:
