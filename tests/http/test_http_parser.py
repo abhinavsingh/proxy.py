@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import unittest
-from typing import Dict, Tuple
 
 from proxy.common.constants import CRLF
 from proxy.common.utils import build_http_request, find_http_line, build_http_response, build_http_header, bytes_
@@ -514,8 +513,3 @@ class TestHttpParser(unittest.TestCase):
             httpMethods.GET, b'/', protocol_version=b'HTTP/1.0',
         ))
         self.assertFalse(self.parser.is_http_1_1_keep_alive())
-
-    def assertDictContainsSubset(self, subset: Dict[bytes, Tuple[bytes, bytes]],
-                                 dictionary: Dict[bytes, Tuple[bytes, bytes]]) -> None:
-        for k in subset.keys():
-            self.assertTrue(k in dictionary)
