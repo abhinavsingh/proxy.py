@@ -314,7 +314,7 @@ Plugin Examples
 
 Add support for short links in your favorite browsers / applications.
 
-[![Shortlink Plugin](https://raw.githubusercontent.com/abhinavsingh/proxy.py/testit/shortlink.gif)](https://github.com/abhinavsingh/proxy.py#shortlinkplugin)
+[![Shortlink Plugin](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/shortlink.gif)](https://github.com/abhinavsingh/proxy.py#shortlinkplugin)
 
 Start `proxy.py` as:
 
