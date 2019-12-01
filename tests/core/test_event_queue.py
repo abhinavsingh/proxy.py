@@ -26,7 +26,7 @@ class TestCoreEvent(unittest.TestCase):
         evq = EventQueue()
         evq.publish(
             request_id='1234',
-            event_name=1,
+            event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
             publisher_id=self.__class__.__name__
         )
@@ -35,7 +35,7 @@ class TestCoreEvent(unittest.TestCase):
             'process_id': os.getpid(),
             'thread_id': threading.get_ident(),
             'event_timestamp': 1234567,
-            'event_name': 1,
+            'event_name': eventNames.WORK_STARTED,
             'event_payload': {'hello': 'events'},
             'publisher_id': self.__class__.__name__,
         })
