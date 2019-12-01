@@ -7,3 +7,4 @@ autopep8==1.4.4
 mypy==0.750
 py-spy==0.3.0
 codecov==2.0.15
+tox==3.14.1
