@@ -147,12 +147,15 @@ class EventDispatcher:
             for sub_id in unsub_ids:
                 del self.subscribers[sub_id]
 
+    def run_once(self) -> None:
+        ev: Dict[str, Any] = self.event_queue.queue.get(timeout=1)
+        self.handle_event(ev)
+
     def run(self) -> None:
         try:
             while not self.shutdown.is_set():
                 try:
-                    ev: Dict[str, Any] = self.event_queue.queue.get(timeout=1)
-                    self.handle_event(ev)
+                    self.run_once()
                 except queue.Empty:
                     pass
         except EOFError:
