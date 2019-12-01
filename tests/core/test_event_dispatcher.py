@@ -29,6 +29,9 @@ class TestEventDispatcher(unittest.TestCase):
             shutdown=self.dispatcher_shutdown,
             event_queue=self.event_queue)
 
+    def tearDown(self) -> None:
+        self.dispatcher_shutdown.set()
+
     def test_empties_queue(self) -> None:
         self.event_queue.publish(
             request_id='1234',
