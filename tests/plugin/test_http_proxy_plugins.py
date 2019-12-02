@@ -20,7 +20,7 @@ from proxy.common.flags import Flags
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_, build_http_response
-from proxy.common.constants import PROXY_AGENT_HEADER_VALUE
+from proxy.common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_HTTP_PORT
 from proxy.http.codes import httpStatusCodes
 
 from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
@@ -54,7 +54,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_modify_post_data_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         original = b'{"key": "value"}'
@@ -77,7 +77,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 data=None), selectors.EVENT_READ)], ]
 
         self.protocol_handler.run_once()
-        mock_server_conn.assert_called_with('httpbin.org', 80)
+        mock_server_conn.assert_called_with('httpbin.org', DEFAULT_HTTP_PORT)
         mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(
                 b'POST', b'/post',
@@ -91,7 +91,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_proposed_rest_api_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         path = b'/v1/users/'
@@ -121,7 +121,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                         ProposedRestApiPlugin.REST_API_SPEC[path]))
             ))
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_redirect_to_custom_server_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
@@ -152,7 +152,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_filter_by_upstream_host_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
@@ -182,7 +182,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_man_in_the_middle_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
@@ -224,7 +224,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
 
         # Client read
         self.protocol_handler.run_once()
-        mock_server_conn.assert_called_with('super.secure', 80)
+        mock_server_conn.assert_called_with('super.secure', DEFAULT_HTTP_PORT)
         server.connect.assert_called_once()
         queued_request = \
             build_http_request(

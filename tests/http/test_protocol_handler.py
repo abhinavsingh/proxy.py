@@ -47,7 +47,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_http_get(self, mock_server_connection: mock.Mock) -> None:
         server = mock_server_connection.return_value
         server.connect.return_value = True
@@ -99,7 +99,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         assert parser.code is not None
         self.assertEqual(int(parser.code), 200)
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_http_tunnel(self, mock_server_connection: mock.Mock) -> None:
         server = mock_server_connection.return_value
         server.connect.return_value = True
@@ -189,7 +189,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_authenticated_proxy_http_get(
             self, mock_server_connection: mock.Mock,
             mock_fromfd: mock.Mock,
@@ -237,7 +237,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_authenticated_proxy_http_tunnel(
             self, mock_server_connection: mock.Mock,
             mock_fromfd: mock.Mock,
