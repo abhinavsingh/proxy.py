@@ -56,7 +56,7 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-lint:
-	flake8 --ignore=W504 --max-line-length=127 proxy/ tests/ setup.py
+	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
 	mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
 
 lib-test: lib-lint
