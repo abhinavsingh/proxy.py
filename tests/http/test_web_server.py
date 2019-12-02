@@ -110,6 +110,8 @@ class TestWebServerPlugin(unittest.TestCase):
             self.protocol_handler.client.buffer[0],
             HttpWebServerPlugin.DEFAULT_404_RESPONSE)
 
+    @unittest.skipIf(os.environ.get('GITHUB_ACTIONS', False),
+                     'Disabled on GitHub actions because this test is flaky on GitHub infrastructure.')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     def test_static_web_server_serves(
