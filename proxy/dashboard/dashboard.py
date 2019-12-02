@@ -28,21 +28,21 @@ class ProxyDashboard(HttpWebServerBasePlugin):
 
     # Redirects to /dashboard/
     REDIRECT_ROUTES = [
-        (httpProtocolTypes.HTTP, b'/dashboard'),
-        (httpProtocolTypes.HTTPS, b'/dashboard'),
-        (httpProtocolTypes.HTTP, b'/dashboard/proxy.html'),
-        (httpProtocolTypes.HTTPS, b'/dashboard/proxy.html'),
+        (httpProtocolTypes.HTTP, r'/dashboard$'),
+        (httpProtocolTypes.HTTPS, r'/dashboard$'),
+        (httpProtocolTypes.HTTP, r'/dashboard/proxy.html$'),
+        (httpProtocolTypes.HTTPS, r'/dashboard/proxy.html$'),
     ]
 
     # Index html route
     INDEX_ROUTES = [
-        (httpProtocolTypes.HTTP, b'/dashboard/'),
-        (httpProtocolTypes.HTTPS, b'/dashboard/'),
+        (httpProtocolTypes.HTTP, r'/dashboard/$'),
+        (httpProtocolTypes.HTTPS, r'/dashboard/$'),
     ]
 
     # Handles WebsocketAPI requests for dashboard
     WS_ROUTES = [
-        (httpProtocolTypes.WEBSOCKET, b'/dashboard'),
+        (httpProtocolTypes.WEBSOCKET, r'/dashboard$'),
     ]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -54,7 +54,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                 for method in p.methods():
                     self.plugins[method] = p
 
-    def routes(self) -> List[Tuple[int, bytes]]:
+    def routes(self) -> List[Tuple[int, str]]:
         return ProxyDashboard.REDIRECT_ROUTES + \
             ProxyDashboard.INDEX_ROUTES + \
             ProxyDashboard.WS_ROUTES

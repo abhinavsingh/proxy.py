@@ -9,13 +9,14 @@
     :license: BSD, see LICENSE for more details.
 """
 import gzip
+import re
 import time
 import logging
 import os
 import mimetypes
 import socket
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional, NamedTuple, Dict, Union, Any
+from typing import List, Tuple, Optional, NamedTuple, Dict, Union, Any, Pattern
 
 from .exception import HttpProtocolException
 from .websocket import WebsocketFrame, websocketOpcodes
@@ -56,7 +57,7 @@ class HttpWebServerBasePlugin(ABC):
         self.event_queue = event_queue
 
     @abstractmethod
-    def routes(self) -> List[Tuple[int, bytes]]:
+    def routes(self) -> List[Tuple[int, str]]:
         """Return List(protocol, path) that this plugin handles."""
         raise NotImplementedError()     # pragma: no cover
 
@@ -88,11 +89,11 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
         self.pac_file_response: Optional[memoryview] = None
         self.cache_pac_file_response()
 
-    def routes(self) -> List[Tuple[int, bytes]]:
+    def routes(self) -> List[Tuple[int, str]]:
         if self.flags.pac_file_url_path:
             return [
-                (httpProtocolTypes.HTTP, bytes_(self.flags.pac_file_url_path)),
-                (httpProtocolTypes.HTTPS, bytes_(self.flags.pac_file_url_path)),
+                (httpProtocolTypes.HTTP, text_(self.flags.pac_file_url_path)),
+                (httpProtocolTypes.HTTPS, text_(self.flags.pac_file_url_path)),
             ]
         return []   # pragma: no cover
 
@@ -148,7 +149,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.start_time: float = time.time()
         self.pipeline_request: Optional[HttpParser] = None
         self.switched_protocol: Optional[int] = None
-        self.routes: Dict[int, Dict[bytes, HttpWebServerBasePlugin]] = {
+        self.routes: Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
             httpProtocolTypes.WEBSOCKET: {},
@@ -162,8 +163,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     self.flags,
                     self.client,
                     self.event_queue)
-                for (protocol, path) in instance.routes():
-                    self.routes[protocol][path] = instance
+                for (protocol, route) in instance.routes():
+                    self.routes[protocol][re.compile(route)] = instance
 
     @staticmethod
     def read_and_build_static_file_response(path: str) -> memoryview:
@@ -215,28 +216,35 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if self.request.has_upstream_server():
             return False
 
+        assert self.request.path
+
         # If a websocket route exists for the path, try upgrade
-        if self.request.path in self.routes[httpProtocolTypes.WEBSOCKET]:
-            self.route = self.routes[httpProtocolTypes.WEBSOCKET][self.request.path]
+        for route in self.routes[httpProtocolTypes.WEBSOCKET]:
+            match = route.match(text_(self.request.path))
+            if match:
+                self.route = self.routes[httpProtocolTypes.WEBSOCKET][route]
 
-            # Connection upgrade
-            teardown = self.try_upgrade()
-            if teardown:
-                return True
+                # Connection upgrade
+                teardown = self.try_upgrade()
+                if teardown:
+                    return True
 
-            # For upgraded connections, nothing more to do
-            if self.switched_protocol:
-                # Invoke plugin.on_websocket_open
-                self.route.on_websocket_open()
-                return False
+                # For upgraded connections, nothing more to do
+                if self.switched_protocol:
+                    # Invoke plugin.on_websocket_open
+                    self.route.on_websocket_open()
+                    return False
+
+                break
 
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
             if self.flags.encryption_enabled() else \
             httpProtocolTypes.HTTP
-        for r in self.routes[protocol]:
-            if r == self.request.path:
-                self.route = self.routes[protocol][r]
+        for route in self.routes[protocol]:
+            match = route.match(text_(self.request.path))
+            if match:
+                self.route = self.routes[protocol][route]
                 self.route.handle_request(self.request)
                 return False
 
@@ -266,15 +274,13 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             while remaining != b'':
                 # TODO: Teardown if invalid protocol exception
                 remaining = frame.parse(remaining)
-                for r in self.routes[httpProtocolTypes.WEBSOCKET]:
-                    if r == self.request.path:
-                        route = self.routes[httpProtocolTypes.WEBSOCKET][r]
-                        if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
-                            logger.warning(
-                                'Client sent connection close packet')
-                            raise HttpProtocolException()
-                        else:
-                            route.on_websocket_message(frame)
+                if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
+                    logger.warning(
+                        'Client sent connection close packet')
+                    raise HttpProtocolException()
+                else:
+                    assert self.route
+                    self.route.on_websocket_message(frame)
                 frame.reset()
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
@@ -305,9 +311,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return
         if self.switched_protocol:
             # Invoke plugin.on_websocket_close
-            for r in self.routes[httpProtocolTypes.WEBSOCKET]:
-                if r == self.request.path:
-                    self.routes[httpProtocolTypes.WEBSOCKET][r].on_websocket_close()
+            assert self.route
+            self.route.on_websocket_close()
         self.access_log()
 
     def access_log(self) -> None:
