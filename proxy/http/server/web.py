@@ -15,114 +15,21 @@ import logging
 import os
 import mimetypes
 import socket
-from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional, NamedTuple, Dict, Union, Any, Pattern
+from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 
-from .exception import HttpProtocolException
-from .websocket import WebsocketFrame, websocketOpcodes
-from .codes import httpStatusCodes
-from .parser import HttpParser, httpParserStates, httpParserTypes
-from .handler import HttpProtocolHandlerPlugin
+from .plugin import HttpWebServerBasePlugin
+from .protocols import httpProtocolTypes
+from ..exception import HttpProtocolException
+from ..websocket import WebsocketFrame, websocketOpcodes
+from ..codes import httpStatusCodes
+from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..handler import HttpProtocolHandlerPlugin
 
-from ..common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ..common.flags import Flags
-from ..common.constants import PROXY_AGENT_HEADER_VALUE
-from ..common.types import HasFileno
-from ..core.connection import TcpClientConnection
-from ..core.event import EventQueue
+from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
+from ...common.constants import PROXY_AGENT_HEADER_VALUE
+from ...common.types import HasFileno
 
 logger = logging.getLogger(__name__)
-
-
-HttpProtocolTypes = NamedTuple('HttpProtocolTypes', [
-    ('HTTP', int),
-    ('HTTPS', int),
-    ('WEBSOCKET', int),
-])
-httpProtocolTypes = HttpProtocolTypes(1, 2, 3)
-
-
-class HttpWebServerBasePlugin(ABC):
-    """Web Server Plugin for routing of requests."""
-
-    def __init__(
-            self,
-            uid: str,
-            flags: Flags,
-            client: TcpClientConnection,
-            event_queue: EventQueue):
-        self.uid = uid
-        self.flags = flags
-        self.client = client
-        self.event_queue = event_queue
-
-    @abstractmethod
-    def routes(self) -> List[Tuple[int, str]]:
-        """Return List(protocol, path) that this plugin handles."""
-        raise NotImplementedError()     # pragma: no cover
-
-    @abstractmethod
-    def handle_request(self, request: HttpParser) -> None:
-        """Handle the request and serve response."""
-        raise NotImplementedError()     # pragma: no cover
-
-    @abstractmethod
-    def on_websocket_open(self) -> None:
-        """Called when websocket handshake has finished."""
-        raise NotImplementedError()     # pragma: no cover
-
-    @abstractmethod
-    def on_websocket_message(self, frame: WebsocketFrame) -> None:
-        """Handle websocket frame."""
-        raise NotImplementedError()     # pragma: no cover
-
-    @abstractmethod
-    def on_websocket_close(self) -> None:
-        """Called when websocket connection has been closed."""
-        raise NotImplementedError()     # pragma: no cover
-
-
-class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.pac_file_response: Optional[memoryview] = None
-        self.cache_pac_file_response()
-
-    def routes(self) -> List[Tuple[int, str]]:
-        if self.flags.pac_file_url_path:
-            return [
-                (httpProtocolTypes.HTTP, text_(self.flags.pac_file_url_path)),
-                (httpProtocolTypes.HTTPS, text_(self.flags.pac_file_url_path)),
-            ]
-        return []   # pragma: no cover
-
-    def handle_request(self, request: HttpParser) -> None:
-        if self.flags.pac_file and self.pac_file_response:
-            self.client.queue(self.pac_file_response)
-
-    def on_websocket_open(self) -> None:
-        pass    # pragma: no cover
-
-    def on_websocket_message(self, frame: WebsocketFrame) -> None:
-        pass    # pragma: no cover
-
-    def on_websocket_close(self) -> None:
-        pass    # pragma: no cover
-
-    def cache_pac_file_response(self) -> None:
-        if self.flags.pac_file:
-            try:
-                with open(self.flags.pac_file, 'rb') as f:
-                    content = f.read()
-            except IOError:
-                content = bytes_(self.flags.pac_file)
-            self.pac_file_response = memoryview(build_http_response(
-                200, reason=b'OK', headers={
-                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                    b'Content-Encoding': b'gzip',
-                }, body=gzip.compress(content)
-            ))
 
 
 class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
