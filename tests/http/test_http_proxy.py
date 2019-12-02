@@ -12,6 +12,7 @@ import unittest
 import selectors
 from unittest import mock
 
+from proxy.common.constants import DEFAULT_HTTP_PORT
 from proxy.common.flags import Flags
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.handler import HttpProtocolHandler
@@ -65,7 +66,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
                 data=None), selectors.EVENT_READ)], ]
 
         self.protocol_handler.run_once()
-        mock_server_conn.assert_called_with('upstream.host', 80)
+        mock_server_conn.assert_called_with('upstream.host', DEFAULT_HTTP_PORT)
         self.plugin.return_value.before_upstream_connection.assert_called()
         self.plugin.return_value.handle_client_request.assert_called()
 
