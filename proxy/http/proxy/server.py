@@ -106,27 +106,24 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 raw = self.server.recv(self.flags.server_recvbuf_size)
             except TimeoutError as e:
                 if e.errno == errno.ETIMEDOUT:
-                    logger.info('%s:%d timed out on recv' % self.server.addr)
+                    logger.warning('%s:%d timed out on recv' % self.server.addr)
                     return True
                 else:
                     raise e
             except ssl.SSLWantReadError:    # Try again later
                 # logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
                 return False
-            except socket.error as e:
-                if e.errno == errno.ECONNRESET:
+            except OSError as e:
+                if e.errno == errno.EHOSTUNREACH:
+                    logger.warning('%s:%d unreachable on recv' % self.server.addr)
+                    return True
+                elif e.errno == errno.ECONNRESET:
                     logger.warning('Connection reset by upstream: %r' % e)
                 else:
                     logger.exception(
                         'Exception while receiving from %s connection %r with reason %r' %
                         (self.server.tag, self.server.connection, e))
                 return True
-            except OSError as e:
-                if e.errno == errno.EHOSTUNREACH:
-                    logger.info('%s:%d unreachable on recv' % self.server.addr)
-                    return True
-                else:
-                    raise e
 
             if raw is None:
                 logger.debug('Server closed connection, tearing down...')
