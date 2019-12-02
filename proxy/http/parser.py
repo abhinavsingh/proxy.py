@@ -14,7 +14,7 @@ from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 from .methods import httpMethods
 from .chunk_parser import ChunkParser, chunkParserStates
 
-from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, CRLF, WHITESPACE, HTTP_1_1
+from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
 from ..common.utils import build_http_request, find_http_line, text_
 
 
@@ -115,7 +115,7 @@ class HttpParser:
                 self.host, self.port = u.hostname, u.port
             elif self.url:
                 self.host, self.port = self.url.hostname, self.url.port \
-                    if self.url.port else 80
+                    if self.url.port else DEFAULT_HTTP_PORT
             else:
                 raise KeyError(
                     'Invalid request. Method: %r, Url: %r' %

@@ -12,7 +12,7 @@ import random
 from typing import List, Tuple
 from urllib import parse as urlparse
 
-from ..common.constants import DEFAULT_BUFFER_SIZE
+from ..common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_HTTP_PORT
 from ..common.utils import socket_connection, text_
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
@@ -58,7 +58,7 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
         upstream = random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS)
         url = urlparse.urlsplit(upstream)
         assert url.hostname
-        with socket_connection((text_(url.hostname), url.port if url.port else 80)) as conn:
+        with socket_connection((text_(url.hostname), url.port if url.port else DEFAULT_HTTP_PORT)) as conn:
             conn.send(request.build())
             self.client.queue(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
 
