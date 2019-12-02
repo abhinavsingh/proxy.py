@@ -20,7 +20,7 @@ jobs:
           python-version: ${{ matrix.python }}-dev
       - name: Brew
         run: |
-          brew install proxy.rb
+          brew install homebrew/proxy-develop.rb
       - name: Verify
         run: |
           proxy.py --version
