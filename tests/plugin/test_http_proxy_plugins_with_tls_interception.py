@@ -31,7 +31,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
     @mock.patch('ssl.wrap_socket')
     @mock.patch('ssl.create_default_context')
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     @mock.patch('subprocess.Popen')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')

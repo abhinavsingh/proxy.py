@@ -54,7 +54,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             self.fileno, self._addr, flags=self.flags)
         self.protocol_handler.initialize()
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_modify_post_data_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         original = b'{"key": "value"}'
@@ -91,7 +91,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_proposed_rest_api_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         path = b'/v1/users/'
@@ -121,7 +121,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                         ProposedRestApiPlugin.REST_API_SPEC[path]))
             ))
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_redirect_to_custom_server_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
@@ -152,7 +152,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_filter_by_upstream_host_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
@@ -182,7 +182,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         )
 
-    @mock.patch('proxy.http.proxy.TcpServerConnection')
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_man_in_the_middle_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
