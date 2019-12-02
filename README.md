@@ -808,6 +808,16 @@ Requires `paramiko` to work. See [requirements-tunnel.txt](https://github.com/ab
 
 ## Proxy Remote Requests Locally
 
+                            |
+    +------------+          |            +----------+
+    |   LOCAL    |          |            |  REMOTE  |
+    |   HOST     | <== SSH ==== :8900 == |  SERVER  |
+    +------------+          |            +----------+
+    :8899 proxy.py          |
+                            |
+                         FIREWALL
+                      (allow tcp/22)
+
 ## What
 
 Proxy HTTP(s) requests made on a `remote` server through `proxy.py` server
@@ -818,17 +828,6 @@ running on `localhost`.
 * Requested `remote` port is forwarded over the SSH connection.
 * `proxy.py` running on the `localhost` handles and responds to
   `remote` proxy requests.
-
-
-                            |
-    +------------+          |            +----------+
-    |   LOCAL    |          |            |  REMOTE  |
-    |   HOST     | <== SSH ==== :8900 == |  SERVER  |
-    +------------+          |            +----------+
-    :8899 proxy.py          |
-                            |
-                         FIREWALL
-                      (allow tcp/22)
 
 ### Requirements
 
@@ -877,7 +876,6 @@ access_log:328 - remote:52067 - GET httpbin.org:80
 ```
 
 ## Proxy Local Requests Remotely
-
 
                             |
     +------------+          |     +----------+

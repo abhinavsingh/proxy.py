@@ -22,6 +22,7 @@ from multiprocessing.reduction import recv_handle
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, List, Union, Generator, Any, Type
 
+from .connection import TcpClientConnection
 from .event import EventQueue, eventNames
 
 from ..common.flags import Flags
@@ -37,15 +38,12 @@ class ThreadlessWork(ABC):
     @abstractmethod
     def __init__(
             self,
-            fileno: int,
-            addr: Tuple[str, int],
+            client: TcpClientConnection,
             flags: Optional[Flags],
             event_queue: Optional[EventQueue] = None,
             uid: Optional[str] = None) -> None:
-        self.fileno = fileno
-        self.addr = addr
+        self.client = client
         self.flags = flags if flags else Flags()
-
         self.event_queue = event_queue
         self.uid: str = uid if uid is not None else uuid.uuid4().hex
 
@@ -167,12 +165,16 @@ class Threadless(multiprocessing.Process):
             except asyncio.TimeoutError:
                 self.cleanup(work_id)
 
+    def fromfd(self, fileno: int) -> socket.socket:
+        return socket.fromfd(
+            fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
+            type=socket.SOCK_STREAM)
+
     def accept_client(self) -> None:
         addr = self.client_queue.recv()
         fileno = recv_handle(self.client_queue)
         self.works[fileno] = self.work_klass(
-            fileno=fileno,
-            addr=addr,
+            TcpClientConnection(conn=self.fromfd(fileno), addr=addr),
             flags=self.flags,
             event_queue=self.event_queue
         )

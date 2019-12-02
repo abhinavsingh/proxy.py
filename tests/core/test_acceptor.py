@@ -54,6 +54,7 @@ class TestAcceptor(unittest.TestCase):
         sock.accept.assert_not_called()
         self.mock_protocol_handler.assert_not_called()
 
+    @mock.patch('proxy.core.acceptor.acceptor.TcpClientConnection')
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -63,7 +64,8 @@ class TestAcceptor(unittest.TestCase):
             mock_recv_handle: mock.Mock,
             mock_fromfd: mock.Mock,
             mock_selector: mock.Mock,
-            mock_thread: mock.Mock) -> None:
+            mock_thread: mock.Mock,
+            mock_client: mock.Mock) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
@@ -87,8 +89,7 @@ class TestAcceptor(unittest.TestCase):
             type=socket.SOCK_STREAM
         )
         self.mock_protocol_handler.assert_called_with(
-            fileno=conn.fileno(),
-            addr=addr,
+            mock_client.return_value,
             flags=self.flags,
             event_queue=None,
         )

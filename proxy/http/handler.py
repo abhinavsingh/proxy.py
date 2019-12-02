@@ -113,20 +113,18 @@ class HttpProtocolHandler(ThreadlessWork):
     Accepts `Client` connection object and manages HttpProtocolHandlerPlugin invocations.
     """
 
-    def __init__(self, fileno: int, addr: Tuple[str, int],
+    def __init__(self, client: TcpClientConnection,
                  flags: Optional[Flags] = None,
                  event_queue: Optional[EventQueue] = None,
                  uid: Optional[str] = None):
-        super().__init__(fileno, addr, flags, event_queue, uid)
+        super().__init__(client, flags, event_queue, uid)
 
         self.start_time: float = time.time()
         self.last_activity: float = self.start_time
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.selector = selectors.DefaultSelector()
-        self.client: TcpClientConnection = TcpClientConnection(
-            self.fromfd(self.fileno), self.addr
-        )
+        self.client: TcpClientConnection = client
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 
     def initialize(self) -> None:
@@ -134,7 +132,7 @@ class HttpProtocolHandler(ThreadlessWork):
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
         if self.flags.encryption_enabled():
-            self.client = TcpClientConnection(conn=conn, addr=self.addr)
+            self.client = TcpClientConnection(conn=conn, addr=self.client.addr)
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
                 instance = klass(
@@ -231,12 +229,6 @@ class HttpProtocolHandler(ThreadlessWork):
             self.client.connection.close()
             logger.debug('Client connection closed')
             super().shutdown()
-
-    def fromfd(self, fileno: int) -> socket.socket:
-        conn = socket.fromfd(
-            fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
-            type=socket.SOCK_STREAM)
-        return conn
 
     def optionally_wrap_socket(
             self, conn: socket.socket) -> Union[ssl.SSLSocket, socket.socket]:

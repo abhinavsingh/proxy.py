@@ -18,6 +18,7 @@ from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from typing import Optional, Type, Tuple
 
+from ..connection import TcpClientConnection
 from ..threadless import ThreadlessWork, Threadless
 from ..event import EventQueue, eventNames
 from ...common.flags import Flags
@@ -86,8 +87,7 @@ class Acceptor(multiprocessing.Process):
             conn.close()
         else:
             work = self.work_klass(
-                fileno=conn.fileno(),
-                addr=addr,
+                TcpClientConnection(conn, addr),
                 flags=self.flags,
                 event_queue=self.event_queue
             )
