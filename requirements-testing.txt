@@ -8,3 +8,4 @@ mypy==0.750
 py-spy==0.3.0
 codecov==2.0.15
 tox==3.14.1
+mccabe==0.6.1
