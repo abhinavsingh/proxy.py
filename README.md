@@ -194,11 +194,11 @@ or from GitHub `master` branch
 
 ### Stable Version with HomeBrew
 
-    $ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/homebrew/stable/proxy.rb
+    $ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/stable/proxy.rb
 
 ### Development Version with HomeBrew
 
-    $ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/homebrew/develop/proxy.rb
+    $ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/develop/proxy.rb
 
 Start proxy.py
 ==============
