@@ -79,10 +79,10 @@ lib-profile:
 	sudo py-spy -F -f profile.svg -d 3600 proxy.py
 
 dashboard:
-	pushd dashboard && npm run build && popd && ln -s $(PWD)/dashboard/public/dashboard $(PWD)/public/dashboard
+	pushd dashboard && npm run build && popd
 
 dashboard-clean:
-	if [[ -d public/dashboard ]]; then rm -rf public/dashboard; fi
+	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
 container:
 	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .

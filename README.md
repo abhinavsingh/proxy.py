@@ -1289,7 +1289,8 @@ optional arguments:
                         Default: False. Enable inbuilt static file server.
                         Optionally, also use --static-server-dir to serve
                         static content from custom directory. By default,
-                        static file server serves from public folder.
+                        static file server serves out of installed proxy.py
+                        python module folder.
   --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
   --hostname HOSTNAME   Default: ::1. Server IP address.
