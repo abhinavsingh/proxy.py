@@ -43,12 +43,12 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
         }
     """
 
-    REVERSE_PROXY_LOCATION: bytes = b'/get'
+    REVERSE_PROXY_LOCATION: str = r'/get$'
     REVERSE_PROXY_PASS = [
         b'http://httpbin.org/get'
     ]
 
-    def routes(self) -> List[Tuple[int, bytes]]:
+    def routes(self) -> List[Tuple[int, str]]:
         return [
             (httpProtocolTypes.HTTP, ReverseProxyPlugin.REVERSE_PROXY_LOCATION),
             (httpProtocolTypes.HTTPS, ReverseProxyPlugin.REVERSE_PROXY_LOCATION)

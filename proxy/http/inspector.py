@@ -44,9 +44,9 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         super().__init__(*args, **kwargs)
         self.subscriber = EventSubscriber(self.event_queue)
 
-    def routes(self) -> List[Tuple[int, bytes]]:
+    def routes(self) -> List[Tuple[int, str]]:
         return [
-            (httpProtocolTypes.WEBSOCKET, self.flags.devtools_ws_path)
+            (httpProtocolTypes.WEBSOCKET, text_(self.flags.devtools_ws_path))
         ]
 
     def handle_request(self, request: HttpParser) -> None:

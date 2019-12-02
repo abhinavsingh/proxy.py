@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 class WebServerPlugin(HttpWebServerBasePlugin):
     """Demonstrates inbuilt web server routing using plugin."""
 
-    def routes(self) -> List[Tuple[int, bytes]]:
+    def routes(self) -> List[Tuple[int, str]]:
         return [
-            (httpProtocolTypes.HTTP, b'/http-route-example'),
-            (httpProtocolTypes.HTTPS, b'/https-route-example'),
-            (httpProtocolTypes.WEBSOCKET, b'/ws-route-example'),
+            (httpProtocolTypes.HTTP, r'/http-route-example$'),
+            (httpProtocolTypes.HTTPS, r'/https-route-example$'),
+            (httpProtocolTypes.WEBSOCKET, r'/ws-route-example$'),
         ]
 
     def handle_request(self, request: HttpParser) -> None:
