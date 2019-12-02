@@ -17,6 +17,7 @@ from unittest import mock
 from typing import cast
 
 from proxy.common.flags import Flags
+from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_, build_http_response
@@ -51,7 +52,8 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         }
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=self.flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=self.flags)
         self.protocol_handler.initialize()
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')

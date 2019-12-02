@@ -15,15 +15,16 @@ import base64
 from typing import cast
 from unittest import mock
 
+from proxy.common.version import __version__
 from proxy.common.flags import Flags
 from proxy.common.utils import bytes_
 from proxy.common.constants import CRLF
+from proxy.core.connection import TcpClientConnection
 from proxy.http.parser import HttpParser
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
 from proxy.http.handler import HttpProtocolHandler
-from proxy.common.version import __version__
 
 
 class TestHttpProtocolHandler(unittest.TestCase):
@@ -44,7 +45,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         self.mock_selector = mock_selector
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=self.flags)
+            TcpClientConnection(self._conn, self._addr), flags=self.flags)
         self.protocol_handler.initialize()
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
@@ -175,7 +176,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=flags)
+            TcpClientConnection(self._conn, self._addr), flags=flags)
         self.protocol_handler.initialize()
         self._conn.recv.return_value = CRLF.join([
             b'GET http://abhinavsingh.com HTTP/1.1',
@@ -208,7 +209,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, addr=self._addr, flags=flags)
+            TcpClientConnection(self._conn, self._addr), flags=flags)
         self.protocol_handler.initialize()
         assert self.http_server_port is not None
 
@@ -256,7 +257,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=flags)
+            TcpClientConnection(self._conn, self._addr), flags=flags)
         self.protocol_handler.initialize()
 
         assert self.http_server_port is not None

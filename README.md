@@ -3,9 +3,9 @@
 [![License](https://img.shields.io/github/license/abhinavsingh/proxy.py.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Build Status](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop)](https://travis-ci.org/abhinavsingh/proxy.py/)
 [![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=none&color=green)](https://github.com/abhinavsingh/proxy.py)
-[![Coverage](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg)](https://codecov.io/gh/abhinavsingh/proxy.py)
 [![PyPi Monthly](https://img.shields.io/pypi/dm/proxy.py.svg?color=green)](https://pypi.org/project/proxy.py/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/abhinavsingh/proxy.py?color=green)](https://hub.docker.com/r/abhinavsingh/proxy.py)
+[![Coverage](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg)](https://codecov.io/gh/abhinavsingh/proxy.py)
 
 [![Tested With MacOS, Ubuntu, Windows, Android, Android Emulator, iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB%20%7C%20Ubuntu%20%F0%9F%96%A5%20%7C%20Windows%20%F0%9F%92%BB&color=brightgreen)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 [![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=brightgreen)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
@@ -58,6 +58,9 @@ Table of Contents
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
+* [Proxy Over SSH Tunnel](#proxy-over-ssh-tunnel)
+    * [Proxy Remote Requests Locally](#proxy-remote-requests-locally)
+    * [Proxy Local Requests Remotely](#proxy-local-requests-remotely)
 * [Embed proxy.py](#embed-proxypy)
     * [Blocking Mode](#blocking-mode)
     * [Non-blocking Mode](#non-blocking-mode)
@@ -797,6 +800,92 @@ cached file instead of plain text.
 
 Now use CA flags with other 
 [plugin examples](#plugin-examples) to see them work with `https` traffic.
+
+Proxy Over SSH Tunnel
+=====================
+
+Requires `paramiko` to work. See [requirements-tunnel.txt](https://github.com/abhinavsingh/proxy.py/blob/develop/requirements-tunnel.txt)
+
+## Proxy Remote Requests Locally
+
+                            |
+    +------------+          |            +----------+
+    |   LOCAL    |          |            |  REMOTE  |
+    |   HOST     | <== SSH ==== :8900 == |  SERVER  |
+    +------------+          |            +----------+
+    :8899 proxy.py          |
+                            |
+                         FIREWALL
+                      (allow tcp/22)
+
+## What
+
+Proxy HTTP(s) requests made on a `remote` server through `proxy.py` server
+running on `localhost`.
+
+### How
+
+* Requested `remote` port is forwarded over the SSH connection.
+* `proxy.py` running on the `localhost` handles and responds to
+  `remote` proxy requests.
+
+### Requirements
+
+1. `localhost` MUST have SSH access to the `remote` server
+2. `remote` server MUST be configured to proxy HTTP(s) requests
+   through the forwarded port number e.g. `:8900`.
+   - `remote` and `localhost` ports CAN be same e.g. `:8899`.
+   - `:8900` is chosen in ascii art for differentiation purposes.
+
+### Try it
+
+Start `proxy.py` as:
+
+```
+$ # On localhost
+$ proxy --enable-tunnel \
+    --tunnel-username username \
+    --tunnel-hostname ip.address.or.domain.name \
+    --tunnel-port 22 \
+    --tunnel-remote-host 127.0.0.1
+    --tunnel-remote-port 8899
+```
+
+Make a HTTP proxy request on `remote` server and 
+verify that response contains public IP address of `localhost` as origin:
+
+```
+$ # On remote
+$ curl -x 127.0.0.1:8899 http://httpbin.org/get
+{
+  "args": {},
+  "headers": {
+    "Accept": "*/*",
+    "Host": "httpbin.org",
+    "User-Agent": "curl/7.54.0"
+  },
+  "origin": "x.x.x.x, y.y.y.y",
+  "url": "https://httpbin.org/get"
+}
+```
+
+Also, verify that `proxy.py` logs on `localhost` contains `remote` IP as client IP.
+
+```
+access_log:328 - remote:52067 - GET httpbin.org:80
+```
+
+## Proxy Local Requests Remotely
+
+                            |
+    +------------+          |     +----------+
+    |   LOCAL    |          |     |  REMOTE  |
+    |   HOST     | === SSH =====> |  SERVER  |
+    +------------+          |     +----------+
+                            |     :8899 proxy.py
+                            |
+                        FIREWALL
+                     (allow tcp/22)
 
 Embed proxy.py
 ==============

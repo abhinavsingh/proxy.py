@@ -14,6 +14,7 @@ from unittest import mock
 
 from proxy.common.constants import DEFAULT_HTTP_PORT
 from proxy.common.flags import Flags
+from proxy.core.connection import TcpClientConnection
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.exception import HttpProtocolException
@@ -40,7 +41,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
         }
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=self.flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=self.flags)
         self.protocol_handler.initialize()
 
     def test_proxy_plugin_initialized(self) -> None:

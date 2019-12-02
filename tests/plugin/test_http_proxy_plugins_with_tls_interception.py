@@ -19,6 +19,7 @@ from typing import Any, cast
 from proxy.common.utils import bytes_
 from proxy.common.flags import Flags
 from proxy.common.utils import build_http_request, build_http_response
+from proxy.core.connection import TcpClientConnection
 from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
 from proxy.http.handler import HttpProtocolHandler
@@ -66,7 +67,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         self._conn = mock.MagicMock(spec=socket.socket)
         mock_fromfd.return_value = self._conn
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=self.flags)
+            TcpClientConnection(self._conn, self._addr), flags=self.flags)
         self.protocol_handler.initialize()
 
         self.server = self.mock_server_conn.return_value

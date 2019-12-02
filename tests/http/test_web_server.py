@@ -16,6 +16,7 @@ import selectors
 from unittest import mock
 
 from proxy.common.flags import Flags
+from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.parser import httpParserStates
 from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
@@ -36,7 +37,8 @@ class TestWebServerPlugin(unittest.TestCase):
         self.flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=self.flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=self.flags)
         self.protocol_handler.initialize()
 
     @mock.patch('selectors.DefaultSelector')
@@ -96,7 +98,8 @@ class TestWebServerPlugin(unittest.TestCase):
         flags.plugins = Flags.load_plugins(
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=flags)
         self.protocol_handler.initialize()
         self._conn.recv.return_value = CRLF.join([
             b'GET /hello HTTP/1.1',
@@ -147,7 +150,8 @@ class TestWebServerPlugin(unittest.TestCase):
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=flags)
         self.protocol_handler.initialize()
 
         self.protocol_handler.run_once()
@@ -194,7 +198,8 @@ class TestWebServerPlugin(unittest.TestCase):
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
 
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=flags)
         self.protocol_handler.initialize()
 
         self.protocol_handler.run_once()
@@ -213,7 +218,8 @@ class TestWebServerPlugin(unittest.TestCase):
         flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=flags)
         self.protocol_handler.initialize()
         plugin.assert_called()
         with mock.patch.object(self.protocol_handler, 'run_once') as mock_run_once:
@@ -228,7 +234,8 @@ class TestWebServerPlugin(unittest.TestCase):
             b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin,'
             b'proxy.http.server.HttpWebServerPacFilePlugin')
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=flags)
         self.protocol_handler.initialize()
         self._conn.recv.return_value = CRLF.join([
             b'GET / HTTP/1.1',

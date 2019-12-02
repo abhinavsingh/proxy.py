@@ -17,6 +17,7 @@ import selectors
 from typing import Any
 from unittest import mock
 
+from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.methods import httpMethods
@@ -78,7 +79,8 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         }
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            self.fileno, self._addr, flags=self.flags)
+            TcpClientConnection(self._conn, self._addr),
+            flags=self.flags)
         self.protocol_handler.initialize()
 
         self.plugin.assert_called()
