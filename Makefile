@@ -63,7 +63,7 @@ lib-test: lib-lint
 	pytest -v tests/
 
 lib-package: lib-clean
-	python setup.py sdist bdist_wheel
+	python setup.py sdist
 
 lib-release-test: lib-package
 	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*

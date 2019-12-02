@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from setuptools import setup
+from setuptools import setup, find_packages
 
 VERSION = (2, 0, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
@@ -30,18 +30,9 @@ setup(
     long_description_content_type='text/markdown',
     download_url=__download_url__,
     license=__license__,
-    packages=[
-        'proxy',
-        'proxy.benchmark',
-        'proxy.common',
-        'proxy.core',
-        'proxy.dashboard',
-        'proxy.http',
-        'proxy.plugin',
-        'proxy.testing',
-    ],
     python_requires='!=2.*, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
     zip_safe=True,
+    packages=find_packages(exclude=["tests", "tests.*"]),
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
         'console_scripts': [
