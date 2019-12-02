@@ -106,7 +106,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 raw = self.server.recv(self.flags.server_recvbuf_size)
             except TimeoutError as e:
                 if e.errno == errno.ETIMEDOUT:
-                    logger.warning('%s:%d timed out on recv' % self.server.addr)
+                    logger.warning(
+                        '%s:%d timed out on recv' %
+                        self.server.addr)
                     return True
                 else:
                     raise e
@@ -115,7 +117,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 return False
             except OSError as e:
                 if e.errno == errno.EHOSTUNREACH:
-                    logger.warning('%s:%d unreachable on recv' % self.server.addr)
+                    logger.warning(
+                        '%s:%d unreachable on recv' %
+                        self.server.addr)
                     return True
                 elif e.errno == errno.ECONNRESET:
                     logger.warning('Connection reset by upstream: %r' % e)
