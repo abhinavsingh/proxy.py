@@ -104,11 +104,20 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             logger.debug('Server is ready for reads, reading...')
             try:
                 raw = self.server.recv(self.flags.server_recvbuf_size)
+            except TimeoutError as e:
+                if e.errno == errno.ETIMEDOUT:
+                    logger.warning('%s:%d timed out on recv' % self.server.addr)
+                    return True
+                else:
+                    raise e
             except ssl.SSLWantReadError:    # Try again later
                 # logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
                 return False
-            except socket.error as e:
-                if e.errno == errno.ECONNRESET:
+            except OSError as e:
+                if e.errno == errno.EHOSTUNREACH:
+                    logger.warning('%s:%d unreachable on recv' % self.server.addr)
+                    return True
+                elif e.errno == errno.ECONNRESET:
                     logger.warning('Connection reset by upstream: %r' % e)
                 else:
                     logger.exception(
