@@ -29,10 +29,12 @@ Table of Contents
     * [Using PIP](#using-pip)
         * [Stable version](#stable-version-with-pip)
         * [Development version](#development-version-with-pip)
+    * [Using Docker](#using-docker)
+        * [Stable version](#stable-version-from-docker-hub)
+        * [Development version](#build-development-version-locally)
     * [Using HomeBrew](#using-homebrew)
         * [Stable version](#stable-version-with-homebrew)
         * [Development version](#development-version-with-homebrew)
-    * [Using Docker](#using-docker)
 * [Start proxy.py](#start-proxypy)
     * [From command line when installed using PIP](#from-command-line-when-installed-using-pip)
         * [Run it](#run-it)
@@ -40,8 +42,6 @@ Table of Contents
         * [Enable DEBUG logging](#enable-debug-logging)
     * [From command line using repo source](#from-command-line-using-repo-source)
     * [Docker Image](#docker-image)
-        * [Stable version](#stable-version-from-docker-hub)
-        * [Development version](#build-development-version-locally)
         * [Customize Startup Flags](#customize-startup-flags)
 * [Plugin Examples](#plugin-examples)
     * [HTTP Proxy Plugins](#http-proxy-plugins)
@@ -174,6 +174,22 @@ or from GitHub `master` branch
 
     $ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
 
+## Using Docker
+
+#### Stable Version from Docker Hub
+
+    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
+
+#### Build Development Version Locally
+
+    $ git clone https://github.com/abhinavsingh/proxy.py.git
+    $ cd proxy.py
+    $ make container
+    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
+
+[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/moby/vpnkit/issues/469)
+`docker` image is currently broken on `macOS` due to incompatibility with [vpnkit](https://github.com/moby/vpnkit/issues/469).
+
 ## Using HomeBrew
 
 ### Stable Version with HomeBrew
@@ -183,10 +199,6 @@ or from GitHub `master` branch
 ### Development Version with HomeBrew
 
     $ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/homebrew/develop/proxy.rb
-
-## Using Docker
-
-For `Docker` installation see [Docker Image](#docker-image).
 
 Start proxy.py
 ==============
@@ -291,17 +303,6 @@ if you plan to work with `proxy.py` source code.
 
 ## Docker image
 
-#### Stable Version from Docker Hub
-
-    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
-
-#### Build Development Version Locally
-
-    $ git clone https://github.com/abhinavsingh/proxy.py.git
-    $ cd proxy.py
-    $ make container
-    $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
-
 #### Customize startup flags
 
 By default `docker` binary is started with IPv4 networking flags:
@@ -315,9 +316,6 @@ For example, to check `proxy.py` version within Docker image:
         -p 8899:8899 \
         --rm abhinavsingh/proxy.py:latest \
         -v
-
-[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/moby/vpnkit/issues/469)
-`docker` image is currently broken on `macOS` due to incompatibility with [vpnkit](https://github.com/moby/vpnkit/issues/469).
 
 Plugin Examples
 ===============
