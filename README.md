@@ -26,8 +26,13 @@ Table of Contents
 
 * [Features](#features)
 * [Install](#install)
-    * [Stable version](#stable-version)
-    * [Development version](#development-version)
+    * [Using PIP](#using-pip)
+        * [Stable version](#stable-version-with-pip)
+        * [Development version](#development-version-with-pip)
+    * [Using HomeBrew](#using-homebrew)
+        * [Stable version](#stable-version-with-homebrew)
+        * [Development version](#development-version-with-homebrew)
+    * [Using Docker](#using-docker)
 * [Start proxy.py](#start-proxypy)
     * [From command line when installed using PIP](#from-command-line-when-installed-using-pip)
         * [Run it](#run-it)
@@ -153,7 +158,9 @@ Features
 Install
 =======
 
-## Stable version
+## Using PIP
+
+### Stable Version with PIP
 
 Install from `PyPi`
 
@@ -163,9 +170,21 @@ or from GitHub `master` branch
 
     $ pip install git+https://github.com/abhinavsingh/proxy.py.git@master
 
-## Development version
+### Development Version with PIP
 
     $ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
+
+## Using HomeBrew
+
+### Stable Version with HomeBrew
+
+    $ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/homebrew/stable/proxy.rb
+
+### Development Version with HomeBrew
+
+    $ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/homebrew/develop/proxy.rb
+
+## Using Docker
 
 For `Docker` installation see [Docker Image](#docker-image).
 
