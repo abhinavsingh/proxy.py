@@ -2,7 +2,7 @@ class Proxy < Formula
   desc "⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
     Network monitoring, controls & Application development, testing, debugging."
   homepage "https://github.com/abhinavsingh/proxy.py"
-  url "https://github.com/abhinavsingh/proxy.py/archive/homebrew.zip"
+  url "https://github.com/abhinavsingh/proxy.py/archive/develop.zip"
   version "HEAD"
 
   depends_on "python"

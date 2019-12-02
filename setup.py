@@ -26,7 +26,7 @@ setup(
     author_email=__author_email__,
     url=__homepage__,
     description=__description__,
-    long_description=open('README.md').read().strip(),
+    long_description=open('README.md', 'r', encoding='utf-8').read().strip(),
     long_description_content_type='text/markdown',
     download_url=__download_url__,
     license=__license__,
