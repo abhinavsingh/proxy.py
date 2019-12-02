@@ -1,0 +1,26 @@
+name: Proxy.py Brew
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}-latest
+    name: Brew - Python ${{ matrix.python }} on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macOS]
+        python: [3.5, 3.6, 3.7, 3.8]
+      max-parallel: 4
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v1
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python }}-dev
+      - name: Brew
+        run: |
+          brew install ./homebrew/develop/proxy.rb
+      - name: Verify
+        run: |
+          proxy --version
