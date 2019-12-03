@@ -126,6 +126,11 @@ class HttpParser:
         return b'transfer-encoding' in self.headers and \
                self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
+    def body_expected(self) -> bool:
+        return (b'content-length' in self.headers and
+                int(self.header(b'content-length')) > 0) or \
+            self.is_chunked_encoded()
+
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
 
@@ -134,7 +139,6 @@ class HttpParser:
         raw = self.buffer + raw
         self.buffer = b''
 
-        # TODO(abhinavsingh): Someday clean this up.
         more = True if len(raw) > 0 else False
         while more and self.state != httpParserStates.COMPLETE:
             if self.state in (
@@ -159,6 +163,8 @@ class HttpParser:
                         self.body = self.chunk_parser.body
                         self.state = httpParserStates.COMPLETE
                     more = False
+                else:
+                    raise NotImplementedError('Parser shouldn\'t have reached here')
             else:
                 more, raw = self.process(raw)
         self.buffer = raw
@@ -181,33 +187,14 @@ class HttpParser:
             else:
                 self.process_header(line)
 
-        # TODO(abhinavsingh): Can these be generalized instead of per-case handling?
         # When server sends a response line without any header or body e.g.
         # HTTP/1.1 200 Connection established\r\n\r\n
         if self.state == httpParserStates.LINE_RCVD and \
                 self.type == httpParserTypes.RESPONSE_PARSER and \
                 raw == CRLF:
             self.state = httpParserStates.COMPLETE
-        # When connect request is received without a following host header
-        # See
-        # `TestHttpParser.test_connect_request_without_host_header_request_parse`
-        # for details
-        #
-        # When raw request has ended with \r\n\r\n and no more http headers are expected
-        # See `TestHttpParser.test_request_parse_without_content_length` and
-        # `TestHttpParser.test_response_parse_without_content_length` for details
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                self.type == httpParserTypes.REQUEST_PARSER and \
-                self.method != httpMethods.POST and \
-                raw == b'':
-            self.state = httpParserStates.COMPLETE
-        elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                self.type == httpParserTypes.REQUEST_PARSER and \
-                self.method == httpMethods.POST and \
-                not self.is_chunked_encoded() and \
-                (b'content-length' not in self.headers or
-                 (b'content-length' in self.headers and
-                  int(self.headers[b'content-length'][1]) == 0)) and \
+                not self.body_expected() and \
                 raw == b'':
             self.state = httpParserStates.COMPLETE
 
