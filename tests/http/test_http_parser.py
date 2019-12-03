@@ -329,7 +329,12 @@ class TestHttpParser(unittest.TestCase):
         and it is responsibility of callee to change state to httpParserStates.COMPLETE
         when server stream closes.
 
-        See https://github.com/abhinavsingh/py/issues/20 for details.
+        See https://github.com/abhinavsingh/proxy.py/issues/20 for details.
+
+        Post commit https://github.com/abhinavsingh/proxy.py/commit/269484df2e89bc659124177d339d4fc59f280cba
+        HttpParser would reach state COMPLETE also for RESPONSE_PARSER types and no longer
+        it is callee responsibility to change state on stream close.  This was important because
+        pipelined responses not trigger stream close but may receive multiple responses.
         """
         self.parser.type = httpParserTypes.RESPONSE_PARSER
         self.parser.parse(b'HTTP/1.0 200 OK' + CRLF)
@@ -343,7 +348,7 @@ class TestHttpParser(unittest.TestCase):
         ]))
         self.assertEqual(
             self.parser.state,
-            httpParserStates.HEADERS_COMPLETE)
+            httpParserStates.COMPLETE)
 
     def test_response_parse(self) -> None:
         self.parser.type = httpParserTypes.RESPONSE_PARSER
@@ -513,3 +518,12 @@ class TestHttpParser(unittest.TestCase):
             httpMethods.GET, b'/', protocol_version=b'HTTP/1.0',
         ))
         self.assertFalse(self.parser.is_http_1_1_keep_alive())
+
+    def test_paramiko_doc(self) -> None:
+        response = b'HTTP/1.1 304 Not Modified\r\nDate: Tue, 03 Dec 2019 02:31:55 GMT\r\nConnection: keep-alive' \
+                   b'\r\nLast-Modified: Sun, 23 Jun 2019 22:58:21 GMT\r\nETag: "5d10040d-1af2c"' \
+                   b'\r\nX-Cname-TryFiles: True\r\nX-Served: Nginx\r\nX-Deity: web02\r\nCF-Cache-Status: DYNAMIC' \
+                   b'\r\nServer: cloudflare\r\nCF-RAY: 53f2208c6fef6c38-SJC\r\n\r\n'
+        self.parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        self.parser.parse(response)
+        self.assertEqual(self.parser.state, httpParserStates.COMPLETE)

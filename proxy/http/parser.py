@@ -126,6 +126,9 @@ class HttpParser:
         return b'transfer-encoding' in self.headers and \
                self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
+    def body_expected(self) -> bool:
+        return b'content-length' in self.headers or self.is_chunked_encoded()
+
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
 
@@ -140,6 +143,7 @@ class HttpParser:
             if self.state in (
                     httpParserStates.HEADERS_COMPLETE,
                     httpParserStates.RCVING_BODY):
+                assert self.body_expected()
                 if b'content-length' in self.headers:
                     self.state = httpParserStates.RCVING_BODY
                     if self.body is None:
@@ -151,7 +155,7 @@ class HttpParser:
                             len(self.body) == int(self.header(b'content-length')):
                         self.state = httpParserStates.COMPLETE
                     more, raw = len(raw) > 0, raw[total_size - received_size:]
-                elif self.is_chunked_encoded():
+                else:
                     if not self.chunk_parser:
                         self.chunk_parser = ChunkParser()
                     raw = self.chunk_parser.parse(raw)
@@ -197,8 +201,7 @@ class HttpParser:
         # See `TestHttpParser.test_request_parse_without_content_length` and
         # `TestHttpParser.test_response_parse_without_content_length` for details
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                self.type == httpParserTypes.REQUEST_PARSER and \
-                self.method != httpMethods.POST and \
+                not self.body_expected() and \
                 raw == b'':
             self.state = httpParserStates.COMPLETE
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
