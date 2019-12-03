@@ -12,10 +12,9 @@ import socket
 import ssl
 import logging
 from abc import ABC, abstractmethod
-from typing import NamedTuple, Optional, Union, Tuple, List
+from typing import NamedTuple, Optional, Union, List
 
-from ..common.constants import DEFAULT_BUFFER_SIZE
-from ..common.utils import new_socket_connection
+from ...common.constants import DEFAULT_BUFFER_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -91,40 +90,3 @@ class TcpConnection(ABC):
             self.buffer[0] = memoryview(mv.tobytes()[sent:])
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
-
-
-class TcpServerConnection(TcpConnection):
-    """Establishes connection to upstream server."""
-
-    def __init__(self, host: str, port: int):
-        super().__init__(tcpConnectionTypes.SERVER)
-        self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
-        self.addr: Tuple[str, int] = (host, int(port))
-
-    @property
-    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
-        if self._conn is None:
-            raise TcpConnectionUninitializedException()
-        return self._conn
-
-    def connect(self) -> None:
-        if self._conn is not None:
-            return
-        self._conn = new_socket_connection(self.addr)
-
-
-class TcpClientConnection(TcpConnection):
-    """An accepted client connection request."""
-
-    def __init__(self,
-                 conn: Union[ssl.SSLSocket, socket.socket],
-                 addr: Tuple[str, int]):
-        super().__init__(tcpConnectionTypes.CLIENT)
-        self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
-        self.addr: Tuple[str, int] = addr
-
-    @property
-    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
-        if self._conn is None:
-            raise TcpConnectionUninitializedException()
-        return self._conn
