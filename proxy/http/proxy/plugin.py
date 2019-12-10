@@ -48,6 +48,8 @@ class HttpProxyBasePlugin(ABC):
         """Handler called just before Proxy upstream connection is established.
 
         Return optionally modified request object.
+        If None is returned, upstream connection won't be established.
+
         Raise HttpRequestRejected or HttpProtocolException directly to drop the connection."""
         return request  # pragma: no cover
 

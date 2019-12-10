@@ -45,13 +45,14 @@ Table of Contents
         * [Customize Startup Flags](#customize-startup-flags)
 * [Plugin Examples](#plugin-examples)
     * [HTTP Proxy Plugins](#http-proxy-plugins)
-        * [ShortLinkPlugin](#shortlinkplugin)
-        * [ModifyPostDataPlugin](#modifypostdataplugin)
-        * [MockRestApiPlugin](#mockrestapiplugin)
-        * [RedirectToCustomServerPlugin](#redirecttocustomserverplugin)
-        * [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin)
-        * [CacheResponsesPlugin](#cacheresponsesplugin)
-        * [ManInTheMiddlePlugin](#maninthemiddleplugin)
+        * [ShortLink Plugin](#shortlinkplugin)
+        * [Modify Post Data Plugin](#modifypostdataplugin)
+        * [Mock Api Plugin](#mockrestapiplugin)
+        * [Redirect To Custom Server Plugin](#redirecttocustomserverplugin)
+        * [Filter By Upstream Host Plugin](#filterbyupstreamhostplugin)
+        * [Cache Responses Plugin](#cacheresponsesplugin)
+        * [Man-In-The-Middle Plugin](#maninthemiddleplugin)
+        * [Proxy Pool Plugin](#proxypoolplugin)
     * [HTTP Web Server Plugins](#http-web-server-plugins)
         * [Reverse Proxy](#reverse-proxy)
         * [Web Server Route](#web-server-route)
@@ -614,6 +615,39 @@ Hello from man in the middle
 ```
 
 Response body `Hello from man in the middle` is sent by our plugin.
+
+### ProxyPoolPlugin
+
+Forward incoming proxy requests to a set of upstream proxy servers.
+
+By default, `ProxyPoolPlugin` is hard-coded to use
+`localhost:9000` and `localhost:9001` as upstream proxy server.
+
+Let's start upstream proxies first.
+
+Start `proxy.py` on port `9000` and `9001`
+
+```
+$ proxy --port 9000
+```
+
+```
+$ proxy --port 9001
+```
+
+Now, start `proxy.py` with `ProxyPoolPlugin` (on default `8899` port):
+
+```
+$ proxy \
+    --plugins proxy.plugin.ProxyPoolPlugin
+```
+
+Make a curl request via `8899` proxy:
+
+`curl -v -x localhost:8899 http://httpbin.org/get`
+
+Verify that `8899` proxy forwards requests to upstream proxies
+by checking respective logs.
 
 ## HTTP Web Server Plugins
 
