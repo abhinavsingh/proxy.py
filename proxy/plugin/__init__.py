@@ -17,6 +17,7 @@ from .redirect_to_custom_server import RedirectToCustomServerPlugin
 from .shortlink import ShortLinkPlugin
 from .web_server_route import WebServerPlugin
 from .reverse_proxy import ReverseProxyPlugin
+from .proxy_pool import ProxyPoolPlugin
 
 __all__ = [
     'CacheResponsesPlugin',
@@ -29,4 +30,5 @@ __all__ = [
     'ShortLinkPlugin',
     'WebServerPlugin',
     'ReverseProxyPlugin',
+    'ProxyPoolPlugin',
 ]
