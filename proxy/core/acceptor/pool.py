@@ -24,6 +24,8 @@ from ...common.flags import Flags
 
 logger = logging.getLogger(__name__)
 
+LOCK = multiprocessing.Lock()
+
 
 class AcceptorPool:
     """AcceptorPool.
@@ -66,7 +68,8 @@ class AcceptorPool:
                 work_queue=work_queue[1],
                 flags=self.flags,
                 work_klass=self.work_klass,
-                event_queue=self.event_queue
+                lock=LOCK,
+                event_queue=self.event_queue,
             )
             acceptor.start()
             logger.debug(

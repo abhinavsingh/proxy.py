@@ -29,6 +29,7 @@ class TestAcceptor(unittest.TestCase):
             idd=self.acceptor_id,
             work_queue=self.pipe[1],
             flags=self.flags,
+            lock=multiprocessing.Lock(),
             work_klass=self.mock_protocol_handler)
 
     @mock.patch('selectors.DefaultSelector')

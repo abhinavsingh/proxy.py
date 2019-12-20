@@ -10,6 +10,7 @@
 """
 import logging
 import multiprocessing
+import multiprocessing.synchronize
 import selectors
 import socket
 import threading
@@ -33,20 +34,20 @@ class Acceptor(multiprocessing.Process):
     starts a new work thread.
     """
 
-    lock = multiprocessing.Lock()
-
     def __init__(
             self,
             idd: int,
             work_queue: connection.Connection,
             flags: Flags,
             work_klass: Type[ThreadlessWork],
+            lock: multiprocessing.synchronize.Lock,
             event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()
         self.idd = idd
         self.work_queue: connection.Connection = work_queue
         self.flags = flags
         self.work_klass = work_klass
+        self.lock = lock
         self.event_queue = event_queue
 
         self.running = multiprocessing.Event()
@@ -101,12 +102,13 @@ class Acceptor(multiprocessing.Process):
             work_thread.start()
 
     def run_once(self) -> None:
-        assert self.selector and self.sock
         with self.lock:
+            assert self.selector and self.sock
             events = self.selector.select(timeout=1)
             if len(events) == 0:
                 return
             conn, addr = self.sock.accept()
+
         # now = time.time()
         # fileno: int = conn.fileno()
         self.start_work(conn, addr)
