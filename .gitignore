@@ -18,7 +18,7 @@ proxy.py.iml
 *.crt
 *.key
 
-venv
+venv*
 cover
 htmlcov
 dist
