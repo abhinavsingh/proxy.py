@@ -24,7 +24,7 @@ class TestEventDispatcher(unittest.TestCase):
 
     def setUp(self) -> None:
         self.dispatcher_shutdown = threading.Event()
-        self.event_queue = EventQueue()
+        self.event_queue = EventQueue(multiprocessing.Manager().Queue())
         self.dispatcher = EventDispatcher(
             shutdown=self.dispatcher_shutdown,
             event_queue=self.event_queue)
