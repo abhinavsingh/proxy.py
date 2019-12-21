@@ -110,7 +110,7 @@ Features
     - Made to handle `tens-of-thousands` connections / sec
         ```bash
         # On Macbook Pro 2015 / 2.8 GHz Intel Core i7
-        $ hey -n 10000 -c 100 http://localhost:8899/
+        ❯ hey -n 10000 -c 100 http://localhost:8899/
 
         Summary:
           Total:	0.6157 secs
@@ -169,19 +169,19 @@ Install
 Install from `PyPi`
 
 ```bash
-$ pip install --upgrade proxy.py
+❯ pip install --upgrade proxy.py
 ```
 
 or from GitHub `master` branch
 
 ```bash
-$ pip install git+https://github.com/abhinavsingh/proxy.py.git@master
+❯ pip install git+https://github.com/abhinavsingh/proxy.py.git@master
 ```
 
 ### Development Version with PIP
 
 ```bash
-$ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
+❯ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
 ```
 
 ## Using Docker
@@ -189,16 +189,16 @@ $ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
 #### Stable Version from Docker Hub
 
 ```bash
-$ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
+❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
 #### Build Development Version Locally
 
 ```bash
-$ git clone https://github.com/abhinavsingh/proxy.py.git
-$ cd proxy.py
-$ make container
-$ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
+❯ git clone https://github.com/abhinavsingh/proxy.py.git
+❯ cd proxy.py
+❯ make container
+❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
 [![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/moby/vpnkit/issues/469)
@@ -209,13 +209,13 @@ $ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ### Stable Version with HomeBrew
 
 ```bash
-$ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/stable/proxy.rb
+❯ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/stable/proxy.rb
 ```
 
 ### Development Version with HomeBrew
 
 ```bash
-$ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/develop/proxy.rb
+❯ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/develop/proxy.rb
 ```
 
 Start proxy.py
@@ -231,7 +231,7 @@ an executable named `proxy` is placed under your `$PATH`.
 Simply type `proxy` on command line to start it with default configuration.
 
 ```bash
-$ proxy
+❯ proxy
 ...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
 ...[redacted]... - Starting 8 workers
 ...[redacted]... - Started server on ::1:8899
@@ -261,7 +261,7 @@ All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`.
 Lets start `proxy.py` with `DEBUG` level logging:
 
 ```bash
-$ proxy --log-level d
+❯ proxy --log-level d
 ...[redacted]... - Open file descriptor soft limit set to 1024
 ...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
 ...[redacted]... - Started 8 workers
@@ -286,34 +286,34 @@ To start `proxy.py` from source code follow these instructions:
 - Clone repo
 
     ```bash
-    $ git clone https://github.com/abhinavsingh/proxy.py.git
-    $ cd proxy.py
+    ❯ git clone https://github.com/abhinavsingh/proxy.py.git
+    ❯ cd proxy.py
     ```
 
 - Create a Python 3 virtual env
 
     ```bash
-    $ python3 -m venv venv
-    $ source venv/bin/activate
+    ❯ python3 -m venv venv
+    ❯ source venv/bin/activate
     ```
 
 - Install deps
 
     ```bash
-    $ pip install -r requirements.txt
-    $ pip install -r requirements-testing.txt
+    ❯ pip install -r requirements.txt
+    ❯ pip install -r requirements-testing.txt
     ```
 
 - Run tests
 
     ```bash
-    $ make
+    ❯ make
     ```
 
 - Run proxy.py
 
     ```bash
-    $ python -m proxy
+    ❯ python -m proxy
     ```
 
 Also see [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
@@ -330,7 +330,7 @@ By default `docker` binary is started with IPv4 networking flags:
 To override input flags, start docker image as follows.
 For example, to check `proxy.py` version within Docker image:
 
-    $ docker run -it \
+    ❯ docker run -it \
         -p 8899:8899 \
         --rm abhinavsingh/proxy.py:latest \
         -v
@@ -356,7 +356,7 @@ Add support for short links in your favorite browsers / applications.
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.ShortLinkPlugin
 ```
 
@@ -385,7 +385,7 @@ Modifies POST request body before sending request to upstream server.
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.ModifyPostDataPlugin
 ```
 
@@ -439,7 +439,7 @@ without need of an actual upstream REST API server.
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.ProposedRestApiPlugin
 ```
 
@@ -470,7 +470,7 @@ also running on `8899` port.
 Start `proxy.py` and enable inbuilt web server:
 
 ```bash
-$ proxy \
+❯ proxy \
     --enable-web-server \
     --plugins proxy.plugin.RedirectToCustomServerPlugin
 ```
@@ -504,7 +504,7 @@ By default, plugin drops traffic for `google.com` and `www.google.com`.
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.FilterByUpstreamHostPlugin
 ```
 
@@ -537,7 +537,7 @@ Caches Upstream Server Responses.
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.CacheResponsesPlugin
 ```
 
@@ -613,7 +613,7 @@ Modifies upstream server responses.
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.ManInTheMiddlePlugin
 ```
 
@@ -642,17 +642,17 @@ Let's start upstream proxies first.
 Start `proxy.py` on port `9000` and `9001`
 
 ```bash
-$ proxy --port 9000
+❯ proxy --port 9000
 ```
 
 ```bash
-$ proxy --port 9001
+❯ proxy --port 9001
 ```
 
 Now, start `proxy.py` with `ProxyPoolPlugin` (on default `8899` port):
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.ProxyPoolPlugin
 ```
 
@@ -672,7 +672,7 @@ Extend in-built Web Server to add Reverse Proxy capabilities.
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.ReverseProxyPlugin
 ```
 
@@ -707,7 +707,7 @@ Demonstrates inbuilt web server routing using plugin.
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.WebServerPlugin
 ```
 
@@ -748,7 +748,7 @@ make https-certificates
 Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --cert-file https-cert.pem \
     --key-file https-key.pem
 ```
@@ -782,7 +782,7 @@ Lets also enable `CacheResponsePlugin` so that we can verify decrypted
 response from the server. Start `proxy.py` as:
 
 ```bash
-$ proxy \
+❯ proxy \
     --plugins proxy.plugin.CacheResponsesPlugin \
     --ca-key-file ca-key.pem \
     --ca-cert-file ca-cert.pem \
@@ -815,7 +815,7 @@ The `issuer` line confirms that response was intercepted.
 Also verify the contents of cached response file.  Get path to the cache
 file from `proxy.py` logs.
 
-`$ cat /path/to/your/tmp/directory/httpbin.org-1569452863.924174.txt`
+`❯ cat /path/to/your/tmp/directory/httpbin.org-1569452863.924174.txt`
 
 ```bash
 HTTP/1.1 200 OK
@@ -890,8 +890,8 @@ running on `localhost`.
 Start `proxy.py` as:
 
 ```bash
-$ # On localhost
-$ proxy --enable-tunnel \
+❯ # On localhost
+❯ proxy --enable-tunnel \
     --tunnel-username username \
     --tunnel-hostname ip.address.or.domain.name \
     --tunnel-port 22 \
@@ -903,8 +903,8 @@ Make a HTTP proxy request on `remote` server and
 verify that response contains public IP address of `localhost` as origin:
 
 ```bash
-$ # On remote
-$ curl -x 127.0.0.1:8899 http://httpbin.org/get
+❯ # On remote
+❯ curl -x 127.0.0.1:8899 http://httpbin.org/get
 {
   "args": {},
   "headers": {
@@ -1239,7 +1239,7 @@ Browse through internal class hierarchy and documentation using `pydoc3`.
 Example:
 
 ```bash
-$ pydoc3 proxy
+❯ pydoc3 proxy
 
 PACKAGE CONTENTS
     __main__
@@ -1259,7 +1259,7 @@ Frequently Asked Questions
 
 Make sure you are using `Python 3`. Verify the version before running `proxy.py`:
 
-`$ python --version`
+`❯ python --version`
 
 ## Unable to load plugins
 
@@ -1333,7 +1333,7 @@ If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issue
 with `requests per second` sent and output of following debug script:
 
 ```bash
-$ ./helper/monitor_open_files.sh <proxy-py-pid>
+❯ ./helper/monitor_open_files.sh <proxy-py-pid>
 ```
 
 ## None:None in access logs
