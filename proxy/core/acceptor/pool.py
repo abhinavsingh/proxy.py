@@ -46,8 +46,11 @@ class AcceptorPool:
         self.event_dispatcher: Optional[EventDispatcher] = None
         self.event_dispatcher_thread: Optional[threading.Thread] = None
         self.event_dispatcher_shutdown: Optional[threading.Event] = None
+        self.manager: Optional[multiprocessing.managers.SyncManager] = None
+
         if self.flags.enable_events:
-            self.event_queue = EventQueue()
+            self.manager = multiprocessing.Manager()
+            self.event_queue = EventQueue(self.manager.Queue())
 
     def listen(self) -> None:
         self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)

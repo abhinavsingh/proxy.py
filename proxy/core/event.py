@@ -56,10 +56,8 @@ class EventQueue:
     7. Publisher ID (optional)  - Optionally, publishing entity unique name / ID
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.manager = multiprocessing.Manager()
-        self.queue = self.manager.Queue()
+    def __init__(self, queue: DictQueueType) -> None:
+        self.queue = queue
 
     def publish(
         self,

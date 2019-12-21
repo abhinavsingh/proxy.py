@@ -11,6 +11,7 @@
 import os
 import threading
 import unittest
+import multiprocessing
 from typing import Dict, Any
 
 from unittest import mock
@@ -26,7 +27,7 @@ class TestEventSubscriber(unittest.TestCase):
     def test_event_subscriber(self, mock_time: mock.Mock) -> None:
         mock_time.return_value = 1234567
         self.dispatcher_shutdown = threading.Event()
-        self.event_queue = EventQueue()
+        self.event_queue = EventQueue(multiprocessing.Manager().Queue())
         self.dispatcher = EventDispatcher(
             shutdown=self.dispatcher_shutdown,
             event_queue=self.event_queue)
