@@ -27,7 +27,7 @@ jobs:
         run: |
           flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
           mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
-      - name: Build PyPi Package
+      - name: Test PyPi Package Build
         run: python setup.py sdist
       - name: Run Tests
         run: pytest --cov=proxy tests/
