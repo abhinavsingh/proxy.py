@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# TODO: Option to also shutdown proxy.py after
+# integration testing is done.  Atleast on
+# macOS and ubuntu, pkill and kill commands
+# will do the job.
+#
+# For github action, we simply bank upon GitHub
+# to clean up any background process including
+# proxy.py
+
 # Wait for server to come up
 while true; do
     if [[ $(lsof -i TCP:8899 | wc -l | tr -d ' ') == 0 ]]; then
