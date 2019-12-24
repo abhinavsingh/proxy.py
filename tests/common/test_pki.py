@@ -8,9 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
+import tempfile
 import unittest
 import subprocess
 from unittest import mock
+from typing import Tuple
 
 from proxy.common import pki
 
@@ -73,13 +76,43 @@ class TestPki(unittest.TestCase):
                     b'\nsubjectAltName=DNS:proxy.py')
 
     def test_gen_private_key(self) -> None:
-        pass
+        key_path, nopass_key_path = self._gen_private_key()
+        self.assertTrue(os.path.exists(key_path))
+        self.assertTrue(os.path.exists(nopass_key_path))
+        os.remove(key_path)
+        os.remove(nopass_key_path)
 
     def test_gen_public_key(self) -> None:
-        pass
+        key_path, nopass_key_path, crt_path = self._gen_public_private_key()
+        self.assertTrue(os.path.exists(crt_path))
+        # TODO: Assert generated public key matches private key
+        os.remove(crt_path)
+        os.remove(key_path)
+        os.remove(nopass_key_path)
 
     def test_gen_csr(self) -> None:
-        pass
+        key_path, nopass_key_path, crt_path = self._gen_public_private_key()
+        csr_path = os.path.join(tempfile.gettempdir(), 'test_gen_public.csr')
+        pki.gen_csr(csr_path, key_path, 'password', crt_path)
+        self.assertTrue(os.path.exists(csr_path))
+        # TODO: Assert CSR is valid for provided crt and key
+        os.remove(csr_path)
+        os.remove(crt_path)
+        os.remove(key_path)
+        os.remove(nopass_key_path)
 
     def test_sign_csr(self) -> None:
         pass
+
+    def _gen_public_private_key(self) -> Tuple[str, str, str]:
+        key_path, nopass_key_path = self._gen_private_key()
+        crt_path = os.path.join(tempfile.gettempdir(), 'test_gen_public.crt')
+        pki.gen_public_key(crt_path, key_path, 'password', '/CN=example.com')
+        return (key_path, nopass_key_path, crt_path)
+
+    def _gen_private_key(self) -> Tuple[str, str]:
+        key_path = os.path.join(tempfile.gettempdir(), 'test_gen_private.key')
+        nopass_key_path = os.path.join(tempfile.gettempdir(), 'test_gen_private_nopass.key')
+        pki.gen_private_key(key_path, 'password')
+        pki.remove_passphrase(key_path, 'password', nopass_key_path)
+        return (key_path, nopass_key_path)
