@@ -38,4 +38,4 @@ jobs:
         run: |
           python setup.py install
           proxy --enable-web-server --pid-file /tmp/proxy.pid &
-          sudo ./tests/integration/main.sh
+          ./tests/integration/main.sh

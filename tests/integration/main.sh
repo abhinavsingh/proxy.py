@@ -26,6 +26,16 @@ done
 # If integration testing plugin is not found,
 # detect if we have internet access.  If we do,
 # then use httpbin.org for integration testing.
+curl -v -x localhost:8899 http://httpbin.org/get
+if [[ $? != 0 ]]; then
+    echo "http request failed"
+    exit 1
+fi
 
-echo "OK"
+curl -v -x localhost:8899 https://httpbin.org/get
+if [[ $? != 0 ]]; then
+    echo "https request failed"
+    exit 1
+fi
+
 exit 0
