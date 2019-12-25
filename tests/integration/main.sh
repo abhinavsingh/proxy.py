@@ -38,4 +38,10 @@ if [[ $? != 0 ]]; then
     exit 1
 fi
 
+curl -v -x localhost:8899 http://localhost:8899/
+if [[ $? != 0 ]]; then
+    echo "http request to built in webserver failed"
+    exit 1
+fi
+
 exit 0
