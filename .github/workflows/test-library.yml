@@ -33,13 +33,9 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: codecov
-      - name: Install Package (Start Integration Testing)
-        run: python setup.py install
-      - name: Start Proxy.py in Background (Windows Only)
-        if: matrix.os == 'windows'
-        run: START /B proxy.exe > proxy.log
-      - name: Start Proxy.py in Background
+      - name: Integration testing
         if: matrix.os != 'windows'
-        run: proxy --enable-web-server --pid-file /tmp/proxy.pid &
-      - name: Run Integration Tests
-        run: ./tests/integration/main.sh
+        run: |
+          python setup.py install
+          proxy --enable-web-server --pid-file /tmp/proxy.pid &
+          ./tests/integration/main.sh
