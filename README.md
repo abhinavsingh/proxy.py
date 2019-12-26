@@ -1,10 +1,14 @@
 [![Proxy.Py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
 [![License](https://img.shields.io/github/license/abhinavsingh/proxy.py.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![Build Status](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop)](https://travis-ci.org/abhinavsingh/proxy.py/)
-[![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=none&color=green)](https://github.com/abhinavsingh/proxy.py)
 [![PyPi Monthly](https://img.shields.io/pypi/dm/proxy.py.svg?color=green)](https://pypi.org/project/proxy.py/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/abhinavsingh/proxy.py?color=green)](https://hub.docker.com/r/abhinavsingh/proxy.py)
+[![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=none&color=green)](https://github.com/abhinavsingh/proxy.py)
+
+[![Proxy.py Library Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Library/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
+[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Docker/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
+[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Dashboard/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
+[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Brew/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
 [![Coverage](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg)](https://codecov.io/gh/abhinavsingh/proxy.py)
 
 [![Tested With MacOS, Ubuntu, Windows, Android, Android Emulator, iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB%20%7C%20Ubuntu%20%F0%9F%96%A5%20%7C%20Windows%20%F0%9F%92%BB&color=brightgreen)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
