@@ -27,11 +27,15 @@ jobs:
         run: |
           flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
           mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
-      - name: Build PyPi Package
-        run: python setup.py sdist
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Upload coverage to Codecov
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: codecov
+      - name: Integration testing
+        if: matrix.os != 'windows'
+        run: |
+          python setup.py install
+          proxy --hostname 127.0.0.1 --enable-web-server --pid-file proxy.pid --log-file proxy.log &
+          ./tests/integration/main.sh
