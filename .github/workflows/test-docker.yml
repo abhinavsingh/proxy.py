@@ -1,0 +1,28 @@
+name: Proxy.py Docker
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}-latest
+    name: Docker - Python ${{ matrix.python }} on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu]
+        python: [3.8]
+      max-parallel: 1
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v1
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python }}-dev
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+      - name: Build
+        run: |
+          make container

@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-VERSION ?= v$(shell python proxy.py --version)
+VERSION ?= v$(shell python -m proxy --version)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
@@ -13,53 +13,20 @@ CA_KEY_FILE_PATH := ca-key.pem
 CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
-.PHONY: all clean test package test-release release coverage lint autopep8
-.PHONY: container run-container release-container https-certificates ca-certificates
-.PHONY: profile
+.PHONY: all https-certificates ca-certificates autopep8 devtools
+.PHONY: lib-clean lib-test lib-package lib-release-test lib-release lib-coverage lib-lint lib-profile
+.PHONY: container container-run container-release
+.PHONY: dashboard dashboard-clean
 
-all: clean test
+all: lib-clean lib-test
 
-clean:
-	find . -name '*.pyc' -exec rm -f {} +
-	find . -name '*.pyo' -exec rm -f {} +
-	find . -name '*~' -exec rm -f {} +
-	rm -f .coverage
-	rm -rf htmlcov dist build .pytest_cache proxy.py.egg-info
-
-test:
-	python -m unittest tests
-
-package: clean
-	python setup.py sdist bdist_wheel
-
-test-release: package
-	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
-
-release: package
-	twine upload dist/*
-
-coverage:
-	coverage3 run --source=proxy tests.py
-	coverage3 html
-	open htmlcov/index.html
-
-lint:
-	flake8 --ignore=W504 --max-line-length=127 proxy.py plugin_examples.py tests.py setup.py
-	mypy --strict --ignore-missing-imports proxy.py plugin_examples.py tests.py setup.py
+devtools:
+	pushd dashboard && npm run devtools && popd
 
 autopep8:
-	autopep8 --recursive --in-place --aggressive proxy.py
-	autopep8 --recursive --in-place --aggressive tests.py
-	autopep8 --recursive --in-place --aggressive plugin_examples.py
-
-container:
-	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .
-
-run-container:
-	docker run -it -p 8899:8899 --rm $(LATEST_TAG)
-
-release-container:
-	docker push $(IMAGE_TAG)
+	autopep8 --recursive --in-place --aggressive proxy
+	autopep8 --recursive --in-place --aggressive tests
+	autopep8 --recursive --in-place --aggressive setup.py
 
 https-certificates:
 	# Generate server key
@@ -76,5 +43,53 @@ ca-certificates:
 	# Generated certificates are then signed with CA certificate / key generated above
 	openssl genrsa -out $(CA_SIGNING_KEY_FILE_PATH) 2048
 
-profile:
+lib-clean:
+	find . -name '*.pyc' -exec rm -f {} +
+	find . -name '*.pyo' -exec rm -f {} +
+	find . -name '*~' -exec rm -f {} +
+	rm -f .coverage
+	rm -rf htmlcov
+	rm -rf dist
+	rm -rf build
+	rm -rf proxy.py.egg-info
+	rm -rf .pytest_cache
+	rm -rf .hypothesis
+
+lib-lint:
+	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
+	mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
+
+lib-test: lib-lint
+	pytest -v tests/
+
+lib-package: lib-clean
+	python setup.py sdist
+
+lib-release-test: lib-package
+	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
+
+lib-release: lib-package
+	twine upload dist/*
+
+lib-coverage:
+	pytest --cov=proxy --cov-report=html tests/
+	open htmlcov/index.html
+
+lib-profile:
 	sudo py-spy -F -f profile.svg -d 3600 proxy.py
+
+dashboard:
+	pushd dashboard && npm run build && popd
+
+dashboard-clean:
+	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
+
+container:
+	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .
+
+container-release:
+	docker push $(IMAGE_TAG)
+	docker push $(LATEST_TAG)
+
+container-run:
+	docker run -it -p 8899:8899 --rm $(LATEST_TAG)

@@ -1,0 +1,10 @@
+# proxy.py
+# ~~~~~~~~
+# ⚡⚡⚡ Fast, Lightweight, Programmable, TLS interception capable
+#     proxy server for Application debugging, testing and development.
+#
+# :copyright: (c) 2013-present by Abhinav Singh and contributors.
+# :license: BSD, see LICENSE for more details.
+#
+# See https://devcenter.heroku.com/articles/procfile
+web: python3 proxy.py --hostname 0.0.0.0 --port $PORT

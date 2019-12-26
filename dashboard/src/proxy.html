@@ -1,0 +1,73 @@
+<!--
+    proxy.py
+    ~~~~~~~~
+    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
+    Network monitoring, controls & Application development, testing, debugging.
+
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Proxy.py Dashboard</title>
+
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src http: https: ws: wss: data:; object-src 'none'; script-src 'self'; style-src 'self'">
+    <meta name="referrer" content="same-origin">
+    <meta name="theme-color" content="#2F3BA2" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Proxy.py Dashboard">
+    <meta name="Description" content="⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
+    proxy server for Application debugging, testing and development.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="images/icons/icon-152x152.png">
+    <link rel="stylesheet" href="font-awesome-4.7.0.min.css">
+    <link rel="stylesheet" href="bootstrap-4.3.1.min.css">
+    <link rel="stylesheet" href="proxy.css">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="#">
+        <i class="fa fa-fw fa-dashboard"></i>
+        PROXY.PY
+    </a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#proxyTopNav" aria-controls="proxyTopNav"
+            aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="proxyTopNav">
+        <ul class="navbar-nav ml-auto"></ul>
+    </div>
+</nav>
+
+<header></header>
+<main role="main" id="proxyDashboard"></main>
+<footer></footer>
+
+<nav class="navbar fixed-bottom navbar-dark bg-dark" id="proxyBottomNav">
+    <div class="mr-auto text-danger">
+        <a class="text-reset small" href="#" id="proxyServerStatus">
+            <i class="fa fa-fw fa-signal"></i>
+            Server Status <i id="proxyServerStatusSummary"></i>
+        </a>
+    </div>
+    <div class="ml-auto text-white-50">
+        <a class="text-reset small" href="#">
+            <i class="fa fa-fw fa-copyright"></i>
+            Abhinav Singh and contributors
+        </a>
+    </div>
+</nav>
+
+<script src="jquery-3.4.1.min.js"></script>
+<script src="popper-1.14.7.min.js"></script>
+<script src="bootstrap-4.3.1.min.js"></script>
+<script defer src="proxy.js"></script>
+</body>
+</html>
