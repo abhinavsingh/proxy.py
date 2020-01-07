@@ -14,11 +14,12 @@ CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 .PHONY: all https-certificates ca-certificates autopep8 devtools
-.PHONY: lib-clean lib-test lib-package lib-release-test lib-release lib-coverage lib-lint lib-profile
+.PHONY: lib-version lib-clean lib-test lib-package lib-coverage lib-lint
+.PHONY: lib-release-test lib-release lib-profile
 .PHONY: container container-run container-release
 .PHONY: dashboard dashboard-clean
 
-all: lib-clean lib-test
+all: lib-test
 
 devtools:
 	pushd dashboard && npm run devtools && popd
@@ -56,6 +57,9 @@ ca-certificates:
 	python -m proxy.common.pki remove_passphrase \
 		--private-key-path $(CA_SIGNING_KEY_FILE_PATH)
 
+lib-version:
+	python version-check.py
+
 lib-clean:
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
@@ -72,10 +76,10 @@ lib-lint:
 	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
 	mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
 
-lib-test: lib-lint
+lib-test: lib-clean lib-version lib-lint
 	pytest -v tests/
 
-lib-package: lib-clean
+lib-package: lib-clean lib-version
 	python setup.py sdist
 
 lib-release-test: lib-package
