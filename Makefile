@@ -30,18 +30,31 @@ autopep8:
 
 https-certificates:
 	# Generate server key
-	openssl genrsa -out $(HTTPS_KEY_FILE_PATH) 2048
+	python -m proxy.common.pki gen_private_key \
+		--private-key-path $(HTTPS_KEY_FILE_PATH)
+	python -m proxy.common.pki remove_passphrase \
+		--private-key-path $(HTTPS_KEY_FILE_PATH)
 	# Generate server certificate
-	openssl req -new -x509 -days 3650 -key $(HTTPS_KEY_FILE_PATH) -out $(HTTPS_CERT_FILE_PATH)
+	python -m proxy.common.pki gen_public_key \
+		--private-key-path $(HTTPS_KEY_FILE_PATH) \
+		--public-key-path $(HTTPS_CERT_FILE_PATH)
 
 ca-certificates:
 	# Generate CA key
-	openssl genrsa -out $(CA_KEY_FILE_PATH) 2048
+	python -m proxy.common.pki gen_private_key \
+		--private-key-path $(CA_KEY_FILE_PATH)
+	python -m proxy.common.pki remove_passphrase \
+		--private-key-path $(CA_KEY_FILE_PATH)
 	# Generate CA certificate
-	openssl req -new -x509 -days 3650 -key $(CA_KEY_FILE_PATH) -out $(CA_CERT_FILE_PATH)
+	python -m proxy.common.pki gen_public_key \
+		--private-key-path $(CA_KEY_FILE_PATH) \
+		--public-key-path $(CA_CERT_FILE_PATH)
 	# Generate key that will be used to generate domain certificates on the fly
 	# Generated certificates are then signed with CA certificate / key generated above
-	openssl genrsa -out $(CA_SIGNING_KEY_FILE_PATH) 2048
+	python -m proxy.common.pki gen_private_key \
+		--private-key-path $(CA_SIGNING_KEY_FILE_PATH)
+	python -m proxy.common.pki remove_passphrase \
+		--private-key-path $(CA_SIGNING_KEY_FILE_PATH)
 
 lib-clean:
 	find . -name '*.pyc' -exec rm -f {} +

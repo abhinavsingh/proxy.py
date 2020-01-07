@@ -18,6 +18,7 @@ proxy.py.iml
 *.csr
 *.crt
 *.key
+*.pem
 venv*
 
 cover
