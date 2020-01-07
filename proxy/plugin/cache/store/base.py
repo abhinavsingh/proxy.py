@@ -10,13 +10,13 @@
 """
 from abc import ABC, abstractmethod
 from typing import Optional
-
+from uuid import UUID
 from ....http.parser import HttpParser
 
 
 class CacheStore(ABC):
 
-    def __init__(self, uid: str) -> None:
+    def __init__(self, uid: UUID) -> None:
         self.uid = uid
 
     @abstractmethod
