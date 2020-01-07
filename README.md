@@ -92,6 +92,7 @@ Table of Contents
         * [API Usage](#api-usage)
         * [CLI Usage](#cli-usage)
 * [Frequently Asked Questions](#frequently-asked-questions)
+    * [Threads vs Threadless](#threads-vs-threadless)
     * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
     * [Unable to load plugins](#unable-to-load-plugins)
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
@@ -1292,6 +1293,18 @@ FILE
 
 Frequently Asked Questions
 ==========================
+
+## Threads vs Threadless
+
+Pre v2.x, `proxy.py` used to spawn new threads for handling
+client requests.
+
+Starting v2.x, `proxy.py` added support for threadless execution of
+client requests using `asyncio`.
+
+In future, threadless execution will be the default mode.
+Till then if you are interested in trying it out,
+start `proxy.py` with `--threadless` flag.
 
 ## SyntaxError: invalid syntax
 

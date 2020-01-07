@@ -10,9 +10,10 @@
 """
 from setuptools import setup, find_packages
 
-VERSION = (2, 0, 0)
+VERSION = (2, 1, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
-__description__ = '⚡⚡⚡ Fast, Lightweight, Programmable Proxy Server in a single Python file.'
+__description__ = '''⚡⚡⚡Fast, Lightweight, Pluggable, TLS interception capable proxy server
+    focused on Network monitoring, controls & Application development, testing, debugging.'''
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
@@ -31,8 +32,9 @@ setup(
     download_url=__download_url__,
     license=__license__,
     python_requires='!=2.*, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
-    zip_safe=True,
-    packages=find_packages(exclude=["tests", "tests.*"]),
+    zip_safe=False,
+    packages=find_packages(exclude=['tests', 'tests.*']),
+    package_data={'proxy': ['py.typed']},
     install_requires=open('requirements.txt', 'r').read().strip().split(),
     entry_points={
         'console_scripts': [
