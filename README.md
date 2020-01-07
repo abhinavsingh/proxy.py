@@ -1161,7 +1161,7 @@ Utilities
 
 ## TCP Sockets
 
-#### new_socket_connection
+### new_socket_connection
 
 Attempts to create an IPv4 connection, then IPv6 and
 finally a dual stack connection to provided address.
@@ -1172,7 +1172,7 @@ finally a dual stack connection to provided address.
 >>> conn.close()
 ```
 
-#### socket_connection
+### socket_connection
 
 `socket_connection` is a convenient decorator + context manager
 around `new_socket_connection` which ensures `conn.close` is implicit.
@@ -1194,9 +1194,9 @@ As a decorator:
 
 ## Http Client
 
-#### build_http_request
+### build_http_request
 
-##### Generate HTTP GET request
+#### Generate HTTP GET request
 
 ```python
 >>> build_http_request(b'GET', b'/')
@@ -1204,7 +1204,7 @@ b'GET / HTTP/1.1\r\n\r\n'
 >>>
 ```
 
-##### Generate HTTP GET request with headers
+#### Generate HTTP GET request with headers
 
 ```python
 >>> build_http_request(b'GET', b'/',
@@ -1213,7 +1213,7 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
 >>>
 ```
 
-##### Generate HTTP POST request with headers and body
+#### Generate HTTP POST request with headers and body
 
 ```python
 >>> import json
@@ -1223,24 +1223,24 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
     b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
 ```
 
-#### build_http_response
+### build_http_response
 
 TODO
 
-### PKI
+## PKI
 
-#### API Usage
+### API Usage
 
-##### gen_private_key
-##### gen_public_key
-##### remove_passphrase
-##### gen_csr
-##### sign_csr
+#### gen_private_key
+#### gen_public_key
+#### remove_passphrase
+#### gen_csr
+#### sign_csr
 
 See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) are
 method definitions.
 
-#### CLI Usage
+### CLI Usage
 
 Use `proxy.common.pki` module for:
 
