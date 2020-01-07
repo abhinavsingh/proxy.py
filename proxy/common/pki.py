@@ -230,8 +230,7 @@ if __name__ == '__main__':
         'action',
         type=str,
         default=None,
-        help='One of the available method names in pki.py.'
-        'Current supported actions: ' + ', '.join(available_actions)
+        help='Valid actions: ' + ', '.join(available_actions)
     )
     parser.add_argument(
         '--password',

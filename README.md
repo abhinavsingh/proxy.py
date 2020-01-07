@@ -1254,11 +1254,10 @@ usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
               [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
               action
 
-proxy.py v2.0.0 : PKI Utility
+proxy.py v2.1.0 : PKI Utility
 
 positional arguments:
-  action                One of the available method names in pki.py.Current
-                        supported actions: remove_passphrase, gen_private_key,
+  action                Valid actions: remove_passphrase, gen_private_key,
                         gen_public_key, gen_csr, sign_csr
 
 optional arguments:
