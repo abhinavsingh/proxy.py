@@ -8,6 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import sys
+import argparse
 import contextlib
 import os
 import uuid
@@ -18,6 +20,7 @@ from typing import List, Generator, Optional, Tuple
 
 from .utils import bytes_
 from .constants import COMMA
+from .version import __version__
 
 
 logger = logging.getLogger(__name__)
@@ -212,3 +215,69 @@ def run_openssl_command(command: List[str], timeout: int) -> bool:
     )
     cmd.communicate(timeout=timeout)
     return cmd.returncode == 0
+
+
+if __name__ == '__main__':
+    available_actions = (
+        'remove_passphrase', 'gen_private_key', 'gen_public_key',
+        'gen_csr', 'sign_csr'
+    )
+
+    parser = argparse.ArgumentParser(
+        description='proxy.py v%s : PKI Utility' % __version__,
+    )
+    parser.add_argument(
+        'action',
+        type=str,
+        default=None,
+        help='One of the available method names in pki.py.'
+        'Current supported actions: ' + ', '.join(available_actions)
+    )
+    parser.add_argument(
+        '--password',
+        type=str,
+        default='proxy.py',
+        help='Password to use for encryption. Default: proxy.py',
+    )
+    parser.add_argument(
+        '--private-key-path',
+        type=str,
+        default=None,
+        help='Private key path',
+    )
+    parser.add_argument(
+        '--public-key-path',
+        type=str,
+        default=None,
+        help='Public key path',
+    )
+    parser.add_argument(
+        '--subject',
+        type=str,
+        default='/CN=example.com',
+        help='Subject to use for public key generation. Default: /CN=example.com',
+    )
+    args = parser.parse_args(sys.argv[1:])
+
+    # Validation
+    if args.action not in available_actions:
+        print('Invalid --action. Valid values ' + ', '.join(available_actions))
+        sys.exit(1)
+    if args.action in ('gen_private_key', 'gen_public_key'):
+        if args.private_key_path is None:
+            print('--private-key-path is required for ' + args.action)
+            sys.exit(1)
+    if args.action == 'gen_public_key':
+        if args.public_key_path is None:
+            print('--public-key-file is required for private key generation')
+            sys.exit(1)
+
+    # Execute
+    if args.action == 'gen_private_key':
+        gen_private_key(args.private_key_path, args.password)
+    elif args.action == 'gen_public_key':
+        gen_public_key(args.public_key_path, args.private_key_path,
+                       args.password, args.subject)
+    elif args.action == 'remove_passphrase':
+        remove_passphrase(args.private_key_path, args.password,
+                          args.private_key_path)

@@ -82,15 +82,15 @@ Table of Contents
         * [Setup pre-commit hook](#setup-pre-commit-hook)
         * [Sending a Pull Request](#sending-a-pull-request)
 * [Utilities](#utilities)
+    * [Public Key Infrastructure](#pki)
+        * [API Usage](#api-usage)
+        * [CLI Usage](#cli-usage)
     * [TCP](#tcp-sockets)
         * [new_socket_connection](#new_socket_connection)
         * [socket_connection](#socket_connection)
     * [Http](#http-client)
         * [build_http_request](#build_http_request)
         * [build_http_response](#build_http_response)
-    * [Websocket](#websocket)
-        * [WebsocketFrame](#websocketframe)
-        * [WebsocketClient](#websocketclient)
 * [Frequently Asked Questions](#frequently-asked-questions)
     * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
     * [Unable to load plugins](#unable-to-load-plugins)
@@ -1227,15 +1227,50 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
 
 TODO
 
-## Websocket
+### PKI
 
-#### WebsocketFrame
+#### API Usage
 
-TODO
+##### gen_private_key
+##### gen_public_key
+##### remove_passphrase
+##### gen_csr
+##### sign_csr
 
-#### WebsocketClient
+See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) are
+method definitions.
 
-TODO
+#### CLI Usage
+
+Use `proxy.common.pki` module for:
+
+1) Generation of public and private keys
+2) Generating CSR requests
+3) Signing CSR requests using custom CA.
+
+```bash
+python -m proxy.common.pki -h
+usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
+              [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
+              action
+
+proxy.py v2.0.0 : PKI Utility
+
+positional arguments:
+  action                One of the available method names in pki.py.Current
+                        supported actions: remove_passphrase, gen_private_key,
+                        gen_public_key, gen_csr, sign_csr
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --password PASSWORD   Password to use for encryption. Default: proxy.py
+  --private-key-path PRIVATE_KEY_PATH
+                        Private key path
+  --public-key-path PUBLIC_KEY_PATH
+                        Public key path
+  --subject SUBJECT     Subject to use for public key generation. Default:
+                        /CN=example.com
+```
 
 ## Internal Documentation
 
