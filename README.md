@@ -82,15 +82,15 @@ Table of Contents
         * [Setup pre-commit hook](#setup-pre-commit-hook)
         * [Sending a Pull Request](#sending-a-pull-request)
 * [Utilities](#utilities)
-    * [Public Key Infrastructure](#pki)
-        * [API Usage](#api-usage)
-        * [CLI Usage](#cli-usage)
     * [TCP](#tcp-sockets)
         * [new_socket_connection](#new_socket_connection)
         * [socket_connection](#socket_connection)
     * [Http](#http-client)
         * [build_http_request](#build_http_request)
         * [build_http_response](#build_http_response)
+    * [Public Key Infrastructure](#pki)
+        * [API Usage](#api-usage)
+        * [CLI Usage](#cli-usage)
 * [Frequently Asked Questions](#frequently-asked-questions)
     * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
     * [Unable to load plugins](#unable-to-load-plugins)
@@ -1412,7 +1412,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--static-server-dir STATIC_SERVER_DIR] [--threadless]
              [--timeout TIMEOUT] [--version]
 
-proxy.py v2.0.0
+proxy.py v2.1.0
 
 optional arguments:
   -h, --help            show this help message and exit
