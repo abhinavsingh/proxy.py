@@ -15,8 +15,10 @@ from setup import __version__ as pkg_version
 #
 # 1. setup.py doesn't import proxy and hence they both use
 #    their own respective __version__
-# 2. TODO: Version is also hardcoded in homebrew stable package
-#    installer file, but it only needs to match with other
-#    versions if git branch is master
+# 2. TODO: Version is hardcoded in homebrew stable package
+#    installer file, but it only needs to match with lib
+#    versions if current git branch is master
+# 3. TODO: Version is also hardcoded in README.md flags
+#    section
 if lib_version != pkg_version:
     sys.exit(1)
