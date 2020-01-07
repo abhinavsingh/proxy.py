@@ -1,6 +1,6 @@
 name: Proxy.py Brew
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
