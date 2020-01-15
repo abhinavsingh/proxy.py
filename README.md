@@ -1238,8 +1238,9 @@ TODO
 #### gen_csr
 #### sign_csr
 
-See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) are
-method definitions.
+See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) for
+method parameters and [test_pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/common/test_pki.py)
+for usage examples.
 
 ### CLI Usage
 
@@ -1303,6 +1304,7 @@ Starting v2.x, `proxy.py` added support for threadless execution of
 client requests using `asyncio`.
 
 In future, threadless execution will be the default mode.
+
 Till then if you are interested in trying it out,
 start `proxy.py` with `--threadless` flag.
 
