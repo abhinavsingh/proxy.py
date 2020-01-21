@@ -8,15 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from typing import Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar
 from urllib import parse as urlparse
-from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
-from .methods import httpMethods
-from .chunk_parser import ChunkParser, chunkParserStates
-
-from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
+from ..common.constants import (COLON, CRLF, DEFAULT_DISABLE_HEADERS,
+                                DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
+                                HTTP_1_1, WHITESPACE)
 from ..common.utils import build_http_request, find_http_line, text_
-
+from .chunk_parser import ChunkParser, chunkParserStates
+from .methods import httpMethods
 
 HttpParserStates = NamedTuple('HttpParserStates', [
     ('INITIALIZED', int),
@@ -105,14 +105,15 @@ class HttpParser:
             self.del_header(key.lower())
 
     def set_url(self, url: bytes) -> None:
-        self.url = urlparse.urlsplit(url)
+        self.url = urlparse.urlsplit(
+            (b"//" if self.method == httpMethods.CONNECT else b"") + url)
         self.set_line_attributes()
 
     def set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
             if self.method == httpMethods.CONNECT and self.url:
-                u = urlparse.urlsplit(b'//' + self.url.path)
-                self.host, self.port = u.hostname, u.port
+                self.host, self.port = self.url.hostname, self.url.port \
+                    if self.url.port else DEFAULT_HTTPS_PORT
             elif self.url:
                 self.host, self.port = self.url.hostname, self.url.port \
                     if self.url.port else DEFAULT_HTTP_PORT
@@ -164,7 +165,8 @@ class HttpParser:
                         self.state = httpParserStates.COMPLETE
                     more = False
                 else:
-                    raise NotImplementedError('Parser shouldn\'t have reached here')
+                    raise NotImplementedError(
+                        'Parser shouldn\'t have reached here')
             else:
                 more, raw = self.process(raw)
         self.buffer = raw

@@ -8,10 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import ipaddress
 import os
 import time
-import ipaddress
-
 from typing import List
 
 from .version import __version__
@@ -73,3 +72,4 @@ DEFAULT_THREADLESS = False
 DEFAULT_TIMEOUT = 10
 DEFAULT_VERSION = False
 DEFAULT_HTTP_PORT = 80
+DEFAULT_HTTPS_PORT = 443
