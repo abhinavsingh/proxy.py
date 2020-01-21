@@ -8,21 +8,19 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import socket
 import selectors
+import socket
 import ssl
-
-from unittest import mock
+import unittest
 from typing import Any, cast
+from unittest import mock
 
-from proxy.common.utils import bytes_
 from proxy.common.flags import Flags
-from proxy.common.utils import build_http_request, build_http_response
+from proxy.common.utils import build_http_request, build_http_response, bytes_
 from proxy.core.connection import TcpClientConnection
 from proxy.http.codes import httpStatusCodes
-from proxy.http.methods import httpMethods
 from proxy.http.handler import HttpProtocolHandler
+from proxy.http.methods import httpMethods
 from proxy.http.proxy import HttpProxyPlugin
 
 from .utils import get_plugin_by_test_name
@@ -122,7 +120,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
         self._conn.send.side_effect = send
         self._conn.recv.return_value = build_http_request(
-            httpMethods.CONNECT, b'uni.corn:443'
+            httpMethods.CONNECT, b'https://uni.corn:443'
         )
         self.protocol_handler.run_once()
 

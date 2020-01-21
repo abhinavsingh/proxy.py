@@ -8,21 +8,20 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import uuid
-import unittest
+import selectors
 import socket
 import ssl
-import selectors
-
+import unittest
+import uuid
 from typing import Any
 from unittest import mock
 
+from proxy.common.flags import Flags
+from proxy.common.utils import build_http_request, bytes_
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
-from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.methods import httpMethods
-from proxy.common.utils import build_http_request, bytes_
-from proxy.common.flags import Flags
+from proxy.http.proxy import HttpProxyPlugin
 
 
 class TestHttpProxyTlsInterception(unittest.TestCase):
@@ -42,7 +41,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             mock_ssl_context: mock.Mock,
             mock_ssl_wrap: mock.Mock) -> None:
         host, port = uuid.uuid4().hex, 443
-        netloc = '{0}:{1}'.format(host, port)
+        netloc = 'https://{0}:{1}'.format(host, port)
 
         self.mock_fromfd = mock_fromfd
         self.mock_selector = mock_selector

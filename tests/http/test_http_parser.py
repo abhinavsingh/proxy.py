@@ -11,10 +11,11 @@
 import unittest
 
 from proxy.common.constants import CRLF
-from proxy.common.utils import build_http_request, find_http_line, build_http_response, build_http_header, bytes_
-from proxy.http.methods import httpMethods
+from proxy.common.utils import (build_http_header, build_http_request,
+                                build_http_response, bytes_, find_http_line)
 from proxy.http.codes import httpStatusCodes
-from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.http.methods import httpMethods
+from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
 
 
 class TestHttpParser(unittest.TestCase):
@@ -134,7 +135,8 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
-        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'example.com'))
+        self.assertEqual(
+            self.parser.headers[b'host'], (b'Host', b'example.com'))
         self.parser.del_headers([b'host'])
         self.parser.add_headers([(b'Host', b'example.com')])
         self.assertEqual(
@@ -188,7 +190,8 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(CRLF * 2)
         self.assertEqual(self.parser.total_size, len(pkt) +
                          (3 * len(CRLF)) + len(host_hdr))
-        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'localhost:8080'))
+        self.assertEqual(
+            self.parser.headers[b'host'], (b'Host', b'localhost:8080'))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_get_partial_parse2(self) -> None:
@@ -205,7 +208,8 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
         self.parser.parse(b'localhost:8080' + CRLF)
-        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'localhost:8080'))
+        self.assertEqual(
+            self.parser.headers[b'host'], (b'Host', b'localhost:8080'))
         self.assertEqual(self.parser.buffer, b'')
         self.assertEqual(
             self.parser.state,
@@ -524,3 +528,31 @@ class TestHttpParser(unittest.TestCase):
         self.parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.parser.parse(response)
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
+
+    def test_set_url_http(self) -> None:
+        self.parser.set_url(b"http://unicorn.fr:8899/path1/path2")
+        self.assertEqual(self.parser.port, 8899)
+        self.assertEqual(self.parser.host, b"unicorn.fr")
+        self.assertEqual(self.parser.path, b"/path1/path2")
+
+        self.parser.set_url(b"http://unicorn.fr/path1/path2")
+        self.assertEqual(self.parser.port, 80)
+        self.assertEqual(self.parser.host, b"unicorn.fr")
+        self.assertEqual(self.parser.path, b"/path1/path2")
+
+    def test_set_url_https(self) -> None:
+        '''
+         The code is setting method as httpMethods.CONNECT when there is HTTPS,
+         here we set it to just test the set_url methdod
+        '''
+        self.parser.method = httpMethods.CONNECT
+
+        self.parser.set_url(b"https://unicorn.fr:443/path1/path2")
+        self.assertEqual(self.parser.port, 443)
+        self.assertEqual(self.parser.host, b"unicorn.fr")
+        self.assertEqual(self.parser.path, b"/path1/path2")
+
+        self.parser.set_url(b"https://unicorn.fr/path1/path2")
+        self.assertEqual(self.parser.port, 443)
+        self.assertEqual(self.parser.host, b"unicorn.fr")
+        self.assertEqual(self.parser.path, b"/path1/path2")
