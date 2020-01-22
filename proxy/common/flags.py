@@ -9,31 +9,38 @@
     :license: BSD, see LICENSE for more details.
 """
 import abc
-import logging
-import importlib
-import collections
 import argparse
 import base64
-import ipaddress
-import os
-import socket
-import multiprocessing
-import sys
+import collections
+import importlib
 import inspect
+import ipaddress
+import logging
+import multiprocessing
+import os
 import pathlib
+import socket
+import sys
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union, cast
 
-from typing import Optional, Union, Dict, List, TypeVar, Type, cast, Any, Tuple
-
-from .utils import text_, bytes_
-from .constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BACKLOG, DEFAULT_BASIC_AUTH
-from .constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_DISABLE_HEADERS
-from .constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
-from .constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
-from .constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
-from .constants import DEFAULT_PAC_FILE_URL_PATH, DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
-from .constants import DEFAULT_NUM_WORKERS, DEFAULT_VERSION, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
-from .constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR
-from .constants import DEFAULT_ENABLE_DASHBOARD, COMMA, DOT
+from .constants import (COMMA, DEFAULT_BACKLOG, DEFAULT_BASIC_AUTH,
+                        DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE,
+                        DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE,
+                        DEFAULT_CERT_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
+                        DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS,
+                        DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_ENABLE_DASHBOARD,
+                        DEFAULT_ENABLE_DEVTOOLS, DEFAULT_ENABLE_EVENTS,
+                        DEFAULT_ENABLE_STATIC_SERVER,
+                        DEFAULT_ENABLE_WEB_SERVER, DEFAULT_IPV6_HOSTNAME,
+                        DEFAULT_KEY_FILE, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT,
+                        DEFAULT_LOG_LEVEL, DEFAULT_NUM_WORKERS,
+                        DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PAC_FILE,
+                        DEFAULT_PAC_FILE_URL_PATH, DEFAULT_PID_FILE,
+                        DEFAULT_PLUGINS, DEFAULT_PORT,
+                        DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR,
+                        DEFAULT_THREADLESS, DEFAULT_TIMEOUT, DEFAULT_VERSION,
+                        DOT)
+from .utils import bytes_, text_
 from .version import __version__
 
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
@@ -523,6 +530,13 @@ class Flags:
                 # HttpWebServerRouteHandler route decorator adds a special
                 # staticmethod to return decorated function name
                 klass.__name__ if klass.__name__ != 'HttpWebServerRouteHandler' else klass.name())
+        # if a plugin need the HttpWebServerPlugin to be loaded, and if it's missing, we force the load of this plugin
+        if p[b'HttpWebServerBasePlugin'].__len__ != 0 and b'HttpWebServerPlugin' not in plugins:
+            klass = getattr(importlib.import_module(
+                "proxy.http.server"), 'HttpWebServerPlugin')
+            p[b'HttpProtocolHandlerPlugin'].append(klass)
+            logger.warning(
+                '--enable-web-server is missing, proxy.py forced loading of proxy.http.server.HttpWebServerPlugin')
         return p
 
     @staticmethod
