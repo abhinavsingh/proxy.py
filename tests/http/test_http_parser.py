@@ -22,6 +22,11 @@ class TestHttpParser(unittest.TestCase):
     def setUp(self) -> None:
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
+    def test_urlparse(self) -> None:
+        self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
+        self.assertEqual(self.parser.host, b'httpbin.org')
+        self.assertEqual(self.parser.port, 443)
+
     def test_build_request(self) -> None:
         self.assertEqual(
             build_http_request(
