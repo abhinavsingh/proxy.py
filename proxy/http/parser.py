@@ -111,9 +111,13 @@ class HttpParser:
     def set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
             if self.method == httpMethods.CONNECT and self.url:
-                self.host = self.url.scheme
-                self.port = 443 if self.url.path == b'' else \
-                    int(self.url.path)
+                if self.url.scheme == b'':
+                    u = urlparse.urlsplit(b'//' + self.url.path)
+                    self.host, self.port = u.hostname, u.port
+                else:
+                    self.host = self.url.scheme
+                    self.port = 443 if self.url.path == b'' else \
+                        int(self.url.path)
             elif self.url:
                 self.host, self.port = self.url.hostname, self.url.port \
                     if self.url.port else DEFAULT_HTTP_PORT
