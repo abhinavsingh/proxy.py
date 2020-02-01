@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import uuid
 import socket
 import logging
 import asyncio
@@ -21,6 +20,7 @@ from multiprocessing.reduction import recv_handle
 
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, List, Union, Generator, Any, Type
+from uuid import uuid4, UUID
 
 from .connection import TcpClientConnection
 from .event import EventQueue, eventNames
@@ -41,11 +41,11 @@ class ThreadlessWork(ABC):
             client: TcpClientConnection,
             flags: Optional[Flags],
             event_queue: Optional[EventQueue] = None,
-            uid: Optional[str] = None) -> None:
+            uid: Optional[UUID] = None) -> None:
         self.client = client
         self.flags = flags if flags else Flags()
         self.event_queue = event_queue
-        self.uid: str = uid if uid is not None else uuid.uuid4().hex
+        self.uid: UUID = uid if uid is not None else uuid4()
 
     @abstractmethod
     def initialize(self) -> None:
@@ -80,7 +80,7 @@ class ThreadlessWork(ABC):
             return
         assert self.event_queue
         self.event_queue.publish(
-            self.uid,
+            self.uid.hex,
             event_name,
             event_payload,
             publisher_id

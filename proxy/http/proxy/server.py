@@ -369,7 +369,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     stderr=subprocess.PIPE)
                 sign_cert = subprocess.Popen(
                     ['openssl', 'x509', '-req', '-days', '365', '-CA', self.flags.ca_cert_file, '-CAkey',
-                     self.flags.ca_key_file, '-set_serial', str(int(time.time())), '-out', cert_file_path],
+                     self.flags.ca_key_file, '-set_serial', str(self.uid.int), '-out', cert_file_path],
                     stdin=gen_cert.stdout,
                     stderr=subprocess.PIPE)
                 # TODO: Ensure sign_cert success.
@@ -437,7 +437,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         assert self.request.path
         assert self.request.port
         self.event_queue.publish(
-            request_id=self.uid,
+            request_id=self.uid.hex,
             event_name=eventNames.REQUEST_COMPLETE,
             event_payload={
                 'url': text_(self.request.path)

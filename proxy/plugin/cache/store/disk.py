@@ -11,6 +11,7 @@
 import logging
 import os
 from typing import Optional, BinaryIO
+from uuid import UUID
 
 from ....common.utils import text_
 from ....http.parser import HttpParser
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class OnDiskCacheStore(CacheStore):
 
-    def __init__(self, uid: str, cache_dir: str) -> None:
+    def __init__(self, uid: UUID, cache_dir: str) -> None:
         super().__init__(uid)
         self.cache_dir = cache_dir
         self.cache_file_path: Optional[str] = None
@@ -31,7 +32,7 @@ class OnDiskCacheStore(CacheStore):
     def open(self, request: HttpParser) -> None:
         self.cache_file_path = os.path.join(
             self.cache_dir,
-            '%s-%s.txt' % (text_(request.host), self.uid))
+            '%s-%s.txt' % (text_(request.host), self.uid.hex))
         self.cache_file = open(self.cache_file_path, "wb")
 
     def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
