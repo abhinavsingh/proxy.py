@@ -1,10 +1,14 @@
 [![Proxy.Py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
 [![License](https://img.shields.io/github/license/abhinavsingh/proxy.py.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![Build Status](https://travis-ci.org/abhinavsingh/proxy.py.svg?branch=develop)](https://travis-ci.org/abhinavsingh/proxy.py/)
-[![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=none&color=green)](https://github.com/abhinavsingh/proxy.py)
 [![PyPi Monthly](https://img.shields.io/pypi/dm/proxy.py.svg?color=green)](https://pypi.org/project/proxy.py/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/abhinavsingh/proxy.py?color=green)](https://hub.docker.com/r/abhinavsingh/proxy.py)
+[![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=none&color=green)](https://github.com/abhinavsingh/proxy.py)
+
+[![Proxy.py Library Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Library/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
+[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Docker/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
+[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Dashboard/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
+[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Brew/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
 [![Coverage](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg)](https://codecov.io/gh/abhinavsingh/proxy.py)
 
 [![Tested With MacOS, Ubuntu, Windows, Android, Android Emulator, iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB%20%7C%20Ubuntu%20%F0%9F%96%A5%20%7C%20Windows%20%F0%9F%92%BB&color=brightgreen)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
@@ -84,10 +88,11 @@ Table of Contents
     * [Http](#http-client)
         * [build_http_request](#build_http_request)
         * [build_http_response](#build_http_response)
-    * [Websocket](#websocket)
-        * [WebsocketFrame](#websocketframe)
-        * [WebsocketClient](#websocketclient)
+    * [Public Key Infrastructure](#pki)
+        * [API Usage](#api-usage)
+        * [CLI Usage](#cli-usage)
 * [Frequently Asked Questions](#frequently-asked-questions)
+    * [Threads vs Threadless](#threads-vs-threadless)
     * [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
     * [Unable to load plugins](#unable-to-load-plugins)
     * [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
@@ -1157,7 +1162,7 @@ Utilities
 
 ## TCP Sockets
 
-#### new_socket_connection
+### new_socket_connection
 
 Attempts to create an IPv4 connection, then IPv6 and
 finally a dual stack connection to provided address.
@@ -1168,7 +1173,7 @@ finally a dual stack connection to provided address.
 >>> conn.close()
 ```
 
-#### socket_connection
+### socket_connection
 
 `socket_connection` is a convenient decorator + context manager
 around `new_socket_connection` which ensures `conn.close` is implicit.
@@ -1190,9 +1195,9 @@ As a decorator:
 
 ## Http Client
 
-#### build_http_request
+### build_http_request
 
-##### Generate HTTP GET request
+#### Generate HTTP GET request
 
 ```python
 >>> build_http_request(b'GET', b'/')
@@ -1200,7 +1205,7 @@ b'GET / HTTP/1.1\r\n\r\n'
 >>>
 ```
 
-##### Generate HTTP GET request with headers
+#### Generate HTTP GET request with headers
 
 ```python
 >>> build_http_request(b'GET', b'/',
@@ -1209,7 +1214,7 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
 >>>
 ```
 
-##### Generate HTTP POST request with headers and body
+#### Generate HTTP POST request with headers and body
 
 ```python
 >>> import json
@@ -1219,19 +1224,54 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
     b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
 ```
 
-#### build_http_response
+### build_http_response
 
 TODO
 
-## Websocket
+## PKI
 
-#### WebsocketFrame
+### API Usage
 
-TODO
+#### gen_private_key
+#### gen_public_key
+#### remove_passphrase
+#### gen_csr
+#### sign_csr
 
-#### WebsocketClient
+See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) for
+method parameters and [test_pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/common/test_pki.py)
+for usage examples.
 
-TODO
+### CLI Usage
+
+Use `proxy.common.pki` module for:
+
+1) Generation of public and private keys
+2) Generating CSR requests
+3) Signing CSR requests using custom CA.
+
+```bash
+python -m proxy.common.pki -h
+usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
+              [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
+              action
+
+proxy.py v2.1.0 : PKI Utility
+
+positional arguments:
+  action                Valid actions: remove_passphrase, gen_private_key,
+                        gen_public_key, gen_csr, sign_csr
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --password PASSWORD   Password to use for encryption. Default: proxy.py
+  --private-key-path PRIVATE_KEY_PATH
+                        Private key path
+  --public-key-path PUBLIC_KEY_PATH
+                        Public key path
+  --subject SUBJECT     Subject to use for public key generation. Default:
+                        /CN=example.com
+```
 
 ## Internal Documentation
 
@@ -1254,6 +1294,19 @@ FILE
 
 Frequently Asked Questions
 ==========================
+
+## Threads vs Threadless
+
+Pre v2.x, `proxy.py` used to spawn new threads for handling
+client requests.
+
+Starting v2.x, `proxy.py` added support for threadless execution of
+client requests using `asyncio`.
+
+In future, threadless execution will be the default mode.
+
+Till then if you are interested in trying it out,
+start `proxy.py` with `--threadless` flag.
 
 ## SyntaxError: invalid syntax
 
@@ -1373,7 +1426,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--static-server-dir STATIC_SERVER_DIR] [--threadless]
              [--timeout TIMEOUT] [--version]
 
-proxy.py v2.0.0
+proxy.py v2.1.0
 
 optional arguments:
   -h, --help            show this help message and exit

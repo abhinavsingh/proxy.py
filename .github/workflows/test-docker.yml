@@ -1,6 +1,6 @@
 name: Proxy.py Docker
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:

@@ -22,6 +22,11 @@ class TestHttpParser(unittest.TestCase):
     def setUp(self) -> None:
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
+    def test_urlparse(self) -> None:
+        self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
+        self.assertEqual(self.parser.host, b'httpbin.org')
+        self.assertEqual(self.parser.port, 443)
+
     def test_build_request(self) -> None:
         self.assertEqual(
             build_http_request(
@@ -134,8 +139,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
-        self.assertDictContainsSubset(
-            {b'host': (b'Host', b'example.com')}, self.parser.headers)
+        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'example.com'))
         self.parser.del_headers([b'host'])
         self.parser.add_headers([(b'Host', b'example.com')])
         self.assertEqual(
@@ -189,8 +193,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(CRLF * 2)
         self.assertEqual(self.parser.total_size, len(pkt) +
                          (3 * len(CRLF)) + len(host_hdr))
-        self.assertDictContainsSubset(
-            {b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
+        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'localhost:8080'))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_get_partial_parse2(self) -> None:
@@ -207,8 +210,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
         self.parser.parse(b'localhost:8080' + CRLF)
-        self.assertDictContainsSubset(
-            {b'host': (b'Host', b'localhost:8080')}, self.parser.headers)
+        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'localhost:8080'))
         self.assertEqual(self.parser.buffer, b'')
         self.assertEqual(
             self.parser.state,
@@ -216,8 +218,8 @@ class TestHttpParser(unittest.TestCase):
 
         self.parser.parse(b'Content-Type: text/plain' + CRLF)
         self.assertEqual(self.parser.buffer, b'')
-        self.assertDictContainsSubset(
-            {b'content-type': (b'Content-Type', b'text/plain')}, self.parser.headers)
+        self.assertEqual(
+            self.parser.headers[b'content-type'], (b'Content-Type', b'text/plain'))
         self.assertEqual(
             self.parser.state,
             httpParserStates.RCVING_HEADERS)
@@ -239,10 +241,10 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.url.hostname, b'localhost')
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
-        self.assertDictContainsSubset(
-            {b'content-type': (b'Content-Type', b'application/x-www-form-urlencoded')}, self.parser.headers)
-        self.assertDictContainsSubset(
-            {b'content-length': (b'Content-Length', b'7')}, self.parser.headers)
+        self.assertEqual(self.parser.headers[b'content-type'],
+                         (b'Content-Type', b'application/x-www-form-urlencoded'))
+        self.assertEqual(self.parser.headers[b'content-length'],
+                         (b'Content-Length', b'7'))
         self.assertEqual(self.parser.body, b'a=b&c=d')
         self.assertEqual(self.parser.buffer, b'')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
@@ -376,8 +378,8 @@ class TestHttpParser(unittest.TestCase):
             b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n' +
             b'<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
             b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n')
-        self.assertDictContainsSubset(
-            {b'content-length': (b'Content-Length', b'219')}, self.parser.headers)
+        self.assertEqual(self.parser.headers[b'content-length'],
+                         (b'Content-Length', b'219'))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_response_partial_parse(self) -> None:
@@ -394,8 +396,8 @@ class TestHttpParser(unittest.TestCase):
             b'X-XSS-Protection: 1; mode=block\r\n',
             b'X-Frame-Options: SAMEORIGIN\r\n'
         ]))
-        self.assertDictContainsSubset(
-            {b'x-frame-options': (b'X-Frame-Options', b'SAMEORIGIN')}, self.parser.headers)
+        self.assertEqual(self.parser.headers[b'x-frame-options'],
+                         (b'X-Frame-Options', b'SAMEORIGIN'))
         self.assertEqual(
             self.parser.state,
             httpParserStates.RCVING_HEADERS)
