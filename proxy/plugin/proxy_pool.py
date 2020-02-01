@@ -79,6 +79,6 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             COLON + SLASH + SLASH +
             request.host +
             COLON +
-            bytes(request.port) +
+            str(request.port).encode() +
             request.path
         )
