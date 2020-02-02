@@ -677,7 +677,7 @@ Extend in-built Web Server to add Reverse Proxy capabilities.
 Start `proxy.py` as:
 
 ```bash
-❯ proxy \
+❯ proxy --enable-web-server \
     --plugins proxy.plugin.ReverseProxyPlugin
 ```
 
@@ -712,7 +712,7 @@ Demonstrates inbuilt web server routing using plugin.
 Start `proxy.py` as:
 
 ```bash
-❯ proxy \
+❯ proxy --enable-web-server \
     --plugins proxy.plugin.WebServerPlugin
 ```
 
