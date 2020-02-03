@@ -20,7 +20,7 @@
 [![Contributions Welcome](https://img.shields.io/static/v1?label=contributions&message=welcome%20%F0%9F%91%8D&color=green)](https://github.com/abhinavsingh/proxy.py/issues)
 [![Gitter](https://badges.gitter.im/proxy-py/community.svg)](https://gitter.im/proxy-py/community)
 
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8&color=blue)](https://www.python.org/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9&color=blue)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
 
 [![Become a Backer](https://opencollective.com/proxypy/tiers/backer.svg?avatarHeight=72)](https://opencollective.com/proxypy)
@@ -1226,20 +1226,82 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
 
 ### build_http_response
 
-TODO
+```python
+build_http_response(
+    status_code: int,
+    protocol_version: bytes = HTTP_1_1,
+    reason: Optional[bytes] = None,
+    headers: Optional[Dict[bytes, bytes]] = None,
+    body: Optional[bytes] = None) -> bytes
+```
 
 ## PKI
 
 ### API Usage
 
 #### gen_private_key
+
+```python
+gen_private_key(
+    key_path: str,
+    password: str,
+    bits: int = 2048,
+    timeout: int = 10) -> bool
+```
+
 #### gen_public_key
+
+```python
+gen_public_key(
+    public_key_path: str,
+    private_key_path: str,
+    private_key_password: str,
+    subject: str,
+    alt_subj_names: Optional[List[str]] = None,
+    extended_key_usage: Optional[str] = None,
+    validity_in_days: int = 365,
+    timeout: int = 10) -> bool
+```
+
 #### remove_passphrase
+
+```python
+remove_passphrase(
+    key_in_path: str,
+    password: str,
+    key_out_path: str,
+    timeout: int = 10) -> bool
+```
+
 #### gen_csr
+
+```python
+gen_csr(
+    csr_path: str,
+    key_path: str,
+    password: str,
+    crt_path: str,
+    timeout: int = 10) -> bool
+```
+
 #### sign_csr
 
-See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) for
-method parameters and [test_pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/common/test_pki.py)
+```python
+sign_csr(
+    csr_path: str,
+    crt_path: str,
+    ca_key_path: str,
+    ca_key_password: str,
+    ca_crt_path: str,
+    serial: str,
+    alt_subj_names: Optional[List[str]] = None,
+    extended_key_usage: Optional[str] = None,
+    validity_in_days: int = 365,
+    timeout: int = 10) -> bool
+```
+
+See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) and
+[test_pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/common/test_pki.py)
 for usage examples.
 
 ### CLI Usage
@@ -1256,7 +1318,7 @@ usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
               [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
               action
 
-proxy.py v2.1.0 : PKI Utility
+proxy.py v2.1.2 : PKI Utility
 
 positional arguments:
   action                Valid actions: remove_passphrase, gen_private_key,
@@ -1310,9 +1372,30 @@ start `proxy.py` with `--threadless` flag.
 
 ## SyntaxError: invalid syntax
 
-Make sure you are using `Python 3`. Verify the version before running `proxy.py`:
+`proxy.py` is strictly typed and uses Python `typing` annotations. Example:
+
+```python
+>>> my_strings : List[str] = []
+>>> #############^^^^^^^^^#####
+```
+
+Hence a Python version that understands typing annotations is required.
+Make sure you are using `Python 3.5+`.
+
+Verify the version before running `proxy.py`:
 
 `❯ python --version`
+
+All `typing` annotations can be replaced with `comment-only` annotations. Example:
+
+```python
+>>> my_strings = [] # List[str]
+>>> ################^^^^^^^^^^^
+```
+
+It will enable `proxy.py` to run on Python `pre-3.5`, even on `2.7`.
+However, as all future versions of Python will support `typing` annotations,
+this has not been considered.
 
 ## Unable to load plugins
 
@@ -1426,7 +1509,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--static-server-dir STATIC_SERVER_DIR] [--threadless]
              [--timeout TIMEOUT] [--version]
 
-proxy.py v2.1.0
+proxy.py v2.1.2
 
 optional arguments:
   -h, --help            show this help message and exit
