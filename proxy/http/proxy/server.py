@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import threading
-import subprocess
 import os
 import ssl
 import socket
@@ -25,6 +24,7 @@ from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..methods import httpMethods
 
+from ...common import pki
 from ...common.types import HasFileno
 from ...common.constants import PROXY_AGENT_HEADER_VALUE
 from ...common.utils import build_http_response, text_
@@ -278,8 +278,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     logger.error(
                         'BrokenPipeError when wrapping client')
                     return True
-                except OSError:
-                    logger.error('OSError when wrapping client')
+                except OSError as e:
+                    logger.error('OSError when wrapping client:"{}"'.format(e.strerror))
                     return True
                 # Update all plugin connection reference
                 for plugin in self.plugins.values():
@@ -362,18 +362,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 logger.debug('Generating certificates %s', cert_file_path)
                 # TODO: Parse subject from certificate
                 # Currently we only set CN= field for generated certificates.
-                gen_cert = subprocess.Popen(
-                    ['openssl', 'req', '-new', '-key', self.flags.ca_signing_key_file, '-subj',
-                     f'/C=/ST=/L=/O=/OU=/CN={ text_(self.request.host) }'],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-                sign_cert = subprocess.Popen(
-                    ['openssl', 'x509', '-req', '-days', '365', '-CA', self.flags.ca_cert_file, '-CAkey',
-                     self.flags.ca_key_file, '-set_serial', str(self.uid.int), '-out', cert_file_path],
-                    stdin=gen_cert.stdout,
-                    stderr=subprocess.PIPE)
                 # TODO: Ensure sign_cert success.
-                sign_cert.communicate(timeout=10)
+                pki.gen_crt(cert_file_path, self.flags.ca_signing_key_file, self.flags.ca_key_file,
+                            self.flags.ca_cert_file, text_(self.request.host), str(self.uid.int))
         return cert_file_path
 
     def wrap_server(self) -> None:

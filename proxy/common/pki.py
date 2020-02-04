@@ -16,7 +16,7 @@ import uuid
 import subprocess
 import tempfile
 import logging
-from typing import List, Generator, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 
 from .utils import bytes_
 from .constants import COMMA
@@ -50,6 +50,7 @@ emailAddress_max		= 64
 challengePassword		= A challenge password
 challengePassword_min	= 4
 challengePassword_max	= 20'''
+SAN_KEY = "SAN"
 
 
 def remove_passphrase(
@@ -101,23 +102,22 @@ def gen_public_key(
         ]
         if has_extension:
             command.extend([
-                '-extensions', 'PROXY',
+                '-extensions', SAN_KEY,
             ])
         return run_openssl_command(command, timeout)
 
 
 def gen_csr(
         csr_path: str,
-        key_path: str,
-        password: str,
-        crt_path: str,
+        signing_key_path: str,
+        subject: str,
+        validity_in_days: int = 365,
         timeout: int = 10) -> bool:
     """Generates a CSR based upon existing certificate and key file."""
     command = [
-        'openssl', 'x509', '-x509toreq',
-        '-passin', 'pass:%s' % password,
-        '-in', crt_path, '-signkey', key_path,
-        '-out', csr_path
+        'openssl', 'req', '-new', '-sha256',
+        '-days', str(validity_in_days), '-subj', subject,
+        '-key', signing_key_path, '-out', csr_path
     ]
     return run_openssl_command(command, timeout)
 
@@ -126,10 +126,9 @@ def sign_csr(
         csr_path: str,
         crt_path: str,
         ca_key_path: str,
-        ca_key_password: str,
         ca_crt_path: str,
         serial: str,
-        alt_subj_names: Optional[List[str]] = None,
+        alt_subj_names: List[str],
         extended_key_usage: Optional[str] = None,
         validity_in_days: int = 365,
         timeout: int = 10) -> bool:
@@ -139,28 +138,42 @@ def sign_csr(
             'openssl', 'x509', '-req', '-sha256',
             '-CA', ca_crt_path,
             '-CAkey', ca_key_path,
-            '-passin', 'pass:%s' % ca_key_password,
             '-set_serial', serial,
             '-days', str(validity_in_days),
             '-extfile', extension_path,
+            '-extensions', SAN_KEY,
             '-in', csr_path,
             '-out', crt_path,
         ]
         return run_openssl_command(command, timeout)
 
 
-def get_ext_config(
-        alt_subj_names: Optional[List[str]] = None,
-        extended_key_usage: Optional[str] = None) -> bytes:
+def gen_crt(
+        crt_path: str,
+        signing_key_path: str,
+        ca_key_path: str,
+        ca_crt_path: str,
+        tld: str,
+        serial: str) -> None:
+    """For a given tld, generate an signed cert."""
+    temp_csr = os.path.join(tempfile.gettempdir(), uuid.uuid4().hex)
+    gen_csr(temp_csr, signing_key_path, f'/C=/ST=/L=/O=/OU=/CN={tld}')
+    sign_csr(temp_csr, crt_path,
+             ca_key_path, ca_crt_path, serial, [tld])
+
+
+def get_ext_config(alt_subj_names: Optional[List[str]] = None, extended_key_usage: Optional[str] = None) -> bytes:
     config = b''
     # Add SAN extension
     if alt_subj_names is not None and len(alt_subj_names) > 0:
+        config += b'[' + bytes_(SAN_KEY) + b']'
         alt_names = []
         for cname in alt_subj_names:
             alt_names.append(b'DNS:%s' % bytes_(cname))
         config += b'\nsubjectAltName=' + COMMA.join(alt_names)
     # Add extendedKeyUsage section
     if extended_key_usage is not None:
+        config += b'[PROXY]'
         config += b'\nextendedKeyUsage=' + bytes_(extended_key_usage)
     return config
 
@@ -191,7 +204,6 @@ def ssl_config(
     if (alt_subj_names is not None and len(alt_subj_names) > 0) or \
             extended_key_usage is not None:
         has_extension = True
-        config += b'\n[PROXY]'
 
     # Add custom extensions
     config += get_ext_config(alt_subj_names, extended_key_usage)
@@ -219,8 +231,7 @@ def run_openssl_command(command: List[str], timeout: int) -> bool:
 
 if __name__ == '__main__':
     available_actions = (
-        'remove_passphrase', 'gen_private_key', 'gen_public_key',
-        'gen_csr', 'sign_csr'
+        'remove_passphrase', 'gen_private_key', 'gen_public_key'
     )
 
     parser = argparse.ArgumentParser(
