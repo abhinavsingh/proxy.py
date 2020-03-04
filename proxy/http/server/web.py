@@ -17,6 +17,7 @@ import mimetypes
 import socket
 from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 
+from ...core.connection import TcpServerConnection
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
 from ..exception import HttpProtocolException
@@ -62,6 +63,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             httpProtocolTypes.WEBSOCKET: {},
         }
         self.route: Optional[HttpWebServerBasePlugin] = None
+        # TODO: Does it make sense to have more than one upstream destination for a single request? Guess not,
+        #  as routes should be unique among web plugins
+        self.server: Optional[TcpServerConnection] = None
+        self.read_desc: List[socket.socket] = []
+        self.write_desc: List[socket.socket] = []
 
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
@@ -69,7 +75,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     self.uid,
                     self.flags,
                     self.client,
-                    self.event_queue)
+                    self.event_queue,
+                    self)
                 for (protocol, route) in instance.routes():
                     self.routes[protocol][re.compile(route)] = instance
 
@@ -166,9 +173,27 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
 
+    # TODO: Check how much is common between self and HttpProxyPlugin and consider extracting into
+    #  HttpProtocolHandlerPlugin
     def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
-        pass
+        if self.request.has_upstream_server() and \
+                self.server and not self.server.closed and \
+                self.server.has_buffer() and \
+                self.server.connection in w:
+            logger.debug('Server is write ready, flushing buffer')
+            try:
+                self.server.flush()
+            except OSError:
+                logger.error('OSError when flushing buffer to server')
+                return True
+            except BrokenPipeError:
+                logger.error(
+                    'BrokenPipeError when flushing buffer for server')
+                return True
+        return False
 
+    # TODO: Check how much is common between self and HttpProxyPlugin and consider extracting into
+    #  HttpProtocolHandlerPlugin
     def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
         pass
 
@@ -231,6 +256,44 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
              text_(self.request.path),
              (time.time() - self.start_time) * 1000))
 
+    #def add_descriptors(self, descriptors: Tuple[socket.socket, socket.socket]) -> None:
+    #    if descriptors[0] is not None:
+    #        self.read_desc.append(descriptors[0])
+    #    if descriptors[1] is not None:
+    #        self.write_desc.append(descriptors[1])
+
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        return [], []
+        #         return self.read_desc, self.write_desc
+        if not self.request.has_upstream_server():
+            return [], []
+
+        r: List[socket.socket] = []
+        w: List[socket.socket] = []
+        if self.server and not self.server.closed and self.server.connection:
+            r.append(self.server.connection)
+        if self.server and not self.server.closed and \
+            self.server.has_buffer() and self.server.connection:
+            w.append(self.server.connection)
+        return r, w
+
+    def connect_upstream(self, host: str, port: int) -> None:
+        #host, port = self.request.host, self.request.port
+        if host and port:
+            self.server = TcpServerConnection(text_(host), port)
+            try:
+                logger.debug(
+                    'Connecting to upstream %s:%s' %
+                    (text_(host), port))
+                self.server.connect()
+                self.server.connection.setblocking(False)
+                logger.debug(
+                    'Connected to upstream %s:%s' %
+                    (text_(host), port))
+            except Exception as e:  # TimeoutError, socket.gaierror
+                self.server.closed = True
+                # TODO: see if it makes sense to reuse this exception for both proxy & web scenarios
+                raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
+        else:
+            logger.exception('Both host and port must exist')
+            raise HttpProtocolException()

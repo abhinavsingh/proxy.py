@@ -58,7 +58,12 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
         upstream = random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS)
         url = urlparse.urlsplit(upstream)
         assert url.hostname
+        self.web_server_plugin.connect_upstream(text_(url.hostname), url.port if url.port else DEFAULT_HTTP_PORT)
+
         with socket_connection((text_(url.hostname), url.port if url.port else DEFAULT_HTTP_PORT)) as conn:
+            # TODO: register fd with HttpWebServerPlugin, so that HttpProtocolHandler mux facilities can get notified of
+            # events
+            #self.web_server_plugin.add_descriptors(conn, conn)
             conn.send(request.build())
             self.client.queue(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
 

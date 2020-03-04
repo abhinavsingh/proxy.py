@@ -11,6 +11,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 from uuid import UUID
+from .web import HttpWebServerPlugin
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
 
@@ -27,11 +28,13 @@ class HttpWebServerBasePlugin(ABC):
             uid: UUID,
             flags: Flags,
             client: TcpClientConnection,
-            event_queue: EventQueue):
+            event_queue: EventQueue,
+            web_server_plugin: HttpWebServerPlugin):
         self.uid = uid
         self.flags = flags
         self.client = client
         self.event_queue = event_queue
+        self.web_server_plugin = web_server_plugin
 
     @abstractmethod
     def routes(self) -> List[Tuple[int, str]]:
