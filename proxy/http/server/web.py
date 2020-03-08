@@ -11,6 +11,7 @@
 import gzip
 import re
 import time
+import errno
 import logging
 import os
 import mimetypes
@@ -20,7 +21,7 @@ from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 from ...core.connection import TcpServerConnection
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
-from ..exception import HttpProtocolException
+from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
@@ -66,8 +67,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         # TODO: Does it make sense to have more than one upstream destination for a single request? Guess not,
         #  as routes should be unique among web plugins
         self.server: Optional[TcpServerConnection] = None
-        self.read_desc: List[socket.socket] = []
-        self.write_desc: List[socket.socket] = []
 
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
@@ -176,8 +175,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     # TODO: Check how much is common between self and HttpProxyPlugin and consider extracting into
     #  HttpProtocolHandlerPlugin
     def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
-        if self.request.has_upstream_server() and \
-                self.server and not self.server.closed and \
+        if self.server and not self.server.closed and \
                 self.server.has_buffer() and \
                 self.server.connection in w:
             logger.debug('Server is write ready, flushing buffer')
@@ -195,7 +193,66 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     # TODO: Check how much is common between self and HttpProxyPlugin and consider extracting into
     #  HttpProtocolHandlerPlugin
     def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
-        pass
+        if self.server and not self.server.closed and self.server.connection in r:
+            logger.debug('Server is ready for reads, reading...')
+            try:
+                raw = self.server.recv(self.flags.server_recvbuf_size)
+            except TimeoutError as e:
+                if e.errno == errno.ETIMEDOUT:
+                    logger.warning(
+                        '%s:%d timed out on recv' %
+                        self.server.addr)
+                    return True
+                else:
+                    raise e
+            # TODO: not supporting SSL yet on reverse proxy case
+            # except ssl.SSLWantReadError:    # Try again later
+            #     # logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
+            #     return False
+            except OSError as e:
+                if e.errno == errno.EHOSTUNREACH:
+                    logger.warning(
+                        '%s:%d unreachable on recv' %
+                        self.server.addr)
+                    return True
+                elif e.errno == errno.ECONNRESET:
+                    logger.warning('Connection reset by upstream: %r' % e)
+                else:
+                    logger.exception(
+                        'Exception while receiving from %s connection %r with reason %r' %
+                        (self.server.tag, self.server.connection, e))
+                return True
+
+            if raw is None:
+                logger.debug('Server closed connection, tearing down...')
+                return True
+
+            # TODO: is we want to do some processing on the response from upstream we should do it here
+            #  maybe we should alter interface HttpWebServerBasePlugin to allow for that and add something
+            #  like handle_upstream_chunk() for forward proxy use case
+            # for plugin in self.plugins.values():
+            #    raw = plugin.handle_upstream_chunk(raw)
+
+            # parse incoming response packet
+            # only for non-https requests and when
+            # tls interception is enabled
+            # if self.request.method != httpMethods.CONNECT:
+            #     # See https://github.com/abhinavsingh/proxy.py/issues/127 for why
+            #     # currently response parsing is disabled when TLS interception is enabled.
+            #     #
+            #     # or self.config.tls_interception_enabled():
+            #     if self.response.state == httpParserStates.COMPLETE:
+            #         self.handle_pipeline_response(raw)
+            #     else:
+            #         # TODO(abhinavsingh): Remove .tobytes after parser is
+            #         # memoryview compliant
+            #         self.response.parse(raw.tobytes())
+            #         self.emit_response_events()
+            # else:
+            #     self.response.total_size += len(raw)
+            # queue raw data for client
+            self.client.queue(raw)
+        return False
 
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
@@ -262,12 +319,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     #    if descriptors[1] is not None:
     #        self.write_desc.append(descriptors[1])
 
-    def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        #         return self.read_desc, self.write_desc
-        if not self.request.has_upstream_server():
-            return [], []
-
+    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
         r: List[socket.socket] = []
         w: List[socket.socket] = []
         if self.server and not self.server.closed and self.server.connection:
@@ -277,8 +329,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             w.append(self.server.connection)
         return r, w
 
-    def connect_upstream(self, host: str, port: int) -> None:
-        #host, port = self.request.host, self.request.port
+    # Check if we are able to extract this to common ancestor
+    def connect_upstream(self, host: str, port: int) -> TcpServerConnection:
         if host and port:
             self.server = TcpServerConnection(text_(host), port)
             try:
@@ -292,8 +344,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     (text_(host), port))
             except Exception as e:  # TimeoutError, socket.gaierror
                 self.server.closed = True
-                # TODO: see if it makes sense to reuse this exception for both proxy & web scenarios
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
         else:
             logger.exception('Both host and port must exist')
             raise HttpProtocolException()
+        return self.server

@@ -11,7 +11,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 from uuid import UUID
-from .web import HttpWebServerPlugin
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
 
@@ -29,7 +28,7 @@ class HttpWebServerBasePlugin(ABC):
             flags: Flags,
             client: TcpClientConnection,
             event_queue: EventQueue,
-            web_server_plugin: HttpWebServerPlugin):
+            web_server_plugin):
         self.uid = uid
         self.flags = flags
         self.client = client
