@@ -1380,7 +1380,7 @@ start `proxy.py` with `--threadless` flag.
 ```
 
 Hence a Python version that understands typing annotations is required.
-Make sure you are using `Python 3.5+`.
+Make sure you are using `Python 3.6+`.
 
 Verify the version before running `proxy.py`:
 
@@ -1393,7 +1393,7 @@ All `typing` annotations can be replaced with `comment-only` annotations. Exampl
 >>> ################^^^^^^^^^^^
 ```
 
-It will enable `proxy.py` to run on Python `pre-3.5`, even on `2.7`.
+It will enable `proxy.py` to run on Python `pre-3.6`, even on `2.7`.
 However, as all future versions of Python will support `typing` annotations,
 this has not been considered.
 
