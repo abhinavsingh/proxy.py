@@ -89,12 +89,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             logger.debug('Server is write ready, flushing buffer')
             try:
                 self.server.flush()
-            except OSError:
-                logger.error('OSError when flushing buffer to server')
-                return True
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for server')
+                return True
+            except OSError:
+                logger.error('OSError when flushing buffer to server')
                 return True
         return False
 
@@ -274,12 +274,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # wrap_client also flushes client data before wrapping
                     # sending to client can raise, handle expected exceptions
                     self.wrap_client()
-                except OSError:
-                    logger.error('OSError when wrapping client')
-                    return True
                 except BrokenPipeError:
                     logger.error(
                         'BrokenPipeError when wrapping client')
+                    return True
+                except OSError:
+                    logger.error('OSError when wrapping client')
                     return True
                 # Update all plugin connection reference
                 for plugin in self.plugins.values():
@@ -380,7 +380,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         assert self.server is not None
         assert isinstance(self.server.connection, socket.socket)
         ctx = ssl.create_default_context(
-            ssl.Purpose.SERVER_AUTH)
+            ssl.Purpose.SERVER_AUTH, cafile=self.flags.ca_file)
         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         self.server.connection.setblocking(True)
         self.server._conn = ctx.wrap_socket(

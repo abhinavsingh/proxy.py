@@ -777,14 +777,14 @@ TLS Interception
 =================
 
 By default, `proxy.py` will not decrypt `https` traffic between client and server.
-To enable TLS interception first generate CA certificates:
+To enable TLS interception first generate root CA certificates:
 
-```
-make ca-certificates
+```bash
+❯ make ca-certificates
 ```
 
 Lets also enable `CacheResponsePlugin` so that we can verify decrypted
-response from the server. Start `proxy.py` as:
+response from the server.  Start `proxy.py` as:
 
 ```bash
 ❯ proxy \
@@ -794,7 +794,16 @@ response from the server. Start `proxy.py` as:
     --ca-signing-key-file ca-signing-key.pem
 ```
 
-Verify using `curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`
+
+> :note: **MacOS users** also need to pass explicit CA file path
+> needed for validation of peer certificates. See --ca-file flag.
+
+
+Verify TLS interception using `curl`
+
+```bash
+❯ curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get
+```
 
 ```bash
 *  issuer: C=US; ST=CA; L=SanFrancisco; O=proxy.py; OU=CA; CN=Proxy PY CA; emailAddress=proxyca@mailserver.com
@@ -1530,6 +1539,8 @@ optional arguments:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
+  --ca-file CA_FILE     Default: None. Provide path to custom CA file for peer
+                        certificate validation. Specially useful on MacOS.
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic
                         generation of HTTPS certificates. If used, must also
