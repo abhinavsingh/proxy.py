@@ -794,11 +794,10 @@ response from the server.  Start `proxy.py` as:
     --ca-signing-key-file ca-signing-key.pem
 ```
 
-> :warning: **MacOS users**
-> MacOS now also require an explicit CA needs
-> for validation of other peer certificates. Example:
->
-> --ca-file /path/to/lib/python3.x/site-packages/certifi/cacert.pem
+
+> :note: **MacOS users** also need to pass explicit CA file path
+> needed for validation of peer certificates. See --ca-file flag.
+
 
 Verify TLS interception using `curl`
 
@@ -1540,6 +1539,8 @@ optional arguments:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
+  --ca-file CA_FILE     Default: None. Provide path to custom CA file for peer
+                        certificate validation. Specially useful on MacOS.
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic
                         generation of HTTPS certificates. If used, must also
