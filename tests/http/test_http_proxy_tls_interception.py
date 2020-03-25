@@ -69,7 +69,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.flags = Flags(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
-            ca_signing_key_file='ca-signing-key.pem',
+            ca_signing_key_file='ca-signing-key.pem'
         )
         self.plugin = mock.MagicMock()
         self.proxy_plugin = mock.MagicMock()
@@ -135,7 +135,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.mock_server_conn.return_value.connection.setblocking.assert_called_with(
             False)
 
-        self.mock_ssl_context.assert_called_with(ssl.Purpose.SERVER_AUTH)
+        self.mock_ssl_context.assert_called_with(ssl.Purpose.SERVER_AUTH, cafile=None)
         # self.assertEqual(self.mock_ssl_context.return_value.options,
         # ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 |
         # ssl.OP_NO_TLSv1_1)

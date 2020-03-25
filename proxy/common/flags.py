@@ -28,7 +28,7 @@ from .utils import text_, bytes_
 from .constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BACKLOG, DEFAULT_BASIC_AUTH
 from .constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_DISABLE_HEADERS
 from .constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
-from .constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
+from .constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE, DEFAULT_CA_FILE
 from .constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from .constants import DEFAULT_PAC_FILE_URL_PATH, DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
 from .constants import DEFAULT_NUM_WORKERS, DEFAULT_VERSION, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
@@ -67,6 +67,7 @@ class Flags:
             ca_key_file: Optional[str] = None,
             ca_cert_file: Optional[str] = None,
             ca_signing_key_file: Optional[str] = None,
+            ca_file: Optional[str] = None,
             num_workers: int = 0,
             hostname: Union[ipaddress.IPv4Address,
                             ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
@@ -98,6 +99,7 @@ class Flags:
         self.ca_key_file: Optional[str] = ca_key_file
         self.ca_cert_file: Optional[str] = ca_cert_file
         self.ca_signing_key_file: Optional[str] = ca_signing_key_file
+        self.ca_file = ca_file
         self.num_workers: int = num_workers if num_workers > 0 else multiprocessing.cpu_count()
         self.hostname: Union[ipaddress.IPv4Address,
                              ipaddress.IPv6Address] = hostname
@@ -223,6 +225,11 @@ class Flags:
                 opts.get(
                     'ca_signing_key_file',
                     args.ca_signing_key_file)),
+            ca_file=cast(
+                Optional[str],
+                opts.get(
+                    'ca_file',
+                    args.ca_file)),
             hostname=cast(Union[ipaddress.IPv4Address,
                                 ipaddress.IPv6Address],
                           opts.get('hostname', ipaddress.ip_address(args.hostname))),
@@ -307,6 +314,13 @@ class Flags:
             default=DEFAULT_CA_CERT_FILE,
             help='Default: None. Signing certificate to use for signing dynamically generated '
                  'HTTPS certificates.  If used, must also pass --ca-key-file and --ca-signing-key-file'
+        )
+        parser.add_argument(
+            '--ca-file',
+            type=str,
+            default=DEFAULT_CA_FILE,
+            help='Default: None. Provide path to custom CA file for peer certificate validation. '
+                 'Specially useful on MacOS.'
         )
         parser.add_argument(
             '--ca-signing-key-file',

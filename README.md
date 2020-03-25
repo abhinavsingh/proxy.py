@@ -777,14 +777,14 @@ TLS Interception
 =================
 
 By default, `proxy.py` will not decrypt `https` traffic between client and server.
-To enable TLS interception first generate CA certificates:
+To enable TLS interception first generate root CA certificates:
 
-```
-make ca-certificates
+```bash
+❯ make ca-certificates
 ```
 
 Lets also enable `CacheResponsePlugin` so that we can verify decrypted
-response from the server. Start `proxy.py` as:
+response from the server.  Start `proxy.py` as:
 
 ```bash
 ❯ proxy \
@@ -794,7 +794,17 @@ response from the server. Start `proxy.py` as:
     --ca-signing-key-file ca-signing-key.pem
 ```
 
-Verify using `curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`
+> :warning: **MacOS users**
+> MacOS now also require an explicit CA needs
+> for validation of other peer certificates. Example:
+>
+> --ca-file /path/to/lib/python3.x/site-packages/certifi/cacert.pem
+
+Verify TLS interception using `curl`
+
+```bash
+❯ curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get
+```
 
 ```bash
 *  issuer: C=US; ST=CA; L=SanFrancisco; O=proxy.py; OU=CA; CN=Proxy PY CA; emailAddress=proxyca@mailserver.com
