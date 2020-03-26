@@ -38,6 +38,8 @@ class TestCase(unittest.TestCase):
         cls.INPUT_ARGS = getattr(cls, 'PROXY_PY_STARTUP_FLAGS') \
             if hasattr(cls, 'PROXY_PY_STARTUP_FLAGS') \
             else cls.DEFAULT_PROXY_PY_STARTUP_FLAGS
+        cls.INPUT_ARGS.append('--hostname')
+        cls.INPUT_ARGS.append('0.0.0.0')
         cls.INPUT_ARGS.append('--port')
         cls.INPUT_ARGS.append(str(cls.PROXY_PORT))
 
