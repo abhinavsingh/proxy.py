@@ -9,4 +9,4 @@ py-spy==0.3.3
 codecov==2.0.22
 tox==3.15.0
 mccabe==0.6.1
-pylint==2.5.0
+pylint==2.5.1
