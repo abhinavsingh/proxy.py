@@ -795,8 +795,9 @@ response from the server.  Start `proxy.py` as:
 ```
 
 
-> :note: **MacOS users** also need to pass explicit CA file path
-> needed for validation of peer certificates. See --ca-file flag.
+[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)] On MacOS,
+Python no longer has access to system certificates. You **MUST** pass path to CA file for
+validation of peer certificates. See `--ca-file` flag.
 
 
 Verify TLS interception using `curl`
