@@ -1,6 +1,6 @@
 python-coveralls==2.9.3
 coverage==5.1
-flake8==3.8.1
+flake8==3.8.2
 pytest==5.4.2
 pytest-cov==2.8.1
 autopep8==1.5.2
