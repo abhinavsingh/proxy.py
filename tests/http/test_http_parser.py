@@ -132,7 +132,7 @@ class TestHttpParser(unittest.TestCase):
                      b'example.com')
         self.parser.parse(pkt)
         self.assertEqual(self.parser.total_size, len(pkt))
-        self.assertEqual(self.parser.build_url(), b'/path/dir/?a=b&c=d#p=q')
+        self.assertEqual(self.parser.build_path(), b'/path/dir/?a=b&c=d#p=q')
         self.assertEqual(self.parser.method, b'GET')
         assert self.parser.url
         self.assertEqual(self.parser.url.hostname, b'example.com')
@@ -149,7 +149,7 @@ class TestHttpParser(unittest.TestCase):
             self.parser.build())
 
     def test_build_url_none(self) -> None:
-        self.assertEqual(self.parser.build_url(), b'/None')
+        self.assertEqual(self.parser.build_path(), b'/None')
 
     def test_line_rcvd_to_rcving_headers_state_change(self) -> None:
         pkt = b'GET http://localhost HTTP/1.1'
