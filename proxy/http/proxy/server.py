@@ -278,8 +278,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     logger.error(
                         'BrokenPipeError when wrapping client')
                     return True
-                except OSError:
-                    logger.error('OSError when wrapping client')
+                except OSError as e:
+                    logger.exception('OSError when wrapping client', exc_info=e)
                     return True
                 # Update all plugin connection reference
                 for plugin in self.plugins.values():
@@ -398,8 +398,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.client._conn = ssl.wrap_socket(
             self.client.connection,
             server_side=True,
-            keyfile=self.flags.ca_signing_key_file,
-            certfile=generated_cert)
+            certfile=generated_cert,
+            keyfile=self.flags.ca_signing_key_file)
         self.client.connection.setblocking(False)
         logger.debug(
             'TLS interception using %s', generated_cert)
