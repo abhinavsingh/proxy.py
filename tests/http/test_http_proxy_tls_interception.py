@@ -30,14 +30,18 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
     @mock.patch('ssl.wrap_socket')
     @mock.patch('ssl.create_default_context')
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    @mock.patch('subprocess.Popen')
+    @mock.patch('proxy.http.proxy.server.gen_public_key')
+    @mock.patch('proxy.http.proxy.server.gen_csr')
+    @mock.patch('proxy.http.proxy.server.sign_csr')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     def test_e2e(
             self,
             mock_fromfd: mock.Mock,
             mock_selector: mock.Mock,
-            mock_popen: mock.Mock,
+            mock_sign_csr: mock.Mock,
+            mock_gen_csr: mock.Mock,
+            mock_gen_public_key: mock.Mock,
             mock_server_conn: mock.Mock,
             mock_ssl_context: mock.Mock,
             mock_ssl_wrap: mock.Mock) -> None:
@@ -46,10 +50,16 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
 
         self.mock_fromfd = mock_fromfd
         self.mock_selector = mock_selector
-        self.mock_popen = mock_popen
+        self.mock_sign_csr = mock_sign_csr
+        self.mock_gen_csr = mock_gen_csr
+        self.mock_gen_public_key = mock_gen_public_key
         self.mock_server_conn = mock_server_conn
         self.mock_ssl_context = mock_ssl_context
         self.mock_ssl_wrap = mock_ssl_wrap
+
+        self.mock_sign_csr.return_value = True
+        self.mock_gen_csr.return_value = True
+        self.mock_gen_public_key.return_value = True
 
         ssl_connection = mock.MagicMock(spec=ssl.SSLSocket)
         self.mock_ssl_context.return_value.wrap_socket.return_value = ssl_connection
@@ -118,6 +128,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ)], ]
+
         self.protocol_handler.run_once()
 
         # Assert our mocked plugins invocations
@@ -142,8 +153,9 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.assertEqual(plain_connection.setblocking.call_count, 2)
         self.mock_ssl_context.return_value.wrap_socket.assert_called_with(
             plain_connection, server_hostname=host)
-        # TODO: Assert Popen arguments, piping, success condition
-        self.assertEqual(self.mock_popen.call_count, 2)
+        self.assertEqual(self.mock_sign_csr.call_count, 1)
+        self.assertEqual(self.mock_gen_csr.call_count, 1)
+        self.assertEqual(self.mock_gen_public_key.call_count, 1)
         self.assertEqual(ssl_connection.setblocking.call_count, 1)
         self.assertEqual(
             self.mock_server_conn.return_value._conn,
