@@ -357,7 +357,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                                        '{0}.{1}'.format(text_(self.request.host), 'pub'))
         private_key_path = self.flags.ca_signing_key_file
         private_key_password = ''
-        subject = '/C=/ST=/L=/O=/OU=/CN={0}'.format(text_(self.request.host))
+        subject = '/CN={0}'.format(text_(self.request.host))
         alt_subj_names = [text_(self.request.host), ]
         validity_in_days = 365 * 2
         timeout = 10
