@@ -1,6 +1,6 @@
 python-coveralls==2.9.3
 coverage==5.1
-flake8==3.8.2
+flake8==3.8.3
 pytest==5.4.3
 pytest-cov==2.9.0
 autopep8==1.5.3
@@ -9,5 +9,5 @@ py-spy==0.3.3
 codecov==2.1.4
 tox==3.15.2
 mccabe==0.6.1
-pylint==2.5.2
+pylint==2.5.3
 rope==0.17.0
