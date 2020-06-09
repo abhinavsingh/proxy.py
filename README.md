@@ -795,8 +795,7 @@ response from the server.  Start `proxy.py` as:
 ```
 
 
-> :note: **MacOS users** also need to pass explicit CA file path
-> needed for validation of peer certificates. See --ca-file flag.
+[![NOTE](https://img.shields.io/static/v1?label=MacOS&message=note&color=yellow)](https://github.com/abhinavsingh/proxy.py#flags) **MacOS users** must also provide explicit CA bundle path needed for validation of peer certificates. See `--ca-file` flag.
 
 
 Verify TLS interception using `curl`
@@ -1327,7 +1326,7 @@ usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
               [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
               action
 
-proxy.py v2.1.2 : PKI Utility
+proxy.py v2.2.0 : PKI Utility
 
 positional arguments:
   action                Valid actions: remove_passphrase, gen_private_key,
@@ -1518,7 +1517,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--static-server-dir STATIC_SERVER_DIR] [--threadless]
              [--timeout TIMEOUT] [--version]
 
-proxy.py v2.1.2
+proxy.py v2.2.0
 
 optional arguments:
   -h, --help            show this help message and exit
