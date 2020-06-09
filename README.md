@@ -795,7 +795,7 @@ response from the server.  Start `proxy.py` as:
 ```
 
 
-[![NOTE](https://img.shields.io/static/v1?label=MacOS&message=note&color=yellow)](https://github.com/abhinavsingh/proxy.py#flags) **MacOS users** must also provide explicit CA bundle path needed for validation of peer certificates. See `--ca-file` flag.
+[![NOTE](https://img.shields.io/static/v1?label=MacOS&message=note&color=yellow)](https://github.com/abhinavsingh/proxy.py#flags) Also provide explicit CA bundle path needed for validation of peer certificates. See `--ca-file` flag.
 
 
 Verify TLS interception using `curl`
