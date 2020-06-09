@@ -5,7 +5,7 @@ class Proxy < Formula
     Network monitoring, controls & Application development, testing, debugging."
   homepage "https://github.com/abhinavsingh/proxy.py"
   url "https://github.com/abhinavsingh/proxy.py/archive/master.zip"
-  version "2.0.0"
+  version "2.1.2"
 
   depends_on "python"
 

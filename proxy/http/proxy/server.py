@@ -8,14 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import logging
 import threading
-import subprocess
 import os
 import ssl
 import socket
 import time
 import errno
-import logging
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
@@ -28,6 +27,7 @@ from ..methods import httpMethods
 from ...common.types import HasFileno
 from ...common.constants import PROXY_AGENT_HEADER_VALUE
 from ...common.utils import build_http_response, text_
+from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
 from ...core.connection import TcpServerConnection, TcpConnectionUninitializedException
@@ -279,7 +279,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         'BrokenPipeError when wrapping client')
                     return True
                 except OSError as e:
-                    logger.exception('OSError when wrapping client', exc_info=e)
+                    logger.exception(
+                        'OSError when wrapping client', exc_info=e)
                     return True
                 # Update all plugin connection reference
                 for plugin in self.plugins.values():
@@ -342,6 +343,57 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                  self.response.total_size,
                  connection_time_ms))
 
+    def gen_ca_signed_certificate(self, cert_file_path: str) -> None:
+        '''CA signing key (default) is used for generating a public key
+        for common_name, if one already doesn't exist.  Using generated
+        public key a CSR request is generated, which is then signed by
+        CA key and secret.  Again this process only happen if signed
+        certificate doesn't already exist.
+
+        returns signed certificate path.'''
+        assert(self.request.host and self.flags.ca_cert_dir and self.flags.ca_signing_key_file and
+               self.flags.ca_key_file and self.flags.ca_cert_file)
+        public_key_path = os.path.join(self.flags.ca_cert_dir,
+                                       '{0}.{1}'.format(text_(self.request.host), 'pub'))
+        private_key_path = self.flags.ca_signing_key_file
+        private_key_password = ''
+        subject = '/CN={0}'.format(text_(self.request.host))
+        alt_subj_names = [text_(self.request.host), ]
+        validity_in_days = 365 * 2
+        timeout = 10
+
+        # Generate a public key for the common name
+        if not os.path.isfile(public_key_path):
+            logger.debug('Generating public key %s', public_key_path)
+            resp = gen_public_key(public_key_path=public_key_path, private_key_path=private_key_path,
+                                  private_key_password=private_key_password, subject=subject, alt_subj_names=alt_subj_names,
+                                  validity_in_days=validity_in_days, timeout=timeout)
+            assert(resp is True)
+
+        csr_path = os.path.join(self.flags.ca_cert_dir,
+                                '{0}.{1}'.format(text_(self.request.host), 'csr'))
+
+        # Generate a CSR request for this common name
+        if not os.path.isfile(csr_path):
+            logger.debug('Generating CSR %s', csr_path)
+            resp = gen_csr(csr_path=csr_path, key_path=private_key_path, password=private_key_password,
+                           crt_path=public_key_path, timeout=timeout)
+            assert(resp is True)
+
+        ca_key_path = self.flags.ca_key_file
+        ca_key_password = ''
+        ca_crt_path = self.flags.ca_cert_file
+        serial = self.uid.int
+
+        # Sign generated CSR
+        if not os.path.isfile(cert_file_path):
+            logger.debug('Signing CSR %s', cert_file_path)
+            resp = sign_csr(csr_path=csr_path, crt_path=cert_file_path, ca_key_path=ca_key_path,
+                            ca_key_password=ca_key_password, ca_crt_path=ca_crt_path,
+                            serial=str(serial), alt_subj_names=alt_subj_names,
+                            validity_in_days=validity_in_days, timeout=timeout)
+            assert(resp is True)
+
     @staticmethod
     def generated_cert_file_path(ca_cert_dir: str, host: str) -> str:
         return os.path.join(ca_cert_dir, '%s.pem' % host)
@@ -359,21 +411,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.flags.ca_cert_dir, text_(self.request.host))
         with self.lock:
             if not os.path.isfile(cert_file_path):
-                logger.debug('Generating certificates %s', cert_file_path)
-                # TODO: Parse subject from certificate
-                # Currently we only set CN= field for generated certificates.
-                gen_cert = subprocess.Popen(
-                    ['openssl', 'req', '-new', '-key', self.flags.ca_signing_key_file, '-subj',
-                     f'/C=/ST=/L=/O=/OU=/CN={ text_(self.request.host) }'],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-                sign_cert = subprocess.Popen(
-                    ['openssl', 'x509', '-req', '-days', '365', '-CA', self.flags.ca_cert_file, '-CAkey',
-                     self.flags.ca_key_file, '-set_serial', str(self.uid.int), '-out', cert_file_path],
-                    stdin=gen_cert.stdout,
-                    stderr=subprocess.PIPE)
-                # TODO: Ensure sign_cert success.
-                sign_cert.communicate(timeout=10)
+                self.gen_ca_signed_certificate(cert_file_path)
         return cert_file_path
 
     def wrap_server(self) -> None:
