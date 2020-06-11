@@ -207,6 +207,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
                     self.flags.tls_interception_enabled()):
+
+                if self.pipeline_request is not None and \
+                        self.pipeline_request.is_connection_upgrade():
+                    # Previous pipelined request was a WebSocket
+                    # upgrade request. Incoming client data now
+                    # must be treated as WebSocket protocol packets.
+                    self.server.queue(raw)
+                    return None
+
                 if self.pipeline_request is None:
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER)
@@ -226,7 +235,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.server.queue(
                         memoryview(
                             self.pipeline_request.build()))
-                    self.pipeline_request = None
+                    if not self.pipeline_request.is_connection_upgrade():
+                        self.pipeline_request = None
             else:
                 self.server.queue(raw)
             return None

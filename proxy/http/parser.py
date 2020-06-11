@@ -258,3 +258,8 @@ class HttpParser:
         return self.version == HTTP_1_1 and \
             (not self.has_header(b'Connection') or
              self.header(b'Connection').lower() == b'keep-alive')
+
+    def is_connection_upgrade(self) -> bool:
+        return self.version == HTTP_1_1 and \
+            self.has_header(b'Connection') and \
+            self.has_header(b'Upgrade')

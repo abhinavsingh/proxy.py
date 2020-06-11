@@ -288,12 +288,12 @@ class HttpProtocolHandler(ThreadlessWork):
 
             try:
                 self.client.flush()
-            except OSError:
-                logger.error('OSError when flushing buffer to client')
-                return True
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for client')
+                return True
+            except OSError:
+                logger.error('OSError when flushing buffer to client')
                 return True
         return False
 
@@ -359,7 +359,7 @@ class HttpProtocolHandler(ThreadlessWork):
             except HttpProtocolException as e:
                 logger.debug(
                     'HttpProtocolException type raised')
-                response = e.response(self.request)
+                response: Optional[memoryview] = e.response(self.request)
                 if response:
                     self.client.queue(response)
                 return True
