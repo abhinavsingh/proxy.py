@@ -89,12 +89,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             logger.debug('Server is write ready, flushing buffer')
             try:
                 self.server.flush()
+            except ssl.SSLWantWriteError:
+                logger.warning('SSLWantWriteError while trying to flush to server, will retry')
+                return False
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for server')
                 return True
-            except OSError:
-                logger.error('OSError when flushing buffer to server')
+            except OSError as e:
+                logger.exception('OSError when flushing buffer to server', exc_info=e)
                 return True
         return False
 
@@ -207,7 +210,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
                     self.flags.tls_interception_enabled()):
-
                 if self.pipeline_request is not None and \
                         self.pipeline_request.is_connection_upgrade():
                     # Previous pipelined request was a WebSocket
@@ -219,6 +221,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.pipeline_request is None:
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER)
+
                 # TODO(abhinavsingh): Remove .tobytes after parser is
                 # memoryview compliant
                 self.pipeline_request.parse(raw.tobytes())
