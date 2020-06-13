@@ -14,7 +14,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import NamedTuple, Optional, Union, List
 
-from ...common.constants import DEFAULT_BUFFER_SIZE
+from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +82,11 @@ class TcpConnection(ABC):
         """Users must handle BrokenPipeError exceptions"""
         if not self.has_buffer():
             return 0
-        mv = self.buffer[0]
-        sent: int = self.send(mv.tobytes())
+        mv = self.buffer[0].tobytes()
+        sent: int = self.send(mv[:DEFAULT_MAX_SEND_SIZE])
         if sent == len(mv):
             self.buffer.pop(0)
         else:
-            self.buffer[0] = memoryview(mv.tobytes()[sent:])
+            self.buffer[0] = memoryview(mv[sent:])
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
