@@ -20,7 +20,6 @@ import socket
 import multiprocessing
 import sys
 import inspect
-import pathlib
 
 from typing import Optional, Union, Dict, List, TypeVar, Type, cast, Any, Tuple
 
@@ -33,7 +32,9 @@ from .constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY
 from .constants import DEFAULT_PAC_FILE_URL_PATH, DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
 from .constants import DEFAULT_NUM_WORKERS, DEFAULT_VERSION, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from .constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR
-from .constants import DEFAULT_ENABLE_DASHBOARD, COMMA, DOT
+from .constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_DATA_DIRECTORY_PATH, COMMA, DOT
+from .constants import PLUGIN_HTTP_PROXY, PLUGIN_WEB_SERVER, PLUGIN_PAC_FILE
+from .constants import PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_DASHBOARD, PLUGIN_INSPECT_TRAFFIC
 from .version import __version__
 
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
@@ -48,9 +49,6 @@ T = TypeVar('T', bound='Flags')
 
 class Flags:
     """Contains all input flags and inferred input parameters."""
-
-    ROOT_DATA_DIR_NAME = '.proxy.py'
-    GENERATED_CERTS_DIR_NAME = 'certificates'
 
     def __init__(
             self,
@@ -112,15 +110,24 @@ class Flags:
         self.devtools_ws_path: bytes = devtools_ws_path
         self.enable_events: bool = enable_events
 
-        self.proxy_py_data_dir = os.path.join(
-            str(pathlib.Path.home()), self.ROOT_DATA_DIR_NAME)
+        self.proxy_py_data_dir = DEFAULT_DATA_DIRECTORY_PATH
         os.makedirs(self.proxy_py_data_dir, exist_ok=True)
 
         self.ca_cert_dir: Optional[str] = ca_cert_dir
         if self.ca_cert_dir is None:
             self.ca_cert_dir = os.path.join(
-                self.proxy_py_data_dir, self.GENERATED_CERTS_DIR_NAME)
+                self.proxy_py_data_dir, 'certificates')
             os.makedirs(self.ca_cert_dir, exist_ok=True)
+
+    def tls_interception_enabled(self) -> bool:
+        return self.ca_key_file is not None and \
+            self.ca_cert_dir is not None and \
+            self.ca_signing_key_file is not None and \
+            self.ca_cert_file is not None
+
+    def encryption_enabled(self) -> bool:
+        return self.keyfile is not None and \
+            self.certfile is not None
 
     @classmethod
     def initialize(
@@ -138,51 +145,59 @@ class Flags:
                 'A future version of pip will drop support for Python 2.7.')
             sys.exit(1)
 
-        args = Flags.init_parser().parse_args(input_args)
+        parser = Flags.init_parser()
+        args = parser.parse_args(input_args)
 
+        default_plugins: List[Tuple[str, bool]] = []
+        if args.enable_dashboard:
+            default_plugins.append((PLUGIN_WEB_SERVER, True))
+            args.enable_static_server = True
+            default_plugins.append((PLUGIN_DASHBOARD, True))
+            default_plugins.append((PLUGIN_INSPECT_TRAFFIC, True))
+            args.enable_events = True
+            args.enable_devtools = True
+        if args.enable_devtools:
+            default_plugins.append((PLUGIN_DEVTOOLS_PROTOCOL, True))
+            default_plugins.append((PLUGIN_WEB_SERVER, True))
+        if not args.disable_http_proxy:
+            default_plugins.append((PLUGIN_HTTP_PROXY, True))
+        if args.enable_web_server or \
+                args.pac_file is not None or \
+                args.enable_static_server:
+            default_plugins.append((PLUGIN_WEB_SERVER, True))
+        if args.pac_file is not None:
+            default_plugins.append((PLUGIN_PAC_FILE, True))
+
+        plugins = Flags.load_plugins(
+            bytes_(
+                '%s,%s' %
+                (text_(COMMA).join(collections.OrderedDict(default_plugins).keys()),
+                    opts.get('plugins', args.plugins))))
+
+        # Print version and exit
         if args.version:
             print(__version__)
             sys.exit(0)
 
+        # Setup logging module
+        Flags.setup_logger(args.log_file, args.log_level, args.log_format)
+
+        # Setup limits
+        Flags.set_open_file_limit(args.open_file_limit)
+
+        # proxy.py currently cannot serve over HTTPS and perform TLS interception
+        # at the same time.  Check if user is trying to enable both feature
+        # at the same time.
         if (args.cert_file and args.key_file) and \
                 (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
             print('You can either enable end-to-end encryption OR TLS interception,'
                   'not both together.')
             sys.exit(1)
 
+        # Generate auth_code required for basic authentication if enabled
         auth_code = None
         if args.basic_auth:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
-
-        Flags.setup_logger(args.log_file, args.log_level, args.log_format)
-        Flags.set_open_file_limit(args.open_file_limit)
-
-        http_proxy_plugin = 'proxy.http.proxy.HttpProxyPlugin'
-        web_server_plugin = 'proxy.http.server.HttpWebServerPlugin'
-        pac_file_plugin = 'proxy.http.server.HttpWebServerPacFilePlugin'
-        devtools_protocol_plugin = 'proxy.http.inspector.DevtoolsProtocolPlugin'
-        dashboard_plugin = 'proxy.dashboard.dashboard.ProxyDashboard'
-        inspect_traffic_plugin = 'proxy.dashboard.inspect_traffic.InspectTrafficPlugin'
-
-        default_plugins: List[Tuple[str, bool]] = []
-        if args.enable_dashboard:
-            default_plugins.append((web_server_plugin, True))
-            args.enable_static_server = True
-            default_plugins.append((dashboard_plugin, True))
-            default_plugins.append((inspect_traffic_plugin, True))
-            args.enable_events = True
-            args.enable_devtools = True
-        if args.enable_devtools:
-            default_plugins.append((devtools_protocol_plugin, True))
-            default_plugins.append((web_server_plugin, True))
-        if not args.disable_http_proxy:
-            default_plugins.append((http_proxy_plugin, True))
-        if args.enable_web_server or \
-                args.pac_file is not None or \
-                args.enable_static_server:
-            default_plugins.append((web_server_plugin, True))
-        if args.pac_file is not None:
-            default_plugins.append((pac_file_plugin, True))
 
         return cls(
             auth_code=cast(Optional[bytes], opts.get('auth_code', auth_code)),
@@ -258,22 +273,8 @@ class Flags:
                 opts.get(
                     'enable_events',
                     args.enable_events)),
-            plugins=Flags.load_plugins(
-                bytes_(
-                    '%s,%s' %
-                    (text_(COMMA).join(collections.OrderedDict(default_plugins).keys()),
-                     opts.get('plugins', args.plugins)))),
+            plugins=plugins,
             pid_file=cast(Optional[str], opts.get('pid_file', args.pid_file)))
-
-    def tls_interception_enabled(self) -> bool:
-        return self.ca_key_file is not None and \
-            self.ca_cert_dir is not None and \
-            self.ca_signing_key_file is not None and \
-            self.ca_cert_file is not None
-
-    def encryption_enabled(self) -> bool:
-        return self.keyfile is not None and \
-            self.certfile is not None
 
     @staticmethod
     def init_parser() -> argparse.ArgumentParser:
