@@ -862,6 +862,89 @@ cached file instead of plain text.
 Now use CA flags with other
 [plugin examples](#plugin-examples) to see them work with `https` traffic.
 
+## TLS Interception With Docker
+
+Important notes about TLS Interception with Docker container:
+
+- Since `v2.2.0`, `proxy.py` docker container also ships with `openssl`.  This allows `proxy.py`
+to generate certificates on the fly for TLS Interception.
+
+- For security reasons, `proxy.py` docker container doesn't ship with CA certificates.
+
+Here is how to start a `proxy.py` docker container
+with TLS Interception:
+
+1. Generate CA certificates on host computer
+
+    ```bash
+    ❯ make ca-certificates
+    ```
+
+2. Copy all generated certificates into a separate directory.  We'll later mount this directory into our docker container
+
+    ```bash
+    ❯ mkdir /tmp/ca-certificates
+    ❯ cp ca-cert.pem ca-key.pem ca-signing-key.pem /tmp/ca-certificates
+    ```
+
+3. Start docker container
+
+    ```bash
+    ❯ docker run -it --rm \
+        -v /tmp/ca-certificates:/tmp/ca-certificates \
+        -p 8899:8899 \
+        abhinavsingh/proxy.py:latest \
+        --hostname 0.0.0.0 \
+        --plugins proxy.plugin.CacheResponsesPlugin \
+        --ca-key-file /tmp/ca-certificates/ca-key.pem \
+        --ca-cert-file /tmp/ca-certificates/ca-cert.pem \
+        --ca-signing-key /tmp/ca-certificates/ca-signing-key.pem
+    ```
+
+    - `-v /tmp/ca-certificates:/tmp/ca-certificates` flag mounts our CA certificate directory in container environment
+    - `--plugins proxy.plugin.CacheResponsesPlugin` enables `CacheResponsesPlugin` so that we can inspect intercepted traffic
+    - `--ca-*` flags enable TLS Interception.
+
+4. From another terminal, try TLS Interception using `curl`
+
+    ```bash
+    ❯ curl -v \
+        --cacert ca-cert.pem \
+        -x 127.0.0.1:8899 \
+        https://httpbin.org/get
+    ```
+
+5. Verify `issuer` field from response headers.
+
+    ```bash
+    * Server certificate:
+    *  subject: CN=httpbin.org; C=NA; ST=Unavailable; L=Unavailable; O=Unavailable; OU=Unavailable
+    *  start date: Jun 17 09:26:57 2020 GMT
+    *  expire date: Jun 17 09:26:57 2022 GMT
+    *  subjectAltName: host "httpbin.org" matched cert's "httpbin.org"
+    *  issuer: CN=example.com
+    *  SSL certificate verify ok.
+    ```
+
+6. Back on docker terminal, copy response dump path logs.
+
+    ```bash
+    ...[redacted]... [I] access_log:338 - 172.17.0.1:56498 - CONNECT httpbin.org:443 - 1031 bytes - 1216.70 ms
+    ...[redacted]... [I] close:49 - Cached response at /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
+    ```
+
+7. In another terminal, `cat` the response dump:
+
+    ```bash
+    ❯ docker exec -it 1234 cat /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
+    HTTP/1.1 200 OK
+    ...[redacted]...
+    {
+      ...[redacted]...,
+      "url": "http://httpbin.org/get"
+    }
+    ```
+
 Proxy Over SSH Tunnel
 =====================
 
