@@ -148,6 +148,17 @@ class Flags:
         parser = Flags.init_parser()
         args = parser.parse_args(input_args)
 
+        # Print version and exit
+        if args.version:
+            print(__version__)
+            sys.exit(0)
+
+        # Setup logging module
+        Flags.setup_logger(args.log_file, args.log_level, args.log_format)
+
+        # Setup limits
+        Flags.set_open_file_limit(args.open_file_limit)
+
         default_plugins: List[Tuple[str, bool]] = []
         if args.enable_dashboard:
             default_plugins.append((PLUGIN_WEB_SERVER, True))
@@ -173,17 +184,6 @@ class Flags:
                 '%s,%s' %
                 (text_(COMMA).join(collections.OrderedDict(default_plugins).keys()),
                     opts.get('plugins', args.plugins))))
-
-        # Print version and exit
-        if args.version:
-            print(__version__)
-            sys.exit(0)
-
-        # Setup logging module
-        Flags.setup_logger(args.log_file, args.log_level, args.log_format)
-
-        # Setup limits
-        Flags.set_open_file_limit(args.open_file_limit)
 
         # proxy.py currently cannot serve over HTTPS and perform TLS interception
         # at the same time.  Check if user is trying to enable both feature

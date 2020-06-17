@@ -63,6 +63,7 @@ Table of Contents
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
+    * [TLS Interception With Docker](#tls-interception-with-docker)
 * [Proxy Over SSH Tunnel](#proxy-over-ssh-tunnel)
     * [Proxy Remote Requests Locally](#proxy-remote-requests-locally)
     * [Proxy Local Requests Remotely](#proxy-local-requests-remotely)
@@ -905,7 +906,7 @@ with TLS Interception:
     - `--plugins proxy.plugin.CacheResponsesPlugin` enables `CacheResponsesPlugin` so that we can inspect intercepted traffic
     - `--ca-*` flags enable TLS Interception.
 
-4. From another terminal, try TLS Interception using `curl`
+4. From another terminal, try TLS Interception using `curl`. You can omit `--cacert` flag if CA certificate is already trusted by the system.
 
     ```bash
     ❯ curl -v \
@@ -936,7 +937,7 @@ with TLS Interception:
 7. In another terminal, `cat` the response dump:
 
     ```bash
-    ❯ docker exec -it 1234 cat /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
+    ❯ docker exec -it $(docker ps | grep proxy.py | awk '{ print $1 }') cat /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
     HTTP/1.1 200 OK
     ...[redacted]...
     {
@@ -947,6 +948,8 @@ with TLS Interception:
 
 Proxy Over SSH Tunnel
 =====================
+
+**This is a WIP and may not work as documented**
 
 Requires `paramiko` to work. See [requirements-tunnel.txt](https://github.com/abhinavsingh/proxy.py/blob/develop/requirements-tunnel.txt)
 
