@@ -8,14 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import logging
 import threading
-import subprocess
 import os
 import ssl
 import socket
 import time
 import errno
-import logging
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
@@ -28,6 +27,7 @@ from ..methods import httpMethods
 from ...common.types import HasFileno
 from ...common.constants import PROXY_AGENT_HEADER_VALUE
 from ...common.utils import build_http_response, text_
+from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
 from ...core.connection import TcpServerConnection, TcpConnectionUninitializedException
@@ -89,12 +89,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             logger.debug('Server is write ready, flushing buffer')
             try:
                 self.server.flush()
-            except OSError:
-                logger.error('OSError when flushing buffer to server')
-                return True
+            except ssl.SSLWantWriteError:
+                logger.warning('SSLWantWriteError while trying to flush to server, will retry')
+                return False
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for server')
+                return True
+            except OSError as e:
+                logger.exception('OSError when flushing buffer to server', exc_info=e)
                 return True
         return False
 
@@ -207,9 +210,18 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
                     self.flags.tls_interception_enabled()):
+                if self.pipeline_request is not None and \
+                        self.pipeline_request.is_connection_upgrade():
+                    # Previous pipelined request was a WebSocket
+                    # upgrade request. Incoming client data now
+                    # must be treated as WebSocket protocol packets.
+                    self.server.queue(raw)
+                    return None
+
                 if self.pipeline_request is None:
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER)
+
                 # TODO(abhinavsingh): Remove .tobytes after parser is
                 # memoryview compliant
                 self.pipeline_request.parse(raw.tobytes())
@@ -226,7 +238,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.server.queue(
                         memoryview(
                             self.pipeline_request.build()))
-                    self.pipeline_request = None
+                    if not self.pipeline_request.is_connection_upgrade():
+                        self.pipeline_request = None
             else:
                 self.server.queue(raw)
             return None
@@ -274,12 +287,13 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # wrap_client also flushes client data before wrapping
                     # sending to client can raise, handle expected exceptions
                     self.wrap_client()
-                except OSError:
-                    logger.error('OSError when wrapping client')
-                    return True
                 except BrokenPipeError:
                     logger.error(
                         'BrokenPipeError when wrapping client')
+                    return True
+                except OSError as e:
+                    logger.exception(
+                        'OSError when wrapping client', exc_info=e)
                     return True
                 # Update all plugin connection reference
                 for plugin in self.plugins.values():
@@ -342,12 +356,71 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                  self.response.total_size,
                  connection_time_ms))
 
+    def gen_ca_signed_certificate(self, cert_file_path: str, certificate: Dict[str, Any]) -> None:
+        '''CA signing key (default) is used for generating a public key
+        for common_name, if one already doesn't exist.  Using generated
+        public key a CSR request is generated, which is then signed by
+        CA key and secret.  Again this process only happen if signed
+        certificate doesn't already exist.
+
+        returns signed certificate path.'''
+        assert(self.request.host and self.flags.ca_cert_dir and self.flags.ca_signing_key_file and
+               self.flags.ca_key_file and self.flags.ca_cert_file)
+
+        upstream_subject = {s[0][0]: s[0][1] for s in certificate['subject']}
+        public_key_path = os.path.join(self.flags.ca_cert_dir,
+                                       '{0}.{1}'.format(text_(self.request.host), 'pub'))
+        private_key_path = self.flags.ca_signing_key_file
+        private_key_password = ''
+        subject = '/CN={0}/C={1}/ST={2}/L={3}/O={4}/OU={5}'.format(
+            upstream_subject.get('commonName', text_(self.request.host)),
+            upstream_subject.get('countryName', 'NA'),
+            upstream_subject.get('stateOrProvinceName', 'Unavailable'),
+            upstream_subject.get('localityName', 'Unavailable'),
+            upstream_subject.get('organizationName', 'Unavailable'),
+            upstream_subject.get('organizationalUnitName', 'Unavailable'))
+        alt_subj_names = [text_(self.request.host), ]
+        validity_in_days = 365 * 2
+        timeout = 10
+
+        # Generate a public key for the common name
+        if not os.path.isfile(public_key_path):
+            logger.debug('Generating public key %s', public_key_path)
+            resp = gen_public_key(public_key_path=public_key_path, private_key_path=private_key_path,
+                                  private_key_password=private_key_password, subject=subject, alt_subj_names=alt_subj_names,
+                                  validity_in_days=validity_in_days, timeout=timeout)
+            assert(resp is True)
+
+        csr_path = os.path.join(self.flags.ca_cert_dir,
+                                '{0}.{1}'.format(text_(self.request.host), 'csr'))
+
+        # Generate a CSR request for this common name
+        if not os.path.isfile(csr_path):
+            logger.debug('Generating CSR %s', csr_path)
+            resp = gen_csr(csr_path=csr_path, key_path=private_key_path, password=private_key_password,
+                           crt_path=public_key_path, timeout=timeout)
+            assert(resp is True)
+
+        ca_key_path = self.flags.ca_key_file
+        ca_key_password = ''
+        ca_crt_path = self.flags.ca_cert_file
+        serial = self.uid.int
+
+        # Sign generated CSR
+        if not os.path.isfile(cert_file_path):
+            logger.debug('Signing CSR %s', cert_file_path)
+            resp = sign_csr(csr_path=csr_path, crt_path=cert_file_path, ca_key_path=ca_key_path,
+                            ca_key_password=ca_key_password, ca_crt_path=ca_crt_path,
+                            serial=str(serial), alt_subj_names=alt_subj_names,
+                            validity_in_days=validity_in_days, timeout=timeout)
+            assert(resp is True)
+
     @staticmethod
     def generated_cert_file_path(ca_cert_dir: str, host: str) -> str:
         return os.path.join(ca_cert_dir, '%s.pem' % host)
 
     def generate_upstream_certificate(
-            self, _certificate: Optional[Dict[str, Any]]) -> str:
+            self, certificate: Dict[str, Any]) -> str:
         if not (self.flags.ca_cert_dir and self.flags.ca_signing_key_file and
                 self.flags.ca_cert_file and self.flags.ca_key_file):
             raise HttpProtocolException(
@@ -359,29 +432,16 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.flags.ca_cert_dir, text_(self.request.host))
         with self.lock:
             if not os.path.isfile(cert_file_path):
-                logger.debug('Generating certificates %s', cert_file_path)
-                # TODO: Parse subject from certificate
-                # Currently we only set CN= field for generated certificates.
-                gen_cert = subprocess.Popen(
-                    ['openssl', 'req', '-new', '-key', self.flags.ca_signing_key_file, '-subj',
-                     f'/C=/ST=/L=/O=/OU=/CN={ text_(self.request.host) }'],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-                sign_cert = subprocess.Popen(
-                    ['openssl', 'x509', '-req', '-days', '365', '-CA', self.flags.ca_cert_file, '-CAkey',
-                     self.flags.ca_key_file, '-set_serial', str(int(time.time())), '-out', cert_file_path],
-                    stdin=gen_cert.stdout,
-                    stderr=subprocess.PIPE)
-                # TODO: Ensure sign_cert success.
-                sign_cert.communicate(timeout=10)
+                self.gen_ca_signed_certificate(cert_file_path, certificate)
         return cert_file_path
 
     def wrap_server(self) -> None:
         assert self.server is not None
         assert isinstance(self.server.connection, socket.socket)
         ctx = ssl.create_default_context(
-            ssl.Purpose.SERVER_AUTH)
-        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+            ssl.Purpose.SERVER_AUTH, cafile=self.flags.ca_file)
+        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1
+        ctx.check_hostname = True
         self.server.connection.setblocking(True)
         self.server._conn = ctx.wrap_socket(
             self.server.connection,
@@ -398,8 +458,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.client._conn = ssl.wrap_socket(
             self.client.connection,
             server_side=True,
+            certfile=generated_cert,
             keyfile=self.flags.ca_signing_key_file,
-            certfile=generated_cert)
+            ssl_version=ssl.PROTOCOL_TLSv1_2)
         self.client.connection.setblocking(False)
         logger.debug(
             'TLS interception using %s', generated_cert)
@@ -437,7 +498,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         assert self.request.path
         assert self.request.port
         self.event_queue.publish(
-            request_id=self.uid,
+            request_id=self.uid.hex,
             event_name=eventNames.REQUEST_COMPLETE,
             event_payload={
                 'url': text_(self.request.path)

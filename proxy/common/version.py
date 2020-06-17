@@ -8,5 +8,5 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-VERSION = (2, 1, 2)
+VERSION = (2, 2, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))

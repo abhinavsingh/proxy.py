@@ -10,7 +10,7 @@
 """
 from abc import ABC, abstractmethod
 from typing import List, Tuple
-
+from uuid import UUID
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
 
@@ -24,7 +24,7 @@ class HttpWebServerBasePlugin(ABC):
 
     def __init__(
             self,
-            uid: str,
+            uid: UUID,
             flags: Flags,
             client: TcpClientConnection,
             event_queue: EventQueue):

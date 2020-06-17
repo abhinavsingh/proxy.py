@@ -17,7 +17,7 @@ import errno
 import logging
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Union, Optional, Generator, Dict
-
+from uuid import UUID
 from .parser import HttpParser, httpParserStates, httpParserTypes
 from .exception import HttpProtocolException
 
@@ -54,12 +54,12 @@ class HttpProtocolHandlerPlugin(ABC):
 
     def __init__(
             self,
-            uid: str,
+            uid: UUID,
             flags: Flags,
             client: TcpClientConnection,
             request: HttpParser,
             event_queue: EventQueue):
-        self.uid: str = uid
+        self.uid: UUID = uid
         self.flags: Flags = flags
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
@@ -116,7 +116,7 @@ class HttpProtocolHandler(ThreadlessWork):
     def __init__(self, client: TcpClientConnection,
                  flags: Optional[Flags] = None,
                  event_queue: Optional[EventQueue] = None,
-                 uid: Optional[str] = None):
+                 uid: Optional[UUID] = None):
         super().__init__(client, flags, event_queue, uid)
 
         self.start_time: float = time.time()
@@ -288,12 +288,12 @@ class HttpProtocolHandler(ThreadlessWork):
 
             try:
                 self.client.flush()
-            except OSError:
-                logger.error('OSError when flushing buffer to client')
-                return True
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for client')
+                return True
+            except OSError:
+                logger.error('OSError when flushing buffer to client')
                 return True
         return False
 
@@ -359,7 +359,7 @@ class HttpProtocolHandler(ThreadlessWork):
             except HttpProtocolException as e:
                 logger.debug(
                     'HttpProtocolException type raised')
-                response = e.response(self.request)
+                response: Optional[memoryview] = e.response(self.request)
                 if response:
                     self.client.queue(response)
                 return True

@@ -105,19 +105,21 @@ class HttpParser:
             self.del_header(key.lower())
 
     def set_url(self, url: bytes) -> None:
+        # Work around with urlsplit semantics.
+        #
+        # For CONNECT requests, request line contains
+        # upstream_host:upstream_port which is not complaint
+        # with urlsplit, which expects a fully qualified url.
+        if self.method == b'CONNECT':
+            url = b'https://' + url
         self.url = urlparse.urlsplit(url)
         self.set_line_attributes()
 
     def set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
             if self.method == httpMethods.CONNECT and self.url:
-                if self.url.scheme == b'':
-                    u = urlparse.urlsplit(b'//' + self.url.path)
-                    self.host, self.port = u.hostname, u.port
-                else:
-                    self.host = self.url.scheme
-                    self.port = 443 if self.url.path == b'' else \
-                        int(self.url.path)
+                self.host = self.url.hostname
+                self.port = 443 if self.url.port is None else self.url.port
             elif self.url:
                 self.host, self.port = self.url.hostname, self.url.port \
                     if self.url.port else DEFAULT_HTTP_PORT
@@ -125,7 +127,7 @@ class HttpParser:
                 raise KeyError(
                     'Invalid request. Method: %r, Url: %r' %
                     (self.method, self.url))
-            self.path = self.build_url()
+            self.path = self.build_path()
 
     def is_chunked_encoded(self) -> bool:
         return b'transfer-encoding' in self.headers and \
@@ -222,7 +224,7 @@ class HttpParser:
         value = COLON.join(parts[1:]).strip()
         self.add_headers([(key, value)])
 
-    def build_url(self) -> bytes:
+    def build_path(self) -> bytes:
         if not self.url:
             return b'/None'
         url = self.url.path
@@ -256,3 +258,8 @@ class HttpParser:
         return self.version == HTTP_1_1 and \
             (not self.has_header(b'Connection') or
              self.header(b'Connection').lower() == b'keep-alive')
+
+    def is_connection_upgrade(self) -> bool:
+        return self.version == HTTP_1_1 and \
+            self.has_header(b'Connection') and \
+            self.has_header(b'Upgrade')

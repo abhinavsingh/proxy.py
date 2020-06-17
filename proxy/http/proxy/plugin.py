@@ -10,7 +10,7 @@
 """
 from abc import ABC, abstractmethod
 from typing import Optional
-
+from uuid import UUID
 from ..parser import HttpParser
 
 from ...common.flags import Flags
@@ -26,7 +26,7 @@ class HttpProxyBasePlugin(ABC):
 
     def __init__(
             self,
-            uid: str,
+            uid: UUID,
             flags: Flags,
             client: TcpClientConnection,
             event_queue: EventQueue) -> None:

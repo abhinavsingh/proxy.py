@@ -20,7 +20,7 @@
 [![Contributions Welcome](https://img.shields.io/static/v1?label=contributions&message=welcome%20%F0%9F%91%8D&color=green)](https://github.com/abhinavsingh/proxy.py/issues)
 [![Gitter](https://badges.gitter.im/proxy-py/community.svg)](https://gitter.im/proxy-py/community)
 
-[![Python 3.5](https://img.shields.io/static/v1?label=Python&message=3.5%20%7C%203.6%20%7C%203.7%20%7C%203.8&color=blue)](https://www.python.org/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9&color=blue)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
 
 [![Become a Backer](https://opencollective.com/proxypy/tiers/backer.svg?avatarHeight=72)](https://opencollective.com/proxypy)
@@ -63,6 +63,7 @@ Table of Contents
     * [Plugin Ordering](#plugin-ordering)
 * [End-to-End Encryption](#end-to-end-encryption)
 * [TLS Interception](#tls-interception)
+    * [TLS Interception With Docker](#tls-interception-with-docker)
 * [Proxy Over SSH Tunnel](#proxy-over-ssh-tunnel)
     * [Proxy Remote Requests Locally](#proxy-remote-requests-locally)
     * [Proxy Local Requests Remotely](#proxy-local-requests-remotely)
@@ -677,7 +678,7 @@ Extend in-built Web Server to add Reverse Proxy capabilities.
 Start `proxy.py` as:
 
 ```bash
-❯ proxy \
+❯ proxy --enable-web-server \
     --plugins proxy.plugin.ReverseProxyPlugin
 ```
 
@@ -712,7 +713,7 @@ Demonstrates inbuilt web server routing using plugin.
 Start `proxy.py` as:
 
 ```bash
-❯ proxy \
+❯ proxy --enable-web-server \
     --plugins proxy.plugin.WebServerPlugin
 ```
 
@@ -777,14 +778,14 @@ TLS Interception
 =================
 
 By default, `proxy.py` will not decrypt `https` traffic between client and server.
-To enable TLS interception first generate CA certificates:
+To enable TLS interception first generate root CA certificates:
 
-```
-make ca-certificates
+```bash
+❯ make ca-certificates
 ```
 
 Lets also enable `CacheResponsePlugin` so that we can verify decrypted
-response from the server. Start `proxy.py` as:
+response from the server.  Start `proxy.py` as:
 
 ```bash
 ❯ proxy \
@@ -794,7 +795,15 @@ response from the server. Start `proxy.py` as:
     --ca-signing-key-file ca-signing-key.pem
 ```
 
-Verify using `curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`
+
+[![NOTE](https://img.shields.io/static/v1?label=MacOS&message=note&color=yellow)](https://github.com/abhinavsingh/proxy.py#flags) Also provide explicit CA bundle path needed for validation of peer certificates. See `--ca-file` flag.
+
+
+Verify TLS interception using `curl`
+
+```bash
+❯ curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get
+```
 
 ```bash
 *  issuer: C=US; ST=CA; L=SanFrancisco; O=proxy.py; OU=CA; CN=Proxy PY CA; emailAddress=proxyca@mailserver.com
@@ -854,8 +863,93 @@ cached file instead of plain text.
 Now use CA flags with other
 [plugin examples](#plugin-examples) to see them work with `https` traffic.
 
+## TLS Interception With Docker
+
+Important notes about TLS Interception with Docker container:
+
+- Since `v2.2.0`, `proxy.py` docker container also ships with `openssl`.  This allows `proxy.py`
+to generate certificates on the fly for TLS Interception.
+
+- For security reasons, `proxy.py` docker container doesn't ship with CA certificates.
+
+Here is how to start a `proxy.py` docker container
+with TLS Interception:
+
+1. Generate CA certificates on host computer
+
+    ```bash
+    ❯ make ca-certificates
+    ```
+
+2. Copy all generated certificates into a separate directory.  We'll later mount this directory into our docker container
+
+    ```bash
+    ❯ mkdir /tmp/ca-certificates
+    ❯ cp ca-cert.pem ca-key.pem ca-signing-key.pem /tmp/ca-certificates
+    ```
+
+3. Start docker container
+
+    ```bash
+    ❯ docker run -it --rm \
+        -v /tmp/ca-certificates:/tmp/ca-certificates \
+        -p 8899:8899 \
+        abhinavsingh/proxy.py:latest \
+        --hostname 0.0.0.0 \
+        --plugins proxy.plugin.CacheResponsesPlugin \
+        --ca-key-file /tmp/ca-certificates/ca-key.pem \
+        --ca-cert-file /tmp/ca-certificates/ca-cert.pem \
+        --ca-signing-key /tmp/ca-certificates/ca-signing-key.pem
+    ```
+
+    - `-v /tmp/ca-certificates:/tmp/ca-certificates` flag mounts our CA certificate directory in container environment
+    - `--plugins proxy.plugin.CacheResponsesPlugin` enables `CacheResponsesPlugin` so that we can inspect intercepted traffic
+    - `--ca-*` flags enable TLS Interception.
+
+4. From another terminal, try TLS Interception using `curl`. You can omit `--cacert` flag if CA certificate is already trusted by the system.
+
+    ```bash
+    ❯ curl -v \
+        --cacert ca-cert.pem \
+        -x 127.0.0.1:8899 \
+        https://httpbin.org/get
+    ```
+
+5. Verify `issuer` field from response headers.
+
+    ```bash
+    * Server certificate:
+    *  subject: CN=httpbin.org; C=NA; ST=Unavailable; L=Unavailable; O=Unavailable; OU=Unavailable
+    *  start date: Jun 17 09:26:57 2020 GMT
+    *  expire date: Jun 17 09:26:57 2022 GMT
+    *  subjectAltName: host "httpbin.org" matched cert's "httpbin.org"
+    *  issuer: CN=example.com
+    *  SSL certificate verify ok.
+    ```
+
+6. Back on docker terminal, copy response dump path logs.
+
+    ```bash
+    ...[redacted]... [I] access_log:338 - 172.17.0.1:56498 - CONNECT httpbin.org:443 - 1031 bytes - 1216.70 ms
+    ...[redacted]... [I] close:49 - Cached response at /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
+    ```
+
+7. In another terminal, `cat` the response dump:
+
+    ```bash
+    ❯ docker exec -it $(docker ps | grep proxy.py | awk '{ print $1 }') cat /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
+    HTTP/1.1 200 OK
+    ...[redacted]...
+    {
+      ...[redacted]...,
+      "url": "http://httpbin.org/get"
+    }
+    ```
+
 Proxy Over SSH Tunnel
 =====================
+
+**This is a WIP and may not work as documented**
 
 Requires `paramiko` to work. See [requirements-tunnel.txt](https://github.com/abhinavsingh/proxy.py/blob/develop/requirements-tunnel.txt)
 
@@ -1226,20 +1320,82 @@ b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
 
 ### build_http_response
 
-TODO
+```python
+build_http_response(
+    status_code: int,
+    protocol_version: bytes = HTTP_1_1,
+    reason: Optional[bytes] = None,
+    headers: Optional[Dict[bytes, bytes]] = None,
+    body: Optional[bytes] = None) -> bytes
+```
 
 ## PKI
 
 ### API Usage
 
 #### gen_private_key
+
+```python
+gen_private_key(
+    key_path: str,
+    password: str,
+    bits: int = 2048,
+    timeout: int = 10) -> bool
+```
+
 #### gen_public_key
+
+```python
+gen_public_key(
+    public_key_path: str,
+    private_key_path: str,
+    private_key_password: str,
+    subject: str,
+    alt_subj_names: Optional[List[str]] = None,
+    extended_key_usage: Optional[str] = None,
+    validity_in_days: int = 365,
+    timeout: int = 10) -> bool
+```
+
 #### remove_passphrase
+
+```python
+remove_passphrase(
+    key_in_path: str,
+    password: str,
+    key_out_path: str,
+    timeout: int = 10) -> bool
+```
+
 #### gen_csr
+
+```python
+gen_csr(
+    csr_path: str,
+    key_path: str,
+    password: str,
+    crt_path: str,
+    timeout: int = 10) -> bool
+```
+
 #### sign_csr
 
-See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) for
-method parameters and [test_pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/common/test_pki.py)
+```python
+sign_csr(
+    csr_path: str,
+    crt_path: str,
+    ca_key_path: str,
+    ca_key_password: str,
+    ca_crt_path: str,
+    serial: str,
+    alt_subj_names: Optional[List[str]] = None,
+    extended_key_usage: Optional[str] = None,
+    validity_in_days: int = 365,
+    timeout: int = 10) -> bool
+```
+
+See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) and
+[test_pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/common/test_pki.py)
 for usage examples.
 
 ### CLI Usage
@@ -1256,7 +1412,7 @@ usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
               [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
               action
 
-proxy.py v2.1.0 : PKI Utility
+proxy.py v2.2.0 : PKI Utility
 
 positional arguments:
   action                Valid actions: remove_passphrase, gen_private_key,
@@ -1310,9 +1466,30 @@ start `proxy.py` with `--threadless` flag.
 
 ## SyntaxError: invalid syntax
 
-Make sure you are using `Python 3`. Verify the version before running `proxy.py`:
+`proxy.py` is strictly typed and uses Python `typing` annotations. Example:
+
+```python
+>>> my_strings : List[str] = []
+>>> #############^^^^^^^^^#####
+```
+
+Hence a Python version that understands typing annotations is required.
+Make sure you are using `Python 3.6+`.
+
+Verify the version before running `proxy.py`:
 
 `❯ python --version`
+
+All `typing` annotations can be replaced with `comment-only` annotations. Example:
+
+```python
+>>> my_strings = [] # List[str]
+>>> ################^^^^^^^^^^^
+```
+
+It will enable `proxy.py` to run on Python `pre-3.6`, even on `2.7`.
+However, as all future versions of Python will support `typing` annotations,
+this has not been considered.
 
 ## Unable to load plugins
 
@@ -1426,7 +1603,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--static-server-dir STATIC_SERVER_DIR] [--threadless]
              [--timeout TIMEOUT] [--version]
 
-proxy.py v2.1.0
+proxy.py v2.2.0
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -1447,6 +1624,8 @@ optional arguments:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
+  --ca-file CA_FILE     Default: None. Provide path to custom CA file for peer
+                        certificate validation. Specially useful on MacOS.
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic
                         generation of HTTPS certificates. If used, must also

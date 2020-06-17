@@ -20,6 +20,9 @@ LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
 
 COPY --from=builder /deps /usr/local
 
+# Install openssl to enable TLS interception within container
+RUN apk update && apk add openssl
+
 EXPOSE 8899/tcp
 ENTRYPOINT [ "proxy" ]
 CMD [ "--hostname=0.0.0.0" ]

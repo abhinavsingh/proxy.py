@@ -5,13 +5,13 @@ class Proxy < Formula
     Network monitoring, controls & Application development, testing, debugging."
   homepage "https://github.com/abhinavsingh/proxy.py"
   url "https://github.com/abhinavsingh/proxy.py/archive/master.zip"
-  version "2.0.0"
+  version "2.2.0"
 
   depends_on "python"
 
   resource "typing-extensions" do
-    url "https://files.pythonhosted.org/packages/e7/dd/f1713bc6638cc3a6a23735eff6ee09393b44b96176d3296693ada272a80b/typing_extensions-3.7.4.1.tar.gz"
-    sha256 "091ecc894d5e908ac75209f10d5b4f118fbdb2eb1ede6a63544054bb1edb41f2"
+    url "https://files.pythonhosted.org/packages/6a/28/d32852f2af6b5ead85d396249d5bdf450833f3a69896d76eb480d9c5e406/typing_extensions-3.7.4.2.tar.gz"
+    sha256 "79ee589a3caca649a9bfd2a8de4709837400dfa00b6cc81962a1e6a1815969ae"
   end
 
   def install

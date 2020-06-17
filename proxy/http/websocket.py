@@ -231,7 +231,7 @@ class WebsocketClient(TcpConnection):
         self.selector.register(self.sock.fileno(), ev)
         events = self.selector.select(timeout=1)
         self.selector.unregister(self.sock)
-        for key, mask in events:
+        for _, mask in events:
             if mask & selectors.EVENT_READ and self.on_message:
                 raw = self.recv()
                 if raw is None or raw.tobytes() == b'':

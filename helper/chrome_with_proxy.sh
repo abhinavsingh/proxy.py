@@ -20,6 +20,6 @@ fi
   --no-first-run \
   --no-default-browser-check \
   --user-data-dir="$(mktemp -d -t 'chrome-remote_data_dir')" \
-  --proxy-server=${PROXY_PY_ADDR} \
-  --ignore-urlfetcher-cert-requests \
-  --ignore-certificate-errors
+  --proxy-server=${PROXY_PY_ADDR} #\
+#  --ignore-urlfetcher-cert-requests \
+#  --ignore-certificate-errors
