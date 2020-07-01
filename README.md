@@ -57,6 +57,8 @@ Table of Contents
         * [Cache Responses Plugin](#cacheresponsesplugin)
         * [Man-In-The-Middle Plugin](#maninthemiddleplugin)
         * [Proxy Pool Plugin](#proxypoolplugin)
+        * [FilterByClientIpPlugin](#filterbyclientipplugin)
+        * [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
     * [HTTP Web Server Plugins](#http-web-server-plugins)
         * [Reverse Proxy](#reverse-proxy)
         * [Web Server Route](#web-server-route)
@@ -668,6 +670,57 @@ Make a curl request via `8899` proxy:
 
 Verify that `8899` proxy forwards requests to upstream proxies
 by checking respective logs.
+
+### FilterByClientIpPlugin
+
+Reject traffic from specific IP addresses.  By default this
+plugin blocks traffic from `127.0.0.1` and `::1`.
+
+Start `proxy.py` as:
+
+```bash
+❯ proxy \
+    --plugins proxy.plugin.FilterByClientIpPlugin
+```
+
+Send a request using `curl -v -x localhost:8899 http://google.com`:
+
+```bash
+... [redacted] ...
+> Proxy-Connection: Keep-Alive
+>
+< HTTP/1.1 418 I'm a tea pot
+< Connection: close
+<
+* Closing connection 0
+```
+
+Modify plugin to your taste e.g. Allow specific IP addresses only.
+
+### ModifyChunkResponsePlugin
+
+This plugin demonstrate how to modify chunked encoded responses.  In able to do so, this plugin uses `proxy.py` core to parse the chunked encoded response.  Then we reconstruct the response using custom hardcoded chunks, ignoring original chunks received from upstream server.
+
+Start `proxy.py` as:
+
+```bash
+❯ proxy \
+    --plugins proxy.plugin.ModifyChunkResponsePlugin
+```
+
+Verify using `curl -v -x localhost:8899 http://httpbin.org/stream/5`:
+
+```bash
+... [redacted] ...
+modify
+chunk
+response
+plugin
+* Connection #0 to host localhost left intact
+* Closing connection 0
+```
+
+Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending hardcoded chunks, parse and modify the original `JSON` chunks received from the upstream server.
 
 ## HTTP Web Server Plugins
 
