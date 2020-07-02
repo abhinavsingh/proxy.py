@@ -3,7 +3,8 @@
 //  proxy.py
 //
 //  Created by Abhinav Singh on 11/22/19.
-//  Copyright © 2019 Abhinav Singh. All rights reserved.
+//  Copyright © 2013-present by Abhinav Singh and contributors.
+//  All rights reserved.
 //
 
 import Cocoa
@@ -39,5 +40,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
+    }
+}
+
+struct AppDelegate_Previews: PreviewProvider {
+    static var previews: some View {
+        /*@START_MENU_TOKEN@*/Text("Hello, World!")/*@END_MENU_TOKEN@*/
     }
 }
