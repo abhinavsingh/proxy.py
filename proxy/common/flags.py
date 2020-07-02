@@ -145,7 +145,11 @@ class Flags:
                 'A future version of pip will drop support for Python 2.7.')
             sys.exit(1)
 
+        # Initialize core flags.
         parser = Flags.init_parser()
+        # Initialize flags for core and user plugins.
+        Flags.init_plugin_flags(parser)
+        # Parse flags
         args = parser.parse_args(input_args)
 
         # Print version and exit
@@ -275,6 +279,10 @@ class Flags:
                     args.enable_events)),
             plugins=plugins,
             pid_file=cast(Optional[str], opts.get('pid_file', args.pid_file)))
+
+    @staticmethod
+    def init_plugin_flags(parser: argparse.ArgumentParser) -> None:
+        pass
 
     @staticmethod
     def init_parser() -> argparse.ArgumentParser:
