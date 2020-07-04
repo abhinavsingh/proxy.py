@@ -169,7 +169,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             keyfile=self.flags.ca_signing_key_file,
             certfile=HttpProxyPlugin.generated_cert_file_path(
                 self.flags.ca_cert_dir, host),
-            ssl_version=ssl.PROTOCOL_TLSv1_2
+            ssl_version=ssl.PROTOCOL_TLS
         )
         self.assertEqual(self._conn.setblocking.call_count, 2)
         self.assertEqual(
