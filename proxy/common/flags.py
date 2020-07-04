@@ -145,7 +145,9 @@ class Flags:
                 'A future version of pip will drop support for Python 2.7.')
             sys.exit(1)
 
+        # Initialize core flags.
         parser = Flags.init_parser()
+        # Parse flags
         args = parser.parse_args(input_args)
 
         # Print version and exit
@@ -159,6 +161,7 @@ class Flags:
         # Setup limits
         Flags.set_open_file_limit(args.open_file_limit)
 
+        # Prepare list of plugins to load based upon --enable-* and --disable-* flags
         default_plugins: List[Tuple[str, bool]] = []
         if args.enable_dashboard:
             default_plugins.append((PLUGIN_WEB_SERVER, True))
@@ -179,6 +182,7 @@ class Flags:
         if args.pac_file is not None:
             default_plugins.append((PLUGIN_PAC_FILE, True))
 
+        # Load default plugins along with user provided --plugins
         plugins = Flags.load_plugins(
             bytes_(
                 '%s,%s' %

@@ -23,7 +23,7 @@ from ..exception import HttpProtocolException
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
-from ..handler import HttpProtocolHandlerPlugin
+from ..plugin import HttpProtocolHandlerPlugin
 
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
 from ...common.constants import PROXY_AGENT_HEADER_VALUE

@@ -10,6 +10,7 @@
 """
 import logging
 import threading
+import subprocess
 import os
 import ssl
 import socket
@@ -18,7 +19,7 @@ import errno
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
-from ..handler import HttpProtocolHandlerPlugin
+from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed, ProxyAuthenticationFailed
 from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
@@ -287,6 +288,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # wrap_client also flushes client data before wrapping
                     # sending to client can raise, handle expected exceptions
                     self.wrap_client()
+                except subprocess.TimeoutExpired as e:  # Popen communicate timeout
+                    logger.exception('TimeoutExpired during certificate generation', exc_info=e)
+                    return True
                 except BrokenPipeError:
                     logger.error(
                         'BrokenPipeError when wrapping client')
@@ -372,13 +376,19 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                                        '{0}.{1}'.format(text_(self.request.host), 'pub'))
         private_key_path = self.flags.ca_signing_key_file
         private_key_password = ''
-        subject = '/CN={0}/C={1}/ST={2}/L={3}/O={4}/OU={5}'.format(
-            upstream_subject.get('commonName', text_(self.request.host)),
-            upstream_subject.get('countryName', 'NA'),
-            upstream_subject.get('stateOrProvinceName', 'Unavailable'),
-            upstream_subject.get('localityName', 'Unavailable'),
-            upstream_subject.get('organizationName', 'Unavailable'),
-            upstream_subject.get('organizationalUnitName', 'Unavailable'))
+        # Build certificate subject
+        keys = {
+            'CN': 'commonName',
+            'C': 'countryName',
+            'ST': 'stateOrProvinceName',
+            'L': 'localityName',
+            'O': 'organizationName',
+            'OU': 'organizationalUnitName',
+        }
+        subject = ''
+        for key in keys:
+            if upstream_subject.get(keys[key], None):
+                subject += '/{0}={1}'.format(key, upstream_subject.get(keys[key]))
         alt_subj_names = [text_(self.request.host), ]
         validity_in_days = 365 * 2
         timeout = 10
@@ -458,9 +468,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.client._conn = ssl.wrap_socket(
             self.client.connection,
             server_side=True,
+            # ca_certs=self.flags.ca_cert_file,
             certfile=generated_cert,
             keyfile=self.flags.ca_signing_key_file,
-            ssl_version=ssl.PROTOCOL_TLSv1_2)
+            ssl_version=ssl.PROTOCOL_TLS)
         self.client.connection.setblocking(False)
         logger.debug(
             'TLS interception using %s', generated_cert)

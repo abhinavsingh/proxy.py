@@ -3,7 +3,8 @@
 //  proxy.py
 //
 //  Created by Abhinav Singh on 11/22/19.
-//  Copyright © 2019 Abhinav Singh. All rights reserved.
+//  Copyright © 2013-present by Abhinav Singh and contributors.
+//  All rights reserved.
 //
 
 import SwiftUI
