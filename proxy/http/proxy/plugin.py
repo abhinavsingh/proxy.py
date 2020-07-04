@@ -8,8 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
-
 from abc import ABC, abstractmethod
 from typing import Optional
 from uuid import UUID
@@ -43,11 +41,6 @@ class HttpProxyBasePlugin(ABC):
         Defaults to name of the class. This helps plugin developers to directly
         access a specific plugin by its name."""
         return self.__class__.__name__      # pragma: no cover
-
-    @classmethod
-    def init_parser(cls, parser: argparse.ArgumentParser) -> None:
-        """Add plugin specific flags to argparse."""
-        pass
 
     @abstractmethod
     def before_upstream_connection(
