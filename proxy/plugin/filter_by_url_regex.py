@@ -44,9 +44,10 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
     def handle_client_request(
             self, request: HttpParser) -> Optional[HttpParser]:
 
-        logger.info(request.host)
-        logger.info(request.port)
-        logger.info(request.path)
+        logger.info('----------')
+        logger.info(request.url)
+        logger.info(request.request)
+        logger.info('----------')
         
         # # build URL
         # url = b'http://%s:%d%s' % (
