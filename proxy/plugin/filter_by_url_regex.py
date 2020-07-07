@@ -48,17 +48,24 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         logger.info(request.host)
         logger.info(request.url)
         logger.info(request.headers)
+        logger.info(request.header('host'))
         logger.info(request.path)
         logger.info(request.port)
 
-        # build URL
-        url = b'http://%s:%d%s' % (
-            request.host or request.headers['host'][1], 
-            request.port,
-            request.path,
-        )
+        # request_host = None
+        # if request.host:
+        #     host = request.host
+        # else:
+        #     if request.headers
 
-        logger.info(url)
+        # # build URL
+        # url = b'http://%s:%d%s' % (
+        #     request.host or request.headers['host'][1], 
+        #     request.port,
+        #     request.path,
+        # )
+
+        # logger.info(url)
 
         logger.info('----------')
 
