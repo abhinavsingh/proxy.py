@@ -32,7 +32,8 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
     FILTER_LIST = [
         {
             b'regex': b'https{0,1}://tpc.googlesyndication.com:\d{1,5}/simgad/.*',
-            b'status_code': 444
+            b'status_code': 444,
+            b'notes': b'Google image ads',
         },
     ]
 
@@ -47,17 +48,28 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         )
 
         # check URL against list
+        rule_number = 1
         for blocked_entry in self.FILTER_LIST:
 
+            # if regex matches on URL
             if re.search(blocked_entry[b'regex'], url):
 
-                logger.info(b"Blocked: %s" % (url))
+                # log that the request has been filtered
+                logger.info(b"Blocked: '%s' with status_code '%s' by rule number '%s'" % (
+                    url,
+                    blocked_entry[b'status_code'],
+                    rule_number,
+                    )
+                )
 
                 raise HttpRequestRejected(
                     status_code = blocked_entry[b'status_code'],
-                    headers = {b'Connection': b'close'}
+                    headers = {b'Connection': b'close'},
                 )
+
                 break
+
+            rule_number += 1 
 
         return request
 
