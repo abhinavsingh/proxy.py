@@ -31,32 +31,32 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
 
     FILTER_LIST = [
         {
-            'regex': b'https://tpc.googlesyndication.com/simgad/.*',
+            'regex': b'tpc.googlesyndication.com/simgad/.*',
             'status_code': 444,
             'notes': 'Google image ads',
         },
         {
-            'regex': b'https://tpc.googlesyndication.com/sadbundle/.*',
+            'regex': b'tpc.googlesyndication.com/sadbundle/.*',
             'status_code': 444,
             'notes': 'Google animated ad bundles',
         },
         {
-            'regex': b'https://pagead\d+.googlesyndication.com/.*',
+            'regex': b'pagead\d+.googlesyndication.com/.*',
             'status_code': 444,
             'notes': 'Google tracking',
         },
         {
-            'regex': b'https://(www){0,1}.google-analytics.com/r/collect\?.*',
+            'regex': b'(www){0,1}.google-analytics.com/r/collect\?.*',
             'status_code': 444,
             'notes': 'Google tracking',
         },
         {
-            'regex': b'https://(www){0,1}.facebook.com/tr/.*',
+            'regex': b'(www){0,1}.facebook.com/tr/.*',
             'status_code': 444,
             'notes': 'Facebook tracking',
         },
         {
-            'regex': b'https://tpc.googlesyndication.com/daca_images/simgad/.*',
+            'regex': b'tpc.googlesyndication.com/daca_images/simgad/.*',
             'status_code': 444,
             'notes': 'Google image ads',
         }
@@ -82,12 +82,10 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             return request
 
         # build URL
-        url = b'http://%s%s' % (
+        url = b'%s%s' % (
             request_host, 
             request.path,
         )
-
-        logger.info(request.url)
 
         # check URL against list
         rule_number = 1
