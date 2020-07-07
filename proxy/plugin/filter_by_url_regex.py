@@ -48,7 +48,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         logger.info(request.host)
         logger.info(request.url)
         logger.info(request.headers)
-        logger.info(request.header('host'))
+        logger.info(request.header(b'host'))
         logger.info(request.path)
         logger.info(request.port)
 
