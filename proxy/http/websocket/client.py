@@ -13,7 +13,6 @@ import selectors
 import socket
 import secrets
 import ssl
-import logging
 
 from typing import Optional, Union, Callable
 
@@ -22,10 +21,8 @@ from .frame import WebsocketFrame
 from ..parser import httpParserTypes, HttpParser
 
 from ...common.constants import DEFAULT_BUFFER_SIZE
-from ...common.utils import new_socket_connection, build_websocket_handshake_request
+from ...common.utils import new_socket_connection, build_websocket_handshake_request, text_
 from ...core.connection import tcpConnectionTypes, TcpConnection
-
-logger = logging.getLogger(__name__)
 
 
 class WebsocketClient(TcpConnection):
@@ -40,7 +37,7 @@ class WebsocketClient(TcpConnection):
         self.port: int = port
         self.path: bytes = path
         self.sock: socket.socket = new_socket_connection(
-            (socket.gethostbyname(str(self.hostname)), self.port))
+            (socket.gethostbyname(text_(self.hostname)), self.port))
         self.on_message: Optional[Callable[[
             WebsocketFrame], None]] = on_message
         self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
@@ -83,7 +80,6 @@ class WebsocketClient(TcpConnection):
                 raw = self.recv()
                 if raw is None or raw.tobytes() == b'':
                     self.closed = True
-                    logger.debug('Websocket connection closed by server')
                     return True
                 frame = WebsocketFrame()
                 # TODO(abhinavsingh): Remove .tobytes after parser is
@@ -91,12 +87,10 @@ class WebsocketClient(TcpConnection):
                 frame.parse(raw.tobytes())
                 self.on_message(frame)
             elif mask & selectors.EVENT_WRITE:
-                logger.debug(self.buffer)
                 self.flush()
         return False
 
     def run(self) -> None:
-        logger.debug('running')
         try:
             while not self.closed:
                 teardown = self.run_once()
@@ -105,11 +99,7 @@ class WebsocketClient(TcpConnection):
         except KeyboardInterrupt:
             pass
         finally:
-            try:
+            if not self.closed:
                 self.selector.unregister(self.sock)
                 self.sock.shutdown(socket.SHUT_WR)
-            except Exception as e:
-                logging.exception(
-                    'Exception while shutdown of websocket client', exc_info=e)
             self.sock.close()
-        logger.info('done')
