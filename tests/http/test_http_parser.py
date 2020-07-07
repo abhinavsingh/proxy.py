@@ -139,7 +139,8 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
-        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'example.com'))
+        self.assertEqual(
+            self.parser.headers[b'host'], (b'Host', b'example.com'))
         self.parser.del_headers([b'host'])
         self.parser.add_headers([(b'Host', b'example.com')])
         self.assertEqual(
@@ -193,7 +194,10 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(CRLF * 2)
         self.assertEqual(self.parser.total_size, len(pkt) +
                          (3 * len(CRLF)) + len(host_hdr))
-        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'localhost:8080'))
+        self.assertEqual(
+            self.parser.headers[b'host'],
+            (b'Host',
+             b'localhost:8080'))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_get_partial_parse2(self) -> None:
@@ -210,7 +214,10 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
         self.parser.parse(b'localhost:8080' + CRLF)
-        self.assertEqual(self.parser.headers[b'host'], (b'Host', b'localhost:8080'))
+        self.assertEqual(
+            self.parser.headers[b'host'],
+            (b'Host',
+             b'localhost:8080'))
         self.assertEqual(self.parser.buffer, b'')
         self.assertEqual(
             self.parser.state,

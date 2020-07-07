@@ -171,7 +171,8 @@ class HttpParser:
                         self.state = httpParserStates.COMPLETE
                     more = False
                 else:
-                    raise NotImplementedError('Parser shouldn\'t have reached here')
+                    raise NotImplementedError(
+                        'Parser shouldn\'t have reached here')
             else:
                 more, raw = self.process(raw)
         self.buffer = raw
@@ -258,7 +259,8 @@ class HttpParser:
             status_code=int(self.code),
             protocol_version=self.version,
             reason=self.reason,
-            headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers},
+            headers={} if not self.headers else {
+                self.headers[k][0]: self.headers[k][1] for k in self.headers},
             body=self.body if not self.is_chunked_encoded() else ChunkParser.to_chunks(self.body))
 
     def has_upstream_server(self) -> bool:

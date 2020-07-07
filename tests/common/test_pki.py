@@ -112,7 +112,9 @@ class TestPki(unittest.TestCase):
 
     def _gen_private_key(self) -> Tuple[str, str]:
         key_path = os.path.join(tempfile.gettempdir(), 'test_gen_private.key')
-        nopass_key_path = os.path.join(tempfile.gettempdir(), 'test_gen_private_nopass.key')
+        nopass_key_path = os.path.join(
+            tempfile.gettempdir(),
+            'test_gen_private_nopass.key')
         pki.gen_private_key(key_path, 'password')
         pki.remove_passphrase(key_path, 'password', nopass_key_path)
         return (key_path, nopass_key_path)
