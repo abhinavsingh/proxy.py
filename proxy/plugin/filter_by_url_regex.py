@@ -8,6 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+
+import logging
+
 from typing import Optional
 
 from ..http.exception import HttpRequestRejected
@@ -16,6 +19,8 @@ from ..http.codes import httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
 
 import re
+
+logger = logging.getLogger(__name__)
 
 class FilterByURLRegexPlugin(HttpProxyBasePlugin):
     """
@@ -46,7 +51,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
 
             if re.search(blocked_entry[b'regex'], url):
 
-                print("Blocked: %s" % (url))
+                logger.info(b"Blocked: %s" % (url))
 
                 raise HttpRequestRejected(
                     status_code = blocked_entry[b'status_code'],
