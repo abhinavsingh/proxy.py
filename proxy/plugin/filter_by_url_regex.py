@@ -48,36 +48,36 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         logger.info(request.port)
         logger.info(request.path)
         
-        # build URL
-        url = b'http://%s:%d%s' % (
-            request.host, 
-            request.port,
-            request.path,
-        )
+        # # build URL
+        # url = b'http://%s:%d%s' % (
+        #     request.host, 
+        #     request.port,
+        #     request.path,
+        # )
 
-        # check URL against list
-        rule_number = 1
-        for blocked_entry in self.FILTER_LIST:
+        # # check URL against list
+        # rule_number = 1
+        # for blocked_entry in self.FILTER_LIST:
 
-            # if regex matches on URL
-            if re.search(blocked_entry[b'regex'], url):
+        #     # if regex matches on URL
+        #     if re.search(blocked_entry[b'regex'], url):
 
-                # log that the request has been filtered
-                logger.info(b"Blocked: '%s' with status_code '%s' by rule number '%s'" % (
-                    url,
-                    blocked_entry[b'status_code'],
-                    rule_number,
-                    )
-                )
+        #         # log that the request has been filtered
+        #         logger.info(b"Blocked: '%s' with status_code '%s' by rule number '%s'" % (
+        #             url,
+        #             blocked_entry[b'status_code'],
+        #             rule_number,
+        #             )
+        #         )
 
-                raise HttpRequestRejected(
-                    status_code = blocked_entry[b'status_code'],
-                    headers = {b'Connection': b'close'},
-                )
+        #         raise HttpRequestRejected(
+        #             status_code = blocked_entry[b'status_code'],
+        #             headers = {b'Connection': b'close'},
+        #         )
 
-                break
+        #         break
 
-            rule_number += 1 
+        #     rule_number += 1 
 
         return request
 
