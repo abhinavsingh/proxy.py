@@ -13,7 +13,6 @@ import selectors
 import socket
 import secrets
 import ssl
-import ipaddress
 import logging
 
 from typing import Optional, Union, Callable
@@ -32,30 +31,31 @@ logger = logging.getLogger(__name__)
 class WebsocketClient(TcpConnection):
 
     def __init__(self,
-                 hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
+                 hostname: bytes,
                  port: int,
                  path: bytes = b'/',
                  on_message: Optional[Callable[[WebsocketFrame], None]] = None) -> None:
         super().__init__(tcpConnectionTypes.CLIENT)
-        self.hostname: Union[ipaddress.IPv4Address,
-                             ipaddress.IPv6Address] = hostname
+        self.hostname: bytes = hostname
         self.port: int = port
         self.path: bytes = path
         self.sock: socket.socket = new_socket_connection(
-            (str(self.hostname), self.port))
+            (socket.gethostbyname(str(self.hostname)), self.port))
         self.on_message: Optional[Callable[[
             WebsocketFrame], None]] = on_message
-        self.upgrade()
-        self.sock.setblocking(False)
         self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
 
     @property
     def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
         return self.sock
 
+    def handshake(self) -> None:
+        self.upgrade()
+        self.sock.setblocking(False)
+
     def upgrade(self) -> None:
         key = base64.b64encode(secrets.token_bytes(16))
-        self.sock.send(build_websocket_handshake_request(key, url=self.path))
+        self.sock.send(build_websocket_handshake_request(key, url=self.path, host=self.hostname))
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
         accept = response.header(b'Sec-Websocket-Accept')

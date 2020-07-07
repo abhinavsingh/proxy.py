@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import queue
+import ipaddress
 
 from typing import TYPE_CHECKING, Dict, Any, List, Union
 
@@ -27,3 +28,4 @@ class HasFileno(Protocol):
 
 Readables = List[Union[int, HasFileno]]
 Writables = List[Union[int, HasFileno]]
+IpAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]

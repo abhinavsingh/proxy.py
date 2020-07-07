@@ -101,7 +101,8 @@ def build_http_pkt(line: List[bytes],
 def build_websocket_handshake_request(
         key: bytes,
         method: bytes = b'GET',
-        url: bytes = b'/') -> bytes:
+        url: bytes = b'/',
+        host: bytes = b'localhost') -> bytes:
     """
     Build and returns a Websocket handshake request packet.
 
@@ -112,6 +113,7 @@ def build_websocket_handshake_request(
     return build_http_request(
         method, url,
         headers={
+            b'Host': host,
             b'Connection': b'upgrade',
             b'Upgrade': b'websocket',
             b'Sec-WebSocket-Key': key,

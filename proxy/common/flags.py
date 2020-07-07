@@ -21,8 +21,9 @@ import multiprocessing
 import sys
 import inspect
 
-from typing import Optional, Union, Dict, List, TypeVar, Type, cast, Any, Tuple
+from typing import Optional, Dict, List, TypeVar, Type, cast, Any, Tuple
 
+from .types import IpAddress
 from .utils import text_, bytes_
 from .constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BACKLOG, DEFAULT_BASIC_AUTH
 from .constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_DISABLE_HEADERS
@@ -67,8 +68,7 @@ class Flags:
             ca_signing_key_file: Optional[str] = None,
             ca_file: Optional[str] = None,
             num_workers: int = 0,
-            hostname: Union[ipaddress.IPv4Address,
-                            ipaddress.IPv6Address] = DEFAULT_IPV6_HOSTNAME,
+            hostname: IpAddress = DEFAULT_IPV6_HOSTNAME,
             port: int = DEFAULT_PORT,
             backlog: int = DEFAULT_BACKLOG,
             static_server_dir: str = DEFAULT_STATIC_SERVER_DIR,
@@ -99,8 +99,7 @@ class Flags:
         self.ca_signing_key_file: Optional[str] = ca_signing_key_file
         self.ca_file = ca_file
         self.num_workers: int = num_workers if num_workers > 0 else multiprocessing.cpu_count()
-        self.hostname: Union[ipaddress.IPv4Address,
-                             ipaddress.IPv6Address] = hostname
+        self.hostname: IpAddress = hostname
         self.family: socket.AddressFamily = socket.AF_INET6 if hostname.version == 6 else socket.AF_INET
         self.port: int = port
         self.backlog: int = backlog
@@ -250,8 +249,7 @@ class Flags:
                 opts.get(
                     'ca_file',
                     args.ca_file)),
-            hostname=cast(Union[ipaddress.IPv4Address,
-                                ipaddress.IPv6Address],
+            hostname=cast(IpAddress,
                           opts.get('hostname', ipaddress.ip_address(args.hostname))),
             port=cast(int, opts.get('port', args.port)),
             backlog=cast(int, opts.get('backlog', args.backlog)),
