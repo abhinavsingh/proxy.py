@@ -31,9 +31,14 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
 
     FILTER_LIST = [
         {
-            b'regex': b'https{0,1}://tpc.googlesyndication.com:\d{1,5}/simgad/.*',
-            b'status_code': 444,
-            b'notes': b'Google image ads',
+            'regex': b'https://tpc.googlesyndication.com/simgad/.*',
+            'status_code': 444,
+            'notes': 'Google image ads',
+        },
+        {
+            'regex': b'https://tpc.googlesyndication.com:\d{1,5}/sadbundle/.*',
+            'status_code': 444,
+            'notes': 'Google animated ad bundles',
         },
     ]
 
@@ -57,9 +62,8 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             return request
 
         # build URL
-        url = b'http://%s:%d%s' % (
+        url = b'http://%s%s' % (
             request_host, 
-            request.port,
             request.path,
         )
 
@@ -68,18 +72,18 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         for blocked_entry in self.FILTER_LIST:
 
             # if regex matches on URL
-            if re.search(blocked_entry[b'regex'], url):
+            if re.search(blocked_entry['regex'], url):
 
                 # log that the request has been filtered
-                logger.info(b"Blocked: '%s' with status_code '%i' by rule number '%i'" % (
+                logger.info("Blocked: '%s' with status_code '%i' by rule number '%i'" % (
                     url,
-                    blocked_entry[b'status_code'],
+                    blocked_entry['status_code'],
                     rule_number,
                     )
                 )
 
                 raise HttpRequestRejected(
-                    status_code = blocked_entry[b'status_code'],
+                    status_code = blocked_entry['status_code'],
                     headers = {b'Connection': b'close'},
                 )
 
