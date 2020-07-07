@@ -10,12 +10,12 @@
 """
 from .acceptor import Acceptor
 from .pool import AcceptorPool
-from .work import ThreadlessWork
+from .work import Work
 from .threadless import Threadless
 
 __all__ = [
     'Acceptor',
     'AcceptorPool',
-    'ThreadlessWork',
+    'Work',
     'Threadless',
 ]

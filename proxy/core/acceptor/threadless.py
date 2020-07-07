@@ -20,7 +20,7 @@ from multiprocessing.reduction import recv_handle
 
 from typing import Dict, Optional, Tuple, List, Union, Generator, Any, Type
 
-from .work import ThreadlessWork
+from .work import Work
 
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
@@ -40,7 +40,7 @@ class Threadless(multiprocessing.Process):
     for each accepted client connection, Acceptor process sends
     accepted client connection to Threadless process over a pipe.
 
-    Example, HttpProtocolHandler implements ThreadlessWork class to hooks into the
+    Example, HttpProtocolHandler implements Work class to hooks into the
     event loop provided by Threadless process.
     """
 
@@ -48,7 +48,7 @@ class Threadless(multiprocessing.Process):
             self,
             client_queue: connection.Connection,
             flags: Flags,
-            work_klass: Type[ThreadlessWork],
+            work_klass: Type[Work],
             event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()
         self.client_queue = client_queue
@@ -57,7 +57,7 @@ class Threadless(multiprocessing.Process):
         self.event_queue = event_queue
 
         self.running = multiprocessing.Event()
-        self.works: Dict[int, ThreadlessWork] = {}
+        self.works: Dict[int, Work] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 

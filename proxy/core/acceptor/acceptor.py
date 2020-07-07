@@ -19,7 +19,7 @@ from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from typing import Optional, Type, Tuple
 
-from .work import ThreadlessWork
+from .work import Work
 from .threadless import Threadless
 
 from ..connection import TcpClientConnection
@@ -43,7 +43,7 @@ class Acceptor(multiprocessing.Process):
             idd: int,
             work_queue: connection.Connection,
             flags: Flags,
-            work_klass: Type[ThreadlessWork],
+            work_klass: Type[Work],
             lock: multiprocessing.synchronize.Lock,
             event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()

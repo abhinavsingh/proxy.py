@@ -18,7 +18,7 @@ from multiprocessing.reduction import send_handle
 from typing import List, Optional, Type
 
 from .acceptor import Acceptor
-from .work import ThreadlessWork
+from .work import Work
 
 from ..event import EventQueue, EventDispatcher
 from ...common.flags import Flags
@@ -45,7 +45,7 @@ class AcceptorPool:
         pool.shutdown()
     """
 
-    def __init__(self, flags: Flags, work_klass: Type[ThreadlessWork]) -> None:
+    def __init__(self, flags: Flags, work_klass: Type[Work]) -> None:
         self.flags = flags
         self.socket: Optional[socket.socket] = None
         self.acceptors: List[Acceptor] = []

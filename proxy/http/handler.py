@@ -25,14 +25,14 @@ from .exception import HttpProtocolException
 
 from ..common.flags import Flags
 from ..common.types import HasFileno
-from ..core.acceptor.work import ThreadlessWork
+from ..core.acceptor.work import Work
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
 
 
-class HttpProtocolHandler(ThreadlessWork):
+class HttpProtocolHandler(Work):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection object and manages HttpProtocolHandlerPlugin invocations.

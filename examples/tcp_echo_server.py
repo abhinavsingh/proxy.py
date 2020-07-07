@@ -14,12 +14,12 @@ import selectors
 
 from typing import Dict, List, Union
 
-from proxy.core.acceptor import AcceptorPool, ThreadlessWork
+from proxy.core.acceptor import AcceptorPool, Work
 from proxy.common.flags import Flags
 from proxy.common.types import HasFileno
 
 
-class EchoClient(ThreadlessWork):
+class EchoServerHandler(Work):
 
     def initialize(self) -> None:
         self.client.connection.setblocking(False)
@@ -43,9 +43,9 @@ class EchoClient(ThreadlessWork):
         if self.client.connection in readables:
             data = self.client.recv()
             if data is None:
-                # Signal shutdown of connection
+                # Client closed connection, signal shutdown
                 return True
-            # Send back data to client
+            # Queue data back to client
             self.client.queue(data)
 
         if self.client.connection in writables:
@@ -53,14 +53,15 @@ class EchoClient(ThreadlessWork):
 
         return False
 
-    def run(self) -> None:
-        print('run')
+    def shutdown(self) -> None:
+        super().shutdown()
 
 
 def main() -> None:
+    # This example requires `threadless=True`
     pool = AcceptorPool(
         flags=Flags(num_workers=1, threadless=True),
-        work_klass=EchoClient)
+        work_klass=EchoServerHandler)
     try:
         pool.setup()
         while True:
