@@ -43,9 +43,13 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
 
         # check URL against list
         for blocked_entry in self.FILTER_LIST:
-            if re.search(blocked_entry['regex'], url):
+
+            if re.search(blocked_entry[b'regex'], url):
+
+                print("Blocked: %s" % (url))
+
                 raise HttpRequestRejected(
-                    status_code = blocked_entry['status_code'],
+                    status_code = blocked_entry[b'status_code'],
                     headers = {b'Connection': b'close'}
                 )
                 break
