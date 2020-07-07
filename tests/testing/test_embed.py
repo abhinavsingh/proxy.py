@@ -21,7 +21,8 @@ from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
 
 
-@unittest.skipIf(os.name == 'nt', 'Disabled for Windows due to weird permission issues.')
+@unittest.skipIf(
+    os.name == 'nt', 'Disabled for Windows due to weird permission issues.')
 class TestProxyPyEmbedded(TestCase):
     """This test case is a demonstration of proxy.TestCase and also serves as
     integration test suite for proxy.py."""

@@ -17,7 +17,7 @@ from typing import Tuple, List, Union, Optional
 from .parser import HttpParser
 
 from ..common.flags import Flags
-from ..common.types import HasFileno
+from ..common.types import Readables, Writables
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 
@@ -71,11 +71,11 @@ class HttpProtocolHandlerPlugin(ABC):
         return [], []  # pragma: no cover
 
     @abstractmethod
-    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: Writables) -> bool:
         return False  # pragma: no cover
 
     @abstractmethod
-    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: Readables) -> bool:
         return False  # pragma: no cover
 
     @abstractmethod

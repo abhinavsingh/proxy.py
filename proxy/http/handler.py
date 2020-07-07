@@ -24,15 +24,15 @@ from .parser import HttpParser, httpParserStates, httpParserTypes
 from .exception import HttpProtocolException
 
 from ..common.flags import Flags
-from ..common.types import HasFileno
-from ..core.threadless import ThreadlessWork
+from ..common.types import Readables, Writables
+from ..core.acceptor.work import Work
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
 
 
-class HttpProtocolHandler(ThreadlessWork):
+class HttpProtocolHandler(Work):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection object and manages HttpProtocolHandlerPlugin invocations.
@@ -100,8 +100,8 @@ class HttpProtocolHandler(ThreadlessWork):
 
     def handle_events(
             self,
-            readables: List[Union[int, HasFileno]],
-            writables: List[Union[int, HasFileno]]) -> bool:
+            readables: Readables,
+            writables: Writables) -> bool:
         """Returns True if proxy must teardown."""
         # Flush buffer for ready to write sockets
         teardown = self.handle_writables(writables)
@@ -197,7 +197,7 @@ class HttpProtocolHandler(ThreadlessWork):
         finally:
             self.selector.unregister(self.client.connection)
 
-    def handle_writables(self, writables: List[Union[int, HasFileno]]) -> bool:
+    def handle_writables(self, writables: Writables) -> bool:
         if self.client.has_buffer() and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
@@ -222,7 +222,7 @@ class HttpProtocolHandler(ThreadlessWork):
                 return True
         return False
 
-    def handle_readables(self, readables: List[Union[int, HasFileno]]) -> bool:
+    def handle_readables(self, readables: Readables) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
@@ -292,8 +292,7 @@ class HttpProtocolHandler(ThreadlessWork):
 
     @contextlib.contextmanager
     def selected_events(self) -> \
-            Generator[Tuple[List[Union[int, HasFileno]],
-                            List[Union[int, HasFileno]]],
+            Generator[Tuple[Readables, Writables],
                       None, None]:
         events = self.get_events()
         for fd in events:

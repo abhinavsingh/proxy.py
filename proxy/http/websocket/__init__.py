@@ -8,14 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .acceptor import Acceptor
-from .pool import AcceptorPool
-from .work import Work
-from .threadless import Threadless
+from .frame import WebsocketFrame, websocketOpcodes
+from .client import WebsocketClient
 
 __all__ = [
-    'Acceptor',
-    'AcceptorPool',
-    'Work',
-    'Threadless',
+    'websocketOpcodes',
+    'WebsocketFrame',
+    'WebsocketClient',
 ]

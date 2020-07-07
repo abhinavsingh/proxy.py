@@ -14,13 +14,15 @@ import multiprocessing.synchronize
 import selectors
 import socket
 import threading
-# import time
+
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from typing import Optional, Type, Tuple
 
+from .work import Work
+from .threadless import Threadless
+
 from ..connection import TcpClientConnection
-from ..threadless import ThreadlessWork, Threadless
 from ..event import EventQueue, eventNames
 from ...common.flags import Flags
 
@@ -28,10 +30,12 @@ logger = logging.getLogger(__name__)
 
 
 class Acceptor(multiprocessing.Process):
-    """Socket client acceptor.
+    """Socket server acceptor process.
 
-    Accepts client connection over received server socket handle and
-    starts a new work thread.
+    Accepts client connection over received server socket handle at startup.  Spawns a separate
+    thread to handle each client request.  However, when `--threadless` is enabled, Acceptor also
+    pre-spawns a `Threadless` process at startup.  Accepted client connections are passed to
+    `Threadless` process which internally uses asyncio event loop to handle client connections.
     """
 
     def __init__(
@@ -39,7 +43,7 @@ class Acceptor(multiprocessing.Process):
             idd: int,
             work_queue: connection.Connection,
             flags: Flags,
-            work_klass: Type[ThreadlessWork],
+            work_klass: Type[Work],
             lock: multiprocessing.synchronize.Lock,
             event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()
@@ -108,11 +112,7 @@ class Acceptor(multiprocessing.Process):
             if len(events) == 0:
                 return
             conn, addr = self.sock.accept()
-
-        # now = time.time()
-        # fileno: int = conn.fileno()
         self.start_work(conn, addr)
-        # logger.info('Work started for fd %d in %f seconds', fileno, time.time() - now)
 
     def run(self) -> None:
         self.selector = selectors.DefaultSelector()

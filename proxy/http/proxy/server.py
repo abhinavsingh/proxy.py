@@ -25,7 +25,7 @@ from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..methods import httpMethods
 
-from ...common.types import HasFileno
+from ...common.types import Readables, Writables
 from ...common.constants import PROXY_AGENT_HEADER_VALUE
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
@@ -82,7 +82,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             w.append(self.server.connection)
         return r, w
 
-    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: Writables) -> bool:
         if self.request.has_upstream_server() and \
                 self.server and not self.server.closed and \
                 self.server.has_buffer() and \
@@ -91,18 +91,20 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             try:
                 self.server.flush()
             except ssl.SSLWantWriteError:
-                logger.warning('SSLWantWriteError while trying to flush to server, will retry')
+                logger.warning(
+                    'SSLWantWriteError while trying to flush to server, will retry')
                 return False
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for server')
                 return True
             except OSError as e:
-                logger.exception('OSError when flushing buffer to server', exc_info=e)
+                logger.exception(
+                    'OSError when flushing buffer to server', exc_info=e)
                 return True
         return False
 
-    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: Readables) -> bool:
         if self.request.has_upstream_server(
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading...')
@@ -289,7 +291,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # sending to client can raise, handle expected exceptions
                     self.wrap_client()
                 except subprocess.TimeoutExpired as e:  # Popen communicate timeout
-                    logger.exception('TimeoutExpired during certificate generation', exc_info=e)
+                    logger.exception(
+                        'TimeoutExpired during certificate generation', exc_info=e)
                     return True
                 except BrokenPipeError:
                     logger.error(
@@ -360,7 +363,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                  self.response.total_size,
                  connection_time_ms))
 
-    def gen_ca_signed_certificate(self, cert_file_path: str, certificate: Dict[str, Any]) -> None:
+    def gen_ca_signed_certificate(
+            self, cert_file_path: str, certificate: Dict[str, Any]) -> None:
         '''CA signing key (default) is used for generating a public key
         for common_name, if one already doesn't exist.  Using generated
         public key a CSR request is generated, which is then signed by
@@ -388,7 +392,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         subject = ''
         for key in keys:
             if upstream_subject.get(keys[key], None):
-                subject += '/{0}={1}'.format(key, upstream_subject.get(keys[key]))
+                subject += '/{0}={1}'.format(key,
+                                             upstream_subject.get(keys[key]))
         alt_subj_names = [text_(self.request.host), ]
         validity_in_days = 365 * 2
         timeout = 10
