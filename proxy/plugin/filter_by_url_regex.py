@@ -112,13 +112,16 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
                     )
                 )
 
+                # close the connection with the status code from the filter list
                 raise HttpRequestRejected(
                     status_code = blocked_entry['status_code'],
                     headers = {b'Connection': b'close'},
                 )
 
+                # stop looping through filter list
                 break
 
+            # increment rule number
             rule_number += 1 
 
         return request
