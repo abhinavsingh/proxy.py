@@ -71,7 +71,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             if re.search(blocked_entry[b'regex'], url):
 
                 # log that the request has been filtered
-                logger.info(b"Blocked: '%s' with status_code '%s' by rule number '%s'" % (
+                logger.info(b"Blocked: '%s' with status_code '%i' by rule number '%i'" % (
                     url,
                     blocked_entry[b'status_code'],
                     rule_number,
