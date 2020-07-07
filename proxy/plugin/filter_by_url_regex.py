@@ -59,6 +59,11 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             'regex': b'tpc.googlesyndication.com/daca_images/simgad/.*',
             'status_code': 444,
             'notes': 'Google image ads',
+        },
+        {
+            'regex': b'.*.2mdn.net/videoplayback/.*.mp4',
+            'status_code': 444,
+            'notes': 'Twitch.tv video ads',
         }
     ]
 
