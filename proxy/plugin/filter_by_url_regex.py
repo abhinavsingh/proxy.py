@@ -36,10 +36,30 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             'notes': 'Google image ads',
         },
         {
-            'regex': b'https://tpc.googlesyndication.com:\d{1,5}/sadbundle/.*',
+            'regex': b'https://tpc.googlesyndication.com/sadbundle/.*',
             'status_code': 444,
             'notes': 'Google animated ad bundles',
         },
+        {
+            'regex': b'https://pagead\d+.googlesyndication.com/.*',
+            'status_code': 444,
+            'notes': 'Google tracking',
+        },
+        {
+            'regex': b'https://(www){0,1}.google-analytics.com/r/collect\?.*',
+            'status_code': 444,
+            'notes': 'Google tracking',
+        },
+        {
+            'regex': b'https://(www){0,1}.facebook.com/tr/.*',
+            'status_code': 444,
+            'notes': 'Facebook tracking',
+        },
+        {
+            'regex': b'https://tpc.googlesyndication.com/daca_images/simgad/.*',
+            'status_code': 444,
+            'notes': 'Google image ads',
+        }
     ]
 
     def before_upstream_connection(
