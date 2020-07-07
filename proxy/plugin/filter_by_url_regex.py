@@ -87,6 +87,8 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             request.path,
         )
 
+        logger.info(request.url)
+
         # check URL against list
         rule_number = 1
         for blocked_entry in self.FILTER_LIST:
