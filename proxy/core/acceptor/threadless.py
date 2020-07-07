@@ -18,7 +18,7 @@ import multiprocessing
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from typing import Dict, Optional, Tuple, List, Union, Generator, Any, Type
+from typing import Dict, Optional, Tuple, List, Generator, Any, Type
 
 from .work import Work
 
@@ -26,7 +26,7 @@ from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 
 from ...common.flags import Flags
-from ...common.types import HasFileno
+from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_TIMEOUT
 
 logger = logging.getLogger(__name__)
@@ -62,8 +62,7 @@ class Threadless(multiprocessing.Process):
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 
     @contextlib.contextmanager
-    def selected_events(self) -> Generator[Tuple[List[Union[int, HasFileno]],
-                                                 List[Union[int, HasFileno]]],
+    def selected_events(self) -> Generator[Tuple[Readables, Writables],
                                            None, None]:
         events: Dict[socket.socket, int] = {}
         for work in self.works.values():
@@ -85,8 +84,8 @@ class Threadless(multiprocessing.Process):
 
     async def handle_events(
             self, fileno: int,
-            readables: List[Union[int, HasFileno]],
-            writables: List[Union[int, HasFileno]]) -> bool:
+            readables: Readables,
+            writables: Writables) -> bool:
         return self.works[fileno].handle_events(readables, writables)
 
     # TODO: Use correct future typing annotations

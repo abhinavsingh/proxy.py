@@ -12,12 +12,12 @@ import socket
 
 from abc import ABC, abstractmethod
 from uuid import uuid4, UUID
-from typing import Optional, Dict, List, Union, Any
+from typing import Optional, Dict, Any
 
 from ..event import eventNames, EventQueue
 from ..connection import TcpClientConnection
 from ...common.flags import Flags
-from ...common.types import HasFileno
+from ...common.types import Readables, Writables
 
 
 class Work(ABC):
@@ -35,16 +35,6 @@ class Work(ABC):
         self.uid: UUID = uid if uid is not None else uuid4()
 
     @abstractmethod
-    def initialize(self) -> None:
-        """Perform any resource initialization."""
-        pass    # pragma: no cover
-
-    @abstractmethod
-    def is_inactive(self) -> bool:
-        """Return True if connection should be considered inactive."""
-        return False    # pragma: no cover
-
-    @abstractmethod
     def get_events(self) -> Dict[socket.socket, int]:
         """Return sockets and events (read or write) that we are interested in."""
         return {}   # pragma: no cover
@@ -52,14 +42,21 @@ class Work(ABC):
     @abstractmethod
     def handle_events(
             self,
-            readables: List[Union[int, HasFileno]],
-            writables: List[Union[int, HasFileno]]) -> bool:
+            readables: Readables,
+            writables: Writables) -> bool:
         """Handle readable and writable sockets.
 
         Return True to shutdown work."""
         return False    # pragma: no cover
 
-    @abstractmethod
+    def initialize(self) -> None:
+        """Perform any resource initialization."""
+        pass    # pragma: no cover
+
+    def is_inactive(self) -> bool:
+        """Return True if connection should be considered inactive."""
+        return False    # pragma: no cover
+
     def shutdown(self) -> None:
         """Implementation must close any opened resources here
         and call super().shutdown()."""

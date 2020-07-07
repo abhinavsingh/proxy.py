@@ -10,7 +10,7 @@
 """
 import queue
 
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Dict, Any, List, Union
 
 from typing_extensions import Protocol
 
@@ -23,3 +23,7 @@ else:
 class HasFileno(Protocol):
     def fileno(self) -> int:
         ...     # pragma: no cover
+
+
+Readables = List[Union[int, HasFileno]]
+Writables = List[Union[int, HasFileno]]

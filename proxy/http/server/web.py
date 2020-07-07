@@ -27,7 +27,7 @@ from ..plugin import HttpProtocolHandlerPlugin
 
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
 from ...common.constants import PROXY_AGENT_HEADER_VALUE
-from ...common.types import HasFileno
+from ...common.types import Readables, Writables
 
 logger = logging.getLogger(__name__)
 
@@ -166,10 +166,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
 
-    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: Writables) -> bool:
         pass
 
-    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: Readables) -> bool:
         pass
 
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:

@@ -25,7 +25,7 @@ from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..methods import httpMethods
 
-from ...common.types import HasFileno
+from ...common.types import Readables, Writables
 from ...common.constants import PROXY_AGENT_HEADER_VALUE
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
@@ -82,7 +82,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             w.append(self.server.connection)
         return r, w
 
-    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: Writables) -> bool:
         if self.request.has_upstream_server() and \
                 self.server and not self.server.closed and \
                 self.server.has_buffer() and \
@@ -104,7 +104,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 return True
         return False
 
-    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: Readables) -> bool:
         if self.request.has_upstream_server(
         ) and self.server and not self.server.closed and self.server.connection in r:
             logger.debug('Server is ready for reads, reading...')

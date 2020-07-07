@@ -12,33 +12,37 @@ import time
 import socket
 import selectors
 
-from typing import Dict, List, Union
+from typing import Dict
 
 from proxy.core.acceptor import AcceptorPool, Work
 from proxy.common.flags import Flags
-from proxy.common.types import HasFileno
+from proxy.common.types import Readables, Writables
 
 
 class EchoServerHandler(Work):
+    """EchoServerHandler implements Work interface.
 
-    def initialize(self) -> None:
-        self.client.connection.setblocking(False)
-
-    def is_inactive(self) -> bool:
-        return False
+    An instance of EchoServerHandler is created for each client
+    connection.  EchoServerHandler lifecycle is controlled by
+    Threadless core using asyncio.  Implementation must provide
+    get_events and handle_events method.  Optionally, also implement
+    intialize, is_inactive and shutdown method.
+    """
 
     def get_events(self) -> Dict[socket.socket, int]:
-        events: Dict[socket.socket, int] = {
-            self.client.connection: selectors.EVENT_READ
-        }
+        # We always want to read from client
+        # Register for EVENT_READ events
+        events = {self.client.connection: selectors.EVENT_READ}
+        # If there is pending buffer for client
+        # also register for EVENT_WRITE events
         if self.client.has_buffer():
             events[self.client.connection] |= selectors.EVENT_WRITE
         return events
 
     def handle_events(
             self,
-            readables: List[Union[int, HasFileno]],
-            writables: List[Union[int, HasFileno]]) -> bool:
+            readables: Readables,
+            writables: Writables) -> bool:
         """Return True to shutdown work."""
         if self.client.connection in readables:
             data = self.client.recv()
@@ -52,9 +56,6 @@ class EchoServerHandler(Work):
             self.client.flush()
 
         return False
-
-    def shutdown(self) -> None:
-        super().shutdown()
 
 
 def main() -> None:
