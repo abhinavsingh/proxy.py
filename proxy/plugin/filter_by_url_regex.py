@@ -44,29 +44,27 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
     def handle_client_request(
             self, request: HttpParser) -> Optional[HttpParser]:
 
+        # determine host
+        request_host = None
+        if request.host:
+            request_host = request.host
+        else:
+            if b'host' in request.headers:
+                request_host = request.header(b'host')
+
+        if not request_host:
+            logger.error("Cannot determine host")
+            return request
+
+        # build URL
+        url = b'http://%s:%d%s' % (
+            request_host, 
+            request.port,
+            request.path,
+        )
+
         logger.info('----------')
-        logger.info(request.host)
-        logger.info(request.url)
-        logger.info(request.headers)
-        logger.info(request.header(b'host'))
-        logger.info(request.path)
-        logger.info(request.port)
-
-        # request_host = None
-        # if request.host:
-        #     host = request.host
-        # else:
-        #     if request.headers
-
-        # # build URL
-        # url = b'http://%s:%d%s' % (
-        #     request.host or request.headers['host'][1], 
-        #     request.port,
-        #     request.path,
-        # )
-
-        # logger.info(url)
-
+        logger.info(url)
         logger.info('----------')
 
         # # check URL against list
