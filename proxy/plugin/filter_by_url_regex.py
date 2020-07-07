@@ -50,14 +50,17 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         logger.info(request.headers)
         logger.info(request.path)
         logger.info(request.port)
+
+        # build URL
+        url = b'http://%s:%d%s' % (
+            request.host or request.headers['host'][1], 
+            request.port,
+            request.path,
+        )
+
+        logger.info(url)
+
         logger.info('----------')
-        
-        # # build URL
-        # url = b'http://%s:%d%s' % (
-        #     request.host, 
-        #     request.port,
-        #     request.path,
-        # )
 
         # # check URL against list
         # rule_number = 1
