@@ -39,7 +39,11 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
 
     def before_upstream_connection(
             self, request: HttpParser) -> Optional[HttpParser]:
-        
+        return request
+
+    def handle_client_request(
+            self, request: HttpParser) -> Optional[HttpParser]:
+
         # build URL
         url = b'http://%s:%d%s' % (
             request.host, 
@@ -73,10 +77,6 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
 
             rule_number += 1 
 
-        return request
-
-    def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
