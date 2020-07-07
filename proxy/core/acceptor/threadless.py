@@ -18,81 +18,18 @@ import multiprocessing
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple, List, Union, Generator, Any, Type
-from uuid import uuid4, UUID
 
-from .connection import TcpClientConnection
-from .event import EventQueue, eventNames
+from .work import ThreadlessWork
 
-from ..common.flags import Flags
-from ..common.types import HasFileno
-from ..common.constants import DEFAULT_TIMEOUT
+from ..connection import TcpClientConnection
+from ..event import EventQueue, eventNames
+
+from ...common.flags import Flags
+from ...common.types import HasFileno
+from ...common.constants import DEFAULT_TIMEOUT
 
 logger = logging.getLogger(__name__)
-
-
-class ThreadlessWork(ABC):
-    """Implement ThreadlessWork to hook into the event loop provided by Threadless process."""
-
-    @abstractmethod
-    def __init__(
-            self,
-            client: TcpClientConnection,
-            flags: Optional[Flags],
-            event_queue: Optional[EventQueue] = None,
-            uid: Optional[UUID] = None) -> None:
-        self.client = client
-        self.flags = flags if flags else Flags()
-        self.event_queue = event_queue
-        self.uid: UUID = uid if uid is not None else uuid4()
-
-    @abstractmethod
-    def initialize(self) -> None:
-        pass    # pragma: no cover
-
-    @abstractmethod
-    def is_inactive(self) -> bool:
-        return False    # pragma: no cover
-
-    @abstractmethod
-    def get_events(self) -> Dict[socket.socket, int]:
-        return {}   # pragma: no cover
-
-    @abstractmethod
-    def handle_events(
-            self,
-            readables: List[Union[int, HasFileno]],
-            writables: List[Union[int, HasFileno]]) -> bool:
-        """Return True to shutdown work."""
-        return False    # pragma: no cover
-
-    @abstractmethod
-    def run(self) -> None:
-        pass
-
-    def publish_event(
-            self,
-            event_name: int,
-            event_payload: Dict[str, Any],
-            publisher_id: Optional[str] = None) -> None:
-        if not self.flags.enable_events:
-            return
-        assert self.event_queue
-        self.event_queue.publish(
-            self.uid.hex,
-            event_name,
-            event_payload,
-            publisher_id
-        )
-
-    def shutdown(self) -> None:
-        """Must close any opened resources and call super().shutdown()."""
-        self.publish_event(
-            event_name=eventNames.WORK_FINISHED,
-            event_payload={},
-            publisher_id=self.__class__.__name__
-        )
 
 
 class Threadless(multiprocessing.Process):
@@ -103,8 +40,8 @@ class Threadless(multiprocessing.Process):
     for each accepted client connection, Acceptor process sends
     accepted client connection to Threadless process over a pipe.
 
-    HttpProtocolHandler implements ThreadlessWork class and hooks into the
-    event loop provided by Threadless.
+    Example, HttpProtocolHandler implements ThreadlessWork class to hooks into the
+    event loop provided by Threadless process.
     """
 
     def __init__(

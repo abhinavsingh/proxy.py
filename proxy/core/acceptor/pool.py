@@ -18,7 +18,8 @@ from multiprocessing.reduction import send_handle
 from typing import List, Optional, Type
 
 from .acceptor import Acceptor
-from ..threadless import ThreadlessWork
+from .work import ThreadlessWork
+
 from ..event import EventQueue, EventDispatcher
 from ...common.flags import Flags
 
@@ -31,8 +32,17 @@ class AcceptorPool:
     """AcceptorPool.
 
     Pre-spawns worker processes to utilize all cores available on the system.  Server socket connection is
-    dispatched over a pipe to workers.  Each worker accepts incoming client request and spawns a
-    separate thread to handle the client request.
+    dispatched over a pipe to workers.  Each Acceptor instance accepts for new client connection.
+
+    Example usage:
+
+    pool = AcceptorPool(flags=..., work_klass=...)
+    try:
+        pool.setup()
+        while True:
+            time.sleep(1)
+    finally:
+        pool.shutdown()
     """
 
     def __init__(self, flags: Flags, work_klass: Type[ThreadlessWork]) -> None:

@@ -25,6 +25,7 @@ devtools:
 	pushd dashboard && npm run devtools && popd
 
 autopep8:
+	autopep8 --recursive --in-place --aggressive examples
 	autopep8 --recursive --in-place --aggressive proxy
 	autopep8 --recursive --in-place --aggressive tests
 	autopep8 --recursive --in-place --aggressive setup.py
@@ -73,8 +74,8 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-lint:
-	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
-	mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
+	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 examples/ proxy/ tests/ setup.py
+	mypy --strict --ignore-missing-imports examples/ proxy/ tests/ setup.py
 
 lib-test: lib-clean lib-version lib-lint
 	pytest -v tests/

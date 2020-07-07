@@ -26,6 +26,11 @@ logger = logging.getLogger(__name__)
 
 
 class Proxy:
+    """Context manager for controlling core AcceptorPool server lifecycle.
+
+    By default this context manager starts AcceptorPool with HttpProtocolHandler
+    worker class.
+    """
 
     def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
         self.flags = Flags.initialize(input_args, **opts)
@@ -78,7 +83,8 @@ def main(
         **opts: Any) -> None:
     try:
         with Proxy(input_args=input_args, **opts):
-            # TODO: Introduce cron feature instead of mindless sleep
+            # TODO: Introduce cron feature
+            # https://github.com/abhinavsingh/proxy.py/issues/392
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:
