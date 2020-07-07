@@ -66,14 +66,9 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             'notes': 'Twitch.tv video ads',
         },
         {
-            'regex': b'(www.){0,1}youtube.com/get_midroll_info\?.*',
-            'status_code': 444,
-            'notes': 'Youtube ads',
-        },
-        {
             'regex': b'(www.){0,1}google.com(.*)/pagead/.*',
             'status_code': 444,
-            'notes': 'Youtube ads',
+            'notes': 'Google ads',
         }
     ]
 
