@@ -45,8 +45,11 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             self, request: HttpParser) -> Optional[HttpParser]:
 
         logger.info('----------')
+        logger.info(request.host)
         logger.info(request.url)
-        logger.info(request.request)
+        logger.info(request.headers)
+        logger.info(request.path)
+        logger.info(request.port)
         logger.info('----------')
         
         # # build URL
