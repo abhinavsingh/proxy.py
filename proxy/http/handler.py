@@ -25,6 +25,7 @@ from .exception import HttpProtocolException
 
 from ..common.flags import Flags
 from ..common.types import Readables, Writables
+from ..common.utils import wrap_socket
 from ..core.acceptor.work import Work
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
@@ -162,18 +163,8 @@ class HttpProtocolHandler(Work):
         Shutdown and closes client connection upon error.
         """
         if self.flags.encryption_enabled():
-            ctx = ssl.create_default_context(
-                ssl.Purpose.CLIENT_AUTH)
-            ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-            ctx.verify_mode = ssl.CERT_NONE
             assert self.flags.keyfile and self.flags.certfile
-            ctx.load_cert_chain(
-                certfile=self.flags.certfile,
-                keyfile=self.flags.keyfile)
-            conn = ctx.wrap_socket(
-                conn,
-                server_side=True,
-            )
+            conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn
 
     def connection_inactive_for(self) -> float:

@@ -15,12 +15,14 @@ import selectors
 from typing import Dict, Any
 
 from proxy.core.acceptor import AcceptorPool, Work
+from proxy.core.connection import TcpClientConnection
 from proxy.common.flags import Flags
 from proxy.common.types import Readables, Writables
+from proxy.common.utils import wrap_socket
 
 
-class EchoServerHandler(Work):
-    """EchoServerHandler implements Work interface.
+class EchoSSLServerHandler(Work):
+    """EchoSSLServerHandler implements Work interface.
 
     An instance of EchoServerHandler is created for each client
     connection.  EchoServerHandler lifecycle is controlled by
@@ -34,7 +36,13 @@ class EchoServerHandler(Work):
         print('Connection accepted from {0}'.format(self.client.addr))
 
     def initialize(self) -> None:
-        self.client.connection.setblocking(False)
+        # Acceptors don't perform TLS handshake.  Perform the same
+        # here using wrap_socket() utility.
+        assert self.flags.keyfile is not None and self.flags.certfile is not None
+        conn = wrap_socket(self.client.connection, self.flags.keyfile, self.flags.certfile)
+        conn.setblocking(False)
+        # Upgrade plain TcpClientConnection to SSL connection object
+        self.client = TcpClientConnection(conn=conn, addr=self.client.addr)
 
     def get_events(self) -> Dict[socket.socket, int]:
         # We always want to read from client
@@ -77,8 +85,13 @@ class EchoServerHandler(Work):
 def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
-        flags=Flags(port=12345, num_workers=1, threadless=True),
-        work_klass=EchoServerHandler)
+        flags=Flags(
+            port=12345,
+            num_workers=1,
+            threadless=True,
+            keyfile='https-key.pem',
+            certfile='https-signed-cert.pem'),
+        work_klass=EchoSSLServerHandler)
     try:
         pool.setup()
         while True:

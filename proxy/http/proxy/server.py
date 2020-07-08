@@ -380,6 +380,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                                        '{0}.{1}'.format(text_(self.request.host), 'pub'))
         private_key_path = self.flags.ca_signing_key_file
         private_key_password = ''
+
         # Build certificate subject
         keys = {
             'CN': 'commonName',
