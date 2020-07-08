@@ -12,7 +12,7 @@ import time
 import socket
 import selectors
 
-from typing import Dict
+from typing import Dict, Any
 
 from proxy.core.acceptor import AcceptorPool, Work
 from proxy.common.flags import Flags
@@ -28,6 +28,10 @@ class EchoServerHandler(Work):
     get_events and handle_events method.  Optionally, also implement
     intialize, is_inactive and shutdown method.
     """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        print('Connection accepted from {0}'.format(self.client.addr))
 
     def get_events(self) -> Dict[socket.socket, int]:
         # We always want to read from client
@@ -45,12 +49,21 @@ class EchoServerHandler(Work):
             writables: Writables) -> bool:
         """Return True to shutdown work."""
         if self.client.connection in readables:
-            data = self.client.recv()
-            if data is None:
-                # Client closed connection, signal shutdown
+            try:
+                data = self.client.recv()
+                if data is None:
+                    # Client closed connection, signal shutdown
+                    print(
+                        'Connection closed by client {0}'.format(
+                            self.client.addr))
+                    return True
+                # Echo data back to client
+                self.client.queue(data)
+            except ConnectionResetError:
+                print(
+                    'Connection reset by client {0}'.format(
+                        self.client.addr))
                 return True
-            # Queue data back to client
-            self.client.queue(data)
 
         if self.client.connection in writables:
             self.client.flush()
@@ -61,7 +74,7 @@ class EchoServerHandler(Work):
 def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
-        flags=Flags(num_workers=1, threadless=True),
+        flags=Flags(port=12345, num_workers=1, threadless=True),
         work_klass=EchoServerHandler)
     try:
         pool.setup()

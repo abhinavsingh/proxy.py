@@ -453,31 +453,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def wrap_server(self) -> None:
         assert self.server is not None
         assert isinstance(self.server.connection, socket.socket)
-        ctx = ssl.create_default_context(
-            ssl.Purpose.SERVER_AUTH, cafile=self.flags.ca_file)
-        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1
-        ctx.check_hostname = True
-        self.server.connection.setblocking(True)
-        self.server._conn = ctx.wrap_socket(
-            self.server.connection,
-            server_hostname=text_(self.request.host))
-        self.server.connection.setblocking(False)
+        self.server.wrap(text_(self.request.host), self.flags.ca_file)
+        assert isinstance(self.server.connection, ssl.SSLSocket)
 
     def wrap_client(self) -> None:
-        assert self.server is not None
+        assert self.server is not None and self.flags.ca_signing_key_file is not None
         assert isinstance(self.server.connection, ssl.SSLSocket)
         generated_cert = self.generate_upstream_certificate(
             cast(Dict[str, Any], self.server.connection.getpeercert()))
-        self.client.connection.setblocking(True)
-        self.client.flush()
-        self.client._conn = ssl.wrap_socket(
-            self.client.connection,
-            server_side=True,
-            # ca_certs=self.flags.ca_cert_file,
-            certfile=generated_cert,
-            keyfile=self.flags.ca_signing_key_file,
-            ssl_version=ssl.PROTOCOL_TLS)
-        self.client.connection.setblocking(False)
+        self.client.wrap(self.flags.ca_signing_key_file, generated_cert)
         logger.debug(
             'TLS interception using %s', generated_cert)
 
