@@ -61,7 +61,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             'notes': 'Google image ads',
         },
         {
-            'regex': b'.*.2mdn.net/videoplayback/.*.mp4',
+            'regex': b'.*.2mdn.net/videoplayback/.*',
             'status_code': 444,
             'notes': 'Twitch.tv video ads',
         },
@@ -69,7 +69,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             'regex': b'(www.){0,1}google.com(.*)/pagead/.*',
             'status_code': 444,
             'notes': 'Google ads',
-        }
+        },
     ]
 
     def before_upstream_connection(
