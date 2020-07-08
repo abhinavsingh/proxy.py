@@ -17,7 +17,7 @@ import selectors
 from typing import Any
 from unittest import mock
 
-from proxy.core.connection import TcpClientConnection
+from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.methods import httpMethods
@@ -70,6 +70,11 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             if self.mock_ssl_context.return_value.wrap_socket.called:
                 return ssl_connection
             return plain_connection
+
+        # Do not mock the original wrap method
+        self.mock_server_conn.return_value.wrap.side_effect = \
+            lambda x, y: TcpServerConnection.wrap(
+                self.mock_server_conn.return_value, x, y)
 
         type(self.mock_server_conn.return_value).connection = \
             mock.PropertyMock(side_effect=mock_connection)

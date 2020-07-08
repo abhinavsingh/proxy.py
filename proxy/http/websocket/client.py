@@ -52,7 +52,11 @@ class WebsocketClient(TcpConnection):
 
     def upgrade(self) -> None:
         key = base64.b64encode(secrets.token_bytes(16))
-        self.sock.send(build_websocket_handshake_request(key, url=self.path, host=self.hostname))
+        self.sock.send(
+            build_websocket_handshake_request(
+                key,
+                url=self.path,
+                host=self.hostname))
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
         accept = response.header(b'Sec-Websocket-Accept')
