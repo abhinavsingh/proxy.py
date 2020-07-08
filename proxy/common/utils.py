@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import ssl
 import contextlib
 import functools
 import ipaddress
@@ -148,6 +149,21 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
     line = raw[:pos]
     rest = raw[pos + len(CRLF):]
     return line, rest
+
+
+def wrap_socket(conn: socket.socket, keyfile: str,
+                certfile: str) -> ssl.SSLSocket:
+    ctx = ssl.create_default_context(
+        ssl.Purpose.CLIENT_AUTH)
+    ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+    ctx.verify_mode = ssl.CERT_NONE
+    ctx.load_cert_chain(
+        certfile=certfile,
+        keyfile=keyfile)
+    return ctx.wrap_socket(
+        conn,
+        server_side=True,
+    )
 
 
 def new_socket_connection(
