@@ -36,9 +36,12 @@ class EchoSSLServerHandler(Work):
         print('Connection accepted from {0}'.format(self.client.addr))
 
     def initialize(self) -> None:
+        # Acceptors don't perform TLS handshake.  Perform the same
+        # here using wrap_socket() utility.
         assert self.flags.keyfile is not None and self.flags.certfile is not None
         conn = wrap_socket(self.client.connection, self.flags.keyfile, self.flags.certfile)
         conn.setblocking(False)
+        # Upgrade plain TcpClientConnection to SSL connection object
         self.client = TcpClientConnection(conn=conn, addr=self.client.addr)
 
     def get_events(self) -> Dict[socket.socket, int]:
