@@ -36,7 +36,7 @@ def publisher_process(shutdown_event: multiprocessing.synchronize.Event,
     try:
         while not shutdown_event.is_set():
             dispatcher_queue.publish(
-                request_id='12345',
+                request_id=process_publisher_request_id,
                 event_name=eventNames.WORK_STARTED,
                 event_payload={'time': time.time()},
                 publisher_id='eventing_pubsub_process'
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         while True:
             # Dispatch event from main process
             dispatcher_queue.publish(
-                request_id='1234',
+                request_id=main_publisher_request_id,
                 event_name=eventNames.WORK_STARTED,
                 event_payload={'time': time.time()},
                 publisher_id='eventing_pubsub_main'
