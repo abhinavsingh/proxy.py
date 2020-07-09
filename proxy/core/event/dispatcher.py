@@ -83,6 +83,8 @@ class EventDispatcher:
                     self.run_once()
                 except queue.Empty:
                     pass
+        except BrokenPipeError:
+            pass
         except EOFError:
             pass
         except KeyboardInterrupt:
