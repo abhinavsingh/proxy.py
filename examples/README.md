@@ -4,6 +4,15 @@ This directory contains examples that demonstrate `proxy.py` core library capabi
 
 Looking for `proxy.py` plugin examples?  Check [proxy/plugin](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin) directory.
 
+Table of Contents
+=================
+* [WebSocket Client](#websocket-client)
+* [TCP Echo Server](#tcp-echo-server)
+* [TCP Echo Client](#tcp-echo-client)
+* [SSL Echo Server](#ssl-echo-server)
+* [SSL Echo Client](#ssl-echo-client)
+* [PubSub Eventing](#pubsub-eventing)
+
 ## WebSocket Client
 
 1. Makes use of `proxy.http.websocket.WebsocketClient` which is built on-top of `asyncio`
@@ -84,4 +93,25 @@ Start `ssl_echo_client.py` as:
 
 ```bash
 ❯ PYTHONPATH=. python examples/ssl_echo_client.py
+```
+
+## PubSub Eventing
+
+1. Makes use of `proxy.py` core eventing module.
+2. A `proxy.core.event.EventDispatcher` thread is started.
+3. A `proxy.core.event.EventSubscriber` thread is started.
+4. A `multiprocessing.Process` publisher is started.
+5. Main thread also publishes into `EventDispatcher` queue.
+6. Events from both the main thread and another process are received by the subscriber.
+
+Start `pubsub_eventing.py` as:
+
+```bash
+❯ PYTHONPATH=. python examples/pubsub_eventing.py
+DEBUG:proxy.core.event.subscriber:Subscribed relay sub id 5eb22010764f4d44900f41e2fb408ca6 from core events
+publisher starting
+^Cpublisher shutdown
+bye!!!
+DEBUG:proxy.core.event.subscriber:Un-subscribed relay sub id 5eb22010764f4d44900f41e2fb408ca6 from core events
+Received 52724 events from main thread, 60172 events from another process, in 21.50117802619934 seconds
 ```

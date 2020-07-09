@@ -9,69 +9,18 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
-import socket
-import selectors
 
-from typing import Dict, Any
-
-from proxy.core.acceptor import AcceptorPool, Work
+from proxy.core.acceptor import AcceptorPool
 from proxy.common.flags import Flags
-from proxy.common.types import Readables, Writables
+
+from examples.base_echo_server import BaseEchoServerHandler
 
 
-class EchoServerHandler(Work):
-    """EchoServerHandler implements Work interface.
-
-    An instance of EchoServerHandler is created for each client
-    connection.  EchoServerHandler lifecycle is controlled by
-    Threadless core using asyncio.  Implementation must provide
-    get_events and handle_events method.  Optionally, also implement
-    intialize, is_inactive and shutdown method.
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        print('Connection accepted from {0}'.format(self.client.addr))
+class EchoServerHandler(BaseEchoServerHandler):  # type: ignore
+    """Sets client socket to non-blocking during initialization."""
 
     def initialize(self) -> None:
         self.client.connection.setblocking(False)
-
-    def get_events(self) -> Dict[socket.socket, int]:
-        # We always want to read from client
-        # Register for EVENT_READ events
-        events = {self.client.connection: selectors.EVENT_READ}
-        # If there is pending buffer for client
-        # also register for EVENT_WRITE events
-        if self.client.has_buffer():
-            events[self.client.connection] |= selectors.EVENT_WRITE
-        return events
-
-    def handle_events(
-            self,
-            readables: Readables,
-            writables: Writables) -> bool:
-        """Return True to shutdown work."""
-        if self.client.connection in readables:
-            try:
-                data = self.client.recv()
-                if data is None:
-                    # Client closed connection, signal shutdown
-                    print(
-                        'Connection closed by client {0}'.format(
-                            self.client.addr))
-                    return True
-                # Echo data back to client
-                self.client.queue(data)
-            except ConnectionResetError:
-                print(
-                    'Connection reset by client {0}'.format(
-                        self.client.addr))
-                return True
-
-        if self.client.connection in writables:
-            self.client.flush()
-
-        return False
 
 
 def main() -> None:
