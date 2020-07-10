@@ -827,6 +827,22 @@ Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https
 }
 ```
 
+If you want to avoid passing `--proxy-cacert` flag, also consider signing generated SSL certificates.  Example:
+
+First, generate CA certificates:
+
+```bash
+make ca-certificates
+```
+
+Then, sign SSL certificate:
+
+```bash
+make sign-https-certificates
+```
+
+Now restart the server with `--cert-file https-signed-cert.pem` flag.  Note that you must also trust generated `ca-cert.pem` in your system keychain.
+
 TLS Interception
 =================
 
