@@ -42,7 +42,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             'notes': 'Google animated ad bundles',
         },
         {
-            'regex': b'pagead\d+.googlesyndication.com/.*',
+            'regex': b'pagead\\d+.googlesyndication.com/.*',
             'status_code': 444,
             'notes': 'Google tracking',
         },
