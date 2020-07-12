@@ -105,7 +105,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             if re.search(blocked_entry['regex'], url):
 
                 # log that the request has been filtered
-                logger.info("Blocked: '%s' with status_code '%i' by rule number '%i'" % (
+                logger.info("Blocked: %r with status_code '%i' by rule number '%i'" % (
                     url,
                     blocked_entry['status_code'],
                     rule_number,
@@ -115,7 +115,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
                 # close the connection with the status code from the filter
                 # list
                 raise HttpRequestRejected(
-                    status_code=blocked_entry['status_code'],
+                    status_code=int(blocked_entry['status_code']),
                     headers={b'Connection': b'close'},
                 )
 
