@@ -15,6 +15,7 @@ from typing import Optional
 
 from ..http.exception import HttpRequestRejected
 from ..http.parser import HttpParser
+from ..http.codes import httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
 
 import re
@@ -32,42 +33,42 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
     FILTER_LIST = [
         {
             'regex': b'tpc.googlesyndication.com/simgad/.*',
-            'status_code': 444,
+            'status_code': httpStatusCodes.NOT_FOUND,
             'notes': 'Google image ads',
         },
         {
             'regex': b'tpc.googlesyndication.com/sadbundle/.*',
-            'status_code': 444,
+            'status_code': httpStatusCodes.NOT_FOUND,
             'notes': 'Google animated ad bundles',
         },
         {
             'regex': b'pagead\\d+.googlesyndication.com/.*',
-            'status_code': 444,
+            'status_code': httpStatusCodes.NOT_FOUND,
             'notes': 'Google tracking',
         },
         {
             'regex': b'(www){0,1}.google-analytics.com/r/collect\\?.*',
-            'status_code': 444,
+            'status_code': httpStatusCodes.NOT_FOUND,
             'notes': 'Google tracking',
         },
         {
             'regex': b'(www){0,1}.facebook.com/tr/.*',
-            'status_code': 444,
+            'status_code': httpStatusCodes.NOT_FOUND,
             'notes': 'Facebook tracking',
         },
         {
             'regex': b'tpc.googlesyndication.com/daca_images/simgad/.*',
-            'status_code': 444,
+            'status_code': httpStatusCodes.NOT_FOUND,
             'notes': 'Google image ads',
         },
         {
             'regex': b'.*.2mdn.net/videoplayback/.*',
-            'status_code': 444,
+            'status_code': httpStatusCodes.NOT_FOUND,
             'notes': 'Twitch.tv video ads',
         },
         {
             'regex': b'(www.){0,1}google.com(.*)/pagead/.*',
-            'status_code': 444,
+            'status_code': httpStatusCodes.NOT_FOUND,
             'notes': 'Google ads',
         },
     ]
@@ -115,7 +116,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
                 # close the connection with the status code from the filter
                 # list
                 raise HttpRequestRejected(
-                    status_code=int(blocked_entry['status_code']),
+                    status_code=blocked_entry['status_code'],
                     headers={b'Connection': b'close'},
                 )
 
