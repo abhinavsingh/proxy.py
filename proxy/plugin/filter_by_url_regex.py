@@ -22,10 +22,11 @@ import re
 
 logger = logging.getLogger(__name__)
 
+
 class FilterByURLRegexPlugin(HttpProxyBasePlugin):
     """
-        Drop traffic by inspecting request URL, 
-        checking against a list of regular expressions, 
+        Drop traffic by inspecting request URL,
+        checking against a list of regular expressions,
         then returning a HTTP status code.
     """
 
@@ -93,7 +94,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
 
         # build URL
         url = b'%s%s' % (
-            request_host, 
+            request_host,
             request.path,
         )
 
@@ -109,20 +110,21 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
                     url,
                     blocked_entry['status_code'],
                     rule_number,
-                    )
+                )
                 )
 
-                # close the connection with the status code from the filter list
+                # close the connection with the status code from the filter
+                # list
                 raise HttpRequestRejected(
-                    status_code = blocked_entry['status_code'],
-                    headers = {b'Connection': b'close'},
+                    status_code=blocked_entry['status_code'],
+                    headers={b'Connection': b'close'},
                 )
 
                 # stop looping through filter list
                 break
 
             # increment rule number
-            rule_number += 1 
+            rule_number += 1
 
         return request
 
