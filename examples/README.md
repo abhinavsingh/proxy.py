@@ -76,7 +76,7 @@ KeyboardInterrupt
 
 1. Same as `tcp_echo_server.py`.
 2. Internally uses `proxy.common.utils.wrap_socket` to enable SSL encryption.
-3. Uses `https-key.pem` and `https-signed-cert.pem` for SSL encryption.
+3. Uses `https-key.pem` and `https-signed-cert.pem` for SSL encryption.  See [End-to-End Encryption](https://github.com/abhinavsingh/proxy.py#end-to-end-encryption) for instructions on how to generate SSL certificates.
 
 Start `ssl_echo_server.py` as:
 
