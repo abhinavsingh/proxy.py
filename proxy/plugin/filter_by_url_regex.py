@@ -15,7 +15,6 @@ from typing import Optional
 
 from ..http.exception import HttpRequestRejected
 from ..http.parser import HttpParser
-from ..http.codes import httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
 
 import re
@@ -47,7 +46,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             'notes': 'Google tracking',
         },
         {
-            'regex': b'(www){0,1}.google-analytics.com/r/collect\?.*',
+            'regex': b'(www){0,1}.google-analytics.com/r/collect\\?.*',
             'status_code': 444,
             'notes': 'Google tracking',
         },
