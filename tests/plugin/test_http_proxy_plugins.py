@@ -259,9 +259,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
     def test_filter_by_url_regex_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
-            b'GET', b'http://pagead123.googlesyndication.com/path/to/an/ad.png',
+            b'GET', b'http://www.facebook.com/tr/',
             headers={
-                b'Host': b'pagead123.googlesyndication.com',
+                b'Host': b'www.facebook.com',
             }
         )
         self._conn.recv.return_value = request
