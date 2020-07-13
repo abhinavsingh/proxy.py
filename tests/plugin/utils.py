@@ -12,7 +12,7 @@ from typing import Type
 from proxy.http.proxy import HttpProxyBasePlugin
 
 from proxy.plugin import ModifyPostDataPlugin, ProposedRestApiPlugin, RedirectToCustomServerPlugin, \
-    FilterByUpstreamHostPlugin, CacheResponsesPlugin, ManInTheMiddlePlugin
+    FilterByUpstreamHostPlugin, CacheResponsesPlugin, ManInTheMiddlePlugin, FilterByURLRegexPlugin
 
 
 def get_plugin_by_test_name(test_name: str) -> Type[HttpProxyBasePlugin]:
