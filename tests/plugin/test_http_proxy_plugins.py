@@ -273,7 +273,6 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 data=None), selectors.EVENT_READ)], ]
         self.protocol_handler.run_once()
 
-        mock_server_conn.assert_not_called()
         self.assertEqual(
             self.protocol_handler.client.buffer[0].tobytes(),
             build_http_response(
