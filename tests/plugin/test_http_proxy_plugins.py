@@ -278,6 +278,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             self.protocol_handler.client.buffer[0].tobytes(),
             build_http_response(
                 status_code=httpStatusCodes.NOT_FOUND,
+                reason=b'Blocked',
                 headers={b'Connection': b'close'},
             )
         )
