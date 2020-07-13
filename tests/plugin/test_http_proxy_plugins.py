@@ -256,7 +256,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         )
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_filter_by_upstream_host_plugin(
+    def test_filter_by_url_regex_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
             b'GET', b'http://pagead123.googlesyndication.com/path/to/an/ad.png',
