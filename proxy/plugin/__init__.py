@@ -19,8 +19,8 @@ from .web_server_route import WebServerPlugin
 from .reverse_proxy import ReverseProxyPlugin
 from .proxy_pool import ProxyPoolPlugin
 from .filter_by_client_ip import FilterByClientIpPlugin
-from .modify_chunk_response_plugin import ModifyChunkResponsePlugin
 from .filter_by_url_regex import FilterByURLRegexPlugin
+from .modify_chunk_response import ModifyChunkResponsePlugin
 
 __all__ = [
     'CacheResponsesPlugin',
