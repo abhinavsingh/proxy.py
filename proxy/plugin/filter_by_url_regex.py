@@ -11,12 +11,13 @@
 
 import logging
 
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from ..http.exception import HttpRequestRejected
 from ..http.parser import HttpParser
 from ..http.codes import httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.utils import text_
 
 import re
 
@@ -30,7 +31,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         then returning a HTTP status code.
     """
 
-    FILTER_LIST = [
+    FILTER_LIST: List[Dict[str, Any]] = [
         {
             'regex': b'tpc.googlesyndication.com/simgad/.*',
             'status_code': httpStatusCodes.NOT_FOUND,
@@ -103,15 +104,14 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         for blocked_entry in self.FILTER_LIST:
 
             # if regex matches on URL
-            if re.search(blocked_entry['regex'], url):
+            if re.search(text_(blocked_entry['regex']), text_(url)):
 
                 # log that the request has been filtered
-                logger.info("Blocked: %r with status_code '%i' by rule number '%i'" % (
-                    url,
+                logger.info("Blocked: %r with status_code '%r' by rule number '%r'" % (
+                    text_(url),
                     blocked_entry['status_code'],
                     rule_number,
-                )
-                )
+                ))
 
                 # close the connection with the status code from the filter
                 # list
