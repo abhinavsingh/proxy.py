@@ -254,3 +254,30 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Hello from man in the middle')
         )
+
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
+    def test_filter_by_upstream_host_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        request = build_http_request(
+            b'GET', b'http://pagead123.googlesyndication.com/path/to/an/ad.png',
+            headers={
+                b'Host': b'pagead123.googlesyndication.com',
+            }
+        )
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+        self.protocol_handler.run_once()
+
+        mock_server_conn.assert_not_called()
+        self.assertEqual(
+            self.protocol_handler.client.buffer[0].tobytes(),
+            build_http_response(
+                status_code=httpStatusCodes.NOT_FOUND,
+                headers={b'Connection': b'close'},
+            )
+        )

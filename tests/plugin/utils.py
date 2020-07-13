@@ -29,4 +29,6 @@ def get_plugin_by_test_name(test_name: str) -> Type[HttpProxyBasePlugin]:
         plugin = CacheResponsesPlugin
     elif test_name == 'test_man_in_the_middle_plugin':
         plugin = ManInTheMiddlePlugin
+    elif test_name == 'test_filter_by_url_regex_plugin':
+        plugin = FilterByURLRegexPlugin
     return plugin
