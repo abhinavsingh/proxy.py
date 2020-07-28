@@ -7,7 +7,7 @@ autopep8==1.5.3
 mypy==0.782
 py-spy==0.3.3
 codecov==2.1.8
-tox==3.18.0
+tox==3.18.1
 mccabe==0.6.1
 pylint==2.5.3
 rope==0.17.0
