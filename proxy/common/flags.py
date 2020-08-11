@@ -534,13 +534,7 @@ class Flags:
                 pass
             base_klass = next(iterator)
             p[bytes_(base_klass.__name__)].append(klass)
-            logger.info(
-                'Loaded %s %s.%s',
-                'plugin' if klass.__name__ != 'HttpWebServerRouteHandler' else 'route',
-                module_name,
-                # HttpWebServerRouteHandler route decorator adds a special
-                # staticmethod to return decorated function name
-                klass.__name__ if klass.__name__ != 'HttpWebServerRouteHandler' else klass.name())
+            logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
         return p
 
     @staticmethod
