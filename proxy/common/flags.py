@@ -518,7 +518,7 @@ class Flags:
         }
         for plugin_ in plugins:
             if isinstance(plugin_, type):
-                module_name = None
+                module_name = '__main__'
                 klass = plugin_
             else:
                 plugin = text_(plugin_.strip())
@@ -536,7 +536,8 @@ class Flags:
             while next(iterator) is not abc.ABC:
                 pass
             base_klass = next(iterator)
-            p[bytes_(base_klass.__name__)].append(klass)
+            if klass not in p[bytes_(base_klass.__name__)]:
+                p[bytes_(base_klass.__name__)].append(klass)
             logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
         return p
 
