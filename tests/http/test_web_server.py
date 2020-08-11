@@ -34,8 +34,10 @@ class TestWebServerPlugin(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.mock_selector = mock_selector
         self.flags = Flags()
-        self.flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
+        self.flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin',
+        ])
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
             flags=self.flags)
@@ -95,8 +97,10 @@ class TestWebServerPlugin(unittest.TestCase):
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ), ]
         flags = Flags()
-        flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
+        flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin',
+        ])
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
             flags=flags)
@@ -146,8 +150,10 @@ class TestWebServerPlugin(unittest.TestCase):
         flags = Flags(
             enable_static_server=True,
             static_server_dir=static_server_dir)
-        flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
+        flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin',
+        ])
 
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
@@ -194,8 +200,10 @@ class TestWebServerPlugin(unittest.TestCase):
                 data=None), selectors.EVENT_WRITE)], ]
 
         flags = Flags(enable_static_server=True)
-        flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
+        flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin',
+        ])
 
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
@@ -230,9 +238,11 @@ class TestWebServerPlugin(unittest.TestCase):
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
         flags = Flags(pac_file=pac_file)
-        flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin,'
-            b'proxy.http.server.HttpWebServerPacFilePlugin')
+        flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin',
+            b'proxy.http.server.HttpWebServerPacFilePlugin',
+        ])
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
             flags=flags)

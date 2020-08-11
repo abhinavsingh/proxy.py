@@ -40,8 +40,10 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         self.http_server_port = 65535
         self.flags = Flags()
-        self.flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
+        self.flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin',
+        ])
 
         self.mock_selector = mock_selector
         self.protocol_handler = HttpProtocolHandler(
@@ -173,8 +175,10 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
+        flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin',
+        ])
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr), flags=flags)
         self.protocol_handler.initialize()
@@ -205,8 +209,10 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
+        flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin',
+        ])
 
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr), flags=flags)
@@ -253,8 +259,10 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = Flags.load_plugins(
-            b'proxy.http.proxy.HttpProxyPlugin,proxy.http.server.HttpWebServerPlugin')
+        flags.plugins = Flags.load_plugins([
+            b'proxy.http.proxy.HttpProxyPlugin',
+            b'proxy.http.server.HttpWebServerPlugin'
+        ])
 
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr), flags=flags)
