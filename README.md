@@ -72,6 +72,7 @@ Table of Contents
 * [Embed proxy.py](#embed-proxypy)
     * [Blocking Mode](#blocking-mode)
     * [Non-blocking Mode](#non-blocking-mode)
+    * [Loading Plugins](#loading-plugins)
 * [Unit testing with proxy.py](#unit-testing-with-proxypy)
     * [proxy.TestCase](#proxytestcase)
     * [Override Startup Flags](#override-startup-flags)
@@ -1171,6 +1172,36 @@ Note that:
    can be customized by either passing flags as list of
    input arguments e.g. `start(['--port', '8899'])` or
    by using passing flags as kwargs e.g. `start(port=8899)`.
+
+## Loading Plugins
+
+You can, of course, list plugins to load in the input arguments list of `proxy.main`, `proxy.start` or the `Proxy` constructor. Use the `--plugins` flag as when starting from command line:
+
+```python
+import proxy
+
+if __name__ == '__main__':
+  proxy.main([
+    '--plugins', 'proxy.plugin.CacheResponsesPlugin',
+  ])
+```
+
+However, for simplicity you can pass the list of plugins to load as a keyword argument to `proxy.main`, `proxy.start` or the `Proxy` constructor:
+
+```python
+import proxy
+from proxy.plugin import FilterByUpstreamHostPlugin
+
+if __name__ == '__main__':
+  proxy.main([], plugins=[
+    b'proxy.plugin.CacheResponsesPlugin',
+    FilterByUpstreamHostPlugin,
+  ])
+```
+
+Note that it supports:
+1. The fully-qualified name of a class as `bytes`
+2. Any `type` instance for a Proxy.py plugin class. This is espacially useful for custom plugins defined locally.
 
 Unit testing with proxy.py
 ==========================
