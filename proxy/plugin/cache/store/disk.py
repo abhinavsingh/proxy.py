@@ -30,12 +30,14 @@ class OnDiskCacheStore(CacheStore):
         self.cache_file: Optional[BinaryIO] = None
 
     def open(self, request: HttpParser) -> None:
-        self.cache_file_path = os.path.join(
-            self.cache_dir,
-            '%s-%s.txt' % (text_(request.host), self.uid.hex))
-        self.cache_file = open(self.cache_file_path, "wb")
+        pass
 
     def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
+        self.cache_file_path = os.path.join(self.cache_dir, '%s-%s.txt' % (text_(request.host), self.uid.hex))
+
+        if self.cache_file:
+            self.cache_file.close()
+        self.cache_file = open(self.cache_file_path, "ab")
         return request
 
     def cache_response_chunk(self, chunk: memoryview) -> memoryview:
