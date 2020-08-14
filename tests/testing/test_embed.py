@@ -9,13 +9,17 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
+import time
+import tempfile
 import unittest
 import http.client
 import urllib.request
 import urllib.error
+from typing import Union
+from pathlib import Path
 
 from proxy import TestCase
-from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
+from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
 from proxy.common.utils import socket_connection, build_http_request, build_http_response
 from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
@@ -30,6 +34,25 @@ class TestProxyPyEmbedded(TestCase):
     PROXY_PY_STARTUP_FLAGS = TestCase.DEFAULT_PROXY_PY_STARTUP_FLAGS + [
         '--enable-web-server',
     ]
+
+    def waitCache(self,
+                  cache_file_path: Union[str, Path],
+                  expected: bytes,
+                  timeout: int = DEFAULT_TIMEOUT) -> None:
+        while timeout != 0:
+            with open(cache_file_path, 'rb') as cache_file:
+                data = cache_file.read()
+                if (data == expected):
+                    break
+            time.sleep(1)
+            timeout -= 1
+        self.assertEqual(data, expected)
+
+    def tearDown(self) -> None:
+        tmpDir = Path(tempfile.gettempdir())
+        for f in tmpDir.glob('localhost-*.txt'):
+            if f.is_file():
+                os.remove(f)
 
     def test_with_proxy(self) -> None:
         """Makes a HTTP request to in-build web server via proxy server."""
@@ -52,6 +75,16 @@ class TestProxyPyEmbedded(TestCase):
                 }
             )
         )
+
+        cache_files = list(Path(tempfile.gettempdir()).glob('localhost-*.txt'))
+        self.assertEqual(len(cache_files), 1)
+        self.waitCache(cache_files[0], build_http_response(
+            httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+            headers={
+                b'Server': PROXY_AGENT_HEADER_VALUE,
+                b'Connection': b'close'
+            }
+        ))
 
     def test_proxy_vcr(self) -> None:
         """With VCR enabled, proxy.py will cache responses for all HTTP(s)
@@ -81,3 +114,13 @@ class TestProxyPyEmbedded(TestCase):
             self.assertEqual(r.status, 404)
             self.assertEqual(r.headers.get('server'), PROXY_AGENT_HEADER_VALUE)
             self.assertEqual(r.headers.get('connection'), b'close')
+
+        cache_files = list(Path(tempfile.gettempdir()).glob('localhost-*.txt'))
+        self.assertEqual(len(cache_files), 1)
+        self.waitCache(cache_files[0], build_http_response(
+            httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+            headers={
+                b'Server': PROXY_AGENT_HEADER_VALUE,
+                b'Connection': b'close'
+            }
+        ))
