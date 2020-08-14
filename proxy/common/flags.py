@@ -21,7 +21,7 @@ import multiprocessing
 import sys
 import inspect
 
-from typing import Optional, Dict, List, TypeVar, Type, cast, Any, Tuple
+from typing import Optional, Dict, List, TypeVar, Type, cast, Any, Tuple, Union
 
 from .types import IpAddress
 from .utils import text_, bytes_
@@ -184,10 +184,9 @@ class Flags:
 
         # Load default plugins along with user provided --plugins
         plugins = Flags.load_plugins(
-            bytes_(
-                '%s,%s' %
-                (text_(COMMA).join(collections.OrderedDict(default_plugins).keys()),
-                    opts.get('plugins', args.plugins))))
+            [bytes_(p) for p in collections.OrderedDict(default_plugins).keys()] +
+            [p if isinstance(p, type) else bytes_(p) for p in opts.get('plugins', args.plugins.split(text_(COMMA)))]
+        )
 
         # proxy.py currently cannot serve over HTTPS and perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
@@ -508,7 +507,7 @@ class Flags:
                     'Open file soft limit set to %d', soft_limit)
 
     @staticmethod
-    def load_plugins(plugins: bytes) -> Dict[bytes, List[type]]:
+    def load_plugins(plugins: List[Union[bytes, type]]) -> Dict[bytes, List[type]]:
         """Accepts a comma separated list of Python modules and returns
         a list of respective Python classes."""
         p: Dict[bytes, List[type]] = {
@@ -517,30 +516,29 @@ class Flags:
             b'HttpWebServerBasePlugin': [],
             b'ProxyDashboardWebsocketPlugin': []
         }
-        for plugin_ in plugins.split(COMMA):
-            plugin = text_(plugin_.strip())
-            if plugin == '':
-                continue
-            module_name, klass_name = plugin.rsplit(text_(DOT), 1)
-            klass = getattr(
-                importlib.import_module(
-                    module_name.replace(
-                        os.path.sep, text_(DOT))),
-                klass_name)
+        for plugin_ in plugins:
+            if isinstance(plugin_, type):
+                module_name = '__main__'
+                klass = plugin_
+            else:
+                plugin = text_(plugin_.strip())
+                if plugin == '':
+                    continue
+                module_name, klass_name = plugin.rsplit(text_(DOT), 1)
+                klass = getattr(
+                    importlib.import_module(
+                        module_name.replace(
+                            os.path.sep, text_(DOT))),
+                    klass_name)
             mro = list(inspect.getmro(klass))
             mro.reverse()
             iterator = iter(mro)
             while next(iterator) is not abc.ABC:
                 pass
             base_klass = next(iterator)
-            p[bytes_(base_klass.__name__)].append(klass)
-            logger.info(
-                'Loaded %s %s.%s',
-                'plugin' if klass.__name__ != 'HttpWebServerRouteHandler' else 'route',
-                module_name,
-                # HttpWebServerRouteHandler route decorator adds a special
-                # staticmethod to return decorated function name
-                klass.__name__ if klass.__name__ != 'HttpWebServerRouteHandler' else klass.name())
+            if klass not in p[bytes_(base_klass.__name__)]:
+                p[bytes_(base_klass.__name__)].append(klass)
+            logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
         return p
 
     @staticmethod
