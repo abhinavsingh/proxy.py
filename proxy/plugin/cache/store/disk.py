@@ -11,6 +11,7 @@
 import logging
 import os
 from typing import Optional, BinaryIO
+from hashlib import sha512
 from uuid import UUID
 
 from ....common.utils import text_
@@ -28,18 +29,31 @@ class OnDiskCacheStore(CacheStore):
         self.cache_dir = cache_dir
         if not os.path.isdir(self.cache_dir):
             os.mkdir(self.cache_dir)
-        self.cache_file_path: Optional[str] = None
+        logger.debug("Opening cache list")
+        self.cache_list = open(os.path.join(self.cache_dir, 'list.txt'), 'at')
         self.cache_file: Optional[BinaryIO] = None
+
+    def __del__(self) -> None:
+        logger.debug("Closing cache list")
+        self.cache_list.close()
 
     def open(self, request: HttpParser) -> None:
         pass
 
     def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
-        self.cache_file_path = os.path.join(self.cache_dir, '%s-%s.txt' % (text_(request.host), self.uid.hex))
+        body_hash = sha512(request.body).hexdigest() if request.body else 'None'
+        cache_file_name = '%s-%s.txt' % (text_(request.host), self.uid.hex)
+        self.cache_list.write('%s %s %s %s %s\n' % (
+            request.method.decode() if request.method else 'None',
+            request.host.decode() if request.host else 'None',
+            request.path.decode() if request.path else 'None',
+            body_hash,
+            cache_file_name
+        ))
 
         if self.cache_file:
             self.cache_file.close()
-        self.cache_file = open(self.cache_file_path, "ab")
+        self.cache_file = open(os.path.join(self.cache_dir, cache_file_name), "ab")
         return request
 
     def cache_response_chunk(self, chunk: memoryview) -> memoryview:
@@ -50,4 +64,3 @@ class OnDiskCacheStore(CacheStore):
     def close(self) -> None:
         if self.cache_file:
             self.cache_file.close()
-            logger.info('Cached response at %s', self.cache_file_path)

@@ -35,24 +35,32 @@ class TestProxyPyEmbedded(TestCase):
         '--enable-web-server',
     ]
 
-    def waitCache(self,
-                  cache_file_path: Union[str, Path],
-                  expected: bytes,
-                  timeout: int = DEFAULT_TIMEOUT) -> None:
+    def waitCached(self,
+                   cache_list_path: Union[str, Path],
+                   expected_method: str,
+                   expected_host: str,
+                   expected_path: str,
+                   expected_body: str,
+                   timeout: int = DEFAULT_TIMEOUT) -> str:
         while timeout != 0:
-            with open(cache_file_path, 'rb') as cache_file:
-                data = cache_file.read()
-                if (data == expected):
-                    break
+            with open(cache_list_path, 'rt') as cache_list:
+                for cache_line in cache_list:
+                    method, host, path, body, cache_file_name = cache_line.strip().split(' ')
+                    if ((method == expected_method) and (host == expected_host) and
+                            (path == expected_path) and (body == expected_body)):
+                        return cache_file_name
             time.sleep(1)
-            timeout -= 1
-        self.assertEqual(data, expected)
+            if (timeout > 0):
+                timeout -= 1
+        self.fail('Timeout waiting for cached request: %s %s%s %s.' %
+                  (expected_method, expected_host, expected_path, expected_body))
 
     def tearDown(self) -> None:
         tmpDir = Path(tempfile.gettempdir())
         for f in tmpDir.glob('localhost-*.txt'):
             if f.is_file():
                 os.remove(f)
+        os.remove(tmpDir / 'list.txt')
 
     def test_with_proxy(self) -> None:
         """Makes a HTTP request to in-build web server via proxy server."""
@@ -76,15 +84,17 @@ class TestProxyPyEmbedded(TestCase):
             )
         )
 
-        cache_files = list(Path(tempfile.gettempdir()).glob('localhost-*.txt'))
-        self.assertEqual(len(cache_files), 1)
-        self.waitCache(cache_files[0], build_http_response(
-            httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
-            headers={
-                b'Server': PROXY_AGENT_HEADER_VALUE,
-                b'Connection': b'close'
-            }
-        ))
+        cache_file_name = self.waitCached(Path(tempfile.gettempdir()) / 'list.txt',
+                                          'GET', 'localhost', '/', 'None')
+
+        with open(Path(tempfile.gettempdir()) / cache_file_name, 'rb') as cache_file:
+            self.assertEqual(cache_file.read(), build_http_response(
+                httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+                headers={
+                    b'Server': PROXY_AGENT_HEADER_VALUE,
+                    b'Connection': b'close'
+                }
+            ))
 
     def test_proxy_vcr(self) -> None:
         """With VCR enabled, proxy.py will cache responses for all HTTP(s)
@@ -115,12 +125,14 @@ class TestProxyPyEmbedded(TestCase):
             self.assertEqual(r.headers.get('server'), PROXY_AGENT_HEADER_VALUE)
             self.assertEqual(r.headers.get('connection'), b'close')
 
-        cache_files = list(Path(tempfile.gettempdir()).glob('localhost-*.txt'))
-        self.assertEqual(len(cache_files), 1)
-        self.waitCache(cache_files[0], build_http_response(
-            httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
-            headers={
-                b'Server': PROXY_AGENT_HEADER_VALUE,
-                b'Connection': b'close'
-            }
-        ))
+        cache_file_name = self.waitCached(Path(tempfile.gettempdir()) / 'list.txt',
+                                          'GET', 'localhost', '/', 'None')
+
+        with open(Path(tempfile.gettempdir()) / cache_file_name, 'rb') as cache_file:
+            self.assertEqual(cache_file.read(), build_http_response(
+                httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+                headers={
+                    b'Server': PROXY_AGENT_HEADER_VALUE,
+                    b'Connection': b'close'
+                }
+            ))
