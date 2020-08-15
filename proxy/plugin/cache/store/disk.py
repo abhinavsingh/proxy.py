@@ -26,6 +26,8 @@ class OnDiskCacheStore(CacheStore):
     def __init__(self, uid: UUID, cache_dir: str) -> None:
         super().__init__(uid)
         self.cache_dir = cache_dir
+        if not os.path.isdir(self.cache_dir):
+            os.mkdir(self.cache_dir)
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 
