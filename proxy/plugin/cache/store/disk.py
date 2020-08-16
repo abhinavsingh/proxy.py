@@ -10,6 +10,7 @@
 """
 import logging
 import os
+import multiprocessing
 from typing import Optional, BinaryIO
 from hashlib import sha512
 from uuid import UUID
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class OnDiskCacheStore(CacheStore):
+    lock = multiprocessing.Lock()
 
     def __init__(self, uid: UUID, cache_dir: str) -> None:
         super().__init__(uid)
@@ -43,13 +45,14 @@ class OnDiskCacheStore(CacheStore):
     def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
         body_hash = sha512(request.body).hexdigest() if request.body else 'None'
         cache_file_name = '%s-%s.txt' % (text_(request.host), self.uid.hex)
-        self.cache_list.write('%s %s %s %s %s\n' % (
-            request.method.decode() if request.method else 'None',
-            request.host.decode() if request.host else 'None',
-            request.path.decode() if request.path else 'None',
-            body_hash,
-            cache_file_name
-        ))
+        with self.lock:
+            self.cache_list.write('%s %s %s %s %s\n' % (
+                request.method.decode() if request.method else 'None',
+                request.host.decode() if request.host else 'None',
+                request.path.decode() if request.path else 'None',
+                body_hash,
+                cache_file_name
+            ))
 
         if self.cache_file:
             self.cache_file.close()
