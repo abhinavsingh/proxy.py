@@ -10,6 +10,7 @@
 """
 import logging
 import os
+import uuid
 import multiprocessing
 from typing import Optional, BinaryIO
 from hashlib import sha512
@@ -42,21 +43,51 @@ class OnDiskCacheStore(CacheStore):
     def open(self, request: HttpParser) -> None:
         pass
 
-    def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
-        body_hash = sha512(request.body).hexdigest() if request.body else 'None'
-        cache_file_name = '%s-%s.txt' % (text_(request.host), self.uid.hex)
+    def get_cache_file_path(self, request: HttpParser, create: bool = False) -> str:
+        request_method = text_(request.method)
+        request_host = text_(request.host)
+        request_path = text_(request.path)
+        request_body = sha512(request.body).hexdigest() if request.body else 'None'
+
+        with self.lock, open(os.path.join(self.cache_dir, 'list.txt'), 'rt') as cache_list:
+            for cache_line in cache_list:
+                method, host, path, body, cache_file_name = cache_line.strip().split(' ')
+                if ((method == request_method) and (host == request_host) and
+                        (path == request_path) and (body == request_body)):
+                    return os.path.join(self.cache_dir, 'proxy-cache-' + cache_file_name)
+
+        if not create:
+            return ''
+
+        cache_file_name = uuid.uuid4().hex
+        while os.path.isfile(os.path.join(self.cache_dir, 'proxy-cache-' + cache_file_name)):
+            cache_file_name = uuid.uuid4().hex
+
         with self.lock:
             self.cache_list.write('%s %s %s %s %s\n' % (
-                request.method.decode() if request.method else 'None',
-                request.host.decode() if request.host else 'None',
-                request.path.decode() if request.path else 'None',
-                body_hash,
+                request_method,
+                request_host,
+                request_path,
+                request_body,
                 cache_file_name
             ))
+        return os.path.join(self.cache_dir, 'proxy-cache-' + cache_file_name)
+
+    def is_cached(self, request: HttpParser) -> bool:
+        return bool(self.get_cache_file_path(request))
+
+    def cache_request(self, request: HttpParser) -> HttpParser:
+        cache_file_path = self.get_cache_file_path(request, True)
+        if os.path.isfile(cache_file_path):
+            logger.info('Found in cache file: %s' % cache_file_path)
+            with open(cache_file_path, 'rb') as cache_file:
+                return HttpParser.response(cache_file.read())
 
         if self.cache_file:
+            logger.debug("Closing cache file")
             self.cache_file.close()
-        self.cache_file = open(os.path.join(self.cache_dir, cache_file_name), "ab")
+        logger.info('Caching in file: %s' % cache_file_path)
+        self.cache_file = open(cache_file_path, "ab")
         return request
 
     def cache_response_chunk(self, chunk: memoryview) -> memoryview:
@@ -66,4 +97,5 @@ class OnDiskCacheStore(CacheStore):
 
     def close(self) -> None:
         if self.cache_file:
+            logger.debug("Closing cache file")
             self.cache_file.close()

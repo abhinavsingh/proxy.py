@@ -48,7 +48,7 @@ class TestProxyPyEmbedded(TestCase):
                     method, host, path, body, cache_file_name = cache_line.strip().split(' ')
                     if ((method == expected_method) and (host == expected_host) and
                             (path == expected_path) and (body == expected_body)):
-                        return cache_file_name
+                        return 'proxy-cache-' + cache_file_name
             time.sleep(1)
             if (timeout > 0):
                 timeout -= 1
@@ -57,7 +57,7 @@ class TestProxyPyEmbedded(TestCase):
 
     def tearDown(self) -> None:
         tmpDir = Path(tempfile.gettempdir())
-        for f in tmpDir.glob('localhost-*.txt'):
+        for f in tmpDir.glob('proxy-cache-*'):
             if f.is_file():
                 os.remove(f)
         os.remove(tmpDir / 'list.txt')
@@ -86,6 +86,7 @@ class TestProxyPyEmbedded(TestCase):
 
         cache_file_name = self.waitCached(Path(tempfile.gettempdir()) / 'list.txt',
                                           'GET', 'localhost', '/', 'None')
+        self.assertTrue(os.path.isfile(Path(tempfile.gettempdir()) / cache_file_name))
 
         with open(Path(tempfile.gettempdir()) / cache_file_name, 'rb') as cache_file:
             self.assertEqual(cache_file.read(), build_http_response(
@@ -127,6 +128,7 @@ class TestProxyPyEmbedded(TestCase):
 
         cache_file_name = self.waitCached(Path(tempfile.gettempdir()) / 'list.txt',
                                           'GET', 'localhost', '/', 'None')
+        self.assertTrue(os.path.isfile(Path(tempfile.gettempdir()) / cache_file_name))
 
         with open(Path(tempfile.gettempdir()) / cache_file_name, 'rb') as cache_file:
             self.assertEqual(cache_file.read(), build_http_response(
