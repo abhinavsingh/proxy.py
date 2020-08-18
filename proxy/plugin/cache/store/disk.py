@@ -86,6 +86,7 @@ class OnDiskCacheStore(CacheStore):
         if self.cache_file:
             logger.debug("Closing cache file")
             self.cache_file.close()
+            self.cache_list.flush()
         logger.info('Caching in file: %s' % cache_file_path)
         self.cache_file = open(cache_file_path, "ab")
         return request
@@ -99,3 +100,4 @@ class OnDiskCacheStore(CacheStore):
         if self.cache_file:
             logger.debug("Closing cache file")
             self.cache_file.close()
+            self.cache_list.flush()
