@@ -284,3 +284,57 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
             self.assertEqual(body, 'None')
         with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'rb') as cache_file:
             self.assertEqual(cache_file.read(), server_response)
+
+    def test_cache_responses_plugin_load(self) -> None:
+        request = build_http_request(
+            b'GET', b'/get',
+            headers={
+                b'Host': b'uni.corn',
+            }
+        )
+        cache_response = build_http_response(
+            httpStatusCodes.OK,
+            reason=b'OK',
+            body=b'Response From Cache'
+        )
+
+        # Setup cache:
+        cache_file_name = 'test'
+        with open(Path(tempfile.gettempdir()) / 'list.txt', 'wt') as cache_list:
+            cache_list.write('GET uni.corn /get None %s' % cache_file_name)
+        with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'wb') as cache_file:
+            cache_file.write(cache_response)
+
+        # Setup selector:
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self.client_ssl_connection,
+                fd=self.client_ssl_connection.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=self.client_ssl_connection,
+                fd=self.client_ssl_connection.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)],
+            [(selectors.SelectorKey(
+                fileobj=self.client_ssl_connection,
+                fd=self.client_ssl_connection.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+        ]
+
+        # Client read:
+        self.client_ssl_connection.recv.return_value = request
+        self.protocol_handler.run_once()
+        self.server_ssl_connection.send.assert_not_called()
+
+        # Client write:
+        self.client_ssl_connection.send.return_value = len(cache_response)
+        self.protocol_handler.run_once()
+        self.client_ssl_connection.send.assert_called_once_with(cache_response)
+
+        # Client close connection:
+        self.client_ssl_connection.recv.return_value = b''
+        self.protocol_handler.run_once()
+        self.protocol_handler.shutdown()
