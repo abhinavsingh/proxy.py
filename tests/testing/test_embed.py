@@ -15,7 +15,7 @@ import unittest
 import http.client
 import urllib.request
 import urllib.error
-from typing import Union
+from typing import Union, Optional
 from pathlib import Path
 
 from proxy import TestCase
@@ -41,7 +41,7 @@ class TestProxyPyEmbedded(TestCase):
                    expected_host: str,
                    expected_path: str,
                    expected_body: str,
-                   timeout: int = DEFAULT_TIMEOUT) -> str:
+                   timeout: int = DEFAULT_TIMEOUT) -> Optional[str]:
         while timeout != 0:
             with open(cache_list_path, 'rt') as cache_list:
                 for cache_line in cache_list:
@@ -52,8 +52,7 @@ class TestProxyPyEmbedded(TestCase):
             time.sleep(1)
             if (timeout > 0):
                 timeout -= 1
-        self.fail('Timeout waiting for cached request: %s %s%s %s.' %
-                  (expected_method, expected_host, expected_path, expected_body))
+        return None
 
     def tearDown(self) -> None:
         tmpDir = Path(tempfile.gettempdir())
@@ -84,19 +83,6 @@ class TestProxyPyEmbedded(TestCase):
             )
         )
 
-        cache_file_name = self.waitCached(Path(tempfile.gettempdir()) / 'list.txt',
-                                          'GET', 'localhost', '/', 'None')
-        self.assertTrue(os.path.isfile(Path(tempfile.gettempdir()) / cache_file_name))
-
-        with open(Path(tempfile.gettempdir()) / cache_file_name, 'rb') as cache_file:
-            self.assertEqual(cache_file.read(), build_http_response(
-                httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
-                headers={
-                    b'Server': PROXY_AGENT_HEADER_VALUE,
-                    b'Connection': b'close'
-                }
-            ))
-
     def test_proxy_vcr(self) -> None:
         """With VCR enabled, proxy.py will cache responses for all HTTP(s)
         requests made during the test.  When test is re-run, until explicitly
@@ -110,8 +96,26 @@ class TestProxyPyEmbedded(TestCase):
         with self.vcr():
             self.make_http_request_using_proxy()
 
+        cache_file_name = self.waitCached(Path(tempfile.gettempdir()) / 'list.txt',
+                                          'GET', 'localhost', '/', 'None')
+        if cache_file_name is None:
+            self.fail('Timeout waiting for cached request')
+        self.assertTrue(os.path.isfile(Path(tempfile.gettempdir()) / cache_file_name))
+
+        with open(Path(tempfile.gettempdir()) / cache_file_name, 'rb') as cache_file:
+            self.assertEqual(cache_file.read(), build_http_response(
+                httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+                headers={
+                    b'Server': PROXY_AGENT_HEADER_VALUE,
+                    b'Connection': b'close'
+                }
+            ))
+
     def test_proxy_no_vcr(self) -> None:
         self.make_http_request_using_proxy()
+
+        self.assertIsNone(self.waitCached(Path(tempfile.gettempdir()) / 'list.txt',
+                                          'GET', 'localhost', '/', 'None', 2))
 
     def make_http_request_using_proxy(self) -> None:
         proxy_handler = urllib.request.ProxyHandler({
@@ -125,16 +129,3 @@ class TestProxyPyEmbedded(TestCase):
             self.assertEqual(r.status, 404)
             self.assertEqual(r.headers.get('server'), PROXY_AGENT_HEADER_VALUE)
             self.assertEqual(r.headers.get('connection'), b'close')
-
-        cache_file_name = self.waitCached(Path(tempfile.gettempdir()) / 'list.txt',
-                                          'GET', 'localhost', '/', 'None')
-        self.assertTrue(os.path.isfile(Path(tempfile.gettempdir()) / cache_file_name))
-
-        with open(Path(tempfile.gettempdir()) / cache_file_name, 'rb') as cache_file:
-            self.assertEqual(cache_file.read(), build_http_response(
-                httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
-                headers={
-                    b'Server': PROXY_AGENT_HEADER_VALUE,
-                    b'Connection': b'close'
-                }
-            ))

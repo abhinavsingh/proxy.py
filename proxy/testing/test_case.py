@@ -44,8 +44,8 @@ class TestCase(unittest.TestCase):
         cls.INPUT_ARGS.append(str(cls.PROXY_PORT))
 
         cls.PROXY = Proxy(input_args=cls.INPUT_ARGS)
-        cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(
-            CacheResponsesPlugin)
+        cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(CacheResponsesPlugin)
+        CacheResponsesPlugin.enabled.clear()
 
         cls.PROXY.__enter__()
         cls.wait_for_server(cls.PROXY_PORT)
@@ -79,10 +79,10 @@ class TestCase(unittest.TestCase):
     @contextlib.contextmanager
     def vcr(self) -> Generator[None, None, None]:
         try:
-            CacheResponsesPlugin.ENABLED.set()
+            CacheResponsesPlugin.enabled.set()
             yield
         finally:
-            CacheResponsesPlugin.ENABLED.clear()
+            CacheResponsesPlugin.enabled.clear()
 
     def run(self, result: Optional[unittest.TestResult] = None) -> Any:
         super().run(result)
