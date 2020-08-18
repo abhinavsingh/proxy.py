@@ -294,7 +294,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         )
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_cache_responses_plugin(self, mock_server_conn: mock.Mock) -> None:
+    def test_cache_responses_plugin_cache(self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
             b'GET', b'http://example.org/get',
             headers={

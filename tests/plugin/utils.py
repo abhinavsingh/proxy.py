@@ -25,7 +25,7 @@ def get_plugin_by_test_name(test_name: str) -> Type[HttpProxyBasePlugin]:
         plugin = RedirectToCustomServerPlugin
     elif test_name == 'test_filter_by_upstream_host_plugin':
         plugin = FilterByUpstreamHostPlugin
-    elif test_name == 'test_cache_responses_plugin':
+    elif test_name.startswith('test_cache_responses_plugin'):
         plugin = CacheResponsesPlugin
     elif test_name == 'test_man_in_the_middle_plugin':
         plugin = ManInTheMiddlePlugin
