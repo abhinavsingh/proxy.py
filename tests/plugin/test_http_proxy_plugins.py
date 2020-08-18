@@ -301,7 +301,13 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 b'Host': b'example.org',
             }
         )
+        server_response = build_http_response(
+            httpStatusCodes.OK,
+            reason=b'OK',
+            body=b'Original Response From Upstream'
+        )
 
+        # Setup server:
         server = mock_server_conn.return_value
         server.addr = ('example.org', 80)
         server.connect.return_value = True
@@ -315,7 +321,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         server.has_buffer.side_effect = has_buffer
         type(server).closed = mock.PropertyMock(side_effect=closed)
 
-        self._conn.recv.return_value = request
+        # Setup selector:
         self.mock_selector.return_value.select.side_effect = [
             [(selectors.SelectorKey(
                 fileobj=self._conn,
@@ -344,7 +350,8 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 data=None), selectors.EVENT_READ)],
         ]
 
-        # Client read
+        # Client read:
+        self._conn.recv.return_value = request
         self.protocol_handler.run_once()
         mock_server_conn.assert_called_with('example.org', DEFAULT_HTTP_PORT)
         server.connect.assert_called_once()
@@ -356,23 +363,18 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             }
         ))
 
-        # Server write
+        # Server write:
         self.protocol_handler.run_once()
         server.flush.assert_called_once()
 
-        # Server read
-        server_response = build_http_response(
-            httpStatusCodes.OK,
-            reason=b'OK',
-            body=b'Original Response From Upstream'
-        )
+        # Server read:
         server.recv.return_value = memoryview(server_response)
         self.protocol_handler.run_once()
 
         # Client write:
-        self._conn.send.return_value = len(server.recv.return_value)
+        self._conn.send.return_value = len(server_response)
         self.protocol_handler.run_once()
-        self._conn.send.assert_called_once_with(server.recv.return_value)
+        self._conn.send.assert_called_once_with(server_response)
 
         # Server close connection:
         server.recv.return_value = None
@@ -389,3 +391,72 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             self.assertEqual(body, 'None')
         with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'rb') as cache_file:
             self.assertEqual(cache_file.read(), server_response)
+
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
+    def test_cache_responses_plugin_load(self, mock_server_conn: mock.Mock) -> None:
+        request = build_http_request(
+            b'GET', b'http://example.org/get',
+            headers={
+                b'Host': b'example.org',
+            }
+        )
+        cache_response = build_http_response(
+            httpStatusCodes.OK,
+            reason=b'OK',
+            body=b'Response From Cache'
+        )
+
+        # Setup cache:
+        cache_file_name = 'test'
+        with open(Path(tempfile.gettempdir()) / 'list.txt', 'wt') as cache_list:
+            cache_list.write('GET example.org /get None %s' % cache_file_name)
+        with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'wb') as cache_file:
+            cache_file.write(cache_response)
+
+        # Setup server:
+        server = mock_server_conn.return_value
+        server.addr = ('example.org', 80)
+        server.connect.return_value = True
+
+        def has_buffer() -> bool:
+            return cast(bool, server.queue.called)
+
+        def closed() -> bool:
+            return not server.connect.called
+
+        server.has_buffer.side_effect = has_buffer
+        type(server).closed = mock.PropertyMock(side_effect=closed)
+
+        # Setup selector:
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)],
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+        ]
+
+        # Client read:
+        self._conn.recv.return_value = request
+        self.protocol_handler.run_once()
+        mock_server_conn.assert_not_called()
+
+        # Client write:
+        self._conn.send.return_value = len(cache_response)
+        self.protocol_handler.run_once()
+        self._conn.send.assert_called_once_with(cache_response)
+
+        # Client close connection:
+        self._conn.recv.return_value = b''
+        self.protocol_handler.run_once()
+        self.protocol_handler.shutdown()
