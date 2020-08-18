@@ -12,6 +12,9 @@ import unittest
 import socket
 import selectors
 import ssl
+import os
+import tempfile
+from pathlib import Path
 
 from unittest import mock
 from typing import Any, cast
@@ -81,6 +84,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         self.protocol_handler.initialize()
 
         self.server = self.mock_server_conn.return_value
+        self.server.addr = ('uni.corn', 433)
 
         self.server_ssl_connection = mock.MagicMock(spec=ssl.SSLSocket)
         self.mock_ssl_context.return_value.wrap_socket.return_value = self.server_ssl_connection
@@ -128,7 +132,18 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
                 fileobj=self.server_ssl_connection,
                 fd=self.server_ssl_connection.fileno,
                 events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=self.client_ssl_connection,
+                fd=self.client_ssl_connection.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)],
+            [(selectors.SelectorKey(
+                fileobj=self.server_ssl_connection,
+                fd=self.server_ssl_connection.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+        ]
 
         # Connect
         def send(raw: bytes) -> int:
@@ -154,6 +169,14 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
             HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
         )
         self.assertFalse(self.protocol_handler.client.has_buffer())
+
+    def tearDown(self) -> None:
+        tmpDir = Path(tempfile.gettempdir())
+        for f in tmpDir.glob('proxy-cache-*'):
+            if f.is_file():
+                os.remove(f)
+        if tmpDir.joinpath('list.txt').is_file():
+            os.remove(tmpDir / 'list.txt')
 
     def test_modify_post_data_plugin(self) -> None:
         original = b'{"key": "value"}'
@@ -209,3 +232,55 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Hello from man in the middle')
         )
+
+    def test_cache_responses_plugin_cache(self) -> None:
+        request = build_http_request(
+            b'GET', b'/get',
+            headers={
+                b'Host': b'uni.corn',
+            }
+        )
+        server_response = build_http_response(
+            httpStatusCodes.OK,
+            reason=b'OK',
+            body=b'Original Response From Upstream'
+        )
+
+        # Client read:
+        self.client_ssl_connection.recv.return_value = request
+        self.protocol_handler.run_once()
+        self.server.queue.assert_called_once_with(build_http_request(
+            b'GET', b'/get',
+            headers={
+                b'Host': b'uni.corn',
+            }
+        ))
+
+        # Server write:
+        self.protocol_handler.run_once()
+        self.server.flush.assert_called_once()
+
+        # Server read:
+        self.server.recv.return_value = memoryview(server_response)
+        self.protocol_handler.run_once()
+
+        # Client write:
+        self.client_ssl_connection.send.return_value = len(server_response)
+        self.protocol_handler.run_once()
+        self.client_ssl_connection.send.assert_called_once_with(server_response)
+
+        # Server close connection:
+        self.server.recv.return_value = None
+        self.protocol_handler.run_once()
+        self.protocol_handler.shutdown()
+
+        with open(Path(tempfile.gettempdir()) / 'list.txt', 'rt') as cache_list:
+            cache_lines = list(cache_list)
+            self.assertEqual(len(cache_lines), 1)
+            method, host, path, body, cache_file_name = cache_lines[0].strip().split(' ')
+            self.assertEqual(method, 'GET')
+            self.assertEqual(host, 'uni.corn')
+            self.assertEqual(path, '/get')
+            self.assertEqual(body, 'None')
+        with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'rb') as cache_file:
+            self.assertEqual(cache_file.read(), server_response)
