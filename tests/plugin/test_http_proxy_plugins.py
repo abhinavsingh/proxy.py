@@ -10,7 +10,10 @@
 """
 import unittest
 import selectors
+import tempfile
 import json
+import os
+from pathlib import Path
 
 from urllib import parse as urlparse
 from unittest import mock
@@ -55,6 +58,14 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             TcpClientConnection(self._conn, self._addr),
             flags=self.flags)
         self.protocol_handler.initialize()
+
+    def tearDown(self) -> None:
+        tmpDir = Path(tempfile.gettempdir())
+        for f in tmpDir.glob('proxy-cache-*'):
+            if f.is_file():
+                os.remove(f)
+        if tmpDir.joinpath('list.txt').is_file():
+            os.remove(tmpDir / 'list.txt')
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_modify_post_data_plugin(
@@ -281,3 +292,100 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 headers={b'Connection': b'close'},
             )
         )
+
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
+    def test_cache_responses_plugin(self, mock_server_conn: mock.Mock) -> None:
+        request = build_http_request(
+            b'GET', b'http://example.org/get',
+            headers={
+                b'Host': b'example.org',
+            }
+        )
+
+        server = mock_server_conn.return_value
+        server.addr = ('example.org', 80)
+        server.connect.return_value = True
+
+        def has_buffer() -> bool:
+            return cast(bool, server.queue.called)
+
+        def closed() -> bool:
+            return not server.connect.called
+
+        server.has_buffer.side_effect = has_buffer
+        type(server).closed = mock.PropertyMock(side_effect=closed)
+
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=server.connection,
+                fd=server.connection.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)],
+            [(selectors.SelectorKey(
+                fileobj=server.connection,
+                fd=server.connection.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_WRITE,
+                data=None), selectors.EVENT_WRITE)],
+            [(selectors.SelectorKey(
+                fileobj=server.connection,
+                fd=server.connection.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)],
+        ]
+
+        # Client read
+        self.protocol_handler.run_once()
+        mock_server_conn.assert_called_with('example.org', DEFAULT_HTTP_PORT)
+        server.connect.assert_called_once()
+        server.queue.assert_called_once_with(build_http_request(
+            b'GET', b'/get',
+            headers={
+                b'Host': b'example.org',
+                b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
+            }
+        ))
+
+        # Server write
+        self.protocol_handler.run_once()
+        server.flush.assert_called_once()
+
+        # Server read
+        server_response = build_http_response(
+            httpStatusCodes.OK,
+            reason=b'OK',
+            body=b'Original Response From Upstream'
+        )
+        server.recv.return_value = memoryview(server_response)
+        self.protocol_handler.run_once()
+
+        # Client write:
+        self._conn.send.return_value = len(server.recv.return_value)
+        self.protocol_handler.run_once()
+        self._conn.send.assert_called_once_with(server.recv.return_value)
+
+        # Server close connection:
+        server.recv.return_value = None
+        self.protocol_handler.run_once()
+        self.protocol_handler.shutdown()
+
+        with open(Path(tempfile.gettempdir()) / 'list.txt', 'rt') as cache_list:
+            cache_lines = list(cache_list)
+            self.assertEqual(len(cache_lines), 1)
+            method, host, path, body, cache_file_name = cache_lines[0].strip().split(' ')
+            self.assertEqual(method, 'GET')
+            self.assertEqual(host, 'example.org')
+            self.assertEqual(path, '/get')
+            self.assertEqual(body, 'None')
+        with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'rb') as cache_file:
+            self.assertEqual(cache_file.read(), server_response)
