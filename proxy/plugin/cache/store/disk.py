@@ -45,7 +45,7 @@ class OnDiskCacheStore(CacheStore):
 
     def get_cache_file_path(self, request: HttpParser, create: bool = False) -> str:
         request_method = text_(request.method)
-        request_host = text_(request.host)
+        request_host = text_(request.host if request.host else request.headers[b'host'][1])
         request_path = text_(request.path)
         request_body = sha512(request.body).hexdigest() if request.body else 'None'
 
