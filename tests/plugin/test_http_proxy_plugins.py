@@ -409,7 +409,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         # Setup cache:
         cache_file_name = 'test'
         with open(Path(tempfile.gettempdir()) / 'list.txt', 'wt') as cache_list:
-            cache_list.write('GET example.org /get None %s' % cache_file_name)
+            cache_list.write('GET example.org /get None %s\n' % cache_file_name)
         with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'wb') as cache_file:
             cache_file.write(cache_response)
 
