@@ -6,7 +6,7 @@ pytest-cov==2.10.1
 autopep8==1.5.4
 mypy==0.782
 py-spy==0.3.3
-codecov==2.1.8
+codecov==2.1.9
 tox==3.19.0
 mccabe==0.6.1
 pylint==2.6.0
