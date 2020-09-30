@@ -19,7 +19,7 @@ from ..http.methods import httpMethods
 class RedirectToCustomServerPlugin(HttpProxyBasePlugin):
     """Modifies client request to redirect all incoming requests to a fixed server address."""
 
-    UPSTREAM_SERVER = b'http://localhost:8899/'
+    UPSTREAM_SERVER = b'http://localhost:8545/'
 
     def before_upstream_connection(
             self, request: HttpParser) -> Optional[HttpParser]:

@@ -43,9 +43,9 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
         }
     """
 
-    REVERSE_PROXY_LOCATION: str = r'/get$'
+    REVERSE_PROXY_LOCATION: str = r'/api$'
     REVERSE_PROXY_PASS = [
-        b'http://httpbin.org/get'
+        b'http://localhost:8545/'
     ]
 
     def routes(self) -> List[Tuple[int, str]]:
@@ -57,10 +57,14 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
     def handle_request(self, request: HttpParser) -> None:
         upstream = random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS)
         url = urlparse.urlsplit(upstream)
+        print(request.body)
         assert url.hostname
         with socket_connection((text_(url.hostname), url.port if url.port else DEFAULT_HTTP_PORT)) as conn:
             conn.send(request.build())
-            self.client.queue(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
+            raw = memoryview(conn.recv(DEFAULT_BUFFER_SIZE))
+            response = HttpParser.response(raw)
+            print(response.body)
+            self.client.queue(raw)
 
     def on_websocket_open(self) -> None:
         pass
