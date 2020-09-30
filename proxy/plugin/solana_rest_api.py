@@ -251,7 +251,7 @@ class SolanaContract:
                 print('funcName:', funcName, 'callData:', data[0:8])
                 if funcName is None: raise Exception("Unknown function")
                 func = getattr(self, 'token_'+funcName)
-                func(sender, toAddress, data[8:])
+                func(toAddress, sender, data[8:])
         except:
             if trx.value:
                 senderAccount.balance += trx.value
@@ -318,13 +318,13 @@ class SolanaContract:
         return "0x0"
 
     def token_decimals(self, to, data):
-        print("Get symbol for {}".format(to))
+        print("Get decimals for {}".format(to))
         token = self.solana.tokens.get(to, None)
         if not token: return '0x'
         else: return '%064x'%token.decimals
 
     def token_symbol(self, to, data):
-        print("Get decimals for {}".format(to))
+        print("Get symbol for {}".format(to))
         token = self.solana.tokens.get(to, None)
         if not token: return '0x'
         symbol = token.symbol
@@ -333,12 +333,11 @@ class SolanaContract:
         return result
         
     def token_transfer(self, to, sender, data):
-        receiver = int(data[0:64], 16)
+        receiver = '0x'+data[24:64]
         amount = int(data[64:128], 16)
-        print('Transfer {} --{}--> {}'.format(sender, amount, receiver))
-        if not to in self.solana.tokens:
-            raise Exception("Unknown token contract")
-        token = self.solana.tokents[to]
+        print('Transfer {}: {} --{}--> {}'.format(to, sender, amount, receiver))
+        token = self.solana.tokens.get(to, None)
+        if not token: raise Exception("Unknown token contract")
         if not (sender in token.accounts and token.accounts[sender] >= amount):
             raise Exception("Unsufficient funds")
 
@@ -348,7 +347,6 @@ class SolanaContract:
             token.accounts[receiver] = amount
         else:
             token.accounts[receiver] += amount
-
 
 
 class SolanaContractTests(unittest.TestCase):
@@ -365,6 +363,9 @@ class SolanaContractTests(unittest.TestCase):
 
     def getBlockNumber(self):
         return int(self.contract.eth_blockNumber(), 16)
+
+    def getTokenBalance(self, token, account):
+        return self.solana.tokens[token].accounts.get(account, 0)
 
     def test_transferFunds(self):
         (sender, receiver, amount) = (self.owner, '0x8d900bfa2353548a4631be870f99939575551b60', 123*10**18)
@@ -384,6 +385,26 @@ class SolanaContractTests(unittest.TestCase):
         receipt = self.contract.eth_getTransactionReceipt(receiptId)
         print('Receipt:', receipt)
 
+        block = self.contract.eth_getBlockByNumber(receipt['blockNumber'], False)
+        print('Block:', block)
+
+        self.assertTrue(receiptId in block['transactions'])
+
+    def test_transferTokens(self):
+        (token, sender, receiver, amount) = ('0xb80102fd2d3d1be86823dd36f9c783ad0ee7d898', self.owner, '0xcac68f98c1893531df666f2d58243b27dd351a88', 32)
+        senderBalance = self.getTokenBalance(token, sender)
+        receiverBalance = self.getTokenBalance(token, receiver)
+        blockNumber = self.getBlockNumber()
+
+        receiptId = self.contract.eth_sendRawTransaction('0xf8b018850bdfd63e00830186a094b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000cac68f98c1893531df666f2d58243b27dd351a8800000000000000000000000000000000000000000000000000000000000000208602e92be91e86a05ed7d0093a991563153f59c785e989a466e5e83bddebd9c710362f5ee23f7dbaa023a641d304039f349546089bc0cb2a5b35e45619fd97661bd151183cb47f1a0a')
+        print('ReceiptId:', receiptId)
+
+        self.assertEqual(self.getTokenBalance(token, sender), senderBalance - amount)
+        self.assertEqual(self.getTokenBalance(token, receiver), receiverBalance + amount)
+
+        receipt = self.contract.eth_getTransactionReceipt(receiptId)
+        print('Receipt:', receipt)
+        
         block = self.contract.eth_getBlockByNumber(receipt['blockNumber'], False)
         print('Block:', block)
 
