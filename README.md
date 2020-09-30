@@ -1,3 +1,17 @@
+Python prototype for Solana MetaMask proxy. Builded on https://github.com/abhinavsingh/proxy.py.git.
+
+For run internal implementation for Ethereum tokens start proxy with:
+
+```bash
+python3 -m proxy --hostname 127.0.0.1 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1
+```
+
+Then add network `http://localhost:9090/solana` into MetaMask
+
+
+This proxy allocate initial funds for `0xc1566af4699928fdf9be097ca3dc47ece39f8f8e` (private key: `8f0d1d58f3666567524bc121717997ff7969feead15bd70b08d0e76f9accdca5`)
+
+
 [![Proxy.Py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
 [![License](https://img.shields.io/github/license/abhinavsingh/proxy.py.svg)](https://opensource.org/licenses/BSD-3-Clause)
