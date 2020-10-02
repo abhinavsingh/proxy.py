@@ -1,5 +1,5 @@
 python-coveralls==2.9.3
-coverage==5.2.1
+coverage==5.3
 flake8==3.8.3
 pytest==6.1.0
 pytest-cov==2.10.1
