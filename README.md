@@ -1,15 +1,29 @@
 Python prototype for Solana MetaMask proxy. Builded on https://github.com/abhinavsingh/proxy.py.git.
 
+Requirements (for Ubuntu 18.04):
+- python3
+- python3-venv
+- python3-dev
+- gcc
+
 For run internal implementation for Ethereum tokens start proxy with:
 
 ```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 python3 -m proxy --hostname 127.0.0.1 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1
 ```
+(for more information see [From command line using repo source](#from-command-line-using-repo-source)).
 
 Then add network `http://localhost:9090/solana` into MetaMask
 
 
-This proxy allocate initial funds for `0xc1566af4699928fdf9be097ca3dc47ece39f8f8e` (private key: `8f0d1d58f3666567524bc121717997ff7969feead15bd70b08d0e76f9accdca5`)
+This proxy allocate initial funds for `0xc1566af4699928fdf9be097ca3dc47ece39f8f8e` (private key: `8f0d1d58f3666567524bc121717997ff7969feead15bd70b08d0e76f9accdca5`).
+This funds include native and contracts tokens loaded by:
+ - 0x59a449cd7fd8fbcf34d103d98f2c05245020e35b - GLS
+ - 0x7dc13a3a38992ca6ee5c9b7562fe17701797cf3d - CYBER
+ - 0xc80102fd2d3d1be86823dd36f9c783ad0ee7d898 - KIA
 
 
 [![Proxy.Py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)

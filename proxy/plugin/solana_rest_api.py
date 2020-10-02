@@ -25,63 +25,74 @@ from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from .eth_proto import Trx as EthTrx
 
 
-b'{"id":1,"jsonrpc":"2.0","method":"eth_blockNumber","params":[]}'
-b'{"id":1,"jsonrpc":"2.0","method":"eth_blockNumber","params":[]}'
-b'{"id":2073461937540006,"jsonrpc":"2.0","method":"eth_getBalance","params":["0xc1566af4699928fdf9be097ca3dc47ece39f8f8e",null]}'
-b'{"id":2073461937540007,"jsonrpc":"2.0","method":"eth_getBalance","params":["0xcac68f98c1893531df666f2d58243b27dd351a88",null]}'
-b'{"id":2073461937540008,"jsonrpc":"2.0","method":"eth_getBalance","params":["0x2a2415585e36bdc7d4205b7831e1afecc6709011",null]}'
-b'{"id":2073461937540009,"jsonrpc":"2.0","method":"eth_getBalance","params":["0xeb529d4f2bb93a6e4b0453d7eb9a558ed75a7ce2",null]}'
-b'{"id":1,"jsonrpc":"2.0","method":"eth_blockNumber","params":[]}'
-b'{"id":2073461937540010,"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":[null,false]}'
-b'{"id":1,"jsonrpc":"2.0","method":"eth_blockNumber","params":[]}'
-b'{"id":2073461937540011,"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":[null,false]}'
-#b'{"id":"d6c43f81-7aca-470b-8c90-8a73e1d2eb0f","jsonrpc":"2.0","method":"eth_call","params":[
-#    {"to":"0xb80102fd2d3d1be86823dd36f9c783ad0ee7d898",
-#     "data":"0x70a08231000000000000000000000000c1566af4699928fdf9be097ca3dc47ece39f8f8e"},
-#     "0x1"]}'
+class Contract:
+    def __init__(self, functions):
+        self.functions = functions
 
+    def _getFunction(self, prefix, funcHash):
+        funcName = self.functions.get(funcHash, None)
+        if not funcName: raise Exception("Unknown function")
+        return getattr(self, prefix+funcName)
 
-class Token:
+    def call(self, data):
+        return self._getFunction('call_', data[0:8])(data[8:])
+
+    def execute(self, sender, data):
+        self._getFunction('execute_', data[0:8])(sender, data[8:])
+
+class TokenContract(Contract):
     def __init__(self, symbol, decimals, owner, quantity):
+        functions = {
+            '06fdde03': 'name',
+            '313ce567': 'decimals',
+            '95d89b41': 'symbol',
+            '18160ddd': 'totalSupply',
+            '70a08231': 'balanceOf',
+            'a9059cbb': 'transfer',
+        }
+        super(TokenContract, self).__init__(functions)
         self.symbol = symbol
         self.decimals = decimals
-        self.accounts = {owner: int(quantity*10**decimals)}
+        self.balances = {owner: int(quantity*10**decimals)}
+
+    def call_balanceOf(self, data):
+        balance = self.balances.get('0x'+data[24:], None)
+        return '%064x' % balance if balance else '0x0'
+
+    def call_decimals(self, data):
+        return '%064x' % self.decimals
+
+    def call_symbol(self, data):
+        result = '%064x%064x%s'%(0x20, len(self.symbol), self.symbol.encode('utf8').hex())
+        result += (64-len(result)%64)%64 * '0'
+        return result
+
+    def execute_transfer(self, sender, data):
+        receiver = '0x'+data[24:64]
+        amount = int(data[64:128], 16)
+        if not (sender in self.balances and self.balances[sender] >= amount):
+            raise Exception("Unsufficient funds")
+
+        self.balances[sender] -= amount
+        if not receiver in self.balances:
+            self.balances[receiver] = amount
+        else:
+            self.balances[receiver] += amount
+
 
 class Account:
     def __init__(self, balance):
         self.balance = balance
-        self.trxCount = 0
+        self.trxCount = 1
 
     def __repr__(self):
         return str(self.__dict__)
 
-class Solana:
-    def __init__(self):
-        owner = '0xc1566af4699928fdf9be097ca3dc47ece39f8f8e'
-        self.tokens = {
-            '0x49a449cd7fd8fbcf34d103d98f2c05245020e35b': Token('GLS', 6, owner, 1000000),
-            '0x6dc13a3a38992ca6ee5c9b7562fe17701797cf3d': Token('CYBER', 4, owner, 1000000),
-            '0xb80102fd2d3d1be86823dd36f9c783ad0ee7d898': Token('KIA', 3, owner, 100000),
-        }
-        print(self.tokens)
-        self.balances = {owner: Account(1000*10**18)}
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-solana = Solana()
-
-class JsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, bytes):
-            return obj.hex()
-        return json.JSONEncoder.default(self, obj)
-
-class Trx:
-    def __init__(self, trxId, sender, receiver):
+class Receipt:
+    def __init__(self, receiptId, sender, receiver):
         self.block = None
         self.index = None
-        self.id = trxId
+        self.id = receiptId
         self.sender = sender
         self.receiver = receiver
 
@@ -92,21 +103,34 @@ class Trx:
 class Block:
     def __init__(self, number):
         self.number = number
-        self.trxs = []
+        self.receipts = []
 
-    def addTrx(self, trx):
-        trx.initBlock(self, len(self.trxs))
-        self.trxs.append(trx)
+    def addReceipt(self, receipt):
+        receipt.initBlock(self, len(self.receipts))
+        self.receipts.append(receipt)
 
 
-class SolanaContract:
-    def __init__(self, solana = solana):
+class EthereumModel:
+    def __init__(self):
         self.receipts = {}
-        self.solana = solana
         self.blocks = [Block(1)]
         self.pending = Block(len(self.blocks)+1)
         self.trxs = {}
+
+        owner = '0xc1566af4699928fdf9be097ca3dc47ece39f8f8e'
+        self.contracts = {
+            '0x59a449cd7fd8fbcf34d103d98f2c05245020e35b': TokenContract('GLS', 6, owner, 1000000),
+            '0x7dc13a3a38992ca6ee5c9b7562fe17701797cf3d': TokenContract('CYBER', 4, owner, 1000000),
+            '0xc80102fd2d3d1be86823dd36f9c783ad0ee7d898': TokenContract('KIA', 3, owner, 100000),
+        }
+        print(self.contracts)
+        self.accounts = {owner: Account(1000*10**18)}
         pass
+
+    def _getContract(self, contractId):
+        contract = self.contracts.get(contractId)
+        if not contract: raise Exception("Unknown contract {}".format(contractId))
+        return contract
 
     def net_version(self):
         return '1600243666737'
@@ -115,9 +139,9 @@ class SolanaContract:
         self.blocks.append(self.pending)
         self.pending = Block(len(self.blocks)+1)
 
-    def addTrx(self, trx):
-        self.pending.addTrx(trx)
-        self.trxs[trx.id] = trx
+    def addReceipt(self, receipt):
+        self.pending.addReceipt(receipt)
+        self.trxs[receipt.id] = receipt
 
     def __repr__(self):
         return str(self.__dict__)
@@ -131,8 +155,8 @@ class SolanaContract:
            tag - integer block number, or the string "latest", "earliest" or "pending"
         """
         account = account.lower()
-        balance = self.solana.balances[account].balance if account in self.solana.balances else 0
-        print('GetBalance for {} equal {}'.format(account, balance))
+        account = self.accounts.get(account.lower())
+        balance = account.balance if account else 0
         return hex(balance)
 
     def eth_getBlockByNumber(self, tag, full):
@@ -147,7 +171,7 @@ class SolanaContract:
         return {
             "number": block.number,
             "gasLimit": "0x6691b7",
-            "transactions": [trx.id for trx in block.trxs],
+            "transactions": [receipt.id for receipt in block.receipts],
         }
 #       {
 #            "number":tag,
@@ -186,24 +210,12 @@ class SolanaContract:
                 data: DATA - (optional) Hash of the method signature and encoded parameters. For details see Ethereum Contract ABI in the Solidity documentation
             tag - integer block number, or the string "latest", "earliest" or "pending", see the default block parameter
         """
-        functions = {
-            '0x06fdde03': 'name',
-            '0x313ce567': 'decimals',
-            '0x95d89b41': 'symbol',
-            '0x18160ddd': 'totalSupply',
-            '0x70a08231': 'balanceOf',
-        }
-        if obj['data'] is None: raise Exception("Missing data")
-        funcName = functions.get(obj['data'][0:10], None)
-        if funcName is None: raise Exception("Unknown function")
-        func = getattr(self, 'token_'+funcName)
-        return func(obj['to'], obj['data'][10:])
+        if not obj['data']: raise Exception("Missing data")
+        return self._getContract(obj['to']).call(obj['data'][2:])
 
     def eth_getTransactionCount(self, account, tag):
-        if account in self.solana.balances:
-            return hex(self.solana.balances[account].trxCount)
-        else:
-            return '0x0'
+        account = self.accounts.get(account)
+        return hex(account.trxCount if account else 0)
 
     def eth_getTransactionReceipt(self, trxId):
         receipt = self.trxs.get(trxId, None)
@@ -222,48 +234,6 @@ class SolanaContract:
             "status":"0x1",
             "logsBloom":"0x"+'0'*512
         }
-
-    def eth_sendRawTransaction(self, rawTrx):
-        trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
-        (sender, toAddress) = ('0x'+trx.sender(), '0x'+trx.toAddress.hex())
-        print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
-        print('Sender:', sender, 'toAddress', toAddress)
-        if not sender in self.solana.balances: self.solana.balances[sender] = Account(0)
-        senderAccount = self.solana.balances[sender]
-#        if senderAccount.trxCount != trx.nonce:
-#            raise Exception("Incorrect nonce: current {}, received {}".format(senderAccount.trxCount, trx.nonce))
-
-        if trx.value:
-            if senderAccount.balance < trx.value:
-                raise Exception("Unsufficient funds")
-            if not toAddress in self.solana.balances: self.solana.balances[toAddress] = Account(0)
-            receiverAccount = self.solana.balances[toAddress]
-
-            senderAccount.balance -= trx.value
-            receiverAccount.balance += trx.value
-        try:
-            if trx.callData:
-                functions = {
-                    'a9059cbb': 'transfer',
-                }
-                data = trx.callData.hex()
-                funcName = functions.get(data[0:8], None)
-                print('funcName:', funcName, 'callData:', data[0:8])
-                if funcName is None: raise Exception("Unknown function")
-                func = getattr(self, 'token_'+funcName)
-                func(toAddress, sender, data[8:])
-        except:
-            if trx.value:
-                senderAccount.balance += trx.value
-                receiverAccount.balance -= trx.value
-            raise
-
-        receipt = '0x%064x' % len(self.trxs)      # !!!!! Strong 64-symbol length !!!!!
-        self.addTrx(Trx(receipt, sender, toAddress))
-        self.commitBlock()
-        return receipt
-#        print('Receipt:', receipt)
-#        self.receipts[receipt] = {
 #            "transactionHash":receipt,
 #            "transactionIndex":"0x0",
 #            "blockHash":receipt,
@@ -276,96 +246,64 @@ class SolanaContract:
 #            "logs":[],
 #            "status":"0x1",
 #            "logsBloom":"0x"+'0'*512
-#        }
-#        self.blockNumber += 1
-#        print('Self:', self)
-#        return receipt
-#{
-#    "id":1443458528322211,
-#    "jsonrpc":"2.0",
-#    "result":{
-#        "number":"0x18",
-#        "hash":"0xda2ebd8e23581390844cbaffeec6863759434f4ad9c273517ab31ccd2ec82f3a",
-#        "parentHash":"0x439dc6b874b18654401eb702684a1a3809f6b5e7f1ad9608b7528e2ff58c21a5",
-#        "mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000",
-#        "nonce":"0x0000000000000000",
-#        "sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
-#        "logsBloom":"0x"+'0'*512,
-#        "transactionsRoot":"0x28bdd619dfade4f0bc6f1f190d9b7522db781cd0813de9465a9b0e32f505383f",
-#        "stateRoot":"0x1a2f954dbc180f55c0c41ea656a1dd88af1fd6e96fdb38d1b7d46221e4339466",
-#        "receiptsRoot":"0x056b23fbba480696b65fe5a59b8f2148a1299103c4f57df839233af2cf4ca2d2",
-#        "miner":"0x0000000000000000000000000000000000000000",
-#        "difficulty":"0x0",
-#        "totalDifficulty":"0x0",
-#        "extraData":"0x",
-#        "size":"0x3e8",
-#        "gasLimit":"0x6691b7",
-#        "gasUsed":"0x5208",
-#        "timestamp":"0x5f72ceee",
-#        "transactions":[
-#            "0xaf4f2ad96f8e8c1bf8105e81fd050435173d7141e7703f347604fe3b1b899268"
-#        ],
-#        "uncles":[]
-#    }
-#} 
 
-    def token_balanceOf(self, to, data):
-        account = '0x'+data[24:]
-        token = to
-        print("Get {} balance in {} token".format(account, token))
-        if token in self.solana.tokens and account in self.solana.tokens[token].accounts:
-            return '%064x' % self.solana.tokens[token].accounts[account]
-        return "0x0"
+    def eth_sendRawTransaction(self, rawTrx):
+        trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
+        (sender, toAddress) = ('0x'+trx.sender(), '0x'+trx.toAddress.hex())
+        print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
+        print('Sender:', sender, 'toAddress', toAddress)
+        if not sender in self.accounts: self.accounts[sender] = Account(0)
+        senderAccount = self.accounts[sender]
+        if senderAccount.trxCount != trx.nonce:
+            raise Exception("Incorrect nonce: current {}, received {}".format(senderAccount.trxCount, trx.nonce))
+            pass
 
-    def token_decimals(self, to, data):
-        print("Get decimals for {}".format(to))
-        token = self.solana.tokens.get(to, None)
-        if not token: return '0x'
-        else: return '%064x'%token.decimals
+        if trx.value:
+            if senderAccount.balance < trx.value:
+                raise Exception("Unsufficient funds")
+            if not toAddress in self.accounts: self.accounts[toAddress] = Account(0)
+            receiverAccount = self.accounts[toAddress]
 
-    def token_symbol(self, to, data):
-        print("Get symbol for {}".format(to))
-        token = self.solana.tokens.get(to, None)
-        if not token: return '0x'
-        symbol = token.symbol
-        result = '%064x%064x%s'%(0x20, len(symbol), symbol.encode('utf8').hex())
-        result += (64-len(result)%64)%64 * '0'
-        return result
-        
-    def token_transfer(self, to, sender, data):
-        receiver = '0x'+data[24:64]
-        amount = int(data[64:128], 16)
-        print('Transfer {}: {} --{}--> {}'.format(to, sender, amount, receiver))
-        token = self.solana.tokens.get(to, None)
-        if not token: raise Exception("Unknown token contract")
-        if not (sender in token.accounts and token.accounts[sender] >= amount):
-            raise Exception("Unsufficient funds")
+            senderAccount.balance -= trx.value
+            receiverAccount.balance += trx.value
+        try:
+            if trx.callData:
+                self._getContract(toAddress).execute(sender, trx.callData.hex())
+        except:
+            if trx.value:
+                senderAccount.balance += trx.value
+                receiverAccount.balance -= trx.value
+            raise
 
-        token.accounts[sender] -= amount
+        receiptHash = '0x%064x' % len(self.trxs)      # !!!!! Strong 64-symbol length !!!!!
+        self.addReceipt(Receipt(receiptHash, sender, toAddress))
+        self.commitBlock()
+        return receiptHash
 
-        if not receiver in token.accounts:
-            token.accounts[receiver] = amount
-        else:
-            token.accounts[receiver] += amount
+
+class JsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            return obj.hex()
+        return json.JSONEncoder.default(self, obj)
 
 
 class SolanaContractTests(unittest.TestCase):
     def setUp(self):
-        self.solana = Solana()
-        self.contract = SolanaContract(self.solana)
+        self.model = EthereumModel()
         self.owner = '0xc1566af4699928fdf9be097ca3dc47ece39f8f8e'
         self.token1 = '0x49a449cd7fd8fbcf34d103d98f2c05245020e35b'
         self.assertEqual(self.getBalance(self.owner), 1000*10**18)
         self.assertEqual(self.getBalance(self.token1), 0)
 
     def getBalance(self, account):
-        return int(self.contract.eth_getBalance(account, 'latest'), 16)
+        return int(self.model.eth_getBalance(account, 'latest'), 16)
 
     def getBlockNumber(self):
-        return int(self.contract.eth_blockNumber(), 16)
+        return int(self.model.eth_blockNumber(), 16)
 
     def getTokenBalance(self, token, account):
-        return self.solana.tokens[token].accounts.get(account, 0)
+        return self.model.contracts[token].balances.get(account, 0)
 
     def test_transferFunds(self):
         (sender, receiver, amount) = (self.owner, '0x8d900bfa2353548a4631be870f99939575551b60', 123*10**18)
@@ -373,19 +311,17 @@ class SolanaContractTests(unittest.TestCase):
         receiverBalance = self.getBalance(receiver)
         blockNumber = self.getBlockNumber()
 
-        receiptId = self.contract.eth_sendRawTransaction('0xf8730a85174876e800825208948d900bfa2353548a4631be870f99939575551b608906aaf7c8516d0c0000808602e92be91e86a040a2a5d73931f66185e8526f09c4d0dc1f389c1b9fcd5e37a012839e6c5c70f0a00554615806c3fa7dc7c8096b3bfed5a29354045e56982bdf3ee11f649e53d51e')
-        print('Self.solana', self.solana)
-        print('Solana', solana)
+        receiptId = self.model.eth_sendRawTransaction('0xf8730a85174876e800825208948d900bfa2353548a4631be870f99939575551b608906aaf7c8516d0c0000808602e92be91e86a040a2a5d73931f66185e8526f09c4d0dc1f389c1b9fcd5e37a012839e6c5c70f0a00554615806c3fa7dc7c8096b3bfed5a29354045e56982bdf3ee11f649e53d51e')
         print('ReceiptId:', receiptId)
         
         self.assertEqual(self.getBalance(sender), senderBalance - amount)
         self.assertEqual(self.getBalance(receiver), receiverBalance + amount)
         self.assertEqual(self.getBlockNumber(), blockNumber+1)
 
-        receipt = self.contract.eth_getTransactionReceipt(receiptId)
+        receipt = self.model.eth_getTransactionReceipt(receiptId)
         print('Receipt:', receipt)
 
-        block = self.contract.eth_getBlockByNumber(receipt['blockNumber'], False)
+        block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
         print('Block:', block)
 
         self.assertTrue(receiptId in block['transactions'])
@@ -396,16 +332,16 @@ class SolanaContractTests(unittest.TestCase):
         receiverBalance = self.getTokenBalance(token, receiver)
         blockNumber = self.getBlockNumber()
 
-        receiptId = self.contract.eth_sendRawTransaction('0xf8b018850bdfd63e00830186a094b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000cac68f98c1893531df666f2d58243b27dd351a8800000000000000000000000000000000000000000000000000000000000000208602e92be91e86a05ed7d0093a991563153f59c785e989a466e5e83bddebd9c710362f5ee23f7dbaa023a641d304039f349546089bc0cb2a5b35e45619fd97661bd151183cb47f1a0a')
+        receiptId = self.model.eth_sendRawTransaction('0xf8b018850bdfd63e00830186a094b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000cac68f98c1893531df666f2d58243b27dd351a8800000000000000000000000000000000000000000000000000000000000000208602e92be91e86a05ed7d0093a991563153f59c785e989a466e5e83bddebd9c710362f5ee23f7dbaa023a641d304039f349546089bc0cb2a5b35e45619fd97661bd151183cb47f1a0a')
         print('ReceiptId:', receiptId)
 
         self.assertEqual(self.getTokenBalance(token, sender), senderBalance - amount)
         self.assertEqual(self.getTokenBalance(token, receiver), receiverBalance + amount)
 
-        receipt = self.contract.eth_getTransactionReceipt(receiptId)
+        receipt = self.model.eth_getTransactionReceipt(receiptId)
         print('Receipt:', receipt)
         
-        block = self.contract.eth_getBlockByNumber(receipt['blockNumber'], False)
+        block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
         print('Block:', block)
 
         self.assertTrue(receiptId in block['transactions'])
@@ -423,13 +359,13 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
 
     def __init__(self, *args):
         HttpWebServerBasePlugin.__init__(self, *args)
-        self.contract = SolanaProxyPlugin.getContract()
+        self.model = SolanaProxyPlugin.getModel()
 
     @classmethod
-    def getContract(cls):
-        if not hasattr(cls, 'contractInstance'):
-            cls.contractInstance = SolanaContract()
-        return cls.contractInstance
+    def getModel(cls):
+        if not hasattr(cls, 'modelInstance'):
+            cls.modelInstance = EthereumModel()
+        return cls.modelInstance
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
@@ -443,14 +379,14 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         res = {'id':req['id'], 'jsonrpc':'2.0'}
 
         try:
-            method = getattr(self.contract, req['method'])
+            method = getattr(self.model, req['method'])
             res['result'] = method(*req['params'])
         except Exception as err:
             res['error'] = {'code': -32000, 'message': str(err)}
-            with socket_connection(('localhost', 8545)) as conn:
-                conn.send(request.build())
-                orig = HttpParser.response(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
-                print('- ', orig.body.decode('utf8'))
+#            with socket_connection(('localhost', 8545)) as conn:
+#                conn.send(request.build())
+#                orig = HttpParser.response(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
+#                print('- ', orig.body.decode('utf8'))
         
         print('> ', json.dumps(res))
 
