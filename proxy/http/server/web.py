@@ -26,10 +26,21 @@ from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..plugin import HttpProtocolHandlerPlugin
 
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.constants import PROXY_AGENT_HEADER_VALUE
+from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
 from ...common.types import Readables, Writables
+from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--static-server-dir',
+    type=str,
+    default=DEFAULT_STATIC_SERVER_DIR,
+    help='Default: "public" folder in directory where proxy.py is placed. '
+    'This option is only applicable when static server is also enabled. '
+    'See --enable-static-server.'
+)
 
 
 class HttpWebServerPlugin(HttpProtocolHandlerPlugin):

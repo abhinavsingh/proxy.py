@@ -19,8 +19,19 @@ from ..server import HttpWebServerBasePlugin, httpProtocolTypes
 
 from ...common.utils import bytes_, text_
 from ...core.event import EventSubscriber
+from ...common.flag import flags
+from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--devtools-ws-path',
+    type=str,
+    default=DEFAULT_DEVTOOLS_WS_PATH,
+    help='Default: /devtools.  Only applicable '
+    'if --enable-devtools is used.'
+)
 
 
 class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):

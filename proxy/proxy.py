@@ -21,8 +21,17 @@ from .common.utils import bytes_
 from .common.flags import Flags
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
+from .common.flag import flags
+from .common.constants import DEFAULT_PID_FILE
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--pid-file',
+    type=str,
+    default=DEFAULT_PID_FILE,
+    help='Default: None. Save parent process ID to a file.')
 
 
 class Proxy:

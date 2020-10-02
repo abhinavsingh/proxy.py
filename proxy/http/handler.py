@@ -29,8 +29,37 @@ from ..common.utils import wrap_socket
 from ..core.acceptor.work import Work
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
+from ..common.flag import flags
+from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
+
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--client-recvbuf-size',
+    type=int,
+    default=DEFAULT_CLIENT_RECVBUF_SIZE,
+    help='Default: 1 MB. Maximum amount of data received from the '
+    'client in a single recv() operation. Bump this '
+    'value for faster uploads at the expense of '
+    'increased RAM.')
+flags.add_argument(
+    '--key-file',
+    type=str,
+    default=DEFAULT_KEY_FILE,
+    help='Default: None. Server key file to enable end-to-end TLS encryption with clients. '
+    'If used, must also pass --cert-file.'
+)
+flags.add_argument(
+    '--timeout',
+    type=int,
+    default=DEFAULT_TIMEOUT,
+    help='Default: ' + str(DEFAULT_TIMEOUT) +
+    '.  Number of seconds after which '
+    'an inactive connection must be dropped.  Inactivity is defined by no '
+    'data sent or received by the client.'
+)
 
 
 class HttpProtocolHandler(Work):

@@ -16,6 +16,23 @@ from .protocols import httpProtocolTypes
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
 from ...common.utils import bytes_, text_, build_http_response
+from ...common.flag import flags
+from ...common.constants import DEFAULT_PAC_FILE, DEFAULT_PAC_FILE_URL_PATH
+
+
+flags.add_argument(
+    '--pac-file',
+    type=str,
+    default=DEFAULT_PAC_FILE,
+    help='A file (Proxy Auto Configuration) or string to serve when '
+    'the server receives a direct file request. '
+    'Using this option enables proxy.HttpWebServerPlugin.')
+flags.add_argument(
+    '--pac-file-url-path',
+    type=str,
+    default=text_(DEFAULT_PAC_FILE_URL_PATH),
+    help='Default: %s. Web server path to serve the PAC file.' %
+    text_(DEFAULT_PAC_FILE_URL_PATH))
 
 
 class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
