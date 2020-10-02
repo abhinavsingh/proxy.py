@@ -1,5 +1,5 @@
 python-coveralls==2.9.3
-coverage==5.2.1
+coverage==5.3
 flake8==3.8.3
 pytest==6.1.0
 pytest-cov==2.10.1
@@ -7,7 +7,7 @@ autopep8==1.5.4
 mypy==0.782
 py-spy==0.3.3
 codecov==2.1.9
-tox==3.19.0
+tox==3.20.0
 mccabe==0.6.1
 pylint==2.6.0
 rope==0.17.0
