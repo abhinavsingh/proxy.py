@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import multiprocessing
 import tempfile
 from typing import Any
 
@@ -18,9 +17,6 @@ from .base import BaseCacheResponsesPlugin
 
 class CacheResponsesPlugin(BaseCacheResponsesPlugin):
     """Caches response using OnDiskCacheStore."""
-
-    # Dynamically enable / disable cache
-    ENABLED = multiprocessing.Event()
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)

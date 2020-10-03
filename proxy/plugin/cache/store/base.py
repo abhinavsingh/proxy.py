@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 from abc import ABC, abstractmethod
-from typing import Optional
 from uuid import UUID
 from ....http.parser import HttpParser
 
@@ -24,7 +23,11 @@ class CacheStore(ABC):
         pass
 
     @abstractmethod
-    def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
+    def is_cached(self, request: HttpParser) -> bool:
+        pass
+
+    @abstractmethod
+    def cache_request(self, request: HttpParser) -> HttpParser:
         return request
 
     @abstractmethod
