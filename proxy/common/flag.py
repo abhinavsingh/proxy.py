@@ -17,11 +17,18 @@ __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 
 
 class FlagParser:
-    """An abstract container for defining command line flags.
+    """Wrapper around argparse module.
 
-    Unlike `flags.Flags` class, FlagParser class doesn't contain any pre-defined flags.
-    proxy.py core and plugin classes must import flag.flags and call add_argument to
-    define their own flags.
+    proxy.py core and plugin classes must import `flag.flags` and
+    use `add_argument` to define their own flags within respective
+    class files.
+
+    Best Practice:
+    1. Define flags at the top of your class files.
+    2. DO NOT add flags within your class `__init__` method OR
+       within class methods.  It MAY result into runtime exception,
+       especially if your class is initialized multiple times or if
+       class method registering the flag gets invoked multiple times.
     """
 
     def __init__(self) -> None:
@@ -31,10 +38,12 @@ class FlagParser:
         )
 
     def add_argument(self, *args: Any, **kwargs: Any) -> None:
+        """Register a flag."""
         self.parser.add_argument(*args, **kwargs)
 
     def parse_args(
             self, input_args: Optional[List[str]]) -> argparse.Namespace:
+        """Parse flags from input arguments."""
         return self.parser.parse_args(input_args)
 
 

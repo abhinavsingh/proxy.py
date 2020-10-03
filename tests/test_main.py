@@ -16,8 +16,8 @@ import os
 from unittest import mock
 from typing import List
 
-from proxy.proxy import main
-from proxy.common.flags import Flags
+from proxy.proxy import main, Proxy
+from proxy.common.flag import flags
 from proxy.common.utils import bytes_
 from proxy.http.handler import HttpProtocolHandler
 
@@ -28,7 +28,7 @@ from proxy.common.constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS
 from proxy.common.constants import DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT
 from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
-from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE
+from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, PY2_DEPRECATION_MESSAGE
 from proxy.common.version import __version__
 
 
@@ -82,17 +82,14 @@ class TestMain(unittest.TestCase):
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args: List[str] = []
-        flags = Flags.initialize(input_args=input_args)
-        mock_flags.initialize = lambda *args, **kwargs: flags
-
-        main()
+        main(input_args)
 
         mock_logging_config.assert_called_with(
             level=logging.INFO,
             format=DEFAULT_LOG_FORMAT
         )
         mock_acceptor_pool.assert_called_with(
-            flags=flags,
+            flags=mock_flags.return_value,
             work_klass=HttpProtocolHandler,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
@@ -103,23 +100,20 @@ class TestMain(unittest.TestCase):
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
-    @mock.patch('proxy.proxy.Flags.init_parser')
     @mock.patch('proxy.proxy.AcceptorPool')
     def test_pid_file_is_written_and_removed(
             self,
             mock_acceptor_pool: mock.Mock,
-            mock_init_parser: mock.Mock,
             mock_open: mock.Mock,
             mock_exists: mock.Mock,
             mock_remove: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         pid_file = get_temp_file('pid')
         mock_sleep.side_effect = KeyboardInterrupt()
-        mock_args = mock_init_parser.return_value.parse_args.return_value
+        mock_args = flags.parse_args([])
         self.mock_default_args(mock_args)
         mock_args.pid_file = pid_file
         main(['--pid-file', pid_file])
-        mock_init_parser.assert_called()
         mock_acceptor_pool.assert_called()
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_open.assert_called_with(pid_file, 'wb')
@@ -129,54 +123,46 @@ class TestMain(unittest.TestCase):
         mock_remove.assert_called_with(pid_file)
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.proxy.Flags')
     @mock.patch('proxy.proxy.AcceptorPool')
     def test_basic_auth(
             self,
             mock_acceptor_pool: mock.Mock,
-            mock_flags: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args = ['--basic-auth', 'user:pass']
-        flags = Flags.initialize(input_args=input_args)
-        mock_flags.initialize = lambda *args, **kwargs: flags
+        flgs = Proxy.initialize(input_args)
 
         main(input_args=input_args)
-        mock_acceptor_pool.assert_called_with(
-            flags=flags,
-            work_klass=HttpProtocolHandler)
+        mock_acceptor_pool.assert_called_once()
         self.assertEqual(
-            flags.auth_code,
+            flgs.auth_code,
             b'Basic dXNlcjpwYXNz')
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')
-    @mock.patch('proxy.proxy.Flags')
     @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.proxy.Flags.is_py3')
+    @mock.patch('proxy.proxy.Proxy.is_py3')
     def test_main_py3_runs(
             self,
             mock_is_py3: mock.Mock,
             mock_acceptor_pool: mock.Mock,
-            mock_flags: mock.Mock,
             mock_print: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args = ['--basic-auth', 'user:pass']
-        flags = Flags.initialize(input_args=input_args)
-        mock_flags.initialize = lambda *args, **kwargs: flags
-
         mock_is_py3.return_value = True
-        main(num_workers=1)
+
+        main(input_args, num_workers=1)
+
         mock_is_py3.assert_called()
         mock_print.assert_not_called()
-        mock_acceptor_pool.assert_called()
+        mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called()
 
     @mock.patch('builtins.print')
-    @mock.patch('proxy.proxy.Flags.is_py3')
+    @mock.patch('proxy.proxy.Proxy.is_py3')
     def test_main_py2_exit(
             self,
             mock_is_py3: mock.Mock,
@@ -184,15 +170,7 @@ class TestMain(unittest.TestCase):
         mock_is_py3.return_value = False
         with self.assertRaises(SystemExit) as e:
             main(num_workers=1)
-        mock_print.assert_called_with(
-            'DEPRECATION: "develop" branch no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
-            'If for some reasons you cannot upgrade, consider using "master" branch or simply '
-            '"pip install proxy.py==0.3".'
-            '\n\n'
-            'DEPRECATION: Python 2.7 will reach the end of its life on January 1st, 2020. '
-            'Please upgrade your Python as Python 2.7 won\'t be maintained after that date. '
-            'A future version of pip will drop support for Python 2.7.'
-        )
+        mock_print.assert_called_with(PY2_DEPRECATION_MESSAGE)
         self.assertEqual(e.exception.code, 1)
         mock_is_py3.assert_called()
 
