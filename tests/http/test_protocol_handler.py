@@ -15,6 +15,7 @@ import base64
 from typing import cast
 from unittest import mock
 
+from proxy.proxy import Proxy
 from proxy.common.version import __version__
 from proxy.common.flags import Flags
 from proxy.common.utils import bytes_
@@ -40,7 +41,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         self.http_server_port = 65535
         self.flags = Flags()
-        self.flags.plugins = Flags.load_plugins([
+        self.flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
         ])
@@ -175,7 +176,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = Flags.load_plugins([
+        flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
         ])
@@ -209,7 +210,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = Flags.load_plugins([
+        flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
         ])
@@ -259,7 +260,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = Flags(
             auth_code=b'Basic %s' %
                       base64.b64encode(b'user:pass'))
-        flags.plugins = Flags.load_plugins([
+        flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin'
         ])
