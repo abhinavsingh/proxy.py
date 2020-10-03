@@ -8,12 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import logging
 import os
 import socket
 import multiprocessing
 
-from typing import Optional, Dict, List, TypeVar
+from typing import Optional, Dict, List
 
 from .types import IpAddress
 from .constants import DEFAULT_BACKLOG, DEFAULT_BASIC_AUTH
@@ -24,10 +23,6 @@ from .constants import DEFAULT_PAC_FILE_URL_PATH, DEFAULT_PAC_FILE, DEFAULT_PID_
 from .constants import DEFAULT_IPV6_HOSTNAME
 from .constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR
 from .constants import DEFAULT_DATA_DIRECTORY_PATH
-
-logger = logging.getLogger(__name__)
-
-T = TypeVar('T', bound='Flags')
 
 
 class Flags:

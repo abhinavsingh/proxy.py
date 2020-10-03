@@ -32,19 +32,24 @@ class FlagParser:
     """
 
     def __init__(self) -> None:
+        self.args: Optional[argparse.Namespace] = None
+        self.actions: List[str] = []
         self.parser = argparse.ArgumentParser(
             description='proxy.py v%s' % __version__,
             epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
         )
 
-    def add_argument(self, *args: Any, **kwargs: Any) -> None:
+    def add_argument(self, *args: Any, **kwargs: Any) -> argparse.Action:
         """Register a flag."""
-        self.parser.add_argument(*args, **kwargs)
+        action = self.parser.add_argument(*args, **kwargs)
+        self.actions.append(action.dest)
+        return action
 
     def parse_args(
             self, input_args: Optional[List[str]]) -> argparse.Namespace:
         """Parse flags from input arguments."""
-        return self.parser.parse_args(input_args)
+        self.args = self.parser.parse_args(input_args)
+        return self.args
 
 
 flags = FlagParser()

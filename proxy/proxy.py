@@ -206,6 +206,7 @@ class Proxy:
             auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
 
         return Flags(
+            plugins=plugins,
             auth_code=cast(Optional[bytes], opts.get('auth_code', auth_code)),
             server_recvbuf_size=cast(
                 int,
@@ -278,7 +279,6 @@ class Proxy:
                 opts.get(
                     'enable_events',
                     args.enable_events)),
-            plugins=plugins,
             pid_file=cast(Optional[str], opts.get('pid_file', args.pid_file))
         )
 
