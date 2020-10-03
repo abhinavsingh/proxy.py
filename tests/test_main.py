@@ -17,7 +17,6 @@ from unittest import mock
 from typing import List
 
 from proxy.proxy import main, Proxy
-from proxy.common.flag import flags
 from proxy.common.utils import bytes_
 from proxy.http.handler import HttpProtocolHandler
 
@@ -101,8 +100,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
     @mock.patch('proxy.proxy.AcceptorPool')
+    @mock.patch('proxy.common.flag.FlagParser.parse_args')
     def test_pid_file_is_written_and_removed(
             self,
+            mock_parse_args: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_open: mock.Mock,
             mock_exists: mock.Mock,
@@ -110,7 +111,7 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock) -> None:
         pid_file = get_temp_file('pid')
         mock_sleep.side_effect = KeyboardInterrupt()
-        mock_args = flags.parse_args([])
+        mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.pid_file = pid_file
         main(['--pid-file', pid_file])
