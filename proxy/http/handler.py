@@ -82,11 +82,15 @@ class HttpProtocolHandler(Work):
         self.client: TcpClientConnection = client
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 
+    def encryption_enabled(self) -> bool:
+        return self.flags.keyfile is not None and \
+            self.flags.certfile is not None
+
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
-        if self.flags.encryption_enabled():
+        if self.encryption_enabled():
             self.client = TcpClientConnection(conn=conn, addr=self.client.addr)
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
@@ -173,7 +177,7 @@ class HttpProtocolHandler(Work):
 
             conn = self.client.connection
             # Unwrap if wrapped before shutdown.
-            if self.flags.encryption_enabled() and \
+            if self.encryption_enabled() and \
                     isinstance(self.client.connection, ssl.SSLSocket):
                 conn = self.client.connection.unwrap()
             conn.shutdown(socket.SHUT_WR)
@@ -191,7 +195,7 @@ class HttpProtocolHandler(Work):
 
         Shutdown and closes client connection upon error.
         """
-        if self.flags.encryption_enabled():
+        if self.encryption_enabled():
             assert self.flags.keyfile and self.flags.certfile
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn

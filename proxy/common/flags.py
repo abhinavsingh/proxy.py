@@ -25,8 +25,6 @@ from .constants import DEFAULT_IPV6_HOSTNAME
 from .constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_STATIC_SERVER_DIR
 from .constants import DEFAULT_DATA_DIRECTORY_PATH
 
-__homepage__ = 'https://github.com/abhinavsingh/proxy.py'
-
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T', bound='Flags')
@@ -101,13 +99,3 @@ class Flags:
             self.ca_cert_dir = os.path.join(
                 self.proxy_py_data_dir, 'certificates')
             os.makedirs(self.ca_cert_dir, exist_ok=True)
-
-    def tls_interception_enabled(self) -> bool:
-        return self.ca_key_file is not None and \
-            self.ca_cert_dir is not None and \
-            self.ca_signing_key_file is not None and \
-            self.ca_cert_file is not None
-
-    def encryption_enabled(self) -> bool:
-        return self.keyfile is not None and \
-            self.certfile is not None

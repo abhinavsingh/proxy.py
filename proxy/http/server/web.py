@@ -84,6 +84,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 for (protocol, route) in instance.routes():
                     self.routes[protocol][re.compile(route)] = instance
 
+    def encryption_enabled(self) -> bool:
+        return self.flags.keyfile is not None and \
+            self.flags.certfile is not None
+
     @staticmethod
     def read_and_build_static_file_response(path: str) -> memoryview:
         with open(path, 'rb') as f:
@@ -157,7 +161,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
-            if self.flags.encryption_enabled() else \
+            if self.encryption_enabled() else \
             httpProtocolTypes.HTTP
         for route in self.routes[protocol]:
             match = route.match(text_(self.request.path))
