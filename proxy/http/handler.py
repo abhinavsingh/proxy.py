@@ -29,8 +29,37 @@ from ..common.utils import wrap_socket
 from ..core.acceptor.work import Work
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
+from ..common.flag import flags
+from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
+
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--client-recvbuf-size',
+    type=int,
+    default=DEFAULT_CLIENT_RECVBUF_SIZE,
+    help='Default: 1 MB. Maximum amount of data received from the '
+    'client in a single recv() operation. Bump this '
+    'value for faster uploads at the expense of '
+    'increased RAM.')
+flags.add_argument(
+    '--key-file',
+    type=str,
+    default=DEFAULT_KEY_FILE,
+    help='Default: None. Server key file to enable end-to-end TLS encryption with clients. '
+    'If used, must also pass --cert-file.'
+)
+flags.add_argument(
+    '--timeout',
+    type=int,
+    default=DEFAULT_TIMEOUT,
+    help='Default: ' + str(DEFAULT_TIMEOUT) +
+    '.  Number of seconds after which '
+    'an inactive connection must be dropped.  Inactivity is defined by no '
+    'data sent or received by the client.'
+)
 
 
 class HttpProtocolHandler(Work):
@@ -53,11 +82,15 @@ class HttpProtocolHandler(Work):
         self.client: TcpClientConnection = client
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 
+    def encryption_enabled(self) -> bool:
+        return self.flags.keyfile is not None and \
+            self.flags.certfile is not None
+
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
-        if self.flags.encryption_enabled():
+        if self.encryption_enabled():
             self.client = TcpClientConnection(conn=conn, addr=self.client.addr)
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
@@ -144,7 +177,7 @@ class HttpProtocolHandler(Work):
 
             conn = self.client.connection
             # Unwrap if wrapped before shutdown.
-            if self.flags.encryption_enabled() and \
+            if self.encryption_enabled() and \
                     isinstance(self.client.connection, ssl.SSLSocket):
                 conn = self.client.connection.unwrap()
             conn.shutdown(socket.SHUT_WR)
@@ -162,7 +195,7 @@ class HttpProtocolHandler(Work):
 
         Shutdown and closes client connection upon error.
         """
-        if self.flags.encryption_enabled():
+        if self.encryption_enabled():
             assert self.flags.keyfile and self.flags.certfile
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn

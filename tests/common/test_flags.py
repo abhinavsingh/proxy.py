@@ -12,7 +12,7 @@ import unittest
 
 from typing import List, Dict
 
-from proxy.common.flags import Flags
+from proxy.proxy import Proxy
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.plugin import CacheResponsesPlugin
 from proxy.plugin import FilterByUpstreamHostPlugin
@@ -28,13 +28,13 @@ class TestFlags(unittest.TestCase):
                     len([o for o in self.flags.plugins[k.encode()] if o == p]), 1)
 
     def test_load_plugin_from_bytes(self) -> None:
-        self.flags = Flags.initialize([], plugins=[
+        self.flags = Proxy.initialize([], plugins=[
             b'proxy.plugin.CacheResponsesPlugin',
         ])
         self.assert_plugins({'HttpProxyBasePlugin': [CacheResponsesPlugin]})
 
     def test_load_plugins_from_bytes(self) -> None:
-        self.flags = Flags.initialize([], plugins=[
+        self.flags = Proxy.initialize([], plugins=[
             b'proxy.plugin.CacheResponsesPlugin',
             b'proxy.plugin.FilterByUpstreamHostPlugin',
         ])
@@ -44,13 +44,13 @@ class TestFlags(unittest.TestCase):
         ]})
 
     def test_load_plugin_from_args(self) -> None:
-        self.flags = Flags.initialize([
+        self.flags = Proxy.initialize([
             '--plugins', 'proxy.plugin.CacheResponsesPlugin',
         ])
         self.assert_plugins({'HttpProxyBasePlugin': [CacheResponsesPlugin]})
 
     def test_load_plugins_from_args(self) -> None:
-        self.flags = Flags.initialize([
+        self.flags = Proxy.initialize([
             '--plugins', 'proxy.plugin.CacheResponsesPlugin,proxy.plugin.FilterByUpstreamHostPlugin',
         ])
         self.assert_plugins({'HttpProxyBasePlugin': [
@@ -59,13 +59,13 @@ class TestFlags(unittest.TestCase):
         ]})
 
     def test_load_plugin_from_class(self) -> None:
-        self.flags = Flags.initialize([], plugins=[
+        self.flags = Proxy.initialize([], plugins=[
             CacheResponsesPlugin,
         ])
         self.assert_plugins({'HttpProxyBasePlugin': [CacheResponsesPlugin]})
 
     def test_load_plugins_from_class(self) -> None:
-        self.flags = Flags.initialize([], plugins=[
+        self.flags = Proxy.initialize([], plugins=[
             CacheResponsesPlugin,
             FilterByUpstreamHostPlugin,
         ])
@@ -75,7 +75,7 @@ class TestFlags(unittest.TestCase):
         ]})
 
     def test_load_plugins_from_bytes_and_class(self) -> None:
-        self.flags = Flags.initialize([], plugins=[
+        self.flags = Proxy.initialize([], plugins=[
             CacheResponsesPlugin,
             b'proxy.plugin.FilterByUpstreamHostPlugin',
         ])
@@ -85,7 +85,7 @@ class TestFlags(unittest.TestCase):
         ]})
 
     def test_unique_plugin_from_bytes(self) -> None:
-        self.flags = Flags.initialize([], plugins=[
+        self.flags = Proxy.initialize([], plugins=[
             b'proxy.http.proxy.HttpProxyPlugin',
         ])
         self.assert_plugins({'HttpProtocolHandlerPlugin': [
@@ -93,7 +93,7 @@ class TestFlags(unittest.TestCase):
         ]})
 
     def test_unique_plugin_from_args(self) -> None:
-        self.flags = Flags.initialize([
+        self.flags = Proxy.initialize([
             '--plugins', 'proxy.http.proxy.HttpProxyPlugin',
         ])
         self.assert_plugins({'HttpProtocolHandlerPlugin': [
@@ -101,7 +101,7 @@ class TestFlags(unittest.TestCase):
         ]})
 
     def test_unique_plugin_from_class(self) -> None:
-        self.flags = Flags.initialize([], plugins=[
+        self.flags = Proxy.initialize([], plugins=[
             HttpProxyPlugin,
         ])
         self.assert_plugins({'HttpProtocolHandlerPlugin': [

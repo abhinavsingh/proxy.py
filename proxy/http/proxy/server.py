@@ -26,14 +26,75 @@ from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..methods import httpMethods
 
 from ...common.types import Readables, Writables
-from ...common.constants import PROXY_AGENT_HEADER_VALUE
+from ...common.constants import COMMA, DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE, DEFAULT_SERVER_RECVBUF_SIZE
+from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CERT_FILE
+from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
 from ...core.connection import TcpServerConnection, TcpConnectionUninitializedException
+from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--ca-key-file',
+    type=str,
+    default=DEFAULT_CA_KEY_FILE,
+    help='Default: None. CA key to use for signing dynamically generated '
+    'HTTPS certificates.  If used, must also pass --ca-cert-file and --ca-signing-key-file'
+)
+flags.add_argument(
+    '--ca-cert-dir',
+    type=str,
+    default=DEFAULT_CA_CERT_DIR,
+    help='Default: ~/.proxy.py. Directory to store dynamically generated certificates. '
+    'Also see --ca-key-file, --ca-cert-file and --ca-signing-key-file'
+)
+flags.add_argument(
+    '--ca-cert-file',
+    type=str,
+    default=DEFAULT_CA_CERT_FILE,
+    help='Default: None. Signing certificate to use for signing dynamically generated '
+    'HTTPS certificates.  If used, must also pass --ca-key-file and --ca-signing-key-file'
+)
+flags.add_argument(
+    '--ca-file',
+    type=str,
+    default=DEFAULT_CA_FILE,
+    help='Default: None. Provide path to custom CA file for peer certificate validation. '
+    'Specially useful on MacOS.'
+)
+flags.add_argument(
+    '--ca-signing-key-file',
+    type=str,
+    default=DEFAULT_CA_SIGNING_KEY_FILE,
+    help='Default: None. CA signing key to use for dynamic generation of '
+    'HTTPS certificates.  If used, must also pass --ca-key-file and --ca-cert-file'
+)
+flags.add_argument(
+    '--cert-file',
+    type=str,
+    default=DEFAULT_CERT_FILE,
+    help='Default: None. Server certificate to enable end-to-end TLS encryption with clients. '
+    'If used, must also pass --key-file.'
+)
+flags.add_argument(
+    '--disable-headers',
+    type=str,
+    default=COMMA.join(DEFAULT_DISABLE_HEADERS),
+    help='Default: None.  Comma separated list of headers to remove before '
+    'dispatching client request to upstream server.')
+flags.add_argument(
+    '--server-recvbuf-size',
+    type=int,
+    default=DEFAULT_SERVER_RECVBUF_SIZE,
+    help='Default: 1 MB. Maximum amount of data received from the '
+    'server in a single recv() operation. Bump this '
+    'value for faster downloads at the expense of '
+    'increased RAM.')
 
 
 class HttpProxyPlugin(HttpProtocolHandlerPlugin):
@@ -67,6 +128,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.client,
                     self.event_queue)
                 self.plugins[instance.name()] = instance
+
+    def tls_interception_enabled(self) -> bool:
+        return self.flags.ca_key_file is not None and \
+            self.flags.ca_cert_dir is not None and \
+            self.flags.ca_signing_key_file is not None and \
+            self.flags.ca_cert_file is not None
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
@@ -149,7 +216,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 # See https://github.com/abhinavsingh/proxy.py/issues/127 for why
                 # currently response parsing is disabled when TLS interception is enabled.
                 #
-                # or self.config.tls_interception_enabled():
+                # or self.tls_interception_enabled():
                 if self.response.state == httpParserStates.COMPLETE:
                     self.handle_pipeline_response(raw)
                 else:
@@ -212,7 +279,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.server and not self.server.closed:
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
-                    self.flags.tls_interception_enabled()):
+                    self.tls_interception_enabled()):
                 if self.pipeline_request is not None and \
                         self.pipeline_request.is_connection_upgrade():
                     # Previous pipelined request was a WebSocket
@@ -282,7 +349,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled
-            if self.flags.tls_interception_enabled():
+            if self.tls_interception_enabled():
                 # Perform SSL/TLS handshake with upstream
                 self.wrap_server()
                 # Generate certificate and perform handshake with client

@@ -24,18 +24,36 @@ from .threadless import Threadless
 
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
+from ...common.constants import DEFAULT_THREADLESS
 from ...common.flags import Flags
+from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--threadless',
+    action='store_true',
+    default=DEFAULT_THREADLESS,
+    help='Default: False.  When disabled a new thread is spawned '
+    'to handle each client connection.'
+)
 
 
 class Acceptor(multiprocessing.Process):
     """Socket server acceptor process.
 
-    Accepts client connection over received server socket handle at startup.  Spawns a separate
-    thread to handle each client request.  However, when `--threadless` is enabled, Acceptor also
-    pre-spawns a `Threadless` process at startup.  Accepted client connections are passed to
-    `Threadless` process which internally uses asyncio event loop to handle client connections.
+    Accepts a server socket fd over `work_queue` and start listening for client
+    connections over the passed server socket. By default, it spawns a separate thread
+    to handle each client request.
+
+    However, if `--threadless` option is enabled, Acceptor process will also pre-spawns a `Threadless`
+    process at startup.  Accepted client connections are then passed to the `Threadless` process
+    which internally uses asyncio event loop to handle client connections.
+
+    TODO(abhinavsingh): Instead of starting `Threadless` process, can we work with a `Threadless` thread?
+    What are the performance implications of sharing fds between threads vs processes?  How much performance
+    degradation happen when processes are running on separate CPU cores?
     """
 
     def __init__(
