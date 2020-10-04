@@ -44,8 +44,12 @@ class TestCase(unittest.TestCase):
         cls.INPUT_ARGS.append(str(cls.PROXY_PORT))
 
         cls.PROXY = Proxy(input_args=cls.INPUT_ARGS)
-        cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(CacheResponsesPlugin)
+        cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(
+            CacheResponsesPlugin)
+        # Disable cache plugin which is enabled by default
+        print(CacheResponsesPlugin.enabled.is_set())
         CacheResponsesPlugin.enabled.clear()
+        print(CacheResponsesPlugin.enabled.is_set())
 
         cls.PROXY.__enter__()
         cls.wait_for_server(cls.PROXY_PORT)

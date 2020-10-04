@@ -185,7 +185,8 @@ class Flags:
         # Load default plugins along with user provided --plugins
         plugins = Flags.load_plugins(
             [bytes_(p) for p in collections.OrderedDict(default_plugins).keys()] +
-            [p if isinstance(p, type) else bytes_(p) for p in opts.get('plugins', args.plugins.split(text_(COMMA)))]
+            [p if isinstance(p, type) else bytes_(p) for p in opts.get(
+                'plugins', args.plugins.split(text_(COMMA)))]
         )
 
         # proxy.py currently cannot serve over HTTPS and perform TLS interception
@@ -507,7 +508,8 @@ class Flags:
                     'Open file soft limit set to %d', soft_limit)
 
     @staticmethod
-    def load_plugins(plugins: List[Union[bytes, type]]) -> Dict[bytes, List[type]]:
+    def load_plugins(plugins: List[Union[bytes, type]]
+                     ) -> Dict[bytes, List[type]]:
         """Accepts a comma separated list of Python modules and returns
         a list of respective Python classes."""
         p: Dict[bytes, List[type]] = {

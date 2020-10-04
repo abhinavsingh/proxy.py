@@ -22,6 +22,13 @@ class TestHttpParser(unittest.TestCase):
     def setUp(self) -> None:
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
+    def test_finerprint(self) -> None:
+        self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
+        self.assertEqual(self.parser.fingerprint(),
+                         'ec442a897c0657288580b4554859c282fadf4d1a78d03' +
+                         'ddce96468d23269d96060b74c714f5ceec6bfb01ea2c2' +
+                         'bc90f48b979842fc87f0675da98192ec73a0a0')
+
     def test_urlparse(self) -> None:
         self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
         self.assertEqual(self.parser.host, b'httpbin.org')

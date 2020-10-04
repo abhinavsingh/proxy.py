@@ -10,7 +10,6 @@
 """
 import unittest
 import selectors
-import tempfile
 import json
 import os
 from pathlib import Path
@@ -60,12 +59,11 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.protocol_handler.initialize()
 
     def tearDown(self) -> None:
-        tmpDir = Path(tempfile.gettempdir())
-        for f in tmpDir.glob('proxy-cache-*'):
+        # Delete cache plugin data
+        cacheDir = Path(os.path.join(self.flags.proxy_py_data_dir, 'cache'))
+        for f in cacheDir.glob('*'):
             if f.is_file():
                 os.remove(f)
-        if tmpDir.joinpath('list.txt').is_file():
-            os.remove(tmpDir / 'list.txt')
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_modify_post_data_plugin(
@@ -294,7 +292,8 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         )
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_cache_responses_plugin_cache(self, mock_server_conn: mock.Mock) -> None:
+    def test_cache_responses_plugin_cache(
+            self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
             b'GET', b'http://example.org/get',
             headers={
@@ -381,19 +380,21 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.protocol_handler.run_once()
         self.protocol_handler.shutdown()
 
-        with open(Path(tempfile.gettempdir()) / 'list.txt', 'rt') as cache_list:
+        with open(os.path.join(self.flags.proxy_py_data_dir, 'cache', 'list.txt'), 'rt') as cache_list:
             cache_lines = list(cache_list)
             self.assertEqual(len(cache_lines), 1)
-            method, host, path, body, cache_file_name = cache_lines[0].strip().split(' ')
+            method, host, path, body, cache_file_name = cache_lines[0].strip().split(
+                ' ')
             self.assertEqual(method, 'GET')
             self.assertEqual(host, 'example.org')
             self.assertEqual(path, '/get')
             self.assertEqual(body, 'None')
-        with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'rb') as cache_file:
+        with open(os.path.join(self.flags.proxy_py_data_dir, 'cache', 'proxy-cache-' + cache_file_name), 'rb') as cache_file:
             self.assertEqual(cache_file.read(), server_response)
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_cache_responses_plugin_load(self, mock_server_conn: mock.Mock) -> None:
+    def test_cache_responses_plugin_load(
+            self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
             b'GET', b'http://example.org/get',
             headers={
@@ -408,9 +409,11 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
 
         # Setup cache:
         cache_file_name = 'test'
-        with open(Path(tempfile.gettempdir()) / 'list.txt', 'wt') as cache_list:
-            cache_list.write('GET example.org /get None %s\n' % cache_file_name)
-        with open(Path(tempfile.gettempdir()) / ('proxy-cache-' + cache_file_name), 'wb') as cache_file:
+        with open(os.path.join(self.flags.proxy_py_data_dir, 'cache', 'list.txt'), 'wt') as cache_list:
+            cache_list.write(
+                'GET example.org /get None %s\n' %
+                cache_file_name)
+        with open(os.path.join(self.flags.proxy_py_data_dir, 'cache', 'proxy-cache-' + cache_file_name), 'wb') as cache_file:
             cache_file.write(cache_response)
 
         # Setup server:

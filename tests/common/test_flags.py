@@ -24,7 +24,8 @@ class TestFlags(unittest.TestCase):
             self.assertIn(k.encode(), self.flags.plugins)
             for p in expected[k]:
                 self.assertIn(p, self.flags.plugins[k.encode()])
-                self.assertEqual(len([o for o in self.flags.plugins[k.encode()] if o == p]), 1)
+                self.assertEqual(
+                    len([o for o in self.flags.plugins[k.encode()] if o == p]), 1)
 
     def test_load_plugin_from_bytes(self) -> None:
         self.flags = Flags.initialize([], plugins=[

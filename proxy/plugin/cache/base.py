@@ -23,28 +23,33 @@ from ...common.utils import build_http_response
 logger = logging.getLogger(__name__)
 
 
+class Event:
+    """Encapsulates a multiprocessing safe event."""
+    def __init__(self, enabled: bool = True) -> None:
+        self.manager = multiprocessing.Manager()
+        self.enabled = self.manager.Event()
+        if enabled:
+            self.enabled.set()
+
+    def is_set(self) -> bool:
+        return self.enabled.is_set()
+
+    def clear(self) -> None:
+        self.enabled.clear()
+
+    def set(self) -> None:
+        self.enabled.set()
+
+
 class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
     """Base cache plugin.
 
-    It requires a storage backend to work with. Storage class
-    must implement CacheStore interface.
-
-    Different storage backends can be used per request if required.
+    Cache plugin requires a storage backend to work with.
+    Storage class must implement this interface.
     """
 
-    class EnabledDescriptor:
-        def __init__(self, enabled: bool = False) -> None:
-            self.enabled = multiprocessing.Event()
-            if enabled:
-                self.enabled.set()
-
-        def __get__(self, obj: Optional[object], owner: type) -> Any:
-            if obj is None:
-                return self.enabled
-            return None
-
-    # Dynamically enable / disable cache
-    enabled = EnabledDescriptor(True)
+    # Dynamically enable or disable cache plugin
+    enabled = Event()
 
     def __init__(
             self,
@@ -52,15 +57,14 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
             **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.store: Optional[CacheStore] = None
-        self.__enabled: Optional[bool] = None
 
     def set_store(self, store: CacheStore) -> None:
         self.store = store
 
     def before_upstream_connection(
             self, request: HttpParser) -> Optional[HttpParser]:
-        self.__enabled = self.__class__.enabled.is_set()
-        if not self.__enabled:
+        print(self.enabled.is_set())
+        if not self.enabled.is_set():
             return request
 
         assert self.store
@@ -74,14 +78,15 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
             if self.store.is_cached(request):
                 return None
         except Exception as e:
-            logger.info('Caching disabled due to exception message: %s', str(e))
+            logger.info(
+                'Caching disabled due to exception message: %s',
+                str(e))
 
         return request
 
     def handle_client_request(
             self, request: HttpParser) -> Optional[HttpParser]:
-        assert self.__enabled is not None
-        if not self.__enabled:
+        if not self.enabled.is_set():
             return request
 
         assert self.store
@@ -106,7 +111,9 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
             else:
                 raise ValueError('Bad HTTPParser type: %s' % msg.type)
         except Exception as e:
-            logger.info('Caching disabled due to exception message: %s', str(e))
+            logger.info(
+                'Caching disabled due to exception message: %s',
+                str(e))
 
         try:
             if self.store.is_cached(request):
@@ -119,21 +126,21 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
                     }
                 )))
         except Exception as e:
-            logger.info('Caching disabled due to exception message: %s', str(e))
+            logger.info(
+                'Caching disabled due to exception message: %s',
+                str(e))
 
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        assert self.__enabled is not None
-        if not self.__enabled:
+        if not self.enabled.is_set():
             return chunk
 
         assert self.store
         return self.store.cache_response_chunk(chunk)
 
     def on_upstream_connection_close(self) -> None:
-        assert self.__enabled is not None
-        if not self.__enabled:
+        if not self.enabled.is_set():
             return
 
         assert self.store
