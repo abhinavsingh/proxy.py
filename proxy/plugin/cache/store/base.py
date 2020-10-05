@@ -40,6 +40,11 @@ class CacheStore(ABC):
         return chunk
 
     @abstractmethod
+    def read_response(self, request: HttpParser) -> HttpParser:
+        """Reads and return cached response from store."""
+        pass
+
+    @abstractmethod
     def close(self) -> None:
         """Close any open resources."""
         pass

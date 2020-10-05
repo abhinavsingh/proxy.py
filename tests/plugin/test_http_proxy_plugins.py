@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from proxy.http.parser import HttpParser
 import unittest
 import selectors
 import json
@@ -294,12 +295,13 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_cache_responses_plugin_cache(
             self, mock_server_conn: mock.Mock) -> None:
-        request = build_http_request(
+        request_bytes = build_http_request(
             b'GET', b'http://example.org/get',
             headers={
                 b'Host': b'example.org',
             }
         )
+        request = HttpParser.request(request_bytes)
         server_response = build_http_response(
             httpStatusCodes.OK,
             reason=b'OK',
@@ -350,7 +352,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         ]
 
         # Client read:
-        self._conn.recv.return_value = request
+        self._conn.recv.return_value = request_bytes
         self.protocol_handler.run_once()
         mock_server_conn.assert_called_with('example.org', DEFAULT_HTTP_PORT)
         server.connect.assert_called_once()
@@ -380,27 +382,22 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.protocol_handler.run_once()
         self.protocol_handler.shutdown()
 
-        with open(os.path.join(self.flags.proxy_py_data_dir, 'cache', 'list.txt'), 'rt') as cache_list:
-            cache_lines = list(cache_list)
-            self.assertEqual(len(cache_lines), 1)
-            method, host, path, body, cache_file_name = cache_lines[0].strip().split(
-                ' ')
-            self.assertEqual(method, 'GET')
-            self.assertEqual(host, 'example.org')
-            self.assertEqual(path, '/get')
-            self.assertEqual(body, 'None')
-        with open(os.path.join(self.flags.proxy_py_data_dir, 'cache', 'proxy-cache-' + cache_file_name), 'rb') as cache_file:
+        with open(os.path.join(
+                self.flags.proxy_py_data_dir,
+                'cache',
+                '.'.join([request.fingerprint(), 'cache'])), 'rb') as cache_file:
             self.assertEqual(cache_file.read(), server_response)
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_cache_responses_plugin_load(
             self, mock_server_conn: mock.Mock) -> None:
-        request = build_http_request(
+        request_bytes = build_http_request(
             b'GET', b'http://example.org/get',
             headers={
                 b'Host': b'example.org',
             }
         )
+        request = HttpParser.request(request_bytes)
         cache_response = build_http_response(
             httpStatusCodes.OK,
             reason=b'OK',
@@ -408,12 +405,10 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         )
 
         # Setup cache:
-        cache_file_name = 'test'
-        with open(os.path.join(self.flags.proxy_py_data_dir, 'cache', 'list.txt'), 'wt') as cache_list:
-            cache_list.write(
-                'GET example.org /get None %s\n' %
-                cache_file_name)
-        with open(os.path.join(self.flags.proxy_py_data_dir, 'cache', 'proxy-cache-' + cache_file_name), 'wb') as cache_file:
+        with open(os.path.join(
+                self.flags.proxy_py_data_dir,
+                'cache',
+                '.'.join([request.fingerprint(), 'cache'])), 'wb') as cache_file:
             cache_file.write(cache_response)
 
         # Setup server:
@@ -450,7 +445,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         ]
 
         # Client read:
-        self._conn.recv.return_value = request
+        self._conn.recv.return_value = request_bytes
         self.protocol_handler.run_once()
         mock_server_conn.assert_not_called()
 

@@ -9,15 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
+from proxy.common.constants import CRLF
 from typing import Optional, Any
 
 from .store.base import CacheStore
-from ...http.parser import HttpParser, httpParserTypes
+from ...http.parser import HttpParser
 from ...http.proxy import HttpProxyBasePlugin
-from ...http.codes import httpStatusCodes
-from ...common.constants import PROXY_AGENT_HEADER_VALUE
-from ...common.utils import text_
-from ...common.utils import build_http_response
 
 logger = logging.getLogger(__name__)
 
@@ -35,78 +32,67 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
             **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.store: Optional[CacheStore] = None
+        self.scheme: bytes = b'http'
 
     def set_store(self, store: CacheStore) -> None:
         self.store = store
 
     def before_upstream_connection(
             self, request: HttpParser) -> Optional[HttpParser]:
-        assert self.store
-        logger.info("Upstream connexion %s:%d %s" %
-                    (text_(request.host), request.port if request.port else 0, text_(request.path)))
+        """Avoid connection with upstream server if cached response exists.
 
-        if request.port == 443:
+        Disabled for https request when running without TLS interception.
+        """
+        assert request.url is not None
+        self.scheme = request.url.scheme
+        if self.scheme == b'https' and not self.tls_interception_enabled():
             return request
 
-        try:
-            if self.store.is_cached(request):
-                return None
-        except Exception as e:
-            logger.info(
-                'Caching disabled due to exception message: %s',
-                str(e))
-
+        assert self.store
+        if self.store.is_cached(request):
+            return None
         return request
 
     def handle_client_request(
             self, request: HttpParser) -> Optional[HttpParser]:
-        assert self.store
-        logger.info("Client request %s:%d %s" %
-                    (text_(request.host), request.port if request.port else 0, text_(request.path)))
-
-        if request.port == 443:
+        """If cached response exists, return response from cache."""
+        assert request.url is not None
+        if request.url.scheme == b'https' and not self.tls_interception_enabled():
             return request
 
-        try:
-            msg = self.store.cache_request(request)
-            if (msg.type == httpParserTypes.REQUEST_PARSER):
-                return msg
-            elif (msg.type == httpParserTypes.RESPONSE_PARSER):
-                self.client.queue(memoryview(build_http_response(
-                    int(msg.code) if msg.code is not None else 0,
-                    reason=msg.reason,
-                    headers={k: v for k, v in msg.headers.values()},
-                    body=msg.body
-                )))
-                return None
-            else:
-                raise ValueError('Bad HTTPParser type: %s' % msg.type)
-        except Exception as e:
-            logger.info(
-                'Caching disabled due to exception message: %s',
-                str(e))
-
-        try:
-            if self.store.is_cached(request):
-                self.client.queue(memoryview(build_http_response(
-                    httpStatusCodes.INTERNAL_SERVER_ERROR,
-                    reason=b'Internal server error',
-                    headers={
-                        b'Server': PROXY_AGENT_HEADER_VALUE,
-                        b'Connection': b'close',
-                    }
-                )))
-        except Exception as e:
-            logger.info(
-                'Caching disabled due to exception message: %s',
-                str(e))
-
+        assert self.store
+        if self.store.is_cached(request):
+            logger.info("Serving out of cache")
+            try:
+                self.store.open(request)
+                response = self.store.read_response(request)
+                self.client.queue(memoryview(response.build_response()))
+            finally:
+                self.store.close()
+            return None
+        # Request not cached, open store for writes
+        self.store.open(request)
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+        if self.scheme == b'https' and not self.tls_interception_enabled():
+            return chunk
+
         assert self.store
-        return self.store.cache_response_chunk(chunk)
+        chunk = self.store.cache_response_chunk(chunk)
+        if chunk.tobytes().endswith(CRLF * 2):
+            self.store.close()
+        return chunk
 
     def on_upstream_connection_close(self) -> None:
+        if self.scheme == b'https' and not self.tls_interception_enabled():
+            return
+
         assert self.store
         self.store.close()
+
+    def tls_interception_enabled(self) -> bool:
+        return self.flags.ca_key_file is not None and \
+            self.flags.ca_cert_dir is not None and \
+            self.flags.ca_signing_key_file is not None and \
+            self.flags.ca_cert_file is not None
