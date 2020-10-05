@@ -11,7 +11,7 @@
 from .proxy import entry_point
 from .proxy import main, start
 from .proxy import Proxy
-from .testing.test_case import TestCase
+from .testing import TestCase, ReplayTestCase
 
 __all__ = [
     # PyPi package entry_point. See
@@ -23,5 +23,6 @@ __all__ = [
     # Unit testing with proxy.py. See
     # https://github.com/abhinavsingh/proxy.py#unit-testing-with-proxypy
     'TestCase',
+    'ReplayTestCase',
     'Proxy',
 ]

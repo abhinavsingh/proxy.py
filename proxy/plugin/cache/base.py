@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-import multiprocessing
 from typing import Optional, Any
 
 from .store.base import CacheStore
@@ -23,33 +22,12 @@ from ...common.utils import build_http_response
 logger = logging.getLogger(__name__)
 
 
-class Event:
-    """Encapsulates a multiprocessing safe event."""
-    def __init__(self, enabled: bool = True) -> None:
-        self.manager = multiprocessing.Manager()
-        self.enabled = self.manager.Event()
-        if enabled:
-            self.enabled.set()
-
-    def is_set(self) -> bool:
-        return self.enabled.is_set()
-
-    def clear(self) -> None:
-        self.enabled.clear()
-
-    def set(self) -> None:
-        self.enabled.set()
-
-
 class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
     """Base cache plugin.
 
     Cache plugin requires a storage backend to work with.
     Storage class must implement this interface.
     """
-
-    # Dynamically enable or disable cache plugin
-    enabled = Event()
 
     def __init__(
             self,
@@ -63,10 +41,6 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
 
     def before_upstream_connection(
             self, request: HttpParser) -> Optional[HttpParser]:
-        print(self.enabled.is_set())
-        if not self.enabled.is_set():
-            return request
-
         assert self.store
         logger.info("Upstream connexion %s:%d %s" %
                     (text_(request.host), request.port if request.port else 0, text_(request.path)))
@@ -86,9 +60,6 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
 
     def handle_client_request(
             self, request: HttpParser) -> Optional[HttpParser]:
-        if not self.enabled.is_set():
-            return request
-
         assert self.store
         logger.info("Client request %s:%d %s" %
                     (text_(request.host), request.port if request.port else 0, text_(request.path)))
@@ -133,15 +104,9 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        if not self.enabled.is_set():
-            return chunk
-
         assert self.store
         return self.store.cache_response_chunk(chunk)
 
     def on_upstream_connection_close(self) -> None:
-        if not self.enabled.is_set():
-            return
-
         assert self.store
         self.store.close()

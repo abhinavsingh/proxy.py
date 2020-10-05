@@ -40,7 +40,6 @@ class OnDiskCacheStore(CacheStore):
 
     def __del__(self) -> None:
         if not self.cache_list.closed:
-            logger.debug("Closing cache list")
             self.cache_list.close()
 
     def open(self, request: HttpParser) -> None:
