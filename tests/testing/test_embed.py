@@ -74,8 +74,8 @@ class TestReplayTestCase(ReplayTestCase):
             timeout -= 1
         return None
 
-    def test_proxy_vcr(self) -> None:
-        """With VCR enabled, proxy.py will cache responses for all HTTP(s)
+    def test_proxy_replay(self) -> None:
+        """With replay enabled, proxy.py will cache responses for all HTTP(s)
         requests made during the test.  When test is re-run, until explicitly
         disabled, proxy.py will replay responses from cache avoiding calls to
         upstream servers.
