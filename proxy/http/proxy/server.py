@@ -129,12 +129,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.event_queue)
                 self.plugins[instance.name()] = instance
 
-    def tls_interception_enabled(self) -> bool:
-        return self.flags.ca_key_file is not None and \
-            self.flags.ca_cert_dir is not None and \
-            self.flags.ca_signing_key_file is not None and \
-            self.flags.ca_cert_file is not None
-
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
         if not self.request.has_upstream_server():
@@ -216,7 +210,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 # See https://github.com/abhinavsingh/proxy.py/issues/127 for why
                 # currently response parsing is disabled when TLS interception is enabled.
                 #
-                # or self.tls_interception_enabled():
+                # or self.flags.tls_interception_enabled():
                 if self.response.state == httpParserStates.COMPLETE:
                     self.handle_pipeline_response(raw)
                 else:
@@ -279,12 +273,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.server and not self.server.closed:
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
-                    self.tls_interception_enabled()):
+                    self.flags.tls_interception_enabled()):
                 if self.pipeline_request is not None and \
                         self.pipeline_request.is_connection_upgrade():
                     # Previous pipelined request was a WebSocket
                     # upgrade request. Incoming client data now
                     # must be treated as WebSocket protocol packets.
+                    #
+                    # TODO(abhinavsingh): Parse websocket frames here.
                     self.server.queue(raw)
                     return None
 
@@ -349,7 +345,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             # If interception is enabled
-            if self.tls_interception_enabled():
+            if self.flags.tls_interception_enabled():
                 # Perform SSL/TLS handshake with upstream
                 self.wrap_server()
                 # Generate certificate and perform handshake with client

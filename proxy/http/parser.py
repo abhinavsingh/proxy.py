@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import hashlib
 from urllib import parse as urlparse
 from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
@@ -45,11 +46,12 @@ class HttpParser:
         self.type: int = parser_type
         self.state: int = httpParserStates.INITIALIZED
 
-        # Total size of raw bytes passed for parsing
-        self.total_size: int = 0
-
-        # Buffer to hold unprocessed bytes
-        self.buffer: bytes = b''
+        # These properties cleans up developer APIs.  Python urlparse.urlsplit behaves
+        # differently for proxy request and web request.  Web request is the one
+        # which is broken.
+        self.host: Optional[bytes] = None
+        self.port: Optional[int] = None
+        self.path: Optional[bytes] = None
 
         self.headers: Dict[bytes, Tuple[bytes, bytes]] = dict()
         self.body: Optional[bytes] = None
@@ -62,12 +64,18 @@ class HttpParser:
 
         self.chunk_parser: Optional[ChunkParser] = None
 
-        # This cleans up developer APIs as Python urlparse.urlsplit behaves differently
-        # for incoming proxy request and incoming web request.  Web request is the one
-        # which is broken.
-        self.host: Optional[bytes] = None
-        self.port: Optional[int] = None
-        self.path: Optional[bytes] = None
+        # Total size of raw bytes passed for parsing
+        self.total_size: int = 0
+
+        # Buffer to hold unprocessed bytes
+        self.buffer: bytes = b''
+
+        # Hash which is updated as request gets parsed
+        #
+        # TODO(abhinavsingh): This currently is a requirement
+        # only when cache plugin is in use, otherwise, this
+        # will only increase CPU & RAM usage.
+        self.hash: hashlib._Hash = hashlib.sha512()
 
     @classmethod
     def request(cls: Type[T], raw: bytes) -> T:
@@ -80,6 +88,15 @@ class HttpParser:
         parser = cls(httpParserTypes.RESPONSE_PARSER)
         parser.parse(raw)
         return parser
+
+    def fingerprint(self) -> str:
+        """Returns a fingerprint unique for the contents in this request.
+
+        Ideally must only be used once request has finished processing.
+        Otherwise, returned fingerprint will be unique for the partial
+        request being processed.
+        """
+        return self.hash.hexdigest()
 
     def header(self, key: bytes) -> bytes:
         if key.lower() not in self.headers:
@@ -142,6 +159,8 @@ class HttpParser:
         """Parses Http request out of raw bytes.
 
         Check HttpParser state after parse has successfully returned."""
+        self.hash.update(raw)
+
         self.total_size += len(raw)
         raw = self.buffer + raw
         self.buffer = b''

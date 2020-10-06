@@ -14,26 +14,37 @@ from ....http.parser import HttpParser
 
 
 class CacheStore(ABC):
+    """Cache storage backends must implement this interface."""
 
     def __init__(self, uid: UUID) -> None:
         self.uid = uid
 
     @abstractmethod
     def open(self, request: HttpParser) -> None:
-        pass
+        """Initialize resources to handle this request."""
+        pass    # pragma: no cover
 
     @abstractmethod
     def is_cached(self, request: HttpParser) -> bool:
-        pass
+        """Returns whether the request is already cached."""
+        pass    # pragma: no cover
 
     @abstractmethod
     def cache_request(self, request: HttpParser) -> HttpParser:
-        return request
+        """Cache the request."""
+        return request  # pragma: no cover
 
     @abstractmethod
     def cache_response_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
+        """Cache response chunks as they arrive."""
+        return chunk    # pragma: no cover
+
+    @abstractmethod
+    def read_response(self, request: HttpParser) -> HttpParser:
+        """Reads and return cached response from store."""
+        pass    # pragma: no cover
 
     @abstractmethod
     def close(self) -> None:
-        pass
+        """Close any open resources."""
+        pass    # pragma: no cover

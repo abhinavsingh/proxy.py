@@ -94,3 +94,9 @@ class Flags:
             self.ca_cert_dir = os.path.join(
                 self.proxy_py_data_dir, 'certificates')
             os.makedirs(self.ca_cert_dir, exist_ok=True)
+
+    def tls_interception_enabled(self) -> bool:
+        return self.ca_key_file is not None and \
+            self.ca_cert_dir is not None and \
+            self.ca_signing_key_file is not None and \
+            self.ca_cert_file is not None
