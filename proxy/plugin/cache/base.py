@@ -60,6 +60,14 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         if self.scheme == b'https' and not self.flags.tls_interception_enabled():
             return request
 
+        # Cache plugin is a no-op for CONNECT requests
+        # i.e. we don't cache CONNECT responses.  However,
+        # we do skip upstream connection
+        #
+        # See https://github.com/abhinavsingh/proxy.py/issues/443
+        # if request.method == b'CONNECT':
+        #     return None
+
         assert self.store
         if self.store.is_cached(request):
             return None
@@ -69,6 +77,9 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
             self, request: HttpParser) -> Optional[HttpParser]:
         """If cached response exists, return response from cache."""
         assert request.url is not None
+
+        # Cache plugin is enabled for HTTPS request only when
+        # TLS interception is also enabled.
         if request.url.scheme == b'https' and not self.flags.tls_interception_enabled():
             return request
 
