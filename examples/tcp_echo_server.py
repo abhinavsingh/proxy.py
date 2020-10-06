@@ -32,6 +32,8 @@ def main() -> None:
         pool.setup()
         while True:
             time.sleep(1)
+    except KeyboardInterrupt:
+        pass
     finally:
         pool.shutdown()
 
