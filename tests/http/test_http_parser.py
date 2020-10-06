@@ -308,7 +308,7 @@ class TestHttpParser(unittest.TestCase):
         See https://github.com/abhinavsingh/py/issues/5 for details.
         """
         self.parser.parse(b'CONNECT pypi.org:443 HTTP/1.0\r\n\r\n')
-        self.assertEqual(self.parser.method, b'CONNECT')
+        self.assertEqual(self.parser.method, httpMethods.CONNECT)
         self.assertEqual(self.parser.version, b'HTTP/1.0')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 

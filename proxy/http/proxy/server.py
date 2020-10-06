@@ -408,7 +408,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         server_host, server_port = self.server.addr if self.server else (
             None, None)
         connection_time_ms = (time.time() - self.start_time) * 1000
-        if self.request.method == b'CONNECT':
+        if self.request.method == httpMethods.CONNECT:
             logger.info(
                 '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
                 (self.client.addr[0],

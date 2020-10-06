@@ -110,7 +110,7 @@ class HttpParser:
         # For CONNECT requests, request line contains
         # upstream_host:upstream_port which is not complaint
         # with urlsplit, which expects a fully qualified url.
-        if self.method == b'CONNECT':
+        if self.method == httpMethods.CONNECT:
             url = b'https://' + url
         self.url = urlparse.urlsplit(url)
         self.set_line_attributes()

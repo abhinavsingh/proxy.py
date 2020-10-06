@@ -13,14 +13,18 @@ import time
 from proxy.core.acceptor import AcceptorPool
 from proxy.common.flags import Flags
 
-from examples.base_echo_server import BaseEchoServerHandler
+from examples.base_server import BaseServerHandler
 
 
-class EchoServerHandler(BaseEchoServerHandler):  # type: ignore
+class EchoServerHandler(BaseServerHandler):  # type: ignore
     """Sets client socket to non-blocking during initialization."""
 
     def initialize(self) -> None:
         self.client.connection.setblocking(False)
+
+    def handle_data(self, data: memoryview) -> None:
+        # echo back to client
+        self.client.queue(data)
 
 
 def main() -> None:

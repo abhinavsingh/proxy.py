@@ -15,10 +15,10 @@ from proxy.core.connection import TcpClientConnection
 from proxy.common.flags import Flags
 from proxy.common.utils import wrap_socket
 
-from examples.base_echo_server import BaseEchoServerHandler
+from examples.base_server import BaseServerHandler
 
 
-class EchoSSLServerHandler(BaseEchoServerHandler):  # type: ignore
+class EchoSSLServerHandler(BaseServerHandler):  # type: ignore
     """Wraps client socket during initialization."""
 
     def initialize(self) -> None:
@@ -33,6 +33,10 @@ class EchoSSLServerHandler(BaseEchoServerHandler):  # type: ignore
         # Upgrade plain TcpClientConnection to SSL connection object
         self.client = TcpClientConnection(
             conn=conn, addr=self.client.addr)  # type: ignore
+
+    def handle_data(self, data: memoryview) -> None:
+        # echo back to client
+        self.client.queue(data)
 
 
 def main() -> None:
