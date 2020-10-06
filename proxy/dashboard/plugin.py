@@ -34,7 +34,7 @@ class ProxyDashboardWebsocketPlugin(ABC):
     @abstractmethod
     def methods(self) -> List[str]:
         """Return list of methods that this plugin will handle."""
-        pass
+        pass    # pragma: no cover
 
     def connected(self) -> None:
         """Invoked when client websocket handshake finishes."""
@@ -43,7 +43,7 @@ class ProxyDashboardWebsocketPlugin(ABC):
     @abstractmethod
     def handle_message(self, message: Dict[str, Any]) -> None:
         """Handle messages for registered methods."""
-        pass
+        pass    # pragma: no cover
 
     def disconnected(self) -> None:
         """Invoked when client websocket connection gets closed."""

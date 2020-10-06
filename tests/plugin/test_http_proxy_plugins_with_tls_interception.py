@@ -22,6 +22,7 @@ from proxy.common.utils import bytes_
 from proxy.common.flags import Flags
 from proxy.common.utils import build_http_request, build_http_response
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
+# from proxy.http.parser import HttpParser
 from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
 from proxy.http.handler import HttpProtocolHandler

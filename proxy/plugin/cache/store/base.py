@@ -22,29 +22,29 @@ class CacheStore(ABC):
     @abstractmethod
     def open(self, request: HttpParser) -> None:
         """Initialize resources to handle this request."""
-        pass
+        pass    # pragma: no cover
 
     @abstractmethod
     def is_cached(self, request: HttpParser) -> bool:
         """Returns whether the request is already cached."""
-        pass
+        pass    # pragma: no cover
 
     @abstractmethod
     def cache_request(self, request: HttpParser) -> HttpParser:
         """Cache the request."""
-        return request
+        return request  # pragma: no cover
 
     @abstractmethod
     def cache_response_chunk(self, chunk: memoryview) -> memoryview:
         """Cache response chunks as they arrive."""
-        return chunk
+        return chunk    # pragma: no cover
 
     @abstractmethod
     def read_response(self, request: HttpParser) -> HttpParser:
         """Reads and return cached response from store."""
-        pass
+        pass    # pragma: no cover
 
     @abstractmethod
     def close(self) -> None:
         """Close any open resources."""
-        pass
+        pass    # pragma: no cover

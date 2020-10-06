@@ -32,6 +32,13 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
             **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.store: Optional[CacheStore] = None
+
+        # Multiple requests can flow over a single connection.
+        # Example, CONNECT followed by one or many HTTP requests.
+        #
+        # Scheme is stored as attribute as request
+        # object is not available across all lifecycle
+        # callbacks.
         self.scheme: bytes = b'http'
 
     def set_store(self, store: CacheStore) -> None:
@@ -44,8 +51,13 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         Disabled for https request when running without TLS interception.
         """
         assert request.url is not None
+
+        # Store request scheme
         self.scheme = request.url.scheme
-        if self.scheme == b'https' and not self.tls_interception_enabled():
+
+        # Cache plugin is enabled for HTTPS request only when
+        # TLS interception is also enabled.
+        if self.scheme == b'https' and not self.flags.tls_interception_enabled():
             return request
 
         assert self.store
@@ -57,7 +69,7 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
             self, request: HttpParser) -> Optional[HttpParser]:
         """If cached response exists, return response from cache."""
         assert request.url is not None
-        if request.url.scheme == b'https' and not self.tls_interception_enabled():
+        if request.url.scheme == b'https' and not self.flags.tls_interception_enabled():
             return request
 
         assert self.store
@@ -75,7 +87,7 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        if self.scheme == b'https' and not self.tls_interception_enabled():
+        if self.scheme == b'https' and not self.flags.tls_interception_enabled():
             return chunk
 
         assert self.store
@@ -85,14 +97,8 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         return chunk
 
     def on_upstream_connection_close(self) -> None:
-        if self.scheme == b'https' and not self.tls_interception_enabled():
+        if self.scheme == b'https' and not self.flags.tls_interception_enabled():
             return
 
         assert self.store
         self.store.close()
-
-    def tls_interception_enabled(self) -> bool:
-        return self.flags.ca_key_file is not None and \
-            self.flags.ca_cert_dir is not None and \
-            self.flags.ca_signing_key_file is not None and \
-            self.flags.ca_cert_file is not None
