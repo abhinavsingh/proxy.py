@@ -66,12 +66,7 @@ class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
         assert self.request.state == httpParserStates.COMPLETE
 
         # Establish connection with upstream
-        assert self.request.host and self.request.port
-        self.upstream = TcpServerConnection(
-            text_(self.request.host), self.request.port)
-        self.upstream.connect()
-        print('Connection established with upstream {0}:{1}'.format(
-            text_(self.request.host), self.request.port))
+        self.connect_upstream()
 
         # Queue tunnel established response to client
         self.client.queue(
@@ -112,6 +107,14 @@ class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
         if self.upstream and self.upstream.connection in writables:
             self.upstream.flush()
         return False
+
+    def connect_upstream(self) -> None:
+        assert self.request.host and self.request.port
+        self.upstream = TcpServerConnection(
+            text_(self.request.host), self.request.port)
+        self.upstream.connect()
+        print('Connection established with upstream {0}:{1}'.format(
+            text_(self.request.host), self.request.port))
 
 
 def main() -> None:
