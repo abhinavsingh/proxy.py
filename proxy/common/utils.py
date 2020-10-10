@@ -211,8 +211,7 @@ class socket_connection(contextlib.ContextDecorator):
         if self.conn:
             self.conn.close()
 
-    def __call__(self, func: Callable[..., Any]
-                 ) -> Callable[[Tuple[Any, ...], Dict[str, Any]], Any]:
+    def __call__(self, func: Callable[..., Any]) -> Callable[[Tuple[Any, ...], Dict[str, Any]], Any]:   # type: ignore
         @functools.wraps(func)
         def decorated(*args: Any, **kwargs: Any) -> Any:
             with self as conn:

@@ -12,6 +12,7 @@ Table of Contents
 * [SSL Echo Server](#ssl-echo-server)
 * [SSL Echo Client](#ssl-echo-client)
 * [PubSub Eventing](#pubsub-eventing)
+* [Connect Tunnel](#connect-tunnel)
 
 ## WebSocket Client
 
@@ -114,4 +115,24 @@ publisher starting
 bye!!!
 DEBUG:proxy.core.event.subscriber:Un-subscribed relay sub id 5eb22010764f4d44900f41e2fb408ca6 from core events
 Received 52724 events from main thread, 60172 events from another process, in 21.50117802619934 seconds
+```
+
+## Connect Tunnel
+
+A simple HTTP proxy server supporting only CONNECT (https) requests.
+
+1. Uses `HttpParser` for request parsing.
+2. Uses `TcpServerConnection` to establish upstream connection.
+3. Overrides `BaseServer` methods to also register read/write events for upstream connection.
+
+Start `connect_tunnel.py` as:
+
+```
+❯ PYTHONPATH=. python examples/connect_tunnel.py
+```
+
+Send https requests via tunnel as:
+
+```
+❯ curl -x localhost:12345 https://httpbin.org/get
 ```
