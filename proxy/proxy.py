@@ -31,14 +31,14 @@ from .common.version import __version__
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 from .common.flag import flags
-from .common.constants import COMMA, DEFAULT_BASIC_AUTH, DEFAULT_DISABLE_HTTP_PROXY, PY2_DEPRECATION_MESSAGE
+from .common.constants import COMMA, DEFAULT_BASIC_AUTH, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
 from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_DEVTOOLS
 from .common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PID_FILE, DEFAULT_PLUGINS
 from .common.constants import DEFAULT_VERSION, DOT, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
 from .common.constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
-from .common.constants import PLUGIN_WEB_SERVER
+from .common.constants import PLUGIN_WEB_SERVER, PY2_DEPRECATION_MESSAGE
 
 if os.name != 'nt':
     import resource
@@ -271,7 +271,7 @@ class Proxy:
                 bytes,
                 opts.get(
                     'devtools_ws_path',
-                    getattr(args, 'devtools_ws_path', None))),
+                    getattr(args, 'devtools_ws_path', DEFAULT_DEVTOOLS_WS_PATH))),
             timeout=cast(int, opts.get('timeout', args.timeout)),
             threadless=cast(bool, opts.get('threadless', args.threadless)),
             enable_events=cast(
