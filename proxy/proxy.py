@@ -203,7 +203,7 @@ class Proxy:
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
         if args.basic_auth:
-            auth_code = b'Basic %s' % base64.b64encode(bytes_(args.basic_auth))
+            auth_code = base64.b64encode(bytes_(args.basic_auth))
 
         return Flags(
             plugins=plugins,

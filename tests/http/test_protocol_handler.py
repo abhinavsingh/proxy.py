@@ -174,8 +174,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.mock_selector_for_client_read(mock_selector)
         flags = Flags(
-            auth_code=b'Basic %s' %
-                      base64.b64encode(b'user:pass'))
+            auth_code=base64.b64encode(b'user:pass'))
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
@@ -208,8 +207,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.buffer_size.return_value = 0
 
         flags = Flags(
-            auth_code=b'Basic %s' %
-                      base64.b64encode(b'user:pass'))
+            auth_code=base64.b64encode(b'user:pass'))
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
@@ -258,8 +256,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             mock_selector, server)
 
         flags = Flags(
-            auth_code=b'Basic %s' %
-                      base64.b64encode(b'user:pass'))
+            auth_code=base64.b64encode(b'user:pass'))
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin'

@@ -138,7 +138,7 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.assert_called_once()
         self.assertEqual(
             flgs.auth_code,
-            b'Basic dXNlcjpwYXNz')
+            b'dXNlcjpwYXNz')
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')
