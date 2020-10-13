@@ -175,6 +175,13 @@ class Proxy:
             print(PY2_DEPRECATION_MESSAGE)
             sys.exit(1)
 
+        # Discover flags from requested plugin.
+        # This also surface external plugin flags under --help
+        for i, f in enumerate(input_args):
+            if f == '--plugin':
+                Proxy.import_plugin(bytes_(input_args[i + 1]))
+
+        # Parse flags
         args = flags.parse_args(input_args)
 
         # Print version and exit
@@ -319,19 +326,9 @@ class Proxy:
             b'ProxyDashboardWebsocketPlugin': []
         }
         for plugin_ in plugins:
-            if isinstance(plugin_, type):
-                module_name = '__main__'
-                klass = plugin_
-            else:
-                plugin = text_(plugin_.strip())
-                if plugin == '':
-                    continue
-                module_name, klass_name = plugin.rsplit(text_(DOT), 1)
-                klass = getattr(
-                    importlib.import_module(
-                        module_name.replace(
-                            os.path.sep, text_(DOT))),
-                    klass_name)
+            klass, module_name = Proxy.import_plugin(plugin_)
+            if klass is None and module_name is None:
+                continue
             mro = list(inspect.getmro(klass))
             mro.reverse()
             iterator = iter(mro)
@@ -342,6 +339,23 @@ class Proxy:
                 p[bytes_(base_klass.__name__)].append(klass)
             logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
         return p
+
+    @staticmethod
+    def import_plugin(plugin: Union[bytes, type]) -> Any:
+        if isinstance(plugin, type):
+            module_name = '__main__'
+            klass = plugin
+        else:
+            plugin_ = text_(plugin.strip())
+            if plugin_ == '':
+                return (None, None)
+            module_name, klass_name = plugin_.rsplit(text_(DOT), 1)
+            klass = getattr(
+                importlib.import_module(
+                    module_name.replace(
+                        os.path.sep, text_(DOT))),
+                klass_name)
+        return (klass, module_name)
 
     @staticmethod
     def get_default_plugins(
