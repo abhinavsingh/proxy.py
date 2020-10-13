@@ -8,12 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import json
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
 from ..common.utils import bytes_
-from ..common.flags import Flags
 from ..http.websocket import WebsocketFrame
 from ..core.connection import TcpClientConnection
 from ..core.event import EventQueue
@@ -24,7 +24,7 @@ class ProxyDashboardWebsocketPlugin(ABC):
 
     def __init__(
             self,
-            flags: Flags,
+            flags: argparse.Namespace,
             client: TcpClientConnection,
             event_queue: EventQueue) -> None:
         self.flags = flags

@@ -14,7 +14,9 @@ import base64
 import collections
 import contextlib
 import ipaddress
+import multiprocessing
 import os
+import socket
 import sys
 import time
 import logging
@@ -25,13 +27,14 @@ from types import TracebackType
 from typing import Dict, List, Optional, Generator, Any, Tuple, Type, Union, cast
 
 from .common.utils import bytes_, text_
-from .common.flags import Flags
 from .common.types import IpAddress
 from .common.version import __version__
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 from .common.flag import flags
-from .common.constants import COMMA, DEFAULT_BASIC_AUTH, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
+from .common.constants import COMMA, DEFAULT_BASIC_AUTH, DEFAULT_DATA_DIRECTORY_PATH
+from .common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS
+from .common.constants import DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_NUM_WORKERS
 from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_DEVTOOLS
 from .common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
@@ -163,7 +166,11 @@ class Proxy:
         self.delete_pid_file()
 
     @staticmethod
-    def initialize(input_args: Optional[List[str]], **opts: Any) -> Flags:
+    def initialize(input_args: Optional[List[str]]
+                   = None, **opts: Any) -> argparse.Namespace:
+        if input_args is None:
+            input_args = []
+
         if not Proxy.is_py3():
             print(PY2_DEPRECATION_MESSAGE)
             sys.exit(1)
@@ -205,82 +212,100 @@ class Proxy:
         if args.basic_auth:
             auth_code = base64.b64encode(bytes_(args.basic_auth))
 
-        return Flags(
-            plugins=plugins,
-            auth_code=cast(Optional[bytes], opts.get('auth_code', auth_code)),
-            server_recvbuf_size=cast(
-                int,
-                opts.get(
-                    'server_recvbuf_size',
-                    args.server_recvbuf_size)),
-            client_recvbuf_size=cast(
-                int,
-                opts.get(
-                    'client_recvbuf_size',
-                    args.client_recvbuf_size)),
-            pac_file=cast(
-                Optional[str], opts.get(
-                    'pac_file', bytes_(
-                        args.pac_file))),
-            pac_file_url_path=cast(
-                Optional[bytes], opts.get(
-                    'pac_file_url_path', bytes_(
-                        args.pac_file_url_path))),
-            disable_headers=cast(Optional[List[bytes]], opts.get('disable_headers', [
-                header.lower() for header in bytes_(
-                    args.disable_headers).split(COMMA) if header.strip() != b''])),
-            certfile=cast(
-                Optional[str], opts.get(
-                    'cert_file', args.cert_file)),
-            keyfile=cast(Optional[str], opts.get('key_file', args.key_file)),
-            ca_cert_dir=cast(
-                Optional[str], opts.get(
-                    'ca_cert_dir', args.ca_cert_dir)),
-            ca_key_file=cast(
-                Optional[str], opts.get(
-                    'ca_key_file', args.ca_key_file)),
-            ca_cert_file=cast(
-                Optional[str], opts.get(
-                    'ca_cert_file', args.ca_cert_file)),
-            ca_signing_key_file=cast(
-                Optional[str],
-                opts.get(
-                    'ca_signing_key_file',
-                    args.ca_signing_key_file)),
-            ca_file=cast(
-                Optional[str],
-                opts.get(
-                    'ca_file',
-                    args.ca_file)),
-            hostname=cast(IpAddress,
-                          opts.get('hostname', ipaddress.ip_address(args.hostname))),
-            port=cast(int, opts.get('port', args.port)),
-            backlog=cast(int, opts.get('backlog', args.backlog)),
-            num_workers=cast(int, opts.get('num_workers', args.num_workers)),
-            static_server_dir=cast(
-                str,
-                opts.get(
-                    'static_server_dir',
-                    args.static_server_dir)),
-            enable_static_server=cast(
-                bool,
-                opts.get(
-                    'enable_static_server',
-                    args.enable_static_server)),
-            devtools_ws_path=cast(
-                bytes,
-                opts.get(
-                    'devtools_ws_path',
-                    getattr(args, 'devtools_ws_path', DEFAULT_DEVTOOLS_WS_PATH))),
-            timeout=cast(int, opts.get('timeout', args.timeout)),
-            threadless=cast(bool, opts.get('threadless', args.threadless)),
-            enable_events=cast(
-                bool,
-                opts.get(
-                    'enable_events',
-                    args.enable_events)),
-            pid_file=cast(Optional[str], opts.get('pid_file', args.pid_file))
-        )
+        args.plugins = plugins
+        args.auth_code = cast(
+            Optional[bytes],
+            opts.get(
+                'auth_code',
+                auth_code))
+        args.server_recvbuf_size = cast(
+            int,
+            opts.get(
+                'server_recvbuf_size',
+                args.server_recvbuf_size))
+        args.client_recvbuf_size = cast(
+            int,
+            opts.get(
+                'client_recvbuf_size',
+                args.client_recvbuf_size))
+        args.pac_file = cast(
+            Optional[str], opts.get(
+                'pac_file', bytes_(
+                    args.pac_file)))
+        args.pac_file_url_path = cast(
+            Optional[bytes], opts.get(
+                'pac_file_url_path', bytes_(
+                    args.pac_file_url_path)))
+        disabled_headers = cast(Optional[List[bytes]], opts.get('disable_headers', [
+            header.lower() for header in bytes_(
+                args.disable_headers).split(COMMA) if header.strip() != b'']))
+        args.disable_headers = disabled_headers if disabled_headers is not None else DEFAULT_DISABLE_HEADERS
+        args.certfile = cast(
+            Optional[str], opts.get(
+                'cert_file', args.cert_file))
+        args.keyfile = cast(Optional[str], opts.get('key_file', args.key_file))
+        args.ca_key_file = cast(
+            Optional[str], opts.get(
+                'ca_key_file', args.ca_key_file))
+        args.ca_cert_file = cast(
+            Optional[str], opts.get(
+                'ca_cert_file', args.ca_cert_file))
+        args.ca_signing_key_file = cast(
+            Optional[str],
+            opts.get(
+                'ca_signing_key_file',
+                args.ca_signing_key_file))
+        args.ca_file = cast(
+            Optional[str],
+            opts.get(
+                'ca_file',
+                args.ca_file))
+        args.hostname = cast(IpAddress,
+                             opts.get('hostname', ipaddress.ip_address(args.hostname)))
+        args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
+        args.port = cast(int, opts.get('port', args.port))
+        args.backlog = cast(int, opts.get('backlog', args.backlog))
+        num_workers = opts.get('num_workers', args.num_workers)
+        num_workers = num_workers if num_workers is not None else DEFAULT_NUM_WORKERS
+        args.num_workers = cast(
+            int, num_workers if num_workers > 0 else multiprocessing.cpu_count())
+        args.static_server_dir = cast(
+            str,
+            opts.get(
+                'static_server_dir',
+                args.static_server_dir))
+        args.enable_static_server = cast(
+            bool,
+            opts.get(
+                'enable_static_server',
+                args.enable_static_server))
+        args.devtools_ws_path = cast(
+            bytes,
+            opts.get(
+                'devtools_ws_path',
+                getattr(args, 'devtools_ws_path', DEFAULT_DEVTOOLS_WS_PATH)))
+        args.timeout = cast(int, opts.get('timeout', args.timeout))
+        args.threadless = cast(bool, opts.get('threadless', args.threadless))
+        args.enable_events = cast(
+            bool,
+            opts.get(
+                'enable_events',
+                args.enable_events))
+        args.pid_file = cast(
+            Optional[str], opts.get(
+                'pid_file', args.pid_file))
+
+        args.proxy_py_data_dir = DEFAULT_DATA_DIRECTORY_PATH
+        os.makedirs(args.proxy_py_data_dir, exist_ok=True)
+
+        ca_cert_dir = opts.get('ca_cert_dir', args.ca_cert_dir)
+        args.ca_cert_dir = cast(Optional[str], ca_cert_dir)
+        if args.ca_cert_dir is None:
+            args.ca_cert_dir = os.path.join(
+                args.proxy_py_data_dir, 'certificates')
+            os.makedirs(args.ca_cert_dir, exist_ok=True)
+
+        return args
 
     @staticmethod
     def load_plugins(plugins: List[Union[bytes, type]]

@@ -13,6 +13,7 @@ import socket
 import selectors
 from typing import Any, Optional, Dict
 
+from proxy.proxy import Proxy
 from proxy.core.acceptor import AcceptorPool
 from proxy.core.connection import TcpServerConnection
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
@@ -20,7 +21,6 @@ from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
 from proxy.common.types import Readables, Writables
 from proxy.common.utils import build_http_response, text_
-from proxy.common.flags import Flags
 
 from examples.base_server import BaseServerHandler
 
@@ -120,7 +120,7 @@ class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
 def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
-        flags=Flags(port=12345, num_workers=1, threadless=True),
+        flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
         work_klass=ConnectTunnelHandler)
     try:
         pool.setup()

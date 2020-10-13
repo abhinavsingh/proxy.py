@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import socket
 
 from abc import ABC, abstractmethod
@@ -16,7 +17,6 @@ from typing import Optional, Dict, Any
 
 from ..event import eventNames, EventQueue
 from ..connection import TcpClientConnection
-from ...common.flags import Flags
 from ...common.types import Readables, Writables
 
 
@@ -26,11 +26,11 @@ class Work(ABC):
     def __init__(
             self,
             client: TcpClientConnection,
-            flags: Optional[Flags],
+            flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
             uid: Optional[UUID] = None) -> None:
         self.client = client
-        self.flags = flags if flags else Flags()
+        self.flags = flags
         self.event_queue = event_queue
         self.uid: UUID = uid if uid is not None else uuid4()
 

@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import socket
 import selectors
 import ssl
@@ -23,7 +24,6 @@ from .plugin import HttpProtocolHandlerPlugin
 from .parser import HttpParser, httpParserStates, httpParserTypes
 from .exception import HttpProtocolException
 
-from ..common.flags import Flags
 from ..common.types import Readables, Writables
 from ..common.utils import wrap_socket
 from ..core.acceptor.work import Work
@@ -69,7 +69,7 @@ class HttpProtocolHandler(Work):
     """
 
     def __init__(self, client: TcpClientConnection,
-                 flags: Optional[Flags] = None,
+                 flags: argparse.Namespace,
                  event_queue: Optional[EventQueue] = None,
                  uid: Optional[UUID] = None):
         super().__init__(client, flags, event_queue, uid)

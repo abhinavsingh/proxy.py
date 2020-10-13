@@ -16,7 +16,6 @@ import selectors
 from unittest import mock
 
 from proxy.proxy import Proxy
-from proxy.common.flags import Flags
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.parser import httpParserStates
@@ -34,7 +33,7 @@ class TestWebServerPlugin(unittest.TestCase):
         self._addr = ('127.0.0.1', 54382)
         self._conn = mock_fromfd.return_value
         self.mock_selector = mock_selector
-        self.flags = Flags()
+        self.flags = Proxy.initialize()
         self.flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
@@ -97,7 +96,7 @@ class TestWebServerPlugin(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ), ]
-        flags = Flags()
+        flags = Proxy.initialize()
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
@@ -148,7 +147,7 @@ class TestWebServerPlugin(unittest.TestCase):
                 events=selectors.EVENT_WRITE,
                 data=None), selectors.EVENT_WRITE)], ]
 
-        flags = Flags(
+        flags = Proxy.initialize(
             enable_static_server=True,
             static_server_dir=static_server_dir)
         flags.plugins = Proxy.load_plugins([
@@ -200,7 +199,7 @@ class TestWebServerPlugin(unittest.TestCase):
                 events=selectors.EVENT_WRITE,
                 data=None), selectors.EVENT_WRITE)], ]
 
-        flags = Flags(enable_static_server=True)
+        flags = Proxy.initialize(enable_static_server=True)
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
@@ -222,7 +221,7 @@ class TestWebServerPlugin(unittest.TestCase):
     @mock.patch('socket.fromfd')
     def test_on_client_connection_called_on_teardown(
             self, mock_fromfd: mock.Mock) -> None:
-        flags = Flags()
+        flags = Proxy.initialize()
         plugin = mock.MagicMock()
         flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
         self._conn = mock_fromfd.return_value
@@ -238,7 +237,7 @@ class TestWebServerPlugin(unittest.TestCase):
         plugin.return_value.on_client_connection_close.assert_called()
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
-        flags = Flags(pac_file=pac_file)
+        flags = Proxy.initialize(pac_file=pac_file)
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',

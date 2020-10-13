@@ -17,7 +17,6 @@ from unittest import mock
 
 from proxy.proxy import Proxy
 from proxy.common.version import __version__
-from proxy.common.flags import Flags
 from proxy.common.utils import bytes_
 from proxy.common.constants import CRLF
 from proxy.core.connection import TcpClientConnection
@@ -40,7 +39,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self._conn = mock_fromfd.return_value
 
         self.http_server_port = 65535
-        self.flags = Flags()
+        self.flags = Proxy.initialize()
         self.flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
             b'proxy.http.server.HttpWebServerPlugin',
@@ -173,7 +172,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             mock_selector: mock.Mock) -> None:
         self._conn = mock_fromfd.return_value
         self.mock_selector_for_client_read(mock_selector)
-        flags = Flags(
+        flags = Proxy.initialize(
             auth_code=base64.b64encode(b'user:pass'))
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
@@ -206,7 +205,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.connect.return_value = True
         server.buffer_size.return_value = 0
 
-        flags = Flags(
+        flags = Proxy.initialize(
             auth_code=base64.b64encode(b'user:pass'))
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
@@ -255,7 +254,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.mock_selector_for_client_read_read_server_write(
             mock_selector, server)
 
-        flags = Flags(
+        flags = Proxy.initialize(
             auth_code=base64.b64encode(b'user:pass'))
         flags.plugins = Proxy.load_plugins([
             b'proxy.http.proxy.HttpProxyPlugin',
