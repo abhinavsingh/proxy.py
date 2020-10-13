@@ -21,4 +21,5 @@ from setup import __version__ as pkg_version
 # 3. TODO: Version is also hardcoded in README.md flags
 #    section
 if lib_version != pkg_version:
+    print('Version mismatch found. {0} (lib) vs {1} (pkg).'.format(lib_version, pkg_version))
     sys.exit(1)
