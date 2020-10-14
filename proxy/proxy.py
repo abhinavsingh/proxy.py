@@ -357,6 +357,8 @@ class Proxy:
         # Prepare list of plugins to load based upon
         # --enable-*, --disable-* and --basic-auth flags.
         default_plugins: List[Tuple[str, bool]] = []
+        if args.basic_auth is not None:
+            default_plugins.append((PLUGIN_PROXY_AUTH, True))
         if args.enable_dashboard:
             default_plugins.append((PLUGIN_WEB_SERVER, True))
             args.enable_static_server = True
@@ -375,8 +377,6 @@ class Proxy:
             default_plugins.append((PLUGIN_WEB_SERVER, True))
         if args.pac_file is not None:
             default_plugins.append((PLUGIN_PAC_FILE, True))
-        if args.basic_auth is not None:
-            default_plugins.append((PLUGIN_PROXY_AUTH, True))
         return default_plugins
 
     @staticmethod
