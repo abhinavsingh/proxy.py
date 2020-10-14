@@ -10,15 +10,25 @@
 """
 import logging
 import os
+import tempfile
 from typing import Optional, BinaryIO
 from uuid import UUID
 
+from ....common.flag import flags
 from ....common.utils import text_
 from ....http.parser import HttpParser
 
 from .base import CacheStore
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--cache-dir',
+    type=str,
+    default=tempfile.gettempdir(),
+    help='Default: A temporary directory.  Flag only applicable when cache plugin is used with on-disk storage.'
+)
 
 
 class OnDiskCacheStore(CacheStore):

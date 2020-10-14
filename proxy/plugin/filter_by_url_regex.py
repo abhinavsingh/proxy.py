@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 class FilterByURLRegexPlugin(HttpProxyBasePlugin):
-    """
-        Drop traffic by inspecting request URL,
-        checking against a list of regular expressions,
-        then returning a HTTP status code.
+    """Drops traffic by inspecting request URL and checking
+    against a list of regular expressions.  Example, default
+    filter list below can be used as a starting point for
+    filtering ads.
     """
 
     FILTER_LIST: List[Dict[str, Any]] = [

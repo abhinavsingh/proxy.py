@@ -14,8 +14,8 @@ import selectors
 import multiprocessing
 from unittest import mock
 
-from proxy.common.flags import Flags
 from proxy.core.acceptor import Acceptor
+from proxy.proxy import Proxy
 
 
 class TestAcceptor(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestAcceptor(unittest.TestCase):
         self.acceptor_id = 1
         self.mock_protocol_handler = mock.MagicMock()
         self.pipe = multiprocessing.Pipe()
-        self.flags = Flags()
+        self.flags = Proxy.initialize()
         self.acceptor = Acceptor(
             idd=self.acceptor_id,
             work_queue=self.pipe[1],

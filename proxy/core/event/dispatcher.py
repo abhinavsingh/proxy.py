@@ -38,7 +38,7 @@ class EventDispatcher:
     event at a time.
 
     When --enable-events is used, a multiprocessing.Queue is created and
-    attached to global Flags.  This queue can then be used for
+    attached to global argparse.  This queue can then be used for
     dispatching an Event dict object into the queue.
 
     When --enable-events is used, dispatcher module is automatically

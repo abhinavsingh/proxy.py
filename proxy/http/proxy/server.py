@@ -538,7 +538,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             if b'proxy-authorization' not in self.request.headers:
                 raise ProxyAuthenticationFailed()
             parts = self.request.headers[b'proxy-authorization'][1].split()
-            if len(parts) != 2 and parts[0].lower() != b'basic' and parts[1] != self.flags.auth_code:
+            if len(parts) != 2 and parts[0].lower(
+            ) != b'basic' and parts[1] != self.flags.auth_code:
                 raise ProxyAuthenticationFailed()
 
     def connect_upstream(self) -> None:

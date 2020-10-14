@@ -11,7 +11,7 @@
 import time
 
 from proxy.core.acceptor import AcceptorPool
-from proxy.common.flags import Flags
+from proxy.proxy import Proxy
 
 from examples.base_server import BaseServerHandler
 
@@ -30,7 +30,7 @@ class EchoServerHandler(BaseServerHandler):  # type: ignore
 def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
-        flags=Flags(port=12345, num_workers=1, threadless=True),
+        flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
         work_klass=EchoServerHandler)
     try:
         pool.setup()

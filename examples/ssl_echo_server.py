@@ -10,9 +10,9 @@
 """
 import time
 
+from proxy.proxy import Proxy
 from proxy.core.acceptor import AcceptorPool
 from proxy.core.connection import TcpClientConnection
-from proxy.common.flags import Flags
 from proxy.common.utils import wrap_socket
 
 from examples.base_server import BaseServerHandler
@@ -42,7 +42,7 @@ class EchoSSLServerHandler(BaseServerHandler):  # type: ignore
 def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
-        flags=Flags(
+        flags=Proxy.initialize(
             port=12345,
             num_workers=1,
             threadless=True,
