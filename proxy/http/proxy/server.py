@@ -20,7 +20,7 @@ from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
 from ..plugin import HttpProtocolHandlerPlugin
-from ..exception import HttpProtocolException, ProxyConnectionFailed, ProxyAuthenticationFailed
+from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..methods import httpMethods
@@ -105,8 +105,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         reason=b'Connection established'
     ))
 
-    # Used to synchronize with other HttpProxyPlugin instances while
-    # generating certificates
+    # Used to synchronization during certificate generation.
     lock = threading.Lock()
 
     def __init__(
@@ -322,8 +321,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
         self.emit_request_complete()
 
-        self.authenticate()
-
         # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
         do_connect = True
@@ -532,15 +529,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.client.wrap(self.flags.ca_signing_key_file, generated_cert)
         logger.debug(
             'TLS interception using %s', generated_cert)
-
-    def authenticate(self) -> None:
-        if self.flags.auth_code:
-            if b'proxy-authorization' not in self.request.headers:
-                raise ProxyAuthenticationFailed()
-            parts = self.request.headers[b'proxy-authorization'][1].split()
-            if len(parts) != 2 and parts[0].lower(
-            ) != b'basic' and parts[1] != self.flags.auth_code:
-                raise ProxyAuthenticationFailed()
 
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port

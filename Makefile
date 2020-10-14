@@ -110,7 +110,7 @@ lib-coverage:
 	open htmlcov/index.html
 
 lib-profile:
-	sudo py-spy -F -f profile.svg -d 3600 proxy.py
+	sudo py-spy record -o profile.svg -t -F -s -- python -m proxy
 
 dashboard:
 	pushd dashboard && npm run build && popd

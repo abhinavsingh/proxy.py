@@ -32,7 +32,7 @@ from .common.version import __version__
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 from .common.flag import flags
-from .common.constants import COMMA, DEFAULT_BASIC_AUTH, DEFAULT_DATA_DIRECTORY_PATH
+from .common.constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, PLUGIN_PROXY_AUTH
 from .common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS
 from .common.constants import DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_NUM_WORKERS
 from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_DEVTOOLS
@@ -54,12 +54,6 @@ flags.add_argument(
     type=str,
     default=DEFAULT_PID_FILE,
     help='Default: None. Save parent process ID to a file.')
-flags.add_argument(
-    '--basic-auth',
-    type=str,
-    default=DEFAULT_BASIC_AUTH,
-    help='Default: No authentication. Specify colon separated user:password '
-    'to enable basic authentication.')
 flags.add_argument(
     '--version',
     '-v',
@@ -360,9 +354,11 @@ class Proxy:
     @staticmethod
     def get_default_plugins(
             args: argparse.Namespace) -> List[Tuple[str, bool]]:
-        # Prepare list of plugins to load based upon --enable-* and --disable-*
-        # flags
+        # Prepare list of plugins to load based upon
+        # --enable-*, --disable-* and --basic-auth flags.
         default_plugins: List[Tuple[str, bool]] = []
+        if args.basic_auth is not None:
+            default_plugins.append((PLUGIN_PROXY_AUTH, True))
         if args.enable_dashboard:
             default_plugins.append((PLUGIN_WEB_SERVER, True))
             args.enable_static_server = True
