@@ -34,8 +34,9 @@ class AuthPlugin(HttpProxyBasePlugin):
             if b'proxy-authorization' not in request.headers:
                 raise ProxyAuthenticationFailed()
             parts = request.headers[b'proxy-authorization'][1].split()
-            if len(parts) != 2 and parts[0].lower(
-            ) != b'basic' and parts[1] != self.flags.auth_code:
+            if len(parts) != 2 \
+                    and parts[0].lower() != b'basic' \
+                    and parts[1] != self.flags.auth_code:
                 raise ProxyAuthenticationFailed()
         return request
 
