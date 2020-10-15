@@ -4,10 +4,10 @@ flake8==3.8.4
 pytest==6.1.1
 pytest-cov==2.10.1
 autopep8==1.5.4
-mypy==0.782
+mypy==0.790
 py-spy==0.3.3
-codecov==2.1.9
-tox==3.20.0
+codecov==2.1.10
+tox==3.20.1
 mccabe==0.6.1
 pylint==2.6.0
-rope==0.17.0
+rope==0.18.0

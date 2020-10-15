@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from abc import abstractmethod
 import socket
 import selectors
 
@@ -17,22 +18,25 @@ from proxy.core.acceptor import Work
 from proxy.common.types import Readables, Writables
 
 
-class BaseEchoServerHandler(Work):
-    """BaseEchoServerHandler implements Work interface.
+class BaseServerHandler(Work):
+    """BaseServerHandler implements Work interface.
 
-    An instance of EchoServerHandler is created for each client
-    connection.  EchoServerHandler lifecycle is controlled by
-    Threadless core using asyncio.  Implementation must provide
-    get_events and handle_events method.  Optionally, also implement
-    intialize, is_inactive and shutdown method.
+    An instance of BaseServerHandler is created for each client
+    connection.  BaseServerHandler lifecycle is controlled by
+    Threadless core using asyncio.
+
+    Implementation must provide:
+    a) handle_data(data: memoryview)
+    c) (optionally) intialize, is_inactive and shutdown methods
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         print('Connection accepted from {0}'.format(self.client.addr))
 
-    def initialize(self) -> None:
-        pass
+    @abstractmethod
+    def handle_data(self, data: memoryview) -> None:
+        pass    # pragma: no cover
 
     def get_events(self) -> Dict[socket.socket, int]:
         # We always want to read from client
@@ -58,8 +62,7 @@ class BaseEchoServerHandler(Work):
                         'Connection closed by client {0}'.format(
                             self.client.addr))
                     return True
-                # Echo data back to client
-                self.client.queue(data)
+                self.handle_data(data)
             except ConnectionResetError:
                 print(
                     'Connection reset by client {0}'.format(

@@ -10,15 +10,15 @@
 """
 import time
 
+from proxy.proxy import Proxy
 from proxy.core.acceptor import AcceptorPool
 from proxy.core.connection import TcpClientConnection
-from proxy.common.flags import Flags
 from proxy.common.utils import wrap_socket
 
-from examples.base_echo_server import BaseEchoServerHandler
+from examples.base_server import BaseServerHandler
 
 
-class EchoSSLServerHandler(BaseEchoServerHandler):  # type: ignore
+class EchoSSLServerHandler(BaseServerHandler):  # type: ignore
     """Wraps client socket during initialization."""
 
     def initialize(self) -> None:
@@ -34,11 +34,15 @@ class EchoSSLServerHandler(BaseEchoServerHandler):  # type: ignore
         self.client = TcpClientConnection(
             conn=conn, addr=self.client.addr)  # type: ignore
 
+    def handle_data(self, data: memoryview) -> None:
+        # echo back to client
+        self.client.queue(data)
+
 
 def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
-        flags=Flags(
+        flags=Proxy.initialize(
             port=12345,
             num_workers=1,
             threadless=True,
@@ -49,6 +53,8 @@ def main() -> None:
         pool.setup()
         while True:
             time.sleep(1)
+    except KeyboardInterrupt:
+        pass
     finally:
         pool.shutdown()
 

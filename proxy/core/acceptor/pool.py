@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import logging
 import multiprocessing
 import socket
@@ -20,7 +21,6 @@ from .acceptor import Acceptor
 from .work import Work
 
 from ..event import EventQueue, EventDispatcher
-from ...common.flags import Flags
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BACKLOG, DEFAULT_ENABLE_EVENTS
 from ...common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_NUM_WORKERS, DEFAULT_PORT
@@ -86,7 +86,8 @@ class AcceptorPool:
     for message sharing or signaling within proxy.py.
     """
 
-    def __init__(self, flags: Flags, work_klass: Type[Work]) -> None:
+    def __init__(self, flags: argparse.Namespace,
+                 work_klass: Type[Work]) -> None:
         self.flags = flags
         self.socket: Optional[socket.socket] = None
         self.acceptors: List[Acceptor] = []

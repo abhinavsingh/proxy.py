@@ -88,5 +88,6 @@ class TcpConnection(ABC):
             self.buffer.pop(0)
         else:
             self.buffer[0] = memoryview(mv[sent:])
+        del mv
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent

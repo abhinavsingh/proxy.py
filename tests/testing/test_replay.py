@@ -14,9 +14,10 @@ import unittest
 import http.client
 import urllib.request
 import urllib.error
+from pathlib import Path
 
 from proxy import ReplayTestCase
-from proxy.common.constants import DEFAULT_DATA_DIRECTORY_PATH, PROXY_AGENT_HEADER_VALUE
+from proxy.common.constants import PROXY_AGENT_HEADER_VALUE
 from proxy.common.utils import build_http_response
 from proxy.http.parser import HttpParser
 from proxy.http.codes import httpStatusCodes
@@ -32,10 +33,11 @@ class TestReplayTestCase(ReplayTestCase):
 
     def tearDown(self) -> None:
         # Delete cache plugin data
-        """cacheDir = Path(os.path.join(DEFAULT_DATA_DIRECTORY_PATH, 'cache'))
+        assert self.PROXY is not None
+        cacheDir = Path(self.PROXY.flags.cache_dir)
         for f in cacheDir.glob('*'):
             if f.is_file():
-                os.remove(f)"""
+                os.remove(f)
 
     def make_http_request_using_proxy(self) -> None:
         proxy_handler = urllib.request.ProxyHandler({
@@ -70,9 +72,9 @@ class TestReplayTestCase(ReplayTestCase):
             b'User-Agent: Python-urllib/%d.%d\r\n' % (sys.version_info[0], sys.version_info[1]) +
             b'Connection: close\r\n\r\n')
 
+        assert self.PROXY is not None
         cache_file_path = os.path.join(
-            DEFAULT_DATA_DIRECTORY_PATH,
-            'cache',
+            self.PROXY.flags.cache_dir,
             '.'.join([request.fingerprint(), 'cache']))
         self.assertTrue(os.path.isfile(cache_file_path))
         with open(cache_file_path, 'rb') as cache_file:

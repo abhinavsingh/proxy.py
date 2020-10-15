@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import unittest
-import logging
 import tempfile
 import os
 
@@ -69,26 +68,21 @@ class TestMain(unittest.TestCase):
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.proxy.Flags')
+    @mock.patch('proxy.proxy.Proxy.initialize')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('logging.basicConfig')
     def test_init_with_no_arguments(
             self,
             mock_logging_config: mock.Mock,
             mock_acceptor_pool: mock.Mock,
-            mock_flags: mock.Mock,
+            mock_initialize: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args: List[str] = []
         main(input_args)
-
-        mock_logging_config.assert_called_with(
-            level=logging.INFO,
-            format=DEFAULT_LOG_FORMAT
-        )
         mock_acceptor_pool.assert_called_with(
-            flags=mock_flags.return_value,
+            flags=mock_initialize.return_value,
             work_klass=HttpProtocolHandler,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
@@ -138,7 +132,7 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.assert_called_once()
         self.assertEqual(
             flgs.auth_code,
-            b'Basic dXNlcjpwYXNz')
+            b'dXNlcjpwYXNz')
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')

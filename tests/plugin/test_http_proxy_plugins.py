@@ -19,7 +19,7 @@ from urllib import parse as urlparse
 from unittest import mock
 from typing import cast
 
-from proxy.common.flags import Flags
+from proxy.proxy import Proxy
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
@@ -41,7 +41,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
               mock_selector: mock.Mock) -> None:
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Flags()
+        self.flags = Proxy.initialize()
         self.plugin = mock.MagicMock()
 
         self.mock_fromfd = mock_fromfd
@@ -61,7 +61,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
 
     def tearDown(self) -> None:
         # Delete cache plugin data
-        cacheDir = Path(os.path.join(self.flags.proxy_py_data_dir, 'cache'))
+        cacheDir = Path(self.flags.cache_dir)
         for f in cacheDir.glob('*'):
             if f.is_file():
                 os.remove(f)
@@ -383,8 +383,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.protocol_handler.shutdown()
 
         with open(os.path.join(
-                self.flags.proxy_py_data_dir,
-                'cache',
+                self.flags.cache_dir,
                 '.'.join([request.fingerprint(), 'cache'])), 'rb') as cache_file:
             self.assertEqual(cache_file.read(), server_response)
 
@@ -406,8 +405,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
 
         # Setup cache:
         with open(os.path.join(
-                self.flags.proxy_py_data_dir,
-                'cache',
+                self.flags.cache_dir,
                 '.'.join([request.fingerprint(), 'cache'])), 'wb') as cache_file:
             cache_file.write(cache_response)
 

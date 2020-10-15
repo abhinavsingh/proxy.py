@@ -13,7 +13,7 @@ import selectors
 from unittest import mock
 
 from proxy.common.constants import DEFAULT_HTTP_PORT
-from proxy.common.flags import Flags
+from proxy.proxy import Proxy
 from proxy.core.connection import TcpClientConnection
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.handler import HttpProtocolHandler
@@ -33,7 +33,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Flags()
+        self.flags = Proxy.initialize()
         self.plugin = mock.MagicMock()
         self.flags.plugins = {
             b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],

@@ -20,14 +20,15 @@ from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
 from ..plugin import HttpProtocolHandlerPlugin
-from ..exception import HttpProtocolException, ProxyConnectionFailed, ProxyAuthenticationFailed
+from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..methods import httpMethods
 
 from ...common.types import Readables, Writables
-from ...common.constants import COMMA, DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE, DEFAULT_SERVER_RECVBUF_SIZE
-from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CERT_FILE
+from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
+from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
+from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
@@ -105,8 +106,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         reason=b'Connection established'
     ))
 
-    # Used to synchronize with other HttpProxyPlugin instances while
-    # generating certificates
+    # Used to synchronization during certificate generation.
     lock = threading.Lock()
 
     def __init__(
@@ -128,6 +128,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.client,
                     self.event_queue)
                 self.plugins[instance.name()] = instance
+
+    def tls_interception_enabled(self) -> bool:
+        return self.flags.ca_key_file is not None and \
+            self.flags.ca_cert_dir is not None and \
+            self.flags.ca_signing_key_file is not None and \
+            self.flags.ca_cert_file is not None
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
@@ -166,8 +172,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        if self.request.has_upstream_server(
-        ) and self.server and not self.server.closed and self.server.connection in r:
+        if self.request.has_upstream_server() \
+                and self.server \
+                and not self.server.closed \
+                and self.server.connection in r:
             logger.debug('Server is ready for reads, reading...')
             try:
                 raw = self.server.recv(self.flags.server_recvbuf_size)
@@ -273,7 +281,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.server and not self.server.closed:
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
-                    self.flags.tls_interception_enabled()):
+                    self.tls_interception_enabled()):
                 if self.pipeline_request is not None and \
                         self.pipeline_request.is_connection_upgrade():
                     # Previous pipelined request was a WebSocket
@@ -318,8 +326,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
         self.emit_request_complete()
 
-        self.authenticate()
-
         # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
         do_connect = True
@@ -344,31 +350,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.request.method == httpMethods.CONNECT:
             self.client.queue(
                 HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-            # If interception is enabled
-            if self.flags.tls_interception_enabled():
-                # Perform SSL/TLS handshake with upstream
-                self.wrap_server()
-                # Generate certificate and perform handshake with client
-                try:
-                    # wrap_client also flushes client data before wrapping
-                    # sending to client can raise, handle expected exceptions
-                    self.wrap_client()
-                except subprocess.TimeoutExpired as e:  # Popen communicate timeout
-                    logger.exception(
-                        'TimeoutExpired during certificate generation', exc_info=e)
-                    return True
-                except BrokenPipeError:
-                    logger.error(
-                        'BrokenPipeError when wrapping client')
-                    return True
-                except OSError as e:
-                    logger.exception(
-                        'OSError when wrapping client', exc_info=e)
-                    return True
-                # Update all plugin connection reference
-                for plugin in self.plugins.values():
-                    plugin.client._conn = self.client.connection
-                return self.client.connection
+            if self.tls_interception_enabled():
+                return self.intercept()
         elif self.server:
             # - proxy-connection header is a mistake, it doesn't seem to be
             #   officially documented in any specification, drop it.
@@ -404,7 +387,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         server_host, server_port = self.server.addr if self.server else (
             None, None)
         connection_time_ms = (time.time() - self.start_time) * 1000
-        if self.request.method == b'CONNECT':
+        if self.request.method == httpMethods.CONNECT:
             logger.info(
                 '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
                 (self.client.addr[0],
@@ -425,6 +408,30 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                  text_(self.response.reason),
                  self.response.total_size,
                  connection_time_ms))
+
+    def connect_upstream(self) -> None:
+        host, port = self.request.host, self.request.port
+        if host and port:
+            self.server = TcpServerConnection(text_(host), port)
+            try:
+                logger.debug(
+                    'Connecting to upstream %s:%s' %
+                    (text_(host), port))
+                self.server.connect()
+                self.server.connection.setblocking(False)
+                logger.debug(
+                    'Connected to upstream %s:%s' %
+                    (text_(host), port))
+            except Exception as e:  # TimeoutError, socket.gaierror
+                self.server.closed = True
+                raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
+        else:
+            logger.exception('Both host and port must exist')
+            raise HttpProtocolException()
+
+    #
+    # Interceptor related methods
+    #
 
     def gen_ca_signed_certificate(
             self, cert_file_path: str, certificate: Dict[str, Any]) -> None:
@@ -514,6 +521,32 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 self.gen_ca_signed_certificate(cert_file_path, certificate)
         return cert_file_path
 
+    def intercept(self) -> Union[socket.socket, bool]:
+        # Perform SSL/TLS handshake with upstream
+        self.wrap_server()
+        # Generate certificate and perform handshake with client
+        try:
+            # wrap_client also flushes client data before wrapping
+            # sending to client can raise, handle expected exceptions
+            self.wrap_client()
+        except subprocess.TimeoutExpired as e:  # Popen communicate timeout
+            logger.exception(
+                'TimeoutExpired during certificate generation', exc_info=e)
+            return True
+        except BrokenPipeError:
+            logger.error(
+                'BrokenPipeError when wrapping client')
+            return True
+        except OSError as e:
+            logger.exception(
+                'OSError when wrapping client', exc_info=e)
+            return True
+        # Update all plugin connection reference
+        # TODO(abhinavsingh): Is this required?
+        for plugin in self.plugins.values():
+            plugin.client._conn = self.client.connection
+        return self.client.connection
+
     def wrap_server(self) -> None:
         assert self.server is not None
         assert isinstance(self.server.connection, socket.socket)
@@ -529,31 +562,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         logger.debug(
             'TLS interception using %s', generated_cert)
 
-    def authenticate(self) -> None:
-        if self.flags.auth_code:
-            if b'proxy-authorization' not in self.request.headers or \
-                    self.request.headers[b'proxy-authorization'][1] != self.flags.auth_code:
-                raise ProxyAuthenticationFailed()
-
-    def connect_upstream(self) -> None:
-        host, port = self.request.host, self.request.port
-        if host and port:
-            self.server = TcpServerConnection(text_(host), port)
-            try:
-                logger.debug(
-                    'Connecting to upstream %s:%s' %
-                    (text_(host), port))
-                self.server.connect()
-                self.server.connection.setblocking(False)
-                logger.debug(
-                    'Connected to upstream %s:%s' %
-                    (text_(host), port))
-            except Exception as e:  # TimeoutError, socket.gaierror
-                self.server.closed = True
-                raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
-        else:
-            logger.exception('Both host and port must exist')
-            raise HttpProtocolException()
+    #
+    # Event emitter callbacks
+    #
 
     def emit_request_complete(self) -> None:
         if not self.flags.enable_events:

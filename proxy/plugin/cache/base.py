@@ -57,7 +57,7 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
 
         # Cache plugin is enabled for HTTPS request only when
         # TLS interception is also enabled.
-        if self.scheme == b'https' and not self.flags.tls_interception_enabled():
+        if self.scheme == b'https' and not self.tls_interception_enabled():
             return request
 
         # Cache plugin is a no-op for CONNECT requests
@@ -80,7 +80,7 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
 
         # Cache plugin is enabled for HTTPS request only when
         # TLS interception is also enabled.
-        if request.url.scheme == b'https' and not self.flags.tls_interception_enabled():
+        if request.url.scheme == b'https' and not self.tls_interception_enabled():
             return request
 
         assert self.store
@@ -98,7 +98,7 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        if self.scheme == b'https' and not self.flags.tls_interception_enabled():
+        if self.scheme == b'https' and not self.tls_interception_enabled():
             return chunk
 
         assert self.store
@@ -108,8 +108,14 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         return chunk
 
     def on_upstream_connection_close(self) -> None:
-        if self.scheme == b'https' and not self.flags.tls_interception_enabled():
+        if self.scheme == b'https' and not self.tls_interception_enabled():
             return
 
         assert self.store
         self.store.close()
+
+    def tls_interception_enabled(self) -> bool:
+        return self.flags.ca_key_file is not None and \
+            self.flags.ca_cert_dir is not None and \
+            self.flags.ca_signing_key_file is not None and \
+            self.flags.ca_cert_file is not None

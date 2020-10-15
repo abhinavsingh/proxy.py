@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import logging
 import multiprocessing
 import multiprocessing.synchronize
@@ -25,7 +26,6 @@ from .threadless import Threadless
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 from ...common.constants import DEFAULT_THREADLESS
-from ...common.flags import Flags
 from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class Acceptor(multiprocessing.Process):
             self,
             idd: int,
             work_queue: connection.Connection,
-            flags: Flags,
+            flags: argparse.Namespace,
             work_klass: Type[Work],
             lock: multiprocessing.synchronize.Lock,
             event_queue: Optional[EventQueue] = None) -> None:

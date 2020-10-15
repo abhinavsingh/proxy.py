@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import socket
 
 from abc import ABC, abstractmethod
@@ -16,7 +17,6 @@ from typing import Tuple, List, Union, Optional
 
 from .parser import HttpParser
 
-from ..common.flags import Flags
 from ..common.types import Readables, Writables
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
@@ -47,12 +47,12 @@ class HttpProtocolHandlerPlugin(ABC):
     def __init__(
             self,
             uid: UUID,
-            flags: Flags,
+            flags: argparse.Namespace,
             client: TcpClientConnection,
             request: HttpParser,
             event_queue: EventQueue):
         self.uid: UUID = uid
-        self.flags: Flags = flags
+        self.flags: argparse.Namespace = flags
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
         self.event_queue = event_queue

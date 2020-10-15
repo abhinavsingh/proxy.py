@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import os
 import socket
 import logging
@@ -25,7 +26,6 @@ from .work import Work
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 
-from ...common.flags import Flags
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_TIMEOUT
 
@@ -47,7 +47,7 @@ class Threadless(multiprocessing.Process):
     def __init__(
             self,
             client_queue: connection.Connection,
-            flags: Flags,
+            flags: argparse.Namespace,
             work_klass: Type[Work],
             event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()
