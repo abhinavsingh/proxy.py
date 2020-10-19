@@ -13,18 +13,17 @@ from eth_keys import keys as eth_keys
 import random
 
 system_id = '11111111111111111111111111111111'
+rent_id = 'SysvarRent111111111111111111111111111111111'
+token_id = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 
 def create_program_address(seeds, programId):
     seeds_str = ' '.join([s.hex() for s in seeds])
-#    print(seeds_str)
     result = subprocess.check_output([
             '/mnt/working/solana/solana.git/target/debug/solana',
             'create-program-address',
             seeds_str,
             programId])
-#    print(result)
     (account, nonce) = result.decode('utf8').split('  ')
-#    print(account, nonce)
     return account, int(nonce)
 
 class EthereumAddress:
@@ -51,12 +50,18 @@ class EthereumAddress:
 
 INITIALIZE_ACCOUNT_LAYOUT = cStruct(
     "instruction" / Int8ul,
-    "account" / PUBLIC_KEY_LAYOUT,
     "eth_acc" / Bytes(20),
     "nonce" / Int8ul,
 )
 
-INITIALIZE_AUTH_LAYOUT = cStruct(
+INITIALIZE_TOKEN_LAYOUT = cStruct(
+    "instruction" / Int8ul,
+    "token" / PUBLIC_KEY_LAYOUT,
+    "eth_token" / Bytes(20),
+    "nonce" / Int8ul,
+)
+
+INITIALIZE_BALANCE_LAYOUT = cStruct(
     "instruction" / Int8ul,
     "account" / PUBLIC_KEY_LAYOUT,
     "eth_token" / Bytes(20),
@@ -65,9 +70,13 @@ INITIALIZE_AUTH_LAYOUT = cStruct(
 )
 
 ACCOUNT_INFO_LAYOUT = cStruct(
-    "account" / PUBLIC_KEY_LAYOUT,
     "eth_acc" / Bytes(20),
     "trx_count" / Int32ul,
+)
+
+TOKEN_INFO_LAYOUT = cStruct(
+    "token" / PUBLIC_KEY_LAYOUT,
+    "eth_token" / Bytes(20),
 )
 
 BALANCE_INFO_LAYOUT = cStruct(
@@ -85,15 +94,22 @@ TRANSFER_LAYOUT = cStruct(
 )
 
 class AccountInfo(NamedTuple):
-    account: PublicKey
     eth_acc: eth_keys.PublicKey
     trx_count: int
 
     @staticmethod
     def frombytes(data):
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
-        return AccountInfo(PublicKey(cont.account), cont.eth_acc, cont.trx_count)
+        return AccountInfo(cont.eth_acc, cont.trx_count)
 
+class TokenInfo(NamedTuple):
+    token: PublicKey
+    eth_token: eth_keys.PublicKey
+
+    @staticmethod
+    def frombytes(data):
+        cont = TOKEN_INFO_LAYOUT.parse(data)
+        return TokenInfo(PublicKey(cont.token), cont.eth_token)
 
 class BalanceInfo(NamedTuple):
     account: PublicKey
@@ -114,37 +130,40 @@ class WrapperProgram():
     def program_address(self, seeds):
         return create_program_address(seeds, self.program)
 
-    def getAccountInfo(self, eth_token):
-        (token_info, nonce) = create_program_address([bytes(eth_token)], self.program)
-
-        info = self.client.get_account_info(token_info)['result']['value']
+    def _getAccountData(self, account, expected_length, owner=None):
+        info = self.client.get_account_info(account)['result']['value']
         if info is None:
-            raise Exception("Can't get inforamtion about {}".format(token_info))
+            raise Exception("Can't get information about {}".format(account))
 
-        if info['owner'] != self.program:
-            raise Exception("Wrong owner for account {}".format(token_info))
+        if info['owner'] != (owner or self.program):
+            raise Exception("Invalid owner for account data {}".format(account))
 
         data = base64.b64decode(info['data'][0])
-        if len(data) != ACCOUNT_INFO_LAYOUT.sizeof():
-            raise Exception("Wrong data length for account {}".format(token_info))
+        if len(data) != expected_length:
+            raise Exception("Wrong data length for account data {}".format(account))
 
+        return data
+
+    def getAccountInfo(self, eth_acc):
+        (account_info, nonce) = create_program_address([bytes(eth_acc)], self.program)
+        data = self._getAccountData(account_info, ACCOUNT_INFO_LAYOUT.sizeof())
         return AccountInfo.frombytes(data)
 
+    def getTokenInfo(self, eth_token):
+        (token_info, nonce) = create_program_address([bytes(eth_token)], self.program)
+        data = self._getAccountData(token_info, TOKEN_INFO_LAYOUT.sizeof())
+        return TokenInfo.frombytes(data)
+
+    def getBalanceInfo(self, eth_token, eth_acc):
+        (account_info, nonce) = create_program_address([bytes(eth_token), bytes(eth_acc)], self.program)
+        data = self._getAccountData(account_info, BALANCE_INFO_LAYOUT.sizeof())
+        return BalanceInfo.frombytes(data)
+
     def getTokenDecimals(self, token):
-        mint = self.client.get_account_info(token)['result']['value']
-        
-        if mint['owner'] != 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA':
-            raise Exception("Invalid owner for token {}".format(token))
-
-        data = base64.b64decode(mint['data'][0])
-        if len(data) != 82:
-            raise Exception("Invalid data length for token {}".format(token))
-
+        data = self._getAccountData(token, 82, owner=token_id)
         return int.from_bytes(data[36+8:36+8+1], "little")
 
-
     def transfer(self, eth_token, eth_acc, source, destination, amount):
-        token_program = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
         print('--- transfer:', eth_token, eth_acc, source, destination, amount)
         (authority, nonceAuthority) = create_program_address([bytes(eth_token), bytes(eth_acc)], self.program)
         data = TRANSFER_LAYOUT.build(dict(
@@ -155,51 +174,47 @@ class WrapperProgram():
             eth_acc=bytes(eth_acc),
         ))
         return TransactionInstruction(program_id=self.program, data=data, keys=[
-                AccountMeta(pubkey=token_program, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=token_id, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=source, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=destination, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=authority, is_signer=False, is_writable=False)])
 
 
-    def getBalanceInfo(self, eth_token, eth_acc):
-        (account_info, nonce) = create_program_address([bytes(eth_token), bytes(eth_acc)], self.program)
 
-        info = self.client.get_account_info(account_info)['result']['value']
-        if info is None:
-            raise Exception("Can't get information about {}".format(account_info))
-
-        if info['owner'] != self.program:
-            raise Exception("Wrong owner for account {}".format(account_info))
-
-        data = base64.b64decode(info['data'][0])
-        if len(data) != BALANCE_INFO_LAYOUT.sizeof():
-            raise Exception("Wrong data length for account {}".format(account_info))
-
-        return BalanceInfo.frombytes(data)
-
-
-    def initializeAccount(self, account, eth_acc, signer_key):
+    def initializeAccount(self, eth_acc, signer_key):
         (account_info, nonce) = create_program_address([bytes(eth_acc)], self.program)
-#        print('InitializeAccount:', account_info, nonce)
         data = INITIALIZE_ACCOUNT_LAYOUT.build(dict(
             instruction=0,
-            account=bytes(account),
             eth_acc=bytes(eth_acc),
             nonce=nonce,
         ))
         return TransactionInstruction(program_id=self.program, data=data, keys=[
                 AccountMeta(pubkey=account_info, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=self.program, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=system_id, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=rent_id, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=signer_key, is_signer=True, is_writable=True),
             ])
 
-    def initializeAuthority(self, account, eth_token, eth_acc, signer_key):
-        (account_info, nonce) = create_program_address([bytes(eth_token), bytes(eth_acc)], self.program)
-#        print("InitializeAuthority:", account_info)
-
-        data = INITIALIZE_AUTH_LAYOUT.build(dict(
+    def initializeToken(self, token, eth_token, signer_key):
+        (token_info, nonce) = create_program_address([bytes(eth_token)], self.program)
+        data = INITIALIZE_TOKEN_LAYOUT.build(dict(
             instruction=1,
+            token=bytes(token),
+            eth_token=bytes(eth_token),
+            nonce=nonce,
+        ))
+        return TransactionInstruction(program_id=self.program, data=data, keys=[
+                AccountMeta(pubkey=token_info, is_signer=True, is_writable=True),
+                AccountMeta(pubkey=system_id, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=rent_id, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=signer_key, is_signer=True, is_writable=True),
+            ])
+
+    def initializeBalance(self, account, eth_token, eth_acc, signer_key):
+        (account_info, nonce) = create_program_address([bytes(eth_token), bytes(eth_acc)], self.program)
+
+        data = INITIALIZE_BALANCE_LAYOUT.build(dict(
+            instruction=2,
             account=bytes(account),
             eth_token=bytes(eth_token),
             eth_acc=bytes(eth_acc),
@@ -207,7 +222,7 @@ class WrapperProgram():
         ))
         return TransactionInstruction(program_id=self.program, data=data, keys=[
                 AccountMeta(pubkey=account_info, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.program, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=system_id, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=rent_id, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=signer_key, is_signer=True, is_writable=True),
             ])

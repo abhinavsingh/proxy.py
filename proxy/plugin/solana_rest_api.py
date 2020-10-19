@@ -34,6 +34,8 @@ import base58
 import base64
 import traceback
 
+wrapper_id = '2UtxUCpaF38zSjhtfy8Tb9C9u8TkHwLZg9YRSCZgg75W'
+
 class Contract:
     def __init__(self, functions):
         self.functions = functions
@@ -49,44 +51,6 @@ class Contract:
     def execute(self, sender, data):
         return self._getFunction('execute_', data[0:8])(sender, data[8:])
 
-class TokenContract(Contract):
-    def __init__(self, symbol, decimals, owner, quantity):
-        functions = {
-            '06fdde03': 'name',
-            '313ce567': 'decimals',
-            '95d89b41': 'symbol',
-            '18160ddd': 'totalSupply',
-            '70a08231': 'balanceOf',
-            'a9059cbb': 'transfer',
-        }
-        super(TokenContract, self).__init__(functions)
-        self.symbol = symbol
-        self.decimals = decimals
-        self.balances = {owner: int(quantity*10**decimals)}
-
-    def call_balanceOf(self, data):
-        balance = self.balances.get('0x'+data[24:], None)
-        return '%064x' % balance if balance else '0x0'
-
-    def call_decimals(self, data):
-        return '%064x' % self.decimals
-
-    def call_symbol(self, data):
-        result = '%064x%064x%s'%(0x20, len(self.symbol), self.symbol.encode('utf8').hex())
-        result += (64-len(result)%64)%64 * '0'
-        return result
-
-    def execute_transfer(self, sender, data):
-        receiver = '0x'+data[24:64]
-        amount = int(data[64:128], 16)
-        if not (sender in self.balances and self.balances[sender] >= amount):
-            raise Exception("Unsufficient funds")
-
-        self.balances[sender] -= amount
-        if not receiver in self.balances:
-            self.balances[receiver] = amount
-        else:
-            self.balances[receiver] += amount
 
 class SolanaTokenContract(Contract):
     def __init__(self, client, wrapper, eth_token):
@@ -101,13 +65,9 @@ class SolanaTokenContract(Contract):
         super(SolanaTokenContract, self).__init__(functions)
         self.client, self.wrapper, self.eth_token = client, wrapper, eth_token
 
-        self.tokenInfo = wrapper.getAccountInfo(eth_token)
-        self.decimals = wrapper.getTokenDecimals(self.tokenInfo.account)
-        self.symbol = 'S'+str(self.tokenInfo.account)[-6:]
-#        self.symbol = symbol
-#        self.decimals = decimals
-#        self.balances = {owner: int(quantity*10**decimals)}
-        self.balances = {}
+        self.tokenInfo = wrapper.getTokenInfo(eth_token)
+        self.decimals = wrapper.getTokenDecimals(self.tokenInfo.token)
+        self.symbol = 'S'+str(self.tokenInfo.token)[-6:]
 
     def call_balanceOf(self, data):
         try:
@@ -181,42 +141,17 @@ class Receipt:
         if self.block: raise Exception("Transaction already included in block {}".format(block.number))
         (self.block, self.index) = (block, index)
 
-class Block:
-    def __init__(self, number):
-        self.number = number
-        self.receipts = []
-
-    def addReceipt(self, receipt):
-        receipt.initBlock(self, len(self.receipts))
-        self.receipts.append(receipt)
 
 
 class EthereumModel:
     def __init__(self):
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print('!!!!!!Create ethereum model!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-
         self.client = SolanaClient('http://localhost:8899')
-        self.programId = 'C36ws9bTdgzAb4UR3NH54hfT5nQoP2cfozBTJy1zAEYm'
-        self.wrapper = WrapperProgram(self.client, self.programId)
-        self.receipts = {}
-        self.blocks = {}
-#        self.pending = Block(len(self.blocks)+1)
-        self.trxs = {}
+        self.wrapper = WrapperProgram(self.client, wrapper_id)
         self.signatures = {}
         self.signer = SolanaAccount(b'\xdc~\x1c\xc0\x1a\x97\x80\xc2\xcd\xdfn\xdb\x05.\xf8\x90N\xde\xf5\x042\xe2\xd8\x10xO%/\xe7\x89\xc0<')
 
-#        owner = '0xc1566af4699928fdf9be097ca3dc47ece39f8f8e'
-        self.contracts = {
-#            '0x59a449cd7fd8fbcf34d103d98f2c05245020e35b': TokenContract('GLS', 6, owner, 1000000),
-#            '0x7dc13a3a38992ca6ee5c9b7562fe17701797cf3d': TokenContract('CYBER', 4, owner, 1000000),
-#            '0xc80102fd2d3d1be86823dd36f9c783ad0ee7d898': TokenContract('KIA', 3, owner, 100000),
-        }
-        print(self.contracts)
-        self.accounts = {
-#            owner: Account(1000*10**18)
-        }
+        self.contracts = {}
+        self.accounts = {}
         pass
 
     def _getContract(self, contractId):
@@ -229,16 +164,6 @@ class EthereumModel:
 
     def net_version(self):
         return '1600243666737'
-
-    def commitBlock(self):
-#        self.blocks.append(self.pending)
-#        self.pending = Block(len(self.blocks)+1)
-        pass
-
-    def addReceipt(self, receipt):
-#        self.pending.addReceipt(receipt)
-#        self.trxs[receipt.id] = receipt
-        pass
 
     def __repr__(self):
         return str(self.__dict__)
@@ -270,16 +195,16 @@ class EthereumModel:
 
         block = response['result']
         signatures = [trx['transaction']['signatures'][0] for trx in block['transactions']]
-        signs = []
+        eth_signatures = []
         for signature in signatures:
-            sign = '0x'+keccak_256(base58.b58decode(signature)).hexdigest()
-            self.signatures[sign] = signature
-            signs.append(sign)
+            eth_signature = '0x'+keccak_256(base58.b58decode(signature)).hexdigest()
+            self.signatures[eth_signature] = signature
+            eth_signatures.append(eth_signature)
 
         return {
             "number": number,
             "gasLimit": "0x6691b7",
-            "transactions": signs,
+            "transactions": eth_signatures,
         }
 
 #       {
@@ -326,13 +251,11 @@ class EthereumModel:
         print('eth_getTransactionCount:', account)
         try:
             info = self.wrapper.getAccountInfo(EthereumAddress(account))
-            #account = self.accounts.get(account)
             return hex(info.trx_count)
         except:
             return hex(0)
 
     def eth_getTransactionReceipt(self, trxId):
-#        receipt = self.trxs.get(trxId, None)
         receipt = self.signatures.get(trxId, None)
         print('getTransactionReceipt:', trxId, receipt)
         if not receipt: raise Exception("Not found receipt")
@@ -427,10 +350,10 @@ class EthereumModel:
         response = self.client.send_transaction(outTrx, self.signer, opts=TxOpts(skip_confirmation=True))
         print('Send transaction:', response)
 
-        sign = '0x'+keccak_256(base58.b58decode(response['result'])).hexdigest()
-        self.signatures[sign] = response['result']
-        print('Ethereum signature:', sign)
-        return sign
+        eth_signature = '0x'+keccak_256(base58.b58decode(response['result'])).hexdigest()
+        self.signatures[eth_signature] = response['result']
+        print('Ethereum signature:', eth_signature)
+        return eth_signature
 
 
 
@@ -446,8 +369,8 @@ class SolanaContractTests(unittest.TestCase):
         self.model = EthereumModel()
         self.owner = '0xc1566af4699928fdf9be097ca3dc47ece39f8f8e'
         self.token1 = '0x49a449cd7fd8fbcf34d103d98f2c05245020e35b'
-        self.assertEqual(self.getBalance(self.owner), 1000*10**18)
-        self.assertEqual(self.getBalance(self.token1), 0)
+#        self.assertEqual(self.getBalance(self.owner), 1000*10**18)
+#        self.assertEqual(self.getBalance(self.token1), 0)
 
     def getBalance(self, account):
         return int(self.model.eth_getBalance(account, 'latest'), 16)
@@ -480,7 +403,7 @@ class SolanaContractTests(unittest.TestCase):
         self.assertTrue(receiptId in block['transactions'])
 
     def test_transferTokens(self):
-        (token, sender, receiver, amount) = ('0xb80102fd2d3d1be86823dd36f9c783ad0ee7d898', self.owner, '0xcac68f98c1893531df666f2d58243b27dd351a88', 32)
+        (token, sender, receiver, amount) = ('0xcf73021fde8654e64421f67372a47aa53c4341a8', '0x324726ca9954ed9bd567a62ae38a7dd7b4eaad0e', '0xb937ad32debafa742907d83cb9749443160de0c4', 32)
         senderBalance = self.getTokenBalance(token, sender)
         receiverBalance = self.getTokenBalance(token, receiver)
         blockNumber = self.getBlockNumber()
