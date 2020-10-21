@@ -93,6 +93,13 @@ TRANSFER_LAYOUT = cStruct(
     "eth_acc" / Bytes(20),
 )
 
+TRANSFER_LAMPORTS_LAYOUT = cStruct(
+    "instruction" / Int8ul,
+    "amount" / Int64ul,
+    "nonce" / Int8ul,
+    "eth_acc" / Bytes(20),
+)
+
 class AccountInfo(NamedTuple):
     eth_acc: eth_keys.PublicKey
     trx_count: int
@@ -159,6 +166,10 @@ class WrapperProgram():
         data = self._getAccountData(account_info, BALANCE_INFO_LAYOUT.sizeof())
         return BalanceInfo.frombytes(data)
 
+    def getLamports(self, eth_acc):
+        (account, nonce) = create_program_address([bytes(eth_acc), 'lamports'.encode('ascii')], self.program)
+        return int(self.client.get_balance(account)['result']['value'])
+
     def getTokenDecimals(self, token):
         data = self._getAccountData(token, 82, owner=token_id)
         return int.from_bytes(data[36+8:36+8+1], "little")
@@ -179,6 +190,22 @@ class WrapperProgram():
                 AccountMeta(pubkey=destination, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=authority, is_signer=False, is_writable=False)])
 
+
+    def transferLamports(self, eth_acc, destination, amount):
+        (source, nonce) = create_program_address([bytes(eth_acc), 'lamports'.encode('ascii')], self.program)
+        if isinstance(destination, EthereumAddress):
+            (destination, nonceDest) = create_program_address([bytes(destination), 'lamports'.encode('ascii')], self.program)
+        print('--- transfer lamports:', eth_acc, source, destination, amount)
+        data = TRANSFER_LAMPORTS_LAYOUT.build(dict(
+            instruction=4,
+            amount=amount,
+            nonce=nonce,
+            eth_acc=bytes(eth_acc),
+        ))
+        return TransactionInstruction(program_id=self.program, data=data, keys=[
+                AccountMeta(pubkey=source, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=destination, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=system_id, is_signer=False, is_writable=False)])
 
 
     def initializeAccount(self, eth_acc, signer_key):

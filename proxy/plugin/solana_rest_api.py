@@ -34,7 +34,7 @@ import base58
 import base64
 import traceback
 
-wrapper_id = '2UtxUCpaF38zSjhtfy8Tb9C9u8TkHwLZg9YRSCZgg75W'
+wrapper_id = 'HB7yN5ZLPi1cLUAZs6QF4y6ZdRN1K4YhGzyRgewF23rD'
 
 class Contract:
     def __init__(self, functions):
@@ -177,10 +177,10 @@ class EthereumModel:
         """account - address to check for balance.
            tag - integer block number, or the string "latest", "earliest" or "pending"
         """
-        account = account.lower()
-        account = self.accounts.get(account.lower())
-        balance = account.balance if account else 0
-        return hex(balance)
+        eth_acc = EthereumAddress(account)
+        print('eth_getBalance:', account, eth_acc)
+        balance = self.wrapper.getLamports(eth_acc)
+        return hex(balance*10**9)
 
     def eth_getBlockByNumber(self, tag, full):
         """Returns information about a block by block number.
@@ -245,7 +245,10 @@ class EthereumModel:
             tag - integer block number, or the string "latest", "earliest" or "pending", see the default block parameter
         """
         if not obj['data']: raise Exception("Missing data")
-        return self._getContract(obj['to']).call(obj['data'][2:])
+        try:
+            return self._getContract(obj['to']).call(obj['data'][2:])
+        except:
+            return '0x'
 
     def eth_getTransactionCount(self, account, tag):
         print('eth_getTransactionCount:', account)
@@ -340,12 +343,19 @@ class EthereumModel:
         print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
         print('Sender:', sender, 'toAddress', toAddress)
 
-        if trx.value:
-            raise Exception("Native mint transfer not implemented yet")
-
         outTrx = Transaction()
-        if trx.callData:
+
+        if trx.value and trx.callData:
+            raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
+        elif trx.value:
+            outTrx.add(self.wrapper.transferLamports(
+                    EthereumAddress(sender),
+                    EthereumAddress(toAddress),
+                    trx.value//(10**9)))
+        elif trx.callData:
             outTrx.add(self._getContract(toAddress).execute(sender, trx.callData.hex()))
+        else:
+            raise Exception("Missing token for transfer")
 
         response = self.client.send_transaction(outTrx, self.signer, opts=TxOpts(skip_confirmation=True))
         print('Send transaction:', response)
