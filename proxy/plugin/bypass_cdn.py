@@ -1,6 +1,7 @@
 import time
 from typing import Optional
 from urllib import parse as urlparse
+from urllib.parse import urlencode
 
 from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
@@ -18,8 +19,15 @@ class BypassCDNPlugin(HttpProxyBasePlugin):
         return request
 
     def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
-        new_url = f'{request.url.geturl().decode()}?timestamp={int(round(time.time() * 1000))}'
-        request.set_url(new_url.encode())
+        # combined url query param
+        url = request.url.geturl().decode()
+        parse_res = urlparse.urlparse(url)
+        query_dict = dict(urlparse.parse_qsl(parse_res.query))
+        query_dict.update({'timestamp': int(round(time.time() * 1000))})
+        parse_res.query = urlencode(query_dict)
+
+        # change request url
+        request.set_url(parse_res.geturl().encode())
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         return chunk
