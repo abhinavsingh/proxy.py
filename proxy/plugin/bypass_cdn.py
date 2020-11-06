@@ -9,8 +9,8 @@ from ..http.proxy import HttpProxyBasePlugin
 
 class BypassCDNPlugin(HttpProxyBasePlugin):
     """this will force upstream servers to almost always invalidate the cache via add query params
-    
-    Reference: 
+
+    Reference:
       - https://i.blackhat.com/USA-20/Wednesday/us-20-Kettle-Web-Cache-Entanglement-Novel-Pathways-To-Poisoning-wp.pdf
       - https://cloud.google.com/cdn/docs/caching#cache-keys
     """
