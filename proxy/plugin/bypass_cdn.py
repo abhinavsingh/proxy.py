@@ -20,14 +20,16 @@ class BypassCDNPlugin(HttpProxyBasePlugin):
 
     def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
         # combined url query param
-        url = request.url.geturl().decode()
+        url = request.url.geturl()
         parse_res = urlparse.urlparse(url)
+        print(parse_res)
         query_dict = dict(urlparse.parse_qsl(parse_res.query))
         query_dict.update({'timestamp': int(round(time.time() * 1000))})
-        parse_res.query = urlencode(query_dict)
+        parse_res = parse_res._replace(query=urlencode(query_dict).encode())
 
         # change request url
-        request.set_url(parse_res.geturl().encode())
+        request.set_url(parse_res.geturl())
+        return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         return chunk
