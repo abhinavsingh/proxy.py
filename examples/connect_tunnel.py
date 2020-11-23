@@ -33,6 +33,12 @@ class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
         reason=b'Connection established'
     ))
 
+    PROXY_TUNNEL_UNSUPPORTED_SCHEME = memoryview(build_http_response(
+        httpStatusCodes.BAD_REQUEST,
+        headers={b'Connection': b'close'},
+        reason=b'Unsupported protocol scheme'
+    ))
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.request = HttpParser(httpParserTypes.REQUEST_PARSER)
@@ -48,18 +54,20 @@ class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
             self.upstream.close()
         super().shutdown()
 
-    def handle_data(self, data: memoryview) -> None:
+    def handle_data(self, data: memoryview) -> Optional[bool]:
         # Queue for upstream if connection has been established
         if self.upstream and self.upstream._conn is not None:
             self.upstream.queue(data)
-            return
+            return None
 
         # Parse client request
         self.request.parse(data)
 
         # Drop the request if not a CONNECT request
         if self.request.method != httpMethods.CONNECT:
-            pass
+            self.client.queue(
+                ConnectTunnelHandler.PROXY_TUNNEL_UNSUPPORTED_SCHEME)
+            return True
 
         # CONNECT requests are short and we need not worry about
         # receiving partial request bodies here.
@@ -71,6 +79,8 @@ class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
         # Queue tunnel established response to client
         self.client.queue(
             ConnectTunnelHandler.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+
+        return None
 
     def get_events(self) -> Dict[socket.socket, int]:
         # Get default client events
