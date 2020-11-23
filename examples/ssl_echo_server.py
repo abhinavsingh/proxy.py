@@ -9,16 +9,17 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
+from typing import Optional
 
 from proxy.proxy import Proxy
 from proxy.core.acceptor import AcceptorPool
 from proxy.core.connection import TcpClientConnection
 from proxy.common.utils import wrap_socket
 
-from examples.base_server import BaseServerHandler
+from proxy.core.base_tcp_server import BaseTcpServerHandler
 
 
-class EchoSSLServerHandler(BaseServerHandler):  # type: ignore
+class EchoSSLServerHandler(BaseTcpServerHandler):  # type: ignore
     """Wraps client socket during initialization."""
 
     def initialize(self) -> None:
@@ -34,9 +35,10 @@ class EchoSSLServerHandler(BaseServerHandler):  # type: ignore
         self.client = TcpClientConnection(
             conn=conn, addr=self.client.addr)  # type: ignore
 
-    def handle_data(self, data: memoryview) -> None:
+    def handle_data(self, data: memoryview) -> Optional[bool]:
         # echo back to client
         self.client.queue(data)
+        return None
 
 
 def main() -> None:

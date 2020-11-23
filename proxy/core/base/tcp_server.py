@@ -18,17 +18,17 @@ from proxy.core.acceptor import Work
 from proxy.common.types import Readables, Writables
 
 
-class BaseServerHandler(Work):
-    """BaseServerHandler implements Work interface.
+class BaseTcpServerHandler(Work):
+    """BaseTcpServerHandler implements Work interface.
 
-    An instance of BaseServerHandler is created for each client
+    An instance of BaseTcpServerHandler is created for each client
     connection.  BaseServerHandler lifecycle is controlled by
     Threadless core using asyncio.
 
     BaseServerHandler ensures that pending buffers are flushed
     before client connection is closed.
 
-    Implementation must provide:
+    Implementations must provide:
     a) handle_data(data: memoryview)
     c) (optionally) intialize, is_inactive and shutdown methods
     """
@@ -40,6 +40,7 @@ class BaseServerHandler(Work):
 
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
+        """Optionally return True to close client connection."""
         pass    # pragma: no cover
 
     def get_events(self) -> Dict[socket.socket, int]:
