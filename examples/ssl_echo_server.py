@@ -12,14 +12,14 @@ import time
 from typing import Optional
 
 from proxy.proxy import Proxy
+from proxy.common.utils import wrap_socket
 from proxy.core.acceptor import AcceptorPool
 from proxy.core.connection import TcpClientConnection
-from proxy.common.utils import wrap_socket
 
-from proxy.core.base_tcp_server import BaseTcpServerHandler
+from proxy.core.base import BaseTcpServerHandler
 
 
-class EchoSSLServerHandler(BaseTcpServerHandler):  # type: ignore
+class EchoSSLServerHandler(BaseTcpServerHandler):
     """Wraps client socket during initialization."""
 
     def initialize(self) -> None:
@@ -27,13 +27,13 @@ class EchoSSLServerHandler(BaseTcpServerHandler):  # type: ignore
         # here using wrap_socket() utility.
         assert self.flags.keyfile is not None and self.flags.certfile is not None
         conn = wrap_socket(
-            self.client.connection,  # type: ignore
+            self.client.connection,
             self.flags.keyfile,
             self.flags.certfile)
         conn.setblocking(False)
         # Upgrade plain TcpClientConnection to SSL connection object
         self.client = TcpClientConnection(
-            conn=conn, addr=self.client.addr)  # type: ignore
+            conn=conn, addr=self.client.addr)
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
         # echo back to client

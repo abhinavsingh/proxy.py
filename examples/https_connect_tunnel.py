@@ -12,8 +12,8 @@ import time
 from typing import Any, Optional
 
 from proxy.proxy import Proxy
-from proxy.http.codes import httpStatusCodes
 from proxy.common.utils import build_http_response
+from proxy.http.codes import httpStatusCodes
 from proxy.http.parser import httpParserStates
 from proxy.http.methods import httpMethods
 from proxy.core.acceptor import AcceptorPool
