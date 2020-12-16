@@ -8,35 +8,30 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import time
+from abc import abstractmethod
 import socket
 import selectors
 from typing import Any, Optional, Dict
 
-from proxy.proxy import Proxy
-from proxy.core.acceptor import AcceptorPool
-from proxy.core.connection import TcpServerConnection
-from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
-from proxy.http.codes import httpStatusCodes
-from proxy.http.methods import httpMethods
-from proxy.common.types import Readables, Writables
-from proxy.common.utils import build_http_response, text_
+from ...http.parser import HttpParser, httpParserTypes
+from ...common.types import Readables, Writables
+from ...common.utils import text_
 
-from examples.base_server import BaseServerHandler
+from ..connection import TcpServerConnection
+from .tcp_server import BaseTcpServerHandler
 
 
-class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
-    """A http CONNECT tunnel server."""
-
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(build_http_response(
-        httpStatusCodes.OK,
-        reason=b'Connection established'
-    ))
+class BaseTcpTunnelHandler(BaseTcpServerHandler):
+    """Base TCP tunnel interface."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.request = HttpParser(httpParserTypes.REQUEST_PARSER)
         self.upstream: Optional[TcpServerConnection] = None
+
+    @abstractmethod
+    def handle_data(self, data: memoryview) -> Optional[bool]:
+        pass    # pragma: no cover
 
     def initialize(self) -> None:
         self.client.connection.setblocking(False)
@@ -47,30 +42,6 @@ class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
                 text_(self.request.host), self.request.port))
             self.upstream.close()
         super().shutdown()
-
-    def handle_data(self, data: memoryview) -> None:
-        # Queue for upstream if connection has been established
-        if self.upstream and self.upstream._conn is not None:
-            self.upstream.queue(data)
-            return
-
-        # Parse client request
-        self.request.parse(data)
-
-        # Drop the request if not a CONNECT request
-        if self.request.method != httpMethods.CONNECT:
-            pass
-
-        # CONNECT requests are short and we need not worry about
-        # receiving partial request bodies here.
-        assert self.request.state == httpParserStates.COMPLETE
-
-        # Establish connection with upstream
-        self.connect_upstream()
-
-        # Queue tunnel established response to client
-        self.client.queue(
-            ConnectTunnelHandler.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
 
     def get_events(self) -> Dict[socket.socket, int]:
         # Get default client events
@@ -115,22 +86,3 @@ class ConnectTunnelHandler(BaseServerHandler):  # type: ignore
         self.upstream.connect()
         print('Connection established with upstream {0}:{1}'.format(
             text_(self.request.host), self.request.port))
-
-
-def main() -> None:
-    # This example requires `threadless=True`
-    pool = AcceptorPool(
-        flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
-        work_klass=ConnectTunnelHandler)
-    try:
-        pool.setup()
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        pool.shutdown()
-
-
-if __name__ == '__main__':
-    main()
