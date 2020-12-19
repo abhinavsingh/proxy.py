@@ -1703,7 +1703,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--static-server-dir STATIC_SERVER_DIR] [--threadless]
              [--timeout TIMEOUT] [--version]
 
-proxy.py v2.2.0
+proxy.py v2.3.0
 
 optional arguments:
   -h, --help            show this help message and exit
