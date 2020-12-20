@@ -57,6 +57,8 @@ Table of Contents
         * [Cache Responses Plugin](#cacheresponsesplugin)
         * [Man-In-The-Middle Plugin](#maninthemiddleplugin)
         * [Proxy Pool Plugin](#proxypoolplugin)
+        * [FilterByClientIpPlugin](#filterbyclientipplugin)
+        * [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
     * [HTTP Web Server Plugins](#http-web-server-plugins)
         * [Reverse Proxy](#reverse-proxy)
         * [Web Server Route](#web-server-route)
@@ -70,6 +72,7 @@ Table of Contents
 * [Embed proxy.py](#embed-proxypy)
     * [Blocking Mode](#blocking-mode)
     * [Non-blocking Mode](#non-blocking-mode)
+    * [Loading Plugins](#loading-plugins)
 * [Unit testing with proxy.py](#unit-testing-with-proxypy)
     * [proxy.TestCase](#proxytestcase)
     * [Override Startup Flags](#override-startup-flags)
@@ -669,6 +672,57 @@ Make a curl request via `8899` proxy:
 Verify that `8899` proxy forwards requests to upstream proxies
 by checking respective logs.
 
+### FilterByClientIpPlugin
+
+Reject traffic from specific IP addresses.  By default this
+plugin blocks traffic from `127.0.0.1` and `::1`.
+
+Start `proxy.py` as:
+
+```bash
+❯ proxy \
+    --plugins proxy.plugin.FilterByClientIpPlugin
+```
+
+Send a request using `curl -v -x localhost:8899 http://google.com`:
+
+```bash
+... [redacted] ...
+> Proxy-Connection: Keep-Alive
+>
+< HTTP/1.1 418 I'm a tea pot
+< Connection: close
+<
+* Closing connection 0
+```
+
+Modify plugin to your taste e.g. Allow specific IP addresses only.
+
+### ModifyChunkResponsePlugin
+
+This plugin demonstrate how to modify chunked encoded responses.  In able to do so, this plugin uses `proxy.py` core to parse the chunked encoded response.  Then we reconstruct the response using custom hardcoded chunks, ignoring original chunks received from upstream server.
+
+Start `proxy.py` as:
+
+```bash
+❯ proxy \
+    --plugins proxy.plugin.ModifyChunkResponsePlugin
+```
+
+Verify using `curl -v -x localhost:8899 http://httpbin.org/stream/5`:
+
+```bash
+... [redacted] ...
+modify
+chunk
+response
+plugin
+* Connection #0 to host localhost left intact
+* Closing connection 0
+```
+
+Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending hardcoded chunks, parse and modify the original `JSON` chunks received from the upstream server.
+
 ## HTTP Web Server Plugins
 
 ### Reverse Proxy
@@ -773,6 +827,22 @@ Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https
   "url": "https://httpbin.org/get"
 }
 ```
+
+If you want to avoid passing `--proxy-cacert` flag, also consider signing generated SSL certificates.  Example:
+
+First, generate CA certificates:
+
+```bash
+make ca-certificates
+```
+
+Then, sign SSL certificate:
+
+```bash
+make sign-https-certificates
+```
+
+Now restart the server with `--cert-file https-signed-cert.pem` flag.  Note that you must also trust generated `ca-cert.pem` in your system keychain.
 
 TLS Interception
 =================
@@ -1102,6 +1172,36 @@ Note that:
    can be customized by either passing flags as list of
    input arguments e.g. `start(['--port', '8899'])` or
    by using passing flags as kwargs e.g. `start(port=8899)`.
+
+## Loading Plugins
+
+You can, of course, list plugins to load in the input arguments list of `proxy.main`, `proxy.start` or the `Proxy` constructor. Use the `--plugins` flag as when starting from command line:
+
+```python
+import proxy
+
+if __name__ == '__main__':
+  proxy.main([
+    '--plugins', 'proxy.plugin.CacheResponsesPlugin',
+  ])
+```
+
+However, for simplicity you can pass the list of plugins to load as a keyword argument to `proxy.main`, `proxy.start` or the `Proxy` constructor:
+
+```python
+import proxy
+from proxy.plugin import FilterByUpstreamHostPlugin
+
+if __name__ == '__main__':
+  proxy.main([], plugins=[
+    b'proxy.plugin.CacheResponsesPlugin',
+    FilterByUpstreamHostPlugin,
+  ])
+```
+
+Note that it supports:
+1. The fully-qualified name of a class as `bytes`
+2. Any `type` instance for a Proxy.py plugin class. This is espacially useful for custom plugins defined locally.
 
 Unit testing with proxy.py
 ==========================
@@ -1603,7 +1703,7 @@ usage: proxy [-h] [--backlog BACKLOG] [--basic-auth BASIC_AUTH]
              [--static-server-dir STATIC_SERVER_DIR] [--threadless]
              [--timeout TIMEOUT] [--version]
 
-proxy.py v2.2.0
+proxy.py v2.3.0
 
 optional arguments:
   -h, --help            show this help message and exit

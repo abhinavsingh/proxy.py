@@ -16,10 +16,10 @@ import ssl
 from unittest import mock
 from typing import Any, cast
 
+from proxy.proxy import Proxy
 from proxy.common.utils import bytes_
-from proxy.common.flags import Flags
 from proxy.common.utils import build_http_request, build_http_response
-from proxy.core.connection import TcpClientConnection
+from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
 from proxy.http.handler import HttpProtocolHandler
@@ -62,7 +62,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Flags(
+        self.flags = Proxy.initialize(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem',)
@@ -97,6 +97,10 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
             if self.mock_ssl_context.return_value.wrap_socket.called:
                 return self.server_ssl_connection
             return self._conn
+
+        # Do not mock the original wrap method
+        self.server.wrap.side_effect = \
+            lambda x, y: TcpServerConnection.wrap(self.server, x, y)
 
         self.server.has_buffer.side_effect = has_buffer
         type(self.server).closed = mock.PropertyMock(side_effect=closed)

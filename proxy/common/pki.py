@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import time
 import sys
 import argparse
 import contextlib
@@ -256,6 +257,24 @@ if __name__ == '__main__':
         default='/CN=example.com',
         help='Subject to use for public key generation. Default: /CN=example.com',
     )
+    parser.add_argument(
+        '--csr-path',
+        type=str,
+        default=None,
+        help='CSR file path.  Use with gen_csr and sign_csr action.',
+    )
+    parser.add_argument(
+        '--crt-path',
+        type=str,
+        default=None,
+        help='Signed certificate path.  Use with sign_csr action.',
+    )
+    parser.add_argument(
+        '--hostname',
+        type=str,
+        default=None,
+        help='Alternative subject names to use during CSR signing.',
+    )
     args = parser.parse_args(sys.argv[1:])
 
     # Validation
@@ -280,3 +299,12 @@ if __name__ == '__main__':
     elif args.action == 'remove_passphrase':
         remove_passphrase(args.private_key_path, args.password,
                           args.private_key_path)
+    elif args.action == 'gen_csr':
+        gen_csr(
+            args.csr_path,
+            args.private_key_path,
+            args.password,
+            args.public_key_path)
+    elif args.action == 'sign_csr':
+        sign_csr(args.csr_path, args.crt_path, args.private_key_path, args.password,
+                 args.public_key_path, str(int(time.time())), alt_subj_names=[args.hostname, ])

@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import socket
 import selectors
 import ssl
@@ -15,106 +16,60 @@ import time
 import contextlib
 import errno
 import logging
-from abc import ABC, abstractmethod
+
 from typing import Tuple, List, Union, Optional, Generator, Dict
 from uuid import UUID
+
+from .plugin import HttpProtocolHandlerPlugin
 from .parser import HttpParser, httpParserStates, httpParserTypes
 from .exception import HttpProtocolException
 
-from ..common.flags import Flags
-from ..common.types import HasFileno
-from ..core.threadless import ThreadlessWork
+from ..common.types import Readables, Writables
+from ..common.utils import wrap_socket
+from ..core.acceptor.work import Work
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
+from ..common.flag import flags
+from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
+
 
 logger = logging.getLogger(__name__)
 
 
-class HttpProtocolHandlerPlugin(ABC):
-    """Base HttpProtocolHandler Plugin class.
-
-    NOTE: This is an internal plugin and in most cases only useful for core contributors.
-    If you are looking for proxy server plugins see `<proxy.HttpProxyBasePlugin>`.
-
-    Implements various lifecycle events for an accepted client connection.
-    Following events are of interest:
-
-    1. Client Connection Accepted
-       A new plugin instance is created per accepted client connection.
-       Add your logic within __init__ constructor for any per connection setup.
-    2. Client Request Chunk Received
-       on_client_data is called for every chunk of data sent by the client.
-    3. Client Request Complete
-       on_request_complete is called once client request has completed.
-    4. Server Response Chunk Received
-       on_response_chunk is called for every chunk received from the server.
-    5. Client Connection Closed
-       Add your logic within `on_client_connection_close` for any per connection teardown.
-    """
-
-    def __init__(
-            self,
-            uid: UUID,
-            flags: Flags,
-            client: TcpClientConnection,
-            request: HttpParser,
-            event_queue: EventQueue):
-        self.uid: UUID = uid
-        self.flags: Flags = flags
-        self.client: TcpClientConnection = client
-        self.request: HttpParser = request
-        self.event_queue = event_queue
-        super().__init__()
-
-    def name(self) -> str:
-        """A unique name for your plugin.
-
-        Defaults to name of the class. This helps plugin developers to directly
-        access a specific plugin by its name."""
-        return self.__class__.__name__
-
-    @abstractmethod
-    def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        return [], []  # pragma: no cover
-
-    @abstractmethod
-    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
-        return False  # pragma: no cover
-
-    @abstractmethod
-    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
-        return False  # pragma: no cover
-
-    @abstractmethod
-    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
-        return raw  # pragma: no cover
-
-    @abstractmethod
-    def on_request_complete(self) -> Union[socket.socket, bool]:
-        """Called right after client request parser has reached COMPLETE state."""
-        return False  # pragma: no cover
-
-    @abstractmethod
-    def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
-        """Handle data chunks as received from the server.
-
-        Return optionally modified chunk to return back to client."""
-        return chunk  # pragma: no cover
-
-    @abstractmethod
-    def on_client_connection_close(self) -> None:
-        pass  # pragma: no cover
+flags.add_argument(
+    '--client-recvbuf-size',
+    type=int,
+    default=DEFAULT_CLIENT_RECVBUF_SIZE,
+    help='Default: 1 MB. Maximum amount of data received from the '
+    'client in a single recv() operation. Bump this '
+    'value for faster uploads at the expense of '
+    'increased RAM.')
+flags.add_argument(
+    '--key-file',
+    type=str,
+    default=DEFAULT_KEY_FILE,
+    help='Default: None. Server key file to enable end-to-end TLS encryption with clients. '
+    'If used, must also pass --cert-file.'
+)
+flags.add_argument(
+    '--timeout',
+    type=int,
+    default=DEFAULT_TIMEOUT,
+    help='Default: ' + str(DEFAULT_TIMEOUT) +
+    '.  Number of seconds after which '
+    'an inactive connection must be dropped.  Inactivity is defined by no '
+    'data sent or received by the client.'
+)
 
 
-class HttpProtocolHandler(ThreadlessWork):
+class HttpProtocolHandler(Work):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection object and manages HttpProtocolHandlerPlugin invocations.
     """
 
     def __init__(self, client: TcpClientConnection,
-                 flags: Optional[Flags] = None,
+                 flags: argparse.Namespace,
                  event_queue: Optional[EventQueue] = None,
                  uid: Optional[UUID] = None):
         super().__init__(client, flags, event_queue, uid)
@@ -127,11 +82,15 @@ class HttpProtocolHandler(ThreadlessWork):
         self.client: TcpClientConnection = client
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 
+    def encryption_enabled(self) -> bool:
+        return self.flags.keyfile is not None and \
+            self.flags.certfile is not None
+
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
-        if self.flags.encryption_enabled():
+        if self.encryption_enabled():
             self.client = TcpClientConnection(conn=conn, addr=self.client.addr)
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
@@ -175,8 +134,8 @@ class HttpProtocolHandler(ThreadlessWork):
 
     def handle_events(
             self,
-            readables: List[Union[int, HasFileno]],
-            writables: List[Union[int, HasFileno]]) -> bool:
+            readables: Readables,
+            writables: Writables) -> bool:
         """Returns True if proxy must teardown."""
         # Flush buffer for ready to write sockets
         teardown = self.handle_writables(writables)
@@ -218,7 +177,7 @@ class HttpProtocolHandler(ThreadlessWork):
 
             conn = self.client.connection
             # Unwrap if wrapped before shutdown.
-            if self.flags.encryption_enabled() and \
+            if self.encryption_enabled() and \
                     isinstance(self.client.connection, ssl.SSLSocket):
                 conn = self.client.connection.unwrap()
             conn.shutdown(socket.SHUT_WR)
@@ -236,19 +195,9 @@ class HttpProtocolHandler(ThreadlessWork):
 
         Shutdown and closes client connection upon error.
         """
-        if self.flags.encryption_enabled():
-            ctx = ssl.create_default_context(
-                ssl.Purpose.CLIENT_AUTH)
-            ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-            ctx.verify_mode = ssl.CERT_NONE
+        if self.encryption_enabled():
             assert self.flags.keyfile and self.flags.certfile
-            ctx.load_cert_chain(
-                certfile=self.flags.certfile,
-                keyfile=self.flags.keyfile)
-            conn = ctx.wrap_socket(
-                conn,
-                server_side=True,
-            )
+            conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn
 
     def connection_inactive_for(self) -> float:
@@ -272,7 +221,7 @@ class HttpProtocolHandler(ThreadlessWork):
         finally:
             self.selector.unregister(self.client.connection)
 
-    def handle_writables(self, writables: List[Union[int, HasFileno]]) -> bool:
+    def handle_writables(self, writables: Writables) -> bool:
         if self.client.has_buffer() and self.client.connection in writables:
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
@@ -297,7 +246,7 @@ class HttpProtocolHandler(ThreadlessWork):
                 return True
         return False
 
-    def handle_readables(self, readables: List[Union[int, HasFileno]]) -> bool:
+    def handle_readables(self, readables: Readables) -> bool:
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
@@ -367,8 +316,7 @@ class HttpProtocolHandler(ThreadlessWork):
 
     @contextlib.contextmanager
     def selected_events(self) -> \
-            Generator[Tuple[List[Union[int, HasFileno]],
-                            List[Union[int, HasFileno]]],
+            Generator[Tuple[Readables, Writables],
                       None, None]:
         events = self.get_events()
         for fd in events:

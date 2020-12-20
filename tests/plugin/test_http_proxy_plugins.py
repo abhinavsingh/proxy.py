@@ -16,7 +16,7 @@ from urllib import parse as urlparse
 from unittest import mock
 from typing import cast
 
-from proxy.common.flags import Flags
+from proxy.proxy import Proxy
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
@@ -38,7 +38,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
               mock_selector: mock.Mock) -> None:
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Flags()
+        self.flags = Proxy.initialize()
         self.plugin = mock.MagicMock()
 
         self.mock_fromfd = mock_fromfd
@@ -253,4 +253,31 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             build_http_response(
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Hello from man in the middle')
+        )
+
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
+    def test_filter_by_url_regex_plugin(
+            self, mock_server_conn: mock.Mock) -> None:
+        request = build_http_request(
+            b'GET', b'http://www.facebook.com/tr/',
+            headers={
+                b'Host': b'www.facebook.com',
+            }
+        )
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+        self.protocol_handler.run_once()
+
+        self.assertEqual(
+            self.protocol_handler.client.buffer[0].tobytes(),
+            build_http_response(
+                status_code=httpStatusCodes.NOT_FOUND,
+                reason=b'Blocked',
+                headers={b'Connection': b'close'},
+            )
         )

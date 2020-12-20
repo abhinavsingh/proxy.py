@@ -23,13 +23,24 @@ from ..exception import HttpProtocolException
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
-from ..handler import HttpProtocolHandlerPlugin
+from ..plugin import HttpProtocolHandlerPlugin
 
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.constants import PROXY_AGENT_HEADER_VALUE
-from ...common.types import HasFileno
+from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
+from ...common.types import Readables, Writables
+from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--static-server-dir',
+    type=str,
+    default=DEFAULT_STATIC_SERVER_DIR,
+    help='Default: "public" folder in directory where proxy.py is placed. '
+    'This option is only applicable when static server is also enabled. '
+    'See --enable-static-server.'
+)
 
 
 class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
@@ -72,6 +83,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     self.event_queue)
                 for (protocol, route) in instance.routes():
                     self.routes[protocol][re.compile(route)] = instance
+
+    def encryption_enabled(self) -> bool:
+        return self.flags.keyfile is not None and \
+            self.flags.certfile is not None
 
     @staticmethod
     def read_and_build_static_file_response(path: str) -> memoryview:
@@ -146,7 +161,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
-            if self.flags.encryption_enabled() else \
+            if self.encryption_enabled() else \
             httpProtocolTypes.HTTP
         for route in self.routes[protocol]:
             match = route.match(text_(self.request.path))
@@ -166,10 +181,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
 
-    def write_to_descriptors(self, w: List[Union[int, HasFileno]]) -> bool:
+    def write_to_descriptors(self, w: Writables) -> bool:
         pass
 
-    def read_from_descriptors(self, r: List[Union[int, HasFileno]]) -> bool:
+    def read_from_descriptors(self, r: Readables) -> bool:
         pass
 
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:

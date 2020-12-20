@@ -15,7 +15,7 @@ from .methods import httpMethods
 from .chunk_parser import ChunkParser, chunkParserStates
 
 from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
-from ..common.utils import build_http_request, find_http_line, text_
+from ..common.utils import build_http_request, build_http_response, find_http_line, text_
 
 
 HttpParserStates = NamedTuple('HttpParserStates', [
@@ -110,7 +110,7 @@ class HttpParser:
         # For CONNECT requests, request line contains
         # upstream_host:upstream_port which is not complaint
         # with urlsplit, which expects a fully qualified url.
-        if self.method == b'CONNECT':
+        if self.method == httpMethods.CONNECT:
             url = b'https://' + url
         self.url = urlparse.urlsplit(url)
         self.set_line_attributes()
@@ -171,7 +171,8 @@ class HttpParser:
                         self.state = httpParserStates.COMPLETE
                     more = False
                 else:
-                    raise NotImplementedError('Parser shouldn\'t have reached here')
+                    raise NotImplementedError(
+                        'Parser shouldn\'t have reached here')
             else:
                 more, raw = self.process(raw)
         self.buffer = raw
@@ -237,7 +238,8 @@ class HttpParser:
         return url
 
     def build(self, disable_headers: Optional[List[bytes]] = None) -> bytes:
-        assert self.method and self.version and self.path
+        """Rebuild the request object."""
+        assert self.method and self.version and self.path and self.type == httpParserTypes.REQUEST_PARSER
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
         body: Optional[bytes] = ChunkParser.to_chunks(self.body) \
@@ -249,6 +251,17 @@ class HttpParser:
                                                  k.lower() not in disable_headers},
             body=body
         )
+
+    def build_response(self) -> bytes:
+        """Rebuild the response object."""
+        assert self.code and self.version and self.body and self.type == httpParserTypes.RESPONSE_PARSER
+        return build_http_response(
+            status_code=int(self.code),
+            protocol_version=self.version,
+            reason=self.reason,
+            headers={} if not self.headers else {
+                self.headers[k][0]: self.headers[k][1] for k in self.headers},
+            body=self.body if not self.is_chunked_encoded() else ChunkParser.to_chunks(self.body))
 
     def has_upstream_server(self) -> bool:
         """Host field SHOULD be None for incoming local WebServer requests."""

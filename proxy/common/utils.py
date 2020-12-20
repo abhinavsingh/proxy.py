@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import ssl
 import contextlib
 import functools
 import ipaddress
@@ -101,7 +102,8 @@ def build_http_pkt(line: List[bytes],
 def build_websocket_handshake_request(
         key: bytes,
         method: bytes = b'GET',
-        url: bytes = b'/') -> bytes:
+        url: bytes = b'/',
+        host: bytes = b'localhost') -> bytes:
     """
     Build and returns a Websocket handshake request packet.
 
@@ -112,6 +114,7 @@ def build_websocket_handshake_request(
     return build_http_request(
         method, url,
         headers={
+            b'Host': host,
             b'Connection': b'upgrade',
             b'Upgrade': b'websocket',
             b'Sec-WebSocket-Key': key,
@@ -146,6 +149,21 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
     line = raw[:pos]
     rest = raw[pos + len(CRLF):]
     return line, rest
+
+
+def wrap_socket(conn: socket.socket, keyfile: str,
+                certfile: str) -> ssl.SSLSocket:
+    ctx = ssl.create_default_context(
+        ssl.Purpose.CLIENT_AUTH)
+    ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+    ctx.verify_mode = ssl.CERT_NONE
+    ctx.load_cert_chain(
+        certfile=certfile,
+        keyfile=keyfile)
+    return ctx.wrap_socket(
+        conn,
+        server_side=True,
+    )
 
 
 def new_socket_connection(
@@ -193,8 +211,8 @@ class socket_connection(contextlib.ContextDecorator):
         if self.conn:
             self.conn.close()
 
-    def __call__(self, func: Callable[..., Any]
-                 ) -> Callable[[Tuple[Any, ...], Dict[str, Any]], Any]:
+    def __call__(   # type: ignore
+            self, func: Callable[..., Any]) -> Callable[[Tuple[Any, ...], Dict[str, Any]], Any]:
         @functools.wraps(func)
         def decorated(*args: Any, **kwargs: Any) -> Any:
             with self as conn:

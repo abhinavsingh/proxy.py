@@ -8,38 +8,60 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import logging
 import multiprocessing
 import multiprocessing.synchronize
 import selectors
 import socket
 import threading
-# import time
+
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
 from typing import Optional, Type, Tuple
 
+from .work import Work
+from .threadless import Threadless
+
 from ..connection import TcpClientConnection
-from ..threadless import ThreadlessWork, Threadless
 from ..event import EventQueue, eventNames
-from ...common.flags import Flags
+from ...common.constants import DEFAULT_THREADLESS
+from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
 
 
-class Acceptor(multiprocessing.Process):
-    """Socket client acceptor.
+flags.add_argument(
+    '--threadless',
+    action='store_true',
+    default=DEFAULT_THREADLESS,
+    help='Default: False.  When disabled a new thread is spawned '
+    'to handle each client connection.'
+)
 
-    Accepts client connection over received server socket handle and
-    starts a new work thread.
+
+class Acceptor(multiprocessing.Process):
+    """Socket server acceptor process.
+
+    Accepts a server socket fd over `work_queue` and start listening for client
+    connections over the passed server socket. By default, it spawns a separate thread
+    to handle each client request.
+
+    However, if `--threadless` option is enabled, Acceptor process will also pre-spawns a `Threadless`
+    process at startup.  Accepted client connections are then passed to the `Threadless` process
+    which internally uses asyncio event loop to handle client connections.
+
+    TODO(abhinavsingh): Instead of starting `Threadless` process, can we work with a `Threadless` thread?
+    What are the performance implications of sharing fds between threads vs processes?  How much performance
+    degradation happen when processes are running on separate CPU cores?
     """
 
     def __init__(
             self,
             idd: int,
             work_queue: connection.Connection,
-            flags: Flags,
-            work_klass: Type[ThreadlessWork],
+            flags: argparse.Namespace,
+            work_klass: Type[Work],
             lock: multiprocessing.synchronize.Lock,
             event_queue: Optional[EventQueue] = None) -> None:
         super().__init__()
@@ -108,11 +130,7 @@ class Acceptor(multiprocessing.Process):
             if len(events) == 0:
                 return
             conn, addr = self.sock.accept()
-
-        # now = time.time()
-        # fileno: int = conn.fileno()
         self.start_work(conn, addr)
-        # logger.info('Work started for fd %d in %f seconds', fileno, time.time() - now)
 
     def run(self) -> None:
         self.selector = selectors.DefaultSelector()

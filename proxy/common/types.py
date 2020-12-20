@@ -9,8 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 import queue
+import ipaddress
 
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Dict, Any, List, Union
 
 from typing_extensions import Protocol
 
@@ -23,3 +24,8 @@ else:
 class HasFileno(Protocol):
     def fileno(self) -> int:
         ...     # pragma: no cover
+
+
+Readables = List[Union[int, HasFileno]]
+Writables = List[Union[int, HasFileno]]
+IpAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]

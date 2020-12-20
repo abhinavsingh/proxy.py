@@ -17,12 +17,12 @@ import selectors
 from typing import Any
 from unittest import mock
 
-from proxy.core.connection import TcpClientConnection
+from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.methods import httpMethods
 from proxy.common.utils import build_http_request, bytes_
-from proxy.common.flags import Flags
+from proxy.proxy import Proxy
 
 
 class TestHttpProxyTlsInterception(unittest.TestCase):
@@ -71,12 +71,17 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
                 return ssl_connection
             return plain_connection
 
+        # Do not mock the original wrap method
+        self.mock_server_conn.return_value.wrap.side_effect = \
+            lambda x, y: TcpServerConnection.wrap(
+                self.mock_server_conn.return_value, x, y)
+
         type(self.mock_server_conn.return_value).connection = \
             mock.PropertyMock(side_effect=mock_connection)
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Flags(
+        self.flags = Proxy.initialize(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem'
@@ -146,7 +151,8 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.mock_server_conn.return_value.connection.setblocking.assert_called_with(
             False)
 
-        self.mock_ssl_context.assert_called_with(ssl.Purpose.SERVER_AUTH, cafile=None)
+        self.mock_ssl_context.assert_called_with(
+            ssl.Purpose.SERVER_AUTH, cafile=None)
         # self.assertEqual(self.mock_ssl_context.return_value.options,
         # ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 |
         # ssl.OP_NO_TLSv1_1)
@@ -169,7 +175,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             keyfile=self.flags.ca_signing_key_file,
             certfile=HttpProxyPlugin.generated_cert_file_path(
                 self.flags.ca_cert_dir, host),
-            ssl_version=ssl.PROTOCOL_TLSv1_2
+            ssl_version=ssl.PROTOCOL_TLS
         )
         self.assertEqual(self._conn.setblocking.call_count, 2)
         self.assertEqual(

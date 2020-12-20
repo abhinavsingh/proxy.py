@@ -10,7 +10,7 @@
 """
 from setuptools import setup, find_packages
 
-VERSION = (2, 2, 0)
+VERSION = (2, 3, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = '''⚡⚡⚡Fast, Lightweight, Pluggable, TLS interception capable proxy server
     focused on Network monitoring, controls & Application development, testing, debugging.'''
@@ -28,7 +28,8 @@ if __name__ == '__main__':
         author_email=__author_email__,
         url=__homepage__,
         description=__description__,
-        long_description=open('README.md', 'r', encoding='utf-8').read().strip(),
+        long_description=open(
+            'README.md', 'r', encoding='utf-8').read().strip(),
         long_description_content_type='text/markdown',
         download_url=__download_url__,
         license=__license__,

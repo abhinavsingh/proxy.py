@@ -61,8 +61,10 @@ class CoreEventsToDevtoolsProtocol:
             'wallTime': now,
             'hasUserGesture': False,
             'type': event['event_payload']['headers']['content-type']
-            if event['event_payload']['headers'].has_header('content-type')
+            if 'content-type' in event['event_payload']['headers']
             else 'Other',
+            # TODO(abhinavsingh): Bring this inline with devtools protocol
+            'method': 'Network.requestWillBeSent',
             'request': {
                 'url': event['event_payload']['url'],
                 'method': event['event_payload']['method'],

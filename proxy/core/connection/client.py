@@ -30,3 +30,15 @@ class TcpClientConnection(TcpConnection):
         if self._conn is None:
             raise TcpConnectionUninitializedException()
         return self._conn
+
+    def wrap(self, keyfile: str, certfile: str) -> None:
+        self.connection.setblocking(True)
+        self.flush()
+        self._conn = ssl.wrap_socket(
+            self.connection,
+            server_side=True,
+            # ca_certs=self.flags.ca_cert_file,
+            certfile=certfile,
+            keyfile=keyfile,
+            ssl_version=ssl.PROTOCOL_TLS)
+        self.connection.setblocking(False)

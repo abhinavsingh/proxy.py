@@ -57,7 +57,13 @@ class EventSubscriber:
         assert self.relay_channel
         assert self.relay_sub_id
 
-        self.event_queue.unsubscribe(self.relay_sub_id)
+        try:
+            self.event_queue.unsubscribe(self.relay_sub_id)
+        except BrokenPipeError:
+            pass
+        except EOFError:
+            pass
+
         self.relay_shutdown.set()
         self.relay_thread.join()
         logger.debug(

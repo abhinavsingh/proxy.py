@@ -8,34 +8,86 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 import logging
 import multiprocessing
 import socket
 import threading
-# import time
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 from typing import List, Optional, Type
 
 from .acceptor import Acceptor
-from ..threadless import ThreadlessWork
+from .work import Work
+
 from ..event import EventQueue, EventDispatcher
-from ...common.flags import Flags
+from ...common.flag import flags
+from ...common.constants import DEFAULT_BACKLOG, DEFAULT_ENABLE_EVENTS
+from ...common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_NUM_WORKERS, DEFAULT_PORT
 
 logger = logging.getLogger(__name__)
 
+# Lock shared by worker processes
 LOCK = multiprocessing.Lock()
+
+
+flags.add_argument(
+    '--backlog',
+    type=int,
+    default=DEFAULT_BACKLOG,
+    help='Default: 100. Maximum number of pending connections to proxy server')
+
+flags.add_argument(
+    '--enable-events',
+    action='store_true',
+    default=DEFAULT_ENABLE_EVENTS,
+    help='Default: False.  Enables core to dispatch lifecycle events. '
+    'Plugins can be used to subscribe for core events.'
+)
+
+flags.add_argument(
+    '--hostname',
+    type=str,
+    default=str(DEFAULT_IPV6_HOSTNAME),
+    help='Default: ::1. Server IP address.')
+
+flags.add_argument(
+    '--port', type=int, default=DEFAULT_PORT,
+    help='Default: 8899. Server port.')
+
+flags.add_argument(
+    '--num-workers',
+    type=int,
+    default=DEFAULT_NUM_WORKERS,
+    help='Defaults to number of CPU cores.')
 
 
 class AcceptorPool:
     """AcceptorPool.
 
-    Pre-spawns worker processes to utilize all cores available on the system.  Server socket connection is
-    dispatched over a pipe to workers.  Each worker accepts incoming client request and spawns a
-    separate thread to handle the client request.
+    Pre-spawns worker processes to utilize all cores available on the system.
+    A server socket is initialized and dispatched over a pipe to these workers.
+    Each worker process then accepts new client connection.
+
+    Example usage:
+
+        pool = AcceptorPool(flags=..., work_klass=...)
+        try:
+            pool.setup()
+            while True:
+                time.sleep(1)
+        finally:
+            pool.shutdown()
+
+    `work_klass` must implement `work.Work` class.
+
+    Optionally, AcceptorPool also initialize a global event queue.
+    It is a multiprocess safe queue which can be used to build pubsub patterns
+    for message sharing or signaling within proxy.py.
     """
 
-    def __init__(self, flags: Flags, work_klass: Type[ThreadlessWork]) -> None:
+    def __init__(self, flags: argparse.Namespace,
+                 work_klass: Type[Work]) -> None:
         self.flags = flags
         self.socket: Optional[socket.socket] = None
         self.acceptors: List[Acceptor] = []

@@ -8,6 +8,8 @@ IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
 HTTPS_KEY_FILE_PATH := https-key.pem
 HTTPS_CERT_FILE_PATH := https-cert.pem
+HTTPS_CSR_FILE_PATH := https-csr.pem
+HTTPS_SIGNED_CERT_FILE_PATH := https-signed-cert.pem
 
 CA_KEY_FILE_PATH := ca-key.pem
 CA_CERT_FILE_PATH := ca-cert.pem
@@ -25,6 +27,7 @@ devtools:
 	pushd dashboard && npm run devtools && popd
 
 autopep8:
+	autopep8 --recursive --in-place --aggressive examples
 	autopep8 --recursive --in-place --aggressive proxy
 	autopep8 --recursive --in-place --aggressive tests
 	autopep8 --recursive --in-place --aggressive setup.py
@@ -39,6 +42,20 @@ https-certificates:
 	python -m proxy.common.pki gen_public_key \
 		--private-key-path $(HTTPS_KEY_FILE_PATH) \
 		--public-key-path $(HTTPS_CERT_FILE_PATH)
+
+sign-https-certificates:
+	# Generate CSR request
+	python -m proxy.common.pki gen_csr \
+		--csr-path $(HTTPS_CSR_FILE_PATH) \
+		--private-key-path $(HTTPS_KEY_FILE_PATH) \
+		--public-key-path $(HTTPS_CERT_FILE_PATH)
+	# Sign CSR with CA
+	python -m proxy.common.pki sign_csr \
+		--csr-path $(HTTPS_CSR_FILE_PATH) \
+		--crt-path $(HTTPS_SIGNED_CERT_FILE_PATH) \
+		--hostname example.com \
+		--private-key-path $(CA_KEY_FILE_PATH) \
+		--public-key-path $(CA_CERT_FILE_PATH)
 
 ca-certificates:
 	# Generate CA key
@@ -73,8 +90,8 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-lint:
-	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
-	mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
+	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 examples/ proxy/ tests/ setup.py
+	mypy --strict --ignore-missing-imports examples/ proxy/ tests/ setup.py
 
 lib-test: lib-clean lib-version lib-lint
 	pytest -v tests/
@@ -93,7 +110,7 @@ lib-coverage:
 	open htmlcov/index.html
 
 lib-profile:
-	sudo py-spy -F -f profile.svg -d 3600 proxy.py
+	sudo py-spy record -o profile.svg -t -F -s -- python -m proxy
 
 dashboard:
 	pushd dashboard && npm run build && popd
