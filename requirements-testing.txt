@@ -4,7 +4,7 @@ flake8==3.8.4
 pytest==6.2.1
 pytest-cov==2.11.0
 autopep8==1.5.4
-mypy==0.790
+mypy==0.800
 py-spy==0.3.3
 codecov==2.1.11
 tox==3.21.1
