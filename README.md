@@ -110,7 +110,6 @@
   - [v0.x](#v0x)
 
 # Features
-
 - Fast & Scalable
 
   - Scales by using all available cores on the system
