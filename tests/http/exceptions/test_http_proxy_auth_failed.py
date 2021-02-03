@@ -99,3 +99,22 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
         self.protocol_handler.run_once()
         mock_server_conn.assert_called_once()
         self.assertEqual(self.protocol_handler.client.has_buffer(), False)
+
+    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
+    def test_proxy_auth_works_with_mixed_case_basic_string(self, mock_server_conn: mock.Mock) -> None:
+        self._conn.recv.return_value = build_http_request(
+            b'GET', b'http://upstream.host/not-found.html',
+            headers={
+                b'Host': b'upstream.host',
+                b'Proxy-Authorization': b'bAsIc dXNlcjpwYXNz',
+            })
+        self.mock_selector.return_value.select.side_effect = [
+            [(selectors.SelectorKey(
+                fileobj=self._conn,
+                fd=self._conn.fileno,
+                events=selectors.EVENT_READ,
+                data=None), selectors.EVENT_READ)], ]
+
+        self.protocol_handler.run_once()
+        mock_server_conn.assert_called_once()
+        self.assertEqual(self.protocol_handler.client.has_buffer(), False)
