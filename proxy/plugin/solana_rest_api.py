@@ -33,8 +33,10 @@ from sha3 import keccak_256
 import base58
 import base64
 import traceback
+from .erc20_wrapper import ERC20_Program
 
-wrapper_id = 'HB7yN5ZLPi1cLUAZs6QF4y6ZdRN1K4YhGzyRgewF23rD'
+wrapper_id = '3EvDG5aTfN4csM57WjxymnovHpyojZQExM6HZ9FmCgve'
+    # 'HB7yN5ZLPi1cLUAZs6QF4y6ZdRN1K4YhGzyRgewF23rD'
 
 class Contract:
     def __init__(self, functions):
@@ -53,7 +55,7 @@ class Contract:
 
 
 class SolanaTokenContract(Contract):
-    def __init__(self, client, wrapper, eth_token):
+    def __init__(self, client, wrapper, erc20_wrapper, eth_token):
         functions = {
             '06fdde03': 'name',
             '313ce567': 'decimals',
@@ -63,20 +65,17 @@ class SolanaTokenContract(Contract):
             'a9059cbb': 'transfer',
         }
         super(SolanaTokenContract, self).__init__(functions)
-        self.client, self.wrapper, self.eth_token = client, wrapper, eth_token
+        self.client, self.wrapper, self.erc20_wrapper, self.eth_token = client, wrapper, erc20_wrapper, eth_token
 
-        self.tokenInfo = wrapper.getTokenInfo(eth_token)
-        self.decimals = wrapper.getTokenDecimals(self.tokenInfo.token)
-        self.symbol = 'S'+str(self.tokenInfo.token)[-6:]
+        # self.tokenInfo = wrapper.getTokenInfo(eth_token)
+        # self.decimals = wrapper.getTokenDecimals(self.tokenInfo.token)
+        # self.symbol = 'S'+str(self.tokenInfo.token)[-6:]
 
     def call_balanceOf(self, data):
         try:
             eth_acc = EthereumAddress('0x'+data[24:])
-            print('call_balanceOf:', self.eth_token, eth_acc)
-            accountInfo = self.wrapper.getBalanceInfo(self.eth_token, eth_acc)
-            balance = self.client.get_token_account_balance(accountInfo.account)
-            print('balance:', balance)
-            return '%064x' % int(balance['result']['value']['amount'])
+            balance = self.erc20_wrapper.getBalanceInfo(self.eth_token, eth_acc)
+            return '%064x' % int(balance)
         except Exception as err:
             print("Error:", str(err))
             traceback.print_exc()
@@ -149,6 +148,7 @@ class EthereumModel:
         self.wrapper = WrapperProgram(self.client, wrapper_id)
         self.signatures = {}
         self.signer = SolanaAccount(b'\xdc~\x1c\xc0\x1a\x97\x80\xc2\xcd\xdfn\xdb\x05.\xf8\x90N\xde\xf5\x042\xe2\xd8\x10xO%/\xe7\x89\xc0<')
+        self.erc20_wrapper = ERC20_Program(self.client, self.signer)
 
         self.contracts = {}
         self.accounts = {}
@@ -157,10 +157,13 @@ class EthereumModel:
     def _getContract(self, contractId):
         contract = self.contracts.get(contractId)
         if not contract:
-            contract = SolanaTokenContract(self.client, self.wrapper, EthereumAddress(contractId))
+            contract = SolanaTokenContract(self.client, self.wrapper, self.erc20_wrapper, EthereumAddress(contractId))
             self.contracts[contractId] = contract
             #raise Exception("Unknown contract {}".format(contractId))
         return contract
+
+    def eth_chainId(self):
+        return "0x10"
 
     def net_version(self):
         return '1600243666737'
@@ -343,25 +346,29 @@ class EthereumModel:
         print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
         print('Sender:', sender, 'toAddress', toAddress)
 
-        outTrx = Transaction()
-
+        signature = ""
         if trx.value and trx.callData:
             raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
         elif trx.value:
+            outTrx = Transaction()
             outTrx.add(self.wrapper.transferLamports(
-                    EthereumAddress(sender),
-                    EthereumAddress(toAddress),
-                    trx.value//(10**9)))
+                EthereumAddress(sender),
+                EthereumAddress(toAddress),
+                trx.value // (10 ** 9)))
+            response = self.client.send_transaction(outTrx, self.signer, opts=TxOpts(skip_confirmation=True))
+            print('Send transaction:', response)
+            signature = response['result']
         elif trx.callData:
-            outTrx.add(self._getContract(toAddress).execute(sender, trx.callData.hex()))
+            ether_to = EthereumAddress('0x'+trx.callData.hex()[32:72])
+            amount = int(trx.callData.hex()[72:136], 16)
+            signature = self.erc20_wrapper.transfer( EthereumAddress(toAddress), EthereumAddress(sender), ether_to, amount)
         else:
             raise Exception("Missing token for transfer")
 
-        response = self.client.send_transaction(outTrx, self.signer, opts=TxOpts(skip_confirmation=True))
-        print('Send transaction:', response)
+        print('Transaction signature:', signature)
 
-        eth_signature = '0x'+keccak_256(base58.b58decode(response['result'])).hexdigest()
-        self.signatures[eth_signature] = response['result']
+        eth_signature = '0x'+keccak_256(base58.b58decode(signature)).hexdigest()
+        self.signatures[eth_signature] = signature
         print('Ethereum signature:', eth_signature)
         return eth_signature
 
