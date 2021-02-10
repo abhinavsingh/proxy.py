@@ -189,7 +189,6 @@ class ERC20_Program():
             if not  (res == 1) :
                 raise Exception("Invalid ERC20 transaction result: ", res)
             signature = log["result"]["transaction"]["signatures"][0]
-            print("erc20 transfer signature {}".format(signature))
             return signature
 
     def balance_of(self, eth_token, eth_acc):
