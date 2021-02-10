@@ -28,15 +28,12 @@ from solana.rpc.api import Client as SolanaClient
 from solana.rpc.types import TxOpts
 from solana.account import Account as SolanaAccount
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
-from .wrapper import WrapperProgram, EthereumAddress
 from sha3 import keccak_256
 import base58
 import base64
 import traceback
-from .erc20_wrapper import ERC20_Program
+from .erc20_wrapper import ERC20_Program, EthereumAddress
 
-wrapper_id = '3EvDG5aTfN4csM57WjxymnovHpyojZQExM6HZ9FmCgve'
-    # 'HB7yN5ZLPi1cLUAZs6QF4y6ZdRN1K4YhGzyRgewF23rD'
 
 class Contract:
     def __init__(self, functions):
@@ -55,7 +52,7 @@ class Contract:
 
 
 class SolanaTokenContract(Contract):
-    def __init__(self, client, wrapper, erc20_wrapper, eth_token):
+    def __init__(self, client, erc20_wrapper, eth_token):
         functions = {
             '06fdde03': 'name',
             '313ce567': 'decimals',
@@ -65,7 +62,7 @@ class SolanaTokenContract(Contract):
             'a9059cbb': 'transfer',
         }
         super(SolanaTokenContract, self).__init__(functions)
-        self.client, self.wrapper, self.erc20_wrapper, self.eth_token = client, wrapper, erc20_wrapper, eth_token
+        self.client, self.erc20_wrapper, self.eth_token = client, erc20_wrapper, eth_token
 
         # self.tokenInfo = wrapper.getTokenInfo(eth_token)
         # self.decimals = wrapper.getTokenDecimals(self.tokenInfo.token)
@@ -89,15 +86,16 @@ class SolanaTokenContract(Contract):
         result += (64-len(result)%64)%64 * '0'
         return result
 
-    def execute_transfer(self, sender, data):
-        if data[0:24] == '000000000000000000000000':
-            dest = self.wrapper.getBalanceInfo(self.eth_token, EthereumAddress('0x'+data[24:64])).account
-        else:
-            dest = data[0:64]
-        sourceInfo = self.wrapper.getBalanceInfo(self.eth_token, EthereumAddress(sender))
-        amount = int(data[64:128], 16)
+    # def execute_transfer(self, sender, data):
+    #     if data[0:24] == '000000000000000000000000':
+    #         dest = self.wrapper.getBalanceInfo(self.eth_token, EthereumAddress('0x'+data[24:64])).account
+    #     else:
+    #         dest = data[0:64]
+    #     sourceInfo = self.wrapper.getBalanceInfo(self.eth_token, EthereumAddress(sender))
+    #     amount = int(data[64:128], 16)
+    #
+    #     return self.wrapper.transfer(self.eth_token, EthereumAddress(sender), sourceInfo.account, dest, amount)
 
-        return self.wrapper.transfer(self.eth_token, EthereumAddress(sender), sourceInfo.account, dest, amount)
 #        amount = int(data[64:128], 16)
 #        if not (sender in self.balances and self.balances[sender] >= amount):
 #            raise Exception("Unsufficient funds")
@@ -145,7 +143,6 @@ class Receipt:
 class EthereumModel:
     def __init__(self):
         self.client = SolanaClient('http://localhost:8899')
-        self.wrapper = WrapperProgram(self.client, wrapper_id)
         self.signatures = {}
         self.signer = SolanaAccount(b'\xdc~\x1c\xc0\x1a\x97\x80\xc2\xcd\xdfn\xdb\x05.\xf8\x90N\xde\xf5\x042\xe2\xd8\x10xO%/\xe7\x89\xc0<')
         self.erc20_wrapper = ERC20_Program(self.client, self.signer)
@@ -157,7 +154,7 @@ class EthereumModel:
     def _getContract(self, contractId):
         contract = self.contracts.get(contractId)
         if not contract:
-            contract = SolanaTokenContract(self.client, self.wrapper, self.erc20_wrapper, EthereumAddress(contractId))
+            contract = SolanaTokenContract(self.client, self.erc20_wrapper, EthereumAddress(contractId))
             self.contracts[contractId] = contract
             #raise Exception("Unknown contract {}".format(contractId))
         return contract
@@ -182,7 +179,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         print('eth_getBalance:', account, eth_acc)
-        balance = self.wrapper.getLamports(eth_acc)
+        balance = self.erc20_wrapper.getLamports(eth_acc)
         return hex(balance*10**9)
 
     def eth_getBlockByNumber(self, tag, full):
@@ -256,7 +253,7 @@ class EthereumModel:
     def eth_getTransactionCount(self, account, tag):
         print('eth_getTransactionCount:', account)
         try:
-            info = self.wrapper.getAccountInfo(EthereumAddress(account))
+            info = self.erc20_wrapper.getAccountInfo(EthereumAddress(account))
             return hex(info.trx_count)
         except:
             return hex(0)
@@ -351,7 +348,7 @@ class EthereumModel:
             raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
         elif trx.value:
             outTrx = Transaction()
-            outTrx.add(self.wrapper.transferLamports(
+            outTrx.add(self.erc20_wrapper.transferLamports(
                 EthereumAddress(sender),
                 EthereumAddress(toAddress),
                 trx.value // (10 ** 9)))
