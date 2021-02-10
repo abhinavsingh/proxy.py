@@ -64,14 +64,14 @@ class SolanaTokenContract(Contract):
         super(SolanaTokenContract, self).__init__(functions)
         self.client, self.erc20_wrapper, self.eth_token = client, erc20_wrapper, eth_token
 
-        # self.tokenInfo = wrapper.getTokenInfo(eth_token)
-        # self.decimals = wrapper.getTokenDecimals(self.tokenInfo.token)
+        self.decimals = erc20_wrapper.decimals()
+        self.symbol = erc20_wrapper.symbol()
         # self.symbol = 'S'+str(self.tokenInfo.token)[-6:]
 
     def call_balanceOf(self, data):
         try:
             eth_acc = EthereumAddress('0x'+data[24:])
-            balance = self.erc20_wrapper.getBalanceInfo(self.eth_token, eth_acc)
+            balance = self.erc20_wrapper.balance_of(self.eth_token, eth_acc)
             return '%064x' % int(balance)
         except Exception as err:
             print("Error:", str(err))
@@ -86,15 +86,6 @@ class SolanaTokenContract(Contract):
         result += (64-len(result)%64)%64 * '0'
         return result
 
-    # def execute_transfer(self, sender, data):
-    #     if data[0:24] == '000000000000000000000000':
-    #         dest = self.wrapper.getBalanceInfo(self.eth_token, EthereumAddress('0x'+data[24:64])).account
-    #     else:
-    #         dest = data[0:64]
-    #     sourceInfo = self.wrapper.getBalanceInfo(self.eth_token, EthereumAddress(sender))
-    #     amount = int(data[64:128], 16)
-    #
-    #     return self.wrapper.transfer(self.eth_token, EthereumAddress(sender), sourceInfo.account, dest, amount)
 
 #        amount = int(data[64:128], 16)
 #        if not (sender in self.balances and self.balances[sender] >= amount):
@@ -303,7 +294,7 @@ class EthereumModel:
 #        'transaction': {
 #            'message': {
 #                'accountKeys': [
-#                    'Bfj8CF5ywavXyqkkuKSXt5AVhMgxUJgHfQsQjPc1JKzj', 
+#                    'Bfj8CF5ywavXyqkkuKSXt5AVhMgxUJgHfQsQjPc1JKzj',
 #                    'GTeuLioCKcJ5cm7Dq7swaZT9u1VQsvVauHTRRJ6cL1mW',
 #                    'CEU7e6wxzZgAYLeECkSGbfzuKd5Jha4F4JT7Y7UwEaGz',
 #                    '11111111111111111111111111111111'],
@@ -343,31 +334,21 @@ class EthereumModel:
         print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
         print('Sender:', sender, 'toAddress', toAddress)
 
-        signature = ""
         if trx.value and trx.callData:
             raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
         elif trx.value:
-            outTrx = Transaction()
-            outTrx.add(self.erc20_wrapper.transferLamports(
-                EthereumAddress(sender),
-                EthereumAddress(toAddress),
-                trx.value // (10 ** 9)))
-            response = self.client.send_transaction(outTrx, self.signer, opts=TxOpts(skip_confirmation=True))
-            print('Send transaction:', response)
-            signature = response['result']
+            raise Exception("transfer native tokens is not implemented")
         elif trx.callData:
             ether_to = EthereumAddress('0x'+trx.callData.hex()[32:72])
             amount = int(trx.callData.hex()[72:136], 16)
             signature = self.erc20_wrapper.transfer( EthereumAddress(toAddress), EthereumAddress(sender), ether_to, amount)
+            print('Transaction signature:', signature)
+            eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+            self.signatures[eth_signature] = signature
+            print('Ethereum signature:', eth_signature)
+            return eth_signature
         else:
             raise Exception("Missing token for transfer")
-
-        print('Transaction signature:', signature)
-
-        eth_signature = '0x'+keccak_256(base58.b58decode(signature)).hexdigest()
-        self.signatures[eth_signature] = signature
-        print('Ethereum signature:', eth_signature)
-        return eth_signature
 
 
 
@@ -403,7 +384,7 @@ class SolanaContractTests(unittest.TestCase):
 
         receiptId = self.model.eth_sendRawTransaction('0xf8730a85174876e800825208948d900bfa2353548a4631be870f99939575551b608906aaf7c8516d0c0000808602e92be91e86a040a2a5d73931f66185e8526f09c4d0dc1f389c1b9fcd5e37a012839e6c5c70f0a00554615806c3fa7dc7c8096b3bfed5a29354045e56982bdf3ee11f649e53d51e')
         print('ReceiptId:', receiptId)
-        
+
         self.assertEqual(self.getBalance(sender), senderBalance - amount)
         self.assertEqual(self.getBalance(receiver), receiverBalance + amount)
         self.assertEqual(self.getBlockNumber(), blockNumber+1)
@@ -430,7 +411,7 @@ class SolanaContractTests(unittest.TestCase):
 
         receipt = self.model.eth_getTransactionReceipt(receiptId)
         print('Receipt:', receipt)
-        
+
         block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
         print('Block:', block)
 
@@ -478,7 +459,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
 #                conn.send(request.build())
 #                orig = HttpParser.response(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
 #                print('- ', orig.body.decode('utf8'))
-        
+
         print('> ', json.dumps(res))
 
         self.client.queue(memoryview(build_http_response(

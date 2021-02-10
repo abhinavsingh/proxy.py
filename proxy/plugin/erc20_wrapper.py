@@ -1,5 +1,3 @@
-from solana.rpc.api import Client
-from solana.account import Account
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from solana.sysvar import *
 import time
@@ -29,13 +27,6 @@ ACCOUNT_INFO_LAYOUT = cStruct(
     "trx_count" / Int32ul,
 )
 
-TRANSFER_LAMPORTS_LAYOUT = cStruct(
-    "instruction" / Int8ul,
-    "amount" / Int64ul,
-    "nonce" / Int8ul,
-    "eth_acc" / Bytes(20),
-)
-
 class AccountInfo(NamedTuple):
     eth_acc: eth_keys.PublicKey
     trx_count: int
@@ -44,7 +35,6 @@ class AccountInfo(NamedTuple):
     def frombytes(data):
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
         return AccountInfo(cont.eth_acc, cont.trx_count)
-
 
 class EthereumAddress:
     def __init__(self, data, private=None):
@@ -106,10 +96,9 @@ def solana2ether(public_key):
     from web3 import Web3
     return bytes(Web3.keccak(bytes.fromhex(public_key))[-20:])
 
-def create_program_address(seeds, program_id):
+def create_program_address(seed, program_id):
     cli = solana_cli(solana_url)
-    seeds_str = ' '.join([s.hex() for s in seeds])
-    output = cli.call("create-program-address {} {}".format(seeds_str, program_id))
+    output = cli.call("create-program-address {} {}".format(seed, program_id))
     items = output.rstrip().split('  ')
     return (items[0], int(items[1]))
 
@@ -120,106 +109,64 @@ class ERC20_Program():
         self.evm_loader = evm_loader_id
         self.program = erc20_id
         self.caller_ether = bytes.fromhex(sender_eth)
-        (self.caller, self.caller_nonce) = create_program_address([self.caller_ether], self.evm_loader)
-        self.balance = self.erc20_balance_ext()
-        self.mint_id = self.erc20_mint_id()
+        (self.caller, self.caller_nonce) = create_program_address(self.caller_ether.hex(), self.evm_loader)
+        self.balance = self.balance_ext()
+        self.mint_id = self.mint()
 
-    def erc20_balance_ext(self):
+    def call(self, input):
+        trx = Transaction().add(
+            TransactionInstruction(program_id=self.evm_loader, data=input, keys=
+            [
+                AccountMeta(pubkey=self.program, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=False),
+                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
+            ]))
+
+        result = self.client.send_transaction(trx, self.acc)
+        result = confirm_transaction(self.client, result["result"])
+        messages = result["result"]["meta"]["logMessages"]
+        return (messages[messages.index("Program log: succeed") + 1], result)
+
+    def balance_ext(self):
         input = bytearray.fromhex("0340b6674d")
-        trx = Transaction().add(
-            TransactionInstruction(program_id=self.evm_loader, data=input, keys=
-            [
-                AccountMeta(pubkey=self.program, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=False),
-                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-            ]))
-
-        result = self.client.send_transaction(trx, self.acc)
-        result = confirm_transaction(self.client, result["result"])
-        messages = result["result"]["meta"]["logMessages"]
-        res = messages[messages.index("Program log: succeed") + 1]
+        (res, log) = self.call(input)
         if not res.startswith("Program log: "):
             raise Exception("Invalid program logs: no result")
         else:
             return res[13:]
 
-    def erc20_mint_id(self):
+    def mint(self):
         input = bytearray.fromhex("03e132a122")
-        trx = Transaction().add(
-            TransactionInstruction(program_id=self.evm_loader, data=input, keys=
-            [
-                AccountMeta(pubkey=self.program, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=False),
-                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-            ]))
-
-        result = self.client.send_transaction(trx, self.acc)
-        result = confirm_transaction(self.client, result["result"])
-        messages = result["result"]["meta"]["logMessages"]
-        res = messages[messages.index("Program log: succeed") + 1]
+        (res, log) = self.call(input)
         if not res.startswith("Program log: "):
             raise Exception("Invalid program logs: no result")
         else:
             return res[13:]
 
-    def erc20_transfer(self, eth_to, amount):
-        input = bytearray.fromhex(
-            "03a9059cbb" +
-            str("%024x" % 0) + bytes(eth_to).hex() +
-            "%064x" % amount
-        )
-        trx = Transaction().add(
-            TransactionInstruction(program_id=self.evm_loader, data=input, keys=
-            [
-                AccountMeta(pubkey=self.program, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=False),
-                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-            ]))
-
-        result = self.client.send_transaction(trx, self.acc)
-        result = confirm_transaction(self.client, result["result"])
-        messages = result["result"]["meta"]["logMessages"]
-        res = messages[messages.index("Program log: succeed") + 1]
+    def name(self):
+        input = bytearray.fromhex("0306fdde03")
+        (res, log) = self.call(input)
         if not res.startswith("Program log: "):
             raise Exception("Invalid program logs: no result")
         else:
-            res = int(res[13:], 16)
-            if not  (res == 1) :
-                raise Exception("Invalid ERC20 transaction result: ", res)
-            return result["result"]["transaction"]["signatures"][0]
+            return res[13:]
 
-    def erc20_balance(self, ether_acc):
-        input = bytearray.fromhex(
-            "0370a08231" +
-            str("%024x" % 0) + bytes(ether_acc).hex()
-        )
-        trx = Transaction().add(
-            TransactionInstruction(program_id=self.evm_loader, data=input, keys=
-            [
-                AccountMeta(pubkey=self.program, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=False),
-                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-            ]))
-
-        result = self.client.send_transaction(trx, self.acc)
-        result = confirm_transaction(self.client, result["result"])
-        messages = result["result"]["meta"]["logMessages"]
-        res = messages[messages.index("Program log: succeed") + 1]
+    def symbol(self):
+        input = bytearray.fromhex("0395d89b41")
+        (res, log) = self.call(input)
         if not res.startswith("Program log: "):
             raise Exception("Invalid program logs: no result")
         else:
-            return int(res[13:], 16)
+            return res[13:]
 
-    def getBalanceInfo(self, eth_token, eth_acc):
-        mint = solana2ether(self.mint_id)
-        if (mint.hex() != str(eth_token)[2:]):
-            raise Exception("token_id doesn't match:  {},  erc20: ".format(eth_token, mint.hex()))
-        balance = self.erc20_balance(eth_acc)
-        return balance
+    def decimals(self):
+        input = bytearray.fromhex("03313ce567")
+        (res, log) = self.call(input)
+        if not res.startswith("Program log: "):
+            raise Exception("Invalid program logs: no result")
+        else:
+            return res[13:]
 
     def transfer(self, eth_token, eth_payer, eth_to_acc, amount):
         mint = solana2ether(self.mint_id)
@@ -228,9 +175,37 @@ class ERC20_Program():
         if (self.caller_ether.hex() != bytes(eth_payer).hex() ):
             print ("msg.sender, payer: {} {}".format(self.caller_ether.hex(), bytes(eth_payer).hex()))
             raise Exception("msg.sender does not match the payer's account")
-        signature = self.erc20_transfer(eth_to_acc, amount)
-        print("erc20 transfer to {}: {}".format(str(eth_to_acc), signature))
-        return signature
+
+        input = bytearray.fromhex(
+            "03a9059cbb" +
+            str("%024x" % 0) + bytes(eth_to_acc).hex() +
+            "%064x" % amount
+        )
+        (res, log) = self.call(input)
+        if not res.startswith("Program log: "):
+            raise Exception("Invalid program logs: no result")
+        else:
+            res = int(res[13:], 16)
+            if not  (res == 1) :
+                raise Exception("Invalid ERC20 transaction result: ", res)
+            signature = log["result"]["transaction"]["signatures"][0]
+            print("erc20 transfer signature {}".format(signature))
+            return signature
+
+    def balance_of(self, eth_token, eth_acc):
+        mint = solana2ether(self.mint_id)
+        if (mint.hex() != str(eth_token)[2:]):
+            raise Exception("token_id doesn't match:  {},  erc20: ".format(eth_token, mint.hex()))
+
+        input = bytearray.fromhex(
+            "0370a08231" +
+            str("%024x" % 0) + bytes(eth_acc).hex()
+        )
+        (res, log) = self.call(input)
+        if not res.startswith("Program log: "):
+            raise Exception("Invalid program logs: no result")
+        else:
+            return int(res[13:], 16)
 
     def _getAccountData(self, account, expected_length, owner=None):
         info = self.client.get_account_info(account)['result']['value']
@@ -246,27 +221,11 @@ class ERC20_Program():
         return data
 
     def getAccountInfo(self, eth_acc):
-        (account_info, nonce) = create_program_address([bytes(eth_acc)], self.program)
+        (account_info, nonce) = create_program_address(bytes(eth_acc).hex(), self.evm_loader)
         data = self._getAccountData(account_info, ACCOUNT_INFO_LAYOUT.sizeof())
         return AccountInfo.frombytes(data)
 
     def getLamports(self, eth_acc):
-        (account, nonce) = create_program_address([bytes(eth_acc)], self.evm_loader)
+        (account, nonce) = create_program_address(bytes(eth_acc).hex(), self.evm_loader)
         return int(self.client.get_balance(account)['result']['value'])
-
-    def transferLamports(self, eth_acc, destination, amount):
-        (source, nonce) = create_program_address([bytes(eth_acc), 'lamports'.encode('ascii')], self.program)
-        if isinstance(destination, EthereumAddress):
-            (destination, nonceDest) = create_program_address([bytes(destination), 'lamports'.encode('ascii')], self.program)
-        print('--- transfer lamports:', eth_acc, source, destination, amount)
-        data = TRANSFER_LAMPORTS_LAYOUT.build(dict(
-            instruction=4,
-            amount=amount,
-            nonce=nonce,
-            eth_acc=bytes(eth_acc),
-        ))
-        return TransactionInstruction(program_id=self.program, data=data, keys=[
-                AccountMeta(pubkey=source, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=destination, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=system_id, is_signer=False, is_writable=False)])
 
