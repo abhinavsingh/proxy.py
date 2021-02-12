@@ -156,6 +156,12 @@ class EthereumModel:
     def net_version(self):
         return '1600243666737'
 
+    def eth_gasPrice(self):
+        return 0
+
+    def eth_estimateGas(self, param):
+        return 0
+
     def __repr__(self):
         return str(self.__dict__)
 
@@ -278,6 +284,10 @@ class EthereumModel:
             "status":"0x1",
             "logsBloom":"0x"+'0'*512
         }
+
+    def eth_getCode(self, param,  param1):
+        return "0x01"
+
 #{'jsonrpc': '2.0', 'result': {
 #    'meta': {
 #        'err': None,
@@ -330,26 +340,38 @@ class EthereumModel:
 
     def eth_sendRawTransaction(self, rawTrx):
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
-        (sender, toAddress) = ('0x'+trx.sender(), '0x'+trx.toAddress.hex())
         print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
-        print('Sender:', sender, 'toAddress', toAddress)
+
+        sender = trx.sender()
+        print('Sender:', sender)
 
         if trx.value and trx.callData:
             raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
         elif trx.value:
             raise Exception("transfer native tokens is not implemented")
         elif trx.callData:
-            ether_to = EthereumAddress('0x'+trx.callData.hex()[32:72])
-            amount = int(trx.callData.hex()[72:136], 16)
-            signature = self.erc20_wrapper.transfer( EthereumAddress(toAddress), EthereumAddress(sender), ether_to, amount)
-            print('Transaction signature:', signature)
-            eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
-            self.signatures[eth_signature] = signature
-            print('Ethereum signature:', eth_signature)
-            return eth_signature
+            if (trx.toAddress is None):
+                raise Exception("deploy contract is not implemented")
+                # self.erc20_wrapper.deploy(trx.callData)
+                # signature = "2Mqrp61i6cTWTiLLJaxGZmTCodhKW45pi1TQ3kPqum5AWbq4AZYg5W6yKYifzgWkHbFpdRJtGua8HTP53kKdCao5"
+                # eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                # self.signatures[eth_signature] = signature
+                # print('Ethereum signature:', eth_signature)
+                # return eth_signature
+            else:
+                print('toAddress:', bytes(trx.toAddress).hex())
+                ether_to = EthereumAddress('0x'+trx.callData.hex()[32:72])
+                amount = int(trx.callData.hex()[72:136], 16)
+                signature = self.erc20_wrapper.transfer(
+                    EthereumAddress('0x'+bytes(trx.toAddress).hex()), EthereumAddress('0x'+sender), ether_to, amount
+                )
+                print('Transaction signature:', signature)
+                eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                self.signatures[eth_signature] = signature
+                print('Ethereum signature:', eth_signature)
+                return eth_signature
         else:
             raise Exception("Missing token for transfer")
-
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -402,6 +424,7 @@ class SolanaContractTests(unittest.TestCase):
         senderBalance = self.getTokenBalance(token, sender)
         receiverBalance = self.getTokenBalance(token, receiver)
         blockNumber = self.getBlockNumber()
+
 
         receiptId = self.model.eth_sendRawTransaction('0xf8b018850bdfd63e00830186a094b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000cac68f98c1893531df666f2d58243b27dd351a8800000000000000000000000000000000000000000000000000000000000000208602e92be91e86a05ed7d0093a991563153f59c785e989a466e5e83bddebd9c710362f5ee23f7dbaa023a641d304039f349546089bc0cb2a5b35e45619fd97661bd151183cb47f1a0a')
         print('ReceiptId:', receiptId)

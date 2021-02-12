@@ -30,7 +30,7 @@ def unpack(data):
         return (data[1:1+l].tobytes(), data[1+l:])
     elif (ch <= 0xBF):
         lLen = ch - 0xB7
-        l = int.from_bytes(data[1:1+lLen], byteorder='little')
+        l = int.from_bytes(data[1:1+lLen], byteorder='big')
         return (data[1+lLen:1+lLen+l].tobytes(), data[1+lLen+l:])
     elif (ch == 0xC0):
         return ((), data[1:])
@@ -44,7 +44,7 @@ def unpack(data):
         return (lst, data[1+l:])
     else:
         lLen = ch - 0xF7
-        l = int.from_bytes(data[1:1+lLen], byteorder='little')
+        l = int.from_bytes(data[1:1+lLen], byteorder='big')
         lst = list()
         sub = data[1+lLen:1+lLen+l]
         while len(sub):

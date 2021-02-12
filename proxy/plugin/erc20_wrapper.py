@@ -10,16 +10,15 @@ from construct import Bytes, Int8ul, Int32ul, Int64ul, Pass  # type: ignore
 from construct import Struct as cStruct
 import random
 
-
+solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER", "3EvDG5aTfN4csM57WjxymnovHpyojZQExM6HZ9FmCgve")
 erc20_id = os.environ.get("ERC20", "FRp8E7Bj9tPuPX57ynD7WtZAKkFqQzk3WPEyXA6Rg613")
 sender_eth = "cf9f430be7e6c473ec1556004650328c71051bd4"
+location_bin = ".deploy_contract.bin"
+
 tokenkeg = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
-
 system_id = '11111111111111111111111111111111'
-solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
-
 
 
 ACCOUNT_INFO_LAYOUT = cStruct(
@@ -158,7 +157,10 @@ class ERC20_Program():
         if not res.startswith("Program log: "):
             raise Exception("Invalid program logs: no result")
         else:
-            return res[13:]
+            res = res [13:]
+            len = int(res[64:128], 16)
+            val = res[128:128+len*2]
+            return bytes.fromhex(val).decode("utf-8")
 
     def decimals(self):
         input = bytearray.fromhex("03313ce567")
@@ -166,7 +168,7 @@ class ERC20_Program():
         if not res.startswith("Program log: "):
             raise Exception("Invalid program logs: no result")
         else:
-            return res[13:]
+            return int(res[13:], 16)
 
     def transfer(self, eth_token, eth_payer, eth_to_acc, amount):
         mint = solana2ether(self.mint_id)
@@ -205,6 +207,21 @@ class ERC20_Program():
             raise Exception("Invalid program logs: no result")
         else:
             return int(res[13:], 16)
+
+    def deploy(self, contract):
+        with open(location_bin, mode='wb') as file:
+            file.write(contract)
+
+        cmd = 'solana --url {} deploy --use-evm-loader {} {}'.format(solana_url, self.evm_loader, location_bin)
+        try:
+            res =  subprocess.check_output(cmd, shell=True, universal_newlines=True)
+            print(type(res), res)
+            print (res.splitlines()[-1])
+        except subprocess.CalledProcessError as err:
+            import sys
+            print("ERR: solana error {}".format(err))
+            raise
+
 
     def _getAccountData(self, account, expected_length, owner=None):
         info = self.client.get_account_info(account)['result']['value']
