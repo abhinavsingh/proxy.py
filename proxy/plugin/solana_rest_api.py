@@ -28,13 +28,12 @@ from solana.rpc.api import Client as SolanaClient
 from solana.rpc.types import TxOpts
 from solana.account import Account as SolanaAccount
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
-from .wrapper import WrapperProgram, EthereumAddress
 from sha3 import keccak_256
 import base58
 import base64
 import traceback
+from .erc20_wrapper import ERC20_Program, EthereumAddress
 
-wrapper_id = 'HB7yN5ZLPi1cLUAZs6QF4y6ZdRN1K4YhGzyRgewF23rD'
 
 class Contract:
     def __init__(self, functions):
@@ -53,7 +52,7 @@ class Contract:
 
 
 class SolanaTokenContract(Contract):
-    def __init__(self, client, wrapper, eth_token):
+    def __init__(self, client, erc20_wrapper, eth_token):
         functions = {
             '06fdde03': 'name',
             '313ce567': 'decimals',
@@ -63,20 +62,17 @@ class SolanaTokenContract(Contract):
             'a9059cbb': 'transfer',
         }
         super(SolanaTokenContract, self).__init__(functions)
-        self.client, self.wrapper, self.eth_token = client, wrapper, eth_token
+        self.client, self.erc20_wrapper, self.eth_token = client, erc20_wrapper, eth_token
 
-        self.tokenInfo = wrapper.getTokenInfo(eth_token)
-        self.decimals = wrapper.getTokenDecimals(self.tokenInfo.token)
-        self.symbol = 'S'+str(self.tokenInfo.token)[-6:]
+        self.decimals = erc20_wrapper.decimals()
+        self.symbol = erc20_wrapper.symbol()
+        # self.symbol = 'S'+str(self.tokenInfo.token)[-6:]
 
     def call_balanceOf(self, data):
         try:
             eth_acc = EthereumAddress('0x'+data[24:])
-            print('call_balanceOf:', self.eth_token, eth_acc)
-            accountInfo = self.wrapper.getBalanceInfo(self.eth_token, eth_acc)
-            balance = self.client.get_token_account_balance(accountInfo.account)
-            print('balance:', balance)
-            return '%064x' % int(balance['result']['value']['amount'])
+            balance = self.erc20_wrapper.balance_of(self.eth_token, eth_acc)
+            return '%064x' % int(balance)
         except Exception as err:
             print("Error:", str(err))
             traceback.print_exc()
@@ -90,15 +86,7 @@ class SolanaTokenContract(Contract):
         result += (64-len(result)%64)%64 * '0'
         return result
 
-    def execute_transfer(self, sender, data):
-        if data[0:24] == '000000000000000000000000':
-            dest = self.wrapper.getBalanceInfo(self.eth_token, EthereumAddress('0x'+data[24:64])).account
-        else:
-            dest = data[0:64]
-        sourceInfo = self.wrapper.getBalanceInfo(self.eth_token, EthereumAddress(sender))
-        amount = int(data[64:128], 16)
 
-        return self.wrapper.transfer(self.eth_token, EthereumAddress(sender), sourceInfo.account, dest, amount)
 #        amount = int(data[64:128], 16)
 #        if not (sender in self.balances and self.balances[sender] >= amount):
 #            raise Exception("Unsufficient funds")
@@ -146,9 +134,9 @@ class Receipt:
 class EthereumModel:
     def __init__(self):
         self.client = SolanaClient('http://localhost:8899')
-        self.wrapper = WrapperProgram(self.client, wrapper_id)
         self.signatures = {}
         self.signer = SolanaAccount(b'\xdc~\x1c\xc0\x1a\x97\x80\xc2\xcd\xdfn\xdb\x05.\xf8\x90N\xde\xf5\x042\xe2\xd8\x10xO%/\xe7\x89\xc0<')
+        self.erc20_wrapper = ERC20_Program(self.client, self.signer)
 
         self.contracts = {}
         self.accounts = {}
@@ -157,13 +145,22 @@ class EthereumModel:
     def _getContract(self, contractId):
         contract = self.contracts.get(contractId)
         if not contract:
-            contract = SolanaTokenContract(self.client, self.wrapper, EthereumAddress(contractId))
+            contract = SolanaTokenContract(self.client, self.erc20_wrapper, EthereumAddress(contractId))
             self.contracts[contractId] = contract
             #raise Exception("Unknown contract {}".format(contractId))
         return contract
 
+    def eth_chainId(self):
+        return "0x10"
+
     def net_version(self):
         return '1600243666737'
+
+    def eth_gasPrice(self):
+        return 0
+
+    def eth_estimateGas(self, param):
+        return 0
 
     def __repr__(self):
         return str(self.__dict__)
@@ -179,7 +176,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         print('eth_getBalance:', account, eth_acc)
-        balance = self.wrapper.getLamports(eth_acc)
+        balance = self.erc20_wrapper.getLamports(eth_acc)
         return hex(balance*10**9)
 
     def eth_getBlockByNumber(self, tag, full):
@@ -253,7 +250,7 @@ class EthereumModel:
     def eth_getTransactionCount(self, account, tag):
         print('eth_getTransactionCount:', account)
         try:
-            info = self.wrapper.getAccountInfo(EthereumAddress(account))
+            info = self.erc20_wrapper.getAccountInfo(EthereumAddress(account))
             return hex(info.trx_count)
         except:
             return hex(0)
@@ -287,6 +284,10 @@ class EthereumModel:
             "status":"0x1",
             "logsBloom":"0x"+'0'*512
         }
+
+    def eth_getCode(self, param,  param1):
+        return "0x01"
+
 #{'jsonrpc': '2.0', 'result': {
 #    'meta': {
 #        'err': None,
@@ -303,7 +304,7 @@ class EthereumModel:
 #        'transaction': {
 #            'message': {
 #                'accountKeys': [
-#                    'Bfj8CF5ywavXyqkkuKSXt5AVhMgxUJgHfQsQjPc1JKzj', 
+#                    'Bfj8CF5ywavXyqkkuKSXt5AVhMgxUJgHfQsQjPc1JKzj',
 #                    'GTeuLioCKcJ5cm7Dq7swaZT9u1VQsvVauHTRRJ6cL1mW',
 #                    'CEU7e6wxzZgAYLeECkSGbfzuKd5Jha4F4JT7Y7UwEaGz',
 #                    '11111111111111111111111111111111'],
@@ -339,32 +340,38 @@ class EthereumModel:
 
     def eth_sendRawTransaction(self, rawTrx):
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
-        (sender, toAddress) = ('0x'+trx.sender(), '0x'+trx.toAddress.hex())
         print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
-        print('Sender:', sender, 'toAddress', toAddress)
 
-        outTrx = Transaction()
+        sender = trx.sender()
+        print('Sender:', sender)
 
         if trx.value and trx.callData:
             raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
         elif trx.value:
-            outTrx.add(self.wrapper.transferLamports(
-                    EthereumAddress(sender),
-                    EthereumAddress(toAddress),
-                    trx.value//(10**9)))
+            raise Exception("transfer native tokens is not implemented")
         elif trx.callData:
-            outTrx.add(self._getContract(toAddress).execute(sender, trx.callData.hex()))
+            if (trx.toAddress is None):
+                raise Exception("deploy contract is not implemented")
+                # self.erc20_wrapper.deploy(trx.callData)
+                # signature = "2Mqrp61i6cTWTiLLJaxGZmTCodhKW45pi1TQ3kPqum5AWbq4AZYg5W6yKYifzgWkHbFpdRJtGua8HTP53kKdCao5"
+                # eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                # self.signatures[eth_signature] = signature
+                # print('Ethereum signature:', eth_signature)
+                # return eth_signature
+            else:
+                print('toAddress:', bytes(trx.toAddress).hex())
+                ether_to = EthereumAddress('0x'+trx.callData.hex()[32:72])
+                amount = int(trx.callData.hex()[72:136], 16)
+                signature = self.erc20_wrapper.transfer(
+                    EthereumAddress('0x'+bytes(trx.toAddress).hex()), EthereumAddress('0x'+sender), ether_to, amount
+                )
+                print('Transaction signature:', signature)
+                eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                self.signatures[eth_signature] = signature
+                print('Ethereum signature:', eth_signature)
+                return eth_signature
         else:
             raise Exception("Missing token for transfer")
-
-        response = self.client.send_transaction(outTrx, self.signer, opts=TxOpts(skip_confirmation=True))
-        print('Send transaction:', response)
-
-        eth_signature = '0x'+keccak_256(base58.b58decode(response['result'])).hexdigest()
-        self.signatures[eth_signature] = response['result']
-        print('Ethereum signature:', eth_signature)
-        return eth_signature
-
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -399,7 +406,7 @@ class SolanaContractTests(unittest.TestCase):
 
         receiptId = self.model.eth_sendRawTransaction('0xf8730a85174876e800825208948d900bfa2353548a4631be870f99939575551b608906aaf7c8516d0c0000808602e92be91e86a040a2a5d73931f66185e8526f09c4d0dc1f389c1b9fcd5e37a012839e6c5c70f0a00554615806c3fa7dc7c8096b3bfed5a29354045e56982bdf3ee11f649e53d51e')
         print('ReceiptId:', receiptId)
-        
+
         self.assertEqual(self.getBalance(sender), senderBalance - amount)
         self.assertEqual(self.getBalance(receiver), receiverBalance + amount)
         self.assertEqual(self.getBlockNumber(), blockNumber+1)
@@ -418,6 +425,7 @@ class SolanaContractTests(unittest.TestCase):
         receiverBalance = self.getTokenBalance(token, receiver)
         blockNumber = self.getBlockNumber()
 
+
         receiptId = self.model.eth_sendRawTransaction('0xf8b018850bdfd63e00830186a094b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000cac68f98c1893531df666f2d58243b27dd351a8800000000000000000000000000000000000000000000000000000000000000208602e92be91e86a05ed7d0093a991563153f59c785e989a466e5e83bddebd9c710362f5ee23f7dbaa023a641d304039f349546089bc0cb2a5b35e45619fd97661bd151183cb47f1a0a')
         print('ReceiptId:', receiptId)
 
@@ -426,7 +434,7 @@ class SolanaContractTests(unittest.TestCase):
 
         receipt = self.model.eth_getTransactionReceipt(receiptId)
         print('Receipt:', receipt)
-        
+
         block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
         print('Block:', block)
 
@@ -474,7 +482,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
 #                conn.send(request.build())
 #                orig = HttpParser.response(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
 #                print('- ', orig.body.decode('utf8'))
-        
+
         print('> ', json.dumps(res))
 
         self.client.queue(memoryview(build_http_response(
