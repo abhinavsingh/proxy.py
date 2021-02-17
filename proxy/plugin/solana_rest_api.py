@@ -206,7 +206,6 @@ class EthereumModel:
             return hex(0)
 
     def eth_getTransactionReceipt(self, trxId):
-
         receipt = self.signatures.get(trxId, None)
         print('getTransactionReceipt:', trxId, receipt)
         if not receipt:
@@ -393,11 +392,9 @@ class EthereumModel:
                     (res, log) = call(input, evm_loader_id, contract_sol, sender_sol, self.signer, self.client)
 
                     if not res.startswith("Program log: "):
+                        print("Invalid program logs: no result")
                         raise Exception("Invalid program logs: no result")
                     else:
-                        res = int(res[13:], 16)
-                        if not (res == 1):
-                            raise Exception("Invalid ERC20 transaction result: ", res)
                         signature = log["result"]["transaction"]["signatures"][0]
                         print('Transaction signature:', signature)
                         eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
@@ -407,7 +404,7 @@ class EthereumModel:
                         print('Ethereum signature:', eth_signature)
                         return eth_signature
                 except:
-                    return '0x'
+                    return '0x0'
         else:
             raise Exception("Missing token for transfer")
 

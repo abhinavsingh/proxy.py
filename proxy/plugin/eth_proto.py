@@ -79,7 +79,7 @@ def pack(data):
             for d in data:
                 res += pack(d)
             l = len(res)
-            if l <= 0x55:
+            if l <= 55:
                 return (l + 0xC0).to_bytes(1,'big')+res
             else:
                 lLen = (l.bit_length()+7)//8
