@@ -109,7 +109,7 @@ class EthereumModel:
 
     def eth_blockNumber(self):
         slot = self.client.get_slot()['result']
-        print("eth_blockNumber", slot)
+        print("eth_blockNumber", hex(slot))
         return hex(slot)
 
     def eth_getBalance(self, account, tag):
@@ -206,9 +206,25 @@ class EthereumModel:
             return hex(0)
 
     def eth_getTransactionReceipt(self, trxId):
+
         receipt = self.signatures.get(trxId, None)
         print('getTransactionReceipt:', trxId, receipt)
-        if not receipt: raise Exception("Not found receipt")
+        if not receipt:
+            print ("Not found receipt")
+            return {
+            "transactionHash":'0x0',
+            "transactionIndex":'0x0',
+            "blockHash":'0x0',
+            "blockNumber":'0x0',
+            "from":'0x0',
+            "to":'0x0',
+            "gasUsed":'0x0',
+            "cumulativeGasUsed":'0x0',
+            "contractAddress":'0x0',
+            "logs":[],
+            "status":"0x0",
+            "logsBloom":'0x0'
+            }
 
         trx = self.client.get_confirmed_transaction(receipt)
         # print('RECEIPT:', json.dumps(trx, indent=3))
@@ -238,7 +254,24 @@ class EthereumModel:
     def eth_getTransactionByHash(self, trxId):
         receipt = self.signatures.get(trxId, None)
         print('getTransactionReceipt:', trxId, receipt)
-        if not receipt: raise Exception("Not found receipt")
+        if not receipt:
+            print ("Not found receipt")
+            return {
+                "blockHash":'0x0',
+                "blockNumber":'0x0',
+                "from":'0x0',
+                "gas":'0x0',
+                "gasPrice":'0x0',
+                "hash":'0x0',
+                "input":'0x0',
+                "nonce":'0x0',
+                "to":'0x0',
+                "transactionIndex":'0x0',
+                "value":'0x0',
+                "v":'0x0',
+                "r":'0x0',
+                "s":'0x0'
+            }
 
         trx = self.client.get_confirmed_transaction(receipt)
         # print('RECEIPT:', json.dumps(trx, indent=3))
