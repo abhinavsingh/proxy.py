@@ -83,13 +83,19 @@ class EthereumModel:
         self.vrs = {}
         self.eth_sender = {}
         self.contract_address = {}
-        # self.signer = SolanaAccount(b'\xdc~\x1c\xc0\x1a\x97\x80\xc2\xcd\xdfn\xdb\x05.\xf8\x90N\xde\xf5\x042\xe2\xd8\x10xO%/\xe7\x89\xc0<')
 
         self.contracts = {}
         self.accounts = {}
         self.caller_ether = bytes.fromhex(sender_eth)
         (self.caller, self.caller_nonce) = create_program_address(self.caller_ether.hex(), evm_loader_id)
-
+        info = self.client.get_account_info(self.caller)
+        if info['result']['value'] is None:
+            print("Create caller account...")
+            output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, self.caller_ether.hex()))
+            result = json.loads(output.splitlines()[-1])
+            self.caller = result["solana"]
+            print("Done")
+            print("cls.caller:", self.caller)
         pass
 
     def eth_chainId(self):
