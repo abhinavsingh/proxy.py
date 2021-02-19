@@ -9,17 +9,16 @@ from typing import NamedTuple
 from construct import Bytes, Int8ul, Int32ul, Int64ul, Pass  # type: ignore
 from construct import Struct as cStruct
 import random
+import json
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
-evm_loader_id = os.environ.get("EVM_LOADER", "3EvDG5aTfN4csM57WjxymnovHpyojZQExM6HZ9FmCgve")
-erc20_id = os.environ.get("ERC20", "FRp8E7Bj9tPuPX57ynD7WtZAKkFqQzk3WPEyXA6Rg613")
-sender_eth = "cf9f430be7e6c473ec1556004650328c71051bd4"
+evm_loader_id = os.environ.get("EVM_LOADER", "BY8ZhLU2DiBvrvJZZYsH7TvCZJSgSmrvYtQzeomN2VGv")
+sender_eth = "a6df389b014C45155086Ef10f365D9AF3Ab3D812"
 location_bin = ".deploy_contract.bin"
 
 tokenkeg = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 system_id = '11111111111111111111111111111111'
-
 
 ACCOUNT_INFO_LAYOUT = cStruct(
     "eth_acc" / Bytes(20),
@@ -101,147 +100,52 @@ def create_program_address(seed, program_id):
     items = output.rstrip().split('  ')
     return (items[0], int(items[1]))
 
-class ERC20_Program():
-    def __init__(self, client, signer):
-        self.acc = signer
-        self.client = client
-        self.evm_loader = evm_loader_id
-        self.program = erc20_id
-        self.caller_ether = bytes.fromhex(sender_eth)
-        (self.caller, self.caller_nonce) = create_program_address(self.caller_ether.hex(), self.evm_loader)
-        self.balance = self.balance_ext()
-        self.mint_id = self.mint()
 
-    def call(self, input):
-        trx = Transaction().add(
-            TransactionInstruction(program_id=self.evm_loader, data=input, keys=
-            [
-                AccountMeta(pubkey=self.program, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=False),
-                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-            ]))
+def call(input, evm_loader, program, caller, acc, client):
+    trx = Transaction().add(
+        TransactionInstruction(program_id=evm_loader, data=input, keys=
+        [
+            AccountMeta(pubkey=program, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=caller, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False),
+            AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
+        ]))
 
-        result = self.client.send_transaction(trx, self.acc)
-        result = confirm_transaction(self.client, result["result"])
-        messages = result["result"]["meta"]["logMessages"]
-        return (messages[messages.index("Program log: succeed") + 1], result)
+    result = client.send_transaction(trx, acc)
+    result = confirm_transaction(client, result["result"])
+    messages = result["result"]["meta"]["logMessages"]
+    return (messages[messages.index("Program log: succeed") + 1], result)
 
-    def balance_ext(self):
-        input = bytearray.fromhex("0340b6674d")
-        (res, log) = self.call(input)
-        if not res.startswith("Program log: "):
-            raise Exception("Invalid program logs: no result")
-        else:
-            return res[13:]
+def deploy(contract, evm_loader):
+    with open(location_bin, mode='wb') as file:
+        file.write(contract)
 
-    def mint(self):
-        input = bytearray.fromhex("03e132a122")
-        (res, log) = self.call(input)
-        if not res.startswith("Program log: "):
-            raise Exception("Invalid program logs: no result")
-        else:
-            return res[13:]
+    cli = solana_cli(solana_url)
+    output = cli.call("deploy --use-evm-loader {} {}".format(evm_loader, location_bin))
+    print(type(output), output)
+    return json.loads(output.splitlines()[-1])
 
-    def name(self):
-        input = bytearray.fromhex("0306fdde03")
-        (res, log) = self.call(input)
-        if not res.startswith("Program log: "):
-            raise Exception("Invalid program logs: no result")
-        else:
-            return res[13:]
+def transaction_history(acc):
+    cli = solana_cli(solana_url)
+    output = cli.call("transaction-history {}".format(acc))
+    return output.splitlines()[-2]
 
-    def symbol(self):
-        input = bytearray.fromhex("0395d89b41")
-        (res, log) = self.call(input)
-        if not res.startswith("Program log: "):
-            raise Exception("Invalid program logs: no result")
-        else:
-            res = res [13:]
-            len = int(res[64:128], 16)
-            val = res[128:128+len*2]
-            return bytes.fromhex(val).decode("utf-8")
+def _getAccountData(client, account, expected_length, owner=None):
+    info = client.get_account_info(account)['result']['value']
+    if info is None:
+        raise Exception("Can't get information about {}".format(account))
 
-    def decimals(self):
-        input = bytearray.fromhex("03313ce567")
-        (res, log) = self.call(input)
-        if not res.startswith("Program log: "):
-            raise Exception("Invalid program logs: no result")
-        else:
-            return int(res[13:], 16)
+    data = base64.b64decode(info['data'][0])
+    if len(data) != expected_length:
+        raise Exception("Wrong data length for account data {}".format(account))
+    return data
 
-    def transfer(self, eth_token, eth_payer, eth_to_acc, amount):
-        mint = solana2ether(self.mint_id)
-        if (mint.hex() != str(eth_token)[2:]):
-            raise Exception("token_id doesn't match:  {},  erc20 {}: ".format(eth_token, mint.hex()))
-        if (self.caller_ether.hex() != bytes(eth_payer).hex() ):
-            print ("msg.sender, payer: {} {}".format(self.caller_ether.hex(), bytes(eth_payer).hex()))
-            raise Exception("msg.sender does not match the payer's account")
+def getAccountInfo(client, eth_acc, evm_loader):
+    (account_info, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader)
+    data = _getAccountData(client, account_info, ACCOUNT_INFO_LAYOUT.sizeof())
+    return AccountInfo.frombytes(data)
 
-        input = bytearray.fromhex(
-            "03a9059cbb" +
-            str("%024x" % 0) + bytes(eth_to_acc).hex() +
-            "%064x" % amount
-        )
-        (res, log) = self.call(input)
-        if not res.startswith("Program log: "):
-            raise Exception("Invalid program logs: no result")
-        else:
-            res = int(res[13:], 16)
-            if not  (res == 1) :
-                raise Exception("Invalid ERC20 transaction result: ", res)
-            signature = log["result"]["transaction"]["signatures"][0]
-            return signature
-
-    def balance_of(self, eth_token, eth_acc):
-        mint = solana2ether(self.mint_id)
-        if (mint.hex() != str(eth_token)[2:]):
-            raise Exception("token_id doesn't match:  {},  erc20: ".format(eth_token, mint.hex()))
-
-        input = bytearray.fromhex(
-            "0370a08231" +
-            str("%024x" % 0) + bytes(eth_acc).hex()
-        )
-        (res, log) = self.call(input)
-        if not res.startswith("Program log: "):
-            raise Exception("Invalid program logs: no result")
-        else:
-            return int(res[13:], 16)
-
-    def deploy(self, contract):
-        with open(location_bin, mode='wb') as file:
-            file.write(contract)
-
-        cmd = 'solana --url {} deploy --use-evm-loader {} {}'.format(solana_url, self.evm_loader, location_bin)
-        try:
-            res =  subprocess.check_output(cmd, shell=True, universal_newlines=True)
-            print(type(res), res)
-            print (res.splitlines()[-1])
-        except subprocess.CalledProcessError as err:
-            import sys
-            print("ERR: solana error {}".format(err))
-            raise
-
-
-    def _getAccountData(self, account, expected_length, owner=None):
-        info = self.client.get_account_info(account)['result']['value']
-        if info is None:
-            raise Exception("Can't get information about {}".format(account))
-
-        if info['owner'] != (owner or self.program):
-            raise Exception("Invalid owner for account data {}".format(account))
-
-        data = base64.b64decode(info['data'][0])
-        if len(data) != expected_length:
-            raise Exception("Wrong data length for account data {}".format(account))
-        return data
-
-    def getAccountInfo(self, eth_acc):
-        (account_info, nonce) = create_program_address(bytes(eth_acc).hex(), self.evm_loader)
-        data = self._getAccountData(account_info, ACCOUNT_INFO_LAYOUT.sizeof())
-        return AccountInfo.frombytes(data)
-
-    def getLamports(self, eth_acc):
-        (account, nonce) = create_program_address(bytes(eth_acc).hex(), self.evm_loader)
-        return int(self.client.get_balance(account)['result']['value'])
+def getLamports(client, evm_loader, eth_acc):
+    (account, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader)
+    return int(client.get_balance(account)['result']['value'])
 

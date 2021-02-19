@@ -15,6 +15,11 @@ from urllib import parse as urlparse
 import json
 import unittest
 
+from solana.rpc.api import Client
+from solana.account import Account as sol_Account
+from solana.transaction import AccountMeta, TransactionInstruction, Transaction
+from solana.sysvar import *
+
 from ..common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_HTTP_PORT
 from ..common.utils import socket_connection, text_, build_http_response
 from ..http.codes import httpStatusCodes
@@ -30,83 +35,9 @@ from solana.account import Account as SolanaAccount
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from sha3 import keccak_256
 import base58
-import base64
 import traceback
-from .erc20_wrapper import ERC20_Program, EthereumAddress
-
-
-class Contract:
-    def __init__(self, functions):
-        self.functions = functions
-
-    def _getFunction(self, prefix, funcHash):
-        funcName = self.functions.get(funcHash, None)
-        if not funcName: raise Exception("Unknown function")
-        return getattr(self, prefix+funcName)
-
-    def call(self, data):
-        return self._getFunction('call_', data[0:8])(data[8:])
-
-    def execute(self, sender, data):
-        return self._getFunction('execute_', data[0:8])(sender, data[8:])
-
-
-class SolanaTokenContract(Contract):
-    def __init__(self, client, erc20_wrapper, eth_token):
-        functions = {
-            '06fdde03': 'name',
-            '313ce567': 'decimals',
-            '95d89b41': 'symbol',
-            '18160ddd': 'totalSupply',
-            '70a08231': 'balanceOf',
-            'a9059cbb': 'transfer',
-        }
-        super(SolanaTokenContract, self).__init__(functions)
-        self.client, self.erc20_wrapper, self.eth_token = client, erc20_wrapper, eth_token
-
-        self.decimals = erc20_wrapper.decimals()
-        self.symbol = erc20_wrapper.symbol()
-        # self.symbol = 'S'+str(self.tokenInfo.token)[-6:]
-
-    def call_balanceOf(self, data):
-        try:
-            eth_acc = EthereumAddress('0x'+data[24:])
-            balance = self.erc20_wrapper.balance_of(self.eth_token, eth_acc)
-            return '%064x' % int(balance)
-        except Exception as err:
-            print("Error:", str(err))
-            traceback.print_exc()
-            return '0x0'
-
-    def call_decimals(self, data):
-        return '%064x' % self.decimals
-
-    def call_symbol(self, data):
-        result = '%064x%064x%s'%(0x20, len(self.symbol), self.symbol.encode('utf8').hex())
-        result += (64-len(result)%64)%64 * '0'
-        return result
-
-
-#        amount = int(data[64:128], 16)
-#        if not (sender in self.balances and self.balances[sender] >= amount):
-#            raise Exception("Unsufficient funds")
-#
-#        self.balances[sender] -= amount
-#        if not receiver in self.balances:
-#            self.balances[receiver] = amount
-#        else:
-#            self.balances[receiver] += amount
-#{
-#   "nonce": 1,
-#   "gasPrice": null,
-#   "gasLimit": 100000,
-#   "toAddress": "7ee1deef10d40b49cb8150601c88200e92c0366f",
-#   "value": null,
-#   "callData": "a9059cbb 000000000000000000000000c1566af4699928fdf9be097ca3dc47ece39f8f8e0000000000000000000000000000000000000000000000000000000000bc4b20",
-#   "v": 3200487333510,
-#   "r": 69647072016907699357008988025684847398508209039397133364655742939619347904868,
-#   "s": 45855856130790862141056931625984985629645287105900323817284646379489428721980
-#}
+from .erc20_wrapper import EthereumAddress, create_program_address, sender_eth, evm_loader_id, getLamports, \
+    getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url
 
 
 class Account:
@@ -130,25 +61,36 @@ class Receipt:
         (self.block, self.index) = (block, index)
 
 
-
 class EthereumModel:
     def __init__(self):
+        # Initialize user account
+        cli = solana_cli(solana_url)
+        res = cli.call("config get")
+        res = res.splitlines()[-1]
+        substr = "Keypair Path: "
+        if not res.startswith(substr):
+            raise Exception("cannot get keypair path")
+        path = res[len(substr):]
+        with open(path.strip(), mode='r') as file:
+            pk = (file.read())
+            nums = list(map(int, pk.strip("[]").split(',')))
+            nums = nums[0:32]
+            values = bytes(nums)
+            self.signer = sol_Account(values)
+
         self.client = SolanaClient('http://localhost:8899')
         self.signatures = {}
-        self.signer = SolanaAccount(b'\xdc~\x1c\xc0\x1a\x97\x80\xc2\xcd\xdfn\xdb\x05.\xf8\x90N\xde\xf5\x042\xe2\xd8\x10xO%/\xe7\x89\xc0<')
-        self.erc20_wrapper = ERC20_Program(self.client, self.signer)
+        self.vrs = {}
+        self.eth_sender = {}
+        self.contract_address = {}
+        # self.signer = SolanaAccount(b'\xdc~\x1c\xc0\x1a\x97\x80\xc2\xcd\xdfn\xdb\x05.\xf8\x90N\xde\xf5\x042\xe2\xd8\x10xO%/\xe7\x89\xc0<')
 
         self.contracts = {}
         self.accounts = {}
-        pass
+        self.caller_ether = bytes.fromhex(sender_eth)
+        (self.caller, self.caller_nonce) = create_program_address(self.caller_ether.hex(), evm_loader_id)
 
-    def _getContract(self, contractId):
-        contract = self.contracts.get(contractId)
-        if not contract:
-            contract = SolanaTokenContract(self.client, self.erc20_wrapper, EthereumAddress(contractId))
-            self.contracts[contractId] = contract
-            #raise Exception("Unknown contract {}".format(contractId))
-        return contract
+        pass
 
     def eth_chainId(self):
         return "0x10"
@@ -167,7 +109,7 @@ class EthereumModel:
 
     def eth_blockNumber(self):
         slot = self.client.get_slot()['result']
-        print("eth_blockNumber", slot)
+        print("eth_blockNumber", hex(slot))
         return hex(slot)
 
     def eth_getBalance(self, account, tag):
@@ -176,7 +118,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         print('eth_getBalance:', account, eth_acc)
-        balance = self.erc20_wrapper.getLamports(eth_acc)
+        balance = getLamports(self.client, evm_loader_id, eth_acc)
         return hex(balance*10**9)
 
     def eth_getBlockByNumber(self, tag, full):
@@ -243,14 +185,22 @@ class EthereumModel:
         """
         if not obj['data']: raise Exception("Missing data")
         try:
-            return self._getContract(obj['to']).call(obj['data'][2:])
+            input = bytearray.fromhex(obj['data'][2:])
+            input[0:0] = bytearray.fromhex("03")
+
+            (contract_sol, contract_nonce) = create_program_address(obj['to'][2:], evm_loader_id)
+            (res, log) = call(input, evm_loader_id, contract_sol, self.caller, self.signer, self.client)
+            if not res.startswith("Program log: "):
+                raise Exception("Invalid program logs: no result")
+            else:
+                return "0x"+res[13:]
         except:
             return '0x'
 
     def eth_getTransactionCount(self, account, tag):
         print('eth_getTransactionCount:', account)
         try:
-            info = self.erc20_wrapper.getAccountInfo(EthereumAddress(account))
+            info = getAccountInfo(self.client, evm_loader_id, EthereumAddress(account))
             return hex(info.trx_count)
         except:
             return hex(0)
@@ -258,14 +208,29 @@ class EthereumModel:
     def eth_getTransactionReceipt(self, trxId):
         receipt = self.signatures.get(trxId, None)
         print('getTransactionReceipt:', trxId, receipt)
-        if not receipt: raise Exception("Not found receipt")
+        if not receipt:
+            print ("Not found receipt")
+            return {
+            "transactionHash":'0x0',
+            "transactionIndex":'0x0',
+            "blockHash":'0x0',
+            "blockNumber":'0x0',
+            "from":'0x0',
+            "to":'0x0',
+            "gasUsed":'0x0',
+            "cumulativeGasUsed":'0x0',
+            "contractAddress":'0x0',
+            "logs":[],
+            "status":"0x0",
+            "logsBloom":'0x0'
+            }
 
         trx = self.client.get_confirmed_transaction(receipt)
-        print('RECEIPT:', json.dumps(trx, indent=3))
+        # print('RECEIPT:', json.dumps(trx, indent=3))
         if trx['result'] is None: return None
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
-        print('BLOCK:', json.dumps(block, indent=3))
+        # print('BLOCK:', json.dumps(block, indent=3))
 
         data = base58.b58decode(trx['result']['transaction']['message']['instructions'][0]['data'])
         print('DATA:', data.hex())
@@ -275,15 +240,70 @@ class EthereumModel:
             "transactionIndex":hex(0),
             "blockHash":'0x%064x'%trx['result']['slot'],
             "blockNumber":hex(trx['result']['slot']),
-            "from":'0x'+data[30:50].hex(),
-            "to":'0x'+data[10:30].hex(),
+            "from":'0x'+self.eth_sender[trxId],
+            "to":'0x'+data[17:37].hex(),
             "gasUsed":'0x%x' % trx['result']['meta']['fee'],
             "cumulativeGasUsed":'0x%x' % trx['result']['meta']['fee'],
-            "contractAddress":None,
+            "contractAddress":self.contract_address.get(trxId),
             "logs":[],
             "status":"0x1",
             "logsBloom":"0x"+'0'*512
         }
+
+    def eth_getTransactionByHash(self, trxId):
+        receipt = self.signatures.get(trxId, None)
+        print('getTransactionReceipt:', trxId, receipt)
+        if not receipt:
+            print ("Not found receipt")
+            return {
+                "blockHash":'0x0',
+                "blockNumber":'0x0',
+                "from":'0x0',
+                "gas":'0x0',
+                "gasPrice":'0x0',
+                "hash":'0x0',
+                "input":'0x0',
+                "nonce":'0x0',
+                "to":'0x0',
+                "transactionIndex":'0x0',
+                "value":'0x0',
+                "v":'0x0',
+                "r":'0x0',
+                "s":'0x0'
+            }
+
+        trx = self.client.get_confirmed_transaction(receipt)
+        # print('RECEIPT:', json.dumps(trx, indent=3))
+        if trx['result'] is None: return None
+
+        block = self.client.get_confirmed_block(trx['result']['slot'])
+        # print('BLOCK:', json.dumps(block, indent=3))
+
+        data = base58.b58decode(trx['result']['transaction']['message']['instructions'][0]['data'])
+        print('DATA:', data.hex())
+        sender =  self.eth_sender[trxId]
+        # nonce = int(self.eth_getTransactionCount('0x'+data[sender].hex(), ""), 16)
+        nonce = 0
+        # if nonce > 0 :
+        #     nonce = nonce - 1
+        ret = {
+            "blockHash":'0x%064x'%trx['result']['slot'],
+            "blockNumber":hex(trx['result']['slot']),
+            "from":'0x'+sender,
+            "gas":'0x%x' % trx['result']['meta']['fee'],
+            "gasPrice":'0x00',
+            "hash":trxId,
+            "input":"0x"+data.hex(),
+            "nonce":hex(nonce),
+            "to":'0x'+data[17:37].hex(),
+            "transactionIndex":hex(0),
+            "value":'0x00',
+            "v":hex(self.vrs[trxId][0]),
+            "r":hex(self.vrs[trxId][1]),
+            "s":hex(self.vrs[trxId][2])
+        }
+        print ("eth_getTransactionByHash:", ret);
+        return ret
 
     def eth_getCode(self, param,  param1):
         return "0x01"
@@ -351,25 +371,40 @@ class EthereumModel:
             raise Exception("transfer native tokens is not implemented")
         elif trx.callData:
             if (trx.toAddress is None):
-                raise Exception("deploy contract is not implemented")
-                # self.erc20_wrapper.deploy(trx.callData)
-                # signature = "2Mqrp61i6cTWTiLLJaxGZmTCodhKW45pi1TQ3kPqum5AWbq4AZYg5W6yKYifzgWkHbFpdRJtGua8HTP53kKdCao5"
-                # eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
-                # self.signatures[eth_signature] = signature
-                # print('Ethereum signature:', eth_signature)
-                # return eth_signature
-            else:
-                print('toAddress:', bytes(trx.toAddress).hex())
-                ether_to = EthereumAddress('0x'+trx.callData.hex()[32:72])
-                amount = int(trx.callData.hex()[72:136], 16)
-                signature = self.erc20_wrapper.transfer(
-                    EthereumAddress('0x'+bytes(trx.toAddress).hex()), EthereumAddress('0x'+sender), ether_to, amount
-                )
-                print('Transaction signature:', signature)
+                eth_contract_addr = deploy(trx.callData, evm_loader_id)["ethereum"]
+                print("DEPLOY", eth_contract_addr)
+                signature = transaction_history(self.signer.public_key())
+                print("SIGNATURE", signature)
                 eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                print("ETH_SIGNATURE", eth_signature)
                 self.signatures[eth_signature] = signature
-                print('Ethereum signature:', eth_signature)
+                self.eth_sender[eth_signature] = sender
+                self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+                self.contract_address[eth_signature] = eth_contract_addr
                 return eth_signature
+            else:
+                try:
+                    input = bytearray(trx.callData)
+                    input[0:0] = bytearray.fromhex("03")
+
+                    (contract_sol, contract_nonce) = create_program_address(bytes(trx.toAddress).hex(), evm_loader_id)
+                    (sender_sol, sender_nonce) = create_program_address(sender, evm_loader_id)
+                    (res, log) = call(input, evm_loader_id, contract_sol, sender_sol, self.signer, self.client)
+
+                    if not res.startswith("Program log: "):
+                        print("Invalid program logs: no result")
+                        raise Exception("Invalid program logs: no result")
+                    else:
+                        signature = log["result"]["transaction"]["signatures"][0]
+                        print('Transaction signature:', signature)
+                        eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                        self.signatures[eth_signature] = signature
+                        self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+                        self.eth_sender[eth_signature] = sender
+                        print('Ethereum signature:', eth_signature)
+                        return eth_signature
+                except:
+                    return '0x0'
         else:
             raise Exception("Missing token for transfer")
 
