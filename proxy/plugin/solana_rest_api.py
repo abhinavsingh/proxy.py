@@ -36,9 +36,10 @@ from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from sha3 import keccak_256
 import base58
 import traceback
-from .erc20_wrapper import EthereumAddress, create_program_address, sender_eth, evm_loader_id, getLamports, \
-    getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url
+from .solana_rest_api_tools import EthereumAddress, create_program_address, sender_eth, evm_loader_id, getLamports, \
+    getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url, call_signed
 
+from eth_keys import keys as eth_keys
 
 class Account:
     def __init__(self, balance):
@@ -152,30 +153,6 @@ class EthereumModel:
             "transactions": eth_signatures,
         }
 
-#       {
-#            "number":tag,
-#            "hash":"0x40baaba3f7cd6397ebdfe105a778854418112f6218969ae0600907936dea7077",
-#            "parentHash":"0x312f4c211e84a7f8cd53e7ecb90ad194e58bcea15dfdfed4314412a5d7f4c8bf",
-#            "mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000",
-#            "nonce":"0x0000000000000000",
-#            "sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
-#            "logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-#            "transactionsRoot":"0x0f1662bc2d4cca30a1e039d72b4fc39fe2fbb32f4d79e4ec21add97c446a3352",
-#            "stateRoot":"0x9714bb6d61f0c6095cb14f526a98e546e6dd35d8ac60e11682fc5f984c7ce761",
-#            "receiptsRoot":"0x056b23fbba480696b65fe5a59b8f2148a1299103c4f57df839233af2cf4ca2d2",
-#            "miner":"0x0000000000000000000000000000000000000000",
-#            "difficulty":"0x0",
-#            "totalDifficulty":"0x0",
-#            "extraData":"0x",
-#            "size":"0x3e8",
-#            "gasLimit":"0x6691b7",
-#            "gasUsed":"0x5208",
-#            "timestamp":"0x5f61ea48",
-#            "transactions":[
-#                "0x7fe4d5e32ad2099940654c7871079a7dcdf84b592823ad6a2f7835a55453fae1"
-#            ],
-#            "uncles":[]
-#        }
 
     def eth_call(self, obj, tag):
         """Executes a new message call immediately without creating a transaction on the block chain.
@@ -206,8 +183,8 @@ class EthereumModel:
     def eth_getTransactionCount(self, account, tag):
         print('eth_getTransactionCount:', account)
         try:
-            info = getAccountInfo(self.client, evm_loader_id, EthereumAddress(account))
-            return hex(info.trx_count)
+            acc_info = getAccountInfo(self.client, EthereumAddress(account))
+            return hex(int.from_bytes(acc_info.trx_count, 'little'))
         except:
             return hex(0)
 
@@ -314,56 +291,6 @@ class EthereumModel:
     def eth_getCode(self, param,  param1):
         return "0x01"
 
-#{'jsonrpc': '2.0', 'result': {
-#    'meta': {
-#        'err': None,
-#        'fee': 5000,
-#        'innerInstructions': [
-#            {
-#                'index': 0,
-#                'instructions': [{'accounts': [0, 1], 'data': '11119WdDob9tURrs1mPLQsrxBNt4Hgrq7j8oszjq1UwKoypjtc1QY25xrACwsSDQHQ4Xjg', 'programIdIndex': 3}]
-#            }],
-#        'postBalances': [9857358240, 928, 1072563840, 1],
-#        'preBalances': [9857364240, 0, 1072563840, 1],
-#        'status': {'Ok': None}},
-#        'slot': 172315,
-#        'transaction': {
-#            'message': {
-#                'accountKeys': [
-#                    'Bfj8CF5ywavXyqkkuKSXt5AVhMgxUJgHfQsQjPc1JKzj',
-#                    'GTeuLioCKcJ5cm7Dq7swaZT9u1VQsvVauHTRRJ6cL1mW',
-#                    'CEU7e6wxzZgAYLeECkSGbfzuKd5Jha4F4JT7Y7UwEaGz',
-#                    '11111111111111111111111111111111'],
-#                'header': {
-#                    'numReadonlySignedAccounts': 0,
-#                    'numReadonlyUnsignedAccounts': 2,
-#                    'numRequiredSignatures': 1},
-#                'instructions': [
-#                    {
-#                        'accounts': [1, 2, 3, 0],
-#                        'data': 'JJ91ggb4n23E5XiMHmXxJRKYi8RJfcZqqMeyAnmdPh23NVygpyeWrRAZEX74ypk53WGsCEstgAWdSvoef9ZUn2FdHVANoQfgU2pD',
-#                        'programIdIndex': 2
-#                    }],
-#                'recentBlockhash': '4nSmpVWkwTEH8Z9wZd8dXAYK3ZLvAbHPg943UMwTgH2W'
-#            },
-#            'signatures': ['4m3r2stsX18edAJWpEFAubMYAvCoJqbfHjZMtfq3n6t9jDuxiRJznVveoCpzrKdLaAcBqWyxFtVXFqepvF9zf2wZ']
-#        }
-#    },
-#    'id': 27}
-
-#            "transactionHash":receipt,
-#            "transactionIndex":"0x0",
-#            "blockHash":receipt,
-#            "blockNumber":"0x%x" % self.blockNumber,
-#            "from":sender,
-#            "to":toAddress,
-#            "gasUsed":"0x5208",
-#            "cumulativeGasUsed":"0x5208",
-#            "contractAddress":None,
-#            "logs":[],
-#            "status":"0x1",
-#            "logsBloom":"0x"+'0'*512
-
     def eth_sendRawTransaction(self, rawTrx):
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
         print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
@@ -390,13 +317,7 @@ class EthereumModel:
                 return eth_signature
             else:
                 try:
-                    input = bytearray(trx.callData)
-                    input[0:0] = bytearray.fromhex("03")
-
-                    (contract_sol, contract_nonce) = create_program_address(bytes(trx.toAddress).hex(), evm_loader_id)
-                    (sender_sol, sender_nonce) = create_program_address(sender, evm_loader_id)
-                    (res, log) = call(input, evm_loader_id, contract_sol, sender_sol, self.signer, self.client)
-
+                    (res, log) = call_signed( self.signer, self.client,  rawTrx)
                     if not res.startswith("Program log: "):
                         print("Invalid program logs: no result")
                         raise Exception("Invalid program logs: no result")
