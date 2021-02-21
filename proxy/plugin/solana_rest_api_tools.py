@@ -10,14 +10,12 @@ from construct import Bytes, Int8ul, Int32ul
 from construct import Struct as cStruct
 import random
 import json
-from web3.auto import w3
 from sha3 import keccak_256
 import struct
 from .eth_proto import pack, unpack
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-sender_eth = "a6df389b014C45155086Ef10f365D9AF3Ab3D812"
 location_bin = ".deploy_contract.bin"
 
 tokenkeg = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -214,12 +212,12 @@ def create_program_address(seed, program_id):
     return (items[0], int(items[1]))
 
 
-def call(input, evm_loader, program, caller, acc, client):
+def call(input, evm_loader, program, acc, client):
     trx = Transaction().add(
         TransactionInstruction(program_id=evm_loader, data=input, keys=
         [
             AccountMeta(pubkey=program, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=caller, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=acc.public_key(), is_signer=False, is_writable=True),
             AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False),
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
         ]))
@@ -235,6 +233,16 @@ def call_signed(acc, client, trx_raw):
     sender_ether = bytes.fromhex(trx_parsed.sender())
     (contract_sol, _) = create_program_address(trx_parsed.toAddress.hex(), evm_loader_id)
     (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id)
+
+    sender_sol_info = client.get_account_info(sender_sol)
+    if sender_sol_info['result']['value'] is None:
+        print("Create solana caller account...")
+        cli = solana_cli(solana_url)
+        output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, sender_ether.hex()))
+        result = json.loads(output.splitlines()[-1])
+        sender_sol = result["solana"]
+        print("Done")
+        print("solana caller:", sender_sol)
 
     trx_rlp = trx_parsed.get_msg()
     eth_sig = eth_keys.Signature(vrs=[1 if trx_parsed.v % 2 == 0 else 0, trx_parsed.r, trx_parsed.s]).to_bytes()

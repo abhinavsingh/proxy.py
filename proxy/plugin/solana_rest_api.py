@@ -8,58 +8,22 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import random
-from datetime import datetime
 from typing import List, Tuple
-from urllib import parse as urlparse
 import json
 import unittest
-
-from solana.rpc.api import Client
 from solana.account import Account as sol_Account
-from solana.transaction import AccountMeta, TransactionInstruction, Transaction
-from solana.sysvar import *
-
-from ..common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_HTTP_PORT
 from ..common.utils import socket_connection, text_, build_http_response
 from ..http.codes import httpStatusCodes
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
-
 from .eth_proto import Trx as EthTrx
-
 from solana.rpc.api import Client as SolanaClient
-from solana.rpc.types import TxOpts
-from solana.account import Account as SolanaAccount
-from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from sha3 import keccak_256
 import base58
 import traceback
-from .solana_rest_api_tools import EthereumAddress, create_program_address, sender_eth, evm_loader_id, getLamports, \
+from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
     getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url, call_signed
-
-from eth_keys import keys as eth_keys
-
-class Account:
-    def __init__(self, balance):
-        self.balance = balance
-        self.trxCount = 1
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-class Receipt:
-    def __init__(self, receiptId, sender, receiver):
-        self.block = None
-        self.index = None
-        self.id = receiptId
-        self.sender = sender
-        self.receiver = receiver
-
-    def initBlock(self, block, index):
-        if self.block: raise Exception("Transaction already included in block {}".format(block.number))
-        (self.block, self.index) = (block, index)
 
 
 class EthereumModel:
@@ -87,16 +51,6 @@ class EthereumModel:
 
         self.contracts = {}
         self.accounts = {}
-        self.caller_ether = bytes.fromhex(sender_eth)
-        (self.caller, self.caller_nonce) = create_program_address(self.caller_ether.hex(), evm_loader_id)
-        info = self.client.get_account_info(self.caller)
-        if info['result']['value'] is None:
-            print("Create caller account...")
-            output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, self.caller_ether.hex()))
-            result = json.loads(output.splitlines()[-1])
-            self.caller = result["solana"]
-            print("Done")
-            print("cls.caller:", self.caller)
         pass
 
     def eth_chainId(self):
@@ -172,7 +126,7 @@ class EthereumModel:
             input[0:0] = bytearray.fromhex("03")
 
             (contract_sol, contract_nonce) = create_program_address(obj['to'][2:], evm_loader_id)
-            (res, log) = call(input, evm_loader_id, contract_sol, self.caller, self.signer, self.client)
+            (res, log) = call(input, evm_loader_id, contract_sol,  self.signer, self.client)
             if not res.startswith("Program log: "):
                 raise Exception("Invalid program logs: no result")
             else:
