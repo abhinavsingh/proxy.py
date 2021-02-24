@@ -1,5 +1,6 @@
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from solana.sysvar import *
+from solana.blockhash import Blockhash
 import time
 import subprocess
 import os
@@ -222,10 +223,24 @@ def call(input, evm_loader, program, acc, client):
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
         ]))
 
-    result = client.send_transaction(trx, acc)
-    result = confirm_transaction(client, result["result"])
-    messages = result["result"]["meta"]["logMessages"]
-    return (messages[messages.index("Program log: succeed") + 1], result)
+    try:
+        # TODO: Cache recent blockhash
+        blockhash_resp = client.get_recent_blockhash()
+        if not blockhash_resp["result"]:
+            raise RuntimeError("failed to get recent blockhash")
+        trx.recent_blockhash = Blockhash(blockhash_resp["result"]["value"]["blockhash"])
+    except Exception as err:
+        raise RuntimeError("failed to get recent blockhash") from err
+
+    trx.sign(acc)
+    result = client.simulate_transaction(trx)
+    messages = result['result']['value']['logs']
+    res = messages[messages.index("Program log: succeed") + 1]
+    print("CALL:", res)
+    if not res.startswith("Program log: "):
+        raise Exception("Invalid program logs: no result")
+    else:
+        return res[13:]
 
 def call_signed(acc, client, trx_raw):
 
@@ -242,12 +257,15 @@ def call_signed(acc, client, trx_raw):
         result = json.loads(output.splitlines()[-1])
         sender_sol = result["solana"]
         print("Done")
-        print("solana caller:", sender_sol)
+
+    print("solana caller:", sender_sol)
 
     trx_rlp = trx_parsed.get_msg()
     eth_sig = eth_keys.Signature(vrs=[1 if trx_parsed.v % 2 == 0 else 0, trx_parsed.r, trx_parsed.s]).to_bytes()
     keccak_instruction = make_keccak_instruction_data(1, len(trx_rlp))
     evm_instruction = sender_ether + eth_sig + trx_rlp
+
+    print("transaction:", evm_instruction.hex())
 
     trx = Transaction().add(
         TransactionInstruction(program_id=keccakprog, data=keccak_instruction, keys=[
