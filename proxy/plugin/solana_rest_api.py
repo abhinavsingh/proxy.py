@@ -126,12 +126,9 @@ class EthereumModel:
             input[0:0] = bytearray.fromhex("03")
 
             (contract_sol, contract_nonce) = create_program_address(obj['to'][2:], evm_loader_id)
-            (res, log) = call(input, evm_loader_id, contract_sol,  self.signer, self.client)
-            if not res.startswith("Program log: "):
-                raise Exception("Invalid program logs: no result")
-            else:
-                return "0x"+res[13:]
-        except:
+            return "0x"+call(input, evm_loader_id, contract_sol, self.signer, self.client)
+        except Exception as err:
+            print("eth_call", err)
             return '0x'
 
     def eth_getTransactionCount(self, account, tag):
