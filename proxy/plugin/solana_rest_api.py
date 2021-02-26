@@ -160,6 +160,26 @@ class EthereumModel:
             }
 
         trx = self.client.get_confirmed_transaction(receipt)
+        data = trx['result']['meta']['innerInstructions'][0]['instructions']
+        logs = []
+        for event in data:
+            log = base58.b58decode(event['data'])
+            instruction = log[:1]
+            if (int().from_bytes(instruction, "little") != 7):
+                continue
+            address = log[1:21]
+            count_topics = int().from_bytes(log[21:29], 'little')
+            topics = []
+            pos = 29
+            for _ in range(count_topics):
+                topic_bin = log[pos:pos + 32]
+                topics.append('0x'+topic_bin.hex())
+                pos += 32
+            data = log[pos:]
+            rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
+            logs.append(rec)
+
+
         # print('RECEIPT:', json.dumps(trx, indent=3))
         if trx['result'] is None: return None
 
@@ -167,7 +187,7 @@ class EthereumModel:
         # print('BLOCK:', json.dumps(block, indent=3))
 
         data = base58.b58decode(trx['result']['transaction']['message']['instructions'][0]['data'])
-        print('DATA:', data.hex())
+        # print('DATA:', data.hex())
 
         return {
             "transactionHash":trxId,
@@ -179,7 +199,7 @@ class EthereumModel:
             "gasUsed":'0x%x' % trx['result']['meta']['fee'],
             "cumulativeGasUsed":'0x%x' % trx['result']['meta']['fee'],
             "contractAddress":self.contract_address.get(trxId),
-            "logs":[],
+            "logs": logs,
             "status":"0x1",
             "logsBloom":"0x"+'0'*512
         }
