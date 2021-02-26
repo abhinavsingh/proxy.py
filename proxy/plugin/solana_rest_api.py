@@ -161,7 +161,7 @@ class EthereumModel:
 
         trx = self.client.get_confirmed_transaction(receipt)
         logs = []
-        if (trx['result']['meta']['innerInstructions'].count()):
+        if (len(trx['result']['meta']['innerInstructions'])):
             data = trx['result']['meta']['innerInstructions'][0]['instructions']
             for event in data:
                 log = base58.b58decode(event['data'])
