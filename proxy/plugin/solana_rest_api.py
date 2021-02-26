@@ -165,8 +165,8 @@ class EthereumModel:
 
         logs = []
         if len(trx['result']['meta']['innerInstructions']):
-            data = trx['result']['meta']['innerInstructions'][0]['instructions']
-            for event in data:
+            raw_data = trx['result']['meta']['innerInstructions'][0]['instructions']
+            for event in raw_data:
                 log = base58.b58decode(event['data'])
                 instruction = log[:1]
                 if (int().from_bytes(instruction, "little") != 7):
