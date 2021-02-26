@@ -160,8 +160,11 @@ class EthereumModel:
             }
 
         trx = self.client.get_confirmed_transaction(receipt)
+        print('RECEIPT:', json.dumps(trx, indent=3))
+        if trx['result'] is None: return None
+
         logs = []
-        if (len(trx['result']['meta']['innerInstructions'])):
+        if len(trx['result']['meta']['innerInstructions']):
             data = trx['result']['meta']['innerInstructions'][0]['instructions']
             for event in data:
                 log = base58.b58decode(event['data'])
@@ -181,8 +184,6 @@ class EthereumModel:
                 logs.append(rec)
 
 
-        # print('RECEIPT:', json.dumps(trx, indent=3))
-        if trx['result'] is None: return None
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # print('BLOCK:', json.dumps(block, indent=3))
