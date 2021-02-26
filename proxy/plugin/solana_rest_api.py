@@ -160,24 +160,25 @@ class EthereumModel:
             }
 
         trx = self.client.get_confirmed_transaction(receipt)
-        data = trx['result']['meta']['innerInstructions'][0]['instructions']
         logs = []
-        for event in data:
-            log = base58.b58decode(event['data'])
-            instruction = log[:1]
-            if (int().from_bytes(instruction, "little") != 7):
-                continue
-            address = log[1:21]
-            count_topics = int().from_bytes(log[21:29], 'little')
-            topics = []
-            pos = 29
-            for _ in range(count_topics):
-                topic_bin = log[pos:pos + 32]
-                topics.append('0x'+topic_bin.hex())
-                pos += 32
-            data = log[pos:]
-            rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
-            logs.append(rec)
+        if (trx['result']['meta']['innerInstructions'].count()):
+            data = trx['result']['meta']['innerInstructions'][0]['instructions']
+            for event in data:
+                log = base58.b58decode(event['data'])
+                instruction = log[:1]
+                if (int().from_bytes(instruction, "little") != 7):
+                    continue
+                address = log[1:21]
+                count_topics = int().from_bytes(log[21:29], 'little')
+                topics = []
+                pos = 29
+                for _ in range(count_topics):
+                    topic_bin = log[pos:pos + 32]
+                    topics.append('0x'+topic_bin.hex())
+                    pos += 32
+                data = log[pos:]
+                rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
+                logs.append(rec)
 
 
         # print('RECEIPT:', json.dumps(trx, indent=3))
