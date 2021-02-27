@@ -165,25 +165,24 @@ class EthereumModel:
 
         logs = []
         if len(trx['result']['meta']['innerInstructions']):
-            raw_data = trx['result']['meta']['innerInstructions'][0]['instructions']
-            for event in raw_data:
-                log = base58.b58decode(event['data'])
-                instruction = log[:1]
-                if (int().from_bytes(instruction, "little") != 7):
-                    continue
-                address = log[1:21]
-                count_topics = int().from_bytes(log[21:29], 'little')
-                topics = []
-                pos = 29
-                for _ in range(count_topics):
-                    topic_bin = log[pos:pos + 32]
-                    topics.append('0x'+topic_bin.hex())
-                    pos += 32
-                data = log[pos:]
-                rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
-                logs.append(rec)
-
-
+            if trx['result']['meta']['innerInstructions'][0]['index'] == 1:
+                raw_data = trx['result']['meta']['innerInstructions'][0]['instructions']
+                for event in raw_data:
+                    log = base58.b58decode(event['data'])
+                    instruction = log[:1]
+                    if (int().from_bytes(instruction, "little") != 7):
+                        continue
+                    address = log[1:21]
+                    count_topics = int().from_bytes(log[21:29], 'little')
+                    topics = []
+                    pos = 29
+                    for _ in range(count_topics):
+                        topic_bin = log[pos:pos + 32]
+                        topics.append('0x'+topic_bin.hex())
+                        pos += 32
+                    data = log[pos:]
+                    rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
+                    logs.append(rec)
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # print('BLOCK:', json.dumps(block, indent=3))
@@ -276,35 +275,37 @@ class EthereumModel:
         elif trx.value:
             raise Exception("transfer native tokens is not implemented")
         elif trx.callData:
-            if (trx.toAddress is None):
-                eth_contract_addr = deploy(trx.callData, evm_loader_id)["ethereum"]
-                print("DEPLOY", eth_contract_addr)
-                signature = transaction_history(self.signer.public_key())
-                print("SIGNATURE", signature)
-                eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
-                print("ETH_SIGNATURE", eth_signature)
-                self.signatures[eth_signature] = signature
-                self.eth_sender[eth_signature] = sender
-                self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
-                self.contract_address[eth_signature] = eth_contract_addr
-                return eth_signature
-            else:
-                try:
-                    (res, log) = call_signed( self.signer, self.client,  rawTrx)
-                    if not res.startswith("Program log: "):
-                        print("Invalid program logs: no result")
-                        raise Exception("Invalid program logs: no result")
-                    else:
-                        signature = log["result"]["transaction"]["signatures"][0]
-                        print('Transaction signature:', signature)
-                        eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
-                        self.signatures[eth_signature] = signature
-                        self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
-                        self.eth_sender[eth_signature] = sender
-                        print('Ethereum signature:', eth_signature)
-                        return eth_signature
-                except:
-                    return '0x0'
+            try:
+                if (trx.toAddress is None):
+                    eth_contract_addr = deploy(trx.callData, evm_loader_id)["ethereum"]
+                    print("DEPLOY", eth_contract_addr)
+                    signature = transaction_history(self.signer.public_key())
+                    print("SIGNATURE", signature)
+                    eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                    print("ETH_SIGNATURE", eth_signature)
+                    self.signatures[eth_signature] = signature
+                    self.eth_sender[eth_signature] = sender
+                    self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+                    self.contract_address[eth_signature] = eth_contract_addr
+                    return eth_signature
+                else:
+                        (res, log) = call_signed( self.signer, self.client,  rawTrx)
+                        if not res.startswith("Program log: "):
+                            print("Invalid program logs: no result")
+                            raise Exception("Invalid program logs: no result")
+                        else:
+                            signature = log["result"]["transaction"]["signatures"][0]
+                            print('Transaction signature:', signature)
+                            eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                            self.signatures[eth_signature] = signature
+                            self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+                            self.eth_sender[eth_signature] = sender
+                            print('Ethereum signature:', eth_signature)
+                            return eth_signature
+
+            except Exception as err:
+                print("eth_sendRawTransaction", err)
+                return '0x'
         else:
             raise Exception("Missing token for transfer")
 
