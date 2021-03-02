@@ -164,25 +164,27 @@ class EthereumModel:
         if trx['result'] is None: return None
 
         logs = []
-        if len(trx['result']['meta']['innerInstructions']):
-            if trx['result']['meta']['innerInstructions'][0]['index'] == 1:
-                raw_data = trx['result']['meta']['innerInstructions'][0]['instructions']
-                for event in raw_data:
-                    log = base58.b58decode(event['data'])
-                    instruction = log[:1]
-                    if (int().from_bytes(instruction, "little") != 7):
-                        continue
-                    address = log[1:21]
-                    count_topics = int().from_bytes(log[21:29], 'little')
-                    topics = []
-                    pos = 29
-                    for _ in range(count_topics):
-                        topic_bin = log[pos:pos + 32]
-                        topics.append('0x'+topic_bin.hex())
-                        pos += 32
-                    data = log[pos:]
-                    rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
-                    logs.append(rec)
+        for inner in (trx['result']['meta']['innerInstructions']):
+            #  result of eth_SendRawTransaction contains events only in instructions with odd number
+            if inner['index'] % 2 == 0:
+                break
+
+            for event in inner['instructions']:
+                log = base58.b58decode(event['data'])
+                instruction = log[:1]
+                if (int().from_bytes(instruction, "little") != 7):  # OnEvent evmInstruction code
+                    continue
+                address = log[1:21]
+                count_topics = int().from_bytes(log[21:29], 'little')
+                topics = []
+                pos = 29
+                for _ in range(count_topics):
+                    topic_bin = log[pos:pos + 32]
+                    topics.append('0x'+topic_bin.hex())
+                    pos += 32
+                data = log[pos:]
+                rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
+                logs.append(rec)
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # print('BLOCK:', json.dumps(block, indent=3))
