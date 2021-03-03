@@ -165,9 +165,6 @@ class EthereumModel:
 
         logs = []
         for inner in (trx['result']['meta']['innerInstructions']):
-            #  result of eth_SendRawTransaction contains events only in instructions with odd number
-            if inner['index'] % 2 == 0:
-                break
 
             for event in inner['instructions']:
                 log = base58.b58decode(event['data'])
