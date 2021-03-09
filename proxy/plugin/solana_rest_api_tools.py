@@ -220,6 +220,7 @@ def call(input, evm_loader, program, acc, client):
             AccountMeta(pubkey=program, is_signer=False, is_writable=True),
             AccountMeta(pubkey=acc.public_key(), is_signer=False, is_writable=True),
             AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False),
+            AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
         ]))
 
@@ -276,7 +277,7 @@ def call_signed(acc, client, trx_raw):
                                    AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
                                    AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
                                    AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
-                                   AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=True),
+                                   AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
                                    AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
                                ]))
 
