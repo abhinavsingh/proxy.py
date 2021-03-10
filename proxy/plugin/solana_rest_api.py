@@ -24,6 +24,7 @@ import base58
 import traceback
 from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
     getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url, call_signed, Trx
+from web3 import Web3
 
 
 class EthereumModel:
@@ -202,7 +203,11 @@ class EthereumModel:
             data = base58.b58decode(trx['result']['transaction']['message']['instructions'][1]['data'])
             if data[0] == 5:   # call_signed
                 trx_parsed = Trx.fromString(data[86:])
-                to += trx_parsed.toAddress.hex()
+                to = '0x'+trx_parsed.toAddress.hex()
+        else:
+            if self.contract_address.get(trxId) :
+                to  = self.contract_address.get(trxId)
+
         # print('DATA:', data.hex())
 
         return {
@@ -211,7 +216,7 @@ class EthereumModel:
             "blockHash":'0x%064x'%trx['result']['slot'],
             "blockNumber":hex(trx['result']['slot']),
             "from":'0x'+self.eth_sender[trxId],
-            "to":'0x'+to,
+            # "to":'',
             "gasUsed":'0x%x' % trx['result']['meta']['fee'],
             "cumulativeGasUsed":'0x%x' % trx['result']['meta']['fee'],
             "contractAddress":self.contract_address.get(trxId),
@@ -296,7 +301,8 @@ class EthereumModel:
                     print("DEPLOY", eth_contract_addr)
                     signature = transaction_history(self.signer.public_key())
                     print("SIGNATURE", signature)
-                    eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                    eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+
                     print("ETH_SIGNATURE", eth_signature)
                     self.signatures[eth_signature] = signature
                     self.eth_sender[eth_signature] = sender
@@ -311,8 +317,6 @@ class EthereumModel:
                         else:
                             signature = log["result"]["transaction"]["signatures"][0]
                             print('Transaction signature:', signature)
-                            # eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
-                            from web3 import Web3
                             eth_signature = '0x'+ bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
 
 
