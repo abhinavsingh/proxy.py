@@ -298,14 +298,14 @@ class EthereumModel:
         elif trx.callData:
             try:
                 if (trx.toAddress is None):
-                    signature = deploy_contract(self.signer,  self.client, sender, trx.callData)
+                    (signature, contract_eth) = deploy_contract(self.signer,  self.client, sender, trx.callData)
                     eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
 
                     print("ETH_SIGNATURE", eth_signature)
                     self.signatures[eth_signature] = signature
                     self.eth_sender[eth_signature] = sender
                     self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
-                    self.contract_address[eth_signature] = eth_contract_addr
+                    self.contract_address[eth_signature] = contract_eth
                     return eth_signature
                 else:
                         (res, log) = call_signed( self.signer, self.client,  rawTrx)
