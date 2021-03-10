@@ -23,7 +23,8 @@ from sha3 import keccak_256
 import base58
 import traceback
 from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
-    getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url, call_signed, Trx
+    getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url, call_signed, Trx, \
+    deploy_contract
 from web3 import Web3
 
 
@@ -297,7 +298,8 @@ class EthereumModel:
         elif trx.callData:
             try:
                 if (trx.toAddress is None):
-                    eth_contract_addr = deploy(trx.callData, evm_loader_id)["ethereum"]
+                    eth_contract_addr = deploy_contract(self.signer,  self.client, sender, trx.callData)
+                    # eth_contract_addr = deploy(trx.callData, evm_loader_id)["ethereum"]
                     print("DEPLOY", eth_contract_addr)
                     signature = transaction_history(self.signer.public_key())
                     print("SIGNATURE", signature)

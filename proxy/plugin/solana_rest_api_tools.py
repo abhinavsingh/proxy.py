@@ -17,12 +17,15 @@ from .eth_proto import pack, unpack
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
+evm_loader_id = "yVwMvKtjxT5Pg3AfzFqLfeT2fsQzM8JNqQuH4cc3Pbt"
 location_bin = ".deploy_contract.bin"
 
 tokenkeg = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 sysinstruct = "Sysvar1nstructions1111111111111111111111111"
 keccakprog = "KeccakSecp256k11111111111111111111111111111"
+rentid = "SysvarRent111111111111111111111111111111111"
+sysid =  "11111111111111111111111111111111"
 
 ACCOUNT_INFO_LAYOUT = cStruct(
     "eth_acc" / Bytes(20),
@@ -294,6 +297,91 @@ def deploy(contract, evm_loader):
     output = cli.call("deploy --use-evm-loader {} {}".format(evm_loader, location_bin))
     print(type(output), output)
     return json.loads(output.splitlines()[-1])
+
+def deploy_contract(acc, client, sender_eth, call_data):
+    (sender_sol, _) = create_program_address(sender_eth, evm_loader_id)
+    print("Sender account solana:", sender_sol)
+
+    sender_sol_info = client.get_account_info(sender_sol)
+    if sender_sol_info['result']['value'] is None:
+        print("Create sender solana account...")
+        cli = solana_cli(solana_url)
+        output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, sender_eth))
+        result = json.loads(output.splitlines()[-1])
+        sender_sol = result["solana"]
+        print("Done")
+
+
+    info = _getAccountData(client, sender_sol, ACCOUNT_INFO_LAYOUT.sizeof())
+    sender_trx_cnt = int.from_bytes(AccountInfo.frombytes(info).trx_count, 'little')
+    print("Sender solana trx_count:", sender_trx_cnt)
+
+    rlp = pack((bytes().fromhex(sender_eth) , sender_trx_cnt))
+    legacy_address_eth = keccak_256(rlp).digest()[-20:]
+    (legacy_address_sol, legacy_nonce) = create_program_address(legacy_address_eth.hex(), evm_loader_id)
+
+    print("Legacy contract address ether:", legacy_address_eth.hex())
+    print("Legacy contract address solana:", legacy_address_sol)
+    print("Legacy contract address nonce:", legacy_nonce)
+
+    # create contract account instruction
+    def create_account_instruction():
+        cmd = 2  # create_account
+        min_balance = 10
+        program_len = len(call_data) + 2*1048
+        data = cmd.to_bytes(4, 'little') + min_balance.to_bytes(8, 'little') + program_len.to_bytes(8, 'little') +\
+            legacy_address_eth + legacy_nonce.to_bytes(8, 'little')
+        print("Data for create contract account:", data.hex())
+
+        create_account_meta = [AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True),
+            AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=sysid, is_signer=False, is_writable=False)]
+
+        return TransactionInstruction(program_id = evm_loader_id, data = data, keys=create_account_meta)
+
+    # write contract data instruction
+    def write_instruction(offset, payload):
+        cmd = 0
+        data = cmd.to_bytes(4, 'little') + offset.to_bytes(4, 'little') + len(payload).to_bytes(8, 'little') + payload
+        write_account_meta = [AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
+                              AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True)]
+        return TransactionInstruction(program_id = evm_loader_id, data = data, keys=write_account_meta)
+
+    # finalize instruction
+    def finalize_instruction():
+        cmd = 1
+        data = cmd.to_bytes(4, 'little')
+        finalize_account_meta = [AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
+                              AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True),
+                              AccountMeta(pubkey=sysvarclock, is_signer=False, is_writable=True),
+                              AccountMeta(pubkey=rentid, is_signer=False, is_writable=True)]
+        return TransactionInstruction(program_id = evm_loader_id, data = data, keys=finalize_account_meta)
+
+
+    trx_deploy = Transaction()
+    print("Create account contract account ..")
+    trx_deploy.add(create_account_instruction())
+    print("Write contract data")
+
+    data_size = len(call_data)
+    trx_deploy.add(write_instruction(0, data_size.to_bytes(8, 'little')))
+
+    data_len = len(call_data)
+    chunk_size = 229
+    beg = 8
+    while beg < data_len:
+        end = beg + chunk_size
+        if end > data_len:
+            end = data_len
+        trx_deploy.add(write_instruction(beg, call_data[beg:end]))
+        beg = end
+
+    trx_deploy.add(finalize_instruction())
+    result = client.send_transaction(trx_deploy, acc)
+    result = confirm_transaction(client, result["result"])
+    print(result)
+    messages = result["result"]["meta"]["logMessages"]
+    return (messages[messages.index("Program log: succeed") + 1], result)
 
 def transaction_history(acc):
     cli = solana_cli(solana_url)
