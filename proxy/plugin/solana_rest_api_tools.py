@@ -7,17 +7,24 @@ import os
 import base64
 from eth_keys import keys as eth_keys
 from typing import NamedTuple
-from construct import Bytes, Int8ul, Int32ul
-from construct import Struct as cStruct
 import random
 import json
 from sha3 import keccak_256
 import struct
 from .eth_proto import pack, unpack
+from solana.rpc.types import TxOpts
+
+from construct import Bytes, Int8ul, Int32ul, Int64ul, Struct as cStruct
+from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT, InstructionType as SystemInstructionType
+from hashlib import sha256
+from eth_keys import keys
+from web3.auto import w3
+
+
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-evm_loader_id = "yVwMvKtjxT5Pg3AfzFqLfeT2fsQzM8JNqQuH4cc3Pbt"
+#evm_loader_id = "9TdKEctsU5L7mfMTrdBrsxHnxGbTgMiUbtSoJrEZYecs"
 location_bin = ".deploy_contract.bin"
 
 tokenkeg = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -25,7 +32,7 @@ sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 sysinstruct = "Sysvar1nstructions1111111111111111111111111"
 keccakprog = "KeccakSecp256k11111111111111111111111111111"
 rentid = "SysvarRent111111111111111111111111111111111"
-sysid =  "11111111111111111111111111111111"
+system = "11111111111111111111111111111111"
 
 ACCOUNT_INFO_LAYOUT = cStruct(
     "eth_acc" / Bytes(20),
@@ -33,6 +40,13 @@ ACCOUNT_INFO_LAYOUT = cStruct(
     "trx_count" / Bytes(8),
     "signer_acc" / Bytes(32),
     "code_size" / Int32ul
+)
+
+CREATE_ACCOUNT_LAYOUT = cStruct(
+    "lamports" / Int64ul,
+    "space" / Int64ul,
+    "ether" / Bytes(20),
+    "nonce" / Int8ul
 )
 
 class AccountInfo(NamedTuple):
@@ -43,6 +57,47 @@ class AccountInfo(NamedTuple):
     def frombytes(data):
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
         return AccountInfo(cont.eth_acc, cont.trx_count)
+
+def create_account_layout(lamports, space, ether, nonce):
+    return bytes.fromhex("02000000")+CREATE_ACCOUNT_LAYOUT.build(dict(
+        lamports=lamports,
+        space=space,
+        ether=ether,
+        nonce=nonce
+    ))
+
+def write_layout(offset, data):
+    return (bytes.fromhex("00000000")+
+            offset.to_bytes(4, byteorder="little")+
+            len(data).to_bytes(8, byteorder="little")+
+            data)
+
+def createAccountWithSeed(funding, base, seed, lamports, space, program):
+    data = SYSTEM_INSTRUCTIONS_LAYOUT.build(
+        dict(
+            instruction_type = SystemInstructionType.CreateAccountWithSeed,
+            args=dict(
+                base=bytes(base),
+                seed=dict(length=len(seed), chars=seed),
+                lamports=lamports,
+                space=space,
+                program_id=bytes(program)
+            )
+        )
+    )
+    print("createAccountWithSeed", data.hex())
+    created = PublicKey(sha256(bytes(base)+bytes(seed, 'utf8')+bytes(program)).digest())
+    print("created", created)
+    return TransactionInstruction(
+        keys=[
+            AccountMeta(pubkey=funding, is_signer=True, is_writable=True),
+            AccountMeta(pubkey=created, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=base, is_signer=True, is_writable=False),
+        ],
+        program_id=system,
+        data=data
+    )
+
 
 
 def getInt(a):
@@ -190,16 +245,16 @@ def confirm_transaction(client, tx_sig):
     TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
     elapsed_time = 0
     while elapsed_time < TIMEOUT:
+        resp = client.get_confirmed_transaction(tx_sig)
+        if resp["result"]:
+#            print('Confirmed transaction:', resp)
+            break
         sleep_time = 3
         if not elapsed_time:
             sleep_time = 7
             time.sleep(sleep_time)
         else:
             time.sleep(sleep_time)
-        resp = client.get_confirmed_transaction(tx_sig)
-        if resp["result"]:
-#            print('Confirmed transaction:', resp)
-            break
         elapsed_time += sleep_time
     if not resp["result"]:
         raise RuntimeError("could not confirm transaction: ", tx_sig)
@@ -298,7 +353,7 @@ def deploy(contract, evm_loader):
     print(type(output), output)
     return json.loads(output.splitlines()[-1])
 
-def deploy_contract(acc, client, sender_eth, call_data):
+def deploy_contract(acc, client, sender_eth, content):
     (sender_sol, _) = create_program_address(sender_eth, evm_loader_id)
     print("Sender account solana:", sender_sol)
 
@@ -313,75 +368,153 @@ def deploy_contract(acc, client, sender_eth, call_data):
 
 
     info = _getAccountData(client, sender_sol, ACCOUNT_INFO_LAYOUT.sizeof())
-    sender_trx_cnt = int.from_bytes(AccountInfo.frombytes(info).trx_count, 'little')
-    print("Sender solana trx_count:", sender_trx_cnt)
+    trx_count = int.from_bytes(AccountInfo.frombytes(info).trx_count, 'little')
+    print("Sender solana trx_count:", trx_count)
 
-    rlp = pack((bytes().fromhex(sender_eth) , sender_trx_cnt))
-    legacy_address_eth = keccak_256(rlp).digest()[-20:]
-    (legacy_address_sol, legacy_nonce) = create_program_address(legacy_address_eth.hex(), evm_loader_id)
+    # Create legacy contract address from (sender_eth, nonce)
+    rlp = pack((bytes().fromhex(sender_eth) , trx_count))
+    contract_eth = keccak_256(rlp).digest()[-20:]
+    (contract_sol, contract_nonce) = create_program_address(contract_eth.hex(), evm_loader_id)
 
-    print("Legacy contract address ether:", legacy_address_eth.hex())
-    print("Legacy contract address solana:", legacy_address_sol)
-    print("Legacy contract address nonce:", legacy_nonce)
+    print("Legacy contract address ether:", contract_eth.hex())
+    print("Legacy contract address solana:", contract_sol, contract_nonce)
 
-    # create contract account instruction
-    def create_account_instruction():
-        cmd = 2  # create_account
-        min_balance = 10
-        program_len = len(call_data) + 2*1048
-        data = cmd.to_bytes(4, 'little') + min_balance.to_bytes(8, 'little') + program_len.to_bytes(8, 'little') +\
-            legacy_address_eth + legacy_nonce.to_bytes(8, 'little')
-        print("Data for create contract account:", data.hex())
+    # # create contract account instruction
+    # def create_account_instruction():
+    #     cmd = 2  # create_account
+    #     min_balance = 10
+    #     program_len = len(call_data) + 2*1048
+    #     data = cmd.to_bytes(4, 'little') + min_balance.to_bytes(8, 'little') + program_len.to_bytes(8, 'little') +\
+    #         legacy_address_eth + legacy_nonce.to_bytes(8, 'little')
+    #     print("Data for create contract account:", data.hex())
+    #
+    #     create_account_meta = [AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True),
+    #         AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
+    #         AccountMeta(pubkey=sysid, is_signer=False, is_writable=False)]
+    #
+    #     return TransactionInstruction(program_id = evm_loader_id, data = data, keys=create_account_meta)
+    #
+    # # write contract data instruction
+    # def write_instruction(offset, payload):
+    #     cmd = 0
+    #     data = cmd.to_bytes(4, 'little') + offset.to_bytes(4, 'little') + len(payload).to_bytes(8, 'little') + payload
+    #     write_account_meta = [AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
+    #                           AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True)]
+    #     return TransactionInstruction(program_id = evm_loader_id, data = data, keys=write_account_meta)
+    #
+    # # finalize instruction
+    # def finalize_instruction():
+    #     cmd = 1
+    #     data = cmd.to_bytes(4, 'little')
+    #     finalize_account_meta = [AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
+    #                           AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True),
+    #                           AccountMeta(pubkey=sysvarclock, is_signer=False, is_writable=True),
+    #                           AccountMeta(pubkey=rentid, is_signer=False, is_writable=True)]
+    #     return TransactionInstruction(program_id = evm_loader_id, data = data, keys=finalize_account_meta)
+    #
+    #
+    # trx_deploy = Transaction()
+    # print("Create account contract account ..")
+    # trx_deploy.add(create_account_instruction())
+    # print("Write contract data")
+    #
+    # data_size = len(call_data)
+    # trx_deploy.add(write_instruction(0, data_size.to_bytes(8, 'little')))
+    #
+    # data_len = len(call_data)
+    # chunk_size = 229
+    # beg = 8
+    # while beg < data_len:
+    #     end = beg + chunk_size
+    #     if end > data_len:
+    #         end = data_len
+    #     trx_deploy.add(write_instruction(beg, call_data[beg:end]))
+    #     beg = end
+    #
+    # trx_deploy.add(finalize_instruction())
+    # result = client.send_transaction(trx_deploy, acc)
+    # result = confirm_transaction(client, result["result"])
+    # print(result)
+    # messages = result["result"]["meta"]["logMessages"]
+    # return (messages[messages.index("Program log: succeed") + 1], result)
 
-        create_account_meta = [AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True),
-            AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=sysid, is_signer=False, is_writable=False)]
 
-        return TransactionInstruction(program_id = evm_loader_id, data = data, keys=create_account_meta)
+    # Create transaction holder account (if not exists)
+    seed = "1236"
+    holder = PublicKey(
+        sha256(bytes(acc.public_key()) + bytes(seed, 'utf8') + bytes(PublicKey(evm_loader_id))).digest())
+    print("Holder", holder)
 
-    # write contract data instruction
-    def write_instruction(offset, payload):
-        cmd = 0
-        data = cmd.to_bytes(4, 'little') + offset.to_bytes(4, 'little') + len(payload).to_bytes(8, 'little') + payload
-        write_account_meta = [AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
-                              AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True)]
-        return TransactionInstruction(program_id = evm_loader_id, data = data, keys=write_account_meta)
-
-    # finalize instruction
-    def finalize_instruction():
-        cmd = 1
-        data = cmd.to_bytes(4, 'little')
-        finalize_account_meta = [AccountMeta(pubkey=legacy_address_sol, is_signer=False, is_writable=True),
-                              AccountMeta(pubkey=sender_sol, is_signer=True, is_writable=True),
-                              AccountMeta(pubkey=sysvarclock, is_signer=False, is_writable=True),
-                              AccountMeta(pubkey=rentid, is_signer=False, is_writable=True)]
-        return TransactionInstruction(program_id = evm_loader_id, data = data, keys=finalize_account_meta)
+    if client.get_balance(holder)['result']['value'] == 0:
+        trx = Transaction()
+        trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), "1236", 10 ** 9, 128 * 1024,
+                                      PublicKey(evm_loader_id)))
+        result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False))
+        print(result)
 
 
-    trx_deploy = Transaction()
-    print("Create account contract account ..")
-    trx_deploy.add(create_account_instruction())
-    print("Write contract data")
+    # Build deploy transaction
+    tx = {
+        'to': None,
+        'value': 0,
+        'gas': 1,
+        'gasPrice': 1,
+        'nonce': trx_count,
+        'data': content,
+        'chainId': 1
+    }
+    (from_addr, sign, msg) = make_instruction_data_from_tx(tx, acc.secret_key())
+    msg = len(msg).to_bytes(8, byteorder="little") + msg
+    # print("msg", msg.hex())
 
-    data_size = len(call_data)
-    trx_deploy.add(write_instruction(0, data_size.to_bytes(8, 'little')))
+    # Write transaction to transaction holder account
+    offset = 0
+    receipts = []
+    rest = msg
+    while len(rest):
+        (part, rest) = (rest[:1000], rest[1000:])
+        trx = Transaction()
+        print("sender_sol", sender_sol, holder, acc.public_key())
+        trx.add(TransactionInstruction(program_id=evm_loader_id,
+                                       data=write_layout(offset, part),
+                                       keys=[
+                                           AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
+                                           AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False),
+                                       ]))
+        receipts.append(client.send_transaction(trx, acc)["result"])
+        offset += len(part)
+    print("receipts", receipts)
+    for rcpt in receipts:
+        confirm_transaction(client, rcpt)
+        print("confirmed:", rcpt)
 
-    data_len = len(call_data)
-    chunk_size = 229
-    beg = 8
-    while beg < data_len:
-        end = beg + chunk_size
-        if end > data_len:
-            end = data_len
-        trx_deploy.add(write_instruction(beg, call_data[beg:end]))
-        beg = end
+    # Create contract account & execute deploy transaction
+    print("    # Create contract account & execute deploy transaction")
+    trx = Transaction()
+    trx.add(TransactionInstruction(program_id=evm_loader_id,
+                                   data=create_account_layout(10 ** 9, len(msg) + 2048, contract_eth, contract_nonce),
+                                   keys=[
+                                       AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True),
+                                       AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
+                                       AccountMeta(pubkey=system, is_signer=False, is_writable=False),
+                                   ]))
+    trx.add(TransactionInstruction(program_id=evm_loader_id,
+                                   data=bytes.fromhex('08'),
+                                   keys=[
+                                       AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
+                                       AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
+                                       AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
+                                       AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
+                                       AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
+                                   ]))
+    result = client.send_transaction(trx, acc,
+                                          opts=TxOpts(skip_confirmation=False, preflight_commitment="root"))
+    print("result", result["result"])
 
-    trx_deploy.add(finalize_instruction())
-    result = client.send_transaction(trx_deploy, acc)
     result = confirm_transaction(client, result["result"])
-    print(result)
     messages = result["result"]["meta"]["logMessages"]
     return (messages[messages.index("Program log: succeed") + 1], result)
+
 
 def transaction_history(acc):
     cli = solana_cli(solana_url)
@@ -407,3 +540,41 @@ def getLamports(client, evm_loader, eth_acc):
     (account, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader)
     return int(client.get_balance(account)['result']['value'])
 
+
+def make_instruction_data_from_tx(instruction, private_key=None):
+    if isinstance(instruction, dict):
+        if instruction['chainId'] == None:
+            raise Exception("chainId value is needed in input dict")
+        if private_key == None:
+            raise Exception("Needed private key for transaction creation from fields")
+
+        signed_tx = w3.eth.account.sign_transaction(instruction, private_key)
+        # print(signed_tx.rawTransaction.hex())
+        _trx = Trx.fromString(signed_tx.rawTransaction)
+        # print(json.dumps(_trx.__dict__, cls=JsonEncoder, indent=3))
+
+        raw_msg = _trx.get_msg(instruction['chainId'])
+        sig = keys.Signature(vrs=[1 if _trx.v % 2 == 0 else 0, _trx.r, _trx.s])
+        pub = sig.recover_public_key_from_msg_hash(_trx.hash())
+
+        # print(pub.to_hex())
+
+        return (pub.to_canonical_address(), sig.to_bytes(), raw_msg)
+    elif isinstance(instruction, str):
+        if instruction[:2] == "0x":
+            instruction = instruction[2:]
+
+        _trx = Trx.fromString(bytearray.fromhex(instruction))
+        # print(json.dumps(_trx.__dict__, cls=JsonEncoder, indent=3))
+
+        raw_msg = _trx.get_msg()
+        sig = keys.Signature(vrs=[1 if _trx.v % 2 == 0 else 0, _trx.r, _trx.s])
+        pub = sig.recover_public_key_from_msg_hash(_trx.hash())
+
+        data = pub.to_canonical_address()
+        data += sig.to_bytes()
+        data += raw_msg
+
+        return (pub.to_canonical_address(), sig.to_bytes(), raw_msg)
+    else:
+        raise Exception("function gets ")

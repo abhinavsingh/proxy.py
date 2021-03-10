@@ -298,11 +298,7 @@ class EthereumModel:
         elif trx.callData:
             try:
                 if (trx.toAddress is None):
-                    eth_contract_addr = deploy_contract(self.signer,  self.client, sender, trx.callData)
-                    # eth_contract_addr = deploy(trx.callData, evm_loader_id)["ethereum"]
-                    print("DEPLOY", eth_contract_addr)
-                    signature = transaction_history(self.signer.public_key())
-                    print("SIGNATURE", signature)
+                    signature = deploy_contract(self.signer,  self.client, sender, trx.callData)
                     eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
 
                     print("ETH_SIGNATURE", eth_signature)
