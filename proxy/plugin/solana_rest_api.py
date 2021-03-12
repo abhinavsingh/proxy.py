@@ -23,7 +23,7 @@ from sha3 import keccak_256
 import base58
 import traceback
 from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
-    getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url, call_signed
+    getAccountInfo, deploy, transaction_history, solana_cli, solana_url, call_signed, call_emulated
 
 
 class EthereumModel:
@@ -122,11 +122,10 @@ class EthereumModel:
         """
         if not obj['data']: raise Exception("Missing data")
         try:
-            input = bytearray.fromhex(obj['data'][2:])
-            input[0:0] = bytearray.fromhex("03")
-
-            (contract_sol, contract_nonce) = create_program_address(obj['to'][2:], evm_loader_id)
-            return "0x"+call(input, evm_loader_id, contract_sol, self.signer, self.client)
+            caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
+            contract_id = obj['to']
+            data = obj['data']
+            return "0x"+call_emulated(contract_id, caller_id, data)
         except Exception as err:
             print("eth_call", err)
             return '0x'
@@ -288,19 +287,14 @@ class EthereumModel:
                     self.contract_address[eth_signature] = eth_contract_addr
                     return eth_signature
                 else:
-                        (res, log) = call_signed( self.signer, self.client,  rawTrx)
-                        if not res.startswith("Program log: "):
-                            print("Invalid program logs: no result")
-                            raise Exception("Invalid program logs: no result")
-                        else:
-                            signature = log["result"]["transaction"]["signatures"][0]
-                            print('Transaction signature:', signature)
-                            eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
-                            self.signatures[eth_signature] = signature
-                            self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
-                            self.eth_sender[eth_signature] = sender
-                            print('Ethereum signature:', eth_signature)
-                            return eth_signature
+                    signature = call_signed(self.signer, self.client,  rawTrx)
+                    print('Transaction signature:', signature)
+                    eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                    self.signatures[eth_signature] = signature
+                    self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+                    self.eth_sender[eth_signature] = sender
+                    print('Ethereum signature:', eth_signature)
+                    return eth_signature
 
             except Exception as err:
                 print("eth_sendRawTransaction", err)

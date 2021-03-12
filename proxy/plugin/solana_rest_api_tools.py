@@ -182,6 +182,17 @@ class solana_cli:
             print("ERR: solana error {}".format(err))
             raise
 
+class emulator_cli:
+    def call(self, contract_id, caller_id, data):
+        cmd = 'emulator {} {} {} {} {}'.format(solana_url, evm_loader_id, contract_id, caller_id, data)
+        print(cmd)
+        try:
+            return subprocess.check_output(cmd, shell=True, universal_newlines=True)
+        except subprocess.CalledProcessError as err:
+            import sys
+            print("ERR: EVM emulator error {}".format(err))
+            raise
+
 def confirm_transaction(client, tx_sig):
     """Confirm a transaction."""
     TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
@@ -212,36 +223,13 @@ def create_program_address(seed, program_id):
     items = output.rstrip().split('  ')
     return (items[0], int(items[1]))
 
-
-def call(input, evm_loader, program, acc, client):
-    trx = Transaction().add(
-        TransactionInstruction(program_id=evm_loader, data=input, keys=
-        [
-            AccountMeta(pubkey=program, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=acc.public_key(), is_signer=False, is_writable=True),
-            AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False),
-            AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
-            AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-        ]))
-
-    try:
-        # TODO: Cache recent blockhash
-        blockhash_resp = client.get_recent_blockhash()
-        if not blockhash_resp["result"]:
-            raise RuntimeError("failed to get recent blockhash")
-        trx.recent_blockhash = Blockhash(blockhash_resp["result"]["value"]["blockhash"])
-    except Exception as err:
-        raise RuntimeError("failed to get recent blockhash") from err
-
-    trx.sign(acc)
-    result = client.simulate_transaction(trx)
-    messages = result['result']['value']['logs']
-    res = messages[messages.index("Program log: succeed") + 1]
-    print("CALL:", res)
-    if not res.startswith("Program log: "):
-        raise Exception("Invalid program logs: no result")
-    else:
-        return res[13:]
+def call_emulated(contract_id, caller_id, data):
+    cli = emulator_cli()
+    output = cli.call(contract_id, caller_id, data)
+    result = json.loads(output)
+    if result["exit_status"] != "succeed":
+        raise Exception("evm emulator error ", result)
+    return result["result"]
 
 def call_signed(acc, client, trx_raw):
 
@@ -282,9 +270,7 @@ def call_signed(acc, client, trx_raw):
                                ]))
 
     result = client.send_transaction(trx, acc)
-    result = confirm_transaction(client, result["result"])
-    messages = result["result"]["meta"]["logMessages"]
-    return (messages[messages.index("Program log: succeed") + 1], result)
+    return result["result"]
 
 def deploy(contract, evm_loader):
     with open(location_bin, mode='wb') as file:
