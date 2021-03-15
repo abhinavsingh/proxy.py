@@ -163,24 +163,32 @@ class EthereumModel:
         if trx['result'] is None: return None
 
         logs = []
+        status = "0x1"
         for inner in (trx['result']['meta']['innerInstructions']):
 
             for event in inner['instructions']:
                 log = base58.b58decode(event['data'])
                 instruction = log[:1]
-                if (int().from_bytes(instruction, "little") != 7):  # OnEvent evmInstruction code
-                    continue
-                address = log[1:21]
-                count_topics = int().from_bytes(log[21:29], 'little')
-                topics = []
-                pos = 29
-                for _ in range(count_topics):
-                    topic_bin = log[pos:pos + 32]
-                    topics.append('0x'+topic_bin.hex())
-                    pos += 32
-                data = log[pos:]
-                rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
-                logs.append(rec)
+                if (int().from_bytes(instruction, "little") == 7):  # OnEvent evmInstruction code
+                    address = log[1:21]
+                    count_topics = int().from_bytes(log[21:29], 'little')
+                    topics = []
+                    pos = 29
+                    for _ in range(count_topics):
+                        topic_bin = log[pos:pos + 32]
+                        topics.append('0x'+topic_bin.hex())
+                        pos += 32
+                    data = log[pos:]
+                    rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
+                    logs.append(rec)
+                else if int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
+                    status_code = log[1]
+                    if int().from_bytes(status_code, "little") == 1:
+                        status = "0x1"
+                    else:
+                        status = "0x0"
+
+
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # print('BLOCK:', json.dumps(block, indent=3))
@@ -199,7 +207,7 @@ class EthereumModel:
             "cumulativeGasUsed":'0x%x' % trx['result']['meta']['fee'],
             "contractAddress":self.contract_address.get(trxId),
             "logs": logs,
-            "status":"0x1",
+            "status": status,
             "logsBloom":"0x"+'0'*512
         }
 
