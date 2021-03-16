@@ -331,14 +331,16 @@ def call_signed(acc, client, trx_raw):
     output_em = emulator(acc.public_key(), trx_parsed.toAddress.hex(), sender_ether.hex(), trx_parsed.callData.hex())
     output_json = json.loads(output_em.splitlines()[-1])
     print("emulator returns:", json.dumps(output_json, indent=3))
-    if True or output_json["exit_status"] == 'succeed':
-        for acc_desc in output_json["accounts"]:
-            call_inner_eth = bytes.fromhex(acc_desc['address'][2:])
-            (call_inner, _) = create_program_address(call_inner_eth, evm_loader_id, acc.public_key())
-            if acc_desc["new"] == True:
-                (t, sol) = createEtherAccountTrx(client, call_inner_eth, evm_loader_id, acc, space=20*1024)
-                trx.add(t)
-            add_keys_05.append( AccountMeta(pubkey=call_inner, is_signer=False, is_writable=acc_desc["writable"]))
+    for acc_desc in output_json["accounts"]:
+        call_inner_eth = bytes.fromhex(acc_desc['address'][2:])
+        (call_inner, _) = create_program_address(call_inner_eth, evm_loader_id, acc.public_key())
+        if acc_desc["new"] == True:
+            (t, sol) = createEtherAccountTrx(client, call_inner_eth, evm_loader_id, acc, space=20*1024)
+            trx.add(t)
+            add_keys_05.append(AccountMeta(pubkey=call_inner, is_signer=False, is_writable=acc_desc["writable"]))
+        else:
+            if call_inner != contract_sol and call_inner != sender_sol:
+                add_keys_05.append(AccountMeta(pubkey=call_inner, is_signer=False, is_writable=acc_desc["writable"]))
 
     print("transaction:", evm_instruction.hex())
 
