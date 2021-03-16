@@ -197,16 +197,17 @@ class EthereumModel:
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # print('BLOCK:', json.dumps(block, indent=3))
 
-        instructions = trx['result']['transaction']['message']['instructions']
-        to = ""
-        if len(instructions) >= 2:
-            data = base58.b58decode(trx['result']['transaction']['message']['instructions'][1]['data'])
-            if data[0] == 5:   # call_signed
-                trx_parsed = Trx.fromString(data[86:])
-                to = '0x'+trx_parsed.toAddress.hex()
-        else:
-            if self.contract_address.get(trxId) :
-                to  = self.contract_address.get(trxId)
+        # TODO: it is need to add field "to"
+        # instructions = trx['result']['transaction']['message']['instructions']
+        # to = ""
+        # if len(instructions) >= 2:
+        #     data = base58.b58decode(trx['result']['transaction']['message']['instructions'][1]['data'])
+        #     if data[0] == 5:   # call_signed
+        #         trx_parsed = Trx.fromString(data[86:])
+        #         to = '0x'+trx_parsed.toAddress.hex()
+        # else:
+        #     if self.contract_address.get(trxId) :
+        #         to  = self.contract_address.get(trxId)
 
         # print('DATA:', data.hex())
 
