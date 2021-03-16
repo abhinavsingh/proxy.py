@@ -5,6 +5,7 @@ import time
 import subprocess
 import os
 import base64
+from base58 import b58encode
 from eth_keys import keys as eth_keys
 from typing import NamedTuple
 import random
@@ -72,21 +73,28 @@ def write_layout(offset, data):
             len(data).to_bytes(8, byteorder="little")+
             data)
 
+def accountWithSeed(base, seed, program):
+    print(type(base), base, type(seed), seed, type(program), program)
+    result = PublicKey(sha256(bytes(base)+bytes(seed)+bytes(program)).digest())
+    print('accountWithSeed', result)
+    return result
+
 def createAccountWithSeed(funding, base, seed, lamports, space, program):
+    seed_str = str(seed, 'utf8')
     data = SYSTEM_INSTRUCTIONS_LAYOUT.build(
         dict(
             instruction_type = SystemInstructionType.CreateAccountWithSeed,
             args=dict(
                 base=bytes(base),
-                seed=dict(length=len(seed), chars=seed),
+                seed=dict(length=len(seed_str), chars=seed_str),
                 lamports=lamports,
                 space=space,
                 program_id=bytes(program)
             )
         )
     )
-    print("createAccountWithSeed", data.hex())
-    created = PublicKey(sha256(bytes(base)+bytes(seed, 'utf8')+bytes(program)).digest())
+    print("createAccountWithSeed", type(base), base, data.hex())
+    created = accountWithSeed(base, seed, PublicKey(program))
     print("created", created)
     return TransactionInstruction(
         keys=[
@@ -227,8 +235,8 @@ class EthereumAddress:
     def __bytes__(self): return self.data
 
 
-def emulator(contract, sender, data):
-    cmd = 'emulator  {} {} {} {} {}'.format(solana_url, evm_loader_id, contract, sender, data)
+def emulator(base_account, contract, sender, data):
+    cmd = 'emulator {} {} {} {} {} {}'.format(solana_url, base_account, evm_loader_id, contract, sender, data)
     try:
         return subprocess.check_output(cmd, shell=True, universal_newlines=True)
     except subprocess.CalledProcessError as err:
@@ -274,11 +282,18 @@ def solana2ether(public_key):
     from web3 import Web3
     return bytes(Web3.keccak(bytes.fromhex(public_key))[-20:])
 
-def create_program_address(seed, program_id):
-    cli = solana_cli(solana_url)
-    output = cli.call("create-program-address {} {}".format(seed, program_id))
-    items = output.rstrip().split('  ')
-    return (items[0], int(items[1]))
+def create_program_address(ether, program_id, base):
+#    cli = solana_cli(solana_url)
+#    output = cli.call("create-program-address {} {}".format(seed, program_id))
+#    items = output.rstrip().split('  ')
+#    return (items[0], int(items[1]))
+    if isinstance(ether, str):
+        if ether.startswith('0x'): ether = ether[2:]
+    else: ether = ether.hex()
+    seed = b58encode(bytes.fromhex(ether))
+    acc = accountWithSeed(base, seed, PublicKey(program_id))
+    print('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
+    return (acc, 255)
 
 
 def call(input, evm_loader, program, acc, client):
@@ -315,16 +330,17 @@ def call_signed(acc, client, trx_raw):
 
     trx_parsed = Trx.fromString(bytes.fromhex(trx_raw[2:]))
     sender_ether = bytes.fromhex(trx_parsed.sender())
-    (contract_sol, _) = create_program_address(trx_parsed.toAddress.hex(), evm_loader_id)
-    (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id)
+    (contract_sol, _) = create_program_address(trx_parsed.toAddress.hex(), evm_loader_id, acc.public_key())
+    (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id, acc.public_key())
 
     sender_sol_info = client.get_account_info(sender_sol)
     if sender_sol_info['result']['value'] is None:
         print("Create solana caller account...")
-        cli = solana_cli(solana_url)
-        output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, sender_ether.hex()))
-        result = json.loads(output.splitlines()[-1])
-        sender_sol = result["solana"]
+        #cli = solana_cli(solana_url)
+        #output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, sender_ether.hex()))
+        #result = json.loads(output.splitlines()[-1])
+        #sender_sol = result["solana"]
+        createEtherAccount(client, sender_ether, evm_loader_id, acc)
         print("Done")
 
     print("solana caller:", sender_sol)
@@ -334,43 +350,46 @@ def call_signed(acc, client, trx_raw):
     keccak_instruction = make_keccak_instruction_data(1, len(trx_rlp))
     evm_instruction = sender_ether + eth_sig + trx_rlp
 
-    output_em = emulator(trx_parsed.toAddress.hex(), sender_ether.hex(), trx_parsed.callData.hex())
-    output_json = json.loads(output_em.splitlines()[-1])
+    trx = Transaction()
     add_keys_05 = []
-    if output_json["exit_status"] == 'succeed':
+    output_em = emulator(acc.public_key(), trx_parsed.toAddress.hex(), sender_ether.hex(), trx_parsed.callData.hex())
+    output_json = json.loads(output_em.splitlines()[-1])
+    print("emulator returns:", json.dumps(output_json, indent=3))
+    if True or output_json["exit_status"] == 'succeed':
         for acc_desc in output_json["accounts"]:
+            call_inner_eth = bytes.fromhex(acc_desc['address'][2:])
+            (call_inner, _) = create_program_address(call_inner_eth, evm_loader_id, acc.public_key())
             if acc_desc["new"] == True:
-                call_inner_eth = acc_desc['address'][2:]
-                (call_inner, _) = create_program_address(call_inner_eth, evm_loader_id)
-                call_inner_info = client.get_account_info(call_inner)
-                if call_inner_info['result']['value'] is None:
-                    print("Create solana call_inner account...")
-                    cli = solana_cli(solana_url)
-                    output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, call_inner_eth))
-                    result = json.loads(output.splitlines()[-1])
-                    call_inner = result["solana"]
-                    print("Done call_inner:", call_inner)
-                add_keys_05.append( AccountMeta(pubkey=call_inner, is_signer=False, is_writable=False))
+                (t, sol) = createEtherAccountTrx(client, call_inner_eth, evm_loader_id, acc, space=20*1024)
+                trx.add(t)
+            add_keys_05.append( AccountMeta(pubkey=call_inner, is_signer=False, is_writable=acc_desc["writable"]))
 
     print("transaction:", evm_instruction.hex())
 
-    trx = Transaction().add(
-        TransactionInstruction(program_id=keccakprog, data=keccak_instruction, keys=[
-            AccountMeta(pubkey=PublicKey(keccakprog), is_signer=False, is_writable=False), ])).add(
-        TransactionInstruction(program_id=evm_loader_id,
-                               data=bytearray.fromhex("05") + evm_instruction,
-                               keys=[
-                                   AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
-                                   AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
-                                   AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
-                                   AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
-                                   AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-                               ] + add_keys_05))
+    trx.add(TransactionInstruction(
+        program_id=keccakprog,
+        data=make_keccak_instruction_data(len(trx.instructions)+1, len(trx_rlp)),
+        keys=[
+            AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
+        ]))
+    trx.add(TransactionInstruction(
+        program_id=evm_loader_id,
+        data=bytearray.fromhex("05") + sender_ether + eth_sig + trx_rlp,
+        keys=[
+            AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
+            AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
+        ] + add_keys_05 + [
+            AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
+        ]))
 
     result = client.send_transaction(trx, acc)
     result = confirm_transaction(client, result["result"])
-    messages = result["result"]["meta"]["logMessages"]
-    return (messages[messages.index("Program log: succeed") + 1], result)
+    #messages = result["result"]["meta"]["logMessages"]
+    #print("Messages:", messages)
+    #return (messages[messages.index("Program log: succeed") + 1], result)
+    return result
 
 def deploy(contract, evm_loader):
     with open(location_bin, mode='wb') as file:
@@ -381,17 +400,48 @@ def deploy(contract, evm_loader):
     print(type(output), output)
     return json.loads(output.splitlines()[-1])
 
+def createEtherAccountTrx(client, ether, evm_loader_id, signer, space=0):
+    if isinstance(ether, str):
+        if ether.startswith('0x'): ether = ether[2:]
+    else: ether = ether.hex()
+    (sol, nonce) = create_program_address(ether, evm_loader_id, signer.public_key())
+    print('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
+    seed = b58encode(bytes.fromhex(ether))
+    base = signer.public_key()
+    trx = Transaction()
+    trx.add(createAccountWithSeed(base, base, seed, 10**9, 65+space, PublicKey(evm_loader_id)))
+    trx.add(TransactionInstruction(
+        program_id=evm_loader_id,
+        data=bytes.fromhex('66000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
+            lamports=10**9,
+            space=space,
+            ether=bytes.fromhex(ether),
+            nonce=nonce)),
+        keys=[
+            AccountMeta(pubkey=base, is_signer=True, is_writable=True),
+            AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
+        ]))
+    return (trx, sol)
+
+def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
+    (trx, sol) = createEtherAccountTrx(client, ether, evm_loader_id, signer, space)
+    result = client.send_transaction(trx, signer,
+            opts=TxOpts(skip_confirmation=False, preflight_commitment="root"))
+    print('createEtherAccount result:', result)
+    return sol
+
 def deploy_contract(acc, client, sender_eth, content):
-    (sender_sol, _) = create_program_address(sender_eth, evm_loader_id)
+    (sender_sol, _) = create_program_address(sender_eth, evm_loader_id, acc.public_key())
     print("Sender account solana:", sender_sol)
 
     sender_sol_info = client.get_account_info(sender_sol)
     if sender_sol_info['result']['value'] is None:
         print("Create sender solana account...")
-        cli = solana_cli(solana_url)
-        output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, sender_eth))
-        result = json.loads(output.splitlines()[-1])
-        sender_sol = result["solana"]
+        #cli = solana_cli(solana_url)
+        #output = cli.call("create-ether-account {} {} 10".format(evm_loader_id, sender_eth))
+        #result = json.loads(output.splitlines()[-1])
+        #sender_sol = result["solana"]
+        createEtherAccount(client, sender_eth, evm_loader_id, acc)
         print("Done")
 
 
@@ -402,7 +452,7 @@ def deploy_contract(acc, client, sender_eth, content):
     # Create legacy contract address from (sender_eth, nonce)
     rlp = pack((bytes().fromhex(sender_eth) , trx_count or None))
     contract_eth = keccak_256(rlp).digest()[-20:]
-    (contract_sol, contract_nonce) = create_program_address(contract_eth.hex(), evm_loader_id)
+    (contract_sol, contract_nonce) = create_program_address(contract_eth.hex(), evm_loader_id, acc.public_key())
 
     print("Legacy contract address ether:", contract_eth.hex())
     print("Legacy contract address solana:", contract_sol, contract_nonce)
@@ -457,16 +507,9 @@ def deploy_contract(acc, client, sender_eth, content):
         print("confirmed:", rcpt)
 
     # Create contract account & execute deploy transaction
-    print("    # Create contract account ")
+    print("    # Create contract account & execute deploy transaction")
     trx = Transaction()
-    trx.add(TransactionInstruction(program_id=evm_loader_id,
-                                   data=create_account_layout(10 ** 9, len(msg) + 2048, contract_eth, contract_nonce),
-                                   keys=[
-                                       AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True),
-                                       AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
-                                       AccountMeta(pubkey=system, is_signer=False, is_writable=False),
-                                   ]))
-    print("    #  execute deploy transaction")
+    trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, space=65+len(msg)+2048)[0])
     trx.add(TransactionInstruction(program_id=evm_loader_id,
                                    data=bytes.fromhex('08'),
                                    keys=[
@@ -497,13 +540,13 @@ def _getAccountData(client, account, expected_length, owner=None):
         raise Exception("Wrong data length for account data {}".format(account))
     return data
 
-def getAccountInfo(client, eth_acc):
-    (account_sol, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader_id)
+def getAccountInfo(client, eth_acc, base_account):
+    (account_sol, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader_id, base_account)
     info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     return AccountInfo.frombytes(info)
 
-def getLamports(client, evm_loader, eth_acc):
-    (account, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader)
+def getLamports(client, evm_loader, eth_acc, base_account):
+    (account, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader, base_account)
     return int(client.get_balance(account)['result']['value'])
 
 

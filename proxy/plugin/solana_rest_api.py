@@ -81,7 +81,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         print('eth_getBalance:', account, eth_acc)
-        balance = getLamports(self.client, evm_loader_id, eth_acc)
+        balance = getLamports(self.client, evm_loader_id, eth_acc, self.signer.public_key())
         return hex(balance*10**9)
 
     def eth_getBlockByNumber(self, tag, full):
@@ -127,7 +127,7 @@ class EthereumModel:
             input = bytearray.fromhex(obj['data'][2:])
             input[0:0] = bytearray.fromhex("03")
 
-            (contract_sol, contract_nonce) = create_program_address(obj['to'][2:], evm_loader_id)
+            (contract_sol, contract_nonce) = create_program_address(obj['to'][2:], evm_loader_id, self.signer.public_key())
             return "0x"+call(input, evm_loader_id, contract_sol, self.signer, self.client)
         except Exception as err:
             print("eth_call", err)
@@ -136,7 +136,7 @@ class EthereumModel:
     def eth_getTransactionCount(self, account, tag):
         print('eth_getTransactionCount:', account)
         try:
-            acc_info = getAccountInfo(self.client, EthereumAddress(account))
+            acc_info = getAccountInfo(self.client, EthereumAddress(account), self.signer.public_key())
             return hex(int.from_bytes(acc_info.trx_count, 'little'))
         except:
             return hex(0)
@@ -308,23 +308,21 @@ class EthereumModel:
                     self.contract_address[eth_signature] = contract_eth
                     return eth_signature
                 else:
-                        (res, log) = call_signed( self.signer, self.client,  rawTrx)
-                        if not res.startswith("Program log: "):
-                            print("Invalid program logs: no result")
-                            raise Exception("Invalid program logs: no result")
-                        else:
-                            signature = log["result"]["transaction"]["signatures"][0]
-                            print('Transaction signature:', signature)
-                            eth_signature = '0x'+ bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+                    log = call_signed( self.signer, self.client,  rawTrx)
+                    print("log", log)
+                    signature = log["result"]["transaction"]["signatures"][0]
+                    print('Transaction signature:', signature)
+                    eth_signature = '0x'+ bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
 
 
-                            self.signatures[eth_signature] = signature
-                            self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
-                            self.eth_sender[eth_signature] = sender
-                            print('Ethereum signature:', eth_signature)
-                            return eth_signature
+                    self.signatures[eth_signature] = signature
+                    self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+                    self.eth_sender[eth_signature] = sender
+                    print('Ethereum signature:', eth_signature)
+                    return eth_signature
 
             except Exception as err:
+                traceback.print_exc()
                 print("eth_sendRawTransaction", err)
                 return '0x'
         else:
