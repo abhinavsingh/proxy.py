@@ -194,10 +194,10 @@ class EthereumModel:
                     logs.append(rec)
                     log_index +=1
                 else if int().from_bytes(instruction, "little") == 6 and len(logs) > 1:  # OnReturn evmInstruction code
-                    if logs[1] == 0:
-                        status = "0x0"
-                    else:
+                    if logs[1] < 0xd0:
                         status = "0x1"
+                    else:
+                        status = "0x0"
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # print('BLOCK:', json.dumps(block, indent=3))
