@@ -181,14 +181,11 @@ class EthereumModel:
                     data = log[pos:]
                     rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
                     logs.append(rec)
-                else if int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
-                    status_code = log[1]
-                    if int().from_bytes(status_code, "little") == 1:
-                        status = "0x1"
-                    else:
+                else if int().from_bytes(instruction, "little") == 6 and len(logs) > 1:  # OnReturn evmInstruction code
+                    if logs[1] == 0:
                         status = "0x0"
-
-
+                    else:
+                        status = "0x1"
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # print('BLOCK:', json.dumps(block, indent=3))
