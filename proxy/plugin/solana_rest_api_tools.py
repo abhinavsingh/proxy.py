@@ -295,36 +295,12 @@ def create_program_address(ether, program_id, base):
     print('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
     return (acc, 255)
 
-
-def call(input, evm_loader, program, acc, client):
-    trx = Transaction().add(
-        TransactionInstruction(program_id=evm_loader, data=input, keys=
-        [
-            AccountMeta(pubkey=program, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=acc.public_key(), is_signer=False, is_writable=True),
-            AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False),
-            AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
-            AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-        ]))
-
-    try:
-        # TODO: Cache recent blockhash
-        blockhash_resp = client.get_recent_blockhash()
-        if not blockhash_resp["result"]:
-            raise RuntimeError("failed to get recent blockhash")
-        trx.recent_blockhash = Blockhash(blockhash_resp["result"]["value"]["blockhash"])
-    except Exception as err:
-        raise RuntimeError("failed to get recent blockhash") from err
-
-    trx.sign(acc)
-    result = client.simulate_transaction(trx)
-    messages = result['result']['value']['logs']
-    res = messages[messages.index("Program log: succeed") + 1]
-    print("CALL:", res)
-    if not res.startswith("Program log: "):
-        raise Exception("Invalid program logs: no result")
-    else:
-        return res[13:]
+def call_emulated(base_account, contract_id, caller_id, data):
+    output = emulator(base_account.public_key(), contract_id, caller_id, data)
+    result = json.loads(output)
+    if result["exit_status"] != "succeed":
+        raise Exception("evm emulator error ", result)
+    return result["result"]
 
 def call_signed(acc, client, trx_raw):
 
@@ -384,12 +360,9 @@ def call_signed(acc, client, trx_raw):
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
         ]))
 
-    result = client.send_transaction(trx, acc)
-    result = confirm_transaction(client, result["result"])
-    #messages = result["result"]["meta"]["logMessages"]
-    #print("Messages:", messages)
-    #return (messages[messages.index("Program log: succeed") + 1], result)
-    return result
+    result = client.send_transaction(trx, acc,
+            opts=TxOpts(skip_confirmation=False, preflight_commitment="root"))
+    return result["result"]["transaction"]["signatures"][0]
 
 def deploy(contract, evm_loader):
     with open(location_bin, mode='wb') as file:

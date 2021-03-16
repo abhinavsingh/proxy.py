@@ -23,8 +23,8 @@ from sha3 import keccak_256
 import base58
 import traceback
 from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
-    getAccountInfo,  call, deploy, transaction_history, solana_cli, solana_url, call_signed, Trx, \
-    deploy_contract
+    getAccountInfo,  deploy, transaction_history, solana_cli, solana_url, call_signed, call_emulated, \
+    Trx, deploy_contract
 from web3 import Web3
 
 
@@ -124,11 +124,10 @@ class EthereumModel:
         """
         if not obj['data']: raise Exception("Missing data")
         try:
-            input = bytearray.fromhex(obj['data'][2:])
-            input[0:0] = bytearray.fromhex("03")
-
-            (contract_sol, contract_nonce) = create_program_address(obj['to'][2:], evm_loader_id, self.signer.public_key())
-            return "0x"+call(input, evm_loader_id, contract_sol, self.signer, self.client)
+            caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
+            contract_id = obj['to']
+            data = obj['data']
+            return "0x"+call_emulated(self.signer, contract_id, caller_id, data)
         except Exception as err:
             print("eth_call", err)
             return '0x'
@@ -308,12 +307,9 @@ class EthereumModel:
                     self.contract_address[eth_signature] = contract_eth
                     return eth_signature
                 else:
-                    log = call_signed( self.signer, self.client,  rawTrx)
-                    print("log", log)
-                    signature = log["result"]["transaction"]["signatures"][0]
+                    signature = call_signed( self.signer, self.client, rawTrx)
                     print('Transaction signature:', signature)
                     eth_signature = '0x'+ bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
-
 
                     self.signatures[eth_signature] = signature
                     self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
