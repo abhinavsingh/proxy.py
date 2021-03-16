@@ -23,7 +23,9 @@ from sha3 import keccak_256
 import base58
 import traceback
 from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
-    getAccountInfo, deploy, transaction_history, solana_cli, solana_url, call_signed, call_emulated
+    getAccountInfo,  deploy, transaction_history, solana_cli, solana_url, call_signed, call_emulated, \
+    Trx, deploy_contract
+from web3 import Web3
 
 
 class EthereumModel:
@@ -79,7 +81,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         print('eth_getBalance:', account, eth_acc)
-        balance = getLamports(self.client, evm_loader_id, eth_acc)
+        balance = getLamports(self.client, evm_loader_id, eth_acc, self.signer.public_key())
         return hex(balance*10**9)
 
     def eth_getBlockByNumber(self, tag, full):
@@ -125,7 +127,7 @@ class EthereumModel:
             caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
             contract_id = obj['to']
             data = obj['data']
-            return "0x"+call_emulated(contract_id, caller_id, data)
+            return "0x"+call_emulated(self.signer, contract_id, caller_id, data)
         except Exception as err:
             print("eth_call", err)
             return '0x'
@@ -133,7 +135,7 @@ class EthereumModel:
     def eth_getTransactionCount(self, account, tag):
         print('eth_getTransactionCount:', account)
         try:
-            acc_info = getAccountInfo(self.client, EthereumAddress(account))
+            acc_info = getAccountInfo(self.client, EthereumAddress(account), self.signer.public_key())
             return hex(int.from_bytes(acc_info.trx_count, 'little'))
         except:
             return hex(0)
@@ -164,8 +166,8 @@ class EthereumModel:
 
         logs = []
         status = "0x1"
+        log_index = 0
         for inner in (trx['result']['meta']['innerInstructions']):
-
             for event in inner['instructions']:
                 log = base58.b58decode(event['data'])
                 instruction = log[:1]
@@ -179,8 +181,18 @@ class EthereumModel:
                         topics.append('0x'+topic_bin.hex())
                         pos += 32
                     data = log[pos:]
-                    rec = {'address': '0x'+address.hex(), 'topics': topics, 'data': '0x'+data.hex()}
+                    rec = { 'address': '0x'+address.hex(),
+                            'topics': topics,
+                            'data': '0x'+data.hex(),
+                            'transactionLogIndex': hex(0),
+                            'transactionIndex': inner['index'],
+                            'blockNumber': hex(trx['result']['slot']),
+                            'transactionHash': trxId,
+                            'logIndex': log_index,
+                            'blockHash': '0x%064x'%trx['result']['slot']
+                        }
                     logs.append(rec)
+                    log_index +=1
                 else if int().from_bytes(instruction, "little") == 6 and len(logs) > 1:  # OnReturn evmInstruction code
                     if logs[1] == 0:
                         status = "0x0"
@@ -190,7 +202,18 @@ class EthereumModel:
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # print('BLOCK:', json.dumps(block, indent=3))
 
-        data = base58.b58decode(trx['result']['transaction']['message']['instructions'][0]['data'])
+        # TODO: it is need to add field "to"
+        # instructions = trx['result']['transaction']['message']['instructions']
+        # to = ""
+        # if len(instructions) >= 2:
+        #     data = base58.b58decode(trx['result']['transaction']['message']['instructions'][1]['data'])
+        #     if data[0] == 5:   # call_signed
+        #         trx_parsed = Trx.fromString(data[86:])
+        #         to = '0x'+trx_parsed.toAddress.hex()
+        # else:
+        #     if self.contract_address.get(trxId) :
+        #         to  = self.contract_address.get(trxId)
+
         # print('DATA:', data.hex())
 
         return {
@@ -199,7 +222,7 @@ class EthereumModel:
             "blockHash":'0x%064x'%trx['result']['slot'],
             "blockNumber":hex(trx['result']['slot']),
             "from":'0x'+self.eth_sender[trxId],
-            "to":'0x'+data[17:37].hex(),
+            # "to":'',
             "gasUsed":'0x%x' % trx['result']['meta']['fee'],
             "cumulativeGasUsed":'0x%x' % trx['result']['meta']['fee'],
             "contractAddress":self.contract_address.get(trxId),
@@ -280,21 +303,20 @@ class EthereumModel:
         elif trx.callData:
             try:
                 if (trx.toAddress is None):
-                    eth_contract_addr = deploy(trx.callData, evm_loader_id)["ethereum"]
-                    print("DEPLOY", eth_contract_addr)
-                    signature = transaction_history(self.signer.public_key())
-                    print("SIGNATURE", signature)
-                    eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                    (signature, contract_eth) = deploy_contract(self.signer,  self.client, sender, trx.callData)
+                    eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+
                     print("ETH_SIGNATURE", eth_signature)
                     self.signatures[eth_signature] = signature
                     self.eth_sender[eth_signature] = sender
                     self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
-                    self.contract_address[eth_signature] = eth_contract_addr
+                    self.contract_address[eth_signature] = contract_eth
                     return eth_signature
                 else:
-                    signature = call_signed(self.signer, self.client,  rawTrx)
+                    signature = call_signed( self.signer, self.client, rawTrx)
                     print('Transaction signature:', signature)
-                    eth_signature = '0x' + keccak_256(base58.b58decode(signature)).hexdigest()
+                    eth_signature = '0x'+ bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+
                     self.signatures[eth_signature] = signature
                     self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
                     self.eth_sender[eth_signature] = sender
@@ -302,6 +324,7 @@ class EthereumModel:
                     return eth_signature
 
             except Exception as err:
+                traceback.print_exc()
                 print("eth_sendRawTransaction", err)
                 return '0x'
         else:
