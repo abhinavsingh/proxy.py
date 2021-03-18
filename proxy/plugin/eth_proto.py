@@ -104,6 +104,7 @@ class Trx:
         self.v = None
         self.r = None
         self.s = None
+        self._msg = None
 
     @classmethod
     def fromString(cls, s):
@@ -139,16 +140,23 @@ class Trx:
             self.s.to_bytes(32,'big') if self.s else None)
         ).hex()
 
+    def msg(self, chainId=None):
+        if self._msg is None:
+            self._msg = pack((
+                self.nonce,
+                self.gasPrice,
+                self.gasLimit,
+                self.toAddress,
+                self.value,
+                self.callData,
+                chainId or self.chainId(), None, None))
+        return self._msg
+
     def hash(self, chainId=None):
-        trx = pack((
-            self.nonce,
-            self.gasPrice,
-            self.gasLimit,
-            self.toAddress,
-            self.value,
-            self.callData,
-            chainId or self.chainId(), None, None))
-        return keccak_256(trx).digest()
+        return keccak_256(self.msg()).digest()
+
+    def sig(self):
+        return keys.Signature(vrs=[1 if self.v % 2 == 0 else 0, self.r, self.s]).to_bytes()
 
     def sender(self):
         msgHash = self.hash()

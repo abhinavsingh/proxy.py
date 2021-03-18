@@ -22,10 +22,19 @@ from solana.rpc.api import Client as SolanaClient
 from sha3 import keccak_256
 import base58
 import traceback
+import threading
 from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
     getAccountInfo,  deploy, transaction_history, solana_cli, solana_url, call_signed, call_emulated, \
     Trx, deploy_contract
 from web3 import Web3
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
+modelInstanceLock = threading.Lock()
+modelInstance = None
 
 
 class EthereumModel:
@@ -72,7 +81,7 @@ class EthereumModel:
 
     def eth_blockNumber(self):
         slot = self.client.get_slot()['result']
-        print("eth_blockNumber", hex(slot))
+        logger.debug("eth_blockNumber %s", hex(slot))
         return hex(slot)
 
     def eth_getBalance(self, account, tag):
@@ -80,7 +89,7 @@ class EthereumModel:
            tag - integer block number, or the string "latest", "earliest" or "pending"
         """
         eth_acc = EthereumAddress(account)
-        print('eth_getBalance:', account, eth_acc)
+        logger.debug('eth_getBalance: %s %s', account, eth_acc)
         balance = getLamports(self.client, evm_loader_id, eth_acc, self.signer.public_key())
         return hex(balance*10**9)
 
@@ -129,11 +138,11 @@ class EthereumModel:
             data = obj['data']
             return "0x"+call_emulated(self.signer, contract_id, caller_id, data)
         except Exception as err:
-            print("eth_call", err)
+            logger.debug("eth_call %s", err)
             return '0x'
 
     def eth_getTransactionCount(self, account, tag):
-        print('eth_getTransactionCount:', account)
+        logger.debug('eth_getTransactionCount: %s', account)
         try:
             acc_info = getAccountInfo(self.client, EthereumAddress(account), self.signer.public_key())
             return hex(int.from_bytes(acc_info.trx_count, 'little'))
@@ -142,9 +151,9 @@ class EthereumModel:
 
     def eth_getTransactionReceipt(self, trxId):
         receipt = self.signatures.get(trxId, None)
-        print('getTransactionReceipt:', trxId, receipt)
+        logger.debug('getTransactionReceipt: %s %s', trxId, receipt)
         if not receipt:
-            print ("Not found receipt")
+            logger.debug ("Not found receipt")
             return {
             "transactionHash":'0x0',
             "transactionIndex":'0x0',
@@ -161,8 +170,10 @@ class EthereumModel:
             }
 
         trx = self.client.get_confirmed_transaction(receipt)
-        print('RECEIPT:', json.dumps(trx, indent=3))
-        if trx['result'] is None: return None
+        logger.debug('RECEIPT: %s', json.dumps(trx, indent=3))
+        if trx['result'] is None:
+            logger.debug('RESULT is None')
+            return None
 
         logs = []
         status = "0x1"
@@ -193,14 +204,14 @@ class EthereumModel:
                         }
                     logs.append(rec)
                     log_index +=1
-                else if int().from_bytes(instruction, "little") == 6 and len(logs) > 1:  # OnReturn evmInstruction code
+                elif int().from_bytes(instruction, "little") == 6 and len(logs) > 1:  # OnReturn evmInstruction code
                     if logs[1] < 0xd0:
                         status = "0x1"
                     else:
                         status = "0x0"
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
-        # print('BLOCK:', json.dumps(block, indent=3))
+        # logger.debug('BLOCK: %s', json.dumps(block, indent=3))
 
         # TODO: it is need to add field "to"
         # instructions = trx['result']['transaction']['message']['instructions']
@@ -214,9 +225,9 @@ class EthereumModel:
         #     if self.contract_address.get(trxId) :
         #         to  = self.contract_address.get(trxId)
 
-        # print('DATA:', data.hex())
+        # logger.debug('DATA: %s', data.hex())
 
-        return {
+        result = {
             "transactionHash":trxId,
             "transactionIndex":hex(0),
             "blockHash":'0x%064x'%trx['result']['slot'],
@@ -230,12 +241,14 @@ class EthereumModel:
             "status": status,
             "logsBloom":"0x"+'0'*512
         }
+        logger.debug('RESULT: %s', json.dumps(result, indent=3))
+        return result
 
     def eth_getTransactionByHash(self, trxId):
         receipt = self.signatures.get(trxId, None)
-        print('getTransactionReceipt:', trxId, receipt)
+        logger.debug('getTransactionReceipt: %s %s', trxId, receipt)
         if not receipt:
-            print ("Not found receipt")
+            logger.debug ("Not found receipt")
             return {
                 "blockHash":'0x0',
                 "blockNumber":'0x0',
@@ -254,14 +267,14 @@ class EthereumModel:
             }
 
         trx = self.client.get_confirmed_transaction(receipt)
-        # print('RECEIPT:', json.dumps(trx, indent=3))
+        # logger.debug('RECEIPT: %s', json.dumps(trx, indent=3))
         if trx['result'] is None: return None
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
-        # print('BLOCK:', json.dumps(block, indent=3))
+        # logger.debug('BLOCK: %s', json.dumps(block, indent=3))
 
         data = base58.b58decode(trx['result']['transaction']['message']['instructions'][0]['data'])
-        print('DATA:', data.hex())
+        logger.debug('DATA: %s', data.hex())
         sender =  self.eth_sender[trxId]
         # nonce = int(self.eth_getTransactionCount('0x'+data[sender].hex(), ""), 16)
         nonce = 0
@@ -283,7 +296,7 @@ class EthereumModel:
             "r":hex(self.vrs[trxId][1]),
             "s":hex(self.vrs[trxId][2])
         }
-        print ("eth_getTransactionByHash:", ret);
+        logger.debug ("eth_getTransactionByHash: %s", ret);
         return ret
 
     def eth_getCode(self, param,  param1):
@@ -291,10 +304,10 @@ class EthereumModel:
 
     def eth_sendRawTransaction(self, rawTrx):
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
-        print(json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
+        logger.debug("%s", json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
 
         sender = trx.sender()
-        print('Sender:', sender)
+        logger.debug('Sender: %s', sender)
 
         if trx.value and trx.callData:
             raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
@@ -302,30 +315,28 @@ class EthereumModel:
             raise Exception("transfer native tokens is not implemented")
         elif trx.callData:
             try:
+                contract_eth = None
                 if (trx.toAddress is None):
-                    (signature, contract_eth) = deploy_contract(self.signer,  self.client, sender, trx.callData)
-                    eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
-
-                    print("ETH_SIGNATURE", eth_signature)
-                    self.signatures[eth_signature] = signature
-                    self.eth_sender[eth_signature] = sender
-                    self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
-                    self.contract_address[eth_signature] = contract_eth
-                    return eth_signature
+                    (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx)
+                    #self.contract_address[eth_signature] = contract_eth
                 else:
-                    signature = call_signed( self.signer, self.client, rawTrx)
-                    print('Transaction signature:', signature)
-                    eth_signature = '0x'+ bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+                    signature = call_signed( self.signer, self.client, trx)
 
-                    self.signatures[eth_signature] = signature
-                    self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
-                    self.eth_sender[eth_signature] = sender
-                    print('Ethereum signature:', eth_signature)
-                    return eth_signature
+                eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+                logger.debug('Transaction signature: %s %s', signature, eth_signature)
+                if contract_eth: self.contract_address[eth_signature] = contract_eth
+                self.signatures[eth_signature] = signature
+                self.eth_sender[eth_signature] = sender
+                self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+
+                if (not trx.toAddress is None):
+                    self.eth_getTransactionReceipt(eth_signature)
+
+                return eth_signature
 
             except Exception as err:
                 traceback.print_exc()
-                print("eth_sendRawTransaction", err)
+                logger.debug("eth_sendRawTransaction %s", err)
                 return '0x'
         else:
             raise Exception("Missing token for transfer")
@@ -362,17 +373,17 @@ class SolanaContractTests(unittest.TestCase):
         blockNumber = self.getBlockNumber()
 
         receiptId = self.model.eth_sendRawTransaction('0xf8730a85174876e800825208948d900bfa2353548a4631be870f99939575551b608906aaf7c8516d0c0000808602e92be91e86a040a2a5d73931f66185e8526f09c4d0dc1f389c1b9fcd5e37a012839e6c5c70f0a00554615806c3fa7dc7c8096b3bfed5a29354045e56982bdf3ee11f649e53d51e')
-        print('ReceiptId:', receiptId)
+        logger.debug('ReceiptId:', receiptId)
 
         self.assertEqual(self.getBalance(sender), senderBalance - amount)
         self.assertEqual(self.getBalance(receiver), receiverBalance + amount)
         self.assertEqual(self.getBlockNumber(), blockNumber+1)
 
         receipt = self.model.eth_getTransactionReceipt(receiptId)
-        print('Receipt:', receipt)
+        logger.debug('Receipt:', receipt)
 
         block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
-        print('Block:', block)
+        logger.debug('Block:', block)
 
         self.assertTrue(receiptId in block['transactions'])
 
@@ -384,16 +395,16 @@ class SolanaContractTests(unittest.TestCase):
 
 
         receiptId = self.model.eth_sendRawTransaction('0xf8b018850bdfd63e00830186a094b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000cac68f98c1893531df666f2d58243b27dd351a8800000000000000000000000000000000000000000000000000000000000000208602e92be91e86a05ed7d0093a991563153f59c785e989a466e5e83bddebd9c710362f5ee23f7dbaa023a641d304039f349546089bc0cb2a5b35e45619fd97661bd151183cb47f1a0a')
-        print('ReceiptId:', receiptId)
+        logger.debug('ReceiptId:', receiptId)
 
         self.assertEqual(self.getTokenBalance(token, sender), senderBalance - amount)
         self.assertEqual(self.getTokenBalance(token, receiver), receiverBalance + amount)
 
         receipt = self.model.eth_getTransactionReceipt(receiptId)
-        print('Receipt:', receipt)
+        logger.debug('Receipt:', receipt)
 
         block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
-        print('Block:', block)
+        logger.debug('Block:', block)
 
         self.assertTrue(receiptId in block['transactions'])
 
@@ -414,9 +425,12 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
 
     @classmethod
     def getModel(cls):
-        if not hasattr(cls, 'modelInstance'):
-            cls.modelInstance = EthereumModel()
-        return cls.modelInstance
+        global modelInstanceLock
+        global modelInstance
+        with modelInstanceLock:
+            if modelInstance is None:
+                modelInstance = EthereumModel()
+            return modelInstance
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
@@ -425,7 +439,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         ]
 
     def handle_request(self, request: HttpParser) -> None:
-        print('< ', request.body.decode('utf8'))
+        logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
         req = json.loads(request.body)
         res = {'id':req['id'], 'jsonrpc':'2.0'}
 
@@ -438,9 +452,9 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
 #            with socket_connection(('localhost', 8545)) as conn:
 #                conn.send(request.build())
 #                orig = HttpParser.response(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
-#                print('- ', orig.body.decode('utf8'))
+#                logger.debug('- ', orig.body.decode('utf8'))
 
-        print('> ', json.dumps(res))
+        logger.debug('>>> %s 0x%0x %s', threading.get_ident(), id(self.model), json.dumps(res))
 
         self.client.queue(memoryview(build_http_response(
             httpStatusCodes.OK, body=json.dumps(res).encode('utf8'),
