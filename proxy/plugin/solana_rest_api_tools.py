@@ -142,6 +142,18 @@ def make_keccak_instruction_data(check_instruction_index, msg_len):
     return data
 
 
+class EthereumError(Exception):
+    def __init__(self, code, message, data=None):
+        self.code = code
+        self.message = message
+        self.data = data
+
+    def getError(self):
+        error = {'code': self.code, 'message': self.message}
+        if self.data: error['data'] = self.data
+        return error
+
+
 class EthereumAddress:
     def __init__(self, data, private=None):
         if isinstance(data, str):
@@ -249,9 +261,16 @@ def create_program_address(ether, program_id, base):
 def call_emulated(base_account, contract_id, caller_id, data):
     output = emulator(base_account.public_key(), contract_id, caller_id, data)
     result = json.loads(output)
+    logger.debug("call_emulated %s %s %s return %s", contract_id, caller_id, data, result)
+    exit_status = result['exit_status']
+    if exit_status == 'revert':
+        offset = int(result['result'][8:8+64], 16)
+        length = int(result['result'][8+64:8+64+64], 16)
+        message = str(bytes.fromhex(result['result'][8+offset*2+64:8+offset*2+64+length*2]), 'utf8')
+        raise EthereumError(code=3, message='execution reverted: '+message, data='0x'+result['result'])
     if result["exit_status"] != "succeed":
         raise Exception("evm emulator error ", result)
-    return result["result"]
+    return result
 
 def call_signed(acc, client, ethTrx):
     sender_ether = bytes.fromhex(ethTrx.sender())
@@ -267,8 +286,7 @@ def call_signed(acc, client, ethTrx):
     logger.debug("solana caller: %s", sender_sol)
 
     add_keys_05 = []
-    output_em = emulator(acc.public_key(), ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
-    output_json = json.loads(output_em.splitlines()[-1])
+    output_json = call_emulated(acc, ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
     for acc_desc in output_json["accounts"]:
         call_inner_eth = bytes.fromhex(acc_desc['address'][2:])

@@ -25,7 +25,7 @@ import traceback
 import threading
 from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
     getAccountInfo,  deploy, transaction_history, solana_cli, solana_url, call_signed, call_emulated, \
-    Trx, deploy_contract
+    Trx, deploy_contract, EthereumError
 from web3 import Web3
 import logging
 
@@ -74,6 +74,7 @@ class EthereumModel:
         return 0
 
     def eth_estimateGas(self, param):
+        call_emulated(self.signer, param['to'], param['from'], param['data'])
         return 0
 
     def __repr__(self):
@@ -136,7 +137,7 @@ class EthereumModel:
             caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
             contract_id = obj['to']
             data = obj['data']
-            return "0x"+call_emulated(self.signer, contract_id, caller_id, data)
+            return "0x"+call_emulated(self.signer, contract_id, caller_id, data)['result']
         except Exception as err:
             logger.debug("eth_call %s", err)
             return '0x'
@@ -204,8 +205,8 @@ class EthereumModel:
                         }
                     logs.append(rec)
                     log_index +=1
-                elif int().from_bytes(instruction, "little") == 6 and len(logs) > 1:  # OnReturn evmInstruction code
-                    if logs[1] < 0xd0:
+                elif int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
+                    if log[1] < 0xd0:
                         status = "0x1"
                     else:
                         status = "0x0"
@@ -334,6 +335,7 @@ class EthereumModel:
 
                 return eth_signature
 
+            except EthereumError: raise
             except Exception as err:
                 traceback.print_exc()
                 logger.debug("eth_sendRawTransaction %s", err)
@@ -446,6 +448,9 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         try:
             method = getattr(self.model, req['method'])
             res['result'] = method(*req['params'])
+        except EthereumError as err:
+            traceback.print_exc()
+            res['error'] = err.getError()
         except Exception as err:
             traceback.print_exc()
             res['error'] = {'code': -32000, 'message': str(err)}
