@@ -51,7 +51,7 @@ class HttpParser:
         # Buffer to hold unprocessed bytes
         self.buffer: bytes = b''
 
-        self.headers: Dict[bytes, Tuple[bytes, bytes]] = dict()
+        self.headers: Dict[bytes, Tuple[bytes, bytes]] = {}
         self.body: Optional[bytes] = None
 
         self.method: Optional[bytes] = None
@@ -146,7 +146,7 @@ class HttpParser:
         raw = self.buffer + raw
         self.buffer = b''
 
-        more = True if len(raw) > 0 else False
+        more = len(raw) > 0
         while more and self.state != httpParserStates.COMPLETE:
             if self.state in (
                     httpParserStates.HEADERS_COMPLETE,
@@ -265,7 +265,7 @@ class HttpParser:
 
     def has_upstream_server(self) -> bool:
         """Host field SHOULD be None for incoming local WebServer requests."""
-        return True if self.host is not None else False
+        return self.host is not None
 
     def is_http_1_1_keep_alive(self) -> bool:
         return self.version == HTTP_1_1 and \

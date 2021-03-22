@@ -79,7 +79,7 @@ class Threadless(multiprocessing.Process):
             if mask & selectors.EVENT_WRITE:
                 writables.append(key.fileobj)
         yield (readables, writables)
-        for fd in events.keys():
+        for fd in events:
             self.selector.unregister(fd)
 
     async def handle_events(
