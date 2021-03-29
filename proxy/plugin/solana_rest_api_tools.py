@@ -12,7 +12,8 @@ import random
 import json
 from sha3 import keccak_256
 import struct
-from .eth_proto import pack, unpack, Trx
+import rlp
+from .eth_proto import Trx
 from solana.rpc.types import TxOpts
 
 from construct import Bytes, Int8ul, Int32ul, Int64ul, Struct as cStruct
@@ -109,12 +110,6 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
     )
 
 
-
-def getInt(a):
-    if isinstance(a, int): return a
-    if isinstance(a, bytes): return int.from_bytes(a, 'big')
-    if a == None: return a
-    raise Exception("Invalid convertion from {} to int".format(a))
 
 
 
@@ -299,13 +294,13 @@ def call_signed(acc, client, ethTrx):
 
     trx.add(TransactionInstruction(
         program_id=keccakprog,
-        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.msg())),
+        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg())),
         keys=[
             AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
         ]))
     trx.add(TransactionInstruction(
         program_id=evm_loader_id,
-        data=bytearray.fromhex("05") + sender_ether + ethTrx.sig() + ethTrx.msg(),
+        data=bytearray.fromhex("05") + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
         keys=[
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
@@ -370,7 +365,7 @@ def deploy_contract(acc, client, ethTrx):
 
     # Create legacy contract address from (sender_eth, nonce)
     #rlp = pack(sender_ether, ethTrx.nonce or None)
-    contract_eth = keccak_256(pack((sender_ether, ethTrx.nonce or None))).digest()[-20:]
+    contract_eth = keccak_256(rlp.encode((sender_ether, ethTrx.nonce))).digest()[-20:]
     (contract_sol, contract_nonce) = create_program_address(contract_eth.hex(), evm_loader_id, acc.public_key())
 
     logger.debug("Legacy contract address ether: %s", contract_eth.hex())
@@ -391,7 +386,7 @@ def deploy_contract(acc, client, ethTrx):
         confirm_transaction(client, receipt)
 
     # Build deploy transaction
-    msg = len(ethTrx.msg()).to_bytes(8, byteorder="little") + ethTrx.msg()
+    msg = ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg()
     # logger.debug("msg", msg.hex())
 
     # Write transaction to transaction holder account

@@ -1,6 +1,7 @@
 from ecdsa import SigningKey, SECP256k1, VerifyingKey
 from sha3 import keccak_256
 import json
+import rlp
 from eth_keys import keys
 
 public = '0x2377BB12320F46F0B9E30EBFB941121352716f2C'
@@ -19,150 +20,48 @@ a0 602af7bd4ac154a568c2d1478b23d697390e035cd72250e77a0d56ce2c4a63db - r
 a0 5d09ca05a62935d6c2a04bfa5bfa1cb46bfcb59e3a115e0c8cceca807efb778b - s
 '''
 
-def unpack(data):
-    ch = data[0]
-    if (ch <= 0x7F):
-        return (ch, data[1:])
-    elif (ch == 0x80):
-        return (None, data[1:])
-    elif (ch <= 0xB7):
-        l = ch - 0x80
-        return (data[1:1+l].tobytes(), data[1+l:])
-    elif (ch <= 0xBF):
-        lLen = ch - 0xB7
-        l = int.from_bytes(data[1:1+lLen], byteorder='big')
-        return (data[1+lLen:1+lLen+l].tobytes(), data[1+lLen+l:])
-    elif (ch == 0xC0):
-        return ((), data[1:])
-    elif (ch <= 0xF7):
-        l = ch - 0xC0
-        lst = list()
-        sub = data[1:1+l]
-        while len(sub):
-            (item, sub) = unpack(sub)
-            lst.append(item)
-        return (lst, data[1+l:])
-    else:
-        lLen = ch - 0xF7
-        l = int.from_bytes(data[1:1+lLen], byteorder='big')
-        lst = list()
-        sub = data[1+lLen:1+lLen+l]
-        while len(sub):
-            (item, sub) = unpack(sub)
-            lst.append(item)
-        return (lst, data[1+lLen+l:])
 
-def pack(data):
-    if data == None:
-        return (0x80).to_bytes(1,'big')
-    if isinstance(data, str):
-        return pack(data.encode('utf8'))
-    elif isinstance(data, bytes):
-        if len(data) <= 55:
-            return (len(data)+0x80).to_bytes(1,'big')+data
-        else:
-            l = len(data)
-            lLen = (l.bit_length()+7)//8
-            return (0xB7+lLen).to_bytes(1,'big')+l.to_bytes(lLen,'big')+data
-    elif isinstance(data, int):
-        if data < 0x80:
-            return data.to_bytes(1,'big')
-        else:
-            l = (data.bit_length()+7)//8
-            return (l + 0x80).to_bytes(1,'big') + data.to_bytes(l,'big')
-        pass
-    elif isinstance(data, list) or isinstance(data, tuple):
-        if len(data) == 0:
-            return (0xC0).to_bytes(1,'big')
-        else:
-            res = bytearray()
-            for d in data:
-                res += pack(d)
-            l = len(res)
-            if l <= 55:
-                return (l + 0xC0).to_bytes(1,'big')+res
-            else:
-                lLen = (l.bit_length()+7)//8
-                return (lLen+0xF7).to_bytes(1,'big') + l.to_bytes(lLen,'big') + res
-    else:
-        raise Exception("Unknown type {} of data".format(str(type(data))))
 
-def getInt(a):
-    if isinstance(a, int): return a
-    if isinstance(a, bytes): return int.from_bytes(a, 'big')
-    if a == None: return a
-    raise Exception("Invalid convertion from {} to int".format(a))
+class Trx(rlp.Serializable):
+    fields = (
+        ('nonce', rlp.codec.big_endian_int),
+        ('gasPrice', rlp.codec.big_endian_int),
+        ('gasLimit', rlp.codec.big_endian_int),
+        ('toAddress', rlp.codec.binary),
+        ('value', rlp.codec.big_endian_int),
+        ('callData', rlp.codec.binary),
+        ('v', rlp.codec.big_endian_int),
+        ('r', rlp.codec.big_endian_int),
+        ('s', rlp.codec.big_endian_int)
+    )
 
-class Trx:
-    def __init__(self):
-        self.nonce = None
-        self.gasPrice = None
-        self.gasLimit = None
-        self.toAddress = None
-        self.value = None
-        self.callData = None
-        self.v = None
-        self.r = None
-        self.s = None
+    def __init__(self, *args, **kwargs):
+        rlp.Serializable.__init__(self, *args, **kwargs)
         self._msg = None
 
     @classmethod
     def fromString(cls, s):
-        t = Trx()
-        (unpacked, data) = unpack(memoryview(s))
-        (nonce, gasPrice, gasLimit, toAddress, value, callData, v, r, s) = unpacked
-        t.nonce = getInt(nonce)
-        t.gasPrice = getInt(gasPrice)
-        t.gasLimit = getInt(gasLimit)
-        t.toAddress = toAddress
-        t.value = getInt(value)
-        t.callData = callData
-        t.v = getInt(v)
-        t.r = getInt(r)
-        t.s = getInt(s)
-        return t
+        return rlp.decode(s, Trx)
     
     def chainId(self):
         # chainid*2 + 35  xxxxx0 + 100011   xxxx0 + 100010 +1
         # chainid*2 + 36  xxxxx0 + 100100   xxxx0 + 100011 +1
         return (self.v-1)//2 - 17
 
-    def __str__(self):
-        return pack((
-            self.nonce,
-            self.gasPrice,
-            self.gasLimit,
-            self.toAddress,
-            self.value,
-            self.callData,
-            self.v,
-            self.r.to_bytes(32,'big') if self.r else None,
-            self.s.to_bytes(32,'big') if self.s else None)
-        ).hex()
-
-    def msg(self, chainId=None):
+    def unsigned_msg(self):
         if self._msg is None:
-            self._msg = pack((
-                self.nonce,
-                self.gasPrice,
-                self.gasLimit,
-                self.toAddress,
-                self.value,
-                self.callData,
-                chainId or self.chainId(), None, None))
+            self._msg = rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData, self.chainId(), b"", b""))
         return self._msg
 
-    def hash(self, chainId=None):
-        return keccak_256(self.msg()).digest()
-
-    def sig(self):
+    def signature(self):
         return keys.Signature(vrs=[1 if self.v % 2 == 0 else 0, self.r, self.s]).to_bytes()
 
     def sender(self):
-        msgHash = self.hash()
+        hash = keccak_256(self.unsigned_msg()).digest()
         sig = keys.Signature(vrs=[1 if self.v%2==0 else 0, self.r, self.s])
-        pub = sig.recover_public_key_from_msg_hash(msgHash)
+        pub = sig.recover_public_key_from_msg_hash(hash)
         return pub.to_canonical_address().hex()
+
 
 #class JsonEncoder(json.JSONEncoder):
 #    def default(self, obj):
