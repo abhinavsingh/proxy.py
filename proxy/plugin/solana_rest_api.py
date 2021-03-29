@@ -65,7 +65,7 @@ class EthereumModel:
         pass
 
     def eth_chainId(self):
-        return "0x10"
+        return "0x6F" # 111
 
     def net_version(self):
         return '1600243666737'
@@ -305,7 +305,7 @@ class EthereumModel:
 
     def eth_sendRawTransaction(self, rawTrx):
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
-        logger.debug("%s", json.dumps(trx.__dict__, cls=JsonEncoder, indent=3))
+        logger.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
 
         sender = trx.sender()
         logger.debug('Sender: %s', sender)
@@ -317,7 +317,7 @@ class EthereumModel:
         elif trx.callData:
             try:
                 contract_eth = None
-                if (trx.toAddress is None):
+                if (not trx.toAddress):
                     (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx)
                     #self.contract_address[eth_signature] = contract_eth
                 else:
@@ -330,7 +330,7 @@ class EthereumModel:
                 self.eth_sender[eth_signature] = sender
                 self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
 
-                if (not trx.toAddress is None):
+                if (trx.toAddress):
                     self.eth_getTransactionReceipt(eth_signature)
 
                 return eth_signature
@@ -346,6 +346,8 @@ class EthereumModel:
 
 class JsonEncoder(json.JSONEncoder):
     def default(self, obj):
+        if isinstance(obj, bytearray):
+            return obj.hex()
         if isinstance(obj, bytes):
             return obj.hex()
         return json.JSONEncoder.default(self, obj)
