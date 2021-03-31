@@ -65,7 +65,8 @@ class EthereumModel:
         pass
 
     def eth_chainId(self):
-        return "0x6F" # 111
+        return "0x6f" # 111
+        # return "0x10" #
 
     def net_version(self):
         return '1600243666737'
@@ -442,11 +443,9 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             (httpProtocolTypes.HTTPS, SolanaProxyPlugin.SOLANA_PROXY_LOCATION)
         ]
 
-    def handle_request(self, request: HttpParser) -> None:
-        logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
-        req = json.loads(request.body)
-        res = {'id':req['id'], 'jsonrpc':'2.0'}
 
+    def apply(self, req):
+        res = {'id': req['id'], 'jsonrpc': '2.0'}
         try:
             method = getattr(self.model, req['method'])
             res['result'] = method(*req['params'])
@@ -456,11 +455,24 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         except Exception as err:
             traceback.print_exc()
             res['error'] = {'code': -32000, 'message': str(err)}
-#            with socket_connection(('localhost', 8545)) as conn:
-#                conn.send(request.build())
-#                orig = HttpParser.response(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
-#                logger.debug('- ', orig.body.decode('utf8'))
+        return res
 
+    #            with socket_connection(('localhost', 8545)) as conn:
+    #                conn.send(request.build())
+    #                orig = HttpParser.response(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
+    #                logger.debug('- ', orig.body.decode('utf8'))
+
+    def handle_request(self, request: HttpParser) -> None:
+        logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
+        reqs = json.loads(request.body)
+        res = ''
+        if (type(reqs) is dict):
+            res = self.apply(reqs)
+        else:
+            batch = []
+            for request in reqs:
+                batch.append(self.apply(request))
+            res = batch
         logger.debug('>>> %s 0x%0x %s', threading.get_ident(), id(self.model), json.dumps(res))
 
         self.client.queue(memoryview(build_http_response(
