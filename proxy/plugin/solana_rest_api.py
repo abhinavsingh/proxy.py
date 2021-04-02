@@ -66,7 +66,6 @@ class EthereumModel:
 
     def eth_chainId(self):
         return "0x6f" # 111
-        # return "0x10" #
 
     def net_version(self):
         return '1600243666737'
@@ -76,7 +75,7 @@ class EthereumModel:
 
     def eth_estimateGas(self, param):
         call_emulated(self.signer, param['to'], param['from'], param['data'])
-        return 0
+        return 21000
 
     def __repr__(self):
         return str(self.__dict__)
@@ -443,41 +442,64 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             (httpProtocolTypes.HTTPS, SolanaProxyPlugin.SOLANA_PROXY_LOCATION)
         ]
 
-
-    def apply(self, req):
-        res = {'id': req['id'], 'jsonrpc': '2.0'}
+    def process_request(self, request):
+        response = {
+            'jsonrpc': '2.0',
+            'id': request.get('id', None),
+        }
         try:
-            method = getattr(self.model, req['method'])
-            res['result'] = method(*req['params'])
+            method = getattr(self.model, request['method'])
+            response['result'] = method(*request['params'])
         except EthereumError as err:
             traceback.print_exc()
-            res['error'] = err.getError()
+            response['error'] = err.getError()
         except Exception as err:
             traceback.print_exc()
-            res['error'] = {'code': -32000, 'message': str(err)}
-        return res
+            response['error'] = {'code': -32000, 'message': str(err)}
 
-    #            with socket_connection(('localhost', 8545)) as conn:
-    #                conn.send(request.build())
-    #                orig = HttpParser.response(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
-    #                logger.debug('- ', orig.body.decode('utf8'))
+        return response
 
     def handle_request(self, request: HttpParser) -> None:
+        if request.method == b'OPTIONS':
+            self.client.queue(memoryview(build_http_response(
+                httpStatusCodes.OK, body=None,
+                headers={
+                    b'Access-Control-Allow-Origin': b'*',
+                    b'Access-Control-Allow-Methods': b'POST, GET, OPTIONS',
+                    b'Access-Control-Allow-Headers': b'Content-Type',
+                    b'Access-Control-Max-Age': b'86400'
+                })))
+            return
+        
+        print('headers', request.headers)
         logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
-        reqs = json.loads(request.body)
-        res = ''
-        if (type(reqs) is dict):
-            res = self.apply(reqs)
-        else:
-            batch = []
-            for request in reqs:
-                batch.append(self.apply(request))
-            res = batch
-        logger.debug('>>> %s 0x%0x %s', threading.get_ident(), id(self.model), json.dumps(res))
+        response = None
+
+        try:
+            request = json.loads(request.body)
+            print('type(request) = ', type(request), request)
+            if isinstance(request, list):
+                response = []
+                if len(request) == 0:
+                    raise Exception("Empty batch request")
+                for r in request:
+                    response.append(self.process_request(r))
+            elif isinstance(request, object):
+                response = self.process_request(request)
+            else:
+                raise Exception("Invalid request")
+        except Exception as err:
+            traceback.print_exc()
+            response = {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': str(err)}}
+
+        logger.debug('>>> %s 0x%0x %s', threading.get_ident(), id(self.model), json.dumps(response))
 
         self.client.queue(memoryview(build_http_response(
-            httpStatusCodes.OK, body=json.dumps(res).encode('utf8'),
-            headers={b'Content-Type': b'application/json'})))
+            httpStatusCodes.OK, body=json.dumps(response).encode('utf8'),
+            headers={
+                b'Content-Type': b'application/json',
+                b'Access-Control-Allow-Origin': b'*',
+            })))
 
     def on_websocket_open(self) -> None:
         pass
