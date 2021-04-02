@@ -273,7 +273,7 @@ def call_signed(acc, client, ethTrx):
     (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id, acc.public_key())
 
     trx = Transaction()
-    sender_sol_info = client.get_account_info(sender_sol)
+    sender_sol_info = client.get_account_info(sender_sol, commitment='recent')
     if sender_sol_info['result']['value'] is None:
         logger.debug("Create solana caller account...")
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
@@ -311,8 +311,9 @@ def call_signed(acc, client, ethTrx):
         ]))
 
     result = client.send_transaction(trx, acc,
-            opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
-    return result["result"]["transaction"]["signatures"][0]
+            opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+    confirm_transaction(client, result['result'])
+    return result["result"] #["transaction"]["signatures"][0]
 
 def deploy(contract, evm_loader):
     with open(location_bin, mode='wb') as file:
@@ -377,7 +378,7 @@ def deploy_contract(acc, client, ethTrx):
         sha256(bytes(acc.public_key()) + seed + bytes(PublicKey(evm_loader_id))).digest())
     logger.debug("Holder %s", holder)
 
-    if client.get_balance(holder)['result']['value'] == 0:
+    if client.get_balance(holder, commitment='recent')['result']['value'] == 0:
         trx = Transaction()
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
@@ -414,7 +415,7 @@ def deploy_contract(acc, client, ethTrx):
     # Create contract account & execute deploy transaction
     logger.debug("    # Create contract account & execute deploy transaction")
     trx = Transaction()
-    sender_sol_info = client.get_account_info(sender_sol)
+    sender_sol_info = client.get_account_info(sender_sol, commitment='recent')
     if sender_sol_info['result']['value'] is None:
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
 
@@ -432,6 +433,7 @@ def deploy_contract(acc, client, ethTrx):
             opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
 
     signature = result["result"] #["transaction"]["signatures"][0]
+    confirm_transaction(client, signature)
     return (signature, '0x'+contract_eth.hex())
 
 def transaction_history(acc):
@@ -440,7 +442,7 @@ def transaction_history(acc):
     return output.splitlines()[-2]
 
 def _getAccountData(client, account, expected_length, owner=None):
-    info = client.get_account_info(account)['result']['value']
+    info = client.get_account_info(account, commitment="recent")['result']['value']
     if info is None:
         raise Exception("Can't get information about {}".format(account))
 
@@ -456,7 +458,7 @@ def getAccountInfo(client, eth_acc, base_account):
 
 def getLamports(client, evm_loader, eth_acc, base_account):
     (account, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader, base_account)
-    return int(client.get_balance(account)['result']['value'])
+    return int(client.get_balance(account, commitment="recent")['result']['value'])
 
 
 def make_instruction_data_from_tx(instruction, private_key=None):
