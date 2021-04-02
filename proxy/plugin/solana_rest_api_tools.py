@@ -28,7 +28,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-#evm_loader_id = "6Eo6NybJ45RM62XWzb4eCtdCGCnEELuZm1rSxRM15ocz"
+#evm_loader_id = "9TdKEctsU5L7mfMTrdBrsxHnxGbTgMiUbtSoJrEZYecs"
 location_bin = ".deploy_contract.bin"
 
 tokenkeg = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
@@ -215,45 +215,26 @@ def finalize_transaction(client, tx_sig):
         raise RuntimeError("could not finalize transaction: ", tx_sig)
     return resp
 
-
-def confirm_transaction(client, tx_sig):
+def confirm_transaction(client, tx_sig, confirmations=1):
     """Confirm a transaction."""
     TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
     elapsed_time = 0
     while elapsed_time < TIMEOUT:
-        resp = client.get_confirmed_transaction(tx_sig)
+        logger.debug('confirm_transaction for %s', tx_sig)
+        resp = client.get_signature_statuses([tx_sig])
+        logger.debug('confirm_transaction: %s', resp)
         if resp["result"]:
-#            print('Confirmed transaction:', resp)
-            break
-        sleep_time = 3
-        if not elapsed_time:
-            sleep_time = 7
-            time.sleep(sleep_time)
-        else:
-            time.sleep(sleep_time)
+            status = resp['result']['value'][0]
+            if status and (status['confirmationStatus'] == 'finalized' or \
+               status['confirmationStatus'] == 'confirmed' and status['confirmations'] >= confirmations):
+#            logger.debug('Confirmed transaction:', resp)
+                return
+        sleep_time = 1
+        time.sleep(sleep_time)
         elapsed_time += sleep_time
-    if not resp["result"]:
-        raise RuntimeError("could not confirm transaction: ", tx_sig)
-    return resp
-# def confirm_transaction(client, tx_sig, confirmations=1):
-#     """Confirm a transaction."""
-#     TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
-#     elapsed_time = 0
-#     while elapsed_time < TIMEOUT:
-#         logger.debug('confirm_transaction for %s', tx_sig)
-#         resp = client.get_signature_statuses([tx_sig])
-#         logger.debug('confirm_transaction: %s', resp)
-#         if resp["result"]:
-#             status = resp['result']['value'][0]
-#             if status and (status['confirmationStatus'] == 'finalized' or status['confirmationStatus'] == 'confirmed' and status['confirmations'] >= confirmations):
-# #            logger.debug('Confirmed transaction:', resp)
-#                 return
-#         sleep_time = 1
-#         time.sleep(sleep_time)
-#         elapsed_time += sleep_time
-#     #if not resp["result"]:
-#     raise RuntimeError("could not confirm transaction: ", tx_sig)
-#     #return resp
+    #if not resp["result"]:
+    raise RuntimeError("could not confirm transaction: ", tx_sig)
+    #return resp
 
 def solana2ether(public_key):
     from web3 import Web3
@@ -307,7 +288,7 @@ def call_signed(acc, client, ethTrx):
         (call_inner, _) = create_program_address(call_inner_eth, evm_loader_id, acc.public_key())
         if call_inner not in [contract_sol, sender_sol]:
             add_keys_05.append(AccountMeta(pubkey=call_inner, is_signer=False, is_writable=acc_desc["writable"]))
-            if acc_desc["new"] == True:
+            if acc_desc["new"] == True:    
                 logger.debug("Create solana account %s %s", call_inner_eth, call_inner)
                 trx.add(createEtherAccountTrx(client, call_inner_eth, evm_loader_id, acc, space=20*1024)[0])
 
@@ -372,7 +353,7 @@ def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     logger.debug('createEtherAccount result: %s', result)
     return sol
 
-def deploy_contract(acc, client, ethTrx):
+def deploy_contract(acc, client, ethTrx): 
 
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id, acc.public_key())
@@ -400,7 +381,7 @@ def deploy_contract(acc, client, ethTrx):
         trx = Transaction()
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
-        receipt = client.send_transaction(trx, acc,
+        receipt = client.send_transaction(trx, acc, 
                 opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))['result']
         confirm_transaction(client, receipt)
 
