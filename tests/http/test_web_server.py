@@ -16,12 +16,11 @@ import selectors
 from unittest import mock
 
 from proxy.proxy import Proxy
-from proxy.common.flags import Flags
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.parser import httpParserStates
 from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
-from proxy.common.constants import CRLF, PROXY_PY_DIR
+from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
 from proxy.http.server import HttpWebServerPlugin
 
 
@@ -34,10 +33,10 @@ class TestWebServerPlugin(unittest.TestCase):
         self._addr = ('127.0.0.1', 54382)
         self._conn = mock_fromfd.return_value
         self.mock_selector = mock_selector
-        self.flags = Flags()
+        self.flags = Proxy.initialize()
         self.flags.plugins = Proxy.load_plugins([
-            b'proxy.http.proxy.HttpProxyPlugin',
-            b'proxy.http.server.HttpWebServerPlugin',
+            bytes_(PLUGIN_HTTP_PROXY),
+            bytes_(PLUGIN_WEB_SERVER),
         ])
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
@@ -97,10 +96,10 @@ class TestWebServerPlugin(unittest.TestCase):
                 fd=self._conn.fileno,
                 events=selectors.EVENT_READ,
                 data=None), selectors.EVENT_READ), ]
-        flags = Flags()
+        flags = Proxy.initialize()
         flags.plugins = Proxy.load_plugins([
-            b'proxy.http.proxy.HttpProxyPlugin',
-            b'proxy.http.server.HttpWebServerPlugin',
+            bytes_(PLUGIN_HTTP_PROXY),
+            bytes_(PLUGIN_WEB_SERVER),
         ])
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
@@ -148,12 +147,12 @@ class TestWebServerPlugin(unittest.TestCase):
                 events=selectors.EVENT_WRITE,
                 data=None), selectors.EVENT_WRITE)], ]
 
-        flags = Flags(
+        flags = Proxy.initialize(
             enable_static_server=True,
             static_server_dir=static_server_dir)
         flags.plugins = Proxy.load_plugins([
-            b'proxy.http.proxy.HttpProxyPlugin',
-            b'proxy.http.server.HttpWebServerPlugin',
+            bytes_(PLUGIN_HTTP_PROXY),
+            bytes_(PLUGIN_WEB_SERVER),
         ])
 
         self.protocol_handler = HttpProtocolHandler(
@@ -200,10 +199,10 @@ class TestWebServerPlugin(unittest.TestCase):
                 events=selectors.EVENT_WRITE,
                 data=None), selectors.EVENT_WRITE)], ]
 
-        flags = Flags(enable_static_server=True)
+        flags = Proxy.initialize(enable_static_server=True)
         flags.plugins = Proxy.load_plugins([
-            b'proxy.http.proxy.HttpProxyPlugin',
-            b'proxy.http.server.HttpWebServerPlugin',
+            bytes_(PLUGIN_HTTP_PROXY),
+            bytes_(PLUGIN_WEB_SERVER),
         ])
 
         self.protocol_handler = HttpProtocolHandler(
@@ -222,7 +221,7 @@ class TestWebServerPlugin(unittest.TestCase):
     @mock.patch('socket.fromfd')
     def test_on_client_connection_called_on_teardown(
             self, mock_fromfd: mock.Mock) -> None:
-        flags = Flags()
+        flags = Proxy.initialize()
         plugin = mock.MagicMock()
         flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
         self._conn = mock_fromfd.return_value
@@ -238,11 +237,11 @@ class TestWebServerPlugin(unittest.TestCase):
         plugin.return_value.on_client_connection_close.assert_called()
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
-        flags = Flags(pac_file=pac_file)
+        flags = Proxy.initialize(pac_file=pac_file)
         flags.plugins = Proxy.load_plugins([
-            b'proxy.http.proxy.HttpProxyPlugin',
-            b'proxy.http.server.HttpWebServerPlugin',
-            b'proxy.http.server.HttpWebServerPacFilePlugin',
+            bytes_(PLUGIN_HTTP_PROXY),
+            bytes_(PLUGIN_WEB_SERVER),
+            bytes_(PLUGIN_PAC_FILE),
         ])
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),

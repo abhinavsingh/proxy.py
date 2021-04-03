@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import Tuple, Callable
+from typing import Optional, Tuple, Callable
 
 import paramiko
 
@@ -44,11 +44,15 @@ class Tunnel:
                 key_filename=self.private_pem_key
             )
             print('SSH connection established...')
-            transport: paramiko.transport.Transport = ssh.get_transport()
+            transport: Optional[paramiko.transport.Transport] = ssh.get_transport(
+            )
+            assert transport is not None
             transport.request_port_forward('', self.remote_proxy_port)
             print('Tunnel port forward setup successful...')
             while True:
-                conn: paramiko.channel.Channel = transport.accept(timeout=1)
+                conn: Optional[paramiko.channel.Channel] = transport.accept(
+                    timeout=1)
+                assert conn is not None
                 e = transport.get_exception()
                 if e:
                     raise e

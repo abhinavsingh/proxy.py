@@ -9,28 +9,29 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
+from typing import Optional
 
+from proxy.proxy import Proxy
 from proxy.core.acceptor import AcceptorPool
-from proxy.common.flags import Flags
-
-from examples.base_server import BaseServerHandler
+from proxy.core.base import BaseTcpServerHandler
 
 
-class EchoServerHandler(BaseServerHandler):  # type: ignore
+class EchoServerHandler(BaseTcpServerHandler):
     """Sets client socket to non-blocking during initialization."""
 
     def initialize(self) -> None:
         self.client.connection.setblocking(False)
 
-    def handle_data(self, data: memoryview) -> None:
+    def handle_data(self, data: memoryview) -> Optional[bool]:
         # echo back to client
         self.client.queue(data)
+        return None
 
 
 def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
-        flags=Flags(port=12345, num_workers=1, threadless=True),
+        flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
         work_klass=EchoServerHandler)
     try:
         pool.setup()

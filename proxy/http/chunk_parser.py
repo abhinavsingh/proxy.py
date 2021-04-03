@@ -33,7 +33,7 @@ class ChunkParser:
         self.size: Optional[int] = None
 
     def parse(self, raw: bytes) -> bytes:
-        more = True if len(raw) > 0 else False
+        more = len(raw) > 0
         while more and self.state != chunkParserStates.COMPLETE:
             more, raw = self.process(raw)
         return raw

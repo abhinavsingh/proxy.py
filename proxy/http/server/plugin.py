@@ -9,12 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 from abc import ABC, abstractmethod
+import argparse
 from typing import List, Tuple
 from uuid import UUID
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
 
-from ...common.flags import Flags
 from ...core.connection import TcpClientConnection
 from ...core.event import EventQueue
 
@@ -25,7 +25,7 @@ class HttpWebServerBasePlugin(ABC):
     def __init__(
             self,
             uid: UUID,
-            flags: Flags,
+            flags: argparse.Namespace,
             client: TcpClientConnection,
             event_queue: EventQueue):
         self.uid = uid

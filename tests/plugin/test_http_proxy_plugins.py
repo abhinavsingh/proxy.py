@@ -16,7 +16,7 @@ from urllib import parse as urlparse
 from unittest import mock
 from typing import cast
 
-from proxy.common.flags import Flags
+from proxy.proxy import Proxy
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
@@ -38,7 +38,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
               mock_selector: mock.Mock) -> None:
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Flags()
+        self.flags = Proxy.initialize()
         self.plugin = mock.MagicMock()
 
         self.mock_fromfd = mock_fromfd

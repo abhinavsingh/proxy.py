@@ -187,7 +187,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(host_hdr)
         self.assertEqual(self.parser.total_size,
                          len(pkt) + len(CRLF) + len(host_hdr))
-        self.assertDictEqual(self.parser.headers, dict())
+        self.assertDictEqual(self.parser.headers, {})
         self.assertEqual(self.parser.buffer, b'Host: localhost:8080')
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 

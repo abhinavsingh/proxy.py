@@ -9,16 +9,17 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
+from typing import Optional
 
+from proxy.proxy import Proxy
+from proxy.common.utils import wrap_socket
 from proxy.core.acceptor import AcceptorPool
 from proxy.core.connection import TcpClientConnection
-from proxy.common.flags import Flags
-from proxy.common.utils import wrap_socket
 
-from examples.base_server import BaseServerHandler
+from proxy.core.base import BaseTcpServerHandler
 
 
-class EchoSSLServerHandler(BaseServerHandler):  # type: ignore
+class EchoSSLServerHandler(BaseTcpServerHandler):
     """Wraps client socket during initialization."""
 
     def initialize(self) -> None:
@@ -26,23 +27,24 @@ class EchoSSLServerHandler(BaseServerHandler):  # type: ignore
         # here using wrap_socket() utility.
         assert self.flags.keyfile is not None and self.flags.certfile is not None
         conn = wrap_socket(
-            self.client.connection,  # type: ignore
+            self.client.connection,
             self.flags.keyfile,
             self.flags.certfile)
         conn.setblocking(False)
         # Upgrade plain TcpClientConnection to SSL connection object
         self.client = TcpClientConnection(
-            conn=conn, addr=self.client.addr)  # type: ignore
+            conn=conn, addr=self.client.addr)
 
-    def handle_data(self, data: memoryview) -> None:
+    def handle_data(self, data: memoryview) -> Optional[bool]:
         # echo back to client
         self.client.queue(data)
+        return None
 
 
 def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
-        flags=Flags(
+        flags=Proxy.initialize(
             port=12345,
             num_workers=1,
             threadless=True,

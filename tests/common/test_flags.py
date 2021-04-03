@@ -8,6 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from proxy.common.utils import bytes_
+from proxy.common.constants import PLUGIN_HTTP_PROXY
 import unittest
 
 from typing import List, Dict
@@ -86,7 +88,7 @@ class TestFlags(unittest.TestCase):
 
     def test_unique_plugin_from_bytes(self) -> None:
         self.flags = Proxy.initialize([], plugins=[
-            b'proxy.http.proxy.HttpProxyPlugin',
+            bytes_(PLUGIN_HTTP_PROXY),
         ])
         self.assert_plugins({'HttpProtocolHandlerPlugin': [
             HttpProxyPlugin,
@@ -94,7 +96,7 @@ class TestFlags(unittest.TestCase):
 
     def test_unique_plugin_from_args(self) -> None:
         self.flags = Proxy.initialize([
-            '--plugins', 'proxy.http.proxy.HttpProxyPlugin',
+            '--plugins', PLUGIN_HTTP_PROXY,
         ])
         self.assert_plugins({'HttpProtocolHandlerPlugin': [
             HttpProxyPlugin,

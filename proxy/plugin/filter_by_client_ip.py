@@ -10,20 +10,27 @@
 """
 from typing import Optional
 
+from ..common.flag import flags
 from ..http.exception import HttpRequestRejected
 from ..http.parser import HttpParser
 from ..http.codes import httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
 
 
+flags.add_argument(
+    '--filtered-client-ips',
+    type=str,
+    default='127.0.0.1,::1',
+    help='Default: 127.0.0.1,::1.  Comma separated list of IPv4 and IPv6 addresses.'
+)
+
+
 class FilterByClientIpPlugin(HttpProxyBasePlugin):
     """Drop traffic by inspecting incoming client IP address."""
 
-    FILTERED_IPS = ['127.0.0.1', '::1']
-
     def before_upstream_connection(
             self, request: HttpParser) -> Optional[HttpParser]:
-        if self.client.addr[0] in self.FILTERED_IPS:
+        if self.client.addr[0] in self.flags.filtered_client_ips.split(','):
             raise HttpRequestRejected(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT, reason=b'I\'m a tea pot',
                 headers={
