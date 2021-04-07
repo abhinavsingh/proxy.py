@@ -21,6 +21,7 @@ from .proxy_pool import ProxyPoolPlugin
 from .filter_by_client_ip import FilterByClientIpPlugin
 from .filter_by_url_regex import FilterByURLRegexPlugin
 from .modify_chunk_response import ModifyChunkResponsePlugin
+from .add_header import AddHeaderPlugin
 
 __all__ = [
     'CacheResponsesPlugin',
@@ -37,4 +38,5 @@ __all__ = [
     'FilterByClientIpPlugin',
     'ModifyChunkResponsePlugin',
     'FilterByURLRegexPlugin',
+    'AddHeaderPlugin'
 ]
