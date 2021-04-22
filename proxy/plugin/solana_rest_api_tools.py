@@ -248,17 +248,19 @@ def solana2ether(public_key):
     return bytes(Web3.keccak(bytes.fromhex(public_key))[-20:])
 
 def create_program_address(ether, program_id, base):
-#    cli = solana_cli(solana_url)
-#    output = cli.call("create-program-address {} {}".format(seed, program_id))
-#    items = output.rstrip().split('  ')
-#    return (items[0], int(items[1]))
+   cli = solana_cli(solana_url)
+   output = cli.call("create-program-address {} {}".format(ether, program_id))
+   items = output.rstrip().split('  ')
+   return (items[0], int(items[1]))
+
+def create_seed_address(ether, program_id, base):
     if isinstance(ether, str):
         if ether.startswith('0x'): ether = ether[2:]
     else: ether = ether.hex()
     seed = b58encode(bytes.fromhex(ether))
     acc = accountWithSeed(base, seed, PublicKey(program_id))
     logger.debug('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
-    return (acc, 255)
+    return (acc, 255, seed)
 
 def call_emulated(base_account, contract_id, caller_id, data):
     output = emulator(base_account.public_key(), contract_id, caller_id, data)
@@ -331,7 +333,7 @@ def deploy(contract, evm_loader):
     #logger.debug(type(output), output)
     return json.loads(output.splitlines()[-1])
 
-def createEtherAccountTrx(client, ether, evm_loader_id, signer, space=0):
+def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
     if isinstance(ether, str):
         if ether.startswith('0x'): ether = ether[2:]
     else: ether = ether.hex()
@@ -339,19 +341,31 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, space=0):
     logger.debug('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
     seed = b58encode(bytes.fromhex(ether))
     base = signer.public_key()
-    trx = Transaction()
-    trx.add(createAccountWithSeed(base, base, seed, 10**9, 65+space, PublicKey(evm_loader_id)))
-    trx.add(TransactionInstruction(
-        program_id=evm_loader_id,
-        data=bytes.fromhex('66000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
+    data=bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
             lamports=10**9,
-            space=space,
+            space=0,
             ether=bytes.fromhex(ether),
-            nonce=nonce)),
-        keys=[
-            AccountMeta(pubkey=base, is_signer=True, is_writable=True),
-            AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
-        ]))
+            nonce=nonce))
+    trx = Transaction()
+    if code_acc is None:
+        trx.add(TransactionInstruction(
+            program_id=evm_loader_id,
+            data=data,
+            keys=[
+                AccountMeta(pubkey=base, is_signer=True, is_writable=True),
+                AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=system, is_signer=False, is_writable=False),
+            ]))
+    else:
+        trx.add(TransactionInstruction(
+            program_id=evm_loader_id,
+            data=data,
+            keys=[
+                AccountMeta(pubkey=base, is_signer=True, is_writable=True),
+                AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=PublicKey(code_acc), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=system, is_signer=False, is_writable=False),
+            ]))
     return (trx, sol)
 
 def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
