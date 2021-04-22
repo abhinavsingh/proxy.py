@@ -39,11 +39,18 @@ rentid = "SysvarRent111111111111111111111111111111111"
 system = "11111111111111111111111111111111"
 
 ACCOUNT_INFO_LAYOUT = cStruct(
+    "tag" / Int8ul,
     "eth_acc" / Bytes(20),
     "nonce" / Int8ul,
     "trx_count" / Bytes(8),
     "signer_acc" / Bytes(32),
-    "code_size" / Int32ul
+    "code_acc" / Bytes(32),
+)
+
+CODE_INFO_LAYOUT = cStruct(
+    "tag" / Int8ul,
+    "owner" / Bytes(20),
+    "code_size" / Bytes(4),
 )
 
 CREATE_ACCOUNT_LAYOUT = cStruct(
