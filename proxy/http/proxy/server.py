@@ -185,8 +185,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         '%s:%d timed out on recv' %
                         self.server.addr)
                     return True
-                else:
-                    raise e
+                raise e
             except ssl.SSLWantReadError:    # Try again later
                 # logger.warning('SSLWantReadError encountered while reading from server, will retry ...')
                 return False
@@ -196,7 +195,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         '%s:%d unreachable on recv' %
                         self.server.addr)
                     return True
-                elif e.errno == errno.ECONNRESET:
+                if e.errno == errno.ECONNRESET:
                     logger.warning('Connection reset by upstream: %r' % e)
                 else:
                     logger.exception(
@@ -317,8 +316,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             else:
                 self.server.queue(raw)
             return None
-        else:
-            return raw
+        return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if not self.request.has_upstream_server():

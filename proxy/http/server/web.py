@@ -207,7 +207,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
-        elif self.request.state == httpParserStates.COMPLETE and \
+        if self.request.state == httpParserStates.COMPLETE and \
                 self.request.is_http_1_1_keep_alive() and \
                 self.route is not None:
             if self.pipeline_request is None:
