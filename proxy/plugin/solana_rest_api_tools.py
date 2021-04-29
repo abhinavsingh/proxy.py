@@ -296,7 +296,7 @@ def call_signed(acc, client, ethTrx):
         else:
             add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=acc_desc["writable"]))
             if acc_desc["contract"]:
-                add_keys_05.append(AccountMeta(pubkey=acc_desc["contract"], is_signer=FAlse, is_writable=acc_desc["writable"]))
+                add_keys_05.append(AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=acc_desc["writable"]))
         if acc_desc["new"]:
             logger.debug("Create solana accounts for %s: %s %s", acc_desc["address"], acc_desc["account"], acc_desc["contract"])
             # TODO Process case with creation of new contract
