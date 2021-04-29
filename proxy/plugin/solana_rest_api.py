@@ -74,7 +74,7 @@ class EthereumModel:
         return 0
 
     def eth_estimateGas(self, param):
-        call_emulated(self.signer, param['to'], param['from'], param['data'])
+        call_emulated(param['to'], param['from'], param['data'])
         return 21000
 
     def __repr__(self):
@@ -137,7 +137,7 @@ class EthereumModel:
             caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
             contract_id = obj['to']
             data = obj['data']
-            return "0x"+call_emulated(self.signer, contract_id, caller_id, data)['result']
+            return "0x"+call_emulated(contract_id, caller_id, data)['result']
         except Exception as err:
             logger.debug("eth_call %s", err)
             return '0x'
