@@ -179,8 +179,8 @@ class EthereumAddress:
     def __bytes__(self): return self.data
 
 
-def emulator(base_account, contract, sender, data):
-    cmd = 'emulator {} {} {} {} {} {}'.format(solana_url, base_account, evm_loader_id, contract, sender, data)
+def emulator(contract, sender, data):
+    cmd = 'emulator {} {} {} {} {}'.format(solana_url, evm_loader_id, contract, sender, data)
     try:
         return subprocess.check_output(cmd, shell=True, universal_newlines=True)
     except subprocess.CalledProcessError as err:
@@ -248,10 +248,13 @@ def solana2ether(public_key):
     return bytes(Web3.keccak(bytes.fromhex(public_key))[-20:])
 
 def create_program_address(ether, program_id, base):
-   cli = solana_cli(solana_url)
-   output = cli.call("create-program-address {} {}".format(ether, program_id))
-   items = output.rstrip().split('  ')
-   return (items[0], int(items[1]))
+    if isinstance(ether, str):
+        if ether.startswith('0x'): ether = ether[2:]
+    else: ether = ether.hex()
+    cli = solana_cli(solana_url)
+    output = cli.call("create-program-address {} {}".format(ether, program_id))
+    items = output.rstrip().split('  ')
+    return (items[0], int(items[1]))
 
 def create_seed_address(ether, program_id, base):
     if isinstance(ether, str):
@@ -262,8 +265,8 @@ def create_seed_address(ether, program_id, base):
     logger.debug('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
     return (acc, 255, seed)
 
-def call_emulated(base_account, contract_id, caller_id, data):
-    output = emulator(base_account.public_key(), contract_id, caller_id, data)
+def call_emulated(contract_id, caller_id, data):
+    output = emulator(contract_id, caller_id, data)
     result = json.loads(output)
     logger.debug("call_emulated %s %s %s return %s", contract_id, caller_id, data, result)
     exit_status = result['exit_status']
@@ -278,29 +281,29 @@ def call_emulated(base_account, contract_id, caller_id, data):
 
 def call_signed(acc, client, ethTrx):
     sender_ether = bytes.fromhex(ethTrx.sender())
-    (contract_sol, _) = create_program_address(ethTrx.toAddress.hex(), evm_loader_id, acc.public_key())
-    (code_sol, _, _) = create_seed_address(ethTrx.toAddress.hex(), evm_loader_id, acc.public_key())
-    (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id, acc.public_key())
 
     trx = Transaction()
-    sender_sol_info = client.get_account_info(sender_sol, commitment='recent')
-    if sender_sol_info['result']['value'] is None:
-        logger.debug("Create solana caller account...")
-        trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
-
-    logger.debug("solana caller: %s", sender_sol)
 
     add_keys_05 = []
-    output_json = call_emulated(acc, ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
+    output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
     for acc_desc in output_json["accounts"]:
-        call_inner_eth = bytes.fromhex(acc_desc['address'][2:])
-        (call_inner, _) = create_program_address(call_inner_eth, evm_loader_id, acc.public_key())
-        if call_inner not in [contract_sol, code_sol, sender_sol]:
-            add_keys_05.append(AccountMeta(pubkey=call_inner, is_signer=False, is_writable=acc_desc["writable"]))
-            if acc_desc["new"] == True:    
-                logger.debug("Create solana account %s %s", call_inner_eth, call_inner)
-                trx.add(createEtherAccountTrx(client, call_inner_eth, evm_loader_id, acc, space=20*1024)[0])
+        address = bytes.fromhex(acc_desc["address"][2:])
+        if address == ethTrx.toAddress:
+            (contract_sol, code_sol) = (acc_desc["account"], acc_desc["contract"])
+        elif address == sender_ether:
+            sender_sol = (acc_desc["account"])
+        else:
+            add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=acc_desc["writable"]))
+            if acc_desc["contract"]:
+                add_keys_05.append(AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=acc_desc["writable"]))
+        if acc_desc["new"]:
+            logger.debug("Create solana accounts for %s: %s %s", acc_desc["address"], acc_desc["account"], acc_desc["contract"])
+            # TODO Process case with creation of new contract
+            #seed = b58encode(address)
+            #code_account = accountWithSeed(acc.public_key(), seed, PublicKey(evm_loader_id))
+            #trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024, PublicKey(evm_loader_id)))
+            trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, None)[0])
 
     trx.add(TransactionInstruction(
         program_id=keccakprog,
