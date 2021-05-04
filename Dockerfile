@@ -1,28 +1,31 @@
+FROM cybercoredev/solana:latest AS cli
+
+FROM cybercoredev/evm_loader:latest AS spl
+
 FROM python:3.8-alpine as base
-FROM base as builder
-
-COPY requirements.txt /app/
-COPY setup.py /app/
-COPY README.md /app/
-COPY proxy/ /app/proxy/
-WORKDIR /app
-RUN pip install --upgrade pip && \
-    pip install --install-option="--prefix=/deps" .
-
-FROM base
-
-LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
-      com.abhinavsingh.description="⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on \
-        Network monitoring, controls & Application development, testing, debugging." \
-      com.abhinavsingh.url="https://github.com/abhinavsingh/proxy.py" \
-      com.abhinavsingh.vcs-url="https://github.com/abhinavsingh/proxy.py" \
-      com.abhinavsingh.docker.cmd="docker run -it --rm -p 8899:8899 abhinavsingh/proxy.py"
-
-COPY --from=builder /deps /usr/local
-
 # Install openssl to enable TLS interception within container
 RUN apk update && apk add openssl
+RUN pip install --upgrade pip
 
-EXPOSE 8899/tcp
-ENTRYPOINT [ "proxy" ]
-CMD [ "--hostname=0.0.0.0" ]
+COPY --from=cli /opt/solana/bin/solana \
+                /opt/solana/bin/solana-faucet \
+                /opt/solana/bin/solana-keygen \
+                /opt/solana/bin/solana-validator \
+                /opt/solana/bin/solana-genesis \
+                /cli/bin/
+
+COPY --from=spl /opt/evm_loader.so /spl/bin/
+COPY --from=spl /opt/emulator /spl/bin/
+
+RUN python3 -m venv venv
+RUN source venv/bin/activate
+RUN pip install -r requirements.txt
+RUN pip install web3 pysha3
+RUN pip install -Iv solana==0.6.5
+
+WORKDIR /proxy
+
+ENV PATH /venv/bin:/cli/bin/:/spl/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+EXPOSE 8899/tcp 9090/tcp
+ENTRYPOINT [ "python3" ]
+CMD [ "-m proxy --hostname 127.0.0.1 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1" ]

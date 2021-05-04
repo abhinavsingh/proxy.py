@@ -1,0 +1,11 @@
+steps:
+  - label: ":docker: build docker image"
+    command: 
+      - ".buildkite/steps/build-image.sh"
+      - ".buildkite/steps/upload-image.sh"
+
+  - wait
+
+  - label: ":floppy_disk: publish image"
+    command: ".buildkite/steps/publish-image.sh"
+    branches: "master develop ci-* v*.*.*"
