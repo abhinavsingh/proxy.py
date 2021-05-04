@@ -45,6 +45,8 @@ ACCOUNT_INFO_LAYOUT = cStruct(
     "trx_count" / Bytes(8),
     "signer_acc" / Bytes(32),
     "code_acc" / Bytes(32),
+    "is_blocked" / Int8ul,
+    "blocked_by" / Bytes(32),
 )
 
 CODE_INFO_LAYOUT = cStruct(
@@ -180,7 +182,7 @@ class EthereumAddress:
 
 
 def emulator(contract, sender, data):
-    cmd = 'emulator {} {} {} {} {}'.format(solana_url, evm_loader_id, contract, sender, data)
+    cmd = 'neon-cli emulate --url {} --evm_loader {} {} {} {}'.format(solana_url, evm_loader_id, sender, contract, data)
     try:
         return subprocess.check_output(cmd, shell=True, universal_newlines=True)
     except subprocess.CalledProcessError as err:
