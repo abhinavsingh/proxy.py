@@ -2,10 +2,20 @@ FROM cybercoredev/solana:latest AS cli
 
 FROM cybercoredev/evm_loader:latest AS spl
 
-FROM python:3.8-alpine as base
-# Install openssl to enable TLS interception within container
-RUN apk update && apk add openssl
-RUN pip install --upgrade pip
+FROM ubuntu:20.04
+
+COPY . /opt
+WORKDIR /opt
+
+RUN apt -y update
+RUN DEBIAN_FRONTEND=noninteractive apt -y install \
+                                          software-properties-common \
+                                          openssl \
+                                          ca-certificates \
+                                          curl
+RUN add-apt-repository universe
+RUN apt -y install python3-pip python3-venv
+RUN rm -rf /var/lib/apt/lists/*
 
 COPY --from=cli /opt/solana/bin/solana \
                 /opt/solana/bin/solana-faucet \
@@ -15,13 +25,13 @@ COPY --from=cli /opt/solana/bin/solana \
                 /cli/bin/
 
 COPY --from=spl /opt/evm_loader.so /spl/bin/
-COPY --from=spl /opt/emulator /spl/bin/
+COPY --from=spl /opt/neon-cli* /spl/bin/
 
 RUN python3 -m venv venv
-RUN source venv/bin/activate
+RUN pip3 install --upgrade pip
+RUN /bin/bash -c "source venv/bin/activate"
+RUN ls .
 RUN pip install -r requirements.txt
-RUN pip install web3 pysha3
-RUN pip install -Iv solana==0.6.5
 
 WORKDIR /proxy
 
