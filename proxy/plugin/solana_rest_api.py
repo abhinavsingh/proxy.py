@@ -23,11 +23,12 @@ from sha3 import keccak_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress, create_program_address, evm_loader_id, getLamports, \
+from .solana_rest_api_tools import EthereumAddress, create_program_address, create_storage_account, evm_loader_id, getLamports, \
     getAccountInfo,  deploy, transaction_history, solana_cli, solana_url, call_signed, call_emulated, \
     Trx, deploy_contract, EthereumError
 from web3 import Web3
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -59,6 +60,7 @@ class EthereumModel:
         self.vrs = {}
         self.eth_sender = {}
         self.contract_address = {}
+        self.storage = create_storage_account(self.client, funding=self.signer, base=self.signer, seed=bytes(str(random.randint(0, 0xFFFFFFFF)), 'utf8'))
 
         self.contracts = {}
         self.accounts = {}
@@ -321,7 +323,7 @@ class EthereumModel:
                     (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx)
                     #self.contract_address[eth_signature] = contract_eth
                 else:
-                    signature = call_signed( self.signer, self.client, trx)
+                    signature = call_signed(self.signer, self.client, trx, self.storage, steps=500)
 
                 eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
                 logger.debug('Transaction signature: %s %s', signature, eth_signature)

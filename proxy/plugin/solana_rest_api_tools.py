@@ -5,7 +5,7 @@ import time
 import subprocess
 import os
 import base64
-from base58 import b58encode
+from base58 import b58encode, b58decode
 from eth_keys import keys as eth_keys
 from typing import NamedTuple
 import random
@@ -118,16 +118,21 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
         data=data
     )
 
+def create_storage_account(client, funding, base, seed):
+    storage = accountWithSeed(base.public_key(), seed, PublicKey(evm_loader_id))
 
+    if client.get_balance(storage)['result']['value'] == 0:
+        trx = Transaction()
+        trx.add(createAccountWithSeed(funding.public_key(), base.public_key(), seed, 10**9, 128*1024, PublicKey(evm_loader_id)))
+        client.send_transaction(trx, funding, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
 
+    return storage
 
-
-def make_keccak_instruction_data(check_instruction_index, msg_len):
+def make_keccak_instruction_data(check_instruction_index, msg_len, data_start = 1):
     if check_instruction_index > 255 and check_instruction_index < 0:
         raise Exception("Invalid index for instruction - {}".format(check_instruction_index))
 
     check_count = 1
-    data_start = 1
     eth_address_size = 20
     signature_size = 65
     eth_address_offset = data_start
@@ -281,7 +286,7 @@ def call_emulated(contract_id, caller_id, data):
         raise Exception("evm emulator error ", result)
     return result
 
-def call_signed(acc, client, ethTrx):
+def call_signed(acc, client, ethTrx, storage, steps):
     sender_ether = bytes.fromhex(ethTrx.sender())
 
     trx = Transaction()
@@ -307,16 +312,8 @@ def call_signed(acc, client, ethTrx):
             #trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024, PublicKey(evm_loader_id)))
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, None)[0])
 
-    trx.add(TransactionInstruction(
-        program_id=keccakprog,
-        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg())),
-        keys=[
-            AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
-        ]))
-    trx.add(TransactionInstruction(
-        program_id=evm_loader_id,
-        data=bytearray.fromhex("05") + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
-        keys=[
+    accounts = [
+            AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
@@ -324,12 +321,44 @@ def call_signed(acc, client, ethTrx):
             AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
         ] + add_keys_05 + [
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-        ]))
+    ]
+    evm_loader_index = accounts.index(AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False)) + 1
 
-    result = client.send_transaction(trx, acc,
-            opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+    trx.add(TransactionInstruction(
+        program_id=keccakprog,
+        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
+        keys=[
+            AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
+        ]))
+    trx.add(TransactionInstruction(
+        program_id=evm_loader_id,
+        data=bytearray.fromhex("09") + (0).to_bytes(8, byteorder='little') + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
+        keys=accounts
+        ))
+
+    logger.debug("Partial call")
+    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
     confirm_transaction(client, result['result'])
-    return result["result"] #["transaction"]["signatures"][0]
+
+    while (True):
+        trx = Transaction()
+        trx.add(TransactionInstruction(
+            program_id=evm_loader_id,
+            data=bytearray.fromhex("0A") + steps.to_bytes(8, byteorder='little'),
+            keys=accounts
+            ))
+
+        logger.debug("Continue")
+        result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+        innerInstruction = result['result']['meta']['innerInstructions']
+        innerInstruction = next((i for i in innerInstruction if i["index"] == 0), None)
+        if (innerInstruction and innerInstruction['instructions']):
+            instruction = innerInstruction['instructions'][-1]
+            if (instruction['programIdIndex'] == evm_loader_index):
+                data = b58decode(instruction['data'])
+                if (data[0] == 6):
+                    return result['result']['transaction']['signatures'][0]
+
 
 def deploy(contract, evm_loader):
     with open(location_bin, mode='wb') as file:
