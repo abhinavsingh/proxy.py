@@ -5,7 +5,7 @@ REVISION=$(git rev-parse HEAD)
 
 docker images
 
-docker login -u=$DHUBU -p=$DHUBP
+#docker login -u $DHUBU -p $DHUBP
 
 if [[ ${BUILDKITE_BRANCH} == "master" ]]; then
     TAG=stable

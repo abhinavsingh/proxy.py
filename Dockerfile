@@ -12,7 +12,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt -y install \
                                           software-properties-common \
                                           openssl \
                                           ca-certificates \
-                                          curl
+                                          curl \
+                                          lsof
 RUN add-apt-repository universe
 RUN apt -y install python3-pip python3-venv
 RUN rm -rf /var/lib/apt/lists/*
@@ -25,7 +26,8 @@ COPY --from=cli /opt/solana/bin/solana \
                 /cli/bin/
 
 COPY --from=spl /opt/evm_loader.so /spl/bin/
-COPY --from=spl /opt/neon-cli* /spl/bin/
+COPY --from=spl /opt/neon-cli /spl/bin/
+COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
 RUN python3 -m venv venv
 RUN pip3 install --upgrade pip
@@ -33,9 +35,10 @@ RUN /bin/bash -c "source venv/bin/activate"
 RUN ls .
 RUN pip install -r requirements.txt
 
-WORKDIR /proxy
-
 ENV PATH /venv/bin:/cli/bin/:/spl/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-EXPOSE 8899/tcp 9090/tcp
-ENTRYPOINT [ "python3" ]
-CMD [ "-m proxy --hostname 127.0.0.1 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1" ]
+ENV SOLANA_URL="http://localhost:8899"
+ENV EVM_LOADER=HNUNeJDyFWbUuk9o9yrBBpyug9UXqX3Hp9JPZsLvzRno
+ENV RUN="echo run-proxy; echo $EVM_LOADER && python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1 2>&1 | tee /opt/proxy.`date +%Y-%m-%d_%H.%M.%S`.log"
+EXPOSE 9090/tcp
+#ENTRYPOINT [ "python3" ]
+#CMD [ "-m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1" ]
