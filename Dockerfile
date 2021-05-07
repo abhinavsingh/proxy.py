@@ -13,7 +13,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt -y install \
                                           openssl \
                                           ca-certificates \
                                           curl \
-                                          lsof
+                                          lsof \
+                                          iputils-ping
 RUN add-apt-repository universe
 RUN apt -y install python3-pip python3-venv
 RUN rm -rf /var/lib/apt/lists/*
@@ -24,6 +25,8 @@ COPY --from=cli /opt/solana/bin/solana \
                 /opt/solana/bin/solana-validator \
                 /opt/solana/bin/solana-genesis \
                 /cli/bin/
+
+COPY --from=spl /opt/solana/bin/solana-deploy /cli/bin/
 
 COPY --from=spl /opt/evm_loader.so /spl/bin/
 COPY --from=spl /opt/neon-cli /spl/bin/
@@ -36,8 +39,16 @@ RUN ls .
 RUN pip install -r requirements.txt
 
 ENV PATH /venv/bin:/cli/bin/:/spl/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ENV SOLANA_URL="http://localhost:8899"
+#ENV SOLANA_URL="http://localhost:8899"
+ENV SOLANA_URL="http://37.204.19.33:8899"
+#ENV SOLANA_URL="http://solana:8899"
 ENV EVM_LOADER=HNUNeJDyFWbUuk9o9yrBBpyug9UXqX3Hp9JPZsLvzRno
+
+RUN solana-keygen new --no-passphrase
+RUN solana config set -u $SOLANA_URL
+#RUN solana airdrop 1000
+#RUN solana-deploy deploy /spl/bin/evm_loader.so
+
 ENV RUN="echo run-proxy; echo $EVM_LOADER && python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1 2>&1 | tee /opt/proxy.`date +%Y-%m-%d_%H.%M.%S`.log"
 EXPOSE 9090/tcp
 #ENTRYPOINT [ "python3" ]

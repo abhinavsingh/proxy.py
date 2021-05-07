@@ -382,7 +382,7 @@ def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     logger.debug('createEtherAccount result: %s', result)
     return sol
 
-def deploy_contract(acc, client, ethTrx): 
+def deploy_contract(acc, client, ethTrx):
 
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id, acc.public_key())
@@ -412,7 +412,7 @@ def deploy_contract(acc, client, ethTrx):
         trx = Transaction()
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
-        receipt = client.send_transaction(trx, acc, 
+        receipt = client.send_transaction(trx, acc,
                 opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))['result']
         confirm_transaction(client, receipt)
 
