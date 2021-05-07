@@ -187,7 +187,8 @@ class EthereumAddress:
 
 
 def emulator(contract, sender, data):
-    cmd = 'neon-cli emulate --url {} --evm_loader {} {} {} {}'.format(solana_url, evm_loader_id, sender, contract, data)
+    cmd = 'neon-cli emulate --commitment=recent --url {} --evm_loader {} {} {} {}'.format(solana_url, evm_loader_id, sender, contract, data)
+    print(cmd)
     try:
         return subprocess.check_output(cmd, shell=True, universal_newlines=True)
     except subprocess.CalledProcessError as err:
@@ -274,8 +275,8 @@ def create_seed_address(ether, program_id, base):
 
 def call_emulated(contract_id, caller_id, data):
     output = emulator(contract_id, caller_id, data)
+    logger.debug("call_emulated %s %s %s return %s", contract_id, caller_id, data, output)
     result = json.loads(output)
-    logger.debug("call_emulated %s %s %s return %s", contract_id, caller_id, data, result)
     exit_status = result['exit_status']
     if exit_status == 'revert':
         offset = int(result['result'][8:8+64], 16)
@@ -306,14 +307,17 @@ def call_signed(acc, client, ethTrx, storage, steps):
                 add_keys_05.append(AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=acc_desc["writable"]))
         if acc_desc["new"]:
             logger.debug("Create solana accounts for %s: %s %s", acc_desc["address"], acc_desc["account"], acc_desc["contract"])
-            # TODO Process case with creation of new contract
-            #seed = b58encode(address)
-            #code_account = accountWithSeed(acc.public_key(), seed, PublicKey(evm_loader_id))
-            #trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024, PublicKey(evm_loader_id)))
-            trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, None)[0])
+            code_account = None
+            if acc_desc["code_size"]:
+                seed = b58encode(address)
+                code_account = accountWithSeed(acc.public_key(), seed, PublicKey(evm_loader_id))
+                logger.debug("     with code account %s", code_account)
+                trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, acc_desc["code_size"] + 4 * 1024, PublicKey(evm_loader_id)))
+                add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
+            trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
 
     accounts = [
-            AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
+            #AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
@@ -326,19 +330,22 @@ def call_signed(acc, client, ethTrx, storage, steps):
 
     trx.add(TransactionInstruction(
         program_id=keccakprog,
-        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
+        #data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
+        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg())),
         keys=[
             AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
         ]))
     trx.add(TransactionInstruction(
         program_id=evm_loader_id,
-        data=bytearray.fromhex("09") + (0).to_bytes(8, byteorder='little') + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
+        #data=bytearray.fromhex("09") + (0).to_bytes(8, byteorder='little') + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
+        data=bytearray.fromhex("05") + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
         keys=accounts
         ))
 
     logger.debug("Partial call")
     result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
     confirm_transaction(client, result['result'])
+    return result['result'] #['transaction']['signatures'][0]
 
     while (True):
         trx = Transaction()
