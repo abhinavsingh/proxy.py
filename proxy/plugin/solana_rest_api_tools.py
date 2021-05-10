@@ -28,10 +28,9 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-#evm_loader_id = "9TdKEctsU5L7mfMTrdBrsxHnxGbTgMiUbtSoJrEZYecs"
+# evm_loader_id = "3HQDhxLKdrrsLhU1nskrWsU9xbVzFXqWHrXbEpivwPyF"
 location_bin = ".deploy_contract.bin"
 
-tokenkeg = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 sysinstruct = "Sysvar1nstructions1111111111111111111111111"
 keccakprog = "KeccakSecp256k11111111111111111111111111111"
@@ -317,7 +316,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
 
     accounts = [
-            #AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
@@ -326,26 +325,22 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ] + add_keys_05 + [
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
     ]
-    evm_loader_index = accounts.index(AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False)) + 1
 
     trx.add(TransactionInstruction(
         program_id=keccakprog,
-        #data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
-        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg())),
+        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
         keys=[
             AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
         ]))
     trx.add(TransactionInstruction(
         program_id=evm_loader_id,
-        #data=bytearray.fromhex("09") + (0).to_bytes(8, byteorder='little') + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
-        data=bytearray.fromhex("05") + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
+        data=bytearray.fromhex("09") + steps.to_bytes(8, byteorder='little') + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
         keys=accounts
         ))
 
     logger.debug("Partial call")
     result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
     confirm_transaction(client, result['result'])
-    return result['result'] #['transaction']['signatures'][0]
 
     while (True):
         trx = Transaction()
@@ -357,6 +352,10 @@ def call_signed(acc, client, ethTrx, storage, steps):
 
         logger.debug("Continue")
         result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+        # print(result["result"])
+        acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
+        evm_loader_index = acc_meta_lst.index(evm_loader_id)
+
         innerInstruction = result['result']['meta']['innerInstructions']
         innerInstruction = next((i for i in innerInstruction if i["index"] == 0), None)
         if (innerInstruction and innerInstruction['instructions']):
@@ -418,7 +417,7 @@ def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     logger.debug('createEtherAccount result: %s', result)
     return sol
 
-def deploy_contract(acc, client, ethTrx): 
+def deploy_contract(acc, client, ethTrx):
 
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id, acc.public_key())
@@ -448,7 +447,7 @@ def deploy_contract(acc, client, ethTrx):
         trx = Transaction()
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
-        receipt = client.send_transaction(trx, acc, 
+        receipt = client.send_transaction(trx, acc,
                 opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))['result']
         confirm_transaction(client, receipt)
 

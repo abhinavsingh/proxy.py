@@ -323,7 +323,7 @@ class EthereumModel:
                     (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx)
                     #self.contract_address[eth_signature] = contract_eth
                 else:
-                    signature = call_signed(self.signer, self.client, trx, self.storage, steps=500)
+                    signature = call_signed(self.signer, self.client, trx, self.storage, steps=200)
 
                 eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
                 logger.debug('Transaction signature: %s %s', signature, eth_signature)
