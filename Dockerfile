@@ -39,17 +39,8 @@ RUN ls .
 RUN pip install -r requirements.txt
 
 ENV PATH /venv/bin:/cli/bin/:/spl/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-#ENV SOLANA_URL="http://localhost:8899"
-ENV SOLANA_URL="http://37.204.19.33:8899"
-#ENV SOLANA_URL="http://solana:8899"
-ENV EVM_LOADER=HNUNeJDyFWbUuk9o9yrBBpyug9UXqX3Hp9JPZsLvzRno
+ENV SOLANA_URL="http://localhost:8899"
+#ENV SOLANA_URL="http://37.204.19.33:8899"
 
-RUN solana-keygen new --no-passphrase
-RUN solana config set -u $SOLANA_URL
-#RUN solana airdrop 1000
-#RUN solana-deploy deploy /spl/bin/evm_loader.so
-
-ENV RUN="echo run-proxy; echo $EVM_LOADER && python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1 2>&1 | tee /opt/proxy.`date +%Y-%m-%d_%H.%M.%S`.log"
 EXPOSE 9090/tcp
-#ENTRYPOINT [ "python3" ]
-#CMD [ "-m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1" ]
+ENTRYPOINT [ "./proxy/run-proxy.sh" ]

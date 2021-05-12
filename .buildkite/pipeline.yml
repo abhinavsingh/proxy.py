@@ -1,8 +1,14 @@
 steps:
   - label: ":docker: build docker image"
-    command: 
+    command:
       - ".buildkite/steps/build-image.sh"
       - ".buildkite/steps/upload-image.sh"
+
+  - wait
+
+  - label: ":cop::skin-tone-2: deploy check"
+    command: ".buildkite/steps/deploy-test.sh"
+    timeout: 60
 
   - wait
 
