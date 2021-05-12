@@ -1,6 +1,22 @@
 #!/bin/bash
 set -euo pipefail
 
+wait-for-proxy()
+{
+  for i in {1..10}; do
+      if curl -s --header "Content-Type: application/json" --data '{"method":"eth_blockNumber","params":[],"id":93,"jsonrpc":"2.0"}' $PROXY_URL > /dev/null;
+      then
+        echo `date +%H:%M:%S`" proxy is available"
+        return 0
+      fi
+      echo `date +%H:%M:%S`" proxy is unavailable - sleeping"
+      sleep 60
+  done
+
+  echo `date +%H:%M:%S`" proxy is unavailable - time is over"
+  return 9847
+}
+
 while getopts t: option; do
 case "${option}" in
     t) IMAGETAG=${OPTARG};;
@@ -23,12 +39,17 @@ function cleanup_docker {
 trap cleanup_docker EXIT
 sleep 10
 
-echo "Run tests..."
-cmd='python3 -m unittest discover -v --start-directory /opt/commun.contracts/scripts/'
-docker run --rm --network dc-net -ti \
-     -e PROXY_URL=http://proxy:9090/solana \
-     ${EXTRA_ARGS:-} \
-     $PROXY_IMAGE '/opt/deploy-test.sh'
-echo "Run tests return"
+SOLANA_URL=http://solana:8899
+PROXY_URL=http://127.0.0.1:9090/solana
+#PROXY_URL=http://proxy:9090/solana
 
-exit $?
+echo "Wait proxy..." && wait-for-proxy
+echo "Run tests..."
+docker run --rm --network proxy_net -ti \
+     -e SOLANA_URL \
+     -e PROXY_URL \
+     --entrypoint ./proxy/deploy-test.sh \
+     ${EXTRA_ARGS:-} \
+     $PROXY_IMAGE
+echo "Run tests return"
+exit 0
