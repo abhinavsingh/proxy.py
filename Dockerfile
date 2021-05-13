@@ -7,15 +7,17 @@ FROM ubuntu:20.04
 COPY . /opt
 WORKDIR /opt
 
-RUN DEBIAN_FRONTEND=noninteractive add-apt-repository universe && \
-    apt update && \
+RUN apt update \
+    && \
+    DEBIAN_FRONTEND=noninteractive \
     apt -y install \
     software-properties-common \
     openssl \
     ca-certificates \
     curl \
     python3-pip \
-    python3-venv && \
+    python3-venv \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=cli /opt/solana/bin/solana \
@@ -27,8 +29,8 @@ COPY --from=cli /opt/solana/bin/solana \
 
 COPY --from=spl /opt/solana/bin/solana-deploy /cli/bin/
 
-COPY --from=spl /opt/evm_loader.so /spl/bin/
-COPY --from=spl /opt/neon-cli /spl/bin/
+COPY --from=spl /opt/evm_loader.so \
+                /opt/neon-cli /spl/bin/
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
 RUN python3 -m venv venv
