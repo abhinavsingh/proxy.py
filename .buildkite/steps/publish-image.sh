@@ -11,6 +11,8 @@ if [[ ${BUILDKITE_BRANCH} == "master" ]]; then
     TAG=stable
 elif [[ ${BUILDKITE_BRANCH} == "develop" ]]; then
     TAG=latest
+elif [[ ${BUILDKITE_BRANCH} == "40-proxy-docker" ]]; then
+    TAG=latest
 else
     TAG=${BUILDKITE_BRANCH}
 fi
