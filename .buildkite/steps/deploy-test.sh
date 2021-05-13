@@ -3,6 +3,8 @@ set -euo pipefail
 
 wait-for-proxy()
 {
+  PROXY_URL="$1"
+
   for i in {1..10}; do
       if curl -s --header "Content-Type: application/json" --data '{"method":"eth_blockNumber","params":[],"id":93,"jsonrpc":"2.0"}' $PROXY_URL > /dev/null;
       then
@@ -39,15 +41,13 @@ function cleanup_docker {
 trap cleanup_docker EXIT
 sleep 10
 
-SOLANA_URL=http://solana:8899
 PROXY_URL=http://127.0.0.1:9090/solana
-#PROXY_URL=http://proxy:9090/solana
 
-echo "Wait proxy..." && wait-for-proxy
+echo "Wait proxy..." && wait-for-proxy "$PROXY_URL"
 echo "Run tests..."
 docker run --rm --network proxy_net -ti \
-     -e SOLANA_URL \
-     -e PROXY_URL \
+     -e SOLANA_URL=http://solana:8899 \
+     -e PROXY_URL=http://proxy:9090/solana \
      --entrypoint ./proxy/deploy-test.sh \
      ${EXTRA_ARGS:-} \
      $PROXY_IMAGE

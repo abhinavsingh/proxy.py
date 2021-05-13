@@ -25,6 +25,8 @@ services:
     hostname: proxy
     ports:
       - 127.0.0.1:9090:9090
+    expose:
+      - "9090"
     networks:
       - net
 
