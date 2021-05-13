@@ -11,8 +11,6 @@ if [[ ${BUILDKITE_BRANCH} == "master" ]]; then
     TAG=stable
 elif [[ ${BUILDKITE_BRANCH} == "develop" ]]; then
     TAG=latest
-elif [[ ${BUILDKITE_BRANCH} == "40-proxy-docker" ]]; then
-    TAG=latest
 else
     TAG=${BUILDKITE_BRANCH}
 fi
@@ -20,4 +18,3 @@ fi
 docker pull cybercoredev/proxy:${REVISION}
 docker tag cybercoredev/proxy:${REVISION} cybercoredev/proxy:${TAG}
 docker push cybercoredev/proxy:${TAG}
-
