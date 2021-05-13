@@ -28,7 +28,7 @@ case "${option}" in
 esac
 done
 
-REVISION=$(git rev-parse HEAD)
+export REVISION=$(git rev-parse HEAD)
 PROXY_IMAGE=cybercoredev/proxy:${IMAGETAG:-$REVISION}
 
 docker-compose -f proxy/docker-compose-test.yml up -d
