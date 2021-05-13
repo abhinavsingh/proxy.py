@@ -1,28 +1,46 @@
-FROM python:3.8-alpine as base
-FROM base as builder
+FROM cybercoredev/solana:latest AS cli
 
-COPY requirements.txt /app/
-COPY setup.py /app/
-COPY README.md /app/
-COPY proxy/ /app/proxy/
-WORKDIR /app
-RUN pip install --upgrade pip && \
-    pip install --install-option="--prefix=/deps" .
+FROM cybercoredev/evm_loader:latest AS spl
 
-FROM base
+FROM ubuntu:20.04
 
-LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
-      com.abhinavsingh.description="⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on \
-        Network monitoring, controls & Application development, testing, debugging." \
-      com.abhinavsingh.url="https://github.com/abhinavsingh/proxy.py" \
-      com.abhinavsingh.vcs-url="https://github.com/abhinavsingh/proxy.py" \
-      com.abhinavsingh.docker.cmd="docker run -it --rm -p 8899:8899 abhinavsingh/proxy.py"
+COPY . /opt
+WORKDIR /opt
 
-COPY --from=builder /deps /usr/local
+RUN apt -y update
+RUN DEBIAN_FRONTEND=noninteractive apt -y install \
+                                          software-properties-common \
+                                          openssl \
+                                          ca-certificates \
+                                          curl \
+                                          lsof \
+                                          iputils-ping
+RUN add-apt-repository universe
+RUN apt -y install python3-pip python3-venv
+RUN rm -rf /var/lib/apt/lists/*
 
-# Install openssl to enable TLS interception within container
-RUN apk update && apk add openssl
+COPY --from=cli /opt/solana/bin/solana \
+                /opt/solana/bin/solana-faucet \
+                /opt/solana/bin/solana-keygen \
+                /opt/solana/bin/solana-validator \
+                /opt/solana/bin/solana-genesis \
+                /cli/bin/
 
-EXPOSE 8899/tcp
-ENTRYPOINT [ "proxy" ]
-CMD [ "--hostname=0.0.0.0" ]
+COPY --from=spl /opt/solana/bin/solana-deploy /cli/bin/
+
+COPY --from=spl /opt/evm_loader.so /spl/bin/
+COPY --from=spl /opt/neon-cli /spl/bin/
+COPY --from=spl /opt/neon-cli /spl/bin/emulator
+
+RUN python3 -m venv venv
+RUN pip3 install --upgrade pip
+RUN /bin/bash -c "source venv/bin/activate"
+RUN ls .
+RUN pip install -r requirements.txt
+
+ENV PATH /venv/bin:/cli/bin/:/spl/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV SOLANA_URL="http://localhost:8899"
+#ENV SOLANA_URL="http://37.204.19.33:8899"
+
+EXPOSE 9090/tcp
+ENTRYPOINT [ "./proxy/run-proxy.sh" ]
