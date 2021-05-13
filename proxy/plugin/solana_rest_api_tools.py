@@ -286,6 +286,30 @@ def call_emulated(contract_id, caller_id, data):
         raise Exception("evm emulator error ", result)
     return result
 
+
+def sol_instr_10_continue(acc, client, step_count, accounts):
+    while (True):
+        trx = Transaction()
+        trx.add(TransactionInstruction(program_id=evm_loader_id,
+                               data=bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder='little'),
+                               keys= accounts))
+
+        logger.debug("Continue")
+        result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+        # print(result["result"])
+        acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
+        evm_loader_index = acc_meta_lst.index(evm_loader_id)
+
+        innerInstruction = result['result']['meta']['innerInstructions']
+        innerInstruction = next((i for i in innerInstruction if i["index"] == 0), None)
+        if (innerInstruction and innerInstruction['instructions']):
+            instruction = innerInstruction['instructions'][-1]
+            if (instruction['programIdIndex'] == evm_loader_index):
+                data = b58decode(instruction['data'])
+                if (data[0] == 6):
+                    return result['result']['transaction']['signatures'][0]
+
+
 def call_signed(acc, client, ethTrx, storage, steps):
     sender_ether = bytes.fromhex(ethTrx.sender())
 
@@ -342,28 +366,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
     result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
     confirm_transaction(client, result['result'])
 
-    while (True):
-        trx = Transaction()
-        trx.add(TransactionInstruction(
-            program_id=evm_loader_id,
-            data=bytearray.fromhex("0A") + steps.to_bytes(8, byteorder='little'),
-            keys=accounts
-            ))
-
-        logger.debug("Continue")
-        result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
-        # print(result["result"])
-        acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
-        evm_loader_index = acc_meta_lst.index(evm_loader_id)
-
-        innerInstruction = result['result']['meta']['innerInstructions']
-        innerInstruction = next((i for i in innerInstruction if i["index"] == 0), None)
-        if (innerInstruction and innerInstruction['instructions']):
-            instruction = innerInstruction['instructions'][-1]
-            if (instruction['programIdIndex'] == evm_loader_index):
-                data = b58decode(instruction['data'])
-                if (data[0] == 6):
-                    return result['result']['transaction']['signatures'][0]
+    return sol_instr_10_continue(acc, client, steps, accounts)
 
 
 def deploy(contract, evm_loader):
@@ -417,7 +420,7 @@ def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     logger.debug('createEtherAccount result: %s', result)
     return sol
 
-def deploy_contract(acc, client, ethTrx):
+def deploy_contract(acc, client, ethTrx, storage, steps):
 
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id, acc.public_key())
@@ -484,23 +487,35 @@ def deploy_contract(acc, client, ethTrx):
     if sender_sol_info['result']['value'] is None:
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
 
-    trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), code_seed, 10**9, CODE_INFO_LAYOUT.sizeof()+len(msg)+2048, PublicKey(evm_loader_id)))
-    trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
-    trx.add(TransactionInstruction(program_id=evm_loader_id,
-                                   data=bytes.fromhex('08'),
-                                   keys=[
-                                       AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
-                                       AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
-                                       AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
-                                       AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
-                                       AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
-                                       AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
-                                   ]))
-    result = client.send_transaction(trx, acc,
-            opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+    if client.get_balance(code_sol, commitment='recent')['result']['value'] == 0:
+        trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), code_seed, 10**9, CODE_INFO_LAYOUT.sizeof()+len(msg)+2048, PublicKey(evm_loader_id)))
+    if client.get_balance(contract_sol, commitment='recent')['result']['value'] == 0:
+        trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
+    if len(trx.instructions):
+        result = client.send_transaction(trx, acc,
+                opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+        signature = result["result"] #["transaction"]["signatures"][0]
+        confirm_transaction(client, signature)
 
-    signature = result["result"] #["transaction"]["signatures"][0]
-    confirm_transaction(client, signature)
+    accounts = [AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
+                ]
+    # PartialCallFromRawEthereumTX
+    logger.debug("PartialCallFromRawEthereumTX:")
+    trx = Transaction()
+    trx.add(TransactionInstruction(program_id=evm_loader_id,
+                           data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little'),
+                           keys=accounts))
+    result = client.send_transaction(trx, acc,
+                                     opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+    # ExecuteTrxFromAccountDataIterative
+    logger.debug("ExecuteTrxFromAccountDataIterative:")
+    signature = sol_instr_10_continue(acc, client, steps, accounts[1:])
     return (signature, '0x'+contract_eth.hex())
 
 def transaction_history(acc):
