@@ -46,7 +46,6 @@ PROXY_URL=http://127.0.0.1:9090/solana
 echo "Wait proxy..." && wait-for-proxy "$PROXY_URL"
 echo "Run tests..."
 docker run --rm --network proxy_net -ti \
-     -e SOLANA_URL=http://solana:8899 \
      -e PROXY_URL=http://proxy:9090/solana \
      --entrypoint ./proxy/deploy-test.sh \
      ${EXTRA_ARGS:-} \
