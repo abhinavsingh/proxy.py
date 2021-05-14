@@ -5,14 +5,9 @@ FROM cybercoredev/evm_loader:latest AS spl
 FROM ubuntu:20.04
 
 RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive \
-    apt -y install \
-    software-properties-common \
-    openssl \
-    ca-certificates \
-    curl \
-    python3-pip \
-    python3-venv && \
+    DEBIAN_FRONTEND=noninteractive apt -y install \
+            software-properties-common openssl curl \
+            ca-certificates python3-pip python3-venv && \
     rm -rf /var/lib/apt/lists/*
 
 COPY ./requirements.txt /opt
