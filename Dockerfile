@@ -4,8 +4,7 @@ FROM cybercoredev/evm_loader:latest AS spl
 
 FROM ubuntu:20.04
 
-RUN apt update \
-    && \
+RUN apt update && \
     DEBIAN_FRONTEND=noninteractive \
     apt -y install \
     software-properties-common \
@@ -13,9 +12,16 @@ RUN apt update \
     ca-certificates \
     curl \
     python3-pip \
-    python3-venv \
-    && \
+    python3-venv && \
     rm -rf /var/lib/apt/lists/*
+
+COPY ./requirements.txt /opt
+WORKDIR /opt
+
+RUN python3 -m venv venv && \
+    pip3 install --upgrade pip && \
+    /bin/bash -c "source venv/bin/activate" && \
+    pip install -r requirements.txt
 
 COPY --from=cli /opt/solana/bin/solana \
                 /opt/solana/bin/solana-faucet \
@@ -25,21 +31,9 @@ COPY --from=cli /opt/solana/bin/solana \
                 /cli/bin/
 
 COPY --from=spl /opt/solana/bin/solana-deploy /cli/bin/
-
 COPY --from=spl /opt/evm_loader.so \
                 /opt/neon-cli /spl/bin/
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
-
-COPY ./requirements.txt /opt
-WORKDIR /opt
-
-RUN python3 -m venv venv \
-    && \
-    pip3 install --upgrade pip \
-    && \
-    /bin/bash -c "source venv/bin/activate" \
-    && \
-    pip install -r requirements.txt
 
 COPY . /opt
 
