@@ -45,6 +45,7 @@ sleep 10
 export PROXY_URL=http://127.0.0.1:9090/solana
 
 echo "Wait proxy..." && wait-for-proxy "$PROXY_URL"
+
 echo "Run proxy tests..."
 docker run --rm -ti --network=host \
      -e PROXY_URL \
