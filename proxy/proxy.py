@@ -172,7 +172,7 @@ class Proxy:
         # Discover flags from requested plugin.
         # This also surface external plugin flags under --help
         for i, f in enumerate(input_args):
-            if f == '--plugin':
+            if f in ('--plugin', '--plugins'):
                 Proxy.import_plugin(bytes_(input_args[i + 1]))
 
         # Parse flags
