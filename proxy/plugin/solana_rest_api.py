@@ -55,7 +55,7 @@ class EthereumModel:
             values = bytes(nums)
             self.signer = sol_Account(values)
 
-        self.client = SolanaClient('http://localhost:8899')
+        self.client = SolanaClient(solana_url)
         self.signatures = {}
         self.vrs = {}
         self.eth_sender = {}
@@ -472,7 +472,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                     b'Access-Control-Max-Age': b'86400'
                 })))
             return
-        
+
         print('headers', request.headers)
         logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
         response = None
