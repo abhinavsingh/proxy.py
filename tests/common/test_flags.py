@@ -9,7 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 from proxy.common.utils import bytes_
 from proxy.common.constants import PLUGIN_HTTP_PROXY
 import unittest
@@ -24,8 +24,8 @@ from proxy.plugin import FilterByUpstreamHostPlugin
 
 def clean_Proxy_initialize(input_args: Optional[List[str]] = None,
                            **opts: Any) -> argparse.Namespace:
-    with ProcessPoolExecutor() as pool:
-        return pool.submit(Proxy.initialize, input_args, **opts).result()
+    with multiprocessing.get_context('spawn').Pool() as pool:
+        return pool.apply(Proxy.initialize, (input_args, ), opts)
 
 
 class TestFlags(unittest.TestCase):
@@ -38,8 +38,8 @@ class TestFlags(unittest.TestCase):
                     len([o for o in self.flags.plugins[k.encode()] if o == p]), 1)
 
     def assert_plugin_flags(self, *flags: str) -> None:
-        non_plugin_flags = set(dict(clean_Proxy_initialize()._get_kwargs()))
-        plugin_flags = set(dict(self.flags._get_kwargs())) - non_plugin_flags
+        non_plugin_flags = set(vars(clean_Proxy_initialize()))
+        plugin_flags = set(vars(self.flags)) - non_plugin_flags
         for flag in flags:
             self.assertIn(flag.lstrip('-').replace('-', '_'), plugin_flags,
                           "Can't find '%s' flag" % flag)
