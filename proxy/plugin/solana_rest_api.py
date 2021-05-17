@@ -23,8 +23,8 @@ from sha3 import keccak_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress, create_program_address, create_storage_account, evm_loader_id, getLamports, \
-    getAccountInfo,  deploy, transaction_history, solana_cli, solana_url, call_signed, call_emulated, \
+from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm_loader_id, getLamports, \
+    getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
     Trx, deploy_contract, EthereumError
 from web3 import Web3
 import logging
@@ -41,9 +41,8 @@ modelInstance = None
 class EthereumModel:
     def __init__(self):
         # Initialize user account
-        cli = solana_cli(solana_url)
-        res = cli.call("config get")
-        res = res.splitlines()[-1]
+        res = solana_cli().call("config get")
+        res = res.splitlines()[-2]
         substr = "Keypair Path: "
         if not res.startswith(substr):
             raise Exception("cannot get keypair path")
@@ -473,7 +472,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 })))
             return
 
-        print('headers', request.headers)
+        # print('headers', request.headers)
         logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
         response = None
 
