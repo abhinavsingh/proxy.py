@@ -28,7 +28,6 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-# evm_loader_id = "3HQDhxLKdrrsLhU1nskrWsU9xbVzFXqWHrXbEpivwPyF"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -94,7 +93,7 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
     seed_str = str(seed, 'utf8')
     data = SYSTEM_INSTRUCTIONS_LAYOUT.build(
         dict(
-            instruction_type = SystemInstructionType.CreateAccountWithSeed,
+            instruction_type = SystemInstructionType.CREATE_ACCOUNT_WITH_SEED,
             args=dict(
                 base=bytes(base),
                 seed=dict(length=len(seed_str), chars=seed_str),
