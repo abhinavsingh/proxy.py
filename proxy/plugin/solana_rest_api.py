@@ -320,7 +320,7 @@ class EthereumModel:
             try:
                 contract_eth = None
                 if (not trx.toAddress):
-                    (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx)
+                    (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, steps=2000)
                     #self.contract_address[eth_signature] = contract_eth
                 else:
                     signature = call_signed(self.signer, self.client, trx, self.storage, steps=2000)
