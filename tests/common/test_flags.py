@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from concurrent.futures import ProcessPoolExecutor
 from proxy.common.utils import bytes_
 from proxy.common.constants import PLUGIN_HTTP_PROXY
 import unittest
@@ -20,6 +21,11 @@ from proxy.plugin import CacheResponsesPlugin
 from proxy.plugin import FilterByUpstreamHostPlugin
 
 
+def clean_Proxy_initialize(*args, **kwargs):
+    with ProcessPoolExecutor() as pool:
+        return pool.submit(Proxy.initialize, *args, **kwargs).result()
+
+
 class TestFlags(unittest.TestCase):
     def assert_plugins(self, expected: Dict[str, List[type]]) -> None:
         for k in expected:
@@ -28,6 +34,13 @@ class TestFlags(unittest.TestCase):
                 self.assertIn(p, self.flags.plugins[k.encode()])
                 self.assertEqual(
                     len([o for o in self.flags.plugins[k.encode()] if o == p]), 1)
+
+    def assert_plugin_flags(self, *flags: str) -> None:
+        non_plugin_flags = set(dict(clean_Proxy_initialize()._get_kwargs()))
+        plugin_flags = set(dict(self.flags._get_kwargs())) - non_plugin_flags
+        for flag in flags:
+            self.assertIn(flag.lstrip('-').replace('-', '_'), plugin_flags,
+                          "Can't find '%s' flag" % flag)
 
     def test_load_plugin_from_bytes(self) -> None:
         self.flags = Proxy.initialize([], plugins=[
@@ -109,6 +122,16 @@ class TestFlags(unittest.TestCase):
         self.assert_plugins({'HttpProtocolHandlerPlugin': [
             HttpProxyPlugin,
         ]})
+
+    def test_plugin_flags_with_plugin(self) -> None:
+        self.flags = clean_Proxy_initialize([
+            '--plugin', 'tests.plugin.dummy.DummyPlugin'])
+        self.assert_plugin_flags('--dummy-1', '--dummy-2')
+
+    def test_plugin_flags_with_plugins(self) -> None:
+        self.flags = clean_Proxy_initialize([
+            '--plugins', 'tests.plugin.dummy.DummyPlugin'])
+        self.assert_plugin_flags('--dummy-1', '--dummy-2')
 
 
 if __name__ == '__main__':
