@@ -8,12 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import argparse
 from concurrent.futures import ProcessPoolExecutor
 from proxy.common.utils import bytes_
 from proxy.common.constants import PLUGIN_HTTP_PROXY
 import unittest
 
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 
 from proxy.proxy import Proxy
 from proxy.http.proxy import HttpProxyPlugin
@@ -21,9 +22,10 @@ from proxy.plugin import CacheResponsesPlugin
 from proxy.plugin import FilterByUpstreamHostPlugin
 
 
-def clean_Proxy_initialize(*args, **kwargs):
+def clean_Proxy_initialize(input_args: Optional[List[str]] = None,
+                           **opts: Any) -> argparse.Namespace:
     with ProcessPoolExecutor() as pool:
-        return pool.submit(Proxy.initialize, *args, **kwargs).result()
+        return pool.submit(Proxy.initialize, input_args, **opts).result()
 
 
 class TestFlags(unittest.TestCase):
