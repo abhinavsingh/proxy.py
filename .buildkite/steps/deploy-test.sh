@@ -53,14 +53,14 @@ echo "Run proxy tests..."
 docker run --rm -ti --network=host \
      -e PROXY_URL \
      --entrypoint ./proxy/deploy-test.sh \
+     ${EXTRA_ARGS:-} \
      $PROXY_IMAGE \
-     ${EXTRA_ARGS:-}
 
 echo "Run uniswap-v2-core tests..."
 docker run --rm -ti --network=host \
      --entrypoint ./deploy-test.sh \
+     ${EXTRA_ARGS:-} \
      $UNISWAP_V2_CORE_IMAGE \
-     ${EXTRA_ARGS:-}
 
 echo "Run tests return"
 exit 0

@@ -15,7 +15,10 @@ for i in {1..10}; do
     sleep 2
 done
 
+echo airdropping...
 solana airdrop 1000
+
+echo deploying evm_loader...
 solana-deploy deploy /spl/bin/evm_loader.so > evm_loader_id
 export EVM_LOADER=$(cat evm_loader_id | tail -n 1 | python3 -c 'import sys, json; data=json.load(sys.stdin); print(data["programId"]);')
 echo EVM_LOADER=$EVM_LOADER
