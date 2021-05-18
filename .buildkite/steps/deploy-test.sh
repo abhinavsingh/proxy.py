@@ -38,6 +38,8 @@ docker pull $UNISWAP_V2_CORE_IMAGE
 docker-compose -f proxy/docker-compose-test.yml up -d
 
 function cleanup_docker {
+    docker logs proxy >proxy.log
+    docker logs solana >solana.log
     echo "Cleanup docker-compose..."
     docker-compose -f proxy/docker-compose-test.yml down
     echo "Cleanup docker-compose done."

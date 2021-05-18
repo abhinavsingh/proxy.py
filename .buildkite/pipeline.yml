@@ -3,6 +3,9 @@ steps:
     command:
       - ".buildkite/steps/build-image.sh"
       - ".buildkite/steps/upload-image.sh"
+    artifact_paths:
+      - "proxy.log"
+      - "solana.log"
 
   - wait
 
