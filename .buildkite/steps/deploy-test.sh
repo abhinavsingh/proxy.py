@@ -31,6 +31,10 @@ done
 export REVISION=$(git rev-parse HEAD)
 PROXY_IMAGE=cybercoredev/proxy:${IMAGETAG:-$REVISION}
 
+UNISWAP_V2_CORE_IMAGE=cybercoredev/uniswap-v2-core:stable
+# Refreshing uniswap-v2-core image is required to run .buildkite/steps/deploy-test.sh locally
+docker pull $UNISWAP_V2_CORE_IMAGE
+
 docker-compose -f proxy/docker-compose-test.yml up -d
 
 function cleanup_docker {
@@ -41,14 +45,22 @@ function cleanup_docker {
 trap cleanup_docker EXIT
 sleep 10
 
-PROXY_URL=http://127.0.0.1:9090/solana
+export PROXY_URL=http://127.0.0.1:9090/solana
 
 echo "Wait proxy..." && wait-for-proxy "$PROXY_URL"
-echo "Run tests..."
-docker run --rm --network proxy_net -ti \
-     -e PROXY_URL=http://proxy:9090/solana \
+
+echo "Run proxy tests..."
+docker run --rm -ti --network=host \
+     -e PROXY_URL \
      --entrypoint ./proxy/deploy-test.sh \
      ${EXTRA_ARGS:-} \
-     $PROXY_IMAGE
+     $PROXY_IMAGE \
+
+echo "Run uniswap-v2-core tests..."
+docker run --rm -ti --network=host \
+     --entrypoint ./deploy-test.sh \
+     ${EXTRA_ARGS:-} \
+     $UNISWAP_V2_CORE_IMAGE \
+
 echo "Run tests return"
 exit 0
