@@ -42,11 +42,14 @@ class EthereumModel:
     def __init__(self):
         # Initialize user account
         res = solana_cli().call("config get")
-        res = res.splitlines()[-2]
         substr = "Keypair Path: "
-        if not res.startswith(substr):
+        path = ""
+        for line in res.splitlines():
+            if line.startswith(substr):
+                path = line[len(substr):].strip()
+        if path == "":
             raise Exception("cannot get keypair path")
-        path = res[len(substr):]
+
         with open(path.strip(), mode='r') as file:
             pk = (file.read())
             nums = list(map(int, pk.strip("[]").split(',')))
