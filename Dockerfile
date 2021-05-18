@@ -1,6 +1,6 @@
-FROM cybercoredev/solana:latest AS cli
+FROM cybercoredev/solana:${SOLANA_REVISION} AS cli
 
-FROM cybercoredev/evm_loader:latest AS spl
+FROM cybercoredev/evm_loader:${EVM_LOADER_REVISION} AS spl
 
 FROM ubuntu:20.04
 
