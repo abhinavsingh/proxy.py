@@ -3,15 +3,15 @@ steps:
     command:
       - ".buildkite/steps/build-image.sh"
       - ".buildkite/steps/upload-image.sh"
-    artifact_paths:
-      - "proxy.log"
-      - "solana.log"
 
   - wait
 
   - label: ":cop::skin-tone-2: deploy check"
     command: ".buildkite/steps/deploy-test.sh"
     timeout: 90
+    artifact_paths:
+      - "proxy.log"
+      - "solana.log"
 
   - wait
 
