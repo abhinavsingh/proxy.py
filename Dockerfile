@@ -28,7 +28,7 @@ COPY --from=cli /opt/solana/bin/solana \
                 /opt/solana/bin/solana-genesis \
                 /cli/bin/
 
-COPY --from=spl /opt/solana/bin/solana-deploy /cli/bin/
+COPY --from=spl /opt/solana/bin/solana /cli/bin/
 COPY --from=spl /opt/evm_loader.so \
                 /opt/neon-cli /spl/bin/
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
