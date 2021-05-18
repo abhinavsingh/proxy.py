@@ -28,7 +28,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-# evm_loader_id = "3HQDhxLKdrrsLhU1nskrWsU9xbVzFXqWHrXbEpivwPyF"
+# evm_loader_id = "DoSgknaLRnKqCH1JdPzpZpPPNa2VksxzxMmGx9xgcmUV"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -186,22 +186,14 @@ class EthereumAddress:
 
 
 def emulator(contract, sender, data):
-    cmd = 'neon-cli emulate --commitment=recent --url {} --evm_loader {} {} {} {}'.format(solana_url, evm_loader_id, sender, contract, data)
+    cmd = 'emulate --commitment=recent  --evm_loader {} {} {} {}'.format(evm_loader_id, sender, contract, data)
     print(cmd)
-    try:
-        return subprocess.check_output(cmd, shell=True, universal_newlines=True)
-    except subprocess.CalledProcessError as err:
-        import sys
-        logger.debug("ERR: solana error {}".format(err))
-        raise
+    return neon_cli().call(cmd)
 
 
 class solana_cli:
-    def __init__(self, url):
-        self.url = url
-
     def call(self, arguments):
-        cmd = 'solana --url {} {}'.format(self.url, arguments)
+        cmd = 'solana --url {} {}'.format(solana_url, arguments)
         try:
             return subprocess.check_output(cmd, shell=True, universal_newlines=True)
         except subprocess.CalledProcessError as err:
@@ -209,25 +201,15 @@ class solana_cli:
             logger.debug("ERR: solana error {}".format(err))
             raise
 
-def finalize_transaction(client, tx_sig):
-    """Confirm a transaction."""
-    TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
-    elapsed_time = 0
-    while elapsed_time < TIMEOUT:
-        resp = client.get_confirmed_transaction(tx_sig)
-        if resp["result"]:
-#            logger.debug('Confirmed transaction:', resp)
-            break
-        sleep_time = 3
-        if not elapsed_time:
-            sleep_time = 7
-            time.sleep(sleep_time)
-        else:
-            time.sleep(sleep_time)
-        elapsed_time += sleep_time
-    if not resp["result"]:
-        raise RuntimeError("could not finalize transaction: ", tx_sig)
-    return resp
+class neon_cli:
+    def call(self, arguments):
+        cmd = 'neon-cli --url {} {}'.format(solana_url, arguments)
+        try:
+            return subprocess.check_output(cmd, shell=True, universal_newlines=True)
+        except subprocess.CalledProcessError as err:
+            import sys
+            logger.debug("ERR: neon-cli error {}".format(err))
+            raise
 
 def confirm_transaction(client, tx_sig, confirmations=1):
     """Confirm a transaction."""
@@ -254,16 +236,15 @@ def solana2ether(public_key):
     from web3 import Web3
     return bytes(Web3.keccak(bytes.fromhex(public_key))[-20:])
 
-def create_program_address(ether, program_id, base):
+def ether2program(ether, program_id, base):
     if isinstance(ether, str):
         if ether.startswith('0x'): ether = ether[2:]
     else: ether = ether.hex()
-    cli = solana_cli(solana_url)
-    output = cli.call("create-program-address {} {}".format(ether, program_id))
-    items = output.rstrip().split('  ')
+    output = neon_cli().call("create-program-address {} --evm_loader {}".format(ether, program_id))
+    items = output.rstrip().split(' ')
     return (items[0], int(items[1]))
 
-def create_seed_address(ether, program_id, base):
+def ether2seed(ether, program_id, base):
     if isinstance(ether, str):
         if ether.startswith('0x'): ether = ether[2:]
     else: ether = ether.hex()
@@ -369,20 +350,11 @@ def call_signed(acc, client, ethTrx, storage, steps):
     return sol_instr_10_continue(acc, client, steps, accounts)
 
 
-def deploy(contract, evm_loader):
-    with open(location_bin, mode='wb') as file:
-        file.write(contract)
-
-    cli = solana_cli(solana_url)
-    output = cli.call("deploy --use-evm-loader {} {}".format(evm_loader, location_bin))
-    #logger.debug(type(output), output)
-    return json.loads(output.splitlines()[-1])
-
 def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
     if isinstance(ether, str):
         if ether.startswith('0x'): ether = ether[2:]
     else: ether = ether.hex()
-    (sol, nonce) = create_program_address(ether, evm_loader_id, signer.public_key())
+    (sol, nonce) = ether2program(ether, evm_loader_id, signer.public_key())
     logger.debug('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
     seed = b58encode(bytes.fromhex(ether))
     base = signer.public_key()
@@ -423,7 +395,7 @@ def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
 def deploy_contract(acc, client, ethTrx, storage, steps):
 
     sender_ether = bytes.fromhex(ethTrx.sender())
-    (sender_sol, _) = create_program_address(sender_ether.hex(), evm_loader_id, acc.public_key())
+    (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, acc.public_key())
     logger.debug("Sender account solana: %s %s", sender_ether, sender_sol)
 
     #info = _getAccountData(client, sender_sol, ACCOUNT_INFO_LAYOUT.sizeof())
@@ -433,8 +405,8 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     # Create legacy contract address from (sender_eth, nonce)
     #rlp = pack(sender_ether, ethTrx.nonce or None)
     contract_eth = keccak_256(rlp.encode((sender_ether, ethTrx.nonce))).digest()[-20:]
-    (contract_sol, contract_nonce) = create_program_address(contract_eth.hex(), evm_loader_id, acc.public_key())
-    (code_sol, code_nonce, code_seed) = create_seed_address(contract_eth.hex(), evm_loader_id, acc.public_key())
+    (contract_sol, contract_nonce) = ether2program(contract_eth.hex(), evm_loader_id, acc.public_key())
+    (code_sol, code_nonce, code_seed) = ether2seed(contract_eth.hex(), evm_loader_id, acc.public_key())
 
     logger.debug("Legacy contract address ether: %s", contract_eth.hex())
     logger.debug("Legacy contract address solana: %s %s", contract_sol, contract_nonce)
@@ -518,10 +490,6 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     signature = sol_instr_10_continue(acc, client, steps, accounts[1:])
     return (signature, '0x'+contract_eth.hex())
 
-def transaction_history(acc):
-    cli = solana_cli(solana_url)
-    output = cli.call("transaction-history {}".format(acc))
-    return output.splitlines()[-2]
 
 def _getAccountData(client, account, expected_length, owner=None):
     info = client.get_account_info(account, commitment="recent")['result']['value']
@@ -534,12 +502,12 @@ def _getAccountData(client, account, expected_length, owner=None):
     return data
 
 def getAccountInfo(client, eth_acc, base_account):
-    (account_sol, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader_id, base_account)
+    (account_sol, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader_id, base_account)
     info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     return AccountInfo.frombytes(info)
 
 def getLamports(client, evm_loader, eth_acc, base_account):
-    (account, nonce) = create_program_address(bytes(eth_acc).hex(), evm_loader, base_account)
+    (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     return int(client.get_balance(account, commitment="recent")['result']['value'])
 
 
