@@ -333,6 +333,7 @@ def send_measured_transaction(client, trx, acc):
         for m in measurements: logger.info(json.dumps(m))
     except Exception as err:
         logger.error("Can't get measurements %s"%err)
+        logger.info("Failed result: %s"%json.dumps(result, indent=3))
     return result
 
 def sol_instr_10_continue(acc, client, step_count, accounts):
