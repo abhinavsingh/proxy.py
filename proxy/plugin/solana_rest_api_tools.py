@@ -124,7 +124,6 @@ def create_storage_account(client, funding, base, seed):
     if client.get_balance(storage)['result']['value'] == 0:
         trx = Transaction()
         trx.add(createAccountWithSeed(funding.public_key(), base.public_key(), seed, 10**9, 128*1024, PublicKey(evm_loader_id)))
-        #client.send_transaction(trx, funding, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
         send_transaction(client, trx, funding)
 
     return storage
@@ -344,7 +343,6 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
                                keys= accounts))
 
         logger.debug("Continue")
-        #result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
         result = send_measured_transaction(client, trx, acc)
         # print(result["result"])
         acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
@@ -413,7 +411,6 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ))
 
     logger.debug("Partial call")
-    #result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
     result = send_measured_transaction(client, trx, acc)
     signature = result["result"]["transaction"]["signatures"][0]
     confirm_transaction(client, signature)
@@ -458,8 +455,6 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
 
 def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     (trx, sol) = createEtherAccountTrx(client, ether, evm_loader_id, signer, space)
-    #result = client.send_transaction(trx, signer,
-    #        opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
     result = send_transaction(client, trx, signer)
     logger.debug('createEtherAccount result: %s', result)
     return sol
@@ -494,8 +489,6 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         trx = Transaction()
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
-        #receipt = client.send_transaction(trx, acc,
-        #        opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))['result']
         result = send_measured_transaction(client, trx, acc)
         signature = result["result"]["transaction"]["signatures"][0]
         confirm_transaction(client, signature)
@@ -538,8 +531,6 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     if client.get_balance(contract_sol, commitment='recent')['result']['value'] == 0:
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
-        #result = client.send_transaction(trx, acc,
-        #        opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
         result = send_measured_transaction(client, trx, acc)
         signature = result["result"]["transaction"]["signatures"][0]
         confirm_transaction(client, signature)
@@ -558,8 +549,6 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     trx.add(TransactionInstruction(program_id=evm_loader_id,
                            data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little'),
                            keys=accounts))
-    #result = client.send_transaction(trx, acc,
-    #                                 opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
     result = send_measured_transaction(client, trx, acc)
 
     # ExecuteTrxFromAccountDataIterative
