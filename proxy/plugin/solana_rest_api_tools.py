@@ -15,6 +15,7 @@ import struct
 import rlp
 from .eth_proto import Trx
 from solana.rpc.types import TxOpts
+import re
 
 from construct import Bytes, Int8ul, Int32ul, Int64ul, Struct as cStruct
 from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT, InstructionType as SystemInstructionType
@@ -123,7 +124,8 @@ def create_storage_account(client, funding, base, seed):
     if client.get_balance(storage)['result']['value'] == 0:
         trx = Transaction()
         trx.add(createAccountWithSeed(funding.public_key(), base.public_key(), seed, 10**9, 128*1024, PublicKey(evm_loader_id)))
-        client.send_transaction(trx, funding, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+        #client.send_transaction(trx, funding, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+        send_transaction(client, trx, funding)
 
     return storage
 
@@ -267,6 +269,71 @@ def call_emulated(contract_id, caller_id, data):
         raise Exception("evm emulator error ", result)
     return result
 
+def extract_measurements_from_receipt(receipt):
+    log_messages = receipt['result']['meta']['logMessages']
+    transaction = receipt['result']['transaction']
+    accounts = transaction['message']['accountKeys']
+    instructions = []
+    for instr in transaction['message']['instructions']:
+        program = accounts[instr['programIdIndex']]
+        instructions.append({
+            'accs': [accounts[acc] for acc in instr['accounts']],
+            'program': accounts[instr['programIdIndex']],
+            'data': b58decode(instr['data']).hex()
+        })
+
+    pattern = re.compile('Program ([0-9A-Za-z]+) (.*)')
+    messages = []
+    for log in log_messages:
+        res = pattern.match(log)
+        if res:
+            (program, reason) = res.groups()
+            if reason == 'invoke [1]': messages.append({'program':program,'logs':[]})
+        messages[-1]['logs'].append(log)
+
+    for instr in instructions:
+        if instr['program'] in ('KeccakSecp256k11111111111111111111111111111',): continue
+        if messages[0]['program'] != instr['program']:
+            raise Exception('Invalid program in log messages: expect %s, actual %s' % (messages[0]['program'], instr['program']))
+        instr['logs'] = messages.pop(0)['logs']
+        exit_result = re.match(r'Program %s (success)'%instr['program'], instr['logs'][-1])
+        if not exit_result: raise Exception("Can't get exit result")
+        instr['result'] = exit_result.group(1)
+
+        if instr['program'] == evm_loader_id:
+            memory_result = re.match(r'Program log: Total memory occupied: ([0-9]+)', instr['logs'][-3])
+            instruction_result = re.match(r'Program %s consumed ([0-9]+) of ([0-9]+) compute units'%instr['program'], instr['logs'][-2])
+            if not (memory_result and instruction_result):
+                raise Exception("Can't parse measurements for evm_loader")
+            instr['measurements'] = {
+                    'instructions': instruction_result.group(1),
+                    'memory': memory_result.group(1)
+                }
+
+    result = []
+    for instr in instructions:
+        if instr['program'] == evm_loader_id:
+            result.append({
+                    'program':instr['program'],
+                    'measurements':instr['measurements'],
+                    'result':instr['result'],
+                    'data':instr['data']
+                })
+    return result
+
+def send_transaction(client, trx, acc):
+    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+    return result
+
+# Do not rename this function! This name used in CI measurements (see function `cleanup_docker` in .buildkite/steps/deploy-test.sh)
+def send_measured_transaction(client, trx, acc):
+    result = send_transaction(client, trx, acc)
+    try:
+        measurements = extract_measurements_from_receipt(result)
+        for m in measurements: logger.info(json.dumps(m))
+    except Exception as err:
+        logger.error("Can't get measurements %s"%err)
+    return result
 
 def sol_instr_10_continue(acc, client, step_count, accounts):
     while (True):
@@ -276,7 +343,8 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
                                keys= accounts))
 
         logger.debug("Continue")
-        result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+        #result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+        result = send_measured_transaction(client, trx, acc)
         # print(result["result"])
         acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
         evm_loader_index = acc_meta_lst.index(evm_loader_id)
@@ -344,8 +412,10 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ))
 
     logger.debug("Partial call")
-    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
-    confirm_transaction(client, result['result'])
+    #result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+    result = send_measured_transaction(client, trx, acc)
+    signature = result["result"]["transaction"]["signatures"][0]
+    confirm_transaction(client, signature)
 
     return sol_instr_10_continue(acc, client, steps, accounts)
 
@@ -387,8 +457,9 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
 
 def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     (trx, sol) = createEtherAccountTrx(client, ether, evm_loader_id, signer, space)
-    result = client.send_transaction(trx, signer,
-            opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+    #result = client.send_transaction(trx, signer,
+    #        opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+    result = send_transaction(client, trx, signer)
     logger.debug('createEtherAccount result: %s', result)
     return sol
 
@@ -422,9 +493,11 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         trx = Transaction()
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
-        receipt = client.send_transaction(trx, acc,
-                opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))['result']
-        confirm_transaction(client, receipt)
+        #receipt = client.send_transaction(trx, acc,
+        #        opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))['result']
+        result = send_measured_transaction(client, trx, acc)
+        signature = result["result"]["transaction"]["signatures"][0]
+        confirm_transaction(client, signature)
 
     # Build deploy transaction
     msg = ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg()
@@ -464,9 +537,10 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     if client.get_balance(contract_sol, commitment='recent')['result']['value'] == 0:
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
-        result = client.send_transaction(trx, acc,
-                opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
-        signature = result["result"] #["transaction"]["signatures"][0]
+        #result = client.send_transaction(trx, acc,
+        #        opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+        result = send_measured_transaction(client, trx, acc)
+        signature = result["result"]["transaction"]["signatures"][0]
         confirm_transaction(client, signature)
 
     accounts = [AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
@@ -483,8 +557,10 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     trx.add(TransactionInstruction(program_id=evm_loader_id,
                            data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little'),
                            keys=accounts))
-    result = client.send_transaction(trx, acc,
-                                     opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+    #result = client.send_transaction(trx, acc,
+    #                                 opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+    result = send_measured_transaction(client, trx, acc)
+
     # ExecuteTrxFromAccountDataIterative
     logger.debug("ExecuteTrxFromAccountDataIterative:")
     signature = sol_instr_10_continue(acc, client, steps, accounts[1:])

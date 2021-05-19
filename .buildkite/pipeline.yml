@@ -12,6 +12,7 @@ steps:
     artifact_paths:
       - "proxy.log"
       - "solana.log"
+      - "measurements.log"
 
   - wait
 
