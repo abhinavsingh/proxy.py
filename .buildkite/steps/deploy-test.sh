@@ -44,6 +44,11 @@ function cleanup_docker {
     echo "Cleanup docker-compose..."
     docker-compose -f proxy/docker-compose-test.yml down
     echo "Cleanup docker-compose done."
+
+    if grep '\[I\] send_measured_transaction' <measurements.log; then
+        echo 'Failed to get measurements'
+        exit 1
+    fi
 }
 trap cleanup_docker EXIT
 sleep 10
