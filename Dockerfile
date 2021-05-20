@@ -14,6 +14,7 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY ./requirements.txt /opt
+COPY ./proxy/solana_patch.sh /opt
 WORKDIR /opt
 
 RUN python3 -m venv venv && \
@@ -34,6 +35,7 @@ COPY --from=spl /opt/evm_loader.so \
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
 COPY . /opt
+RUN /opt/solana_patch.sh
 
 ENV PATH /venv/bin:/cli/bin/:/spl/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV SOLANA_URL="http://localhost:8899"
