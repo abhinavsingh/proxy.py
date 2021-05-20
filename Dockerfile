@@ -1,9 +1,9 @@
-ARG SOLANA_REVISION=9e68ded325b8ceb25d346cd6e2656f790ba89033
+ARG SOLANA_REVISION=v1.6.9-resources
 ARG EVM_LOADER_REVISION=7d873f6d9b00feba7f80dcad5a4e74023ab3b80c
 
-FROM cybercoredev/solana:9e68ded325b8ceb25d346cd6e2656f790ba89033 AS cli
+FROM cybercoredev/solana:${SOLANA_REVISION} AS cli
 
-FROM cybercoredev/evm_loader:7d873f6d9b00feba7f80dcad5a4e74023ab3b80c AS spl
+FROM cybercoredev/evm_loader:${EVM_LOADER_REVISION} AS spl
 
 FROM ubuntu:20.04
 
