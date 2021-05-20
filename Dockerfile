@@ -1,4 +1,4 @@
-ARG SOLANA_REVISION=latest
+ARG SOLANA_REVISION=v1.6.9-resources
 ARG EVM_LOADER_REVISION=latest
 
 FROM cybercoredev/solana:${SOLANA_REVISION} AS cli
