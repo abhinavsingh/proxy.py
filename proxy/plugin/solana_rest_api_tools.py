@@ -29,7 +29,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-# evm_loader_id = "DoSgknaLRnKqCH1JdPzpZpPPNa2VksxzxMmGx9xgcmUV"
+evm_loader_id = "216YkBAHgTqFFanAqD35e6NC1hXeXYp627eUh24LKe2F"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -223,6 +223,7 @@ def confirm_transaction(client, tx_sig, confirmations=1):
         if resp["result"]:
             status = resp['result']['value'][0]
             if status and (status['confirmationStatus'] == 'finalized' or \
+            # if status and (status['confirmationStatus'] == 'confirmed' or \
                status['confirmationStatus'] == 'confirmed' and status['confirmations'] >= confirmations):
 #            logger.debug('Confirmed transaction:', resp)
                 return
@@ -321,7 +322,8 @@ def extract_measurements_from_receipt(receipt):
     return result
 
 def send_transaction(client, trx, acc):
-    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+    # result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))
+    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="confirmed"))
     return result
 
 # Do not rename this function! This name used in CI measurements (see function `cleanup_docker` in .buildkite/steps/deploy-test.sh)
@@ -344,7 +346,11 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
 
         logger.debug("Continue")
         result = send_measured_transaction(client, trx, acc)
-        # print(result["result"])
+        time.sleep(1)
+        # logger.debug("!!!!!!!!!!!  sol_instr_10_continue trx receipt: %s", result["result"])
+        result = client.get_confirmed_transaction(result["result"])
+
+        print(result["result"])
         acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
         evm_loader_index = acc_meta_lst.index(evm_loader_id)
 
@@ -410,10 +416,20 @@ def call_signed(acc, client, ethTrx, storage, steps):
         keys=accounts
         ))
 
+
     logger.debug("Partial call")
     result = send_measured_transaction(client, trx, acc)
-    signature = result["result"]["transaction"]["signatures"][0]
-    confirm_transaction(client, signature)
+    time.sleep(1)
+
+    logger.debug("!!!!!!!!!!! trx receipt: %s", result["result"])
+    # time.sleep(20)
+    result = client.get_confirmed_transaction(result["result"])
+    logger.debug('!!!!!!!!!!!  trx details: %s', json.dumps(result))
+
+    # signature = result["result"]["transaction"]["signatures"][0]
+    # signature = result["transaction"]["signatures"][0]
+    # print(signature)
+    # confirm_transaction(client, signature)
 
     return sol_instr_10_continue(acc, client, steps, accounts)
 
@@ -532,8 +548,11 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
         result = send_measured_transaction(client, trx, acc)
-        signature = result["result"]["transaction"]["signatures"][0]
-        confirm_transaction(client, signature)
+        time.sleep(1)
+        result = client.get_confirmed_transaction(result["result"])
+        # signature = result["result"]["transaction"]["signatures"][0]
+        # confirm_transaction(client, signature)
+
 
     accounts = [AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
@@ -550,6 +569,8 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
                            data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little'),
                            keys=accounts))
     result = send_measured_transaction(client, trx, acc)
+    time.sleep(1)
+    result = client.get_confirmed_transaction(result["result"])
 
     # ExecuteTrxFromAccountDataIterative
     logger.debug("ExecuteTrxFromAccountDataIterative:")
