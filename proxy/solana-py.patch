@@ -1,0 +1,40 @@
+--- api.py.orig_	2021-05-21 15:39:04.888747442 +0300
++++ api.py	2021-05-21 15:44:56.234628549 +0300
+@@ -33,6 +33,11 @@
+     return types.MemcmpOpts(*args, **kwargs)
+ 
+ 
++class SendTransactionError(Exception):
++    def __init__(self, result):
++        super().__init__(result['message'])
++        self.result=result
++
+ class Client:  # pylint: disable=too-many-public-methods
+     """Client class."""
+ 
+@@ -284,7 +289,7 @@
+ 
+         return self._provider.make_request(types.RPCMethod("getConfirmedSignaturesForAddress2"), account, opts)
+ 
+-    def get_confirmed_transaction(self, tx_sig: str, encoding: str = "json") -> types.RPCResponse:
++    def get_confirmed_transaction(self, tx_sig: str, encoding: str = "json", commitment = "confirmed") -> types.RPCResponse:
+         """Returns transaction details for a confirmed transaction.
+ 
+         :param tx_sig: Transaction signature as base-58 encoded string N encoding attempts to use program-specific
+@@ -315,7 +320,7 @@
+            'signatures': ['3PtGYH77LhhQqTXP4SmDVJ85hmDieWsgXCUbn14v7gYyVYPjZzygUQhTk3bSTYnfA48vCM1rmWY7zWL3j1EVKmEy']}},
+          'id': 4}
+         """  # noqa: E501 # pylint: disable=line-too-long
+-        return self._provider.make_request(types.RPCMethod("getConfirmedTransaction"), tx_sig, encoding)
++        return self._provider.make_request(types.RPCMethod("getConfirmedTransaction"), tx_sig, {self._comm_key: commitment, self._encoding_key: encoding})
+ 
+     def get_epoch_info(self, commitment: Commitment = Max) -> types.RPCResponse:
+         """Returns information about the current epoch.
+@@ -1039,6 +1044,7 @@
+     def __post_send(self, resp: types.RPCResponse, skip_confirm: bool, conf_comm: Commitment) -> types.RPCResponse:
+         if resp.get("error"):
+             self._provider.logger.error(resp.get("error"))
++            raise SendTransactionError(resp.get("error"))
+         if not resp.get("result"):
+             raise Exception("Failed to send transaction")
+         if skip_confirm:

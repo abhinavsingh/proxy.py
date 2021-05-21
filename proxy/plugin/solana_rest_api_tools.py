@@ -29,7 +29,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-# evm_loader_id = "DoSgknaLRnKqCH1JdPzpZpPPNa2VksxzxMmGx9xgcmUV"
+# evm_loader_id = "216YkBAHgTqFFanAqD35e6NC1hXeXYp627eUh24LKe2F"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -321,7 +321,9 @@ def extract_measurements_from_receipt(receipt):
     return result
 
 def send_transaction(client, trx, acc):
-    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=False, preflight_commitment="recent"))
+    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="confirmed"))
+    confirm_transaction(client, result["result"])
+    result = client.get_confirmed_transaction(result["result"])
     return result
 
 # Do not rename this function! This name used in CI measurements (see function `cleanup_docker` in .buildkite/steps/deploy-test.sh)
@@ -344,6 +346,7 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
 
         logger.debug("Continue")
         result = send_measured_transaction(client, trx, acc)
+
         # print(result["result"])
         acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
         evm_loader_index = acc_meta_lst.index(evm_loader_id)
@@ -412,8 +415,6 @@ def call_signed(acc, client, ethTrx, storage, steps):
 
     logger.debug("Partial call")
     result = send_measured_transaction(client, trx, acc)
-    signature = result["result"]["transaction"]["signatures"][0]
-    confirm_transaction(client, signature)
 
     return sol_instr_10_continue(acc, client, steps, accounts)
 
@@ -490,8 +491,6 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
         result = send_measured_transaction(client, trx, acc)
-        signature = result["result"]["transaction"]["signatures"][0]
-        confirm_transaction(client, signature)
 
     # Build deploy transaction
     msg = ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg()
@@ -512,7 +511,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
                                            AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False),
                                        ]))
         receipts.append(client.send_transaction(trx, acc,
-                opts=TxOpts(skip_confirmation=True, preflight_commitment="recent"))["result"])
+                opts=TxOpts(skip_confirmation=True, preflight_commitment="confirmed"))["result"])
         offset += len(part)
     logger.debug("receipts %s", receipts)
     for rcpt in receipts:
@@ -532,8 +531,6 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
         result = send_measured_transaction(client, trx, acc)
-        signature = result["result"]["transaction"]["signatures"][0]
-        confirm_transaction(client, signature)
 
     accounts = [AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
@@ -543,16 +540,16 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
                 AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
                 ]
-    # PartialCallFromRawEthereumTX
-    logger.debug("PartialCallFromRawEthereumTX:")
+    # ExecuteTrxFromAccountDataIterative
+    logger.debug("ExecuteTrxFromAccountDataIterative:")
     trx = Transaction()
     trx.add(TransactionInstruction(program_id=evm_loader_id,
                            data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little'),
                            keys=accounts))
     result = send_measured_transaction(client, trx, acc)
 
-    # ExecuteTrxFromAccountDataIterative
-    logger.debug("ExecuteTrxFromAccountDataIterative:")
+    # Continue
+    logger.debug("Continue:")
     signature = sol_instr_10_continue(acc, client, steps, accounts[1:])
     return (signature, '0x'+contract_eth.hex())
 
