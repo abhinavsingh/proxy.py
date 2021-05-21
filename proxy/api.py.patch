@@ -1,0 +1,8 @@
+287c287
+<     def get_confirmed_transaction(self, tx_sig: str, encoding: str = "json") -> types.RPCResponse:
+---
+>     def get_confirmed_transaction(self, tx_sig: str, encoding: str = "json", commitment = "confirmed") -> types.RPCResponse:
+318c318
+<         return self._provider.make_request(types.RPCMethod("getConfirmedTransaction"), tx_sig, encoding)
+---
+>         return self._provider.make_request(types.RPCMethod("getConfirmedTransaction"), tx_sig, {self._comm_key: commitment, self._encoding_key: encoding})
