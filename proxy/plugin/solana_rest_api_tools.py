@@ -323,6 +323,7 @@ def extract_measurements_from_receipt(receipt):
 def send_transaction(client, trx, acc):
     result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="confirmed"))
     confirm_transaction(client, result["result"])
+    result = client.get_confirmed_transaction(result["result"])
     return result
 
 # Do not rename this function! This name used in CI measurements (see function `cleanup_docker` in .buildkite/steps/deploy-test.sh)
@@ -345,7 +346,6 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
 
         logger.debug("Continue")
         result = send_measured_transaction(client, trx, acc)
-        result = client.get_confirmed_transaction(result["result"])
 
         # print(result["result"])
         acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
