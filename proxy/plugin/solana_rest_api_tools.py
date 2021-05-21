@@ -29,8 +29,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-evm_loader_id = "7mctAJJGheAZK693JwqHWrqPFhDYivVLmUoSQXQRude3"
-evm_loader_id = "CPPDtyGBEYVVRxDMFj675PJrQpg4jddZJ3o6JDMP6s23"
+# evm_loader_id = "216YkBAHgTqFFanAqD35e6NC1hXeXYp627eUh24LKe2F"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
