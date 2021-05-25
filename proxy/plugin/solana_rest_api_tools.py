@@ -16,6 +16,7 @@ import rlp
 from .eth_proto import Trx
 from solana.rpc.types import TxOpts
 import re
+from solana.rpc.commitment import Confirmed
 
 from construct import Bytes, Int8ul, Int32ul, Int64ul, Struct as cStruct
 from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT, InstructionType as SystemInstructionType
@@ -121,7 +122,7 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
 def create_storage_account(client, funding, base, seed):
     storage = accountWithSeed(base.public_key(), seed, PublicKey(evm_loader_id))
 
-    if client.get_balance(storage)['result']['value'] == 0:
+    if client.get_balance(storage, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
         trx.add(createAccountWithSeed(funding.public_key(), base.public_key(), seed, 10**9, 128*1024, PublicKey(evm_loader_id)))
         send_transaction(client, trx, funding)
@@ -321,7 +322,7 @@ def extract_measurements_from_receipt(receipt):
     return result
 
 def send_transaction(client, trx, acc):
-    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment="confirmed"))
+    result = client.send_transaction(trx, acc, opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed))
     confirm_transaction(client, result["result"])
     result = client.get_confirmed_transaction(result["result"])
     return result
@@ -486,7 +487,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         sha256(bytes(acc.public_key()) + seed + bytes(PublicKey(evm_loader_id))).digest())
     logger.debug("Holder %s", holder)
 
-    if client.get_balance(holder, commitment='recent')['result']['value'] == 0:
+    if client.get_balance(holder, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
@@ -511,7 +512,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
                                            AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False),
                                        ]))
         receipts.append(client.send_transaction(trx, acc,
-                opts=TxOpts(skip_confirmation=True, preflight_commitment="confirmed"))["result"])
+                opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed))["result"])
         offset += len(part)
     logger.debug("receipts %s", receipts)
     for rcpt in receipts:
@@ -521,13 +522,13 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     # Create contract account & execute deploy transaction
     logger.debug("    # Create contract account & execute deploy transaction")
     trx = Transaction()
-    sender_sol_info = client.get_account_info(sender_sol, commitment='recent')
+    sender_sol_info = client.get_account_info(sender_sol, commitment=Confirmed)
     if sender_sol_info['result']['value'] is None:
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
 
-    if client.get_balance(code_sol, commitment='recent')['result']['value'] == 0:
+    if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), code_seed, 10**9, CODE_INFO_LAYOUT.sizeof()+len(msg)+2048, PublicKey(evm_loader_id)))
-    if client.get_balance(contract_sol, commitment='recent')['result']['value'] == 0:
+    if client.get_balance(contract_sol, commitment=Confirmed)['result']['value'] == 0:
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
         result = send_measured_transaction(client, trx, acc)
@@ -555,7 +556,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
 
 
 def _getAccountData(client, account, expected_length, owner=None):
-    info = client.get_account_info(account, commitment="recent")['result']['value']
+    info = client.get_account_info(account, commitment=Confirmed)['result']['value']
     if info is None:
         raise Exception("Can't get information about {}".format(account))
 
@@ -571,7 +572,7 @@ def getAccountInfo(client, eth_acc, base_account):
 
 def getLamports(client, evm_loader, eth_acc, base_account):
     (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
-    return int(client.get_balance(account, commitment="recent")['result']['value'])
+    return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
 
 def make_instruction_data_from_tx(instruction, private_key=None):
