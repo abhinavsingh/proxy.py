@@ -18,5 +18,6 @@ steps:
 
   - label: ":floppy_disk: publish image"
     command: ".buildkite/steps/publish-image.sh"
-    branches: "master develop ci-* v*.*.*"
-    if: build.env("EVM_LOADER_BRANCH") == "develop" || build.evn("EVM_LOADER_BRANCH") == null
+    if: |
+        build.branch =~ /^(master|develop|^ci-.+|v[0-9]+\.[0-9]+.[0-9]+)$$/ &&
+        (build.env("EVM_LOADER_BRANCH") == "develop" || build.env("EVM_LOADER_BRANCH") == null)
