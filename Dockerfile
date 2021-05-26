@@ -35,7 +35,7 @@ COPY --from=spl /opt/evm_loader.so \
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
 COPY . /opt
-RUN patch /usr/local/lib/python3.8/dist-packages/solana/rpc/api.py /opt/solana-py.patch
+RUN cd /usr/local/lib/python3.8/dist-packages/ && patch -p0 </opt/solana-py.patch
 
 ENV PATH /venv/bin:/cli/bin/:/spl/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV SOLANA_URL="http://localhost:8899"

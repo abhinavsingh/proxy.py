@@ -1,5 +1,14 @@
---- api.py.orig_	2021-05-21 15:39:04.888747442 +0300
-+++ api.py	2021-05-21 15:44:56.234628549 +0300
+--- solana/rpc/api.py	2021-05-25 13:08:52.430148672 +0300
++++ solana/rpc/api.py	2021-05-25 13:08:43.102202173 +0300
+@@ -14,7 +14,7 @@
+ from solana.publickey import PublicKey
+ from solana.transaction import Transaction
+ 
+-from .commitment import Commitment, Max
++from .commitment import Commitment, Max, Confirmed
+ from .providers import http
+ 
+ 
 @@ -33,6 +33,11 @@
      return types.MemcmpOpts(*args, **kwargs)
  
@@ -17,7 +26,7 @@
          return self._provider.make_request(types.RPCMethod("getConfirmedSignaturesForAddress2"), account, opts)
  
 -    def get_confirmed_transaction(self, tx_sig: str, encoding: str = "json") -> types.RPCResponse:
-+    def get_confirmed_transaction(self, tx_sig: str, encoding: str = "json", commitment = "confirmed") -> types.RPCResponse:
++    def get_confirmed_transaction(self, tx_sig: str, encoding: str = "json", commitment : Commitment = Confirmed) -> types.RPCResponse:
          """Returns transaction details for a confirmed transaction.
  
          :param tx_sig: Transaction signature as base-58 encoded string N encoding attempts to use program-specific
@@ -38,3 +47,12 @@
          if not resp.get("result"):
              raise Exception("Failed to send transaction")
          if skip_confirm:
+--- solana/rpc/commitment.py	2021-05-25 13:09:06.898065852 +0300
++++ solana/rpc/commitment.py	2021-05-25 13:08:43.102202173 +0300
+@@ -26,3 +26,5 @@
+ 
+ Recent = Commitment("recent")
+ """The node will query its most recent bank."""
++
++Confirmed = Commitment("confirmed")
+\ No newline at end of file
