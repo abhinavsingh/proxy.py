@@ -17,6 +17,7 @@ from .eth_proto import Trx
 from solana.rpc.types import TxOpts
 import re
 from solana.rpc.commitment import Confirmed
+from solana.rpc.api import SendTransactionError
 
 from construct import Bytes, Int8ul, Int32ul, Int64ul, Struct as cStruct
 from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT, InstructionType as SystemInstructionType
@@ -340,13 +341,29 @@ def send_measured_transaction(client, trx, acc):
 
 def sol_instr_10_continue(acc, client, step_count, accounts):
     while (True):
-        trx = Transaction()
-        trx.add(TransactionInstruction(program_id=evm_loader_id,
-                               data=bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder='little'),
-                               keys= accounts))
-
         logger.debug("Continue")
-        result = send_measured_transaction(client, trx, acc)
+        result = object()
+
+        while step_count > 0:
+            trx = Transaction()
+            trx.add(TransactionInstruction(program_id=evm_loader_id,
+                                data=bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder='little'),
+                                keys= accounts))
+
+            print("Step count {}", step_count)
+            try:
+                result = send_measured_transaction(client, trx, acc)
+            except SendTransactionError as err:
+                print(err.result['message'])
+                if err.result['message'].find("Program failed to complete") >= 0:
+                    step_count = int(step_count * 75 / 100)
+                    continue
+                raise
+            else:
+                break
+
+        if step_count < 1:
+            raise Exception
 
         # print(result["result"])
         acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
