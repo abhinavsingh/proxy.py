@@ -329,24 +329,15 @@ def send_transaction(client, trx, acc):
     return result
 
 # Do not rename this function! This name used in CI measurements (see function `cleanup_docker` in .buildkite/steps/deploy-test.sh)
-def send_measured_transaction(client, trx, acc, noexept = False):
-    result = object()
-
-    if noexept:
-        try:
-            result = send_transaction(client, trx, acc)
-        except SendTransactionError:
-            return (result, False)
-    else:
-        result = send_transaction(client, trx, acc)
-
+def send_measured_transaction(client, trx, acc):
+    result = send_transaction(client, trx, acc)
     try:
         measurements = extract_measurements_from_receipt(result)
         for m in measurements: logger.info(json.dumps(m))
     except Exception as err:
         logger.error("Can't get measurements %s"%err)
         logger.info("Failed result: %s"%json.dumps(result, indent=3))
-    return (result, True)
+    return result
 
 def sol_instr_10_continue(acc, client, step_count, accounts):
     while (True):
@@ -356,9 +347,12 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
                                keys= accounts))
 
         logger.debug("Continue")
-        (result, success) = send_measured_transaction(client, trx, acc, True)
-        if not success:
+        result = object()
+        try:
+            result = send_measured_transaction(client, trx, acc)
+        except SendTransactionError:
             sol_instr_12_cancel(acc, client, accounts)
+            raise
 
         # print(result["result"])
         acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
@@ -439,7 +433,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ))
 
     logger.debug("Partial call")
-    result = send_measured_transaction(client, trx, acc)[0]
+    result = send_measured_transaction(client, trx, acc)
 
     return sol_instr_10_continue(acc, client, steps, accounts)
 
@@ -515,7 +509,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         trx = Transaction()
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
                                       PublicKey(evm_loader_id)))
-        result = send_measured_transaction(client, trx, acc)[0]
+        result = send_measured_transaction(client, trx, acc)
 
     # Build deploy transaction
     msg = ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg()
@@ -555,7 +549,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     if client.get_balance(contract_sol, commitment=Confirmed)['result']['value'] == 0:
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
-        result = send_measured_transaction(client, trx, acc)[0]
+        result = send_measured_transaction(client, trx, acc)
 
     accounts = [AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
@@ -571,7 +565,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     trx.add(TransactionInstruction(program_id=evm_loader_id,
                            data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little'),
                            keys=accounts))
-    result = send_measured_transaction(client, trx, acc)[0]
+    result = send_measured_transaction(client, trx, acc)
 
     # Continue
     logger.debug("Continue:")
