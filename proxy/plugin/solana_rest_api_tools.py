@@ -367,17 +367,12 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
                 if (data[0] == 6):
                     return result['result']['transaction']['signatures'][0]
 
-def sol_instr_12_cancel(acc, client, accounts, raise_exception = True):
+def sol_instr_12_cancel(acc, client, accounts):
     trx = Transaction()
     trx.add(TransactionInstruction(program_id=evm_loader_id, data=bytearray.fromhex("0C"), keys=accounts))
 
     logger.debug("Cancel")
-    result = send_measured_transaction(client, trx, acc)[0]
-
-    if raise_exception:
-        raise Exception("Failed to continue transaction -> canceled")
-    else:
-        return result
+    result = send_measured_transaction(client, trx, acc)
 
 
 def call_signed(acc, client, ethTrx, storage, steps):
