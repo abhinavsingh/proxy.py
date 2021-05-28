@@ -350,7 +350,7 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
         result = object()
         try:
             result = send_measured_transaction(client, trx, acc)
-        except SendTransactionError:
+        except Exception:
             sol_instr_12_cancel(acc, client, accounts)
             raise
 
