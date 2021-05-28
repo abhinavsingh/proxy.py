@@ -358,8 +358,12 @@ def sol_instr_10_continue(acc, client, initial_step_count, accounts):
             except SendTransactionError as err:
                 print(err.result['message'])
                 if err.result['message'].find("Program failed to complete") >= 0:
-                    step_count = int(step_count * 75 / 100)
+                    step_count = int(step_count * 90 / 100)
                     continue
+                sol_instr_12_cancel(acc, client, accounts)
+                raise
+            except Exception:
+                sol_instr_12_cancel(acc, client, accounts)
                 raise
             else:
                 break
@@ -379,6 +383,13 @@ def sol_instr_10_continue(acc, client, initial_step_count, accounts):
                 data = b58decode(instruction['data'])
                 if (data[0] == 6):
                     return result['result']['transaction']['signatures'][0]
+
+def sol_instr_12_cancel(acc, client, accounts):
+    trx = Transaction()
+    trx.add(TransactionInstruction(program_id=evm_loader_id, data=bytearray.fromhex("0C"), keys=accounts))
+
+    logger.debug("Cancel")
+    result = send_measured_transaction(client, trx, acc)
 
 
 def call_signed(acc, client, ethTrx, storage, steps):
