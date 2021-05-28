@@ -17,6 +17,7 @@ from .eth_proto import Trx
 from solana.rpc.types import TxOpts
 import re
 from solana.rpc.commitment import Confirmed
+from solana.rpc.api import SendTransactionError
 
 from construct import Bytes, Int8ul, Int32ul, Int64ul, Struct as cStruct
 from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT, InstructionType as SystemInstructionType
@@ -346,7 +347,12 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
                                keys= accounts))
 
         logger.debug("Continue")
-        result = send_measured_transaction(client, trx, acc)
+        result = object()
+        try:
+            result = send_measured_transaction(client, trx, acc)
+        except Exception:
+            sol_instr_12_cancel(acc, client, accounts)
+            raise
 
         # print(result["result"])
         acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
@@ -360,6 +366,13 @@ def sol_instr_10_continue(acc, client, step_count, accounts):
                 data = b58decode(instruction['data'])
                 if (data[0] == 6):
                     return result['result']['transaction']['signatures'][0]
+
+def sol_instr_12_cancel(acc, client, accounts):
+    trx = Transaction()
+    trx.add(TransactionInstruction(program_id=evm_loader_id, data=bytearray.fromhex("0C"), keys=accounts))
+
+    logger.debug("Cancel")
+    result = send_measured_transaction(client, trx, acc)
 
 
 def call_signed(acc, client, ethTrx, storage, steps):
