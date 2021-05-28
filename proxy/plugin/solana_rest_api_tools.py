@@ -339,6 +339,13 @@ def send_measured_transaction(client, trx, acc):
         logger.info("Failed result: %s"%json.dumps(result, indent=3))
     return result
 
+def check_if_program_exceeded_instructions(err_result):
+    err_pattern = "Program failed to complete: exceeded maximum number of instructions allowed"
+    if err_result['data']['logs'][-1].find(err_pattern) >= 0 or err_result['data']['logs'][-2].find(err_pattern) >= 0:
+        return True
+    return False
+
+
 def sol_instr_10_continue(acc, client, initial_step_count, accounts):
     while (True):
         logger.debug("Continue")
@@ -357,7 +364,7 @@ def sol_instr_10_continue(acc, client, initial_step_count, accounts):
                 result = send_measured_transaction(client, trx, acc)
             except SendTransactionError as err:
                 print(err.result['message'])
-                if err.result['message'].find("Program failed to complete") >= 0:
+                if check_if_program_exceeded_instructions(err.result):
                     step_count = int(step_count * 90 / 100)
                     continue
                 sol_instr_12_cancel(acc, client, accounts)
