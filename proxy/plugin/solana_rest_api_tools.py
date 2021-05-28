@@ -339,10 +339,12 @@ def send_measured_transaction(client, trx, acc):
         logger.info("Failed result: %s"%json.dumps(result, indent=3))
     return result
 
-def sol_instr_10_continue(acc, client, step_count, accounts):
+def sol_instr_10_continue(acc, client, initial_step_count, accounts):
     while (True):
         logger.debug("Continue")
         result = object()
+
+        step_count = initial_step_count
 
         while step_count > 0:
             trx = Transaction()
