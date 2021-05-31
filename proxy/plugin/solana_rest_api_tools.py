@@ -345,51 +345,50 @@ def check_if_program_exceeded_instructions(err_result):
         return True
     return False
 
+def check_if_continue_returned(result):
+    # print(result["result"])
+    acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
+    evm_loader_index = acc_meta_lst.index(evm_loader_id)
+
+    innerInstruction = result['result']['meta']['innerInstructions']
+    innerInstruction = next((i for i in innerInstruction if i["index"] == 0), None)
+    if (innerInstruction and innerInstruction['instructions']):
+        instruction = innerInstruction['instructions'][-1]
+        if (instruction['programIdIndex'] == evm_loader_index):
+            data = b58decode(instruction['data'])
+            if (data[0] == 6):
+                return (True, result['result']['transaction']['signatures'][0])
+    return (False, ())
+
+def call_continue(acc, client, step_count, accounts):
+    try:
+        while(True):
+            result = sol_instr_10_continue(acc, client, step_count, accounts)
+            (succed, signature) = check_if_continue_returned(result)
+            if succed:
+                return signature
+    except Exception as err:
+        sol_instr_12_cancel(acc, client, accounts)
+        raise
 
 def sol_instr_10_continue(acc, client, initial_step_count, accounts):
-    while (True):
-        logger.debug("Continue")
-        result = object()
+    step_count = initial_step_count
+    while step_count > 0:
+        trx = Transaction()
+        trx.add(TransactionInstruction(program_id=evm_loader_id,
+                                       data=bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder='little'),
+                                       keys= accounts))
 
-        step_count = initial_step_count
-
-        while step_count > 0:
-            trx = Transaction()
-            trx.add(TransactionInstruction(program_id=evm_loader_id,
-                                data=bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder='little'),
-                                keys= accounts))
-
-            print("Step count {}", step_count)
-            try:
-                result = send_measured_transaction(client, trx, acc)
-            except SendTransactionError as err:
-                print(err.result['message'])
-                if check_if_program_exceeded_instructions(err.result):
-                    step_count = int(step_count * 90 / 100)
-                    continue
-                sol_instr_12_cancel(acc, client, accounts)
-                raise
-            except Exception:
-                sol_instr_12_cancel(acc, client, accounts)
-                raise
+        print("Step count {}", step_count)
+        try:
+            result = send_measured_transaction(client, trx, acc)
+            return result
+        except SendTransactionError as err:
+            if check_if_program_exceeded_instructions(err.result):
+                step_count = int(step_count * 90 / 100)
             else:
-                break
-
-        if step_count < 1:
-            raise Exception
-
-        # print(result["result"])
-        acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
-        evm_loader_index = acc_meta_lst.index(evm_loader_id)
-
-        innerInstruction = result['result']['meta']['innerInstructions']
-        innerInstruction = next((i for i in innerInstruction if i["index"] == 0), None)
-        if (innerInstruction and innerInstruction['instructions']):
-            instruction = innerInstruction['instructions'][-1]
-            if (instruction['programIdIndex'] == evm_loader_index):
-                data = b58decode(instruction['data'])
-                if (data[0] == 6):
-                    return result['result']['transaction']['signatures'][0]
+                raise
+    raise Exception("Can't execute even one EVM instruction")
 
 def sol_instr_12_cancel(acc, client, accounts):
     trx = Transaction()
@@ -454,7 +453,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
     logger.debug("Partial call")
     result = send_measured_transaction(client, trx, acc)
 
-    return sol_instr_10_continue(acc, client, steps, accounts)
+    return call_continue(acc, client, steps, accounts)
 
 
 def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
@@ -588,7 +587,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
 
     # Continue
     logger.debug("Continue:")
-    signature = sol_instr_10_continue(acc, client, steps, accounts[1:])
+    signature = call_continue(acc, client, steps, accounts[1:])
     return (signature, '0x'+contract_eth.hex())
 
 
