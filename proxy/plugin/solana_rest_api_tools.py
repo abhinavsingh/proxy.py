@@ -31,7 +31,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-# evm_loader_id = "6nHePERnkwDqwWekArBwLHufWAKA43m6QVXTw9pzdtwS"
+evm_loader_id = "E8noSn1efkR7ayYXLjJ1gkv8raEWCFS7hE8MtbZoT2Qg"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -396,17 +396,15 @@ def sol_instr_12_cancel(acc, client, accounts):
     logger.debug("Cancel")
     result = send_measured_transaction(client, trx, acc)
 
-
-def call_signed(acc, client, ethTrx, storage, steps):
+def emulate_meta_acc(acc, client, ethTrx, storage):
     sender_ether = bytes.fromhex(ethTrx.sender())
-
-    trx = Transaction()
-    (holder, msg) = send_trx_to_holder_account(acc, client, ethTrx)
-
     add_keys_05 = []
+    trx = Transaction()
+
     output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
     for acc_desc in output_json["accounts"]:
+        acc_desc["writable"] = True
         address = bytes.fromhex(acc_desc["address"][2:])
         if address == ethTrx.toAddress:
             (contract_sol, code_sol) = (acc_desc["account"], acc_desc["contract"])
@@ -431,7 +429,6 @@ def call_signed(acc, client, ethTrx, storage, steps):
         result = send_measured_transaction(client, trx, acc)
 
     accounts = [
-            AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
             AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
@@ -441,6 +438,35 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ] + add_keys_05 + [
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
     ]
+    return (accounts, sender_ether, sender_sol)
+
+def call_signed_(acc, client, ethTrx, storage, steps):
+
+    (accounts, sender_ether, sender_sol) = emulate_meta_acc(acc, client, ethTrx, storage)
+    trx = Transaction()
+    trx.add(TransactionInstruction(
+        program_id=keccakprog,
+        data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
+        keys=[
+            AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
+        ]))
+    trx.add(TransactionInstruction(
+        program_id=evm_loader_id,
+        data=bytearray.fromhex("09") + (0).to_bytes(8, byteorder='little') + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg(),
+        keys=accounts
+        ))
+
+    logger.debug("Partial call")
+    result = send_measured_transaction(client, trx, acc)
+
+    return call_continue(acc, client, steps, accounts)
+
+def call_signed(acc, client, ethTrx, storage, steps):
+
+    (holder, msg) = send_trx_to_holder_account(acc, client, ethTrx)
+    (accounts, sender_ether, sender_sol) = emulate_meta_acc(acc, client, ethTrx, storage)
+
+    accounts.insert(0, AccountMeta(pubkey=holder, is_signer=False, is_writable=True))
 
     logger.debug("ExecuteTrxFromAccountDataIterative:")
     trx = Transaction()
