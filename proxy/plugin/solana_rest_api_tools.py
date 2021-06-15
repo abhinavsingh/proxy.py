@@ -31,7 +31,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-# evm_loader_id = "216YkBAHgTqFFanAqD35e6NC1hXeXYp627eUh24LKe2F"
+# evm_loader_id = "6nHePERnkwDqwWekArBwLHufWAKA43m6QVXTw9pzdtwS"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -443,6 +443,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
     ]
 
     logger.debug("ExecuteTrxFromAccountDataIterative:")
+    trx = Transaction()
     trx.add(TransactionInstruction(
         program_id=evm_loader_id,
         data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little') ,
