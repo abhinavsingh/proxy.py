@@ -31,7 +31,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-evm_loader_id = "E8noSn1efkR7ayYXLjJ1gkv8raEWCFS7hE8MtbZoT2Qg"
+# evm_loader_id = "E8noSn1efkR7ayYXLjJ1gkv8raEWCFS7hE8MtbZoT2Qg"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -440,7 +440,7 @@ def emulate_meta_acc(acc, client, ethTrx, storage):
     ]
     return (accounts, sender_ether, sender_sol)
 
-def call_signed_(acc, client, ethTrx, storage, steps):
+def call_signed(acc, client, ethTrx, storage, steps):
 
     (accounts, sender_ether, sender_sol) = emulate_meta_acc(acc, client, ethTrx, storage)
     trx = Transaction()
@@ -456,15 +456,20 @@ def call_signed_(acc, client, ethTrx, storage, steps):
         keys=accounts
         ))
 
-    logger.debug("Partial call")
-    result = send_measured_transaction(client, trx, acc)
+    try:
+        logger.debug("Partial call")
+        result = send_measured_transaction(client, trx, acc)
+    except Exception as err:
+        if str(err).startswith("transaction too large:"):
+            return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts)
+        else:
+            raise err
 
     return call_continue(acc, client, steps, accounts)
 
-def call_signed(acc, client, ethTrx, storage, steps):
+def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts):
 
     (holder, msg) = send_trx_to_holder_account(acc, client, ethTrx)
-    (accounts, sender_ether, sender_sol) = emulate_meta_acc(acc, client, ethTrx, storage)
 
     accounts.insert(0, AccountMeta(pubkey=holder, is_signer=False, is_writable=True))
 
