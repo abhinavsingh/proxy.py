@@ -31,7 +31,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-# evm_loader_id = "216YkBAHgTqFFanAqD35e6NC1hXeXYp627eUh24LKe2F"
+# evm_loader_id = "8TUNjkF7R4nAM6mEYL3zDe1G9wQq6wrHCYz1VDtYnhGt"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -396,16 +396,15 @@ def sol_instr_12_cancel(acc, client, accounts):
     logger.debug("Cancel")
     result = send_measured_transaction(client, trx, acc)
 
-
-def call_signed(acc, client, ethTrx, storage, steps):
+def create_account_list_by_emulate(acc, client, ethTrx, storage):
     sender_ether = bytes.fromhex(ethTrx.sender())
-
+    add_keys_05 = []
     trx = Transaction()
 
-    add_keys_05 = []
     output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
     for acc_desc in output_json["accounts"]:
+
         address = bytes.fromhex(acc_desc["address"][2:])
         if address == ethTrx.toAddress:
             (contract_sol, code_sol) = (acc_desc["account"], acc_desc["contract"])
@@ -436,7 +435,13 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ] + add_keys_05 + [
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
     ]
+    return (accounts, sender_ether, sender_sol, trx)
 
+def call_signed(acc, client, ethTrx, storage, steps):
+
+    (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
+    trx = Transaction()
+    trx.add(create_acc_trx)
     trx.add(TransactionInstruction(
         program_id=keccakprog,
         data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
@@ -449,10 +454,35 @@ def call_signed(acc, client, ethTrx, storage, steps):
         keys=accounts
         ))
 
-    logger.debug("Partial call")
-    result = send_measured_transaction(client, trx, acc)
+    try:
+        logger.debug("Partial call")
+        result = send_measured_transaction(client, trx, acc)
+    except Exception as err:
+        if str(err).startswith("transaction too large:"):
+            print ("Transaction too large, call call_signed_with_holder_acc():")
+            return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
+        else:
+            raise err
 
     return call_continue(acc, client, steps, accounts)
+
+def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
+
+    holder = write_trx_to_holder_account(acc, client, ethTrx)
+
+    accounts.insert(0, AccountMeta(pubkey=holder, is_signer=False, is_writable=True))
+
+    logger.debug("ExecuteTrxFromAccountDataIterative:")
+    trx = Transaction()
+    trx.add(create_acc_trx)
+    trx.add(TransactionInstruction(
+        program_id=evm_loader_id,
+        data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little'),
+        keys=accounts
+        ))
+    result = send_measured_transaction(client, trx, acc)
+
+    return call_continue(acc, client, steps, accounts[1:])
 
 
 def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
@@ -496,26 +526,7 @@ def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     logger.debug('createEtherAccount result: %s', result)
     return sol
 
-def deploy_contract(acc, client, ethTrx, storage, steps):
-
-    sender_ether = bytes.fromhex(ethTrx.sender())
-    (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, acc.public_key())
-    logger.debug("Sender account solana: %s %s", sender_ether, sender_sol)
-
-    #info = _getAccountData(client, sender_sol, ACCOUNT_INFO_LAYOUT.sizeof())
-    #trx_count = int.from_bytes(AccountInfo.frombytes(info).trx_count, 'little')
-    #logger.debug("Sender solana trx_count: %s", trx_count)
-
-    # Create legacy contract address from (sender_eth, nonce)
-    #rlp = pack(sender_ether, ethTrx.nonce or None)
-    contract_eth = keccak_256(rlp.encode((sender_ether, ethTrx.nonce))).digest()[-20:]
-    (contract_sol, contract_nonce) = ether2program(contract_eth.hex(), evm_loader_id, acc.public_key())
-    (code_sol, code_nonce, code_seed) = ether2seed(contract_eth.hex(), evm_loader_id, acc.public_key())
-
-    logger.debug("Legacy contract address ether: %s", contract_eth.hex())
-    logger.debug("Legacy contract address solana: %s %s", contract_sol, contract_nonce)
-    logger.debug("Legacy code address solana: %s %s", code_sol, code_nonce)
-
+def write_trx_to_holder_account(acc, client, ethTrx):
     # Create transaction holder account (if not exists)
     seed = bytes("1236", 'utf8')
     holder = PublicKey(
@@ -539,7 +550,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     while len(rest):
         (part, rest) = (rest[:1000], rest[1000:])
         trx = Transaction()
-        logger.debug("sender_sol %s %s %s", sender_sol, holder, acc.public_key())
+        # logger.debug("sender_sol %s %s %s", sender_sol, holder, acc.public_key())
         trx.add(TransactionInstruction(program_id=evm_loader_id,
                                        data=write_layout(offset, part),
                                        keys=[
@@ -554,6 +565,31 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         confirm_transaction(client, rcpt)
         logger.debug("confirmed: %s", rcpt)
 
+    return holder
+
+
+def deploy_contract(acc, client, ethTrx, storage, steps):
+
+    sender_ether = bytes.fromhex(ethTrx.sender())
+    (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, acc.public_key())
+    logger.debug("Sender account solana: %s %s", sender_ether, sender_sol)
+
+    #info = _getAccountData(client, sender_sol, ACCOUNT_INFO_LAYOUT.sizeof())
+    #trx_count = int.from_bytes(AccountInfo.frombytes(info).trx_count, 'little')
+    #logger.debug("Sender solana trx_count: %s", trx_count)
+
+    # Create legacy contract address from (sender_eth, nonce)
+    #rlp = pack(sender_ether, ethTrx.nonce or None)
+    contract_eth = keccak_256(rlp.encode((sender_ether, ethTrx.nonce))).digest()[-20:]
+    (contract_sol, contract_nonce) = ether2program(contract_eth.hex(), evm_loader_id, acc.public_key())
+    (code_sol, code_nonce, code_seed) = ether2seed(contract_eth.hex(), evm_loader_id, acc.public_key())
+
+    logger.debug("Legacy contract address ether: %s", contract_eth.hex())
+    logger.debug("Legacy contract address solana: %s %s", contract_sol, contract_nonce)
+    logger.debug("Legacy code address solana: %s %s", code_sol, code_nonce)
+
+    holder = write_trx_to_holder_account(acc, client, ethTrx);
+
     # Create contract account & execute deploy transaction
     logger.debug("    # Create contract account & execute deploy transaction")
     trx = Transaction()
@@ -562,7 +598,8 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
 
     if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
-        trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), code_seed, 10**9, CODE_INFO_LAYOUT.sizeof()+len(msg)+2048, PublicKey(evm_loader_id)))
+        msg_size = len(ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg())
+        trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), code_seed, 10**9, CODE_INFO_LAYOUT.sizeof()+msg_size+2048, PublicKey(evm_loader_id)))
     if client.get_balance(contract_sol, commitment=Confirmed)['result']['value'] == 0:
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
