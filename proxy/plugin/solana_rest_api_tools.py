@@ -31,7 +31,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-#evm_loader_id = "8TUNjkF7R4nAM6mEYL3zDe1G9wQq6wrHCYz1VDtYnhGt"
+# evm_loader_id = "8TUNjkF7R4nAM6mEYL3zDe1G9wQq6wrHCYz1VDtYnhGt"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -425,9 +425,6 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
 
-    if len(trx.instructions):
-        result = send_transaction(client, trx, acc)
-
     accounts = [
             AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
@@ -438,12 +435,13 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
         ] + add_keys_05 + [
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
     ]
-    return (accounts, sender_ether, sender_sol)
+    return (accounts, sender_ether, sender_sol, trx)
 
 def call_signed(acc, client, ethTrx, storage, steps):
 
-    (accounts, sender_ether, sender_sol) = create_account_list_by_emulate(acc, client, ethTrx, storage)
+    (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
     trx = Transaction()
+    trx.add(create_acc_trx)
     trx.add(TransactionInstruction(
         program_id=keccakprog,
         data=make_keccak_instruction_data(len(trx.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
@@ -461,23 +459,25 @@ def call_signed(acc, client, ethTrx, storage, steps):
         result = send_measured_transaction(client, trx, acc)
     except Exception as err:
         if str(err).startswith("transaction too large:"):
-            return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts)
+            print ("Transaction too large, call call_signed_with_holder_acc():")
+            return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
         else:
             raise err
 
     return call_continue(acc, client, steps, accounts)
 
-def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts):
+def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
 
-    (holder, _) = write_trx_to_holder_account(acc, client, ethTrx)
+    holder = write_trx_to_holder_account(acc, client, ethTrx)
 
     accounts.insert(0, AccountMeta(pubkey=holder, is_signer=False, is_writable=True))
 
     logger.debug("ExecuteTrxFromAccountDataIterative:")
     trx = Transaction()
+    trx.add(create_acc_trx)
     trx.add(TransactionInstruction(
         program_id=evm_loader_id,
-        data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little') ,
+        data=bytearray.fromhex("0b") + (0).to_bytes(8, byteorder='little'),
         keys=accounts
         ))
     result = send_measured_transaction(client, trx, acc)
@@ -565,7 +565,7 @@ def write_trx_to_holder_account(acc, client, ethTrx):
         confirm_transaction(client, rcpt)
         logger.debug("confirmed: %s", rcpt)
 
-    return (holder, len(msg))
+    return holder
 
 
 def deploy_contract(acc, client, ethTrx, storage, steps):
@@ -588,7 +588,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     logger.debug("Legacy contract address solana: %s %s", contract_sol, contract_nonce)
     logger.debug("Legacy code address solana: %s %s", code_sol, code_nonce)
 
-    (holder, msg_size) = write_trx_to_holder_account(acc, client, ethTrx);
+    holder = write_trx_to_holder_account(acc, client, ethTrx);
 
     # Create contract account & execute deploy transaction
     logger.debug("    # Create contract account & execute deploy transaction")
@@ -598,6 +598,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
 
     if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
+        msg_size = len(ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg())
         trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), code_seed, 10**9, CODE_INFO_LAYOUT.sizeof()+msg_size+2048, PublicKey(evm_loader_id)))
     if client.get_balance(contract_sol, commitment=Confirmed)['result']['value'] == 0:
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
