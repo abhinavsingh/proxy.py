@@ -381,7 +381,7 @@ def call_continue(acc, client, step_count, accounts, continue_count=None):
             if finded:
                 return signature
 
-    simulation_result = simulate_transaction(acc, client, accounts, step_count)
+    simulation_result = simulate_continue(acc, client, accounts, step_count)
     if isinstance(simulation_result, str):
         try:
             while(True):
@@ -442,7 +442,12 @@ def make_call_from_account_instruction(accounts, step_count = 0):
                             data = bytearray.fromhex("0B") + step_count.to_bytes(8, byteorder="little"),
                             keys = accounts)
 
-def simulate_transaction(acc, client, accounts, step_count, precall_txs = None):
+def make_05_call_instruction(accounts, call_data):
+    return TransactionInstruction(program_id = evm_loader_id,
+                            data = bytearray.fromhex("05") + call_data,
+                            keys = accounts)
+
+def simulate_continue(acc, client, accounts, step_count, precall_txs = None):
     continue_count = 45
     while True:
         logger.debug(continue_count)
@@ -492,6 +497,39 @@ def simulate_transaction(acc, client, accounts, step_count, precall_txs = None):
     logger.debug("tx_count = {}, step_count = {}".format(continue_count, step_count))
     return (continue_count, step_count)
 
+def simulate_05_call(acc, client, accounts, call_data, precall_txs = None):
+    logger.debug("simulate_05_call")
+    blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
+    trx = Transaction(recent_blockhash = blockhash)
+    if precall_txs:
+        trx.add(precall_txs)
+    trx.add(make_05_call_instruction(accounts, call_data))
+    trx.sign(acc)
+
+    try:
+        trx.serialize()
+    except Exception as err:
+        logger.debug("trx.serialize() exception")
+        if str(err).startswith("transaction too large:"):
+            logger.debug("transaction too large")
+            return False
+        raise
+
+    response = client.simulate_transaction(trx, commitment=Confirmed)
+    logger.debug("Result:\n%s"%json.dumps(response, indent=3))
+
+    if response["result"]["value"]["err"]:
+        instruction_error = response["result"]["value"]["err"]["InstructionError"]
+        if isinstance(instruction_error[1], str) and instruction_error[1] == "ProgramFailedToComplete":
+            logger.debug("Program exceeded instructions")
+            return False
+        else:
+            logger.debug("Unknown error")
+            return False
+
+    logger.debug("Could be run with 05 call")
+    return True
+
 def create_account_list_by_emulate(acc, client, ethTrx, storage):
     sender_ether = bytes.fromhex(ethTrx.sender())
     add_keys_05 = []
@@ -538,6 +576,21 @@ def call_signed(acc, client, ethTrx, storage, steps):
     (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
     msg = sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
+    precall_txs_05 = Transaction()
+    precall_txs_05.add(create_acc_trx)
+    precall_txs_05.add(TransactionInstruction(
+        program_id=keccakprog,
+        data=make_keccak_instruction_data(len(precall_txs_05.instructions)+1, len(ethTrx.unsigned_msg())),
+        keys=[
+            AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
+        ]))
+
+    if simulate_05_call(acc, client, accounts[1:], msg, precall_txs_05):
+        precall_txs_05.add(make_05_call_instruction(accounts[1:], msg))
+        result = send_measured_transaction(client, precall_txs_05, acc)
+        print(result)
+        return result['result']['transaction']['signatures'][0]
+
     precall_txs = Transaction()
     precall_txs.add(create_acc_trx)
     precall_txs.add(TransactionInstruction(
@@ -548,7 +601,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ]))
     precall_txs.add(make_partial_call_instruction(accounts, 0, msg))
 
-    simulation_result = simulate_transaction(acc, client, accounts, steps, precall_txs)
+    simulation_result = simulate_continue(acc, client, accounts, steps, precall_txs)
     continue_count = 0
     instruction_count = 0
 
@@ -578,7 +631,7 @@ def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, c
     precall_txs.add(create_acc_trx)
     precall_txs.add(make_call_from_account_instruction(accounts))
 
-    simulation_result = simulate_transaction(acc, client, accounts[1:], steps, precall_txs)
+    simulation_result = simulate_continue(acc, client, accounts[1:], steps, precall_txs)
     continue_count = 0
     instruction_count = 0
     
@@ -729,7 +782,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     init_trx = Transaction()
     init_trx.add(make_call_from_account_instruction(accounts))
 
-    simulation_result = simulate_transaction(acc, client, accounts[1:], steps, init_trx)
+    simulation_result = simulate_continue(acc, client, accounts[1:], steps, init_trx)
     continue_count = 0
     instruction_count = 0
     
