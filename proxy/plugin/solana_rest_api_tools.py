@@ -530,13 +530,11 @@ def call_signed(acc, client, ethTrx, storage, steps):
 
     try:
         logger.debug("Partial call")
-        return call_signed_noniteratve(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol)
+        return call_signed_noniteratve(acc, client, ethTrx, msg, accounts[1:], create_acc_trx, sender_sol)
     except Exception as err:
         if str(err).startswith("transaction too large:"):
             print ("Transaction too large, call call_signed_with_holder_acc():")
             return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
-        else:
-            raise err
 
     precall_txs = Transaction()
     precall_txs.add(create_acc_trx)
@@ -573,10 +571,10 @@ def call_signed_noniteratve(acc, client, ethTrx, msg, accounts, create_acc_trx, 
         keys=[
             AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
         ]))
-
     call_txs_05.add(make_05_call_instruction(accounts, msg))
+
     result = send_measured_transaction(client, call_txs_05, acc)
-    print(result)
+    logger.debug(result)
     return result['result']['transaction']['signatures'][0]
 
 def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
