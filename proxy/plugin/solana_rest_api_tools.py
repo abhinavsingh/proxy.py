@@ -31,7 +31,7 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
-# evm_loader_id = "8TUNjkF7R4nAM6mEYL3zDe1G9wQq6wrHCYz1VDtYnhGt"
+#evm_loader_id = "EfyDoGDRPy7wrLfSLyXrbhiAG6NmufMk1ytap13gLy1"
 location_bin = ".deploy_contract.bin"
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
@@ -339,8 +339,12 @@ def send_measured_transaction(client, trx, acc):
     return result
 
 def check_if_program_exceeded_instructions(err_result):
-    err_pattern = "Program failed to complete: exceeded maximum number of instructions allowed"
-    if err_result['data']['logs'][-1].find(err_pattern) >= 0 or err_result['data']['logs'][-2].find(err_pattern) >= 0:
+    err_instruction = "Program failed to complete: exceeded maximum number of instructions allowed"
+    err_budget = "failed: Computational budget exceeded"
+
+    if err_result['data']['logs'][-1].find(err_instruction) >= 0 or \
+        err_result['data']['logs'][-2].find(err_instruction) >= 0 or \
+        err_result['data']['logs'][-1].find(err_budget) >= 0:
         return True
     return False
 
