@@ -523,11 +523,6 @@ def call_signed(acc, client, ethTrx, storage, steps):
     (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
     msg = sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
-# try call 05 call
-        # if str(err).startswith("transaction too large"):
-        #     logger.debug("Transaction too large, call call_signed_with_holder_acc():")
-        #     return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
-
     precall_txs = Transaction()
     precall_txs.add(create_acc_trx)
     precall_txs.add(TransactionInstruction(
@@ -538,8 +533,15 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ]))
     precall_txs.add(make_partial_call_instruction(accounts, 0, msg))
 
-    logger.debug("Partial call")
-    send_measured_transaction(client, precall_txs, acc)
+    try:
+        logger.debug("Partial call")
+        send_measured_transaction(client, precall_txs, acc)
+    except Exception as err:
+        if str(err).startswith("transaction too large:"):
+            print ("Transaction too large, call call_signed_with_holder_acc():")
+            return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
+        else:
+            raise err
 
     while True:
         try:
