@@ -362,39 +362,39 @@ def check_if_continue_returned(result):
                 return (True, result['result']['transaction']['signatures'][0])
     return (False, ())
 
-def call_continue(acc, client, step_count, accounts, continue_count=None):
-    if continue_count:
-        result_list = []
-        for index in range(continue_count):
-            trx = Transaction().add(make_continue_instruction(accounts, step_count, index))
-            result = client.send_transaction(
+def call_continue_bucked(acc, client, step_count, accounts, continue_count):
+    result_list = []
+    for index in range(continue_count):
+        trx = Transaction().add(make_continue_instruction(accounts, step_count, index))
+        result = client.send_transaction(
+                trx,
                     trx, 
+                trx,
+                acc,
                     acc, 
-                    opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
-                )["result"]
-            result_list.append(result)
-        for trx in result_list:
-            confirm_transaction(client, trx)
-            result = client.get_confirmed_transaction(trx)
-            get_measurements(result)
-            (finded, signature) = check_if_continue_returned(result)
-            if finded:
-                return signature
+                acc,
+                opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
+            )["result"]
+        result_list.append(result)
+    for trx in result_list:
+        confirm_transaction(client, trx)
+        result = client.get_confirmed_transaction(trx)
+        get_measurements(result)
+        (finded, signature) = check_if_continue_returned(result)
+        if finded:
+            return signature
+    return None
 
-    simulation_result = simulate_transaction(acc, client, accounts, step_count)
-    if isinstance(simulation_result, str):
-        try:
-            while(True):
-                result = sol_instr_10_continue(acc, client, step_count, accounts)
-                (succed, signature) = check_if_continue_returned(result)
-                if succed:
-                    return signature
-        except Exception as err:
-            sol_instr_12_cancel(acc, client, accounts)
-            raise
-    else:
-        (continue_count, instruction_count) = simulation_result
-        return call_continue(acc, client, instruction_count, accounts, continue_count)
+def call_continue_iterative(acc, client, step_count, accounts):
+    try:
+        while(True):
+            result = sol_instr_10_continue(acc, client, step_count, accounts)
+            (succed, signature) = check_if_continue_returned(result)
+            if succed:
+                return signature
+    except Exception as err:
+        sol_instr_12_cancel(acc, client, accounts)
+        raise
 
 def sol_instr_10_continue(acc, client, initial_step_count, accounts):
     step_count = initial_step_count
