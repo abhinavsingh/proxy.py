@@ -362,39 +362,35 @@ def check_if_continue_returned(result):
                 return (True, result['result']['transaction']['signatures'][0])
     return (False, ())
 
-def call_continue(acc, client, step_count, accounts, continue_count=None):
-    if continue_count:
-        result_list = []
-        for index in range(continue_count):
-            trx = Transaction().add(make_continue_instruction(accounts, step_count, index))
-            result = client.send_transaction(
-                    trx, 
-                    acc, 
-                    opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
-                )["result"]
-            result_list.append(result)
-        for trx in result_list:
-            confirm_transaction(client, trx)
-            result = client.get_confirmed_transaction(trx)
-            get_measurements(result)
-            (finded, signature) = check_if_continue_returned(result)
-            if finded:
-                return signature
+def call_continue_bucked(acc, client, step_count, accounts, continue_count):
+    result_list = []
+    for index in range(continue_count):
+        trx = Transaction().add(make_continue_instruction(accounts, step_count, index))
+        result = client.send_transaction(
+                trx,
+                acc,
+                opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
+            )["result"]
+        result_list.append(result)
+    for trx in result_list:
+        confirm_transaction(client, trx)
+        result = client.get_confirmed_transaction(trx)
+        get_measurements(result)
+        (finded, signature) = check_if_continue_returned(result)
+        if finded:
+            return signature
+    return None
 
-    simulation_result = simulate_continue(acc, client, accounts, step_count)
-    if isinstance(simulation_result, str):
-        try:
-            while(True):
-                result = sol_instr_10_continue(acc, client, step_count, accounts)
-                (succed, signature) = check_if_continue_returned(result)
-                if succed:
-                    return signature
-        except Exception as err:
-            sol_instr_12_cancel(acc, client, accounts)
-            raise
-    else:
-        (continue_count, instruction_count) = simulation_result
-        return call_continue(acc, client, instruction_count, accounts, continue_count)
+def call_continue_iterative(acc, client, step_count, accounts):
+    try:
+        while(True):
+            result = sol_instr_10_continue(acc, client, step_count, accounts)
+            (succed, signature) = check_if_continue_returned(result)
+            if succed:
+                return signature
+    except Exception as err:
+        sol_instr_12_cancel(acc, client, accounts)
+        raise
 
 def sol_instr_10_continue(acc, client, initial_step_count, accounts):
     step_count = initial_step_count
@@ -426,16 +422,13 @@ def make_partial_call_instruction(accounts, step_count, call_data):
                             keys = accounts)
 
 def make_continue_instruction(accounts, step_count, index=None):
+    data = bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder="little")
     if index:
-        return TransactionInstruction(program_id = evm_loader_id,
-                                data = bytearray.fromhex("0A")\
-                                     + step_count.to_bytes(8, byteorder="little")\
-                                     + index.to_bytes(8, byteorder="little"),
-                                keys = accounts)
-    else:
-        return TransactionInstruction(program_id = evm_loader_id,
-                                data = bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder="little"),
-                                keys = accounts)
+        data = data + index.to_bytes(8, byteorder="little")
+
+    return TransactionInstruction(program_id = evm_loader_id,
+                            data = data,
+                            keys = accounts)
 
 def make_call_from_account_instruction(accounts, step_count = 0):
     return TransactionInstruction(program_id = evm_loader_id,
@@ -447,15 +440,11 @@ def make_05_call_instruction(accounts, call_data):
                             data = bytearray.fromhex("05") + call_data,
                             keys = accounts)
 
-def simulate_continue(acc, client, accounts, step_count, precall_txs = None):
+def simulate_continue(acc, client, accounts, step_count):
     continue_count = 45
     while True:
-        logger.debug(continue_count)
-        logger.debug(step_count)
         blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
         trx = Transaction(recent_blockhash = blockhash)
-        if precall_txs:
-            trx.add(precall_txs)
         for _ in range(continue_count):
             trx.add(make_continue_instruction(accounts, step_count))
         trx.sign(acc)
@@ -466,7 +455,7 @@ def simulate_continue(acc, client, accounts, step_count, precall_txs = None):
             logger.debug("trx.serialize() exception")
             if str(err).startswith("transaction too large:"):
                 if continue_count == 0:
-                    return "transaction too large"
+                    raise Exception("transaction too large")
                 continue_count = int(continue_count * 90 / 100)
                 continue
             raise
@@ -475,23 +464,19 @@ def simulate_continue(acc, client, accounts, step_count, precall_txs = None):
 
         if response["result"]["value"]["err"]:
             instruction_error = response["result"]["value"]["err"]["InstructionError"]
-            if isinstance(instruction_error[1], str) and instruction_error[1] == "ProgramFailedToComplete":
+            err = instruction_error[1]
+            if isinstance(err, str) and (err == "ProgramFailedToComplete" or err == "ComputationalBudgetExceeded"):
                 step_count = int(step_count * 90 / 100)
                 if step_count == 0:
-                    return "cant run even one instruction"
-            elif isinstance(instruction_error[1], dict) and "Custom" in instruction_error[1]:
+                    raise Exception("cant run even one instruction")
+            elif isinstance(err, dict) and "Custom" in err:
                 if continue_count == 0:
-                    return "uninitialized storage account"
+                    raise Exception("uninitialized storage account")
                 continue_count = instruction_error[0]
-                if precall_txs:
-                    continue_count = continue_count - len(precall_txs.instructions)
-                if continue_count < 0:
-                    return "cant get continue count"
             else:
                 logger.debug("Result:\n%s"%json.dumps(response, indent=3))
-                return "unspecified error"
+                raise Exception("unspecified error")
         else:
-            # logger.debug("Result:\n%s"%json.dumps(response, indent=3))
             break
 
     logger.debug("tx_count = {}, step_count = {}".format(continue_count, step_count))
@@ -601,25 +586,28 @@ def call_signed(acc, client, ethTrx, storage, steps):
         ]))
     precall_txs.add(make_partial_call_instruction(accounts, 0, msg))
 
-    simulation_result = simulate_continue(acc, client, accounts, steps, precall_txs)
-    continue_count = 0
-    instruction_count = 0
-
-    if isinstance(simulation_result, str):
-        if simulation_result == "transaction too large":
-            logger.debug("Transaction too large, call call_signed_with_holder_acc():")
+    try:
+        logger.debug("Partial call")
+        send_measured_transaction(client, precall_txs, acc)
+    except Exception as err:
+        if str(err).startswith("transaction too large:"):
+            print ("Transaction too large, call call_signed_with_holder_acc():")
             return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
-        continue_count = None
-        instruction_count = steps
-    else:
-        (continue_count, instruction_count) = simulation_result
+        else:
+            raise err
 
-    logger.debug("Partial call")
-    result = send_measured_transaction(client, precall_txs, acc)
-
-    # Continue
-    logger.debug("Continue:")
-    return call_continue(acc, client, instruction_count, accounts, continue_count)
+    while True:
+        try:
+            simulation_result = simulate_continue(acc, client, accounts, steps)
+        except:
+            logger.debug("Continue iterative:")
+            return call_continue_iterative(acc, client, steps, accounts)
+        else:
+            (continue_count, instruction_count) = simulation_result
+            logger.debug("Continue bucked:")
+            signature = call_continue_bucked(acc, client, instruction_count, accounts, continue_count)
+            if signature:
+                return signature
 
 def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
 
@@ -631,23 +619,22 @@ def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, c
     precall_txs.add(create_acc_trx)
     precall_txs.add(make_call_from_account_instruction(accounts))
 
-    simulation_result = simulate_continue(acc, client, accounts[1:], steps, precall_txs)
-    continue_count = 0
-    instruction_count = 0
-    
-    if isinstance(simulation_result, str):
-        continue_count = None
-        instruction_count = steps
-    else:
-        (continue_count, instruction_count) = simulation_result
-
     # ExecuteTrxFromAccountDataIterative
     logger.debug("ExecuteTrxFromAccountDataIterative:")
-    result = send_measured_transaction(client, precall_txs, acc)
+    send_measured_transaction(client, precall_txs, acc)
 
-    # Continue
-    logger.debug("Continue:")
-    return call_continue(acc, client, instruction_count, accounts[1:], continue_count)
+    while True:
+        try:
+            simulation_result = simulate_continue(acc, client, accounts, steps)
+        except Exception as err:
+            logger.debug("Continue:")
+            return call_continue_iterative(acc, client, steps, accounts[1:])
+        else:
+            (continue_count, instruction_count) = simulation_result
+            logger.debug("Continue bucked:")
+            signature = call_continue_bucked(acc, client, instruction_count, accounts[1:], continue_count)
+            if signature:
+                return signature
 
 
 def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
@@ -778,28 +765,32 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
                 AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
                 ]
+    
+    continue_accounts = accounts[1:]
 
     init_trx = Transaction()
     init_trx.add(make_call_from_account_instruction(accounts))
 
-    simulation_result = simulate_continue(acc, client, accounts[1:], steps, init_trx)
-    continue_count = 0
-    instruction_count = 0
-    
-    if isinstance(simulation_result, str):
-        continue_count = None
-        instruction_count = steps
-    else:
-        (continue_count, instruction_count) = simulation_result
-
     # ExecuteTrxFromAccountDataIterative
     logger.debug("ExecuteTrxFromAccountDataIterative:")
-    result = send_measured_transaction(client, init_trx, acc)
+    send_measured_transaction(client, init_trx, acc)
 
-    # Continue
-    logger.debug("Continue:")
-    signature = call_continue(acc, client, instruction_count, accounts[1:], continue_count)
-    return (signature, '0x'+contract_eth.hex())
+    while True:
+        try:
+            simulation_result = simulate_continue(acc, client, accounts, steps, init_trx)
+        except Exception as err:
+            # Continue
+            logger.debug("Continue:")
+            signature = call_continue_iterative(acc, client, steps, continue_accounts)
+            return (signature, '0x'+contract_eth.hex())
+        else:
+            (continue_count, instruction_count) = simulation_result
+            # Continue
+            logger.debug("Continue:")
+            signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
+            if signature:
+                return (signature, '0x'+contract_eth.hex())
+
 
 
 
