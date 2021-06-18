@@ -438,12 +438,8 @@ def make_call_from_account_instruction(accounts, step_count = 0):
 def simulate_transaction(acc, client, accounts, step_count, precall_txs = None):
     continue_count = 45
     while True:
-        logger.debug(continue_count)
-        logger.debug(step_count)
         blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
         trx = Transaction(recent_blockhash = blockhash)
-        if precall_txs:
-            trx.add(precall_txs)
         for _ in range(continue_count):
             trx.add(make_continue_instruction(accounts, step_count))
         trx.sign(acc)
@@ -454,7 +450,7 @@ def simulate_transaction(acc, client, accounts, step_count, precall_txs = None):
             logger.debug("trx.serialize() exception")
             if str(err).startswith("transaction too large:"):
                 if continue_count == 0:
-                    return "transaction too large"
+                    raise Exception("transaction too large")
                 continue_count = int(continue_count * 90 / 100)
                 continue
             raise
@@ -463,23 +459,19 @@ def simulate_transaction(acc, client, accounts, step_count, precall_txs = None):
 
         if response["result"]["value"]["err"]:
             instruction_error = response["result"]["value"]["err"]["InstructionError"]
-            if isinstance(instruction_error[1], str) and instruction_error[1] == "ProgramFailedToComplete":
+            err = instruction_error[1]
+            if isinstance(err, str) and (err == "ProgramFailedToComplete" or err == "ComputationalBudgetExceeded"):
                 step_count = int(step_count * 90 / 100)
                 if step_count == 0:
-                    return "cant run even one instruction"
-            elif isinstance(instruction_error[1], dict) and "Custom" in instruction_error[1]:
+                    raise Exception("cant run even one instruction")
+            elif isinstance(err, dict) and "Custom" in err:
                 if continue_count == 0:
-                    return "uninitialized storage account"
+                    raise Exception("uninitialized storage account")
                 continue_count = instruction_error[0]
-                if precall_txs:
-                    continue_count = continue_count - len(precall_txs.instructions)
-                if continue_count < 0:
-                    return "cant get continue count"
             else:
                 logger.debug("Result:\n%s"%json.dumps(response, indent=3))
-                return "unspecified error"
+                raise Exception("unspecified error")
         else:
-            # logger.debug("Result:\n%s"%json.dumps(response, indent=3))
             break
 
     logger.debug("tx_count = {}, step_count = {}".format(continue_count, step_count))
