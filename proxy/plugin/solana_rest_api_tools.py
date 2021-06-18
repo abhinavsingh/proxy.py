@@ -551,7 +551,8 @@ def call_signed(acc, client, ethTrx, storage, steps):
             signature = call_continue_bucked(acc, client, instruction_count, accounts, continue_count)
             if signature:
                 return signature
-        except:
+        except Exception as err:
+            logger.debug(str(err))
             logger.debug("Continue iterative:")
             return call_continue_iterative(acc, client, steps, accounts)
 
@@ -578,7 +579,8 @@ def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, c
             if signature:
                 return signature
         except Exception as err:
-            logger.debug("Continue:")
+            logger.debug(str(err))
+            logger.debug("Continue iterative:")
             return call_continue_iterative(acc, client, steps, continue_accounts)
 
 
@@ -723,13 +725,13 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     while True:
         try:
             (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps, init_trx)
-            logger.debug("Continue:")
+            logger.debug("Continue bucked:")
             signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
             if signature:
                 return (signature, '0x'+contract_eth.hex())
         except Exception as err:
-            # Continue
-            logger.debug("Continue:")
+            logger.debug(str(err))
+            logger.debug("Continue iterative:")
             signature = call_continue_iterative(acc, client, steps, continue_accounts)
             return (signature, '0x'+contract_eth.hex())
 
