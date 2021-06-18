@@ -368,10 +368,6 @@ def call_continue_bucked(acc, client, step_count, accounts, continue_count):
         trx = Transaction().add(make_continue_instruction(accounts, step_count, index))
         result = client.send_transaction(
                 trx,
-                    trx, 
-                trx,
-                acc,
-                    acc, 
                 acc,
                 opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
             )["result"]
@@ -426,16 +422,13 @@ def make_partial_call_instruction(accounts, step_count, call_data):
                             keys = accounts)
 
 def make_continue_instruction(accounts, step_count, index=None):
+    data = bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder="little")
     if index:
-        return TransactionInstruction(program_id = evm_loader_id,
-                                data = bytearray.fromhex("0A")\
-                                     + step_count.to_bytes(8, byteorder="little")\
-                                     + index.to_bytes(8, byteorder="little"),
-                                keys = accounts)
-    else:
-        return TransactionInstruction(program_id = evm_loader_id,
-                                data = bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder="little"),
-                                keys = accounts)
+        data = data + index.to_bytes(8, byteorder="little")
+
+    return TransactionInstruction(program_id = evm_loader_id,
+                            data = data,
+                            keys = accounts)
 
 def make_call_from_account_instruction(accounts, step_count = 0):
     return TransactionInstruction(program_id = evm_loader_id,
