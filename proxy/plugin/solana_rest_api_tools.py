@@ -724,7 +724,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
 
     while True:
         try:
-            (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps, init_trx)
+            (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps)
             logger.debug("Continue bucked:")
             signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
             if signature:
