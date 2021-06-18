@@ -712,19 +712,19 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
                 AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
                 ]
-    
+
     continue_accounts = accounts[1:]
 
-    init_trx = Transaction()
-    init_trx.add(make_call_from_account_instruction(accounts))
+    precall_txs = Transaction()
+    precall_txs.add(make_call_from_account_instruction(accounts))
 
     # ExecuteTrxFromAccountDataIterative
     logger.debug("ExecuteTrxFromAccountDataIterative:")
-    send_measured_transaction(client, init_trx, acc)
+    send_measured_transaction(client, precall_txs, acc)
 
     while True:
         try:
-            (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps)
+            (continue_count, instruction_count) = simulate_continue(acc, client, continue_accounts, steps)
             logger.debug("Continue bucked:")
             signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
             if signature:
