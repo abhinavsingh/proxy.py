@@ -436,6 +436,7 @@ def make_call_from_account_instruction(accounts, step_count = 0):
                             keys = accounts)
 
 def simulate_continue(acc, client, accounts, step_count):
+    logger.debug("simulate_continue:")
     continue_count = 45
     while True:
         blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
@@ -545,21 +546,20 @@ def call_signed(acc, client, ethTrx, storage, steps):
 
     while True:
         try:
-            simulation_result = simulate_continue(acc, client, accounts, steps)
-        except:
-            logger.debug("Continue iterative:")
-            return call_continue_iterative(acc, client, steps, accounts)
-        else:
-            (continue_count, instruction_count) = simulation_result
+            (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps)
             logger.debug("Continue bucked:")
             signature = call_continue_bucked(acc, client, instruction_count, accounts, continue_count)
             if signature:
                 return signature
+        except:
+            logger.debug("Continue iterative:")
+            return call_continue_iterative(acc, client, steps, accounts)
 
 def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
 
     holder = write_trx_to_holder_account(acc, client, ethTrx)
 
+    continue_accounts = accounts
     accounts.insert(0, AccountMeta(pubkey=holder, is_signer=False, is_writable=True))
 
     precall_txs = Transaction()
@@ -572,16 +572,14 @@ def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, c
 
     while True:
         try:
-            simulation_result = simulate_continue(acc, client, accounts, steps)
-        except Exception as err:
-            logger.debug("Continue:")
-            return call_continue_iterative(acc, client, steps, accounts[1:])
-        else:
-            (continue_count, instruction_count) = simulation_result
+            (continue_count, instruction_count) = simulate_continue(acc, client, continue_accounts, steps)
             logger.debug("Continue bucked:")
-            signature = call_continue_bucked(acc, client, instruction_count, accounts[1:], continue_count)
+            signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
             if signature:
                 return signature
+        except Exception as err:
+            logger.debug("Continue:")
+            return call_continue_iterative(acc, client, steps, continue_accounts)
 
 
 def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
@@ -724,19 +722,16 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
 
     while True:
         try:
-            simulation_result = simulate_continue(acc, client, accounts, steps, init_trx)
+            (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps, init_trx)
+            logger.debug("Continue:")
+            signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
+            if signature:
+                return (signature, '0x'+contract_eth.hex())
         except Exception as err:
             # Continue
             logger.debug("Continue:")
             signature = call_continue_iterative(acc, client, steps, continue_accounts)
             return (signature, '0x'+contract_eth.hex())
-        else:
-            (continue_count, instruction_count) = simulation_result
-            # Continue
-            logger.debug("Continue:")
-            signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
-            if signature:
-                return (signature, '0x'+contract_eth.hex())
 
 
 
