@@ -213,7 +213,7 @@ class neon_cli:
             logger.debug("ERR: neon-cli error {}".format(err))
             raise
 
-def confirm_transaction(client, tx_sig, confirmations=1):
+def confirm_transaction(client, tx_sig, confirmations=0):
     """Confirm a transaction."""
     TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
     elapsed_time = 0
@@ -227,7 +227,7 @@ def confirm_transaction(client, tx_sig, confirmations=1):
                status['confirmationStatus'] == 'confirmed' and status['confirmations'] >= confirmations):
 #            logger.debug('Confirmed transaction:', resp)
                 return
-        sleep_time = 1
+        sleep_time = 0.1
         time.sleep(sleep_time)
         elapsed_time += sleep_time
     #if not resp["result"]:
