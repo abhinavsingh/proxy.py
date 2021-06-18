@@ -557,7 +557,8 @@ def call_signed(acc, client, ethTrx, storage, steps):
             signature = call_continue_bucked(acc, client, instruction_count, accounts, continue_count)
             if signature:
                 return signature
-        except:
+        except Exception as err:
+            logger.debug(str(err))
             logger.debug("Continue iterative:")
             return call_continue_iterative(acc, client, steps, accounts)
 
@@ -599,7 +600,8 @@ def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, c
             if signature:
                 return signature
         except Exception as err:
-            logger.debug("Continue:")
+            logger.debug(str(err))
+            logger.debug("Continue iterative:")
             return call_continue_iterative(acc, client, steps, continue_accounts)
 
 
@@ -731,26 +733,26 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
                 AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
                 ]
-    
+
     continue_accounts = accounts[1:]
 
-    init_trx = Transaction()
-    init_trx.add(make_call_from_account_instruction(accounts))
+    precall_txs = Transaction()
+    precall_txs.add(make_call_from_account_instruction(accounts))
 
     # ExecuteTrxFromAccountDataIterative
     logger.debug("ExecuteTrxFromAccountDataIterative:")
-    send_measured_transaction(client, init_trx, acc)
+    send_measured_transaction(client, precall_txs, acc)
 
     while True:
         try:
-            (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps, init_trx)
-            logger.debug("Continue:")
+            (continue_count, instruction_count) = simulate_continue(acc, client, continue_accounts, steps)
+            logger.debug("Continue bucked:")
             signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
             if signature:
                 return (signature, '0x'+contract_eth.hex())
         except Exception as err:
-            # Continue
-            logger.debug("Continue:")
+            logger.debug(str(err))
+            logger.debug("Continue iterative:")
             signature = call_continue_iterative(acc, client, steps, continue_accounts)
             return (signature, '0x'+contract_eth.hex())
 
