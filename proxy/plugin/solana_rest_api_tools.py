@@ -362,35 +362,51 @@ def check_if_continue_returned(result):
                 return (True, result['result']['transaction']['signatures'][0])
     return (False, ())
 
-def call_continue_bucked(acc, client, step_count, accounts, continue_count):
-    result_list = []
-    for index in range(continue_count):
-        trx = Transaction().add(make_continue_instruction(accounts, step_count, index))
-        result = client.send_transaction(
-                trx,
-                acc,
-                opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
-            )["result"]
-        result_list.append(result)
-    for trx in result_list:
-        confirm_transaction(client, trx)
-        result = client.get_confirmed_transaction(trx)
-        get_measurements(result)
-        (finded, signature) = check_if_continue_returned(result)
-        if finded:
-            return signature
-    return None
+def call_continue(acc, client, steps, accounts):
+    try:
+        return call_continue_bucked(acc, client, steps, accounts)
+    except Exception as err:
+        logger.debug("call_continue_bucked exception:")
+        logger.debug(str(err))
+
+    try:
+        return call_continue_iterative(acc, client, steps, accounts)
+    except Exception as err:
+        logger.debug("call_continue_iterative exception:")
+        logger.debug(str(err))
+
+    return sol_instr_12_cancel(acc, client, accounts)
+
+def call_continue_bucked(acc, client, steps, accounts):
+    while True:
+        logger.debug("Continue bucked step:")
+        (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps)
+        logger.debug("Send bucked:")
+        result_list = []
+        for index in range(continue_count):
+            trx = Transaction().add(make_continue_instruction(accounts, instruction_count, index))
+            result = client.send_transaction(
+                    trx,
+                    acc,
+                    opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
+                )["result"]
+            result_list.append(result)
+        logger.debug("Collect bucked results:")
+        for trx in result_list:
+            confirm_transaction(client, trx)
+            result = client.get_confirmed_transaction(trx)
+            get_measurements(result)
+            (founded, signature) = check_if_continue_returned(result)
+            if founded:
+                return signature
 
 def call_continue_iterative(acc, client, step_count, accounts):
-    try:
-        while(True):
-            result = sol_instr_10_continue(acc, client, step_count, accounts)
-            (succed, signature) = check_if_continue_returned(result)
-            if succed:
-                return signature
-    except Exception as err:
-        sol_instr_12_cancel(acc, client, accounts)
-        raise
+    while True:
+        logger.debug("Continue iterative step:")
+        result = sol_instr_10_continue(acc, client, step_count, accounts)
+        (succeed, signature) = check_if_continue_returned(result)
+        if succeed:
+            return signature
 
 def sol_instr_10_continue(acc, client, initial_step_count, accounts):
     step_count = initial_step_count
@@ -398,7 +414,7 @@ def sol_instr_10_continue(acc, client, initial_step_count, accounts):
         trx = Transaction()
         trx.add(make_continue_instruction(accounts, step_count))
 
-        print("Step count {}", step_count)
+        logger.debug("Step count {}".format(step_count))
         try:
             result = send_measured_transaction(client, trx, acc)
             return result
@@ -415,6 +431,7 @@ def sol_instr_12_cancel(acc, client, accounts):
 
     logger.debug("Cancel")
     result = send_measured_transaction(client, trx, acc)
+    return result['result']['transaction']['signatures'][0]
 
 def make_partial_call_instruction(accounts, step_count, call_data):
     return TransactionInstruction(program_id = evm_loader_id,
@@ -525,18 +542,22 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
     return (accounts, sender_ether, sender_sol, trx)
 
 def call_signed(acc, client, ethTrx, storage, steps):
-
     (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
     msg = sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
     try:
-        logger.debug("Partial call")
+        logger.debug("Single trx call")
         return call_signed_noniteratve(acc, client, ethTrx, msg, accounts[1:], create_acc_trx, sender_sol)
     except Exception as err:
+        logger.debug(str(err))
         if str(err).startswith("transaction too large:"):
-            print ("Transaction too large, call call_signed_with_holder_acc():")
+            logger.debug("Transaction too large, call call_signed_with_holder_acc():")
             return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
 
+    return call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_trx, sender_sol)
+
+
+def call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_trx, sender_sol):
     precall_txs = Transaction()
     precall_txs.add(create_acc_trx)
     precall_txs.add(TransactionInstruction(
@@ -550,17 +571,8 @@ def call_signed(acc, client, ethTrx, storage, steps):
     logger.debug("Partial call")
     send_measured_transaction(client, precall_txs, acc)
 
-    while True:
-        try:
-            (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps)
-            logger.debug("Continue bucked:")
-            signature = call_continue_bucked(acc, client, instruction_count, accounts, continue_count)
-            if signature:
-                return signature
-        except Exception as err:
-            logger.debug(str(err))
-            logger.debug("Continue iterative:")
-            return call_continue_iterative(acc, client, steps, accounts)
+    return call_continue(acc, client, steps, accounts)
+
 
 def call_signed_noniteratve(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol):
     call_txs_05 = Transaction()
@@ -592,17 +604,7 @@ def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, c
     logger.debug("ExecuteTrxFromAccountDataIterative:")
     send_measured_transaction(client, precall_txs, acc)
 
-    while True:
-        try:
-            (continue_count, instruction_count) = simulate_continue(acc, client, continue_accounts, steps)
-            logger.debug("Continue bucked:")
-            signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
-            if signature:
-                return signature
-        except Exception as err:
-            logger.debug(str(err))
-            logger.debug("Continue iterative:")
-            return call_continue_iterative(acc, client, steps, continue_accounts)
+    return call_continue(acc, client, steps, continue_accounts)
 
 
 def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
@@ -743,20 +745,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     logger.debug("ExecuteTrxFromAccountDataIterative:")
     send_measured_transaction(client, precall_txs, acc)
 
-    while True:
-        try:
-            (continue_count, instruction_count) = simulate_continue(acc, client, continue_accounts, steps)
-            logger.debug("Continue bucked:")
-            signature = call_continue_bucked(acc, client, instruction_count, continue_accounts, continue_count)
-            if signature:
-                return (signature, '0x'+contract_eth.hex())
-        except Exception as err:
-            logger.debug(str(err))
-            logger.debug("Continue iterative:")
-            signature = call_continue_iterative(acc, client, steps, continue_accounts)
-            return (signature, '0x'+contract_eth.hex())
-
-
+    return (call_continue(acc, client, steps, continue_accounts), '0x'+contract_eth.hex())
 
 
 def _getAccountData(client, account, expected_length, owner=None):
