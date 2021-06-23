@@ -603,7 +603,7 @@ def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, c
 
     holder = write_trx_to_holder_account(acc, client, ethTrx)
 
-    continue_accounts = accounts
+    continue_accounts = accounts.copy()
     accounts.insert(0, AccountMeta(pubkey=holder, is_signer=False, is_writable=True))
 
     precall_txs = Transaction()
