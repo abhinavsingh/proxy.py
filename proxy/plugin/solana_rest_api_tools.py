@@ -461,6 +461,7 @@ def simulate_continue(acc, client, accounts, step_count):
     logger.debug("simulate_continue:")
     continue_count = 45
     while True:
+        logger.debug(continue_count)
         blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
         trx = Transaction(recent_blockhash = blockhash)
         for _ in range(continue_count):
@@ -545,16 +546,26 @@ def call_signed(acc, client, ethTrx, storage, steps):
     (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
     msg = sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
+    call_from_holder = False
+    call_iterative = False
     try:
-        logger.debug("Single trx call")
+        logger.debug("Try single trx call")
         return call_signed_noniteratve(acc, client, ethTrx, msg, accounts[1:], create_acc_trx, sender_sol)
     except Exception as err:
         logger.debug(str(err))
-        if str(err).startswith("transaction too large:"):
+        if str(err).find("Program failed to complete") >= 0:
+            logger.debug("Program exceeded instructions")
+            call_iterative = True
+        elif str(err).startswith("transaction too large:"):
             logger.debug("Transaction too large, call call_signed_with_holder_acc():")
-            return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
+            call_from_holder = True
+        else:
+            raise
 
-    return call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_trx, sender_sol)
+    if call_from_holder:
+        return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
+    if call_iterative:
+        return call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_trx, sender_sol)
 
 
 def call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_trx, sender_sol):
@@ -586,7 +597,6 @@ def call_signed_noniteratve(acc, client, ethTrx, msg, accounts, create_acc_trx, 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
 
     result = send_measured_transaction(client, call_txs_05, acc)
-    logger.debug(result)
     return result['result']['transaction']['signatures'][0]
 
 def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
