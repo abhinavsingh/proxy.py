@@ -550,7 +550,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
     call_iterative = False
     try:
         logger.debug("Try single trx call")
-        return call_signed_noniteratve(acc, client, ethTrx, msg, accounts[1:], create_acc_trx, sender_sol)
+        return call_signed_noniterative(acc, client, ethTrx, msg, accounts[1:], create_acc_trx, sender_sol)
     except Exception as err:
         logger.debug(str(err))
         if str(err).find("Program failed to complete") >= 0:
@@ -585,7 +585,7 @@ def call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_
     return call_continue(acc, client, steps, accounts)
 
 
-def call_signed_noniteratve(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol):
+def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol):
     call_txs_05 = Transaction()
     call_txs_05.add(create_acc_trx)
     call_txs_05.add(TransactionInstruction(
