@@ -29,6 +29,7 @@ from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm
 from web3 import Web3
 import logging
 import random
+from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -58,14 +59,11 @@ class EthereumModel:
             self.signer = sol_Account(values)
 
         self.client = SolanaClient(solana_url)
-        self.signatures = {}
-        self.vrs = {}
-        self.eth_sender = {}
-        self.contract_address = {}
+        self.signatures = signatures_glob
+        self.vrs = vrs_glob
+        self.eth_sender = eth_sender_glob
+        self.contract_address = contract_address_glob
         self.storage = create_storage_account(self.client, funding=self.signer, base=self.signer, seed=bytes(str(random.randint(0, 0xFFFFFFFF)), 'utf8'))
-
-        self.contracts = {}
-        self.accounts = {}
         pass
 
     def eth_chainId(self):
