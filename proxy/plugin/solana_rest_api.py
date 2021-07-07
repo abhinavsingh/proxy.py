@@ -182,6 +182,7 @@ class EthereumModel:
 
         logs = []
         status = "0x1"
+        gas_used = 0
         log_index = 0
         for inner in (trx['result']['meta']['innerInstructions']):
             for event in inner['instructions']:
@@ -214,6 +215,7 @@ class EthereumModel:
                         status = "0x1"
                     else:
                         status = "0x0"
+                    gas_used = int.from_bytes(log[2:10], 'little')
 
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # logger.debug('BLOCK: %s', json.dumps(block, indent=3))
@@ -239,8 +241,8 @@ class EthereumModel:
             "blockNumber":hex(trx['result']['slot']),
             "from":'0x'+self.eth_sender[trxId],
             # "to":'',
-            "gasUsed":'0x%x' % trx['result']['meta']['fee'],
-            "cumulativeGasUsed":'0x%x' % trx['result']['meta']['fee'],
+            "gasUsed":'0x%x' % gas_used,
+            "cumulativeGasUsed":'0x%x' % gas_used,
             "contractAddress":self.contract_address.get(trxId),
             "logs": logs,
             "status": status,
