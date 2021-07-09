@@ -604,7 +604,7 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=False, is_writable=False))
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False))
     # Insert into the instruction data
-    collateral_pool_seed_index = 88
+    collateral_pool_seed_index = random.randint(0, 4)
     msg = msg + bytearray([collateral_pool_seed_index])
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
