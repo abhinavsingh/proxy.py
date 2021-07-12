@@ -17,7 +17,7 @@ done
 
 export EVM_LOADER_TEST_NET_ID="Gs6gYaQqEf7YonKKc9Fi9tgmHutW82Z7s9R7YGp8ZH7x"
 
-if [ "$EVM_LOADER" == "deploy" ]; then
+if [ "${EVM_LOADER}" == "deploy" ]; then
   echo "EVM_LOADER is set to load"
   echo "A new Neon-evm will be deployed"
   echo airdropping...
