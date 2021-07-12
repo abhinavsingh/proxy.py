@@ -15,7 +15,7 @@ for i in {1..10}; do
     sleep 2
 done
 
-export EVM_LOADER_TEST_NET_ID="A5CqSrY2ca3Sykqt69i6nvCWzyKKcupSNLCCzdDqDo3n"
+export EVM_LOADER_TEST_NET_ID="Gs6gYaQqEf7YonKKc9Fi9tgmHutW82Z7s9R7YGp8ZH7x"
 
 if [ "$EVM_LOADER" == "$EVM_LOADER_TEST_NET_ID" ]; then
    echo "The default Neon-evm will be used"
@@ -29,7 +29,6 @@ else
     echo deploying evm_loader...
     solana deploy /spl/bin/evm_loader.so > evm_loader_id
     export EVM_LOADER=$(cat evm_loader_id | sed '/Program Id: \([0-9A-Za-z]\+\)/,${s//\1/;b};s/^.*$//;$q1')
-    echo EVM_LOADER=$EVM_LOADER
   fi
 fi
 
