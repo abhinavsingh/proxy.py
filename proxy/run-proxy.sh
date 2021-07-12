@@ -17,18 +17,24 @@ done
 
 export EVM_LOADER_TEST_NET_ID="Gs6gYaQqEf7YonKKc9Fi9tgmHutW82Z7s9R7YGp8ZH7x"
 
-if [ "$EVM_LOADER" == "$EVM_LOADER_TEST_NET_ID" ]; then
-   echo "The default Neon-evm will be used"
-   export EVM_LOADER="$EVM_LOADER_TEST_NET_ID"
+if [ "$EVM_LOADER" == "deploy" ]; then
+  echo "EVM_LOADER is set to load"
+  echo "A new Neon-evm will be deployed"
+  echo airdropping...
+  solana airdrop 1000
+  echo deploying evm_loader...
+  solana deploy /spl/bin/evm_loader.so > evm_loader_id
+  export EVM_LOADER=$(cat evm_loader_id | sed '/Program Id: \([0-9A-Za-z]\+\)/,${s//\1/;b};s/^.*$//;$q1')
 else
   if [ -z "${EVM_LOADER}" ]; then
     echo "EVM_LOADER is unset or set to the empty string"
+    echo "The pre-deployed Neon-evm will be used"
+    export EVM_LOADER="$EVM_LOADER_TEST_NET_ID"
     echo airdropping...
     solana airdrop 1000
-
-    echo deploying evm_loader...
-    solana deploy /spl/bin/evm_loader.so > evm_loader_id
-    export EVM_LOADER=$(cat evm_loader_id | sed '/Program Id: \([0-9A-Za-z]\+\)/,${s//\1/;b};s/^.*$//;$q1')
+  else
+    echo "EVM_LOADER is set"
+    echo "The specified Neon-evm will be used"
   fi
 fi
 
