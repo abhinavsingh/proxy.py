@@ -19,6 +19,7 @@ export EVM_LOADER_TEST_NET_ID="A5CqSrY2ca3Sykqt69i6nvCWzyKKcupSNLCCzdDqDo3n"
 
 if [ "$EVM_LOADER" == "$EVM_LOADER_TEST_NET_ID" ]; then
    echo "The default Neon-evm will be used"
+   export EVM_LOADER="$EVM_LOADER_TEST_NET_ID"
 else
   if [ -z "${EVM_LOADER}" ]; then
     echo "EVM_LOADER is unset or set to the empty string"
