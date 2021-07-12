@@ -33,5 +33,7 @@ else
   fi
 fi
 
+env | grep "EVM_LOADER"
+
 echo run-proxy
 python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin
