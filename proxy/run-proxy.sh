@@ -15,13 +15,17 @@ for i in {1..10}; do
     sleep 2
 done
 
-export EVM_LOADER_TEST_NET_ID="Gs6gYaQqEf7YonKKc9Fi9tgmHutW82Z7s9R7YGp8ZH7x"
+export EVM_LOADER_TEST_NET_ID="3MPhvoMh6orj83B8Hio6eenYF4J4A1cJdXTPxCaY5pg6"
 
 if [ "${EVM_LOADER}" == "deploy" ]; then
   echo "EVM_LOADER is set to load"
   echo "A new Neon-evm will be deployed"
   echo airdropping...
   solana airdrop 1000
+  # check that balance > 20 otherwise airdroping by 1 SOL up to 20
+  set `solana balance|tr '.' ' '`
+  while [ "$1" -lt 20 ]; do solana airdrop 1; sleep 1; set `solana balance|tr '.' ' '`; done
+
   echo deploying evm_loader...
   solana deploy /spl/bin/evm_loader.so > evm_loader_id
   export EVM_LOADER=$(cat evm_loader_id | sed '/Program Id: \([0-9A-Za-z]\+\)/,${s//\1/;b};s/^.*$//;$q1')
