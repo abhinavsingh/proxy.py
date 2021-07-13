@@ -15,7 +15,7 @@ for i in {1..10}; do
     sleep 2
 done
 
-export EVM_LOADER_TEST_NET_ID="3MPhvoMh6orj83B8Hio6eenYF4J4A1cJdXTPxCaY5pg6"
+export EVM_LOADER_TEST_NET_ID="9pwEPcVFRwP3hwCbwy9E9o1nhRz67EHiPsphmaTQwxtB"
 
 if [ "${EVM_LOADER}" == "deploy" ]; then
   echo "EVM_LOADER is set to load"
@@ -34,8 +34,6 @@ else
     echo "EVM_LOADER is unset or set to the empty string"
     echo "The pre-deployed Neon-evm will be used"
     export EVM_LOADER="$EVM_LOADER_TEST_NET_ID"
-    echo airdropping...
-    solana airdrop 1000
   else
     echo "EVM_LOADER is set"
     echo "The specified Neon-evm will be used"
