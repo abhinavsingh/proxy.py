@@ -29,17 +29,17 @@ while [ "$BALANCE" -lt 10 ]; do
   BALANCE=`solana balance | tr '.' '\t'| tr '[:space:]' '\t' | cut -f1`
 done
 
-if [ "${EVM_LOADER}" == "deploy" ]; then
-  echo "EVM_LOADER is set to load
-        A new Neon-evm will be deployed
-        deploying evm_loader..."
-  solana deploy /spl/bin/evm_loader.so > evm_loader_id
-  export EVM_LOADER=$(cat evm_loader_id | sed '/Program Id: \([0-9A-Za-z]\+\)/,${s//\1/;b};s/^.*$//;$q1')
+if [ -z "${EVM_LOADER}" ]; then
+  echo "EVM_LOADER is unset or set to the empty string
+        The pre-deployed Neon-evm will be used"
+  export EVM_LOADER="$EVM_LOADER_TEST_NET_ID"
 else
-  if [ -z "${EVM_LOADER}" ]; then
-    echo "EVM_LOADER is unset or set to the empty string
-          The pre-deployed Neon-evm will be used"
-    export EVM_LOADER="$EVM_LOADER_TEST_NET_ID"
+  if [ "${EVM_LOADER}" == "deploy" ]; then
+    echo "EVM_LOADER is set to load
+          A new Neon-evm will be deployed
+          deploying evm_loader..."
+    solana deploy /spl/bin/evm_loader.so > evm_loader_id
+    export EVM_LOADER=$(cat evm_loader_id | sed '/Program Id: \([0-9A-Za-z]\+\)/,${s//\1/;b};s/^.*$//;$q1')
   else
     echo "EVM_LOADER is set
           The specified Neon-evm will be used"
