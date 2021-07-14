@@ -15,7 +15,7 @@ for i in {1..10}; do
     sleep 2
 done
 
-export EVM_LOADER_TEST_NET_ID="9pwEPcVFRwP3hwCbwy9E9o1nhRz67EHiPsphmaTQwxtB"
+export EVM_LOADER_TEST_NET_ID="eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU"
 
 if [ "${EVM_LOADER}" == "deploy" ]; then
   echo "EVM_LOADER is set to load"
@@ -40,7 +40,7 @@ else
   fi
 fi
 
-env | grep "EVM_LOADER"
+echo "Use evm_loader with EVM_LOADER=$EVM_LOADER"
 
 echo run-proxy
 python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin
