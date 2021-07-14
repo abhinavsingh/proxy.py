@@ -29,12 +29,12 @@ while [ "$BALANCE" -lt 10 ]; do
   BALANCE=`solana balance | tr '.' '\t'| tr '[:space:]' '\t' | cut -f1`
 done
 
-if [ -z "${EVM_LOADER}" ]; then
+if [ -z "$EVM_LOADER" ]; then
   echo "EVM_LOADER is unset or set to the empty string
         The pre-deployed Neon-evm will be used"
   export EVM_LOADER="$EVM_LOADER_TEST_NET_ID"
 else
-  if [ "${EVM_LOADER}" == "deploy" ]; then
+  if [ "$EVM_LOADER" == "deploy" ]; then
     echo "EVM_LOADER is set to load
           A new Neon-evm will be deployed
           deploying evm_loader..."
