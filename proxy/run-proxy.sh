@@ -1,5 +1,5 @@
 #!/bin/bash
-set -xeuo pipefail
+set -xeo pipefail
 
 date
 
