@@ -608,15 +608,17 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     collateral_pool_seed_index = random.randint(0, 4)
 
     # Insert additional accounts for EvmInstruction::CallFromRawEthereumTX in reverse order:
+    # system program account
+    accounts.insert(0, AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False))
     # operator ETH address
-    accounts.insert(0, AccountMeta(pubkey=PublicKey("SysvarC1ock11111111111111111111111111111111"), is_signer=False, is_writable=False))
+    accounts.insert(0, AccountMeta(pubkey=PublicKey("SysvarC1ock11111111111111111111111111111111"), is_signer=False, is_writable=True))
     # user ETH address
-    accounts.insert(0, AccountMeta(pubkey=PublicKey("SysvarC1ock11111111111111111111111111111111"), is_signer=False, is_writable=False))
+    accounts.insert(0, AccountMeta(pubkey=PublicKey("SysvarC1ock11111111111111111111111111111111"), is_signer=False, is_writable=True))
     # collateral pool address (SOL)
     accounts.insert(0, AccountMeta(pubkey=PublicKey(collateral_pool[collateral_pool_seed_index]), is_signer=False, is_writable=True))
     # operator address (SOL)
-    accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=False))
-    # sysvar
+    accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True))
+    # system instructions
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False))
     # Append pool index to the instruction data
     msg = msg + bytearray([collateral_pool_seed_index])
