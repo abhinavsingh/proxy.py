@@ -610,9 +610,9 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     # Insert additional accounts for EvmInstruction::CallFromRawEthereumTX in reverse order:
     # system program account
     accounts.insert(0, AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False))
-    # operator ETH address
+    # operator ETH address (stub for now)
     accounts.insert(0, AccountMeta(pubkey=PublicKey("SysvarC1ock11111111111111111111111111111111"), is_signer=False, is_writable=True))
-    # user ETH address
+    # user ETH address (stub for now)
     accounts.insert(0, AccountMeta(pubkey=PublicKey("SysvarC1ock11111111111111111111111111111111"), is_signer=False, is_writable=True))
     # collateral pool address (SOL)
     accounts.insert(0, AccountMeta(pubkey=PublicKey(collateral_pool[collateral_pool_seed_index]), is_signer=False, is_writable=True))
