@@ -4,8 +4,6 @@ date
 
 echo SOLANA_URL=$SOLANA_URL
 
-solana-keygen new --no-passphrase
-
 solana config set -u $SOLANA_URL
 
 solana config get
