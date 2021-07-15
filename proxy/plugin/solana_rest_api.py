@@ -23,7 +23,7 @@ from sha3 import keccak_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm_loader_id, getLamports, \
+from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
     Trx, deploy_contract, EthereumError
 from web3 import Web3
@@ -94,7 +94,8 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
-        balance = getLamports(self.client, evm_loader_id, eth_acc, self.signer.public_key())
+        balance = getTokens(self.client, evm_loader_id, eth_acc, self.signer.public_key())
+
         return hex(balance*10**9)
 
     def eth_getBlockByNumber(self, tag, full):

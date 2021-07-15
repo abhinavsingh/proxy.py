@@ -11,8 +11,7 @@
  
 @@ -33,6 +33,11 @@
      return types.MemcmpOpts(*args, **kwargs)
- 
- 
+
 +class SendTransactionError(Exception):
 +    def __init__(self, result):
 +        super().__init__(result['message'])
@@ -21,7 +20,7 @@
  class Client:  # pylint: disable=too-many-public-methods
      """Client class."""
  
-@@ -284,7 +289,7 @@
+@@ -328,7 +334,7 @@
  
          return self._provider.make_request(types.RPCMethod("getConfirmedSignaturesForAddress2"), account, opts)
  
@@ -30,7 +29,7 @@
          """Returns transaction details for a confirmed transaction.
  
          :param tx_sig: Transaction signature as base-58 encoded string N encoding attempts to use program-specific
-@@ -315,7 +320,7 @@
+@@ -359,7 +365,7 @@
             'signatures': ['3PtGYH77LhhQqTXP4SmDVJ85hmDieWsgXCUbn14v7gYyVYPjZzygUQhTk3bSTYnfA48vCM1rmWY7zWL3j1EVKmEy']}},
           'id': 4}
          """  # noqa: E501 # pylint: disable=line-too-long
@@ -39,7 +38,7 @@
  
      def get_epoch_info(self, commitment: Commitment = Max) -> types.RPCResponse:
          """Returns information about the current epoch.
-@@ -1039,6 +1044,7 @@
+@@ -1083,6 +1089,7 @@
      def __post_send(self, resp: types.RPCResponse, skip_confirm: bool, conf_comm: Commitment) -> types.RPCResponse:
          if resp.get("error"):
              self._provider.logger.error(resp.get("error"))
