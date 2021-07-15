@@ -15,20 +15,26 @@ for i in {1..10}; do
     sleep 2
 done
 
-solana address || solana-keygen new --no-passphrase
-echo "The following wallet will be used:" && solana address
+
+ADDRESS=$(solana address || echo "no wallet")
+
+if [ "$EVM_LOADER" == "no wallet" ]; then
+  solana-keygen new --no-passphrase
+  echo "airdropping..."
+  solana airdrop 1000
+  # check that balance >= 10 otherwise airdroping by 1 SOL up to 10
+  BALANCE=$(solana balance | tr '.' '\t'| tr '[:space:]' '\t' | cut -f1)
+  while [ "$BALANCE" -lt 10 ]; do
+    solana airdrop 1
+    sleep 1
+    BALANCE=$(solana balance | tr '.' '\t'| tr '[:space:]' '\t' | cut -f1)
+  done
+fi
+
+solana address
+solana balance
 
 export EVM_LOADER_TEST_NET_ID="eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU"
-
-echo "airdropping..."
-solana airdrop 1000
-# check that balance >= 10 otherwise airdroping by 1 SOL up to 10
-BALANCE=`solana balance | tr '.' '\t'| tr '[:space:]' '\t' | cut -f1`
-while [ "$BALANCE" -lt 10 ]; do
-  solana airdrop 1
-  sleep 1
-  BALANCE=`solana balance | tr '.' '\t'| tr '[:space:]' '\t' | cut -f1`
-done
 
 if [ -z "$EVM_LOADER" ]; then
   echo "EVM_LOADER is unset or set to the empty string
