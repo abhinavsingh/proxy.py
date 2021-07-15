@@ -43,7 +43,7 @@ else
     echo "EVM_LOADER is set to load
           A new Neon-evm will be deployed
           deploying evm_loader..."
-    solana program deploy /spl/bin/evm_loader.so > evm_loader_id
+    solana program deploy --upgrade-authority /spl/bin/evm_loader-keypair.json /spl/bin/evm_loader.so > evm_loader_id
     export EVM_LOADER=$(cat evm_loader_id | sed '/Program Id: \([0-9A-Za-z]\+\)/,${s//\1/;b};s/^.*$//;$q1')
   else
     echo "EVM_LOADER is set
