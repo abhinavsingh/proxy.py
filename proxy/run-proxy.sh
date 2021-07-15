@@ -18,7 +18,7 @@ done
 
 ADDRESS=$(solana address || echo "no wallet")
 
-if [ "$EVM_LOADER" == "no wallet" ]; then
+if [ "$ADDRESS" == "no wallet" ]; then
   solana-keygen new --no-passphrase
   echo "airdropping..."
   solana airdrop 1000
