@@ -77,8 +77,10 @@ class EthereumModel:
 
     def eth_estimateGas(self, param):
         if param.get('to'):
-            call_emulated(param['to'], param['from'], param['data'])
-        return 9999999
+            result = call_emulated(param['to'], param['from'], param['data'])
+            return result['used_gas']
+        else:
+            return 9999998
 
     def __repr__(self):
         return str(self.__dict__)
