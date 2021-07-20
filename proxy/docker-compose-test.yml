@@ -22,6 +22,7 @@ services:
     image: cybercoredev/proxy:${REVISION}
     environment:
       - SOLANA_URL=http://solana:8899
+      - EVM_LOADER=deploy
     hostname: proxy
     ports:
       - 127.0.0.1:9090:9090
