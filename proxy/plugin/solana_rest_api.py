@@ -29,7 +29,7 @@ from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm
 from web3 import Web3
 import logging
 import random
-from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob
+from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob, proxy_id_glob
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -63,7 +63,14 @@ class EthereumModel:
         self.vrs = vrs_glob
         self.eth_sender = eth_sender_glob
         self.contract_address = contract_address_glob
-        self.storage = create_storage_account(self.client, funding=self.signer, base=self.signer, seed=bytes(str(random.randint(0, 0xFFFFFFFF)), 'utf8'))
+
+        with proxy_id_glob.get_lock():
+            self.proxy_id = proxy_id_glob.value
+            proxy_id_glob.value += 1
+        logger.debug("worker id {}".format(self.proxy_id))
+
+        seed = base58.b58encode(self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')) + self.signer.public_key().to_base58()
+        self.storage = create_storage_account(self.client, funding=self.signer, base=self.signer, seed=seed[0:32])
         pass
 
     def eth_chainId(self):
