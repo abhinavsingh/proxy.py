@@ -121,11 +121,16 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
     )
 
 def create_storage_account(client, funding, base, seed):
+    STORAGE_SIZE = 128*1024
+
     storage = accountWithSeed(base.public_key(), seed, PublicKey(evm_loader_id))
+    minimum_balance = client.get_minimum_balance_for_rent_exemption(STORAGE_SIZE, commitment=Confirmed)["result"]
+
+    logger.debug("Minimum balance required for storage account {}".format(minimum_balance))
 
     if client.get_balance(storage, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
-        trx.add(createAccountWithSeed(funding.public_key(), base.public_key(), seed, 10**9, 128*1024, PublicKey(evm_loader_id)))
+        trx.add(createAccountWithSeed(funding.public_key(), base.public_key(), seed, minimum_balance, STORAGE_SIZE, PublicKey(evm_loader_id)))
         send_transaction(client, trx, funding)
 
     return storage
