@@ -593,6 +593,19 @@ def call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_
     return call_continue(acc, client, steps, accounts)
 
 
+def create_collateral_pool_address(client, operator_acc, collateral_pool_index, program_id):
+    COLLATERAL_SEED_PREFIX = "collateral_seed_"
+    seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
+    collateral_pool_address = accountWithSeed(operator_acc.public_key(), seed, PublicKey(program_id))
+    print("Collateral pool address: ", collateral_pool_address)
+    if client.get_balance(collateral_pool_address, commitment=Confirmed)['result']['value'] == 0:
+        trx = Transaction()
+        trx.add(createAccountWithSeed(operator_acc.public_key(), operator_acc.public_key(), seed, 10**9, 0, PublicKey(program_id)))
+        result = send_transaction(client, trx, operator_acc)
+        print(result)
+    return collateral_pool_address
+
+
 def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol):
     call_txs_05 = Transaction()
     call_txs_05.add(create_acc_trx)
@@ -603,30 +616,28 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
             AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
         ]))
 
-    # Generated with
-    # solana create-address-with-seed collateral_seed_* 67REEvFbE25SwzocC5dgJd2BAp8nFLxwukiWHntAv5FX
-    collateral_pool = ["6fNXSnZ6y13kLkcPCfwnNc1wF7ydr7mH3HSkagX1HM3B",
-                       "5xhpDagjtuTa28iEzv5MEhghrY5amHfBD845qthSUu2N",
-                       "BmweRNmqMUVBQE8onugArJNmHwcBzSeL8h4vwGjrce77",
-                       "5xjiiVt3phheix6LKQjShuSFcWMbdCRKBo8wBbQER85k",
-                       "8z6m8R5jhrV4RaGxJXZiBxF4USFkQAm6qDWGkoBhrfnz"]
     collateral_pool_index = random.randint(0, 4)
+    collateral_pool_index_buf = collateral_pool_index.to_bytes(4, 'little')
+    collateral_pool_address = create_collateral_pool_address(client,
+                                                             acc,
+                                                             collateral_pool_index,
+                                                             evm_loader_id)
 
     # Insert additional accounts for EvmInstruction::CallFromRawEthereumTX in reverse order:
     # system program account
     accounts.insert(0, AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False))
     # operator ETH address (stub for now)
-    accounts.insert(0, AccountMeta(pubkey=PublicKey("SysvarC1ock11111111111111111111111111111111"), is_signer=False, is_writable=True))
+    accounts.insert(0, AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True))
     # user ETH address (stub for now)
-    accounts.insert(0, AccountMeta(pubkey=PublicKey("SysvarC1ock11111111111111111111111111111111"), is_signer=False, is_writable=True))
+    accounts.insert(0, AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True))
     # collateral pool address (SOL)
-    accounts.insert(0, AccountMeta(pubkey=PublicKey(collateral_pool[collateral_pool_index]), is_signer=False, is_writable=True))
+    AccountMeta(pubkey=collateral_pool_address, is_signer=False, is_writable=True),
     # operator address (SOL)
     accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True))
     # system instructions
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False))
     # Append pool index to the instruction data
-    msg = msg + bytearray([collateral_pool_index])
+    msg = msg + collateral_pool_index_buf
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
     result = send_measured_transaction(client, call_txs_05, acc)
