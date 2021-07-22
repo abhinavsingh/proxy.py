@@ -88,8 +88,13 @@ def write_layout(offset, data):
             data)
 
 def accountWithSeed(base, seed, program):
-    #logger.debug(type(base), str(base), type(seed), str(seed), type(program), str(program))
-    result = PublicKey(sha256(bytes(base)+bytes(seed)+bytes(program)).digest())
+    # logger.debug(type(base), str(base), type(seed), str(seed), type(program), str(program))
+    logger.debug('accountWithSeed(')
+    logger.debug(base)
+    logger.debug(seed)
+    logger.debug(program)
+    logger.debug(')')
+    result = PublicKey(sha256(bytes(base) + bytes(seed) + bytes(program)).digest())
     logger.debug('accountWithSeed %s', str(result))
     return result
 
@@ -124,11 +129,12 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
 def create_collateral_pool_address(client, operator_acc, collateral_pool_index, program_id):
     COLLATERAL_SEED_PREFIX = "collateral_seed_"
     seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
-    collateral_pool_address = accountWithSeed(operator_acc.public_key(), seed, PublicKey(program_id))
+    collateral_pool_address = accountWithSeed(operator_acc.public_key(), str.encode(seed), PublicKey(program_id))
     print("Collateral pool address: ", collateral_pool_address)
     if client.get_balance(collateral_pool_address, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
-        trx.add(createAccountWithSeed(operator_acc.public_key(), operator_acc.public_key(), seed, 10**9, 0, PublicKey(program_id)))
+        trx.add(createAccountWithSeed(operator_acc.public_key(), operator_acc.public_key(), str.encode(seed), 10**9, 0,
+                                      PublicKey(program_id)))
         result = send_transaction(client, trx, operator_acc)
         print(result)
     return collateral_pool_address
