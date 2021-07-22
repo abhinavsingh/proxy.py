@@ -120,6 +120,20 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
         data=data
     )
 
+
+def create_collateral_pool_address(client, operator_acc, collateral_pool_index, program_id):
+    COLLATERAL_SEED_PREFIX = "collateral_seed_"
+    seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
+    collateral_pool_address = accountWithSeed(operator_acc.public_key(), seed, PublicKey(program_id))
+    print("Collateral pool address: ", collateral_pool_address)
+    if client.get_balance(collateral_pool_address, commitment=Confirmed)['result']['value'] == 0:
+        trx = Transaction()
+        trx.add(createAccountWithSeed(operator_acc.public_key(), operator_acc.public_key(), seed, 10**9, 0, PublicKey(program_id)))
+        result = send_transaction(client, trx, operator_acc)
+        print(result)
+    return collateral_pool_address
+
+
 def create_storage_account(client, funding, base, seed):
     STORAGE_SIZE = 128*1024
 
@@ -550,15 +564,16 @@ def create_account_list_by_emulate(acc, client, ethTrx):
     ]
     return (accounts, sender_ether, sender_sol, trx)
 
-def call_signed(acc, client, ethTrx, storage, steps):
+
+def call_signed(acc, client, ethTrx, neon_infra, steps):
     (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx)
-    msg = sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
+    msg = sender_ether + neon_infra.collateral_pool_index_buf + ethTrx.signature() + ethTrx.unsigned_msg()
 
     call_from_holder = False
     call_iterative = False
     try:
         logger.debug("Try single trx call")
-        return call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol)
+        return call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol, neon_infra)
     except Exception as err:
         logger.debug(str(err))
         if str(err).find("Program failed to complete") >= 0:
@@ -571,7 +586,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
             raise
 
     if call_from_holder:
-        return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
+        return call_signed_with_holder_acc(acc, client, ethTrx, neon_infra.storage, steps, accounts, create_acc_trx)
     if call_iterative:
         return call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_trx, sender_sol)
 
@@ -593,35 +608,15 @@ def call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_
     return call_continue(acc, client, steps, accounts)
 
 
-def create_collateral_pool_address(client, operator_acc, collateral_pool_index, program_id):
-    COLLATERAL_SEED_PREFIX = "collateral_seed_"
-    seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
-    collateral_pool_address = accountWithSeed(operator_acc.public_key(), seed, PublicKey(program_id))
-    print("Collateral pool address: ", collateral_pool_address)
-    if client.get_balance(collateral_pool_address, commitment=Confirmed)['result']['value'] == 0:
-        trx = Transaction()
-        trx.add(createAccountWithSeed(operator_acc.public_key(), operator_acc.public_key(), seed, 10**9, 0, PublicKey(program_id)))
-        result = send_transaction(client, trx, operator_acc)
-        print(result)
-    return collateral_pool_address
-
-
-def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol):
+def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol, neon_infra):
     call_txs_05 = Transaction()
     call_txs_05.add(create_acc_trx)
     call_txs_05.add(TransactionInstruction(
         program_id=keccakprog,
-        data=make_keccak_instruction_data(len(call_txs_05.instructions)+1, len(ethTrx.unsigned_msg())),
+        data=make_keccak_instruction_data(len(call_txs_05.instructions)+1, len(ethTrx.unsigned_msg(), 5)),
         keys=[
             AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
         ]))
-
-    collateral_pool_index = random.randint(0, 4)
-    collateral_pool_index_buf = collateral_pool_index.to_bytes(4, 'little')
-    collateral_pool_address = create_collateral_pool_address(client,
-                                                             acc,
-                                                             collateral_pool_index,
-                                                             evm_loader_id)
 
     # Insert additional accounts for EvmInstruction::CallFromRawEthereumTX in reverse order:
     # system program account
@@ -631,13 +626,11 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     # user ETH address (stub for now)
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True))
     # collateral pool address (SOL)
-    AccountMeta(pubkey=collateral_pool_address, is_signer=False, is_writable=True),
+    AccountMeta(pubkey=neon_infra.collateral_pool_address, is_signer=False, is_writable=True),
     # operator address (SOL)
     accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True))
     # system instructions
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False))
-    # Append pool index to the instruction data
-    msg = msg + collateral_pool_index_buf
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
     result = send_measured_transaction(client, call_txs_05, acc)

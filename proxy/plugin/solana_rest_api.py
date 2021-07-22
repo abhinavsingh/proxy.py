@@ -25,7 +25,7 @@ import traceback
 import threading
 from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm_loader_id, getLamports, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
-    Trx, deploy_contract, EthereumError
+    Trx, deploy_contract, EthereumError, create_collateral_pool_address
 from web3 import Web3
 import logging
 import random
@@ -71,6 +71,12 @@ class EthereumModel:
 
         seed = base58.b58encode(self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')) + self.signer.public_key().to_base58()
         self.storage = create_storage_account(self.client, funding=self.signer, base=self.signer, seed=seed[0:32])
+        self.collateral_pool_index = self.proxy_id % 4
+        self.collateral_pool_index_buf = self.collateral_pool_index.to_bytes(4, 'little')
+        self.collateral_pool_address = create_collateral_pool_address(self.client,
+                                                                      self.signer,
+                                                                      self.collateral_pool_index,
+                                                                      evm_loader_id)
         pass
 
     def eth_chainId(self):
@@ -336,7 +342,7 @@ class EthereumModel:
                     (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, steps=1000)
                     #self.contract_address[eth_signature] = contract_eth
                 else:
-                    signature = call_signed(self.signer, self.client, trx, self.storage, steps=1000)
+                    signature = call_signed(self.signer, self.client, trx, self, steps=1000)
 
                 eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
                 logger.debug('Transaction signature: %s %s', signature, eth_signature)
