@@ -640,6 +640,10 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True))
     # system instructions
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False))
+    logger.debug('accounts:[')
+    logger.debug(accounts)
+    logger.debug(']')
+
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
     result = send_measured_transaction(client, call_txs_05, acc)
