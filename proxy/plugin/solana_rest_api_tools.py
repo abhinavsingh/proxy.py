@@ -89,11 +89,6 @@ def write_layout(offset, data):
 
 def accountWithSeed(base, seed, program):
     # logger.debug(type(base), str(base), type(seed), str(seed), type(program), str(program))
-    logger.debug('accountWithSeed(')
-    logger.debug(base)
-    logger.debug(seed)
-    logger.debug(program)
-    logger.debug(')')
     result = PublicKey(sha256(bytes(base) + bytes(seed) + bytes(program)).digest())
     logger.debug('accountWithSeed %s', str(result))
     return result

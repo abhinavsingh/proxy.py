@@ -38,11 +38,13 @@ logger.setLevel(logging.DEBUG)
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
+
 class CollateralPool:
     def __init__(self, index, address):
         self.index = index
         self.index_buf = index.to_bytes(4, 'little')
         self.address = address
+
 
 class EthereumModel:
     def __init__(self):
@@ -345,10 +347,10 @@ class EthereumModel:
             try:
                 contract_eth = None
                 if (not trx.toAddress):
-                    (signature, contract_eth) = deploy_contract(self.acc, self.client, trx, self.storage, steps=1000)
+                    (signature, contract_eth) = deploy_contract(self.signer, self.client, trx, self.storage, steps=1000)
                     #self.contract_address[eth_signature] = contract_eth
                 else:
-                    signature = call_signed(self.acc, self.client, trx, self.storage,
+                    signature = call_signed(self.signer, self.client, trx, self.storage,
                                             self.collateral_pool, steps=1000)
 
                 eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
