@@ -561,7 +561,7 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
 
     accounts = [
-            AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
+            # AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
