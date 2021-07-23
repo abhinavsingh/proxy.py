@@ -197,6 +197,7 @@ class EthereumAddress:
 
 
 def emulator(contract, sender, data):
+    data = data if data != None else ""
     cmd = 'emulate --commitment=recent  --evm_loader {} {} {} {}'.format(evm_loader_id, sender, contract, data)
     print(cmd)
     return neon_cli().call(cmd)
@@ -524,7 +525,8 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
     for acc_desc in output_json["accounts"]:
         address = bytes.fromhex(acc_desc["address"][2:])
         if address == ethTrx.toAddress:
-            (contract_sol, code_sol) = (PublicKey(acc_desc["account"]), PublicKey(acc_desc["contract"]))
+            contract_sol = PublicKey(acc_desc["account"])
+            code_sol = PublicKey(acc_desc["contract"]) if acc_desc["contract"] != None else None
         elif address == sender_ether:
             sender_sol = PublicKey(acc_desc["account"])
         else:
@@ -548,7 +550,7 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
             AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=get_associated_token_address(contract_sol, ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
-            AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
+        ] + ([AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True)] if code_sol != None else []) + [
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=get_associated_token_address(sender_sol, ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
             AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),

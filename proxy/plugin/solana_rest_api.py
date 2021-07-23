@@ -317,38 +317,31 @@ class EthereumModel:
         sender = trx.sender()
         logger.debug('Sender: %s', sender)
 
-        if trx.value and trx.callData:
-            raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
-        elif trx.value:
-            raise Exception("transfer native tokens is not implemented")
-        elif trx.callData:
-            try:
-                contract_eth = None
-                if (not trx.toAddress):
-                    (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, steps=1000)
-                    #self.contract_address[eth_signature] = contract_eth
-                else:
-                    signature = call_signed(self.signer, self.client, trx, self.storage, steps=1000)
+        try:
+            contract_eth = None
+            if (not trx.toAddress):
+                (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, steps=1000)
+                #self.contract_address[eth_signature] = contract_eth
+            else:
+                signature = call_signed(self.signer, self.client, trx, self.storage, steps=1000)
 
-                eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
-                logger.debug('Transaction signature: %s %s', signature, eth_signature)
-                if contract_eth: self.contract_address[eth_signature] = contract_eth
-                self.signatures[eth_signature] = signature
-                self.eth_sender[eth_signature] = sender
-                self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+            eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+            logger.debug('Transaction signature: %s %s', signature, eth_signature)
+            if contract_eth: self.contract_address[eth_signature] = contract_eth
+            self.signatures[eth_signature] = signature
+            self.eth_sender[eth_signature] = sender
+            self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
 
-                if (trx.toAddress):
-                    self.eth_getTransactionReceipt(eth_signature)
+            if (trx.toAddress):
+                self.eth_getTransactionReceipt(eth_signature)
 
-                return eth_signature
+            return eth_signature
 
-            except EthereumError: raise
-            except Exception as err:
-                traceback.print_exc()
-                logger.debug("eth_sendRawTransaction %s", err)
-                return '0x'
-        else:
-            raise Exception("Missing token for transfer")
+        except EthereumError: raise
+        except Exception as err:
+            traceback.print_exc()
+            logger.debug("eth_sendRawTransaction %s", err)
+            return '0x'
 
 
 class JsonEncoder(json.JSONEncoder):
