@@ -561,7 +561,7 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
 
     accounts = [
-            # AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
@@ -582,7 +582,7 @@ def call_signed(acc, client, ethTrx, neon_infra, steps):
     call_iterative = False
     try:
         logger.debug("Try single trx call")
-        return call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol, neon_infra)
+        return call_signed_noniterative(acc, client, ethTrx, msg, accounts[1:], create_acc_trx, sender_sol, neon_infra)
     except Exception as err:
         logger.debug(str(err))
         if str(err).find("Program failed to complete") >= 0:
