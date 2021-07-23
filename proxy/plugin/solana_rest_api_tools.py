@@ -573,16 +573,17 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
     return (accounts, sender_ether, sender_sol, trx)
 
 
-def call_signed(acc, client, ethTrx, neon_infra, steps):
-    (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx,
-                                                                                          neon_infra.storage)
-    msg = neon_infra.collateral_pool_index_buf + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
+def call_signed(neon_infra, client, ethTrx, steps):
+    acc = neon_infra['signer']
+    storage = neon_infra['storage']
+    (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
+    msg = neon_infra['collateral_pool']['index_buf'] + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
     call_from_holder = False
     call_iterative = False
     try:
         logger.debug("Try single trx call")
-        return call_signed_noniterative(acc, client, ethTrx, msg, accounts[1:], create_acc_trx, sender_sol, neon_infra)
+        return call_signed_noniterative(neon_infra, client, ethTrx, msg, accounts[1:], create_acc_trx, sender_sol)
     except Exception as err:
         logger.debug(str(err))
         if str(err).find("Program failed to complete") >= 0:
@@ -595,7 +596,7 @@ def call_signed(acc, client, ethTrx, neon_infra, steps):
             raise
 
     if call_from_holder:
-        return call_signed_with_holder_acc(acc, client, ethTrx, neon_infra.storage, steps, accounts, create_acc_trx)
+        return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
     if call_iterative:
         return call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_trx, sender_sol)
 
@@ -617,7 +618,7 @@ def call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_
     return call_continue(acc, client, steps, accounts)
 
 
-def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx, sender_sol, neon_infra):
+def call_signed_noniterative(neon_infra, client, ethTrx, msg, accounts, create_acc_trx, sender_sol):
     call_txs_05 = Transaction()
     call_txs_05.add(create_acc_trx)
     call_txs_05.add(TransactionInstruction(
@@ -635,9 +636,9 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     # user ETH address (stub for now)
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True))
     # collateral pool address (SOL)
-    accounts.insert(0, AccountMeta(pubkey=neon_infra.collateral_pool_address, is_signer=False, is_writable=True))
+    accounts.insert(0, AccountMeta(pubkey=neon_infra['collateral_pool']['address'], is_signer=False, is_writable=True))
     # operator address (SOL)
-    accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True))
+    accounts.insert(0, AccountMeta(pubkey=neon_infra['signer'].public_key(), is_signer=True, is_writable=True))
     # system instructions
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False))
     logger.debug('accounts:[')
@@ -646,7 +647,7 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
 
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
-    result = send_measured_transaction(client, call_txs_05, acc)
+    result = send_measured_transaction(client, call_txs_05, neon_infra['signer'])
     return result['result']['transaction']['signatures'][0]
 
 def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
@@ -750,7 +751,9 @@ def write_trx_to_holder_account(acc, client, ethTrx):
     return holder
 
 
-def deploy_contract(acc, client, ethTrx, storage, steps):
+def deploy_contract(neon_infra, client, ethTrx, steps):
+    acc = neon_infra['signer']
+    storage = neon_infra['storage']
 
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, acc.public_key())

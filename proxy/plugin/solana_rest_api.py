@@ -77,6 +77,15 @@ class EthereumModel:
                                                                       self.signer,
                                                                       self.collateral_pool_index,
                                                                       evm_loader_id)
+        self.neon_infra = {
+            "signer": self.signer,
+            "storage": self.storage,
+            "collateral_pool": {
+                "index": self.collateral_pool_index,
+                "index_buf": self.collateral_pool_index_buf,
+                "address": self.collateral_pool_address,
+            },
+        }
         pass
 
     def eth_chainId(self):
@@ -330,6 +339,7 @@ class EthereumModel:
 
         sender = trx.sender()
         logger.debug('Sender: %s', sender)
+        logger.debug('neon_infra: %s', self.neon_infra)
 
         if trx.value and trx.callData:
             raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
@@ -339,10 +349,10 @@ class EthereumModel:
             try:
                 contract_eth = None
                 if (not trx.toAddress):
-                    (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, steps=1000)
+                    (signature, contract_eth) = deploy_contract(self.neon_infra, self.client, trx, steps=1000)
                     #self.contract_address[eth_signature] = contract_eth
                 else:
-                    signature = call_signed(self.signer, self.client, trx, self, steps=1000)
+                    signature = call_signed(self.neon_infra, self.client, trx, steps=1000)
 
                 eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
                 logger.debug('Transaction signature: %s %s', signature, eth_signature)
