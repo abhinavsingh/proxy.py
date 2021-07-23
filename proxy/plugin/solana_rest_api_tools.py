@@ -129,7 +129,7 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
 def create_collateral_pool_address(client, operator_acc, collateral_pool_index, program_id):
     COLLATERAL_SEED_PREFIX = "collateral_seed_"
     seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
-    collateral_pool_address = accountWithSeed(operator_acc.public_key(), str.encode(seed), PublicKey(program_id))
+    collateral_pool_address = accountWithSeed(operator_acc.public_key(), bytes(seed, 'utf8'), PublicKey(program_id))
     print("Collateral pool address: ", collateral_pool_address)
     if client.get_balance(collateral_pool_address, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
