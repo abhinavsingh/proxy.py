@@ -637,7 +637,7 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False))
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
-    result = send_measured_transaction(client, call_txs_05, neon_infra['signer'])
+    result = send_measured_transaction(client, call_txs_05, acc)
     return result['result']['transaction']['signatures'][0]
 
 def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
