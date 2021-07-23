@@ -741,7 +741,7 @@ def write_trx_to_holder_account(acc, client, ethTrx):
     return holder
 
 
-def deploy_contract(acc, neon_infra, client, ethTrx, storage, steps):
+def deploy_contract(acc, client, ethTrx, storage, steps):
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, acc.public_key())
     logger.debug("Sender account solana: %s %s", sender_ether, sender_sol)
