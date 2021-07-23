@@ -38,6 +38,11 @@ logger.setLevel(logging.DEBUG)
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
+class CollateralPool:
+    def __init__(self, index, address):
+        self.index = index
+        self.index_buf = index.to_bytes(4, 'little')
+        self.address = address
 
 class EthereumModel:
     def __init__(self):
@@ -71,21 +76,13 @@ class EthereumModel:
 
         seed = base58.b58encode(self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')) + self.signer.public_key().to_base58()
         self.storage = create_storage_account(self.client, funding=self.signer, base=self.signer, seed=seed[0:32])
-        self.collateral_pool_index = self.proxy_id % 4
-        self.collateral_pool_index_buf = self.collateral_pool_index.to_bytes(4, 'little')
-        self.collateral_pool_address = create_collateral_pool_address(self.client,
-                                                                      self.signer,
-                                                                      self.collateral_pool_index,
-                                                                      evm_loader_id)
-        self.neon_infra = {
-            "signer": self.signer,
-            "storage": self.storage,
-            "collateral_pool": {
-                "index": self.collateral_pool_index,
-                "index_buf": self.collateral_pool_index_buf,
-                "address": self.collateral_pool_address,
-            },
-        }
+        collateral_pool_index = self.proxy_id % 4
+        collateral_pool_address = create_collateral_pool_address(self.client,
+                                                                 self.signer,
+                                                                 collateral_pool_index,
+                                                                 evm_loader_id)
+        self.collateral_pool = CollateralPool(collateral_pool_index, collateral_pool_address)
+        logger.debug('collateral_pool: %s', self.collateral_pool)
         pass
 
     def eth_chainId(self):
@@ -339,7 +336,6 @@ class EthereumModel:
 
         sender = trx.sender()
         logger.debug('Sender: %s', sender)
-        logger.debug('neon_infra: %s', self.neon_infra)
 
         if trx.value and trx.callData:
             raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
@@ -349,10 +345,11 @@ class EthereumModel:
             try:
                 contract_eth = None
                 if (not trx.toAddress):
-                    (signature, contract_eth) = deploy_contract(self.neon_infra, self.client, trx, steps=1000)
+                    (signature, contract_eth) = deploy_contract(self.acc, self.client, trx, self.storage, steps=1000)
                     #self.contract_address[eth_signature] = contract_eth
                 else:
-                    signature = call_signed(self.neon_infra, self.client, trx, steps=1000)
+                    signature = call_signed(self.acc, self.client, trx, self.storage,
+                                            self.collateral_pool, steps=1000)
 
                 eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
                 logger.debug('Transaction signature: %s %s', signature, eth_signature)
