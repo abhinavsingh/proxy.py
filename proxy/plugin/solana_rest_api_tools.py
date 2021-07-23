@@ -576,7 +576,7 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
 def call_signed(acc, client, ethTrx, neon_infra, steps):
     (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx,
                                                                                           neon_infra.storage)
-    msg = sender_ether + neon_infra.collateral_pool_index_buf + ethTrx.signature() + ethTrx.unsigned_msg()
+    msg = neon_infra.collateral_pool_index_buf + sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
     call_from_holder = False
     call_iterative = False
