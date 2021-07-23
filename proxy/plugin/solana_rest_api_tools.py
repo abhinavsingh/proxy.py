@@ -531,7 +531,7 @@ def simulate_continue(acc, client, accounts, step_count):
     logger.debug("tx_count = {}, step_count = {}".format(continue_count, step_count))
     return (continue_count, step_count)
 
-def create_account_list_by_emulate(acc, client, ethTrx):
+def create_account_list_by_emulate(acc, client, ethTrx, storage):
     sender_ether = bytes.fromhex(ethTrx.sender())
     add_keys_05 = []
     trx = Transaction()
@@ -561,9 +561,11 @@ def create_account_list_by_emulate(acc, client, ethTrx):
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
 
     accounts = [
+            AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
             AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
         ] + add_keys_05 + [
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
@@ -572,7 +574,8 @@ def create_account_list_by_emulate(acc, client, ethTrx):
 
 
 def call_signed(acc, client, ethTrx, neon_infra, steps):
-    (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx)
+    (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx,
+                                                                                          neon_infra.storage)
     msg = sender_ether + neon_infra.collateral_pool_index_buf + ethTrx.signature() + ethTrx.unsigned_msg()
 
     call_from_holder = False
@@ -632,7 +635,7 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     # user ETH address (stub for now)
     accounts.insert(0, AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True))
     # collateral pool address (SOL)
-    AccountMeta(pubkey=neon_infra.collateral_pool_address, is_signer=False, is_writable=True),
+    accounts.insert(0, AccountMeta(pubkey=neon_infra.collateral_pool_address, is_signer=False, is_writable=True))
     # operator address (SOL)
     accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True))
     # system instructions
