@@ -12,6 +12,7 @@
 @@ -33,6 +33,11 @@
      return types.MemcmpOpts(*args, **kwargs)
 
+
 +class SendTransactionError(Exception):
 +    def __init__(self, result):
 +        super().__init__(result['message'])
