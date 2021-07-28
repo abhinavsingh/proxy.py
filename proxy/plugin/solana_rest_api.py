@@ -74,7 +74,7 @@ class EthereumModel:
 
         with open(path.strip(), mode='r') as file:
             pk = (file.read())
-            nums = list(map(int, pk.strip("[]").split(',')))
+            nums = list(map(int, pk.strip("[] \n").split(',')))
             nums = nums[0:32]
             values = bytes(nums)
             self.signer = sol_Account(values)
