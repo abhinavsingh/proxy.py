@@ -31,6 +31,7 @@ from .solana_rest_api_tools import EthereumAddress,  create_account_with_seed, e
 from web3 import Web3
 import logging
 from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob, proxy_id_glob
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -38,6 +39,7 @@ logger.setLevel(logging.DEBUG)
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
+chainId = os.environ.get("NEON_CHAIN_ID", "0x6e")    # default value 110
 
 class PermanentAccounts:
     def __init__(self, client, signer, proxy_id):
@@ -94,7 +96,7 @@ class EthereumModel:
         pass
 
     def eth_chainId(self):
-        return "0x6f" # 111
+        return chainId
 
     def net_version(self):
         return '1600243666737'
