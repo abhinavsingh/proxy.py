@@ -23,6 +23,7 @@ services:
     environment:
       - SOLANA_URL=http://solana:8899
       - EVM_LOADER=deploy
+      - ETH_TOKEN_MINT=deploy
     hostname: proxy
     ports:
       - 127.0.0.1:9090:9090

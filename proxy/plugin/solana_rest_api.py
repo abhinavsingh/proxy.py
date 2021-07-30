@@ -23,7 +23,7 @@ from sha3 import keccak_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm_loader_id, getLamports, \
+from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
     Trx, deploy_contract, EthereumError, create_collateral_pool_address
 from web3 import Web3
@@ -117,7 +117,8 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
-        balance = getLamports(self.client, evm_loader_id, eth_acc, self.signer.public_key())
+        balance = getTokens(self.client, evm_loader_id, eth_acc, self.signer.public_key())
+
         return hex(balance*10**9)
 
     def eth_getBlockByNumber(self, tag, full):
@@ -339,39 +340,31 @@ class EthereumModel:
         sender = trx.sender()
         logger.debug('Sender: %s', sender)
 
-        if trx.value and trx.callData:
-            raise Exception("Simultaneous transfer of both the native and application tokens is not supported")
-        elif trx.value:
-            raise Exception("transfer native tokens is not implemented")
-        elif trx.callData:
-            try:
-                contract_eth = None
-                if (not trx.toAddress):
-                    (signature, contract_eth) = deploy_contract(self.signer, self.client, trx, self.storage, steps=1000)
-                    #self.contract_address[eth_signature] = contract_eth
-                else:
-                    signature = call_signed(self.signer, self.client, trx, self.storage,
-                                            self.collateral_pool, steps=1000)
+        try:
+            contract_eth = None
+            if (not trx.toAddress):
+                (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, steps=1000)
+                #self.contract_address[eth_signature] = contract_eth
+            else:
+                signature = call_signed(self.signer, self.client, trx, self.storage, self.collateral_pool, steps=1000)
 
-                eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
-                logger.debug('Transaction signature: %s %s', signature, eth_signature)
-                if contract_eth: self.contract_address[eth_signature] = contract_eth
-                self.signatures[eth_signature] = signature
-                self.eth_sender[eth_signature] = sender
-                self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
+            eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+            logger.debug('Transaction signature: %s %s', signature, eth_signature)
+            if contract_eth: self.contract_address[eth_signature] = contract_eth
+            self.signatures[eth_signature] = signature
+            self.eth_sender[eth_signature] = sender
+            self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
 
-                if (trx.toAddress):
-                    self.eth_getTransactionReceipt(eth_signature)
+            if (trx.toAddress):
+                self.eth_getTransactionReceipt(eth_signature)
 
-                return eth_signature
+            return eth_signature
 
-            except EthereumError: raise
-            except Exception as err:
-                traceback.print_exc()
-                logger.debug("eth_sendRawTransaction %s", err)
-                return '0x'
-        else:
-            raise Exception("Missing token for transfer")
+        except EthereumError: raise
+        except Exception as err:
+            traceback.print_exc()
+            logger.debug("eth_sendRawTransaction %s", err)
+            return '0x'
 
 
 class JsonEncoder(json.JSONEncoder):
