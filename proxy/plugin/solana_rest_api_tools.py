@@ -649,7 +649,7 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
         AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
     ]
     accounts[0:0] = neon_accounts
-    print('accounts:', accounts);
+    print('accounts:', accounts)
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
     result = send_measured_transaction(client, call_txs_05, acc)
