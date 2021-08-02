@@ -45,6 +45,7 @@ ETH_TOKEN_MINT_ID: PublicKey = PublicKey(
     os.environ.get("ETH_TOKEN_MINT", "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU")
 )
 
+STORAGE_SIZE = 128*1024
 
 ACCOUNT_INFO_LAYOUT = cStruct(
     "tag" / Int8ul,
@@ -131,19 +132,22 @@ def create_collateral_pool_address(client, operator_acc, collateral_pool_index, 
     COLLATERAL_SEED_PREFIX = "collateral_seed_"
     seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
     collateral_pool_address = accountWithSeed(operator_acc.public_key(), bytes(seed, 'utf8'), PublicKey(program_id))
-    print("Collateral pool address: ", collateral_pool_address)
+    logger.debug("Collateral pool address: ", collateral_pool_address)
+
+    minimum_balance = client.get_minimum_balance_for_rent_exemption(STORAGE_SIZE,
+                                                                    commitment=Confirmed)["result"]
+    logger.debug("Minimum balance required for collateral pool account {}".format(minimum_balance))
+
     if client.get_balance(collateral_pool_address, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
-        trx.add(createAccountWithSeed(operator_acc.public_key(), operator_acc.public_key(), str.encode(seed), 10**9, 0,
-                                      PublicKey(program_id)))
+        trx.add(createAccountWithSeed(operator_acc.public_key(), operator_acc.public_key(), str.encode(seed),
+                                      minimum_balance, STORAGE_SIZE, PublicKey(program_id)))
         result = send_transaction(client, trx, operator_acc)
         print(result)
     return collateral_pool_address
 
 
 def create_storage_account(client, funding, base, seed):
-    STORAGE_SIZE = 128*1024
-
     storage = accountWithSeed(base.public_key(), seed, PublicKey(evm_loader_id))
     minimum_balance = client.get_minimum_balance_for_rent_exemption(STORAGE_SIZE, commitment=Confirmed)["result"]
 
@@ -649,7 +653,7 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
         AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
     ]
     accounts[0:0] = neon_accounts
-    print('accounts:', accounts)
+    logger.debug('accounts:', accounts)
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
     result = send_measured_transaction(client, call_txs_05, acc)
