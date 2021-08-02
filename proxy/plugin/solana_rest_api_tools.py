@@ -634,24 +634,27 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
         keys=[
             AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
         ]))
-
-    # Insert additional accounts for EvmInstruction::CallFromRawEthereumTX in reverse order:
-    # system program account
-    accounts.insert(0, AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False))
-    # operator ETH address (stub for now)
-    accounts.insert(0, AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True))
-    # user ETH address (stub for now)
-    accounts.insert(0, AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True))
-    # collateral pool address (SOL)
-    accounts.insert(0, AccountMeta(pubkey=collateral_pool.address, is_signer=False, is_writable=True))
-    # operator address (SOL)
-    accounts.insert(0, AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True))
-    # system instructions
-    accounts.insert(0, AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False))
+    neon_accounts = [
+        # system instructions
+        AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
+        # operator address (SOL)
+        AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True),
+        # collateral pool address (SOL)
+        AccountMeta(pubkey=collateral_pool.address, is_signer=False, is_writable=True),
+        # user ETH address (stub for now)
+        AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True),
+        # operator ETH address (stub for now)
+        AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True),
+        # system program account
+        AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
+    ]
+    accounts[0:0] = neon_accounts
+    print('accounts:', accounts);
 
     call_txs_05.add(make_05_call_instruction(accounts, msg))
     result = send_measured_transaction(client, call_txs_05, acc)
     return result['result']['transaction']['signatures'][0]
+
 
 def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
 
