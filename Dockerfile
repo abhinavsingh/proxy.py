@@ -32,7 +32,7 @@ COPY --from=cli /opt/solana/bin/solana \
 COPY --from=spl /opt/solana/bin/solana /cli/bin/
 COPY --from=spl /opt/evm_loader.so /opt/evm_loader-keypair.json \
                 /opt/neon-cli /spl/bin/
-COPY --from=spl /opt/spl-token /opt/test_token_keypair opt/test_token_owner /spl/bin/
+COPY --from=spl /opt/spl-token /opt/test_token_keypair /opt/test_token_owner /spl/bin/
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
 COPY . /opt
