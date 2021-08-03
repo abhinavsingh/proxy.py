@@ -42,7 +42,7 @@ function cleanup_docker {
     docker logs solana >solana.log 2>&1
     grep 'get_measurements' <proxy.log >measurements.log
     echo "Cleanup docker-compose..."
-    docker-compose -f proxy/docker-compose-test.yml down
+    docker-compose -f proxy/docker-compose-test.yml down --rmi 'all'
     echo "Cleanup docker-compose done."
 
     if grep '\[E\] get_measurements' <measurements.log; then
