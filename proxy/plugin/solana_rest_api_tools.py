@@ -1,3 +1,4 @@
+from solana.publickey import PublicKey
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from solana.sysvar import *
 from solana.blockhash import Blockhash
@@ -17,7 +18,9 @@ from .eth_proto import Trx
 from solana.rpc.types import TxOpts
 import re
 from solana.rpc.commitment import Commitment, Confirmed
-from solana.rpc.api import SendTransactionError
+from solana.rpc.api import Client, SendTransactionError
+from spl.token.constants import TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID
+from spl.token.instructions import get_associated_token_address
 
 from construct import Bytes, Int8ul, Int32ul, Int64ul, Struct as cStruct
 from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT, InstructionType as SystemInstructionType
@@ -40,6 +43,11 @@ keccakprog = "KeccakSecp256k11111111111111111111111111111"
 rentid = "SysvarRent111111111111111111111111111111111"
 system = "11111111111111111111111111111111"
 
+ETH_TOKEN_MINT_ID: PublicKey = PublicKey(
+    os.environ.get("ETH_TOKEN_MINT", "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU")
+)
+
+
 ACCOUNT_INFO_LAYOUT = cStruct(
     "tag" / Int8ul,
     "eth_acc" / Bytes(20),
@@ -48,6 +56,7 @@ ACCOUNT_INFO_LAYOUT = cStruct(
     "code_acc" / Bytes(32),
     "is_blocked" / Int8ul,
     "blocked_by" / Bytes(32),
+    "eth_token" / Bytes(32),
 )
 
 CODE_INFO_LAYOUT = cStruct(
@@ -96,7 +105,7 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
     seed_str = str(seed, 'utf8')
     data = SYSTEM_INSTRUCTIONS_LAYOUT.build(
         dict(
-            instruction_type = SystemInstructionType.CreateAccountWithSeed,
+            instruction_type = SystemInstructionType.CREATE_ACCOUNT_WITH_SEED,
             args=dict(
                 base=bytes(base),
                 seed=dict(length=len(seed_str), chars=seed_str),
@@ -193,6 +202,7 @@ class EthereumAddress:
 
 
 def emulator(contract, sender, data):
+    data = data if data != None else ""
     cmd = 'emulate --commitment=recent  --evm_loader {} {} {} {}'.format(evm_loader_id, sender, contract, data)
     print(cmd)
     return neon_cli().call(cmd)
@@ -518,14 +528,16 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
     output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
     for acc_desc in output_json["accounts"]:
-
         address = bytes.fromhex(acc_desc["address"][2:])
         if address == ethTrx.toAddress:
-            (contract_sol, code_sol) = (acc_desc["account"], acc_desc["contract"])
+            contract_sol = PublicKey(acc_desc["account"])
+            code_sol = PublicKey(acc_desc["contract"]) if acc_desc["contract"] != None else None
         elif address == sender_ether:
-            sender_sol = (acc_desc["account"])
+            sender_sol = PublicKey(acc_desc["account"])
         else:
             add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=acc_desc["writable"]))
+            token_account = get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID)
+            add_keys_05.append(AccountMeta(pubkey=token_account, is_signer=False, is_writable=True))
             if acc_desc["contract"]:
                 add_keys_05.append(AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=acc_desc["writable"]))
         if acc_desc["new"]:
@@ -542,11 +554,15 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
     accounts = [
             AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=get_associated_token_address(contract_sol, ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
+        ] + ([AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True)] if code_sol != None else []) + [
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=get_associated_token_address(sender_sol, ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
             AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
             AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
         ] + add_keys_05 + [
+            AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
             AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
     ]
     return (accounts, sender_ether, sender_sol, trx)
@@ -631,8 +647,9 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
         if ether.startswith('0x'): ether = ether[2:]
     else: ether = ether.hex()
     (sol, nonce) = ether2program(ether, evm_loader_id, signer.public_key())
+    associated_token = get_associated_token_address(PublicKey(sol), ETH_TOKEN_MINT_ID)
     logger.debug('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
-    seed = b58encode(bytes.fromhex(ether))
+    logger.debug('associatedTokenAccount: {}'.format(associated_token))
     base = signer.public_key()
     data=bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
             lamports=10**9,
@@ -647,7 +664,12 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
             keys=[
                 AccountMeta(pubkey=base, is_signer=True, is_writable=True),
                 AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=associated_token, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=system, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
             ]))
     else:
         trx.add(TransactionInstruction(
@@ -656,8 +678,13 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
             keys=[
                 AccountMeta(pubkey=base, is_signer=True, is_writable=True),
                 AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=associated_token, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=PublicKey(code_acc), is_signer=False, is_writable=True),
                 AccountMeta(pubkey=system, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
             ]))
     return (trx, sol)
 
@@ -751,9 +778,13 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     accounts = [AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=get_associated_token_address(PublicKey(contract_sol), ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
                 AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
                 AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
                 ]
 
@@ -788,6 +819,15 @@ def getLamports(client, evm_loader, eth_acc, base_account):
     (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
+def getTokens(client, evm_loader, eth_acc, base_account):
+    (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
+    token_account = get_associated_token_address(PublicKey(account), ETH_TOKEN_MINT_ID)
+
+    balance = client.get_token_account_balance(token_account, commitment=Confirmed)
+    if 'error' in balance:
+        return 0
+
+    return int(balance['result']['value']['amount'])
 
 def make_instruction_data_from_tx(instruction, private_key=None):
     if isinstance(instruction, dict):
