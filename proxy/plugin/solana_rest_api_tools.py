@@ -537,7 +537,7 @@ def simulate_continue(acc, client, accounts, collateral_pool, step_count):
     logger.debug("tx_count = {}, step_count = {}".format(continue_count, step_count))
     return (continue_count, step_count)
 
-def create_account_list_by_emulate(acc, client, ethTrx, storage):
+def create_account_list_by_emulate(acc, client, ethTrx, storage, collateral_pool):
     sender_ether = bytes.fromhex(ethTrx.sender())
     add_keys_05 = []
     trx = Transaction()
@@ -570,6 +570,18 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
 
     accounts = [
             AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
+            # system instructions
+            AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
+            # operator address (SOL)
+            AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True),
+            # collateral pool address (SOL)
+            AccountMeta(pubkey=collateral_pool.address, is_signer=False, is_writable=True),
+            # Operator ETH address (stub for now)
+            AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True),
+            # User ETH address (stub for now)
+            AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True),
+            # system program account
+            AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=get_associated_token_address(contract_sol, ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
         ] + ([AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True)] if code_sol != None else []) + [
@@ -638,23 +650,6 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
         keys=[
             AccountMeta(pubkey=PublicKey(sender_sol), is_signer=False, is_writable=False),
         ]))
-    neon_accounts = [
-        # system instructions
-        AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
-        # operator address (SOL)
-        AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True),
-        # collateral pool address (SOL)
-        AccountMeta(pubkey=collateral_pool.address, is_signer=False, is_writable=True),
-        # Operator ETH address (stub for now)
-        AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True),
-        # User ETH address (stub for now)
-        AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True),
-        # system program account
-        AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
-    ]
-    accounts[0:0] = neon_accounts
-    logger.debug('accounts:', accounts)
-
     call_txs_05.add(make_05_call_instruction(accounts, collateral_pool, msg))
     result = send_measured_transaction(client, call_txs_05, acc)
     return result['result']['transaction']['signatures'][0]
@@ -809,9 +804,22 @@ def deploy_contract(acc, client, ethTrx, storage, collateral_pool, steps):
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
         result = send_measured_transaction(client, trx, acc)
-
-    accounts = [AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
+    accounts = [# holder account
+                AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
+                # storage account
                 AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
+                # system instructions
+                AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
+                # operator address (SOL)
+                AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True),
+                # collateral pool address (SOL)
+                AccountMeta(pubkey=collateral_pool.address, is_signer=False, is_writable=True),
+                # Operator ETH address (stub for now)
+                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True),
+                # User ETH address (stub for now)
+                AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=True),
+                # system program account
+                AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
                 AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=get_associated_token_address(PublicKey(contract_sol), ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
                 AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True),
