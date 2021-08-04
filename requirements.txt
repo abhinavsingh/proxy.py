@@ -1,1 +1,7 @@
-typing-extensions==3.10.0.0
+typing-extensions==3.7.4.2
+ecdsa==0.16.0
+pysha3==1.0.2
+eth-keys==0.3.3
+rlp==2.0.1
+web3
+solana==0.10.0

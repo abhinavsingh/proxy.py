@@ -18,9 +18,7 @@ from .shortlink import ShortLinkPlugin
 from .web_server_route import WebServerPlugin
 from .reverse_proxy import ReverseProxyPlugin
 from .proxy_pool import ProxyPoolPlugin
-from .filter_by_client_ip import FilterByClientIpPlugin
-from .filter_by_url_regex import FilterByURLRegexPlugin
-from .modify_chunk_response import ModifyChunkResponsePlugin
+from .solana_rest_api import SolanaProxyPlugin
 
 __all__ = [
     'CacheResponsesPlugin',
@@ -34,7 +32,4 @@ __all__ = [
     'WebServerPlugin',
     'ReverseProxyPlugin',
     'ProxyPoolPlugin',
-    'FilterByClientIpPlugin',
-    'ModifyChunkResponsePlugin',
-    'FilterByURLRegexPlugin',
 ]

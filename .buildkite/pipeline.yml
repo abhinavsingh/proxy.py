@@ -1,0 +1,23 @@
+steps:
+  - label: ":docker: build docker image"
+    command:
+      - ".buildkite/steps/build-image.sh"
+      - ".buildkite/steps/upload-image.sh"
+
+  - wait
+
+  - label: ":cop::skin-tone-2: deploy check"
+    command: ".buildkite/steps/deploy-test.sh"
+    timeout: 90
+    artifact_paths:
+      - "proxy.log"
+      - "solana.log"
+      - "measurements.log"
+
+  - wait
+
+  - label: ":floppy_disk: publish image"
+    command: ".buildkite/steps/publish-image.sh"
+    if: |
+        build.branch =~ /^(master|develop|^ci-.+|v[0-9]+\.[0-9]+.[0-9]+)$$/ &&
+        (build.env("EVM_LOADER_BRANCH") == "develop" || build.env("EVM_LOADER_BRANCH") == null)
