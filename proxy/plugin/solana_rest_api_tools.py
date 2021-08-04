@@ -808,8 +808,6 @@ def deploy_contract(acc, client, ethTrx, storage, collateral_pool, steps):
                 AccountMeta(pubkey=holder, is_signer=False, is_writable=True),
                 # storage account
                 AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
-                # system instructions
-                AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
                 # operator address (SOL)
                 AccountMeta(pubkey=acc.public_key(), is_signer=True, is_writable=True),
                 # collateral pool address (SOL)
