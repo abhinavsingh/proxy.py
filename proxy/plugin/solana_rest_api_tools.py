@@ -411,7 +411,7 @@ def call_continue(acc, client, collateral_pool, steps, accounts):
         logger.debug("call_continue_iterative exception:")
         logger.debug(str(err))
 
-    return sol_instr_12_cancel(acc, client, accounts)
+    return sol_instr_12_cancel(acc, client, collateral_pool, accounts)
 
 def call_continue_bucked(acc, client, collateral_pool, steps, accounts):
     while True:
@@ -461,9 +461,9 @@ def sol_instr_10_continue(acc, client, collateral_pool, initial_step_count, acco
                 raise
     raise Exception("Can't execute even one EVM instruction")
 
-def sol_instr_12_cancel(acc, client, accounts):
+def sol_instr_12_cancel(acc, client, collateral_pool, accounts):
     trx = Transaction()
-    trx.add(TransactionInstruction(program_id=evm_loader_id, data=bytearray.fromhex("0C"), keys=accounts))
+    trx.add(TransactionInstruction(program_id=evm_loader_id, data=bytearray.fromhex("0C") + collateral_pool.index_buf, keys=accounts))
 
     logger.debug("Cancel")
     result = send_measured_transaction(client, trx, acc)
