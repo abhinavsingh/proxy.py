@@ -412,7 +412,7 @@ def call_continue(acc, client, collateral_pool, steps, accounts):
         logger.debug("call_continue_iterative exception:")
         logger.debug(str(err))
 
-    cancel_accounts = accounts[0:1] + AccountMeta(pubkey=PublicKey(incinerator), is_signer=False, is_writable=True) + accounts[2:]
+    cancel_accounts = accounts[0:1] + [AccountMeta(pubkey=PublicKey(incinerator), is_signer=False, is_writable=True)] + accounts[2:]
     return sol_instr_12_cancel(acc, client, cancel_accounts)
 
 def call_continue_bucked(acc, client, collateral_pool, steps, accounts):
