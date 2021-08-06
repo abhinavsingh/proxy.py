@@ -39,6 +39,7 @@ sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 sysinstruct = "Sysvar1nstructions1111111111111111111111111"
 keccakprog = "KeccakSecp256k11111111111111111111111111111"
 rentid = "SysvarRent111111111111111111111111111111111"
+incinerator = "1nc1nerator11111111111111111111111111111111"
 system = "11111111111111111111111111111111"
 
 ETH_TOKEN_MINT_ID: PublicKey = PublicKey(
@@ -411,12 +412,13 @@ def call_continue(acc, client, collateral_pool, steps, accounts):
         logger.debug("call_continue_iterative exception:")
         logger.debug(str(err))
 
-    return sol_instr_12_cancel(acc, client, collateral_pool, accounts)
+    cancel_accounts = accounts[0:1] + AccountMeta(pubkey=PublicKey(incinerator), is_signer=False, is_writable=True) + accounts[2:]
+    return sol_instr_12_cancel(acc, client, cancel_accounts)
 
 def call_continue_bucked(acc, client, collateral_pool, steps, accounts):
     while True:
         logger.debug("Continue bucked step:")
-        (continue_count, instruction_count) = simulate_continue(acc, client, accounts, collateral_pool, steps)
+        (continue_count, instruction_count) = simulate_continue(acc, client, accounts, steps)
         logger.debug("Send bucked:")
         result_list = []
         for index in range(continue_count):
@@ -461,9 +463,9 @@ def sol_instr_10_continue(acc, client, collateral_pool, initial_step_count, acco
                 raise
     raise Exception("Can't execute even one EVM instruction")
 
-def sol_instr_12_cancel(acc, client, collateral_pool, accounts):
+def sol_instr_12_cancel(acc, client, accounts):
     trx = Transaction()
-    trx.add(TransactionInstruction(program_id=evm_loader_id, data=bytearray.fromhex("0C") + collateral_pool.index_buf, keys=accounts))
+    trx.add(TransactionInstruction(program_id=evm_loader_id, data=bytearray.fromhex("0C"), keys=accounts))
 
     logger.debug("Cancel")
     result = send_measured_transaction(client, trx, acc)
@@ -474,8 +476,8 @@ def make_partial_call_instruction(accounts, collateral_pool, step_count, call_da
                             data = bytearray.fromhex("09") + collateral_pool.index_buf + step_count.to_bytes(8, byteorder="little") + call_data,
                             keys = accounts)
 
-def make_continue_instruction(accounts, collateral_pool, step_count, index=None):
-    data = bytearray.fromhex("0A") + collateral_pool.index_buf + step_count.to_bytes(8, byteorder="little")
+def make_continue_instruction(accounts, step_count, index=None):
+    data = bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder="little")
     if index:
         data = data + index.to_bytes(8, byteorder="little")
 
@@ -493,7 +495,7 @@ def make_05_call_instruction(accounts, collateral_pool, call_data):
                             data = bytearray.fromhex("05") + collateral_pool.index_buf + call_data,
                             keys = accounts)
 
-def simulate_continue(acc, client, accounts, collateral_pool, step_count):
+def simulate_continue(acc, client, accounts, step_count):
     logger.debug("simulate_continue:")
     continue_count = 45
     while True:
@@ -829,7 +831,7 @@ def deploy_contract(acc, client, ethTrx, storage, collateral_pool, steps):
                 AccountMeta(pubkey=PublicKey(sysvarclock), is_signer=False, is_writable=False),
                 ]
 
-    continue_accounts = accounts[1:]
+    continue_accounts = accounts[1:3] + accounts[4:]
 
     precall_txs = Transaction()
     precall_txs.add(make_call_from_account_instruction(accounts, collateral_pool))

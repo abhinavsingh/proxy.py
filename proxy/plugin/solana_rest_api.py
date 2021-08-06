@@ -334,11 +334,13 @@ class EthereumModel:
         return "0x01"
 
     def eth_sendRawTransaction(self, rawTrx):
+        logger.debug('eth_sendRawTransaction rawTrx=%s', rawTrx)
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
         logger.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
 
         sender = trx.sender()
-        logger.debug('Sender: %s', sender)
+        logger.debug('Eth Sender: %s', sender)
+        logger.debug('Eth Signature: %s', trx.signature().hex())
 
         try:
             contract_eth = None
