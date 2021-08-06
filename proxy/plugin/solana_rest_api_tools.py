@@ -133,7 +133,7 @@ def create_collateral_pool_address(client, operator_acc, collateral_pool_index, 
     COLLATERAL_SEED_PREFIX = "collateral_seed_"
     seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
     collateral_pool_address = accountWithSeed(operator_acc.public_key(), bytes(seed, 'utf8'), PublicKey(program_id))
-    logger.debug("Collateral pool address: ", collateral_pool_address)
+    logger.debug("Collateral pool address: %s", collateral_pool_address)
 
     minimum_balance = client.get_minimum_balance_for_rent_exemption(STORAGE_SIZE,
                                                                     commitment=Confirmed)["result"]
@@ -384,6 +384,7 @@ def check_if_program_exceeded_instructions(err_result):
         return True
     return False
 
+
 def check_if_continue_returned(result):
     # logger.debug(result)
     acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
@@ -398,6 +399,7 @@ def check_if_continue_returned(result):
             if (data[0] == 6):
                 return (True, result['result']['transaction']['signatures'][0])
     return (False, ())
+
 
 def call_continue(acc, client, collateral_pool, steps, accounts):
     try:
@@ -414,6 +416,7 @@ def call_continue(acc, client, collateral_pool, steps, accounts):
 
     cancel_accounts = accounts[0:1] + [AccountMeta(pubkey=PublicKey(incinerator), is_signer=False, is_writable=True)] + accounts[2:]
     return sol_instr_12_cancel(acc, client, cancel_accounts)
+
 
 def call_continue_bucked(acc, client, collateral_pool, steps, accounts):
     while True:
@@ -438,6 +441,7 @@ def call_continue_bucked(acc, client, collateral_pool, steps, accounts):
             if founded:
                 return signature
 
+
 def call_continue_iterative(acc, client, collateral_pool, step_count, accounts):
     while True:
         logger.debug("Continue iterative step:")
@@ -445,6 +449,7 @@ def call_continue_iterative(acc, client, collateral_pool, step_count, accounts):
         (succeed, signature) = check_if_continue_returned(result)
         if succeed:
             return signature
+
 
 def sol_instr_10_continue(acc, client, collateral_pool, initial_step_count, accounts):
     step_count = initial_step_count
@@ -463,6 +468,7 @@ def sol_instr_10_continue(acc, client, collateral_pool, initial_step_count, acco
                 raise
     raise Exception("Can't execute even one EVM instruction")
 
+
 def sol_instr_12_cancel(acc, client, accounts):
     trx = Transaction()
     trx.add(TransactionInstruction(program_id=evm_loader_id, data=bytearray.fromhex("0C"), keys=accounts))
@@ -471,10 +477,12 @@ def sol_instr_12_cancel(acc, client, accounts):
     result = send_measured_transaction(client, trx, acc)
     return result['result']['transaction']['signatures'][0]
 
+
 def make_partial_call_instruction(accounts, collateral_pool, step_count, call_data):
     return TransactionInstruction(program_id = evm_loader_id,
                             data = bytearray.fromhex("09") + collateral_pool.index_buf + step_count.to_bytes(8, byteorder="little") + call_data,
                             keys = accounts)
+
 
 def make_continue_instruction(accounts, step_count, index=None):
     data = bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder="little")
@@ -485,15 +493,18 @@ def make_continue_instruction(accounts, step_count, index=None):
                             data = data,
                             keys = accounts)
 
+
 def make_call_from_account_instruction(accounts, collateral_pool, step_count = 0):
     return TransactionInstruction(program_id = evm_loader_id,
                             data = bytearray.fromhex("0B") + collateral_pool.index_buf + step_count.to_bytes(8, byteorder="little"),
                             keys = accounts)
 
+
 def make_05_call_instruction(accounts, collateral_pool, call_data):
     return TransactionInstruction(program_id = evm_loader_id,
                             data = bytearray.fromhex("05") + collateral_pool.index_buf + call_data,
                             keys = accounts)
+
 
 def simulate_continue(acc, client, accounts, step_count):
     logger.debug("simulate_continue:")
