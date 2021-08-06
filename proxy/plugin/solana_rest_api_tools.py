@@ -611,7 +611,7 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage, collateral_pool
 
 
 def call_signed(acc, client, ethTrx, storage, collateral_pool, steps):
-    (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
+    (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage, collateral_pool)
     msg = sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
     call_from_holder = False
