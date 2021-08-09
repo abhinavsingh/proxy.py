@@ -206,10 +206,13 @@ def emulator(contract, sender, data, value):
 
 
 class solana_cli:
-    def call(self, arguments):
-        cmd = 'solana --url {} {}'.format(solana_url, arguments)
+    def call(self, *args):
         try:
-            return subprocess.check_output(cmd, shell=True, universal_newlines=True)
+            cmd = ["solana",
+                   "--url", solana_url,
+                   ] + list(args)
+            print(cmd)
+            return subprocess.check_output(cmd, universal_newlines=True)
         except subprocess.CalledProcessError as err:
             import sys
             logger.debug("ERR: solana error {}".format(err))
