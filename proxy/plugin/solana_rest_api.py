@@ -19,11 +19,11 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from .eth_proto import Trx as EthTrx
 from solana.rpc.api import Client as SolanaClient
-from sha3 import keccak_256
+from sha3 import keccak_256, shake_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm_loader_id, getTokens, \
+from .solana_rest_api_tools import EthereumAddress,  create_account_with_seed, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
     Trx, deploy_contract, EthereumError
 from web3 import Web3
@@ -67,8 +67,16 @@ class EthereumModel:
             proxy_id_glob.value += 1
         logger.debug("worker id {}".format(self.proxy_id))
 
-        seed = base58.b58encode(self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')) + self.signer.public_key().to_base58()
-        self.storage = create_storage_account(self.client, funding=self.signer, base=self.signer, seed=seed[0:32])
+        proxy_id_bytes = self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')
+        signer_public_key_bytes = bytes(self.signer.public_key())
+
+        storage_seed = shake_256(b"storage" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
+        storage_seed = bytes(storage_seed, 'utf8')
+        self.storage = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=storage_seed, storage_size=128*1024)
+
+        holder_seed = shake_256(b"holder" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
+        holder_seed = bytes(holder_seed, 'utf8')
+        self.holder = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=holder_seed, storage_size=128*1024)
         pass
 
     def eth_chainId(self):
@@ -333,10 +341,10 @@ class EthereumModel:
         try:
             contract_eth = None
             if (not trx.toAddress):
-                (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, steps=1000)
+                (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, self.holder, steps=1000)
                 #self.contract_address[eth_signature] = contract_eth
             else:
-                signature = call_signed(self.signer, self.client, trx, self.storage, steps=1000)
+                signature = call_signed(self.signer, self.client, trx, self.storage, self.holder, steps=1000)
 
             eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
             logger.debug('Transaction signature: %s %s', signature, eth_signature)

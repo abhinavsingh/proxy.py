@@ -99,7 +99,7 @@ def accountWithSeed(base, seed, program):
     logger.debug('accountWithSeed %s', str(result))
     return result
 
-def createAccountWithSeed(funding, base, seed, lamports, space, program):
+def createAccountWithSeedTrx(funding, base, seed, lamports, space, program):
     seed_str = str(seed, 'utf8')
     data = SYSTEM_INSTRUCTIONS_LAYOUT.build(
         dict(
@@ -113,7 +113,7 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
             )
         )
     )
-    logger.debug("createAccountWithSeed %s %s %s", type(base), base, data.hex())
+    logger.debug("createAccountWithSeedTrx %s %s %s", type(base), base, data.hex())
     created = accountWithSeed(base, seed, PublicKey(program))
     logger.debug("created %s", created)
     return TransactionInstruction(
@@ -126,20 +126,19 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
         data=data
     )
 
-def create_storage_account(client, funding, base, seed):
-    STORAGE_SIZE = 128*1024
+def create_account_with_seed(client, funding, base, seed, storage_size):
+    account = accountWithSeed(base.public_key(), seed, PublicKey(evm_loader_id))
 
-    storage = accountWithSeed(base.public_key(), seed, PublicKey(evm_loader_id))
-    minimum_balance = client.get_minimum_balance_for_rent_exemption(STORAGE_SIZE, commitment=Confirmed)["result"]
+    if client.get_balance(account, commitment=Confirmed)['result']['value'] == 0:
+        minimum_balance = client.get_minimum_balance_for_rent_exemption(storage_size, commitment=Confirmed)["result"]
+        logger.debug("Minimum balance required for account {}".format(minimum_balance))
 
-    logger.debug("Minimum balance required for storage account {}".format(minimum_balance))
-
-    if client.get_balance(storage, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
-        trx.add(createAccountWithSeed(funding.public_key(), base.public_key(), seed, minimum_balance, STORAGE_SIZE, PublicKey(evm_loader_id)))
+        trx.add(createAccountWithSeedTrx(funding.public_key(), base.public_key(), seed, minimum_balance, storage_size, PublicKey(evm_loader_id)))
         send_transaction(client, trx, funding)
 
-    return storage
+    return account
+
 
 def make_keccak_instruction_data(check_instruction_index, msg_len, data_start = 1):
     if check_instruction_index > 255 and check_instruction_index < 0:
@@ -556,7 +555,11 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
                 seed = b58encode(address)
                 code_account = accountWithSeed(acc.public_key(), seed, PublicKey(evm_loader_id))
                 logger.debug("     with code account %s", code_account)
-                trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, acc_desc["code_size"] + 4 * 1024, PublicKey(evm_loader_id)))
+                code_size = acc_desc["code_size"]
+                valids_size = (code_size // 8) + 1
+                code_account_size = CODE_INFO_LAYOUT.sizeof() + code_size + valids_size + 2048
+                code_account_balance = client.get_minimum_balance_for_rent_exemption(code_account_size)["result"]
+                trx.add(createAccountWithSeedTrx(acc.public_key(), acc.public_key(), seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
 
@@ -576,7 +579,7 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
     ]
     return (accounts, sender_ether, sender_sol, trx)
 
-def call_signed(acc, client, ethTrx, storage, steps):
+def call_signed(acc, client, ethTrx, storage, holder, steps):
     (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage)
     msg = sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
@@ -597,7 +600,7 @@ def call_signed(acc, client, ethTrx, storage, steps):
             raise
 
     if call_from_holder:
-        return call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx)
+        return call_signed_with_holder_acc(acc, client, ethTrx, storage, holder, steps, accounts, create_acc_trx)
     if call_iterative:
         return call_signed_iterative(acc, client, ethTrx, msg, steps, accounts, create_acc_trx, sender_sol)
 
@@ -633,9 +636,9 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     result = send_measured_transaction(client, call_txs_05, acc)
     return result['result']['transaction']['signatures'][0]
 
-def call_signed_with_holder_acc(acc, client, ethTrx, storage, steps, accounts, create_acc_trx):
+def call_signed_with_holder_acc(acc, client, ethTrx, storage, holder, steps, accounts, create_acc_trx):
 
-    holder = write_trx_to_holder_account(acc, client, ethTrx)
+    holder = write_trx_to_holder_account(acc, client, holder, ethTrx)
 
     continue_accounts = accounts.copy()
     accounts.insert(0, AccountMeta(pubkey=holder, is_signer=False, is_writable=True))
@@ -661,7 +664,7 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
     logger.debug('associatedTokenAccount: {}'.format(associated_token))
     base = signer.public_key()
     data=bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
-            lamports=10**9,
+            lamports=0,
             space=0,
             ether=bytes.fromhex(ether),
             nonce=nonce))
@@ -703,22 +706,8 @@ def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     logger.debug('createEtherAccount result: %s', result)
     return sol
 
-def write_trx_to_holder_account(acc, client, ethTrx):
-    # Create transaction holder account (if not exists)
-    seed = bytes("1236", 'utf8')
-    holder = PublicKey(
-        sha256(bytes(acc.public_key()) + seed + bytes(PublicKey(evm_loader_id))).digest())
-    logger.debug("Holder %s", holder)
-
-    if client.get_balance(holder, commitment=Confirmed)['result']['value'] == 0:
-        trx = Transaction()
-        trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
-                                      PublicKey(evm_loader_id)))
-        result = send_measured_transaction(client, trx, acc)
-
-    # Build deploy transaction
+def write_trx_to_holder_account(acc, client, holder, ethTrx):
     msg = ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg()
-    # logger.debug("msg", msg.hex())
 
     # Write transaction to transaction holder account
     offset = 0
@@ -745,7 +734,7 @@ def write_trx_to_holder_account(acc, client, ethTrx):
     return holder
 
 
-def deploy_contract(acc, client, ethTrx, storage, steps):
+def deploy_contract(acc, client, ethTrx, storage, holder, steps):
 
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, acc.public_key())
@@ -765,7 +754,7 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
     logger.debug("Legacy contract address solana: %s %s", contract_sol, contract_nonce)
     logger.debug("Legacy code address solana: %s %s", code_sol, code_nonce)
 
-    holder = write_trx_to_holder_account(acc, client, ethTrx)
+    holder = write_trx_to_holder_account(acc, client, holder, ethTrx)
 
     # Create contract account & execute deploy transaction
     logger.debug("    # Create contract account & execute deploy transaction")
@@ -778,7 +767,8 @@ def deploy_contract(acc, client, ethTrx, storage, steps):
         msg_size = len(ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg())
         valids_size = (msg_size // 8) + 1
         code_account_size = CODE_INFO_LAYOUT.sizeof() + msg_size + valids_size + 2048
-        trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), code_seed, 10**9, code_account_size, PublicKey(evm_loader_id)))
+        code_account_balance = client.get_minimum_balance_for_rent_exemption(code_account_size)["result"]
+        trx.add(createAccountWithSeedTrx(acc.public_key(), acc.public_key(), code_seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
     if client.get_balance(contract_sol, commitment=Confirmed)['result']['value'] == 0:
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
