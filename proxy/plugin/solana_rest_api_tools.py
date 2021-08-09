@@ -1,4 +1,3 @@
-from solana.publickey import PublicKey
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from solana.sysvar import *
 from solana.blockhash import Blockhash
@@ -25,7 +24,6 @@ from spl.token.instructions import get_associated_token_address
 from construct import Bytes, Int8ul, Int32ul, Int64ul, Struct as cStruct
 from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT, InstructionType as SystemInstructionType
 from hashlib import sha256
-#from eth_keys import keys
 from web3.auto import w3
 import logging
 
@@ -201,11 +199,10 @@ class EthereumAddress:
     def __bytes__(self): return self.data
 
 
-def emulator(contract, sender, data):
-    data = data if data != None else ""
-    cmd = 'emulate --commitment=recent  --evm_loader {} {} {} {}'.format(evm_loader_id, sender, contract, data)
-    print(cmd)
-    return neon_cli().call(cmd)
+def emulator(contract, sender, data, value):
+    data = data if data is not None else ""
+    value = value if value is not None else ""
+    return neon_cli().call("emulate", sender, contract, data, value)
 
 
 class solana_cli:
@@ -218,11 +215,17 @@ class solana_cli:
             logger.debug("ERR: solana error {}".format(err))
             raise
 
+
 class neon_cli:
-    def call(self, arguments):
-        cmd = 'neon-cli --url {} {}'.format(solana_url, arguments)
+    def call(self, *args):
         try:
-            return subprocess.check_output(cmd, shell=True, universal_newlines=True)
+            cmd = ["neon-cli",
+                   "--commitment=recent",
+                   "--url", solana_url,
+                   "--evm_loader={}".format(evm_loader_id),
+                   ] + list(args)
+            print(cmd)
+            return subprocess.check_output(cmd, timeout=0.1, universal_newlines=True)
         except subprocess.CalledProcessError as err:
             import sys
             logger.debug("ERR: neon-cli error {}".format(err))
@@ -255,9 +258,11 @@ def solana2ether(public_key):
 
 def ether2program(ether, program_id, base):
     if isinstance(ether, str):
-        if ether.startswith('0x'): ether = ether[2:]
-    else: ether = ether.hex()
-    output = neon_cli().call("create-program-address {} --evm_loader {}".format(ether, program_id))
+        if ether.startswith('0x'):
+            ether = ether[2:]
+    else:
+        ether = ether.hex()
+    output = neon_cli().call("create-program-address", ether)
     items = output.rstrip().split(' ')
     return (items[0], int(items[1]))
 
@@ -270,9 +275,10 @@ def ether2seed(ether, program_id, base):
     logger.debug('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
     return (acc, 255, seed)
 
-def call_emulated(contract_id, caller_id, data):
-    output = emulator(contract_id, caller_id, data)
-    logger.debug("call_emulated %s %s %s return %s", contract_id, caller_id, data, output)
+
+def call_emulated(contract_id, caller_id, data=None, value=None):
+    output = emulator(contract_id, caller_id, data, value)
+    logger.debug("call_emulated %s %s %s %s return %s", contract_id, caller_id, data, value, output)
     result = json.loads(output)
     exit_status = result['exit_status']
     if exit_status == 'revert':

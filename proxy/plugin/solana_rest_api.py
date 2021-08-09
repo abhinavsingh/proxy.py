@@ -28,12 +28,10 @@ from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm
     Trx, deploy_contract, EthereumError
 from web3 import Web3
 import logging
-import random
 from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob, proxy_id_glob
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 
 modelInstanceLock = threading.Lock()
 modelInstance = None
@@ -83,11 +81,16 @@ class EthereumModel:
         return 0
 
     def eth_estimateGas(self, param):
-        if param.get('to'):
-            result = call_emulated(param['to'], param['from'], param['data'])
+        try:
+            caller_id = param['from'] if 'from' in param else "0x0000000000000000000000000000000000000000"
+            contract_id = param['to'] if 'to' in param else "deploy"
+            data = param['data'] if 'data' in param else "None"
+            value = param['value'] if 'value' in param else ""
+            result = call_emulated(contract_id, caller_id, data, value)
             return result['used_gas']
-        else:
-            return 9999998
+        except Exception as err:
+            logger.debug("Exception on eth_estimateGas: %s", err)
+            raise
 
     def __repr__(self):
         return str(self.__dict__)
@@ -149,11 +152,12 @@ class EthereumModel:
         try:
             caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
             contract_id = obj['to']
-            data = obj['data']
-            return "0x"+call_emulated(contract_id, caller_id, data)['result']
+            data = obj['data'] if 'data' in obj else "None"
+            value = obj['value'] if 'value' in obj else ""
+            return "0x"+call_emulated(contract_id, caller_id, data, value)['result']
         except Exception as err:
             logger.debug("eth_call %s", err)
-            return '0x'
+            raise
 
     def eth_getTransactionCount(self, account, tag):
         logger.debug('eth_getTransactionCount: %s', account)
