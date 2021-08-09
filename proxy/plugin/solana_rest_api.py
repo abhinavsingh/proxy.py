@@ -40,7 +40,7 @@ modelInstance = None
 class EthereumModel:
     def __init__(self):
         # Initialize user account
-        res = solana_cli().call("config get")
+        res = solana_cli().call('config', 'get')
         substr = "Keypair Path: "
         path = ""
         for line in res.splitlines():
