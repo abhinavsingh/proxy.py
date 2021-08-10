@@ -37,11 +37,14 @@ modelInstanceLock = threading.Lock()
 modelInstance = None
 
 
-class CollateralPool:
-    def __init__(self, index, address):
-        self.index = index
-        self.index_buf = index.to_bytes(4, 'little')
-        self.address = address
+class TransactionAccounts:
+    def __init__(self, operator, storage, holder, collateral_pool_index, collateral_pool_address):
+        self.operator = operator
+        self.storage = storage
+        self.holder = holder
+        self.collateral_pool_index = collateral_pool_index
+        self.collateral_pool_index_buf = collateral_pool_index.to_bytes(4, 'little')
+        self.collateral_pool_address = collateral_pool_address
 
 
 class EthereumModel:
@@ -79,18 +82,19 @@ class EthereumModel:
                                                                  self.signer,
                                                                  collateral_pool_index,
                                                                  evm_loader_id)
-        self.collateral_pool = CollateralPool(collateral_pool_index, collateral_pool_address)
 
         proxy_id_bytes = self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')
         signer_public_key_bytes = bytes(self.signer.public_key())
 
         storage_seed = shake_256(b"storage" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
         storage_seed = bytes(storage_seed, 'utf8')
-        self.storage = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=storage_seed, storage_size=128*1024)
+        storage = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=storage_seed, storage_size=128*1024)
 
         holder_seed = shake_256(b"holder" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
         holder_seed = bytes(holder_seed, 'utf8')
-        self.holder = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=holder_seed, storage_size=128*1024)
+        holder = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=holder_seed, storage_size=128*1024)
+
+        self.trx_accs = TransactionAccounts(self.signer.public_key(), storage, holder, collateral_pool_index, collateral_pool_address)
         pass
 
     def eth_chainId(self):
@@ -357,10 +361,10 @@ class EthereumModel:
         try:
             contract_eth = None
             if (not trx.toAddress):
-                (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, self.holder, self.collateral_pool, steps=1000)
+                (signature, contract_eth) = deploy_contract(self.signer, self.client, trx, self.trx_accs, steps=1000)
                 #self.contract_address[eth_signature] = contract_eth
             else:
-                signature = call_signed(self.signer, self.client, trx, self.storage, self.holder, self.collateral_pool, steps=1000)
+                signature = call_signed(self.signer, self.client, trx, self.trx_accs, steps=1000)
 
             eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
