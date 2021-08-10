@@ -1,3 +1,9 @@
+from solana.transaction import AccountMeta, TransactionInstruction, Transaction
+from solana.sysvar import *
+from solana.blockhash import Blockhash
+import time
+import subprocess
+import os
 import base64
 import json
 import logging
@@ -101,7 +107,7 @@ def accountWithSeed(base, seed, program):
     logger.debug('accountWithSeed %s', str(result))
     return result
 
-def createAccountWithSeed(funding, base, seed, lamports, space, program):
+def createAccountWithSeedTrx(funding, base, seed, lamports, space, program):
     seed_str = str(seed, 'utf8')
     data = SYSTEM_INSTRUCTIONS_LAYOUT.build(
         dict(
@@ -115,7 +121,7 @@ def createAccountWithSeed(funding, base, seed, lamports, space, program):
             )
         )
     )
-    logger.debug("createAccountWithSeed %s %s %s", type(base), base, data.hex())
+    logger.debug("createAccountWithSeedTrx %s %s %s", type(base), base, data.hex())
     created = accountWithSeed(base, seed, PublicKey(program))
     logger.debug("created %s", created)
     return TransactionInstruction(
@@ -135,31 +141,31 @@ def create_collateral_pool_address(client, operator_acc, collateral_pool_index, 
     collateral_pool_address = accountWithSeed(operator_acc.public_key(), bytes(seed, 'utf8'), PublicKey(program_id))
     logger.debug("Collateral pool address: %s", collateral_pool_address)
 
-    minimum_balance = client.get_minimum_balance_for_rent_exemption(STORAGE_SIZE,
-                                                                    commitment=Confirmed)["result"]
+    minimum_balance = client.get_minimum_balance_for_rent_exemption(0, commitment=Confirmed)["result"]
     logger.debug("Minimum balance required for collateral pool account {}".format(minimum_balance))
 
     if client.get_balance(collateral_pool_address, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
-        trx.add(createAccountWithSeed(operator_acc.public_key(), operator_acc.public_key(), str.encode(seed),
-                                      minimum_balance, STORAGE_SIZE, PublicKey(program_id)))
+        trx.add(createAccountWithSeedTrx(operator_acc.public_key(), operator_acc.public_key(), seed, minimum_balance, 0, PublicKey(program_id)))
         result = send_transaction(client, trx, operator_acc)
         print(result)
+
     return collateral_pool_address
 
 
-def create_storage_account(client, funding, base, seed):
-    storage = accountWithSeed(base.public_key(), seed, PublicKey(evm_loader_id))
-    minimum_balance = client.get_minimum_balance_for_rent_exemption(STORAGE_SIZE, commitment=Confirmed)["result"]
+def create_account_with_seed(client, funding, base, seed, storage_size):
+    account = accountWithSeed(base.public_key(), seed, PublicKey(evm_loader_id))
 
-    logger.debug("Minimum balance required for storage account {}".format(minimum_balance))
+    if client.get_balance(account, commitment=Confirmed)['result']['value'] == 0:
+        minimum_balance = client.get_minimum_balance_for_rent_exemption(storage_size, commitment=Confirmed)["result"]
+        logger.debug("Minimum balance required for account {}".format(minimum_balance))
 
-    if client.get_balance(storage, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
-        trx.add(createAccountWithSeed(funding.public_key(), base.public_key(), seed, minimum_balance, STORAGE_SIZE, PublicKey(evm_loader_id)))
+        trx.add(createAccountWithSeedTrx(funding.public_key(), base.public_key(), seed, minimum_balance, storage_size, PublicKey(evm_loader_id)))
         send_transaction(client, trx, funding)
 
-    return storage
+    return account
+
 
 def make_keccak_instruction_data(check_instruction_index, msg_len, data_start = 1):
     if check_instruction_index > 255 and check_instruction_index < 0:
@@ -219,28 +225,36 @@ class EthereumAddress:
     def __bytes__(self): return self.data
 
 
-def emulator(contract, sender, data):
+def emulator(contract, sender, data, value):
     data = data if data is not None else ""
-    cmd = 'emulate --commitment=recent  --evm_loader {} {} {} {}'.format(evm_loader_id, sender, contract, data)
-    print(cmd)
-    return neon_cli().call(cmd)
+    value = value if value is not None else ""
+    return neon_cli().call("emulate", sender, contract, data, value)
 
 
 class solana_cli:
-    def call(self, arguments):
-        cmd = 'solana --url {} {}'.format(solana_url, arguments)
+    def call(self, *args):
         try:
-            return subprocess.check_output(cmd, shell=True, universal_newlines=True)
+            cmd = ["solana",
+                   "--url", solana_url,
+                   ] + list(args)
+            print(cmd)
+            return subprocess.check_output(cmd, universal_newlines=True)
         except subprocess.CalledProcessError as err:
             import sys
             logger.debug("ERR: solana error {}".format(err))
             raise
 
+
 class neon_cli:
-    def call(self, arguments):
-        cmd = 'neon-cli --url {} {}'.format(solana_url, arguments)
+    def call(self, *args):
         try:
-            return subprocess.check_output(cmd, shell=True, universal_newlines=True)
+            cmd = ["neon-cli",
+                   "--commitment=recent",
+                   "--url", solana_url,
+                   "--evm_loader={}".format(evm_loader_id),
+                   ] + list(args)
+            print(cmd)
+            return subprocess.check_output(cmd, timeout=0.1, universal_newlines=True)
         except subprocess.CalledProcessError as err:
             import sys
             logger.debug("ERR: neon-cli error {}".format(err))
@@ -273,9 +287,11 @@ def solana2ether(public_key):
 
 def ether2program(ether, program_id, base):
     if isinstance(ether, str):
-        if ether.startswith('0x'): ether = ether[2:]
-    else: ether = ether.hex()
-    output = neon_cli().call("create-program-address {} --evm_loader {}".format(ether, program_id))
+        if ether.startswith('0x'):
+            ether = ether[2:]
+    else:
+        ether = ether.hex()
+    output = neon_cli().call("create-program-address", ether)
     items = output.rstrip().split(' ')
     return (items[0], int(items[1]))
 
@@ -288,9 +304,10 @@ def ether2seed(ether, program_id, base):
     logger.debug('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
     return (acc, 255, seed)
 
-def call_emulated(contract_id, caller_id, data):
-    output = emulator(contract_id, caller_id, data)
-    logger.debug("call_emulated %s %s %s return %s", contract_id, caller_id, data, output)
+
+def call_emulated(contract_id, caller_id, data=None, value=None):
+    output = emulator(contract_id, caller_id, data, value)
+    logger.debug("call_emulated %s %s %s %s return %s", contract_id, caller_id, data, value, output)
     result = json.loads(output)
     exit_status = result['exit_status']
     if exit_status == 'revert':
@@ -577,7 +594,11 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage, collateral_pool
                 seed = b58encode(address)
                 code_account = accountWithSeed(acc.public_key(), seed, PublicKey(evm_loader_id))
                 logger.debug("     with code account %s", code_account)
-                trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, acc_desc["code_size"] + 4 * 1024, PublicKey(evm_loader_id)))
+                code_size = acc_desc["code_size"]
+                valids_size = (code_size // 8) + 1
+                code_account_size = CODE_INFO_LAYOUT.sizeof() + code_size + valids_size + 2048
+                code_account_balance = client.get_minimum_balance_for_rent_exemption(code_account_size)["result"]
+                trx.add(createAccountWithSeedTrx(acc.public_key(), acc.public_key(), seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
 
@@ -610,7 +631,7 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage, collateral_pool
     return (accounts, sender_ether, sender_sol, trx)
 
 
-def call_signed(acc, client, ethTrx, storage, collateral_pool, steps):
+def call_signed(acc, client, ethTrx, storage, holder, collateral_pool, steps):
     (accounts, sender_ether, sender_sol, create_acc_trx) = create_account_list_by_emulate(acc, client, ethTrx, storage, collateral_pool)
     msg = sender_ether + ethTrx.signature() + ethTrx.unsigned_msg()
 
@@ -632,7 +653,7 @@ def call_signed(acc, client, ethTrx, storage, collateral_pool, steps):
             raise
 
     if call_from_holder:
-        return call_signed_with_holder_acc(acc, client, ethTrx, storage, collateral_pool, steps, accounts, create_acc_trx)
+        return call_signed_with_holder_acc(acc, client, ethTrx, storage, holder, collateral_pool, steps, accounts, create_acc_trx)
     if call_iterative:
         return call_signed_iterative(acc, client, ethTrx, msg, collateral_pool, steps, accounts, create_acc_trx, sender_sol)
 
@@ -668,9 +689,9 @@ def call_signed_noniterative(acc, client, ethTrx, msg, accounts, create_acc_trx,
     return result['result']['transaction']['signatures'][0]
 
 
-def call_signed_with_holder_acc(acc, client, ethTrx, storage, collateral_pool, steps, accounts, create_acc_trx):
+def call_signed_with_holder_acc(acc, client, ethTrx, storage, holder, collateral_pool, steps, accounts, create_acc_trx):
 
-    holder = write_trx_to_holder_account(acc, client, ethTrx)
+    holder = write_trx_to_holder_account(acc, client, holder, ethTrx)
 
     continue_accounts = accounts.copy()
     accounts.insert(0, AccountMeta(pubkey=holder, is_signer=False, is_writable=True))
@@ -696,7 +717,7 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
     logger.debug('associatedTokenAccount: {}'.format(associated_token))
     base = signer.public_key()
     data=bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
-            lamports=10**9,
+            lamports=0,
             space=0,
             ether=bytes.fromhex(ether),
             nonce=nonce))
@@ -738,22 +759,8 @@ def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     logger.debug('createEtherAccount result: %s', result)
     return sol
 
-def write_trx_to_holder_account(acc, client, ethTrx):
-    # Create transaction holder account (if not exists)
-    seed = bytes("1236", 'utf8')
-    holder = PublicKey(
-        sha256(bytes(acc.public_key()) + seed + bytes(PublicKey(evm_loader_id))).digest())
-    logger.debug("Holder %s", holder)
-
-    if client.get_balance(holder, commitment=Confirmed)['result']['value'] == 0:
-        trx = Transaction()
-        trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), seed, 10 ** 9, 128 * 1024,
-                                      PublicKey(evm_loader_id)))
-        result = send_measured_transaction(client, trx, acc)
-
-    # Build deploy transaction
+def write_trx_to_holder_account(acc, client, holder, ethTrx):
     msg = ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg()
-    # logger.debug("msg", msg.hex())
 
     # Write transaction to transaction holder account
     offset = 0
@@ -780,7 +787,7 @@ def write_trx_to_holder_account(acc, client, ethTrx):
     return holder
 
 
-def deploy_contract(acc, client, ethTrx, storage, collateral_pool, steps):
+def deploy_contract(acc, client, ethTrx, storage, holder, collateral_pool, steps):
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, acc.public_key())
     logger.debug("Sender account solana: %s %s", sender_ether, sender_sol)
@@ -799,7 +806,7 @@ def deploy_contract(acc, client, ethTrx, storage, collateral_pool, steps):
     logger.debug("Legacy contract address solana: %s %s", contract_sol, contract_nonce)
     logger.debug("Legacy code address solana: %s %s", code_sol, code_nonce)
 
-    holder = write_trx_to_holder_account(acc, client, ethTrx)
+    holder = write_trx_to_holder_account(acc, client, holder, ethTrx)
 
     # Create contract account & execute deploy transaction
     logger.debug("    # Create contract account & execute deploy transaction")
@@ -812,7 +819,8 @@ def deploy_contract(acc, client, ethTrx, storage, collateral_pool, steps):
         msg_size = len(ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg())
         valids_size = (msg_size // 8) + 1
         code_account_size = CODE_INFO_LAYOUT.sizeof() + msg_size + valids_size + 2048
-        trx.add(createAccountWithSeed(acc.public_key(), acc.public_key(), code_seed, 10**9, code_account_size, PublicKey(evm_loader_id)))
+        code_account_balance = client.get_minimum_balance_for_rent_exemption(code_account_size)["result"]
+        trx.add(createAccountWithSeedTrx(acc.public_key(), acc.public_key(), code_seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
     if client.get_balance(contract_sol, commitment=Confirmed)['result']['value'] == 0:
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):

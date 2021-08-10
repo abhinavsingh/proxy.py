@@ -19,21 +19,19 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from .eth_proto import Trx as EthTrx
 from solana.rpc.api import Client as SolanaClient
-from sha3 import keccak_256
+from sha3 import keccak_256, shake_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress,  create_storage_account, evm_loader_id, getTokens, \
+from .solana_rest_api_tools import EthereumAddress,  create_account_with_seed, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
     Trx, deploy_contract, EthereumError, create_collateral_pool_address
 from web3 import Web3
 import logging
-import random
 from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob, proxy_id_glob
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
 
 modelInstanceLock = threading.Lock()
 modelInstance = None
@@ -49,7 +47,7 @@ class CollateralPool:
 class EthereumModel:
     def __init__(self):
         # Initialize user account
-        res = solana_cli().call("config get")
+        res = solana_cli().call('config', 'get')
         substr = "Keypair Path: "
         path = ""
         for line in res.splitlines():
@@ -76,15 +74,23 @@ class EthereumModel:
             proxy_id_glob.value += 1
         logger.debug("worker id {}".format(self.proxy_id))
 
-        seed = base58.b58encode(self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')) + self.signer.public_key().to_base58()
-        self.storage = create_storage_account(self.client, funding=self.signer, base=self.signer, seed=seed[0:32])
         collateral_pool_index = self.proxy_id % 4
         collateral_pool_address = create_collateral_pool_address(self.client,
                                                                  self.signer,
                                                                  collateral_pool_index,
                                                                  evm_loader_id)
         self.collateral_pool = CollateralPool(collateral_pool_index, collateral_pool_address)
-        logger.debug('collateral_pool: %s', self.collateral_pool)
+
+        proxy_id_bytes = self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')
+        signer_public_key_bytes = bytes(self.signer.public_key())
+
+        storage_seed = shake_256(b"storage" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
+        storage_seed = bytes(storage_seed, 'utf8')
+        self.storage = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=storage_seed, storage_size=128*1024)
+
+        holder_seed = shake_256(b"holder" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
+        holder_seed = bytes(holder_seed, 'utf8')
+        self.holder = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=holder_seed, storage_size=128*1024)
         pass
 
     def eth_chainId(self):
@@ -97,11 +103,16 @@ class EthereumModel:
         return 0
 
     def eth_estimateGas(self, param):
-        if param.get('to'):
-            result = call_emulated(param['to'], param['from'], param['data'])
+        try:
+            caller_id = param['from'] if 'from' in param else "0x0000000000000000000000000000000000000000"
+            contract_id = param['to'] if 'to' in param else "deploy"
+            data = param['data'] if 'data' in param else "None"
+            value = param['value'] if 'value' in param else ""
+            result = call_emulated(contract_id, caller_id, data, value)
             return result['used_gas']
-        else:
-            return 9999998
+        except Exception as err:
+            logger.debug("Exception on eth_estimateGas: %s", err)
+            raise
 
     def __repr__(self):
         return str(self.__dict__)
@@ -163,11 +174,12 @@ class EthereumModel:
         try:
             caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
             contract_id = obj['to']
-            data = obj['data']
-            return "0x"+call_emulated(contract_id, caller_id, data)['result']
+            data = obj['data'] if 'data' in obj else "None"
+            value = obj['value'] if 'value' in obj else ""
+            return "0x"+call_emulated(contract_id, caller_id, data, value)['result']
         except Exception as err:
             logger.debug("eth_call %s", err)
-            return '0x'
+            raise
 
     def eth_getTransactionCount(self, account, tag):
         logger.debug('eth_getTransactionCount: %s', account)
@@ -345,10 +357,10 @@ class EthereumModel:
         try:
             contract_eth = None
             if (not trx.toAddress):
-                (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, self.collateral_pool, steps=1000)
+                (signature, contract_eth) = deploy_contract(self.signer,  self.client, trx, self.storage, self.holder, self.collateral_pool, steps=1000)
                 #self.contract_address[eth_signature] = contract_eth
             else:
-                signature = call_signed(self.signer, self.client, trx, self.storage, self.collateral_pool, steps=1000)
+                signature = call_signed(self.signer, self.client, trx, self.storage, self.holder, self.collateral_pool, steps=1000)
 
             eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
