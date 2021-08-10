@@ -153,7 +153,7 @@ def create_collateral_pool_address(client, operator_acc, collateral_pool_index, 
 
     if client.get_balance(collateral_pool_address, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
-        trx.add(createAccountWithSeedTrx(operator_acc.public_key(), operator_acc.public_key(), seed, minimum_balance, 0, PublicKey(program_id)))
+        trx.add(createAccountWithSeedTrx(operator_acc.public_key(), operator_acc.public_key(), str.encode(seed), minimum_balance, 0, PublicKey(program_id)))
         result = send_transaction(client, trx, operator_acc)
         print(result)
 
