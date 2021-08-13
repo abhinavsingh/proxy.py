@@ -25,7 +25,7 @@ import traceback
 import threading
 from .solana_rest_api_tools import EthereumAddress,  create_account_with_seed, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
-    Trx, deploy_contract, EthereumError, create_collateral_pool_address
+    Trx, deploy_contract, EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE
 from web3 import Web3
 import logging
 from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob, proxy_id_glob
@@ -37,14 +37,25 @@ modelInstanceLock = threading.Lock()
 modelInstance = None
 
 
-class TransactionAccounts:
-    def __init__(self, operator, storage, holder, collateral_pool_index, collateral_pool_address):
-        self.operator = operator
-        self.storage = storage
-        self.holder = holder
-        self.collateral_pool_index = collateral_pool_index
+class PermanentAccounts:
+    def __init__(self, client, signer, proxy_id):
+        self.operator = signer.public_key()
+        self.operator_token = getTokenAddr(self.operator)
+
+        proxy_id_bytes = proxy_id.to_bytes((proxy_id.bit_length() + 7) // 8, 'big')
+        signer_public_key_bytes = bytes(signer.public_key())
+
+        storage_seed = shake_256(b"storage" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
+        storage_seed = bytes(storage_seed, 'utf8')
+        self.storage = create_account_with_seed(client, funding=signer, base=signer, seed=storage_seed, storage_size=STORAGE_SIZE)
+
+        holder_seed = shake_256(b"holder" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
+        holder_seed = bytes(holder_seed, 'utf8')
+        self.holder = create_account_with_seed(client, funding=signer, base=signer, seed=holder_seed, storage_size=STORAGE_SIZE)
+
+        collateral_pool_index = proxy_id % 4
         self.collateral_pool_index_buf = collateral_pool_index.to_bytes(4, 'little')
-        self.collateral_pool_address = collateral_pool_address
+        self.collateral_pool_address = create_collateral_pool_address(collateral_pool_index)
 
 
 class EthereumModel:
@@ -77,24 +88,7 @@ class EthereumModel:
             proxy_id_glob.value += 1
         logger.debug("worker id {}".format(self.proxy_id))
 
-        collateral_pool_index = self.proxy_id % 4
-        collateral_pool_address = create_collateral_pool_address(self.client,
-                                                                 self.signer,
-                                                                 collateral_pool_index,
-                                                                 evm_loader_id)
-
-        proxy_id_bytes = self.proxy_id.to_bytes((self.proxy_id.bit_length() + 7) // 8, 'big')
-        signer_public_key_bytes = bytes(self.signer.public_key())
-
-        storage_seed = shake_256(b"storage" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
-        storage_seed = bytes(storage_seed, 'utf8')
-        storage = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=storage_seed, storage_size=128*1024)
-
-        holder_seed = shake_256(b"holder" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
-        holder_seed = bytes(holder_seed, 'utf8')
-        holder = create_account_with_seed(self.client, funding=self.signer, base=self.signer, seed=holder_seed, storage_size=128*1024)
-
-        self.trx_accs = TransactionAccounts(self.signer.public_key(), storage, holder, collateral_pool_index, collateral_pool_address)
+        self.perm_accs = PermanentAccounts(self.client, self.signer, self.proxy_id)
         pass
 
     def eth_chainId(self):
@@ -343,7 +337,7 @@ class EthereumModel:
             "r":hex(self.vrs[trxId][1]),
             "s":hex(self.vrs[trxId][2])
         }
-        logger.debug ("eth_getTransactionByHash: %s", ret);
+        logger.debug ("eth_getTransactionByHash: %s", ret)
         return ret
 
     def eth_getCode(self, param,  param1):
@@ -361,10 +355,10 @@ class EthereumModel:
         try:
             contract_eth = None
             if (not trx.toAddress):
-                (signature, contract_eth) = deploy_contract(self.signer, self.client, trx, self.trx_accs, steps=1000)
+                (signature, contract_eth) = deploy_contract(self.signer, self.client, trx, self.perm_accs, steps=1000)
                 #self.contract_address[eth_signature] = contract_eth
             else:
-                signature = call_signed(self.signer, self.client, trx, self.trx_accs, steps=1000)
+                signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=1000)
 
             eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
