@@ -25,7 +25,7 @@ from solana.rpc.types import TxOpts
 from solana.sysvar import *
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from spl.token.constants import ACCOUNT_LEN, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
-from spl.token.instructions import get_associated_token_address
+from spl.token.instructions import get_associated_token_address, transfer2, Transfer2Params
 from web3.auto import w3
 
 from .eth_proto import Trx
@@ -35,6 +35,8 @@ logger.setLevel(logging.DEBUG)
 
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
+COLLATERAL_POOL_BASE = os.environ.get("COLLATERAL_POOL_BASE")
+LOCAL_CLUSTER = os.environ.get("LOCAL_CLUSTER")
 #evm_loader_id = "EfyDoGDRPy7wrLfSLyXrbhiAG6NmufMk1ytap13gLy1"
 location_bin = ".deploy_contract.bin"
 
@@ -894,6 +896,16 @@ def deploy_contract(acc, client, ethTrx, perm_accs, steps):
     sender_sol_info = client.get_account_info(sender_sol, commitment=Confirmed)
     if sender_sol_info['result']['value'] is None:
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
+        if LOCAL_CLUSTER:
+            trx.add(transfer2(Transfer2Params(
+                amount=1,
+                decimals=9,
+                dest=caller_token,
+                mint=ETH_TOKEN_MINT_ID,
+                owner=acc.public_key(),
+                program_id=TOKEN_PROGRAM_ID,
+                source=perm_accs.operator_token,
+            )))
 
     if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
         msg_size = len(ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg())

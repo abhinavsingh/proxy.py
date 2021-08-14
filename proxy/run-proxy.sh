@@ -69,5 +69,25 @@ fi
 echo "Use eth token mint with ETH_TOKEN_MINT=$ETH_TOKEN_MINT"
 
 
+# export COLLATERAL_POOL_BASE_TEST_NET_ID=""
+
+# if [ -z "$COLLATERAL_POOL_BASE" ]; then
+#   echo "COLLATERAL_POOL_BASE is unset or set to the empty string. The pre-deployed token mint will be used"
+#   export COLLATERAL_POOL_BASE="$COLLATERAL_POOL_BASE_TEST_NET_ID"
+# else
+  if [ "$COLLATERAL_POOL_BASE" == "deploy" ]; then
+    echo "COLLATERAL_POOL_BASE is set to create. A new collateral pool accounts will be created. Creating accounts..."
+    #generate collateral pool accounts
+    solana -k /spl/bin/collateral-pool-keypair.json airdrop 1000
+    python3 /spl/bin/collateral_pool_generator.py /spl/bin/collateral-pool-keypair.json
+    export COLLATERAL_POOL_BASE="4sW3SZDJB7qXUyCYKA7pFL8eCTfm3REr8oSiKkww7MaT"
+  else
+    echo "COLLATERAL_POOL_BASE is set. The specified collateral pool will be used"
+  fi
+# fi
+
+echo "Use collateral pool base with COLLATERAL_POOL_BASE=$COLLATERAL_POOL_BASE"
+
+
 echo run-proxy
 python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin
