@@ -901,13 +901,13 @@ def deploy_contract(acc, client, ethTrx, perm_accs, steps):
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
         if LOCAL_CLUSTER:
             trx.add(transfer2(Transfer2Params(
+                source=getTokenAddr(acc.public_key()),
+                owner=acc.public_key(),
+                dest=caller_token,
                 amount=10_000_000_000,
                 decimals=9,
-                dest=caller_token,
                 mint=ETH_TOKEN_MINT_ID,
-                owner=acc.public_key(),
                 program_id=TOKEN_PROGRAM_ID,
-                source=getTokenAddr(acc.public_key()),
             )))
 
     if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
@@ -974,13 +974,13 @@ def getTokens(client, acc, evm_loader, eth_acc, base_account):
             if sender_sol_info['result']['value'] is None:
                 trx.add(createEtherAccountTrx(client, bytes(eth_acc).hex(), evm_loader_id, acc)[0])
             trx.add(transfer2(Transfer2Params(
+                source=getTokenAddr(acc.public_key()),
+                owner=acc.public_key(),
+                dest=token_account,
                 amount=10_000_000_000,
                 decimals=9,
-                dest=token_account,
                 mint=ETH_TOKEN_MINT_ID,
-                owner=acc.public_key(),
                 program_id=TOKEN_PROGRAM_ID,
-                source=getTokenAddr(acc.public_key()),
             )))
             send_transaction(client, trx, acc)
 
