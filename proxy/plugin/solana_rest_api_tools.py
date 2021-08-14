@@ -174,7 +174,7 @@ def create_with_seed_loader_instruction(funding, created, base, seed, lamports, 
 
 def get_caller_hold_token(client, acc, caller, caller_ether):
     holder_seed = b58encode(caller_ether).decode('utf8') + "hold"
-    caller_holder = accountWithSeed(PublicKey(caller), holder_seed, PublicKey(TOKEN_PROGRAM_ID))
+    caller_holder = accountWithSeed(PublicKey(caller), str.encode(holder_seed), PublicKey(TOKEN_PROGRAM_ID))
     if client.get_balance(caller_holder, commitment=Confirmed)['result']['value'] == 0:
         trx = Transaction()
         trx.add(create_with_seed_loader_instruction(acc.public_key(), caller_holder, PublicKey(caller), holder_seed, 10**9, ACCOUNT_LEN, PublicKey(TOKEN_PROGRAM_ID)))
@@ -185,7 +185,7 @@ def get_caller_hold_token(client, acc, caller, caller_ether):
 def create_collateral_pool_address(collateral_pool_index):
     COLLATERAL_SEED_PREFIX = "collateral_seed_"
     seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
-    return accountWithSeed(PublicKey(COLLATERAL_POOL_BASE), seed, PublicKey(evm_loader_id))
+    return accountWithSeed(PublicKey(COLLATERAL_POOL_BASE), str.encode(seed), PublicKey(evm_loader_id))
 
 
 def create_account_with_seed(client, funding, base, seed, storage_size):
@@ -836,6 +836,18 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
 
 def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
     (trx, sol) = createEtherAccountTrx(client, ether, evm_loader_id, signer, space)
+    if LOCAL_CLUSTER:
+        caller_token = get_associated_token_address(PublicKey(sol), ETH_TOKEN_MINT_ID)
+        trx.add(transfer2(Transfer2Params(
+            amount=1,
+            decimals=9,
+            dest=caller_token,
+            mint=ETH_TOKEN_MINT_ID,
+            owner=signer.public_key(),
+            program_id=TOKEN_PROGRAM_ID,
+            source=getTokenAddr(signer.public_key()),
+        )))
+
     result = send_transaction(client, trx, signer)
     logger.debug('createEtherAccount result: %s', result)
     return sol
@@ -872,7 +884,6 @@ def deploy_contract(acc, client, ethTrx, perm_accs, steps):
     logger.debug("Sender account solana: %s %s", sender_ether, sender_sol)
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
-    block_token = get_caller_hold_token(client, acc, sender_sol, sender_ether)
 
     #info = _getAccountData(client, sender_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     #trx_count = int.from_bytes(AccountInfo.frombytes(info).trx_count, 'little')
@@ -917,6 +928,9 @@ def deploy_contract(acc, client, ethTrx, perm_accs, steps):
         trx.add(createEtherAccountTrx(client, contract_eth, evm_loader_id, acc, code_sol)[0])
     if len(trx.instructions):
         result = send_measured_transaction(client, trx, acc)
+
+    block_token = get_caller_hold_token(client, acc, sender_sol, sender_ether)
+
     eth_accounts = [
                 AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=get_associated_token_address(PublicKey(contract_sol), ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
@@ -928,7 +942,7 @@ def deploy_contract(acc, client, ethTrx, perm_accs, steps):
     trx_accs = TransactionAccounts(caller_token, block_token, eth_accounts)
 
     precall_txs = Transaction()
-    precall_txs.add(make_call_from_account_instruction(perm_accs, trx_accs, block_token))
+    precall_txs.add(make_call_from_account_instruction(perm_accs, trx_accs))
 
     # ExecuteTrxFromAccountDataIterative
     logger.debug("ExecuteTrxFromAccountDataIterative:")
