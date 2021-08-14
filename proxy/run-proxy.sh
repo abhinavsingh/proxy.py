@@ -89,5 +89,12 @@ echo "Use eth token mint with ETH_TOKEN_MINT=$ETH_TOKEN_MINT"
 echo "Use collateral pool base with COLLATERAL_POOL_BASE=$COLLATERAL_POOL_BASE"
 
 
+if [ "$LOCAL_CLUSTER" == "local" ]; then
+  ACCOUNT=$(solana address)
+  TOKEN_ACCOUNT=$(/spl/bin/spl-token create-account $ETH_TOKEN_MINT --owner $ACCOUNT | grep -Po 'Creating account \K[^\n]*')
+  /spl/bin/spl-token mint $ETH_TOKEN_MINT 5000 --owner /spl/bin/test_token_owner -- $TOKEN_ACCOUNT
+  /spl/bin/spl-token balance $ETH_TOKEN_MINT --owner $ACCOUNT
+fi
+
 echo run-proxy
 python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin
