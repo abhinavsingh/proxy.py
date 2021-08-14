@@ -438,7 +438,6 @@ def check_if_program_exceeded_instructions(err_result):
 
 
 def check_if_continue_returned(result):
-    # logger.debug(result)
     acc_meta_lst = result["result"]["transaction"]["message"]["accountKeys"]
     evm_loader_index = acc_meta_lst.index(evm_loader_id)
 
@@ -699,6 +698,16 @@ def create_account_list_by_emulate(acc, client, ethTrx):
                 trx.add(createAccountWithSeedTrx(acc.public_key(), acc.public_key(), seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, acc, code_account)[0])
+            if address == sender_ether and LOCAL_CLUSTER:
+                trx.add(transfer2(Transfer2Params(
+                    amount=10_000_000_000,
+                    decimals=9,
+                    dest=get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
+                    mint=ETH_TOKEN_MINT_ID,
+                    owner=acc.public_key(),
+                    program_id=TOKEN_PROGRAM_ID,
+                    source=getTokenAddr(acc.public_key()),
+                )))
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
     block_token = get_caller_hold_token(client, acc, sender_sol, sender_ether)
@@ -834,23 +843,6 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
             ]))
     return (trx, sol)
 
-def createEtherAccount(client, ether, evm_loader_id, signer, space=0):
-    (trx, sol) = createEtherAccountTrx(client, ether, evm_loader_id, signer, space)
-    if LOCAL_CLUSTER:
-        caller_token = get_associated_token_address(PublicKey(sol), ETH_TOKEN_MINT_ID)
-        trx.add(transfer2(Transfer2Params(
-            amount=1,
-            decimals=9,
-            dest=caller_token,
-            mint=ETH_TOKEN_MINT_ID,
-            owner=signer.public_key(),
-            program_id=TOKEN_PROGRAM_ID,
-            source=getTokenAddr(signer.public_key()),
-        )))
-
-    result = send_transaction(client, trx, signer)
-    logger.debug('createEtherAccount result: %s', result)
-    return sol
 
 def write_trx_to_holder_account(acc, client, holder, ethTrx):
     msg = ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg()
@@ -909,13 +901,13 @@ def deploy_contract(acc, client, ethTrx, perm_accs, steps):
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, acc)[0])
         if LOCAL_CLUSTER:
             trx.add(transfer2(Transfer2Params(
-                amount=1,
+                amount=10_000_000_000,
                 decimals=9,
                 dest=caller_token,
                 mint=ETH_TOKEN_MINT_ID,
                 owner=acc.public_key(),
                 program_id=TOKEN_PROGRAM_ID,
-                source=perm_accs.operator_token,
+                source=getTokenAddr(acc.public_key()),
             )))
 
     if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
@@ -970,13 +962,32 @@ def getLamports(client, evm_loader, eth_acc, base_account):
     (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
-def getTokens(client, evm_loader, eth_acc, base_account):
+def getTokens(client, acc, evm_loader, eth_acc, base_account):
     (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     token_account = get_associated_token_address(PublicKey(account), ETH_TOKEN_MINT_ID)
 
     balance = client.get_token_account_balance(token_account, commitment=Confirmed)
     if 'error' in balance:
-        return 0
+        if LOCAL_CLUSTER:
+            trx = Transaction()
+            sender_sol_info = client.get_account_info(account, commitment=Confirmed)
+            if sender_sol_info['result']['value'] is None:
+                trx.add(createEtherAccountTrx(client, bytes(eth_acc).hex(), evm_loader_id, acc)[0])
+            trx.add(transfer2(Transfer2Params(
+                amount=10_000_000_000,
+                decimals=9,
+                dest=token_account,
+                mint=ETH_TOKEN_MINT_ID,
+                owner=acc.public_key(),
+                program_id=TOKEN_PROGRAM_ID,
+                source=getTokenAddr(acc.public_key()),
+            )))
+            send_transaction(client, trx, acc)
+
+            return getTokens(client, acc, evm_loader, eth_acc, base_account)
+        else:
+            logger.debug("'error' in balance:")
+            return 0
 
     return int(balance['result']['value']['amount'])
 

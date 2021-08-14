@@ -126,7 +126,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
-        balance = getTokens(self.client, evm_loader_id, eth_acc, self.signer.public_key())
+        balance = getTokens(self.client, self.signer, evm_loader_id, eth_acc, self.signer.public_key())
 
         return hex(balance*10**9)
 
