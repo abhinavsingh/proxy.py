@@ -11,6 +11,8 @@
 from typing import List, Tuple
 import json
 import unittest
+
+import solana
 from solana.account import Account as sol_Account
 from ..common.utils import socket_connection, text_, build_http_response
 from ..http.codes import httpStatusCodes
@@ -358,12 +360,15 @@ class EthereumModel:
 
             return eth_signature
 
-        except EthereumError: raise
+        except solana.rpc.api.SendTransactionError as err:
+            logger.debug("eth_sendRawTransaction solana.rpc.api.SendTransactionError:%s", err.result)
+            raise
+        except EthereumError as err:
+            logger.debug("eth_sendRawTransaction EthereumError:%s", err)
+            raise
         except Exception as err:
-            traceback.print_exc()
-            logger.debug("eth_sendRawTransaction %s", err)
-            return '0x'
-
+            logger.debug("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
+            raise
 
 class JsonEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -471,6 +476,9 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         try:
             method = getattr(self.model, request['method'])
             response['result'] = method(*request['params'])
+        except solana.rpc.api.SendTransactionError as err:
+            traceback.print_exc()
+            response['error'] = err.result
         except EthereumError as err:
             traceback.print_exc()
             response['error'] = err.getError()
