@@ -224,10 +224,10 @@ class EthereumModel:
                             'topics': topics,
                             'data': '0x'+data.hex(),
                             'transactionLogIndex': hex(0),
-                            'transactionIndex': '0x'+hex(inner['index']),
+                            'transactionIndex': hex(inner['index']),
                             'blockNumber': hex(trx['result']['slot']),
                             'transactionHash': trxId,
-                            'logIndex': '0x'+hex(log_index),
+                            'logIndex': hex(log_index),
                             'blockHash': '0x%064x'%trx['result']['slot']
                         }
                     logs.append(rec)
@@ -258,7 +258,7 @@ class EthereumModel:
 
         result = {
             "transactionHash":trxId,
-            "transactionIndex":'0x'+hex(0),
+            "transactionIndex":hex(0),
             "blockHash":'0x%064x'%trx['result']['slot'],
             "blockNumber":hex(trx['result']['slot']),
             "from":'0x'+self.eth_sender[trxId],
@@ -319,7 +319,7 @@ class EthereumModel:
             "input":"0x"+data.hex(),
             "nonce":hex(nonce),
             "to":'0x'+data[17:37].hex(),
-            "transactionIndex":'0x'+hex(0),
+            "transactionIndex":hex(0),
             "value":'0x00',
             "v":hex(self.vrs[trxId][0]),
             "r":hex(self.vrs[trxId][1]),
