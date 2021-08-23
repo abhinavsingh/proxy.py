@@ -4,6 +4,30 @@ set -xeuo pipefail
 echo "Deploy test..."
 
 curl -v --header "Content-Type: application/json" --data '{"method":"eth_blockNumber","id":1001,"jsonrpc":"2.0","params":[]}' $PROXY_URL
+# Check error response on "Invalid Ethereum transaction nonce" while deploying a contract
+# https://github.com/neonlabsorg/proxy-model.py/issues/147
+RESPONSE=$(curl --header 'Content-Type: application/json' --data '{"id":147001,"jsonrpc":"2.0","method":"eth_sendRawTransaction","params":["0xf90134018082dd128080b8e6608060405234801561001057600080fd5b5060c78061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80632e64cec11460375780636057361d146053575b600080fd5b603d607e565b6040518082815260200191505060405180910390f35b607c60048036036020811015606757600080fd5b81019080803590602001909291905050506087565b005b60008054905090565b806000819055505056fea26469706673582212203bc553a7e9b00c07167cc430edb1823d78733185b3335c72c84520889643130364736f6c63430007000033820102a03fd407e0b9dfa921e22415c52228309a4a552a3e725727b021e82c3d86944ccfa07a4cd28d7393cfc48c2dc87b4ed6271f3114889f541200b3673d8e2edc0e4d69"]}' $PROXY_URL)
+python3 -c "
+import sys
+arg=sys.argv[1]
+print(arg)
+import json
+response = json.loads(arg)
+print('error:', response['error'])
+print('code:', response['error']['code'])
+assert response['error']['code'] == -32002
+substring = 'Invalid Ethereum transaction nonce:'
+print('substring:', substring)
+logs = response['error']['data']['logs']
+print('logs:', logs)
+log = [e for e in logs if substring in e][0]
+print('log', log)
+assert len(log) > len(substring)
+file_name = 'src/entrypoint.rs'
+print('file_name', file_name)
+assert file_name in log
+" "$RESPONSE"
+
 
 # Check eth_estimateGas on deploying a contract
 # https://github.com/neonlabsorg/proxy-model.py/issues/122
