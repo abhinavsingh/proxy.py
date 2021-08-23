@@ -80,7 +80,7 @@ echo "Use eth token mint with ETH_TOKEN_MINT=$ETH_TOKEN_MINT"
     #generate collateral pool accounts
     solana -k /spl/bin/collateral-pool-keypair.json airdrop 1000
     python3 /spl/bin/collateral_pool_generator.py /spl/bin/collateral-pool-keypair.json
-    export COLLATERAL_POOL_BASE="4sW3SZDJB7qXUyCYKA7pFL8eCTfm3REr8oSiKkww7MaT"
+    export COLLATERAL_POOL_BASE=$(solana-keygen pubkey -f /spl/bin/collateral-pool-keypair.json)
   else
     echo "COLLATERAL_POOL_BASE is set. The specified collateral pool will be used"
   fi
