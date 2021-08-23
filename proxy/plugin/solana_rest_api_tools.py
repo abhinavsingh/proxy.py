@@ -708,6 +708,7 @@ def create_account_list_by_emulate(acc, client, ethTrx):
                     program_id=TOKEN_PROGRAM_ID,
                     source=getTokenAddr(acc.public_key()),
                 )))
+                logger.debug("Token transfer to %s as ethereum 0x%s amount 10.0", get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID), acc_desc["address"])
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
     block_token = get_caller_hold_token(client, acc, sender_sol, sender_ether)
@@ -909,6 +910,7 @@ def deploy_contract(acc, client, ethTrx, perm_accs, steps):
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
             )))
+            logger.debug("Token transfer to %s as ethereum 0x%s amount 10.0", caller_token, ethTrx.sender())
 
     if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
         msg_size = len(ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg())
@@ -982,6 +984,7 @@ def getTokens(client, acc, evm_loader, eth_acc, base_account):
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
             )))
+            logger.debug("Token transfer to %s as ethereum 0x%s amount 10.0", token_account, bytes(eth_acc).hex())
             send_transaction(client, trx, acc)
 
             return getTokens(client, acc, evm_loader, eth_acc, base_account)
