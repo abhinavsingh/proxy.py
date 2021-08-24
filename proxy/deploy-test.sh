@@ -31,6 +31,113 @@ print('transaction_hash:', transaction_hash)
 "
 
 echo ''
+echo 'Test: compile solidigy contract "Storage", deploy it, and call "store(147)" with right and bad nonce'
+python3 -c "
+import os
+proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
+from web3 import Web3
+proxy = Web3(Web3.HTTPProvider(proxy_url))
+acc=proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
+print(acc.address)
+print(acc.privateKey.hex())
+proxy.eth.default_account=acc.address
+
+from solcx import install_solc
+#install_solc(version='latest')
+install_solc(version='0.7.0')
+from solcx import compile_source
+compiled_sol = compile_source(
+'''
+pragma solidity >=0.7.0 <0.9.0;
+/**
+ * @title Storage
+ * @dev Store & retrieve value in a variable
+ */
+contract Storage {
+    uint256 number;
+    /**
+     * @dev Store value in variable
+     * @param num value to store
+     */
+    function store(uint256 num) public {
+        number = num;
+    }
+    /**
+     * @dev Return value
+     * @return value of 'number'
+     */
+    function retrieve() public view returns (uint256){
+        return number;
+    }
+}
+'''
+)
+contract_id, contract_interface = compiled_sol.popitem()
+
+storage=proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
+trx_deploy = proxy.eth.account.sign_transaction(dict(
+    nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
+    chainId=proxy.eth.chain_id,
+    gas=987654321,
+    gasPrice=0,
+    to='',
+    value=0,
+    data=storage.bytecode),
+  acc.privateKey
+  )
+print('trx_deploy:', trx_deploy)
+trx_deploy_hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
+print('trx_deploy_hash:', trx_deploy_hash.hex())
+trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(trx_deploy_hash)
+print('trx_deploy_receipt:', trx_deploy_receipt)
+
+storage_contract = proxy.eth.contract(
+  address=trx_deploy_receipt.contractAddress,
+	abi=storage.abi
+)
+
+storage_contract.functions.retrieve().call()
+n = storage_contract.functions.retrieve().call()
+assert n == 0
+
+trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
+print('trx_store:', trx_store)
+trx_store_signed = proxy.eth.account.sign_transaction(trx_store, acc.privateKey)
+print('trx_store_signed:', trx_store_signed)
+trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
+print('trx_store_hash:', trx_store_hash.hex())
+trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
+print('trx_store_receipt:', trx_store_receipt)
+n = storage_contract.functions.retrieve().call()
+assert n == 147
+
+trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': 1+proxy.eth.get_transaction_count(proxy.eth.default_account)})
+print('trx_store:', trx_store)
+trx_store_signed = proxy.eth.account.sign_transaction(trx_store, acc.privateKey)
+print('trx_store_signed:', trx_store_signed)
+try:
+    trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
+except Exception as e:
+    print('type(e):', type(e))
+    print('e:', e)
+    print('dir(e):', dir(e))
+    import json
+    response = json.loads(str(e).replace('\'','\"').replace('None','null'))
+    print('response:', response)
+    print('code:', response['code'])
+    assert response['code'] == -32002
+    substring_err_147 = 'Invalid Ethereum transaction nonce:'
+    print('substring_err_147:', substring_err_147)
+    logs = response['data']['logs']
+    print('logs:', logs)
+    log = [s for s in logs if substring_err_147 in s][0]
+    print(log)
+    assert len(log) > len(substring_err_147)
+    file_name = 'src/entrypoint.rs'
+    assert file_name in log
+"
+
+echo ''
 echo 'Test: Check error response on "Invalid Ethereum transaction nonce" while deploying a contract'
 echo 'https://github.com/neonlabsorg/proxy-model.py/issues/147'
 RESPONSE=$(curl --header 'Content-Type: application/json' --data '{"id":147001,"jsonrpc":"2.0","method":"eth_sendRawTransaction","params":["0xf90134018082dd128080b8e6608060405234801561001057600080fd5b5060c78061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80632e64cec11460375780636057361d146053575b600080fd5b603d607e565b6040518082815260200191505060405180910390f35b607c60048036036020811015606757600080fd5b81019080803590602001909291905050506087565b005b60008054905090565b806000819055505056fea26469706673582212203bc553a7e9b00c07167cc430edb1823d78733185b3335c72c84520889643130364736f6c63430007000033820102a03fd407e0b9dfa921e22415c52228309a4a552a3e725727b021e82c3d86944ccfa07a4cd28d7393cfc48c2dc87b4ed6271f3114889f541200b3673d8e2edc0e4d69"]}' $PROXY_URL)
