@@ -10,8 +10,6 @@ from solcx import compile_source
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
-print('eth_account.address:', eth_account.address)
-print('eth_account.privateKey:', eth_account.privateKey.hex())
 proxy.eth.default_account = eth_account.address
 
 SUBSTRING_LOG_ERR_147 = 'Invalid Ethereum transaction nonce:'
@@ -46,6 +44,8 @@ class Test147(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("\nhttps://github.com/neonlabsorg/proxy-model.py/issues/147")
+        print('eth_account.address:', eth_account.address)
+        print('eth_account.key:', eth_account.key.hex())
         compiled_sol = compile_source(STORAGE_SOLIDITY_SOURCE_147)
         contract_id, contract_interface = compiled_sol.popitem()
         storage = proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
@@ -57,7 +57,7 @@ class Test147(unittest.TestCase):
             to='',
             value=0,
             data=storage.bytecode),
-            eth_account.privateKey
+            eth_account.key
         )
         print('trx_deploy:', trx_deploy)
         trx_deploy_hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
@@ -79,7 +79,7 @@ class Test147(unittest.TestCase):
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': right_nonce})
         print('trx_store:', trx_store)
-        trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.privateKey)
+        trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
         print('trx_store_signed:', trx_store_signed)
         trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
         print('trx_store_hash:', trx_store_hash.hex())
@@ -93,7 +93,7 @@ class Test147(unittest.TestCase):
         bad_nonce = 1 + proxy.eth.get_transaction_count(proxy.eth.default_account)
         trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': bad_nonce})
         print('trx_store:', trx_store)
-        trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.privateKey)
+        trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
         print('trx_store_signed:', trx_store_signed)
         try:
             trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
