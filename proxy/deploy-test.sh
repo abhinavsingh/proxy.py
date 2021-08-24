@@ -101,7 +101,8 @@ n = storage_contract.functions.retrieve().call()
 print('n:', n)
 assert n == 0
 
-trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
+right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
+trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': right_nonce})
 print('trx_store:', trx_store)
 trx_store_signed = proxy.eth.account.sign_transaction(trx_store, acc.privateKey)
 print('trx_store_signed:', trx_store_signed)
@@ -113,7 +114,8 @@ n = storage_contract.functions.retrieve().call()
 print('n:', n)
 assert n == 147
 
-trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': 1+proxy.eth.get_transaction_count(proxy.eth.default_account)})
+bad_nonce = 1+proxy.eth.get_transaction_count(proxy.eth.default_account)
+trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': bad_nonce})
 print('trx_store:', trx_store)
 trx_store_signed = proxy.eth.account.sign_transaction(trx_store, acc.privateKey)
 print('trx_store_signed:', trx_store_signed)
