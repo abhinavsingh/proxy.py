@@ -738,7 +738,7 @@ def deploy_contract(acc, client, ethTrx, storage, holder, steps):
 
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, acc.public_key())
-    logger.debug("Sender account solana: %s %s", sender_ether, sender_sol)
+    logger.debug("Sender account solana: %s %s", sender_ether.hex(), sender_sol)
 
     #info = _getAccountData(client, sender_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     #trx_count = int.from_bytes(AccountInfo.frombytes(info).trx_count, 'little')
