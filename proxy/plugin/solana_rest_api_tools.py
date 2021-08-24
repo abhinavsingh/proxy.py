@@ -533,7 +533,7 @@ def create_account_list_by_emulate(acc, client, ethTrx, storage):
     add_keys_05 = []
     trx = Transaction()
 
-    output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex(), ethTrx.value.hex())
+    output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex(), str(ethTrx.value))
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
     for acc_desc in output_json["accounts"]:
         address = bytes.fromhex(acc_desc["address"][2:])
