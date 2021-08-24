@@ -20,7 +20,8 @@ WORKDIR /opt
 RUN python3 -m venv venv && \
     pip3 install --upgrade pip && \
     /bin/bash -c "source venv/bin/activate" && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip install py-solc-x
 
 COPY --from=cli /opt/solana/bin/solana \
                 /opt/solana/bin/solana-faucet \
