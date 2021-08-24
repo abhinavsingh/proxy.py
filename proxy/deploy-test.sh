@@ -31,7 +31,7 @@ print('transaction_hash:', transaction_hash)
 "
 
 echo ''
-echo 'Test: compile solidigy contract "Storage", deploy it, and call "store(147)" with right and bad nonce'
+echo 'Test: compile solidity contract "Storage", deploy it, and call "store(147)" with right and bad nonce'
 python3 -c "
 import os
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
@@ -98,6 +98,7 @@ storage_contract = proxy.eth.contract(
 
 storage_contract.functions.retrieve().call()
 n = storage_contract.functions.retrieve().call()
+print('n:', n)
 assert n == 0
 
 trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
@@ -109,6 +110,7 @@ print('trx_store_hash:', trx_store_hash.hex())
 trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
 print('trx_store_receipt:', trx_store_receipt)
 n = storage_contract.functions.retrieve().call()
+print('n:', n)
 assert n == 147
 
 trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': 1+proxy.eth.get_transaction_count(proxy.eth.default_account)})
@@ -120,7 +122,6 @@ try:
 except Exception as e:
     print('type(e):', type(e))
     print('e:', e)
-    print('dir(e):', dir(e))
     import json
     response = json.loads(str(e).replace('\'','\"').replace('None','null'))
     print('response:', response)
