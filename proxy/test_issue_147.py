@@ -71,11 +71,13 @@ class Test147(unittest.TestCase):
         )
 
     def test_call_retrieve_right_after_deploy(self):
+        print("\ntest_call_retrieve_right_after_deploy")
         number = self.storage_contract.functions.retrieve().call()
         print('number:', number)
         self.assertEqual(number, 0)
 
     def test_execute_with_right_nonce(self):
+        print("\ntest_execute_with_right_nonce")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': right_nonce})
         print('trx_store:', trx_store)
@@ -90,6 +92,7 @@ class Test147(unittest.TestCase):
         self.assertEqual(number, 147)
 
     def test_execute_with_bad_nonce(self):
+        print("\ntest_execute_with_bad_nonce")
         bad_nonce = 1 + proxy.eth.get_transaction_count(proxy.eth.default_account)
         trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': bad_nonce})
         print('trx_store:', trx_store)
