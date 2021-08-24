@@ -5,6 +5,8 @@ echo "Deploy test..."
 
 curl -v --header "Content-Type: application/json" --data '{"method":"eth_blockNumber","id":1001,"jsonrpc":"2.0","params":[]}' $PROXY_URL
 
+python3 -m unittest discover -v -p 'test*.py'
+
 echo ''
 echo 'Test: Base Eth API'
 python3 -c "
@@ -28,116 +30,6 @@ print('transaction_hash:', transaction_hash)
 #print('balance:', proxy.eth.get_balance('0xd3CdA913deB6f67967B99D67aCDFa1712C293601'))
 #code = proxy.eth.get_code('0x6C8f2A135f6ed072DE4503Bd7C4999a1a17F824B', block_number)
 #print('code:', code)
-"
-
-echo ''
-echo 'Test: compile solidity contract "Storage", deploy it, and call "store(147)" with right and bad nonce'
-python3 -c "
-import os
-proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
-from web3 import Web3
-proxy = Web3(Web3.HTTPProvider(proxy_url))
-acc=proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
-print(acc.address)
-print(acc.privateKey.hex())
-proxy.eth.default_account=acc.address
-
-from solcx import install_solc
-#install_solc(version='latest')
-install_solc(version='0.7.0')
-from solcx import compile_source
-compiled_sol = compile_source(
-'''
-pragma solidity >=0.7.0 <0.9.0;
-/**
- * @title Storage
- * @dev Store & retrieve value in a variable
- */
-contract Storage {
-    uint256 number;
-    /**
-     * @dev Store value in variable
-     * @param num value to store
-     */
-    function store(uint256 num) public {
-        number = num;
-    }
-    /**
-     * @dev Return value
-     * @return value of 'number'
-     */
-    function retrieve() public view returns (uint256){
-        return number;
-    }
-}
-'''
-)
-contract_id, contract_interface = compiled_sol.popitem()
-
-storage=proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
-trx_deploy = proxy.eth.account.sign_transaction(dict(
-    nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
-    chainId=proxy.eth.chain_id,
-    gas=987654321,
-    gasPrice=0,
-    to='',
-    value=0,
-    data=storage.bytecode),
-  acc.privateKey
-  )
-print('trx_deploy:', trx_deploy)
-trx_deploy_hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
-print('trx_deploy_hash:', trx_deploy_hash.hex())
-trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(trx_deploy_hash)
-print('trx_deploy_receipt:', trx_deploy_receipt)
-
-storage_contract = proxy.eth.contract(
-  address=trx_deploy_receipt.contractAddress,
-	abi=storage.abi
-)
-
-storage_contract.functions.retrieve().call()
-n = storage_contract.functions.retrieve().call()
-print('n:', n)
-assert n == 0
-
-right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
-trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': right_nonce})
-print('trx_store:', trx_store)
-trx_store_signed = proxy.eth.account.sign_transaction(trx_store, acc.privateKey)
-print('trx_store_signed:', trx_store_signed)
-trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
-print('trx_store_hash:', trx_store_hash.hex())
-trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
-print('trx_store_receipt:', trx_store_receipt)
-n = storage_contract.functions.retrieve().call()
-print('n:', n)
-assert n == 147
-
-bad_nonce = 1+proxy.eth.get_transaction_count(proxy.eth.default_account)
-trx_store = storage_contract.functions.store(147).buildTransaction({'nonce': bad_nonce})
-print('trx_store:', trx_store)
-trx_store_signed = proxy.eth.account.sign_transaction(trx_store, acc.privateKey)
-print('trx_store_signed:', trx_store_signed)
-try:
-    trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
-except Exception as e:
-    print('type(e):', type(e))
-    print('e:', e)
-    import json
-    response = json.loads(str(e).replace('\'','\"').replace('None','null'))
-    print('response:', response)
-    print('code:', response['code'])
-    assert response['code'] == -32002
-    substring_err_147 = 'Invalid Ethereum transaction nonce:'
-    print('substring_err_147:', substring_err_147)
-    logs = response['data']['logs']
-    print('logs:', logs)
-    log = [s for s in logs if substring_err_147 in s][0]
-    print(log)
-    assert len(log) > len(substring_err_147)
-    file_name = 'src/entrypoint.rs'
-    assert file_name in log
 "
 
 echo ''
