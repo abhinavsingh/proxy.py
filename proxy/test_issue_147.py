@@ -70,9 +70,10 @@ class Test147(unittest.TestCase):
             abi=storage.abi
         )
 
-        number = cls.storage_contract.functions.retrieve().call()
+    def test_call_retrieve_right_after_deploy(self):
+        number = self.storage_contract.functions.retrieve().call()
         print('number:', number)
-        cls.assertEqual(number, 0)
+        self.assertEqual(number, 0)
 
     def test_execute_with_right_nonce(self):
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
