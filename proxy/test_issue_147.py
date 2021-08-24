@@ -97,6 +97,8 @@ class Test147(unittest.TestCase):
         print('trx_store_signed:', trx_store_signed)
         try:
             trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
+            print('trx_store_hash:', trx_store_hash)
+            self.assertTrue(False)
         except Exception as e:
             print('type(e):', type(e))
             print('e:', e)
