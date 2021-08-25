@@ -757,7 +757,7 @@ def call_signed_iterative(signer, client, ethTrx, perm_accs, trx_accs, steps, ms
     precall_txs.add(create_acc_trx)
     precall_txs.add(TransactionInstruction(
         program_id=keccakprog,
-        data=make_keccak_instruction_data(len(precall_txs.instructions)+1, len(ethTrx.unsigned_msg()), data_start=9),
+        data=make_keccak_instruction_data(len(precall_txs.instructions)+1, len(ethTrx.unsigned_msg()), data_start=13),
         keys=[
             AccountMeta(pubkey=keccakprog, is_signer=False, is_writable=False),
         ]))
