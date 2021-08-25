@@ -333,6 +333,13 @@ class EthereumModel:
     def eth_getCode(self, param,  param1):
         return "0x01"
 
+    def eth_sendTransaction(self, trx):
+        logger.debug("eth_sendTransaction")
+        logger.debug("eth_sendTransaction: type(trx):%s", type(trx))
+        logger.debug("eth_sendTransaction: str(trx):%s", str(trx))
+        logger.debug("eth_sendTransaction: trx=%s", json.dumps(trx, cls=JsonEncoder, indent=3))
+        raise Exception("eth_sendTransaction is not supported. please use eth_sendRawTransaction")
+
     def eth_sendRawTransaction(self, rawTrx):
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
         logger.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
