@@ -874,7 +874,7 @@ def write_trx_to_holder_account(signer, client, holder, ethTrx):
 def deploy_contract(signer, client, ethTrx, perm_accs, steps):
     sender_ether = bytes.fromhex(ethTrx.sender())
     (sender_sol, _) = ether2program(sender_ether.hex(), evm_loader_id, signer.public_key())
-    logger.debug("Sender account solana: %s %s", sender_ether, sender_sol)
+    logger.debug("Sender account solana: %s %s", sender_ether.hex(), sender_sol)
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
 
