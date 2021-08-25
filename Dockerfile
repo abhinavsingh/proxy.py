@@ -33,6 +33,11 @@ COPY --from=spl /opt/solana/bin/solana /cli/bin/
 COPY --from=spl /opt/evm_loader.so /opt/evm_loader-keypair.json \
                 /opt/neon-cli /spl/bin/
 COPY --from=spl /opt/spl-token /opt/test_token_keypair /opt/test_token_owner /spl/bin/
+COPY --from=spl /opt/collateral_pool_generator.py \
+                /opt/solana_utils.py \
+                /opt/eth_tx_utils.py \
+                /opt/collateral-pool-keypair.json \
+                /spl/bin/
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
 COPY . /opt
