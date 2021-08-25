@@ -137,8 +137,12 @@ class EthereumModel:
             tag - integer of a block number, or the string "earliest", "latest" or "pending", as in the default block parameter.
             full - If true it returns the full transaction objects, if false only the hashes of the transactions.
         """
-        if tag in ('earliest', 'latest', 'pending'): raise Exception("Invalid tag {}".format(tag))
-        number = int(tag, 16)
+        if tag == "latest":
+            number = int(self.client.get_slot()["result"])
+        elif tag in ('earliest', 'pending'):
+            raise Exception("Invalid tag {}".format(tag))
+        else:
+            number = int(tag, 16)
         response = self.client.get_confirmed_block(number)
         if 'error' in response:
             raise Exception(response['error']['message'])
