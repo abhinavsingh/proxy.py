@@ -202,7 +202,7 @@ def create_account_with_seed(client, funding, base, seed, storage_size):
     return account
 
 
-def make_keccak_instruction_data(check_instruction_index, msg_len, data_start = 1):
+def make_keccak_instruction_data(check_instruction_index, msg_len, data_start):
     if check_instruction_index > 255 and check_instruction_index < 0:
         raise Exception("Invalid index for instruction - {}".format(check_instruction_index))
 
@@ -533,7 +533,10 @@ def sol_instr_12_cancel(signer, client, perm_accs, trx_accs):
             AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=system, is_signer=False, is_writable=False),
 
-        ] + trx_accs.eth_accounts + obligatory_accounts
+        ] + trx_accs.eth_accounts + [
+
+            AccountMeta(pubkey=sysinstruct, is_signer=False, is_writable=False),
+        ] + obligatory_accounts
     ))
 
     logger.debug("Cancel")
@@ -555,7 +558,10 @@ def make_partial_call_instruction(perm_accs, trx_accs, step_count, call_data):
             AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=system, is_signer=False, is_writable=False),
 
-        ] + trx_accs.eth_accounts +  obligatory_accounts
+        ] + trx_accs.eth_accounts + [
+
+            AccountMeta(pubkey=sysinstruct, is_signer=False, is_writable=False),
+        ] + obligatory_accounts
         )
 
 
