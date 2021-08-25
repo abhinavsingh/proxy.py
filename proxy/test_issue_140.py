@@ -21,7 +21,6 @@ class Test140(unittest.TestCase):
         print('eth_account.key:', eth_account.key.hex())
 
     def test_block_number_with_tag_latest(self):
-        print("\n\ntest_block_number_with_tag_latest")
         print("check tag latest in eth_getBlockByNumber")
         proxy.eth.default_block = 'latest'
         try:
@@ -32,13 +31,11 @@ class Test140(unittest.TestCase):
             self.assertTrue(False)
 
     def test_block_number_with_tag_earliest(self):
-        print("\n\ntest_block_number_with_tag_latest")
         print("check tag earliest in eth_getBlockByNumber")
         proxy.eth.default_block = 'earliest'
         self.assertRaises(Exception, proxy.eth.block_number)
 
     def test_block_number_with_tag_pending(self):
-        print("\n\ntest_block_number_with_tag_latest")
         print("check tag pending in eth_getBlockByNumber")
         proxy.eth.default_block = 'pending'
         self.assertRaises(Exception, proxy.eth.block_number)

@@ -43,7 +43,7 @@ contract Storage {
 class Test147(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        print("\nhttps://github.com/neonlabsorg/proxy-model.py/issues/147")
+        print("\n\nhttps://github.com/neonlabsorg/proxy-model.py/issues/147")
         print('eth_account.address:', eth_account.address)
         print('eth_account.key:', eth_account.key.hex())
         compiled_sol = compile_source(STORAGE_SOLIDITY_SOURCE_147)
