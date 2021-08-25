@@ -255,6 +255,10 @@ class EthereumModel:
                         status = "0x0"
                     gas_used = int.from_bytes(log[2:10], 'little')
 
+        instruction_data = base58.b58decode(trx['result']['transaction']['message']['instructions'][0]['data'])
+        if instruction_data[0] == 0x0c: # Cancel
+            status = "0x0"
+
         block = self.client.get_confirmed_block(trx['result']['slot'])
         # logger.debug('BLOCK: %s', json.dumps(block, indent=3))
 
