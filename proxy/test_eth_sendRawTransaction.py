@@ -40,7 +40,7 @@ contract Storage {
 '''
 
 
-class Test147(unittest.TestCase):
+class Test_eth_sendRawTransaction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("\n\nhttps://github.com/neonlabsorg/proxy-model.py/issues/147")
@@ -80,6 +80,21 @@ class Test147(unittest.TestCase):
         print("\ntest_execute_with_right_nonce")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': right_nonce})
+        print('trx_store:', trx_store)
+        trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
+        print('trx_store_signed:', trx_store_signed)
+        trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
+        print('trx_store_hash:', trx_store_hash.hex())
+        trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
+        print('trx_store_receipt:', trx_store_receipt)
+        number = self.storage_contract.functions.retrieve().call()
+        print('number:', number)
+        self.assertEqual(number, 147)
+
+    def test_execute_with_low_gas(self):
+        print("\ntest_execute_with_right_nonce")
+        right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
+        trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': right_nonce, 'gas': 1})
         print('trx_store:', trx_store)
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
         print('trx_store_signed:', trx_store_signed)
