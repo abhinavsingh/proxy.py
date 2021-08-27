@@ -43,12 +43,12 @@ class Tunnel:
                 username=self.ssh_username,
                 key_filename=self.private_pem_key
             )
-            print('SSH connection established...')
+            #print('SSH connection established...')
             transport: Optional[paramiko.transport.Transport] = ssh.get_transport(
             )
             assert transport is not None
             transport.request_port_forward('', self.remote_proxy_port)
-            print('Tunnel port forward setup successful...')
+            #print('Tunnel port forward setup successful...')
             while True:
                 conn: Optional[paramiko.channel.Channel] = transport.accept(
                     timeout=1)

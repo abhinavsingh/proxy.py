@@ -166,7 +166,7 @@ class Proxy:
             input_args = []
 
         if not Proxy.is_py3():
-            print(PY2_DEPRECATION_MESSAGE)
+            #print(PY2_DEPRECATION_MESSAGE)
             sys.exit(1)
 
         # Discover flags from requested plugin.

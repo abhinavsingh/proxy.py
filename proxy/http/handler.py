@@ -260,9 +260,7 @@ class HttpProtocolHandler(Work):
                 if e.errno == errno.ECONNRESET:
                     logger.warning('%r' % e)
                 else:
-                    logger.exception(
-                        'Exception while receiving from %s connection %r with reason %r' %
-                        (self.client.tag, self.client.connection, e))
+                    logger.error('Exception while receiving from %s connection %r with reason %r' % (self.client.tag, self.client.connection, e))
                 return True
 
             if client_data is None:
@@ -356,10 +354,8 @@ class HttpProtocolHandler(Work):
         except KeyboardInterrupt:  # pragma: no cover
             pass
         except ssl.SSLError as e:
-            logger.exception('ssl.SSLError', exc_info=e)
+            logger.error(f'ssl.SSLError {e}')
         except Exception as e:
-            logger.exception(
-                'Exception while handling connection %r' %
-                self.client.connection, exc_info=e)
+            logger.error('Exception while handling connection %r' % self.client.connection)
         finally:
             self.shutdown()

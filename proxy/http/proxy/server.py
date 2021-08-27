@@ -166,8 +166,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     'BrokenPipeError when flushing buffer for server')
                 return True
             except OSError as e:
-                logger.exception(
-                    'OSError when flushing buffer to server', exc_info=e)
+                logger.error(
+                    f'OSError when flushing buffer to server {e}')
                 return True
         return False
 
@@ -198,9 +198,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if e.errno == errno.ECONNRESET:
                     logger.warning('Connection reset by upstream: %r' % e)
                 else:
-                    logger.exception(
-                        'Exception while receiving from %s connection %r with reason %r' %
-                        (self.server.tag, self.server.connection, e))
+                    logger.error('Exception while receiving from %s connection %r with reason %r' % (self.server.tag, self.server.connection, e))
                 return True
 
             if raw is None:
@@ -422,7 +420,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 self.server.closed = True
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
         else:
-            logger.exception('Both host and port must exist')
+            logger.error('Both host and port must exist')
             raise HttpProtocolException()
 
     #
@@ -526,16 +524,16 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # sending to client can raise, handle expected exceptions
             self.wrap_client()
         except subprocess.TimeoutExpired as e:  # Popen communicate timeout
-            logger.exception(
-                'TimeoutExpired during certificate generation', exc_info=e)
+            logger.error(
+                f'TimeoutExpired during certificate generation {e}')
             return True
         except BrokenPipeError:
             logger.error(
                 'BrokenPipeError when wrapping client')
             return True
         except OSError as e:
-            logger.exception(
-                'OSError when wrapping client', exc_info=e)
+            logger.error(
+                f'OSError when wrapping client {e}')
             return True
         # Update all plugin connection reference
         # TODO(abhinavsingh): Is this required?

@@ -36,7 +36,7 @@ class BaseTcpServerHandler(Work):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.must_flush_before_shutdown = False
-        print('Connection accepted from {0}'.format(self.client.addr))
+        #print('Connection accepted from {0}'.format(self.client.addr))
 
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
@@ -69,38 +69,38 @@ class BaseTcpServerHandler(Work):
                 data = self.client.recv()
                 if data is None:
                     # Client closed connection, signal shutdown
-                    print(
-                        'Connection closed by client {0}'.format(
-                            self.client.addr))
+                    #print(
+                    #    'Connection closed by client {0}'.format(
+                    #        self.client.addr))
                     do_shutdown = True
                 else:
                     r = self.handle_data(data)
                     if isinstance(r, bool) and r is True:
-                        print(
-                            'Implementation signaled shutdown for client {0}'.format(
-                                self.client.addr))
+                        #print(
+                        #    'Implementation signaled shutdown for client {0}'.format(
+                        #        self.client.addr))
                         if self.client.has_buffer():
-                            print(
-                                'Client {0} has pending buffer, will be flushed before shutting down'.format(
-                                    self.client.addr))
+                            #print(
+                            #    'Client {0} has pending buffer, will be flushed before shutting down'.format(
+                            #        self.client.addr))
                             self.must_flush_before_shutdown = True
                         else:
                             do_shutdown = True
             except ConnectionResetError:
-                print(
-                    'Connection reset by client {0}'.format(
-                        self.client.addr))
+                #print(
+                #    'Connection reset by client {0}'.format(
+                #        self.client.addr))
                 do_shutdown = True
 
         if self.client.connection in writables:
-            print('Flushing buffer to client {0}'.format(self.client.addr))
+            #print('Flushing buffer to client {0}'.format(self.client.addr))
             self.client.flush()
             if self.must_flush_before_shutdown is True:
                 do_shutdown = True
             self.must_flush_before_shutdown = False
 
         if do_shutdown:
-            print(
-                'Shutting down client {0} connection'.format(
-                    self.client.addr))
+            #print(
+            #    'Shutting down client {0} connection'.format(
+            #        self.client.addr))
         return do_shutdown

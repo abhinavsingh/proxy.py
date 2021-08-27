@@ -90,4 +90,4 @@ class EventDispatcher:
         except KeyboardInterrupt:
             pass
         except Exception as e:
-            logger.exception('Event dispatcher exception', exc_info=e)
+            logger.error(f'Event dispatcher exception {e}')
