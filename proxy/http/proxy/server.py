@@ -532,8 +532,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 'BrokenPipeError when wrapping client')
             return True
         except OSError as e:
-            logger.error(
-                f'OSError when wrapping client {e}')
+            #logger.error(
+            #    f'OSError when wrapping client {e}')
             return True
         # Update all plugin connection reference
         # TODO(abhinavsingh): Is this required?
