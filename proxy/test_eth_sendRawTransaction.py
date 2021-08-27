@@ -70,12 +70,14 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             abi=storage.abi
         )
 
+    @unittest.skip("a.i.")
     def test_call_retrieve_right_after_deploy(self):
         print("\ntest_call_retrieve_right_after_deploy")
         number = self.storage_contract.functions.retrieve().call()
         print('number:', number)
         self.assertEqual(number, 0)
 
+    @unittest.skip("a.i.")
     def test_execute_with_right_nonce(self):
         print("\ntest_execute_with_right_nonce")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -94,7 +96,9 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
     def test_execute_with_low_gas(self):
         print("\ntest_execute_with_right_nonce")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
-        trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': right_nonce, 'gas': 1})
+        trx_store = self.storage_contract.functions.store(148).buildTransaction({'nonce': right_nonce, 'gasPrice': 1})
+        print('trx_store:', trx_store)
+        trx_store['gas'] = trx_store['gas'] - 2  # less than estimated
         print('trx_store:', trx_store)
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
         print('trx_store_signed:', trx_store_signed)
@@ -102,10 +106,9 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('trx_store_hash:', trx_store_hash.hex())
         trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
         print('trx_store_receipt:', trx_store_receipt)
-        number = self.storage_contract.functions.retrieve().call()
-        print('number:', number)
-        self.assertEqual(number, 147)
+        self.assertEqual(trx_store_receipt['status'], 0)  # false Transaction mined but execution failed
 
+    @unittest.skip("a.i.")
     def test_execute_with_bad_nonce(self):
         print("\ntest_execute_with_bad_nonce")
         bad_nonce = 1 + proxy.eth.get_transaction_count(proxy.eth.default_account)
