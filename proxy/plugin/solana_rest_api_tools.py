@@ -86,9 +86,8 @@ obligatory_accounts = [
 
 
 class TransactionAccounts:
-    def __init__(self, caller_token, block_token, eth_accounts):
+    def __init__(self, caller_token, eth_accounts):
         self.caller_token = caller_token
-        self.block_token = block_token
         self.eth_accounts = eth_accounts
 
 class AccountInfo(NamedTuple):
@@ -146,40 +145,6 @@ def createAccountWithSeedTrx(funding, base, seed, lamports, space, program):
         program_id=system,
         data=data
     )
-
-
-def create_with_seed_loader_instruction(funding, created, base, seed, lamports, space, owner):
-    return TransactionInstruction(
-        program_id=evm_loader_id,
-        data=bytes.fromhex("04000000") + \
-            bytes(base) + \
-            len(seed).to_bytes(8, byteorder='little') + \
-            bytes(seed, 'utf8') + \
-            lamports.to_bytes(8, byteorder='little') + \
-            space.to_bytes(8, byteorder='little') + \
-            bytes(owner) + \
-            bytes(created),
-        keys=[
-            AccountMeta(pubkey=funding, is_signer=True, is_writable=False),
-            AccountMeta(pubkey=created, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=base, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=created, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=evm_loader_id, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=rentid, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=system, is_signer=False, is_writable=True),
-        ])
-
-
-def get_caller_hold_token(client, acc, caller, caller_ether):
-    holder_seed = b58encode(caller_ether).decode('utf8') + "hold"
-    caller_holder = accountWithSeed(PublicKey(caller), str.encode(holder_seed), PublicKey(TOKEN_PROGRAM_ID))
-    if client.get_balance(caller_holder, commitment=Confirmed)['result']['value'] == 0:
-        trx = Transaction()
-        trx.add(create_with_seed_loader_instruction(acc.public_key(), caller_holder, PublicKey(caller), holder_seed, 10**9, ACCOUNT_LEN, PublicKey(TOKEN_PROGRAM_ID)))
-        send_transaction(client, trx, acc)
-    return caller_holder
 
 
 def create_collateral_pool_address(collateral_pool_index):
@@ -529,8 +494,6 @@ def sol_instr_12_cancel(signer, client, perm_accs, trx_accs):
 
             AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
             AccountMeta(pubkey=incinerator, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=trx_accs.block_token, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=system, is_signer=False, is_writable=False),
 
         ] + trx_accs.eth_accounts + [
@@ -554,8 +517,6 @@ def make_partial_call_instruction(perm_accs, trx_accs, step_count, call_data):
             AccountMeta(pubkey=sysinstruct, is_signer=False, is_writable=False),
             AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
             AccountMeta(pubkey=perm_accs.collateral_pool_address, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=trx_accs.block_token, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=system, is_signer=False, is_writable=False),
 
         ] + trx_accs.eth_accounts + [
@@ -579,7 +540,6 @@ def make_continue_instruction(perm_accs, trx_accs, step_count, index=None):
             AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
             AccountMeta(pubkey=perm_accs.operator_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=trx_accs.block_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=system, is_signer=False, is_writable=False),
 
         ] + trx_accs.eth_accounts + [
@@ -599,8 +559,6 @@ def make_call_from_account_instruction(perm_accs, trx_accs, step_count = 0):
 
             AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
             AccountMeta(pubkey=perm_accs.collateral_pool_address, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=trx_accs.block_token, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=system, is_signer=False, is_writable=False),
 
         ] + trx_accs.eth_accounts + [
@@ -717,7 +675,6 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 logger.debug("Token transfer to %s as ethereum 0x%s amount 10.0", get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID), acc_desc["address"])
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
-    block_token = get_caller_hold_token(client, signer, sender_sol, sender_ether)
 
     eth_accounts = [
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
@@ -727,7 +684,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
             AccountMeta(pubkey=caller_token, is_signer=False, is_writable=True),
         ] + add_keys_05
 
-    trx_accs = TransactionAccounts(caller_token, block_token, eth_accounts)
+    trx_accs = TransactionAccounts(caller_token, eth_accounts)
 
     return (trx_accs, sender_ether, trx)
 
@@ -929,8 +886,6 @@ def deploy_contract(signer, client, ethTrx, perm_accs, steps):
     if len(trx.instructions):
         result = send_measured_transaction(client, trx, signer)
 
-    block_token = get_caller_hold_token(client, signer, sender_sol, sender_ether)
-
     eth_accounts = [
                 AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=get_associated_token_address(PublicKey(contract_sol), ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
@@ -939,7 +894,7 @@ def deploy_contract(signer, client, ethTrx, perm_accs, steps):
                 AccountMeta(pubkey=caller_token, is_signer=False, is_writable=True),
                 ]
 
-    trx_accs = TransactionAccounts(caller_token, block_token, eth_accounts)
+    trx_accs = TransactionAccounts(caller_token, eth_accounts)
 
     precall_txs = Transaction()
     precall_txs.add(make_call_from_account_instruction(perm_accs, trx_accs))
