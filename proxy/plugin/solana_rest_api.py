@@ -99,7 +99,7 @@ class EthereumModel:
         return chainId
 
     def net_version(self):
-        return '1600243666737'
+        return str(int(chainId,base=16))
 
     def eth_gasPrice(self):
         return 0
