@@ -26,6 +26,7 @@ services:
       - ETH_TOKEN_MINT=deploy
       - COLLATERAL_POOL_BASE=deploy
       - LOCAL_CLUSTER=local
+      - NEON_CHAIN_ID=0x6f
     hostname: proxy
     ports:
       - 127.0.0.1:9090:9090

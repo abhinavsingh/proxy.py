@@ -39,6 +39,7 @@ COLLATERAL_POOL_BASE = os.environ.get("COLLATERAL_POOL_BASE")
 LOCAL_CLUSTER = os.environ.get("LOCAL_CLUSTER")
 #evm_loader_id = "EfyDoGDRPy7wrLfSLyXrbhiAG6NmufMk1ytap13gLy1"
 location_bin = ".deploy_contract.bin"
+confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "1"))
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 sysinstruct = "Sysvar1nstructions1111111111111111111111111"
@@ -226,8 +227,8 @@ class EthereumAddress:
 
 
 def emulator(contract, sender, data, value):
-    data = data if data is not None else ""
-    value = value if value is not None else ""
+    data = data or "none"
+    value = value or ""
     return neon_cli().call("emulate", sender, contract, data, value)
 
 
@@ -274,9 +275,8 @@ def confirm_transaction(client, tx_sig, confirmations=0):
                status['confirmationStatus'] == 'confirmed' and status['confirmations'] >= confirmations):
 #            logger.debug('Confirmed transaction:', resp)
                 return
-        sleep_time = 0.1
-        time.sleep(sleep_time)
-        elapsed_time += sleep_time
+        time.sleep(confirmation_check_delay)
+        elapsed_time += confirmation_check_delay
     #if not resp["result"]:
     raise RuntimeError("could not confirm transaction: ", tx_sig)
     #return resp
@@ -633,7 +633,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
     add_keys_05 = []
     trx = Transaction()
 
-    output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
+    output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex(), hex(ethTrx.value))
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
     for acc_desc in output_json["accounts"]:
         address = bytes.fromhex(acc_desc["address"][2:])
@@ -750,8 +750,12 @@ def call_signed_with_holder_acc(signer, client, ethTrx, perm_accs, trx_accs, ste
 
     write_trx_to_holder_account(signer, client, perm_accs.holder, ethTrx)
 
+    if len(create_acc_trx.instructions):
+        precall_txs = Transaction()
+        precall_txs.add(create_acc_trx)
+        send_measured_transaction(client, precall_txs, signer)
+
     precall_txs = Transaction()
-    precall_txs.add(create_acc_trx)
     precall_txs.add(make_call_from_account_instruction(perm_accs, trx_accs))
 
     # ExecuteTrxFromAccountDataIterative
