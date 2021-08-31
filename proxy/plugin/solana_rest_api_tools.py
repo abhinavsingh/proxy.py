@@ -912,7 +912,7 @@ def _getAccountData(client, account, expected_length, owner=None):
         raise Exception("Can't get information about {}".format(account))
 
     data = base64.b64decode(info['data'][0])
-    if len(data) != expected_length:
+    if len(data) < expected_length:
         raise Exception("Wrong data length for account data {}".format(account))
     return data
 
