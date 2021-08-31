@@ -40,6 +40,7 @@ modelInstanceLock = threading.Lock()
 modelInstance = None
 
 chainId = os.environ.get("NEON_CHAIN_ID", "0x6e")    # default value 110
+EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 
 class PermanentAccounts:
     def __init__(self, client, signer, proxy_id):
@@ -111,7 +112,7 @@ class EthereumModel:
             data = param['data'] if 'data' in param else "None"
             value = param['value'] if 'value' in param else ""
             result = call_emulated(contract_id, caller_id, data, value)
-            return result['used_gas']+90000
+            return result['used_gas']+EXTRA_GAS
         except Exception as err:
             logger.debug("Exception on eth_estimateGas: %s", err)
             raise
