@@ -13,7 +13,7 @@ eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-mod
 proxy.eth.default_account = eth_account.address
 
 
-class Test140(unittest.TestCase):
+class Test_eth_getBlockByNumber(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("\n\nhttps://github.com/neonlabsorg/proxy-model.py/issues/140")
