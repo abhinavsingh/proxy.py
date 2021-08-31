@@ -227,8 +227,8 @@ class EthereumAddress:
 
 
 def emulator(contract, sender, data, value):
-    data = data if data is not None else ""
-    value = value if value is not None else ""
+    data = data or "none"
+    value = value or ""
     return neon_cli().call("emulate", sender, contract, data, value)
 
 
@@ -633,7 +633,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
     add_keys_05 = []
     trx = Transaction()
 
-    output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex())
+    output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex(), hex(ethTrx.value))
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
     for acc_desc in output_json["accounts"]:
         address = bytes.fromhex(acc_desc["address"][2:])
@@ -750,8 +750,12 @@ def call_signed_with_holder_acc(signer, client, ethTrx, perm_accs, trx_accs, ste
 
     write_trx_to_holder_account(signer, client, perm_accs.holder, ethTrx)
 
+    if len(create_acc_trx.instructions):
+        precall_txs = Transaction()
+        precall_txs.add(create_acc_trx)
+        send_measured_transaction(client, precall_txs, signer)
+
     precall_txs = Transaction()
-    precall_txs.add(create_acc_trx)
     precall_txs.add(make_call_from_account_instruction(perm_accs, trx_accs))
 
     # ExecuteTrxFromAccountDataIterative

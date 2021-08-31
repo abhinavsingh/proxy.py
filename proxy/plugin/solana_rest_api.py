@@ -111,7 +111,7 @@ class EthereumModel:
             data = param['data'] if 'data' in param else "None"
             value = param['value'] if 'value' in param else ""
             result = call_emulated(contract_id, caller_id, data, value)
-            return result['used_gas']
+            return result['used_gas']+90000
         except Exception as err:
             logger.debug("Exception on eth_estimateGas: %s", err)
             raise
@@ -133,6 +133,9 @@ class EthereumModel:
         balance = getTokens(self.client, self.signer, evm_loader_id, eth_acc, self.signer.public_key())
 
         return hex(balance*10**9)
+
+    def eth_getBlockByHash(self, tag, full):
+        return self.eth_getBlockByNumber(tag, full)
 
     def eth_getBlockByNumber(self, tag, full):
         """Returns information about a block by block number.
