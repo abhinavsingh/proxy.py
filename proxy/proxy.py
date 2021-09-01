@@ -184,6 +184,9 @@ class Proxy:
             sys.exit(0)
 
         # Setup logging module
+        args.log_file  = cast(Optional[str], opts.get('log_file', args.log_file))
+        args.log_level  = cast(Optional[str], opts.get('log_level', args.log_level))
+        args.log_format  = cast(Optional[str], opts.get('log_format', args.log_format))
         Proxy.setup_logger(args.log_file, args.log_level, args.log_format)
 
         # Setup limits
