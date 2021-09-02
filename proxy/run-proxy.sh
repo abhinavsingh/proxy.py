@@ -4,6 +4,34 @@ set -xeo pipefail
 
 date
 
+if [ "$CONFIG" == "local" ]; then
+  [[ -z "$SOLANA_URL"               ]] export SOLANA_URL="http://localhost:8899"
+  [[ -z "$EVM_LOADER"               ]] export EVM_LOADER=deploy
+  [[ -z "$ETH_TOKEN_MINT"           ]] export ETH_TOKEN_MINT=deploy
+  [[ -z "$COLLATERAL_POOL_BASE"     ]] export COLLATERAL_POOL_BASE=deploy
+  [[ -z "$LOCAL_CLUSTER"            ]] export LOCAL_CLUSTER=local
+  [[ -z "$EXTRA_GAS"                ]] export EXTRA_GAS=0
+  [[ -z "$NEON_CLI_TIMEOUT"         ]] export NEON_CLI_TIMEOUT="0.5"
+fi
+if [ "$CONFIG" == "devnet" ]; then
+  [[ -z "$SOLANA_URL"               ]] export SOLANA_URL="https://api.devnet.solana.com"
+  [[ -z "$EVM_LOADER"               ]] unset EVM_LOADER
+  [[ -z "$ETH_TOKEN_MINT"           ]] export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
+  [[ -z "$COLLATERAL_POOL_BASE"     ]] export COLLATERAL_POOL_BASE=4sW3SZDJB7qXUyCYKA7pFL8eCTfm3REr8oSiKkww7MaT
+  [[ -z "$LOCAL_CLUSTER"            ]] unset LOCAL_CLUSTER
+  [[ -z "$EXTRA_GAS"                ]] export EXTRA_GAS=90000
+  [[ -z "$NEON_CLI_TIMEOUT"         ]] export NEON_CLI_TIMEOUT="10"
+fi
+if [ "$CONFIG" == "testnet" ]; then
+  [[ -z "$SOLANA_URL"               ]] export SOLANA_URL="https://api.testnet.solana.com"
+  [[ -z "$EVM_LOADER"               ]] unset EVM_LOADER
+  [[ -z "$ETH_TOKEN_MINT"           ]] export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
+  [[ -z "$COLLATERAL_POOL_BASE"     ]] export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
+  [[ -z "$LOCAL_CLUSTER"            ]] unset LOCAL_CLUSTER
+  [[ -z "$EXTRA_GAS"                ]] export EXTRA_GAS=90000
+  [[ -z "$NEON_CLI_TIMEOUT"         ]] export NEON_CLI_TIMEOUT="15"
+fi
+
 echo SOLANA_URL=$SOLANA_URL
 
 solana config set -u $SOLANA_URL
