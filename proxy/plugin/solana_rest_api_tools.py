@@ -257,7 +257,7 @@ class neon_cli:
                    "--evm_loader={}".format(evm_loader_id),
                    ] + list(args)
             print(cmd)
-            return subprocess.check_output(cmd, timeout=0.1, universal_newlines=True)
+            return subprocess.check_output(cmd, timeout=3, universal_newlines=True)
         except subprocess.CalledProcessError as err:
             import sys
             logger.debug("ERR: neon-cli error {}".format(err))
