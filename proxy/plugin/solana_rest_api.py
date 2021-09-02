@@ -103,7 +103,7 @@ class EthereumModel:
         return str(int(chainId,base=16))
 
     def eth_gasPrice(self):
-        return 0
+        return hex(15*10**9)
 
     def eth_estimateGas(self, param):
         try:
