@@ -5,7 +5,7 @@ set -xeo pipefail
 date
 
 if [ "$CONFIG" == "ci" ]; then
-  [[ -z "$SOLANA_URL"               ]] && export SOLANA_URL="http://localhost:8899"
+  [[ -z "$SOLANA_URL"               ]] && export SOLANA_URL="http://solana:8899"
   [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=deploy
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=deploy
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=deploy
