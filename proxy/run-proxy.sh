@@ -26,20 +26,20 @@ if [ "$CONFIG" == "local" ]; then
 fi
 if [ "$CONFIG" == "devnet" ]; then
   [[ -z "$SOLANA_URL"               ]] && export SOLANA_URL="https://api.devnet.solana.com"
-  [[ -z "$EVM_LOADER"               ]]
+  [[ -z "$EVM_LOADER"               ]] && :
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
-  [[ -z "$LOCAL_CLUSTER"            ]]
+  [[ -z "$LOCAL_CLUSTER"            ]] && :
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6e
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="10"
 fi
 if [ "$CONFIG" == "testnet" ]; then
   [[ -z "$SOLANA_URL"               ]] && export SOLANA_URL="https://api.testnet.solana.com"
-  [[ -z "$EVM_LOADER"               ]]
+  [[ -z "$EVM_LOADER"               ]] && :
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
-  [[ -z "$LOCAL_CLUSTER"            ]]
+  [[ -z "$LOCAL_CLUSTER"            ]] && :
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="15"
