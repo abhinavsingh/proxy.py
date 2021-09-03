@@ -11,7 +11,7 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=deploy
   [[ -z "$LOCAL_CLUSTER"            ]] && export LOCAL_CLUSTER=local
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6f
-  [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=1000
+  [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=0
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="0.1"
 fi
 if [ "$CONFIG" == "local" ]; then
