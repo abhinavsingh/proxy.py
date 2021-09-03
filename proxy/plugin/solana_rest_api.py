@@ -31,6 +31,7 @@ from .solana_rest_api_tools import EthereumAddress,  create_account_with_seed, e
 from web3 import Web3
 import logging
 from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob, proxy_id_glob
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -38,6 +39,8 @@ logger.setLevel(logging.DEBUG)
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
+chainId = os.environ.get("NEON_CHAIN_ID", "0x6e")    # default value 110
+EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 
 class PermanentAccounts:
     def __init__(self, client, signer, proxy_id):
@@ -74,7 +77,7 @@ class EthereumModel:
 
         with open(path.strip(), mode='r') as file:
             pk = (file.read())
-            nums = list(map(int, pk.strip("[]").split(',')))
+            nums = list(map(int, pk.strip("[] \n").split(',')))
             nums = nums[0:32]
             values = bytes(nums)
             self.signer = sol_Account(values)
@@ -94,10 +97,10 @@ class EthereumModel:
         pass
 
     def eth_chainId(self):
-        return "0x6f" # 111
+        return chainId
 
     def net_version(self):
-        return '1600243666737'
+        return str(int(chainId,base=16))
 
     def eth_gasPrice(self):
         return 0
@@ -109,7 +112,7 @@ class EthereumModel:
             data = param['data'] if 'data' in param else "None"
             value = param['value'] if 'value' in param else ""
             result = call_emulated(contract_id, caller_id, data, value)
-            return result['used_gas']
+            return result['used_gas']+EXTRA_GAS
         except Exception as err:
             logger.debug("Exception on eth_estimateGas: %s", err)
             raise
@@ -131,6 +134,9 @@ class EthereumModel:
         balance = getTokens(self.client, self.signer, evm_loader_id, eth_acc, self.signer.public_key())
 
         return hex(balance*10**9)
+
+    def eth_getBlockByHash(self, tag, full):
+        return self.eth_getBlockByNumber(tag, full)
 
     def eth_getBlockByNumber(self, tag, full):
         """Returns information about a block by block number.
