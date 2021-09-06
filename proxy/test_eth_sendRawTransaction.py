@@ -71,14 +71,14 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             abi=storage.abi
         )
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_01_call_retrieve_right_after_deploy(self):
         print("\ntest_01_call_retrieve_right_after_deploy")
         number = self.storage_contract.functions.retrieve().call()
         print('number:', number)
         self.assertEqual(number, 0)
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_02_execute_with_right_nonce(self):
         print("\ntest_02_execute_with_right_nonce")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -94,7 +94,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('number:', number)
         self.assertEqual(number, 147)
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_03_execute_with_low_gas(self):
         print("\ntest_03_execute_with_low_gas")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -110,7 +110,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('trx_store_receipt:', trx_store_receipt)
         self.assertEqual(trx_store_receipt['status'], 0)  # false Transaction mined but execution failed
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_04_execute_with_bad_nonce(self):
         print("\ntest_04_execute_with_bad_nonce")
         bad_nonce = 1 + proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -139,7 +139,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             file_name = 'src/entrypoint.rs'
             self.assertTrue(file_name in log)
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_05_transfer_one_gwei(self):
         print("\ntest_05_transfer_one_gwei")
         eth_account_alice = proxy.eth.account.create('alice')
@@ -177,6 +177,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - one_gwei)
         self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + one_gwei)
 
+    # @unittest.skip("a.i.")
     def test_06_transfer_one_and_a_half_gweis(self):
         print("\ntest_06_transfer_one_and_a_half_gweis")
         eth_account_alice = proxy.eth.account.create('alice')
