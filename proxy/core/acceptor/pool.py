@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 LOCK = multiprocessing.Lock()
 
+transactions_glob = multiprocessing.Manager().dict()
+
 signatures_glob = multiprocessing.Manager().dict()
 vrs_glob = multiprocessing.Manager().dict()
 eth_sender_glob = multiprocessing.Manager().dict()
