@@ -211,8 +211,11 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         bob_balance_after_transfer = proxy.eth.get_balance(eth_account_bob.address)
         print('alice_balance_after_transfer:', alice_balance_after_transfer)
         print('bob_balance_after_transfer:', bob_balance_after_transfer)
-        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - one_and_a_half_gweis)
-        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + one_and_a_half_gweis)
+        print('check https://github.com/neonlabsorg/neon-evm/issues/210')
+        one_gwei = 1_000_000_000
+        print('one_gwei:', one_gwei)
+        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - one_gwei)
+        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + one_gwei)
 
 
 if __name__ == '__main__':
