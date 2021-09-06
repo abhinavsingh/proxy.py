@@ -9,7 +9,7 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=deploy
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=deploy
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=deploy
-  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && export NEW_USER_AIRDROP_AMOUNT=local
+  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && export NEW_USER_AIRDROP_AMOUNT=1000
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=100000
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="0.1"
@@ -19,7 +19,7 @@ if [ "$CONFIG" == "local" ]; then
   [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=deploy
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=deploy
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=deploy
-  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && export NEW_USER_AIRDROP_AMOUNT=local
+  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && export NEW_USER_AIRDROP_AMOUNT=10
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=0
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="0.5"
@@ -133,10 +133,10 @@ echo "Use eth token mint with ETH_TOKEN_MINT=$ETH_TOKEN_MINT"
 echo "Use collateral pool base with COLLATERAL_POOL_BASE=$COLLATERAL_POOL_BASE"
 
 
-if [ "$NEW_USER_AIRDROP_AMOUNT" == "local" ]; then
+if [ -n "$NEW_USER_AIRDROP_AMOUNT" ]; then
   ACCOUNT=$(solana address)
   TOKEN_ACCOUNT=$(/spl/bin/spl-token create-account $ETH_TOKEN_MINT --owner $ACCOUNT | grep -Po 'Creating account \K[^\n]*')
-  /spl/bin/spl-token mint $ETH_TOKEN_MINT 5000 --owner /spl/bin/test_token_owner -- $TOKEN_ACCOUNT
+  /spl/bin/spl-token mint $ETH_TOKEN_MINT $NEW_USER_AIRDROP_AMOUNT"0000" --owner /spl/bin/test_token_owner -- $TOKEN_ACCOUNT
   /spl/bin/spl-token balance $ETH_TOKEN_MINT --owner $ACCOUNT
 fi
 

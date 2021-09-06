@@ -36,7 +36,7 @@ logger.setLevel(logging.DEBUG)
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
 COLLATERAL_POOL_BASE = os.environ.get("COLLATERAL_POOL_BASE")
-LOCAL_CLUSTER = os.environ.get("LOCAL_CLUSTER")
+NEW_USER_AIRDROP_AMOUNT = os.environ.get("NEW_USER_AIRDROP_AMOUNT")
 #evm_loader_id = "EfyDoGDRPy7wrLfSLyXrbhiAG6NmufMk1ytap13gLy1"
 location_bin = ".deploy_contract.bin"
 confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "1"))
@@ -663,9 +663,9 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, signer, code_account)[0])
-            if address == sender_ether and LOCAL_CLUSTER:
+            if address == sender_ether and $NEW_USER_AIRDROP_AMOUNT:
                 trx.add(transfer2(Transfer2Params(
-                    amount=10_000_000_000,
+                    amount= NEW_USER_AIRDROP_AMOUNT * 1_000_000_000,
                     decimals=9,
                     dest=get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
                     mint=ETH_TOKEN_MINT_ID,
@@ -868,12 +868,12 @@ def deploy_contract(signer, client, ethTrx, perm_accs, steps):
     sender_sol_info = client.get_account_info(sender_sol, commitment=Confirmed)
     if sender_sol_info['result']['value'] is None:
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, signer)[0])
-        if LOCAL_CLUSTER:
+        if NEW_USER_AIRDROP_AMOUNT:
             trx.add(transfer2(Transfer2Params(
                 source=getTokenAddr(signer.public_key()),
                 owner=signer.public_key(),
                 dest=caller_token,
-                amount=10_000_000_000,
+                amount= NEW_USER_AIRDROP_AMOUNT * 1_000_000_000,
                 decimals=9,
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
@@ -936,7 +936,7 @@ def getTokens(client, signer, evm_loader, eth_acc, base_account):
 
     balance = client.get_token_account_balance(token_account, commitment=Confirmed)
     if 'error' in balance:
-        if LOCAL_CLUSTER:
+        if NEW_USER_AIRDROP_AMOUNT:
             trx = Transaction()
             sender_sol_info = client.get_account_info(account, commitment=Confirmed)
             if sender_sol_info['result']['value'] is None:
@@ -945,7 +945,7 @@ def getTokens(client, signer, evm_loader, eth_acc, base_account):
                 source=getTokenAddr(signer.public_key()),
                 owner=signer.public_key(),
                 dest=token_account,
-                amount=10_000_000_000,
+                amount= NEW_USER_AIRDROP_AMOUNT * 1_000_000_000,
                 decimals=9,
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
