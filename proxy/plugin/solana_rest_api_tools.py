@@ -663,9 +663,9 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, signer, code_account)[0])
-            if address == sender_ether and $NEW_USER_AIRDROP_AMOUNT:
+            if address == sender_ether and NEW_USER_AIRDROP_AMOUNT:
                 trx.add(transfer2(Transfer2Params(
-                    amount= NEW_USER_AIRDROP_AMOUNT * 1_000_000_000,
+                    amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
                     decimals=9,
                     dest=get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
                     mint=ETH_TOKEN_MINT_ID,
@@ -873,7 +873,7 @@ def deploy_contract(signer, client, ethTrx, perm_accs, steps):
                 source=getTokenAddr(signer.public_key()),
                 owner=signer.public_key(),
                 dest=caller_token,
-                amount= NEW_USER_AIRDROP_AMOUNT * 1_000_000_000,
+                amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
                 decimals=9,
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
@@ -945,7 +945,7 @@ def getTokens(client, signer, evm_loader, eth_acc, base_account):
                 source=getTokenAddr(signer.public_key()),
                 owner=signer.public_key(),
                 dest=token_account,
-                amount= NEW_USER_AIRDROP_AMOUNT * 1_000_000_000,
+                amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
                 decimals=9,
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
