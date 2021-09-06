@@ -9,41 +9,44 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=deploy
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=deploy
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=deploy
-  [[ -z "$LOCAL_CLUSTER"            ]] && export LOCAL_CLUSTER=local
+  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && export NEW_USER_AIRDROP_AMOUNT=local
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=0
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="0.1"
-fi
+else
 if [ "$CONFIG" == "local" ]; then
   [[ -z "$SOLANA_URL"               ]] && export SOLANA_URL="http://localhost:8899"
   [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=deploy
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=deploy
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=deploy
-  [[ -z "$LOCAL_CLUSTER"            ]] && export LOCAL_CLUSTER=local
+  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && export NEW_USER_AIRDROP_AMOUNT=local
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=0
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="0.5"
-fi
+else
 if [ "$CONFIG" == "devnet" ]; then
   [[ -z "$SOLANA_URL"               ]] && export SOLANA_URL="https://api.devnet.solana.com"
-  [[ -z "$EVM_LOADER"               ]] && :
+  [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
-  [[ -z "$LOCAL_CLUSTER"            ]] && :
+  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && :
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6e
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="10"
-fi
+else
 if [ "$CONFIG" == "testnet" ]; then
   [[ -z "$SOLANA_URL"               ]] && export SOLANA_URL="https://api.testnet.solana.com"
-  [[ -z "$EVM_LOADER"               ]] && :
+  [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
-  [[ -z "$LOCAL_CLUSTER"            ]] && :
+  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && :
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="15"
-fi
+else
+if [ "$CONFIG" != "custom" ]; then
+  exit 1
+fi fi fi fi fi
 
 echo SOLANA_URL=$SOLANA_URL
 
@@ -130,7 +133,7 @@ echo "Use eth token mint with ETH_TOKEN_MINT=$ETH_TOKEN_MINT"
 echo "Use collateral pool base with COLLATERAL_POOL_BASE=$COLLATERAL_POOL_BASE"
 
 
-if [ "$LOCAL_CLUSTER" == "local" ]; then
+if [ "$NEW_USER_AIRDROP_AMOUNT" == "local" ]; then
   ACCOUNT=$(solana address)
   TOKEN_ACCOUNT=$(/spl/bin/spl-token create-account $ETH_TOKEN_MINT --owner $ACCOUNT | grep -Po 'Creating account \K[^\n]*')
   /spl/bin/spl-token mint $ETH_TOKEN_MINT 5000 --owner /spl/bin/test_token_owner -- $TOKEN_ACCOUNT
