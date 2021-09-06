@@ -36,7 +36,7 @@ logger.setLevel(logging.DEBUG)
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
 COLLATERAL_POOL_BASE = os.environ.get("COLLATERAL_POOL_BASE")
-NEW_USER_AIRDROP_AMOUNT = os.environ.get("NEW_USER_AIRDROP_AMOUNT")
+NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 #evm_loader_id = "EfyDoGDRPy7wrLfSLyXrbhiAG6NmufMk1ytap13gLy1"
 location_bin = ".deploy_contract.bin"
 confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "1"))
@@ -676,7 +676,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 logger.debug("Token transfer to %s as ethereum 0x%s amount %s",
                              get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
                              acc_desc["address"],
-                             NEW_USER_AIRDROP_AMOUNT)
+                             str(NEW_USER_AIRDROP_AMOUNT))
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
 
@@ -881,7 +881,7 @@ def deploy_contract(signer, client, ethTrx, perm_accs, steps):
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
             )))
-            logger.debug("Token transfer to %s as ethereum 0x%s amount %s", caller_token, ethTrx.sender(), NEW_USER_AIRDROP_AMOUNT)
+            logger.debug("Token transfer to %s as ethereum 0x%s amount %s", caller_token, ethTrx.sender(), str(NEW_USER_AIRDROP_AMOUNT))
 
     if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
         msg_size = len(ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg())
@@ -953,7 +953,7 @@ def getTokens(client, signer, evm_loader, eth_acc, base_account):
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
             )))
-            logger.debug("Token transfer to %s as ethereum 0x%s amount %s", token_account, bytes(eth_acc).hex(), NEW_USER_AIRDROP_AMOUNT)
+            logger.debug("Token transfer to %s as ethereum 0x%s amount %s", token_account, bytes(eth_acc).hex(), str(NEW_USER_AIRDROP_AMOUNT))
             send_transaction(client, trx, signer)
 
             return getTokens(client, signer, evm_loader, eth_acc, base_account)
