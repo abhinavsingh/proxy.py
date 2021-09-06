@@ -29,7 +29,7 @@ if [ "$CONFIG" == "devnet" ]; then
   [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
-  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && :
+  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && export NEW_USER_AIRDROP_AMOUNT=0
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6e
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="10"
@@ -39,7 +39,7 @@ if [ "$CONFIG" == "testnet" ]; then
   [[ -z "$EVM_LOADER"               ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
   [[ -z "$ETH_TOKEN_MINT"           ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
   [[ -z "$COLLATERAL_POOL_BASE"     ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
-  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && :
+  [[ -z "$NEW_USER_AIRDROP_AMOUNT"  ]] && export NEW_USER_AIRDROP_AMOUNT=0
   [[ -z "$NEON_CHAIN_ID"            ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"         ]] && export NEON_CLI_TIMEOUT="15"
