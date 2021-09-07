@@ -49,7 +49,6 @@ fi
 [[ -z "$ETH_TOKEN_MINT"           ]] && echo "ETH_TOKEN_MINT is not set" && exit 1
 [[ -z "$COLLATERAL_POOL_BASE"     ]] && echo "COLLATERAL_POOL_BASE is not set" && exit 1
 [[ -z "$NEON_CHAIN_ID"            ]] && echo "NEON_CHAIN_ID is not set" && exit 1
-[[ "$NEW_USER_AIRDROP_AMOUNT" -gt 0           ]] && echo "$NEW_USER_AIRDROP_AMOUNT >0t"
 
 echo SOLANA_URL=$SOLANA_URL
 
