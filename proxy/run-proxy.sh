@@ -49,6 +49,7 @@ fi
 [[ -z "$ETH_TOKEN_MINT"           ]] && echo "ETH_TOKEN_MINT is not set" && exit 1
 [[ -z "$COLLATERAL_POOL_BASE"     ]] && echo "COLLATERAL_POOL_BASE is not set" && exit 1
 [[ -z "$NEON_CHAIN_ID"            ]] && echo "NEON_CHAIN_ID is not set" && exit 1
+[[ "$NEW_USER_AIRDROP_AMOUNT" -gt 0           ]] && echo "$NEW_USER_AIRDROP_AMOUNT >0t"
 
 echo SOLANA_URL=$SOLANA_URL
 
@@ -109,7 +110,7 @@ fi
 echo "COLLATERAL_POOL_BASE=$COLLATERAL_POOL_BASE"
 
 
-if [ -n "$NEW_USER_AIRDROP_AMOUNT" -a "$(spl-token balance "$ETH_TOKEN_MINT" || echo 0)" -eq 0 ]; then
+if [ "$NEW_USER_AIRDROP_AMOUNT" -gt 0 -a "$(spl-token balance "$ETH_TOKEN_MINT" || echo 0)" -eq 0 ]; then
 	echo 'Create balance and mint token'
 	TOKEN_ACCOUNT=$( (spl-token create-account "$ETH_TOKEN_MINT" || true) | grep -Po 'Creating account \K[^\n]*')
 	echo "TOKEN_ACCOUNT=$TOKEN_ACCOUNT"
