@@ -28,35 +28,38 @@ class TransactionInfo:
         self.gas_used = gas_used
         self.return_value = return_value
 
-def run():
-    while (True):
-        try:
-            logger.debug("Start indexing")
-            # do indexation
-            pass
-        except Exception as err:
-            logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
-        time.sleep(60)
+class Indexer:
+    def run(self):
+        self.client = Client(solana_url)
+        self.last_slot = 0
+        self.last_trx = None
+        self.continue_table = {}
+        self.holder_table = {}
 
-def poll():
-    client = Client(solana_url)
-    minimal_tx = None
-    minimal_slot = client.get_slot()["result"]
-    counter = 0
-    skip_first = 0
-    continue_table = {}
-    holder_table = {}
-    while (True):
-        result = client.get_signatures_for_address(evm_loader_id, before=minimal_tx)
-        if len(result["result"]) == 0:
-            break
-        for tx in result["result"]:
-            if tx["slot"] < minimal_slot:
-                minimal_slot = tx["slot"]
-                minimal_tx = tx["signature"]
-            if counter > skip_first:
-                trx = client.get_confirmed_transaction(tx["signature"])
-                # print(json.dumps(trx, indent=4, sort_keys=True))
+        while (True):
+            try:
+                logger.debug("Start indexing")
+                # do indexation
+                self.poll()
+                pass
+            except Exception as err:
+                logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
+            time.sleep(60)
+
+    def poll(self):
+        minimal_tx = None
+        minimal_slot = self.client.get_slot()["result"]
+        while (True):
+            result = self.client.get_signatures_for_address(evm_loader_id, before=minimal_tx)
+            if len(result["result"]) == 0:
+                break
+            for tx in result["result"]:
+                if tx["slot"] < minimal_slot:
+                    minimal_slot = tx["slot"]
+                    minimal_tx = tx["signature"]
+
+                trx = self.client.get_confirmed_transaction(tx["signature"])
+
                 if trx['result']['transaction']['message']['instructions'] is not None:
                     for instruction in trx['result']['transaction']['message']['instructions']:
                         instruction_data = base58.b58decode(instruction['data'])
@@ -68,13 +71,13 @@ def poll():
 
                             write_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
 
-                            if write_account in holder_table:
+                            if write_account in self.holder_table:
                                 for index in range(length):
-                                    holder_table[write_account][1][1+offset+index] = data[index]
+                                    self.holder_table[write_account][1][1+offset+index] = data[index]
 
-                                signature = holder_table[write_account][1][1:66]
-                                length = int.from_bytes(holder_table[write_account][1][66:74], "little")
-                                unsigned_msg = holder_table[write_account][1][74:74+length]
+                                signature = self.holder_table[write_account][1][1:66]
+                                length = int.from_bytes(self.holder_table[write_account][1][66:74], "little")
+                                unsigned_msg = self.holder_table[write_account][1][74:74+length]
 
                                 try:
                                     eth_trx = rlp.decode(unsigned_msg)
@@ -88,19 +91,21 @@ def poll():
 
                                     from_address = w3.eth.account.recover_transaction(rlp.encode(eth_trx).hex())
 
-                                    storage_account = holder_table[write_account][0]
+                                    storage_account = self.holder_table[write_account][0]
 
-                                    if storage_account in continue_table:
-                                        (logs, status, gas_used, return_value, slot) = continue_table[storage_account]
+                                    if storage_account in self.continue_table:
+                                        (logs, status, gas_used, return_value, slot) = self.continue_table[storage_account]
+                                        for rec in logs:
+                                            rec['transactionHash'] = eth_signature
                                         transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
 
-                                        del continue_table[storage_account]
+                                        del self.continue_table[storage_account]
                                     else:
                                         print("Storage not found")
                                         print(eth_signature, "unknown")
                                         # raise
 
-                                    del holder_table[write_account]
+                                    del self.holder_table[write_account]
                                 except Exception as err:
                                     print("could not parse trx", err)
                                     pass
@@ -158,11 +163,11 @@ def poll():
 
                             storage_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
 
-                            if storage_account in continue_table:
-                                (logs, status, gas_used, return_value, slot) = continue_table[storage_account]
+                            if storage_account in self.continue_table:
+                                (logs, status, gas_used, return_value, slot) = self.continue_table[storage_account]
                                 transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
 
-                                del continue_table[storage_account]
+                                del self.continue_table[storage_account]
                             else:
                                 print("Storage not found")
                                 raise
@@ -172,33 +177,34 @@ def poll():
 
                             if got_result is not None:
                                 storage_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-                                continue_table[storage_account] = got_result
+                                self.continue_table[storage_account] = got_result
 
                         if instruction_data[0] == 0x0b: # ExecuteTrxFromAccountDataIterative
-                            holder_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
+                            holder_account =  trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
                             storage_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][1]]
 
-                            if holder_account in holder_table:
-                                print("holder_account found")
-                                print("ERRRRRRRRRRRRRRRRRRR")
-                                holder_table[holder_account] = (storage_account, bytearray(128*1024))
+                            if holder_account in self.holder_table:
+                                # print("holder_account found")
+                                # print("Strange behavior. Pay attention.")
+                                self.holder_table[holder_account] = (storage_account, bytearray(128*1024))
                             else:
-                                holder_table[holder_account] = (storage_account, bytearray(128*1024))
+                                self.holder_table[holder_account] = (storage_account, bytearray(128*1024))
 
                         if instruction_data[0] == 0x0c: # Cancel
                             storage_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
                             # continue_table[storage_account] = 0xff
-                            continue_table[storage_account] = (None, None, None, None, None, None)
-            counter += 1
-    print("total tx", counter)
+                            self.continue_table[storage_account] = (None, None, None, None, None, None)
+
 
 def get_trx_results(trx):
     slot = trx['result']['slot']
+    block_number = hex(slot)
+    block_hash = '0x%064x'%slot
     got_result = False
     logs = []
     status = "0x1"
     gas_used = 0
-    return_value = None
+    return_value = bytes
     log_index = 0
     for inner in (trx['result']['meta']['innerInstructions']):
         for event in inner['instructions']:
@@ -220,7 +226,7 @@ def get_trx_results(trx):
                         'transactionLogIndex': hex(0),
                         'transactionIndex': hex(inner['index']),
                         'blockNumber': block_number,
-                        # 'transactionHash': trxId,
+                        # 'transactionHash': trxId, # set when transaction found
                         'logIndex': hex(log_index),
                         'blockHash': block_hash
                     }
