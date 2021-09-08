@@ -8,10 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from proxy.core.connection import client
 from typing import List, Tuple
 import json
 import unittest
-
+import rlp
 import solana
 from solana.account import Account as sol_Account
 from ..common.utils import socket_connection, text_, build_http_response
@@ -30,8 +31,10 @@ from .solana_rest_api_tools import EthereumAddress,  create_account_with_seed, e
     Trx, deploy_contract, EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE
 from web3 import Web3
 import logging
-from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob, proxy_id_glob
+from ..core.acceptor.pool import proxy_id_glob
 import os
+from sqlite_key_value import KeyValueStore
+from solana_reciepts_update import get_trx_results
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -83,10 +86,9 @@ class EthereumModel:
             self.signer = sol_Account(values)
 
         self.client = SolanaClient(solana_url)
-        self.signatures = signatures_glob
-        self.vrs = vrs_glob
-        self.eth_sender = eth_sender_glob
-        self.contract_address = contract_address_glob
+
+        self.ethereum_trx = KeyValueStore("ethereum_transactions")
+        self.eth_sol_trx = KeyValueStore("ethereum_solana_transactions")
 
         with proxy_id_glob.get_lock():
             self.proxy_id = proxy_id_glob.value
@@ -201,110 +203,55 @@ class EthereumModel:
             return hex(0)
 
     def eth_getTransactionReceipt(self, trxId):
-        receipt = self.signatures.get(trxId, None)
-        logger.debug('getTransactionReceipt: %s %s', trxId, receipt)
-        if not receipt:
+        logger.debug('getTransactionReceipt: %s', trxId)
+        if trxId not in self.ethereum_trx:
             logger.debug ("Not found receipt")
             return {
-            "transactionHash":'0x0',
-            "transactionIndex":'0x0',
-            "blockHash":'0x0',
-            "blockNumber":'0x0',
-            "from":'0x0',
-            "to":'0x0',
-            "gasUsed":'0x0',
-            "cumulativeGasUsed":'0x0',
-            "contractAddress":'0x0',
-            "logs":[],
-            "status":"0x0",
-            "logsBloom":'0x0'
+                "transactionHash":'0x0',
+                "transactionIndex":'0x0',
+                "blockHash":'0x0',
+                "blockNumber":'0x0',
+                "from":'0x0',
+                "to":'0x0',
+                "gasUsed":'0x0',
+                "cumulativeGasUsed":'0x0',
+                "contractAddress":'0x0',
+                "logs":[],
+                "status":"0x0",
+                "logsBloom":'0x0'
             }
 
-        trx = self.client.get_confirmed_transaction(receipt)
-        logger.debug('RECEIPT: %s', json.dumps(trx, indent=3))
-        if trx['result'] is None:
-            logger.debug('RESULT is None')
-            return None
+        trx_info = json.loads( self.ethereum_trx[trxId] )
+        eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
 
-        logs = []
-        status = "0x1"
-        gas_used = 0
-        log_index = 0
-        for inner in (trx['result']['meta']['innerInstructions']):
-            for event in inner['instructions']:
-                log = base58.b58decode(event['data'])
-                instruction = log[:1]
-                if (int().from_bytes(instruction, "little") == 7):  # OnEvent evmInstruction code
-                    address = log[1:21]
-                    count_topics = int().from_bytes(log[21:29], 'little')
-                    topics = []
-                    pos = 29
-                    for _ in range(count_topics):
-                        topic_bin = log[pos:pos + 32]
-                        topics.append('0x'+topic_bin.hex())
-                        pos += 32
-                    data = log[pos:]
-                    rec = { 'address': '0x'+address.hex(),
-                            'topics': topics,
-                            'data': '0x'+data.hex(),
-                            'transactionLogIndex': hex(0),
-                            'transactionIndex': hex(inner['index']),
-                            'blockNumber': hex(trx['result']['slot']),
-                            'transactionHash': trxId,
-                            'logIndex': hex(log_index),
-                            'blockHash': '0x%064x'%trx['result']['slot']
-                        }
-                    logs.append(rec)
-                    log_index +=1
-                elif int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
-                    if log[1] < 0xd0:
-                        status = "0x1"
-                    else:
-                        status = "0x0"
-                    gas_used = int.from_bytes(log[2:10], 'little')
-
-        instruction_data = base58.b58decode(trx['result']['transaction']['message']['instructions'][0]['data'])
-        if instruction_data[0] == 0x0c: # Cancel
-            status = "0x0"
-
-        block = self.client.get_confirmed_block(trx['result']['slot'])
-        # logger.debug('BLOCK: %s', json.dumps(block, indent=3))
-
-        # TODO: it is need to add field "to"
-        # instructions = trx['result']['transaction']['message']['instructions']
-        # to = ""
-        # if len(instructions) >= 2:
-        #     data = base58.b58decode(trx['result']['transaction']['message']['instructions'][1]['data'])
-        #     if data[0] == 5:   # call_signed
-        #         trx_parsed = Trx.fromString(data[86:])
-        #         to = '0x'+trx_parsed.toAddress.hex()
-        # else:
-        #     if self.contract_address.get(trxId) :
-        #         to  = self.contract_address.get(trxId)
-
-        # logger.debug('DATA: %s', data.hex())
+        addr_to = None
+        contract = None
+        if eth_trx[3]:
+            addr_to = '0x' + eth_trx[3].hex()
+        else:
+            contract = '0x' + bytes(Web3.keccak(rlp.encode((bytes.fromhex(trx_info['from_address'][2:]), eth_trx[0]))))[-20:].hex()
 
         result = {
-            "transactionHash":trxId,
-            "transactionIndex":hex(0),
-            "blockHash":'0x%064x'%trx['result']['slot'],
-            "blockNumber":hex(trx['result']['slot']),
-            "from":'0x'+self.eth_sender[trxId],
-            # "to":'',
-            "gasUsed":'0x%x' % gas_used,
-            "cumulativeGasUsed":'0x%x' % gas_used,
-            "contractAddress":self.contract_address.get(trxId),
-            "logs": logs,
-            "status": status,
+            "transactionHash": trxId,
+            "transactionIndex": hex(0),
+            "blockHash": '0x%064x'%trx_info['slot'],
+            "blockNumber": hex(trx_info['slot']),
+            "from": trx_info['from_address'],
+            "to": addr_to,
+            "gasUsed": '0x%x' % trx_info['gas_used'],
+            "cumulativeGasUsed": '0x%x' % trx_info['gas_used'],
+            "contractAddress": contract,
+            "logs": trx_info['logs'],
+            "status": trx_info['status'],
             "logsBloom":"0x"+'0'*512
         }
+
         logger.debug('RESULT: %s', json.dumps(result, indent=3))
         return result
 
     def eth_getTransactionByHash(self, trxId):
-        receipt = self.signatures.get(trxId, None)
-        logger.debug('getTransactionReceipt: %s %s', trxId, receipt)
-        if not receipt:
+        logger.debug('getTransactionReceipt: %s', trxId)
+        if trxId not in self.ethereum_trx:
             logger.debug ("Not found receipt")
             return {
                 "blockHash":'0x0',
@@ -323,36 +270,29 @@ class EthereumModel:
                 "s":'0x0'
             }
 
-        trx = self.client.get_confirmed_transaction(receipt)
-        # logger.debug('RECEIPT: %s', json.dumps(trx, indent=3))
-        if trx['result'] is None: return None
+        trx_info = json.loads( self.ethereum_trx[trxId] )
+        eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
+        addr_to = None
+        if eth_trx[3]:
+            addr_to = '0x' + eth_trx[3].hex()
 
-        block = self.client.get_confirmed_block(trx['result']['slot'])
-        # logger.debug('BLOCK: %s', json.dumps(block, indent=3))
-
-        data = base58.b58decode(trx['result']['transaction']['message']['instructions'][0]['data'])
-        logger.debug('DATA: %s', data.hex())
-        sender =  self.eth_sender[trxId]
-        # nonce = int(self.eth_getTransactionCount('0x'+data[sender].hex(), ""), 16)
-        nonce = 0
-        # if nonce > 0 :
-        #     nonce = nonce - 1
         ret = {
-            "blockHash":'0x%064x'%trx['result']['slot'],
-            "blockNumber":hex(trx['result']['slot']),
-            "from":'0x'+sender,
-            "gas":'0x%x' % trx['result']['meta']['fee'],
-            "gasPrice":'0x00',
-            "hash":trxId,
-            "input":"0x"+data.hex(),
-            "nonce":hex(nonce),
-            "to":'0x'+data[17:37].hex(),
-            "transactionIndex":hex(0),
-            "value":'0x00',
-            "v":hex(self.vrs[trxId][0]),
-            "r":hex(self.vrs[trxId][1]),
-            "s":hex(self.vrs[trxId][2])
+            "blockHash": '0x%064x'%trx_info['slot'],
+            "blockNumber": hex(trx_info['slot']),
+            "hash": trxId,
+            "transactionIndex": '0x'+hex(0),
+            "from": trx_info['from_address'],
+            "nonce": '0x'+eth_trx[0].hex(),
+            "gasPrice": '0x'+eth_trx[1].hex(),
+            "gas": '0x'+eth_trx[2].hex(),
+            "to": addr_to,
+            "value": '0x'+eth_trx[4].hex(),
+            "input": '0x'+eth_trx[5].hex(),
+            "v": '0x'+eth_trx[6].hex(),
+            "r": '0x'+eth_trx[7].hex(),
+            "s": '0x'+eth_trx[8].hex(),
         }
+
         logger.debug ("eth_getTransactionByHash: %s", ret)
         return ret
 
@@ -376,22 +316,25 @@ class EthereumModel:
         logger.debug('Eth Signature: %s', trx.signature().hex())
 
         try:
-            contract_eth = None
             if (not trx.toAddress):
-                (signature, contract_eth) = deploy_contract(self.signer, self.client, trx, self.perm_accs, steps=1000)
-                #self.contract_address[eth_signature] = contract_eth
+                (signature, _contract_eth) = deploy_contract(self.signer, self.client, trx, self.perm_accs, steps=1000)
             else:
                 signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=1000)
 
             eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
-            if contract_eth: self.contract_address[eth_signature] = contract_eth
-            self.signatures[eth_signature] = signature
-            self.eth_sender[eth_signature] = sender
-            self.vrs[eth_signature] = [trx.v, trx.r, trx.s]
 
-            if (trx.toAddress):
-                self.eth_getTransactionReceipt(eth_signature)
+            (logs, status, gas_used, return_value, slot) = get_trx_results(self.client.get_confirmed_transaction(signature))
+
+            self.ethereum_trx[eth_signature] = json.dumps( {
+                'eth_trx': rawTrx,
+                'slot': slot,
+                'logs': logs,
+                'status': status,
+                'gas_used': gas_used,
+                'return_value': return_value,
+                'from_address': '0x'+sender,
+            } )
 
             return eth_signature
 
