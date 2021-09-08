@@ -28,6 +28,7 @@ import threading
 from .solana_rest_api_tools import EthereumAddress,  create_account_with_seed, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
     Trx, deploy_contract, EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE
+from solana.rpc.commitment import Commitment, Confirmed
 from web3 import Web3
 import logging
 from ..core.acceptor.pool import signatures_glob, vrs_glob, contract_address_glob, eth_sender_glob, proxy_id_glob
@@ -103,7 +104,7 @@ class EthereumModel:
         return str(int(chainId,base=16))
 
     def eth_gasPrice(self):
-        return 0
+        return hex(1*10**9)
 
     def eth_estimateGas(self, param):
         try:
@@ -121,7 +122,7 @@ class EthereumModel:
         return str(self.__dict__)
 
     def eth_blockNumber(self):
-        slot = self.client.get_slot()['result']
+        slot = self.client.get_slot(commitment=Confirmed)['result']
         logger.debug("eth_blockNumber %s", hex(slot))
         return hex(slot)
 
@@ -149,12 +150,14 @@ class EthereumModel:
             raise Exception("Invalid tag {}".format(tag))
         else:
             number = int(tag, 16)
-        response = self.client.get_confirmed_block(number)
+        #response = self.client.get_confirmed_block(number)
+        response = self.client._provider.make_request("getBlock", number, {"commitment":"confirmed", "transactionDetails":"signatures"})
         if 'error' in response:
             raise Exception(response['error']['message'])
 
         block = response['result']
-        signatures = [trx['transaction']['signatures'][0] for trx in block['transactions']]
+        #signatures = [trx['transaction']['signatures'][0] for trx in block['transactions']]
+        signatures = block['signatures']
         eth_signatures = []
         for signature in signatures:
             eth_signature = '0x'+keccak_256(base58.b58decode(signature)).hexdigest()
@@ -378,10 +381,10 @@ class EthereumModel:
         try:
             contract_eth = None
             if (not trx.toAddress):
-                (signature, contract_eth) = deploy_contract(self.signer, self.client, trx, self.perm_accs, steps=1000)
+                (signature, contract_eth) = deploy_contract(self.signer, self.client, trx, self.perm_accs, steps=250)
                 #self.contract_address[eth_signature] = contract_eth
             else:
-                signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=1000)
+                signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=250)
 
             eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
             logger.debug('Transaction signature: %s %s', signature, eth_signature)

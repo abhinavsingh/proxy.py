@@ -108,6 +108,7 @@ class Acceptor(multiprocessing.Process):
             if len(events) == 0:
                 return
             conn, addr = self.sock.accept()
+            conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
         # now = time.time()
         # fileno: int = conn.fileno()

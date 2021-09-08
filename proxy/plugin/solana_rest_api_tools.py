@@ -36,10 +36,13 @@ logger.setLevel(logging.DEBUG)
 solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
 evm_loader_id = os.environ.get("EVM_LOADER")
 COLLATERAL_POOL_BASE = os.environ.get("COLLATERAL_POOL_BASE")
-LOCAL_CLUSTER = os.environ.get("LOCAL_CLUSTER")
+NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 #evm_loader_id = "EfyDoGDRPy7wrLfSLyXrbhiAG6NmufMk1ytap13gLy1"
 location_bin = ".deploy_contract.bin"
-confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "1"))
+confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "0.1"))
+neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
+
+ACCOUNT_SEED_VERSION=b'\1'
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 sysinstruct = "Sysvar1nstructions1111111111111111111111111"
@@ -255,7 +258,7 @@ class neon_cli:
                    "--evm_loader={}".format(evm_loader_id),
                    ] + list(args)
             print(cmd)
-            return subprocess.check_output(cmd, timeout=0.1, universal_newlines=True)
+            return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True)
         except subprocess.CalledProcessError as err:
             import sys
             logger.debug("ERR: neon-cli error {}".format(err))
@@ -439,7 +442,7 @@ def call_continue_bucked(signer, client, perm_accs, trx_accs, steps):
         (continue_count, instruction_count) = simulate_continue(signer, client, perm_accs, trx_accs, steps)
         logger.debug("Send bucked:")
         result_list = []
-        for index in range(continue_count):
+        for index in range(continue_count*3):
             trx = Transaction().add(make_continue_instruction(perm_accs, trx_accs, instruction_count, index))
             result = client.send_transaction(
                     trx,
@@ -586,7 +589,7 @@ def make_05_call_instruction(perm_accs, trx_accs, call_data):
 
 def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
     logger.debug("simulate_continue:")
-    continue_count = 45
+    continue_count = 9
     while True:
         logger.debug(continue_count)
         blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
@@ -602,7 +605,7 @@ def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
             if str(err).startswith("transaction too large:"):
                 if continue_count == 0:
                     raise Exception("transaction too large")
-                continue_count = int(continue_count * 90 / 100)
+                continue_count = continue_count // 2
                 continue
             raise
 
@@ -612,7 +615,7 @@ def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
             instruction_error = response["result"]["value"]["err"]["InstructionError"]
             err = instruction_error[1]
             if isinstance(err, str) and (err == "ProgramFailedToComplete" or err == "ComputationalBudgetExceeded"):
-                step_count = int(step_count * 90 / 100)
+                step_count = step_count // 2
                 if step_count == 0:
                     raise Exception("cant run even one instruction")
             elif isinstance(err, dict) and "Custom" in err:
@@ -662,9 +665,9 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
             trx.add(createEtherAccountTrx(client, address, evm_loader_id, signer, code_account)[0])
-            if address == sender_ether and LOCAL_CLUSTER:
+            if address == sender_ether and NEW_USER_AIRDROP_AMOUNT > 0:
                 trx.add(transfer2(Transfer2Params(
-                    amount=10_000_000_000,
+                    amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
                     decimals=9,
                     dest=get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
                     mint=ETH_TOKEN_MINT_ID,
@@ -672,7 +675,10 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                     program_id=TOKEN_PROGRAM_ID,
                     source=getTokenAddr(signer.public_key()),
                 )))
-                logger.debug("Token transfer to %s as ethereum 0x%s amount 10.0", get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID), acc_desc["address"])
+                logger.debug("Token transfer to %s as ethereum 0x%s amount %s",
+                             get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
+                             acc_desc["address"],
+                             str(NEW_USER_AIRDROP_AMOUNT))
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
 
@@ -853,7 +859,10 @@ def deploy_contract(signer, client, ethTrx, perm_accs, steps):
     #rlp = pack(sender_ether, ethTrx.nonce or None)
     contract_eth = keccak_256(rlp.encode((sender_ether, ethTrx.nonce))).digest()[-20:]
     (contract_sol, contract_nonce) = ether2program(contract_eth.hex(), evm_loader_id, signer.public_key())
-    (code_sol, code_nonce, code_seed) = ether2seed(contract_eth.hex(), evm_loader_id, signer.public_key())
+
+    # We need append ACCOUNT_SEED_VERSION to created CODE account (to avoid using previously created accounts to store the code)
+    # when calculate contract_sol variable ACCOUNT_SEED_VERSION already added in `neon-cli create-program-address`.
+    (code_sol, code_nonce, code_seed) = ether2seed(ACCOUNT_SEED_VERSION+contract_eth, evm_loader_id, signer.public_key())
 
     logger.debug("Legacy contract address ether: %s", contract_eth.hex())
     logger.debug("Legacy contract address solana: %s %s", contract_sol, contract_nonce)
@@ -867,17 +876,17 @@ def deploy_contract(signer, client, ethTrx, perm_accs, steps):
     sender_sol_info = client.get_account_info(sender_sol, commitment=Confirmed)
     if sender_sol_info['result']['value'] is None:
         trx.add(createEtherAccountTrx(client, sender_ether, evm_loader_id, signer)[0])
-        if LOCAL_CLUSTER:
+        if NEW_USER_AIRDROP_AMOUNT > 0:
             trx.add(transfer2(Transfer2Params(
                 source=getTokenAddr(signer.public_key()),
                 owner=signer.public_key(),
                 dest=caller_token,
-                amount=10_000_000_000,
+                amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
                 decimals=9,
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
             )))
-            logger.debug("Token transfer to %s as ethereum 0x%s amount 10.0", caller_token, ethTrx.sender())
+            logger.debug("Token transfer to %s as ethereum 0x%s amount %s", caller_token, ethTrx.sender(), str(NEW_USER_AIRDROP_AMOUNT))
 
     if client.get_balance(code_sol, commitment=Confirmed)['result']['value'] == 0:
         msg_size = len(ethTrx.signature() + len(ethTrx.unsigned_msg()).to_bytes(8, byteorder="little") + ethTrx.unsigned_msg())
@@ -935,7 +944,7 @@ def getTokens(client, signer, evm_loader, eth_acc, base_account):
 
     balance = client.get_token_account_balance(token_account, commitment=Confirmed)
     if 'error' in balance:
-        if LOCAL_CLUSTER:
+        if NEW_USER_AIRDROP_AMOUNT > 0:
             trx = Transaction()
             sender_sol_info = client.get_account_info(account, commitment=Confirmed)
             if sender_sol_info['result']['value'] is None:
@@ -944,12 +953,12 @@ def getTokens(client, signer, evm_loader, eth_acc, base_account):
                 source=getTokenAddr(signer.public_key()),
                 owner=signer.public_key(),
                 dest=token_account,
-                amount=10_000_000_000,
+                amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
                 decimals=9,
                 mint=ETH_TOKEN_MINT_ID,
                 program_id=TOKEN_PROGRAM_ID,
             )))
-            logger.debug("Token transfer to %s as ethereum 0x%s amount 10.0", token_account, bytes(eth_acc).hex())
+            logger.debug("Token transfer to %s as ethereum 0x%s amount %s", token_account, bytes(eth_acc).hex(), str(NEW_USER_AIRDROP_AMOUNT))
             send_transaction(client, trx, signer)
 
             return getTokens(client, signer, evm_loader, eth_acc, base_account)
