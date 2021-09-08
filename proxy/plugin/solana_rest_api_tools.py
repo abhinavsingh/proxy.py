@@ -39,8 +39,10 @@ COLLATERAL_POOL_BASE = os.environ.get("COLLATERAL_POOL_BASE")
 NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 #evm_loader_id = "EfyDoGDRPy7wrLfSLyXrbhiAG6NmufMk1ytap13gLy1"
 location_bin = ".deploy_contract.bin"
-confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "1"))
+confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "0.1"))
 neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
+
+ACCOUNT_SEED_VERSION=b'\1'
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 sysinstruct = "Sysvar1nstructions1111111111111111111111111"
@@ -440,7 +442,7 @@ def call_continue_bucked(signer, client, perm_accs, trx_accs, steps):
         (continue_count, instruction_count) = simulate_continue(signer, client, perm_accs, trx_accs, steps)
         logger.debug("Send bucked:")
         result_list = []
-        for index in range(continue_count):
+        for index in range(continue_count*3):
             trx = Transaction().add(make_continue_instruction(perm_accs, trx_accs, instruction_count, index))
             result = client.send_transaction(
                     trx,
@@ -587,7 +589,7 @@ def make_05_call_instruction(perm_accs, trx_accs, call_data):
 
 def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
     logger.debug("simulate_continue:")
-    continue_count = 45
+    continue_count = 9
     while True:
         logger.debug(continue_count)
         blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
@@ -603,7 +605,7 @@ def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
             if str(err).startswith("transaction too large:"):
                 if continue_count == 0:
                     raise Exception("transaction too large")
-                continue_count = int(continue_count * 90 / 100)
+                continue_count = continue_count // 2
                 continue
             raise
 
@@ -613,7 +615,7 @@ def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
             instruction_error = response["result"]["value"]["err"]["InstructionError"]
             err = instruction_error[1]
             if isinstance(err, str) and (err == "ProgramFailedToComplete" or err == "ComputationalBudgetExceeded"):
-                step_count = int(step_count * 90 / 100)
+                step_count = step_count // 2
                 if step_count == 0:
                     raise Exception("cant run even one instruction")
             elif isinstance(err, dict) and "Custom" in err:
@@ -857,7 +859,10 @@ def deploy_contract(signer, client, ethTrx, perm_accs, steps):
     #rlp = pack(sender_ether, ethTrx.nonce or None)
     contract_eth = keccak_256(rlp.encode((sender_ether, ethTrx.nonce))).digest()[-20:]
     (contract_sol, contract_nonce) = ether2program(contract_eth.hex(), evm_loader_id, signer.public_key())
-    (code_sol, code_nonce, code_seed) = ether2seed(contract_eth.hex(), evm_loader_id, signer.public_key())
+
+    # We need append ACCOUNT_SEED_VERSION to created CODE account (to avoid using previously created accounts to store the code)
+    # when calculate contract_sol variable ACCOUNT_SEED_VERSION already added in `neon-cli create-program-address`.
+    (code_sol, code_nonce, code_seed) = ether2seed(ACCOUNT_SEED_VERSION+contract_eth, evm_loader_id, signer.public_key())
 
     logger.debug("Legacy contract address ether: %s", contract_eth.hex())
     logger.debug("Legacy contract address solana: %s %s", contract_sol, contract_nonce)
