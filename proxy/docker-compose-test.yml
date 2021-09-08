@@ -21,12 +21,7 @@ services:
     container_name: proxy
     image: cybercoredev/proxy:${REVISION}
     environment:
-      - SOLANA_URL=http://solana:8899
-      - EVM_LOADER=deploy
-      - ETH_TOKEN_MINT=deploy
-      - COLLATERAL_POOL_BASE=deploy
-      - LOCAL_CLUSTER=local
-      - NEON_CHAIN_ID=0x6f
+      - CONFIG=ci
     hostname: proxy
     ports:
       - 127.0.0.1:9090:9090
