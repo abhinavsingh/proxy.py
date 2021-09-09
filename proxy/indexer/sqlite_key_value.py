@@ -4,14 +4,30 @@ class KeyValueStore(dict):
     def __init__(self, table_name, filename="local.db"):
         self.table_name = table_name
         self.conn = sqlite3.connect(filename, isolation_level=None)
-        self.conn.execute('CREATE TABLE IF NOT EXISTS {} (key text unique, value text)'.format(self.table_name))
+        while True:
+            try:
+                self.conn.execute('CREATE TABLE IF NOT EXISTS {} (key text unique, value text)'.format(self.table_name))
+            except sqlite3.OperationalError:
+                pass
+            except Exception as err:
+                raise err
+            else:
+                break
 
     def close(self):
         self.conn.commit()
         self.conn.close()
 
     def __len__(self):
-        rows = self.conn.execute('SELECT COUNT(*) FROM {}'.format(self.table_name)).fetchone()[0]
+        while True:
+            try:
+                rows = self.conn.execute('SELECT COUNT(*) FROM {}'.format(self.table_name)).fetchone()[0]
+            except sqlite3.OperationalError:
+                pass
+            except Exception as err:
+                raise err
+            else:
+                break
         return rows if rows is not None else 0
 
     def iterkeys(self):
