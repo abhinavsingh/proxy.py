@@ -139,14 +139,14 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             abi=test_185_solidity_contract.abi
         )
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_call_retrieve_right_after_deploy(self):
         print("\ntest_call_retrieve_right_after_deploy")
         number = self.storage_contract.functions.retrieve().call()
         print('number:', number)
         self.assertEqual(number, 0)
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_execute_with_right_nonce(self):
         print("\ntest_execute_with_right_nonce")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -162,7 +162,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('number:', number)
         self.assertEqual(number, 147)
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_execute_with_low_gas(self):
         print("\ntest_execute_with_right_nonce")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -178,7 +178,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('trx_store_receipt:', trx_store_receipt)
         self.assertEqual(trx_store_receipt['status'], 0)  # false Transaction mined but execution failed
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_execute_with_bad_nonce(self):
         print("\ntest_execute_with_bad_nonce")
         bad_nonce = 1 + proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -207,7 +207,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             file_name = 'src/entrypoint.rs'
             self.assertTrue(file_name in log)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("a.i.")
     def test_06_execute_long_transaction(self):
         print("\ntest_06_execute_long_transaction")
         trx_initValue = self.test_185_solidity_contract.functions.initValue('185 init value').buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
