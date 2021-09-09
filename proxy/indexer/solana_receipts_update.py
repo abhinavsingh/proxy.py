@@ -164,7 +164,7 @@ class Indexer:
                             sign = instruction_data[25:90]
                             unsigned_msg = instruction_data[90:]
 
-                            (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, signature)
+                            (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, sign)
 
                             (logs, status, gas_used, return_value, slot) = get_trx_results(trx)
                             for rec in logs:
