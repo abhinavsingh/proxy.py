@@ -841,8 +841,8 @@ def call_signed_iterative(signer, client, ethTrx, perm_accs, trx_accs, steps, ms
     logger.debug("Partial call")
     send_measured_transaction(client, precall_txs, signer)
 
-    # return call_continue(signer, client, perm_accs, trx_accs, steps)
-    return call_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
+    return call_continue(signer, client, perm_accs, trx_accs, steps)
+    # return call_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
 
 
 def call_signed_noniterative(signer, client, ethTrx, perm_accs, trx_accs, msg, create_acc_trx):
