@@ -222,7 +222,7 @@ class EthereumModel:
             }
 
         trx_info = json.loads( self.ethereum_trx[trxId] )
-        eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
+        eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx'][2:]))
 
         addr_to = None
         contract = None
@@ -271,7 +271,7 @@ class EthereumModel:
             }
 
         trx_info = json.loads( self.ethereum_trx[trxId] )
-        eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
+        eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx'][2:]))
         addr_to = None
         if eth_trx[3]:
             addr_to = '0x' + eth_trx[3].hex()
