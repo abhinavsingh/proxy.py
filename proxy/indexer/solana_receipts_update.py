@@ -3,6 +3,7 @@ import rlp
 import json
 import os
 import time
+import logging
 from web3 import Web3
 from web3.auto.gethdev import w3
 from solana.rpc.api import Client
@@ -13,6 +14,10 @@ solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
 evm_loader_id = os.environ.get("EVM_LOADER", "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU")
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 class Indexer:
     def run(self):
         self.client = Client(solana_url)
@@ -21,7 +26,7 @@ class Indexer:
 
         while (True):
             # try:
-            print("Start indexing", flush=True)
+            logger.debug("Start indexing")
 
             self.known_transactions = KeyValueStore("known_transactions")
             self.ethereum_trx = KeyValueStore("ethereum_transactions")
@@ -36,7 +41,7 @@ class Indexer:
 
             #     pass
             # except Exception as err:
-            #     print("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err, flush=True)
+            #     logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
             time.sleep(60)
 
     def poll(self):
@@ -79,7 +84,7 @@ class Indexer:
                         instruction_data = base58.b58decode(instruction['data'])
 
                         if instruction_data[0] == 0x00: # Write
-                            print("{:>6} Write 0x{}".format(counter, instruction_data[-20:].hex()), flush=True)
+                            logger.debug("{:>6} Write 0x{}".format(counter, instruction_data[-20:].hex()))
                             write_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
 
                             if write_account in holder_table:
@@ -106,7 +111,7 @@ class Indexer:
                                         for rec in logs:
                                             rec['transactionHash'] = eth_signature
 
-                                        print(eth_signature, status)
+                                        logger.debug(eth_signature, status)
 
                                         # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
                                         self.ethereum_trx[eth_signature] = json.dumps( {
@@ -121,37 +126,37 @@ class Indexer:
 
                                         del continue_table[storage_account]
                                     else:
-                                        print("Storage not found")
-                                        print(eth_signature, "unknown")
+                                        logger.debug("Storage not found")
+                                        logger.debug(eth_signature, "unknown")
                                         # raise
 
                                     del holder_table[write_account]
                                 except Exception as err:
-                                    print("could not parse trx", err)
+                                    logger.debug("could not parse trx", err)
                                     pass
 
                         if instruction_data[0] == 0x01: # Finalize
-                            print("{:>6} Finalize 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} Finalize 0x{}".format(counter, instruction_data.hex()))
                             self.known_transactions[solana_signature] = ''
                             pass
 
                         if instruction_data[0] == 0x02: # CreateAccount
-                            print("{:>6} CreateAccount 0x{}".format(counter, instruction_data[-21:-1].hex()), flush=True)
+                            logger.debug("{:>6} CreateAccount 0x{}".format(counter, instruction_data[-21:-1].hex()))
                             self.known_transactions[solana_signature] = ''
                             pass
 
                         if instruction_data[0] == 0x03: # Call
-                            print("{:>6} Call 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} Call 0x{}".format(counter, instruction_data.hex()))
                             self.known_transactions[solana_signature] = ''
                             pass
 
                         if instruction_data[0] == 0x04: # CreateAccountWithSeed
-                            print("{:>6} CreateAccountWithSeed 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} CreateAccountWithSeed 0x{}".format(counter, instruction_data.hex()))
                             self.known_transactions[solana_signature] = ''
                             pass
 
                         if instruction_data[0] == 0x05: # CallFromRawTrx
-                            print("{:>6} CallFromRawTrx 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} CallFromRawTrx 0x{}".format(counter, instruction_data.hex()))
                             self.known_transactions[solana_signature] = ''
 
                             # collateral_pool_buf = instruction_data[1:5]
@@ -165,7 +170,7 @@ class Indexer:
                             for rec in logs:
                                 rec['transactionHash'] = eth_signature
 
-                            print(eth_signature, status)
+                            logger.debug(eth_signature, status)
 
                             # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
                             self.ethereum_trx[eth_signature] = json.dumps( {
@@ -179,7 +184,7 @@ class Indexer:
                             } )
 
                         if instruction_data[0] == 0x09: # PartialCallFromRawEthereumTX
-                            print("{:>6} PartialCallFromRawEthereumTX 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} PartialCallFromRawEthereumTX 0x{}".format(counter, instruction_data.hex()))
                             storage_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
 
                             if storage_account in continue_table:
@@ -197,7 +202,7 @@ class Indexer:
                                 for rec in logs:
                                     rec['transactionHash'] = eth_signature
 
-                                print(eth_signature, status)
+                                logger.debug(eth_signature, status)
 
                                 # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
                                 self.ethereum_trx[eth_signature] = json.dumps( {
@@ -212,11 +217,11 @@ class Indexer:
 
                                 del continue_table[storage_account]
                             else:
-                                print("Storage not found")
+                                logger.debug("Storage not found")
                                 pass
 
                         if instruction_data[0] == 0x0a: # Continue
-                            print("{:>6} Continue 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} Continue 0x{}".format(counter, instruction_data.hex()))
                             self.known_transactions[solana_signature] = ''
 
                             got_result = get_trx_results(trx)
@@ -226,7 +231,7 @@ class Indexer:
                                 continue_table[storage_account] = got_result
 
                         if instruction_data[0] == 0x0b: # ExecuteTrxFromAccountDataIterative
-                            print("{:>6} ExecuteTrxFromAccountDataIterative 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} ExecuteTrxFromAccountDataIterative 0x{}".format(counter, instruction_data.hex()))
 
                             holder_account =  trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
                             storage_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][1]]
@@ -235,21 +240,21 @@ class Indexer:
                                 self.known_transactions[solana_signature] = ''
 
                                 if holder_account in holder_table:
-                                    # print("holder_account found")
-                                    # print("Strange behavior. Pay attention.")
+                                    # logger.debug("holder_account found")
+                                    # logger.debug("Strange behavior. Pay attention.")
                                     holder_table[holder_account] = (storage_account, bytearray(128*1024))
                                 else:
                                     holder_table[holder_account] = (storage_account, bytearray(128*1024))
 
                         if instruction_data[0] == 0x0c: # Cancel
-                            print("{:>6} Cancel 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} Cancel 0x{}".format(counter, instruction_data.hex()))
                             self.known_transactions[solana_signature] = ''
 
                             storage_account = trx['result']['transaction']['message']['accountKeys'][instruction['accounts'][0]]
                             continue_table[storage_account] = (None, None, None, None, None, None)
 
                         if instruction_data[0] > 0x0c:
-                            print("{:>6} Unknown 0x{}".format(counter, instruction_data.hex()), flush=True)
+                            logger.debug("{:>6} Unknown 0x{}".format(counter, instruction_data.hex()))
 
         self.last_slot = maximum_slot
 
