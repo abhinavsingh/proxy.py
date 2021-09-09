@@ -33,8 +33,8 @@ from web3 import Web3
 import logging
 from ..core.acceptor.pool import proxy_id_glob
 import os
-from sqlite_key_value import KeyValueStore
-from solana_reciepts_update import get_trx_results
+from ..indexer.sqlite_key_value import KeyValueStore
+from ..indexer.solana_receipts_update import get_trx_results
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

@@ -22,7 +22,7 @@ from ..threadless import ThreadlessWork
 from ..event import EventQueue, EventDispatcher
 from ...common.flags import Flags
 
-from ...plugin.solana_reciepts_update import Indexer
+from ...indexer.solana_receipts_update import Indexer
 
 logger = logging.getLogger(__name__)
 

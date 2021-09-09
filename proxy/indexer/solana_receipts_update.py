@@ -6,7 +6,7 @@ import time
 from web3 import Web3
 from web3.auto.gethdev import w3
 from solana.rpc.api import Client
-from sqlite_key_value import KeyValueStore
+from .sqlite_key_value import KeyValueStore
 
 
 solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
