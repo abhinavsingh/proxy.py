@@ -111,7 +111,7 @@ class Indexer:
                                         for rec in logs:
                                             rec['transactionHash'] = eth_signature
 
-                                        logger.debug(eth_signature, status)
+                                        logger.debug(eth_signature + " " + status)
 
                                         # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
                                         self.ethereum_trx[eth_signature] = json.dumps( {
@@ -170,7 +170,7 @@ class Indexer:
                             for rec in logs:
                                 rec['transactionHash'] = eth_signature
 
-                            logger.debug(eth_signature, status)
+                            logger.debug(eth_signature + " " + status)
 
                             # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
                             self.ethereum_trx[eth_signature] = json.dumps( {
@@ -202,7 +202,7 @@ class Indexer:
                                 for rec in logs:
                                     rec['transactionHash'] = eth_signature
 
-                                logger.debug(eth_signature, status)
+                                logger.debug(eth_signature + " " + status)
 
                                 # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
                                 self.ethereum_trx[eth_signature] = json.dumps( {
