@@ -855,7 +855,7 @@ def call_signed_iterative(signer, client, ethTrx, perm_accs, trx_accs, steps, ms
         keys=[
             AccountMeta(pubkey=keccakprog, is_signer=False, is_writable=False),
         ]))
-    precall_txs.add(make_partial_call_instruction(perm_accs, trx_accs, steps))
+    precall_txs.add(make_partial_call_instruction(perm_accs, trx_accs, 0, msg))
 
     logger.debug("Partial call")
     send_measured_transaction(client, precall_txs, signer)
