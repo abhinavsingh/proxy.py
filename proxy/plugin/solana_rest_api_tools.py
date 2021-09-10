@@ -464,10 +464,10 @@ def call_continue_bucked(signer, client, perm_accs, trx_accs, steps):
         for index in range(continue_count*CONTINUE_COUNT_FACTOR):
             trx = Transaction().add(make_continue_instruction(perm_accs, trx_accs, instruction_count, index))
             result = client.send_transaction(
-                trx,
-                signer,
-                opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
-            )["result"]
+                    trx,
+                    signer,
+                    opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
+                )["result"]
             result_list.append(result)
         logger.debug("Collect bucked results:")
         for trx in result_list:
