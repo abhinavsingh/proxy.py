@@ -458,8 +458,9 @@ def call_continue_bucked_0x0d(signer, client, perm_accs, trx_accs, steps, msg):
         (continue_count, instruction_count) = simulate_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
         logger.debug("Send bucked:")
         result_list = []
+        base_index = int((datetime.now()-datetime(1970, 1, 1)).total_seconds()) * 10000
         for index in range(continue_count*3):
-            trx = Transaction().add(make_partial_call_instruction_0x0d(perm_accs, trx_accs, instruction_count, msg))
+            trx = Transaction().add(make_partial_call_instruction_0x0d(perm_accs, trx_accs, instruction_count, msg, base_index+index))
             result = client.send_transaction(
                 trx,
                 signer,
@@ -569,10 +570,13 @@ def make_partial_call_instruction(perm_accs, trx_accs, step_count, call_data):
         )
 
 
-def make_partial_call_instruction_0x0d(perm_accs, trx_accs, step_count, call_data):
+def make_partial_call_instruction_0x0d(perm_accs, trx_accs, step_count, call_data, index=None):
+    data = bytearray.fromhex("0D") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little") + call_data
+    if index:
+        data = data + index.to_bytes(8, byteorder="little")
     return TransactionInstruction(
         program_id = evm_loader_id,
-        data = bytearray.fromhex("0D") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little") + call_data,
+        data = data,
         keys = [
                    AccountMeta(pubkey=perm_accs.storage, is_signer=False, is_writable=True),
 
