@@ -207,7 +207,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             file_name = 'src/entrypoint.rs'
             self.assertTrue(file_name in log)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("a.i.")
     def test_06_execute_long_transaction(self):
         print("\ntest_06_execute_long_transaction")
         trx_initValue = self.test_185_solidity_contract.functions.initValue('185 init value').buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
