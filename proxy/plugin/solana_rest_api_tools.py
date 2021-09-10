@@ -642,15 +642,22 @@ def create_account_list_by_emulate(signer, client, ethTrx):
         address = bytes.fromhex(acc_desc["address"][2:])
         if address == ethTrx.toAddress:
             contract_sol = PublicKey(acc_desc["account"])
-            code_sol = PublicKey(acc_desc["contract"]) if acc_desc["contract"] != None else None
+            if acc_desc["contract"] != None :
+                code_sol = PublicKey(acc_desc["contract"])
+                code_writable = acc_desc["writable"]
+            else:
+                code_sol = None
+                code_writable = None
+
         elif address == sender_ether:
             sender_sol = PublicKey(acc_desc["account"])
         else:
-            add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=acc_desc["writable"]))
+            add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=(True if acc_desc["contract"] else acc_desc["writable"])))
             token_account = get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID)
             add_keys_05.append(AccountMeta(pubkey=token_account, is_signer=False, is_writable=True))
             if acc_desc["contract"]:
                 add_keys_05.append(AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=acc_desc["writable"]))
+
         if acc_desc["new"]:
             logger.debug("Create solana accounts for %s: %s %s", acc_desc["address"], acc_desc["account"], acc_desc["contract"])
             code_account = None
@@ -685,7 +692,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
     eth_accounts = [
             AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=get_associated_token_address(contract_sol, ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
-        ] + ([AccountMeta(pubkey=code_sol, is_signer=False, is_writable=True)] if code_sol != None else []) + [
+        ] + ([AccountMeta(pubkey=code_sol, is_signer=False, is_writable=code_writable)] if code_sol != None else []) + [
             AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
             AccountMeta(pubkey=caller_token, is_signer=False, is_writable=True),
         ] + add_keys_05
