@@ -240,7 +240,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
 
         value = self.test_185_solidity_contract.functions.getValue().call()
         print('value:', value.hex())
-        self.assertEqual(value.hex(), 'a6bfac152f9071fbc21a73ca991a28898ec14f4df54c01cad49daf05d4012b4c')
+        self.assertEqual(value.hex(), 'e6d201b1e3aab3b3cc100ea7a0b76fcbb3c2fef88fc4e540f9866d8d2e6e2131')
         print('times_to_calculate:', times_to_calculate)
         print('time_duration:', time_duration)
 
