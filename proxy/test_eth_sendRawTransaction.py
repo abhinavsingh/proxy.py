@@ -207,7 +207,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             file_name = 'src/entrypoint.rs'
             self.assertTrue(file_name in log)
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_06_execute_long_transaction(self):
         print("\ntest_06_execute_long_transaction")
         trx_initValue = self.test_185_solidity_contract.functions.initValue('185 init value').buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
@@ -226,7 +226,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         from datetime import datetime
         start = datetime.now()
 
-        times_to_calculate = 1000
+        times_to_calculate = 10
         trx_calculate = self.test_185_solidity_contract.functions.calculateKeccakAndStore(times_to_calculate).buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
         print('trx_calculate:', trx_calculate)
         trx_calculate_signed = proxy.eth.account.sign_transaction(trx_calculate, eth_account.key)
