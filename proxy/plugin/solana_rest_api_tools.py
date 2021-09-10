@@ -842,7 +842,7 @@ def call_signed(signer, client, ethTrx, perm_accs, steps):
     if call_iterative:
         if USE_COMBINED_START_CONTINUE:
             return call_signed_iterative_0x0d(signer, client, ethTrx, perm_accs, trx_accs, steps, msg, create_acc_trx)
-        else
+        else:
             return call_signed_iterative(signer, client, ethTrx, perm_accs, trx_accs, steps, msg, create_acc_trx)
 
 
