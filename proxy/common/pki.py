@@ -209,10 +209,14 @@ def ssl_config(
 
 
 def run_openssl_command(command: List[str], timeout: int) -> bool:
+    si = subprocess.STARTUPINFO()
+    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     cmd = subprocess.Popen(
         command,
+        startupinfo=si,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE
     )
     cmd.communicate(timeout=timeout)
     return cmd.returncode == 0
