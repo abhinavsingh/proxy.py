@@ -7,7 +7,6 @@ import re
 import struct
 import subprocess
 import time
-from datetime import datetime
 from hashlib import sha256
 from typing import NamedTuple
 import rlp
@@ -431,7 +430,8 @@ def call_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg):
         logger.debug(str(err))
 
     try:
-        return call_continue_iterative_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
+        # return call_continue_iterative_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
+        return call_continue_iterative(signer, client, perm_accs, trx_accs, steps)
     except Exception as err:
         logger.debug("call_continue_iterative exception:")
         logger.debug(str(err))
@@ -485,9 +485,8 @@ def call_continue_bucked_0x0d(signer, client, perm_accs, trx_accs, steps, msg):
         (continue_count, instruction_count) = simulate_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
         logger.debug("Send bucked:")
         result_list = []
-        base_index = int((datetime.now()-datetime(1970, 1, 1)).total_seconds()) * 10000
         for index in range(continue_count*CONTINUE_COUNT_FACTOR):
-            trx = Transaction().add(make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, instruction_count, msg, base_index+index))
+            trx = Transaction().add(make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, instruction_count, msg, index))
             result = client.send_transaction(
                 trx,
                 signer,
@@ -513,13 +512,13 @@ def call_continue_iterative(signer, client, perm_accs, trx_accs, step_count):
             return signature
 
 
-def call_continue_iterative_0x0d(signer, client, perm_accs, trx_accs, step_count, msg):
-    while True:
-        logger.debug("Continue iterative step:")
-        result = make_partial_call_or_continue_instruction_0x0d(signer, client, perm_accs, trx_accs, step_count, msg)
-        (succeed, signature) = check_if_continue_returned(result)
-        if succeed:
-            return signature
+# def call_continue_iterative_0x0d(signer, client, perm_accs, trx_accs, step_count, msg):
+#     while True:
+#         logger.debug("Continue iterative step:")
+#         result = make_partial_call_or_continue_instruction_0x0d(signer, client, perm_accs, trx_accs, step_count, msg)
+#         (succeed, signature) = check_if_continue_returned(result)
+#         if succeed:
+#             return signature
 
 
 def sol_instr_10_continue(signer, client, perm_accs, trx_accs, initial_step_count):
