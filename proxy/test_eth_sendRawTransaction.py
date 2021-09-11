@@ -40,6 +40,45 @@ contract Storage {
 }
 '''
 
+SOLIDITY_SOURCE_185 = '''
+pragma solidity >=0.7.0 <0.9.0;
+
+contract test_185 {
+    bytes public emprty_string = "";
+
+    function getKeccakOfEmptyString() public view returns (bytes32 variant) {
+        variant = keccak256(emprty_string);
+    }
+    
+    bytes32 constant neonlabsHash = keccak256("neonlabs");
+
+    function endlessCycle() public view returns (bytes32 variant) {
+        variant = keccak256(emprty_string);
+        for(;neonlabsHash != variant;) {
+            variant = keccak256(abi.encodePacked(variant));
+        }
+        return variant;
+    }
+
+    bytes32 public value = "";
+    
+    function initValue(string memory s) public {
+        value = keccak256(bytes(s));
+    }
+
+    function calculateKeccakAndStore(uint256 times) public {
+        for(;times > 0; --times) {
+            value = keccak256(abi.encodePacked(value));
+        }
+    }
+    
+    function getValue() public view returns (bytes32) {
+        return value;
+    }
+    
+}
+'''
+
 
 class Test_eth_sendRawTransaction(unittest.TestCase):
     @classmethod
@@ -47,6 +86,10 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print("\n\nhttps://github.com/neonlabsorg/proxy-model.py/issues/147")
         print('eth_account.address:', eth_account.address)
         print('eth_account.key:', eth_account.key.hex())
+        cls.deploy_storage_147_solidity_contract(cls)
+        cls.deploy_test_185_solidity_contract(cls)
+
+    def deploy_storage_147_solidity_contract(self):
         compiled_sol = compile_source(STORAGE_SOLIDITY_SOURCE_147)
         contract_id, contract_interface = compiled_sol.popitem()
         storage = proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
@@ -66,9 +109,34 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(trx_deploy_hash)
         print('trx_deploy_receipt:', trx_deploy_receipt)
 
-        cls.storage_contract = proxy.eth.contract(
+        self.storage_contract = proxy.eth.contract(
             address=trx_deploy_receipt.contractAddress,
             abi=storage.abi
+        )
+
+    def deploy_test_185_solidity_contract(self):
+        compiled_sol = compile_source(SOLIDITY_SOURCE_185)
+        contract_id, contract_interface = compiled_sol.popitem()
+        test_185_solidity_contract = proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
+        trx_deploy = proxy.eth.account.sign_transaction(dict(
+            nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
+            chainId=proxy.eth.chain_id,
+            gas=987654321,
+            gasPrice=0,
+            to='',
+            value=0,
+            data=test_185_solidity_contract.bytecode),
+            eth_account.key
+        )
+        print('trx_deploy:', trx_deploy)
+        trx_deploy_hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
+        print('trx_deploy_hash:', trx_deploy_hash.hex())
+        trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(trx_deploy_hash)
+        print('trx_deploy_receipt:', trx_deploy_receipt)
+
+        self.test_185_solidity_contract = proxy.eth.contract(
+            address=trx_deploy_receipt.contractAddress,
+            abi=test_185_solidity_contract.abi
         )
 
     # @unittest.skip("a.i.")
@@ -217,6 +285,43 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('one_gwei:', one_gwei)
         self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - one_gwei)
         self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + one_gwei)
+
+    @unittest.skip("a.i.")
+    def test_07_execute_long_transaction(self):
+        print("\ntest_07_execute_long_transaction")
+        trx_initValue = self.test_185_solidity_contract.functions.initValue('185 init value').buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
+        print('trx_initValue:', trx_initValue)
+        trx_initValue_signed = proxy.eth.account.sign_transaction(trx_initValue, eth_account.key)
+        print('trx_initValue_signed:', trx_initValue_signed)
+        trx_initValue_hash = proxy.eth.send_raw_transaction(trx_initValue_signed.rawTransaction)
+        print('trx_initValue_hash:', trx_initValue_hash.hex())
+        trx_initValue_receipt = proxy.eth.wait_for_transaction_receipt(trx_initValue_hash)
+        print('trx_initValue_hash_receipt:', trx_initValue_receipt)
+
+        value = self.test_185_solidity_contract.functions.getValue().call()
+        print('value:', value.hex())
+        self.assertEqual(value.hex(), '36fb9ea61aba18555110881836366c8d7701685174abe4926673754580ee26c5')
+
+        from datetime import datetime
+        start = datetime.now()
+
+        times_to_calculate = 10
+        trx_calculate = self.test_185_solidity_contract.functions.calculateKeccakAndStore(times_to_calculate).buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
+        print('trx_calculate:', trx_calculate)
+        trx_calculate_signed = proxy.eth.account.sign_transaction(trx_calculate, eth_account.key)
+        print('trx_calculate_signed:', trx_calculate_signed)
+        trx_calculate_hash = proxy.eth.send_raw_transaction(trx_calculate_signed.rawTransaction)
+        print('trx_calculate_hash:', trx_calculate_hash.hex())
+        trx_calculate_receipt = proxy.eth.wait_for_transaction_receipt(trx_calculate_hash)
+        print('trx_calculate_hash_receipt:', trx_calculate_receipt)
+
+        time_duration = datetime.now() - start
+
+        value = self.test_185_solidity_contract.functions.getValue().call()
+        print('value:', value.hex())
+        self.assertEqual(value.hex(), 'e6d201b1e3aab3b3cc100ea7a0b76fcbb3c2fef88fc4e540f9866d8d2e6e2131')
+        print('times_to_calculate:', times_to_calculate)
+        print('time_duration:', time_duration)
 
 
 if __name__ == '__main__':

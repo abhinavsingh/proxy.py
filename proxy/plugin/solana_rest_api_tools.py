@@ -41,6 +41,8 @@ NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 location_bin = ".deploy_contract.bin"
 confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "0.1"))
 neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
+USE_COMBINED_START_CONTINUE = os.environ.get("USE_COMBINED_START_CONTINUE")
+CONTINUE_COUNT_FACTOR = int(os.environ.get("CONTINUE_COUNT_FACTOR", "3"))
 
 ACCOUNT_SEED_VERSION=b'\1'
 
@@ -420,6 +422,23 @@ def check_if_continue_returned(result):
     return (False, ())
 
 
+def call_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg):
+    try:
+        return call_continue_bucked_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
+    except Exception as err:
+        logger.debug("call_continue_bucked_0x0D exception:")
+        logger.debug(str(err))
+
+    try:
+        # return call_continue_iterative_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
+        return call_continue_iterative(signer, client, perm_accs, trx_accs, steps)
+    except Exception as err:
+        logger.debug("call_continue_iterative exception:")
+        logger.debug(str(err))
+
+    return sol_instr_12_cancel(signer, client, perm_accs, trx_accs)
+
+
 def call_continue(signer, client, perm_accs, trx_accs, steps):
     try:
         return call_continue_bucked(signer, client, perm_accs, trx_accs, steps)
@@ -442,13 +461,37 @@ def call_continue_bucked(signer, client, perm_accs, trx_accs, steps):
         (continue_count, instruction_count) = simulate_continue(signer, client, perm_accs, trx_accs, steps)
         logger.debug("Send bucked:")
         result_list = []
-        for index in range(continue_count*3):
+        for index in range(continue_count*CONTINUE_COUNT_FACTOR):
             trx = Transaction().add(make_continue_instruction(perm_accs, trx_accs, instruction_count, index))
             result = client.send_transaction(
                     trx,
                     signer,
                     opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
                 )["result"]
+            result_list.append(result)
+        logger.debug("Collect bucked results:")
+        for trx in result_list:
+            confirm_transaction(client, trx)
+            result = client.get_confirmed_transaction(trx)
+            get_measurements(result)
+            (founded, signature) = check_if_continue_returned(result)
+            if founded:
+                return signature
+
+
+def call_continue_bucked_0x0d(signer, client, perm_accs, trx_accs, steps, msg):
+    while True:
+        logger.debug("Continue bucked step:")
+        (continue_count, instruction_count) = simulate_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
+        logger.debug("Send bucked:")
+        result_list = []
+        for index in range(continue_count*CONTINUE_COUNT_FACTOR):
+            trx = Transaction().add(make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, instruction_count, msg, index))
+            result = client.send_transaction(
+                trx,
+                signer,
+                opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
+            )["result"]
             result_list.append(result)
         logger.debug("Collect bucked results:")
         for trx in result_list:
@@ -467,6 +510,15 @@ def call_continue_iterative(signer, client, perm_accs, trx_accs, step_count):
         (succeed, signature) = check_if_continue_returned(result)
         if succeed:
             return signature
+
+
+# def call_continue_iterative_0x0d(signer, client, perm_accs, trx_accs, step_count, msg):
+#     while True:
+#         logger.debug("Continue iterative step:")
+#         result = make_partial_call_or_continue_instruction_0x0d(signer, client, perm_accs, trx_accs, step_count, msg)
+#         (succeed, signature) = check_if_continue_returned(result)
+#         if succeed:
+#             return signature
 
 
 def sol_instr_10_continue(signer, client, perm_accs, trx_accs, initial_step_count):
@@ -529,6 +581,30 @@ def make_partial_call_instruction(perm_accs, trx_accs, step_count, call_data):
         )
 
 
+def make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, step_count, call_data, index=None):
+    data = bytearray.fromhex("0D") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little") + call_data
+    if index:
+        data = data + index.to_bytes(8, byteorder="little")
+    return TransactionInstruction(
+        program_id = evm_loader_id,
+        data = data,
+        keys = [
+                   AccountMeta(pubkey=perm_accs.storage, is_signer=False, is_writable=True),
+
+                   AccountMeta(pubkey=sysinstruct, is_signer=False, is_writable=False),
+                   AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
+                   AccountMeta(pubkey=perm_accs.collateral_pool_address, is_signer=False, is_writable=True),
+                   AccountMeta(pubkey=perm_accs.operator_token, is_signer=False, is_writable=True),
+                   AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
+                   AccountMeta(pubkey=system, is_signer=False, is_writable=False),
+
+               ] + trx_accs.eth_accounts + [
+
+                   AccountMeta(pubkey=sysinstruct, is_signer=False, is_writable=False),
+               ] + obligatory_accounts
+    )
+
+
 def make_continue_instruction(perm_accs, trx_accs, step_count, index=None):
     data = bytearray.fromhex("0A") + step_count.to_bytes(8, byteorder="little")
     if index:
@@ -585,6 +661,51 @@ def make_05_call_instruction(perm_accs, trx_accs, call_data):
 
         ] + trx_accs.eth_accounts + obligatory_accounts
     )
+
+
+def simulate_continue_0x0d(signer, client, perm_accs, trx_accs, step_count, msg):
+    logger.debug("simulate_continue:")
+    continue_count = 9
+    while True:
+        logger.debug(continue_count)
+        blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
+        trx = Transaction(recent_blockhash = blockhash)
+        for _ in range(continue_count):
+            trx.add(make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, step_count, msg))
+        trx.sign(signer)
+
+        try:
+            trx.serialize()
+        except Exception as err:
+            logger.debug("trx.serialize() exception")
+            if str(err).startswith("transaction too large:"):
+                if continue_count == 0:
+                    raise Exception("transaction too large")
+                continue_count = continue_count // 2
+                continue
+            raise
+
+        response = client.simulate_transaction(trx, commitment=Confirmed)
+
+        if response["result"]["value"]["err"]:
+            instruction_error = response["result"]["value"]["err"]["InstructionError"]
+            err = instruction_error[1]
+            if isinstance(err, str) and (err == "ProgramFailedToComplete" or err == "ComputationalBudgetExceeded"):
+                step_count = step_count // 2
+                if step_count == 0:
+                    raise Exception("cant run even one instruction")
+            elif isinstance(err, dict) and "Custom" in err:
+                if continue_count == 0:
+                    raise Exception("uninitialized storage account")
+                continue_count = instruction_error[0]
+            else:
+                logger.debug("Result:\n%s"%json.dumps(response, indent=3))
+                raise Exception("unspecified error")
+        else:
+            break
+
+    logger.debug("tx_count = {}, step_count = {}".format(continue_count, step_count))
+    return (continue_count, step_count)
 
 
 def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
@@ -718,7 +839,10 @@ def call_signed(signer, client, ethTrx, perm_accs, steps):
     if call_from_holder:
         return call_signed_with_holder_acc(signer, client, ethTrx, perm_accs, trx_accs, steps, create_acc_trx)
     if call_iterative:
-        return call_signed_iterative(signer, client, ethTrx, perm_accs, trx_accs, steps, msg, create_acc_trx)
+        if USE_COMBINED_START_CONTINUE:
+            return call_signed_iterative_0x0d(signer, client, ethTrx, perm_accs, trx_accs, steps, msg, create_acc_trx)
+        else:
+            return call_signed_iterative(signer, client, ethTrx, perm_accs, trx_accs, steps, msg, create_acc_trx)
 
 
 def call_signed_iterative(signer, client, ethTrx, perm_accs, trx_accs, steps, msg, create_acc_trx):
@@ -736,6 +860,23 @@ def call_signed_iterative(signer, client, ethTrx, perm_accs, trx_accs, steps, ms
     send_measured_transaction(client, precall_txs, signer)
 
     return call_continue(signer, client, perm_accs, trx_accs, steps)
+
+
+def call_signed_iterative_0x0d(signer, client, ethTrx, perm_accs, trx_accs, steps, msg, create_acc_trx):
+    precall_txs = Transaction()
+    precall_txs.add(create_acc_trx)
+    precall_txs.add(TransactionInstruction(
+        program_id=keccakprog,
+        data=make_keccak_instruction_data(len(precall_txs.instructions)+1, len(ethTrx.unsigned_msg()), data_start=13),
+        keys=[
+            AccountMeta(pubkey=keccakprog, is_signer=False, is_writable=False),
+        ]))
+    precall_txs.add(make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, steps, msg))
+
+    logger.debug("Partial call 0x0d")
+    send_measured_transaction(client, precall_txs, signer)
+
+    return call_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
 
 
 def call_signed_noniterative(signer, client, ethTrx, perm_accs, trx_accs, msg, create_acc_trx):
