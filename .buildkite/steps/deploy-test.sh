@@ -70,7 +70,6 @@ docker run --rm -ti --network=host \
      --entrypoint ./deploy-test.sh \
      ${EXTRA_ARGS:-} \
      $UNISWAP_V2_CORE_IMAGE \
-     all  # TODO: remove 'all' to turn off to check all uniswap v2 core tests
 
 echo "Run tests return"
 exit 0
