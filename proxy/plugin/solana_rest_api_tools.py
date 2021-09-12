@@ -25,7 +25,7 @@ from solana.rpc.types import TxOpts
 from solana.sysvar import *
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from spl.token.constants import ACCOUNT_LEN, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
-from spl.token.instructions import get_associated_token_address, transfer2, Transfer2Params
+from spl.token.instructions import get_associated_token_address, create_associated_token_account, transfer2, Transfer2Params
 from web3.auto import w3
 
 from .eth_proto import Trx
@@ -314,10 +314,14 @@ def call_emulated(contract_id, caller_id, data=None, value=None):
     result = json.loads(output)
     exit_status = result['exit_status']
     if exit_status == 'revert':
-        offset = int(result['result'][8:8+64], 16)
-        length = int(result['result'][8+64:8+64+64], 16)
-        message = str(bytes.fromhex(result['result'][8+offset*2+64:8+offset*2+64+length*2]), 'utf8')
-        raise EthereumError(code=3, message='execution reverted: '+message, data='0x'+result['result'])
+        result_value = result['result']
+        if len(result_value) == 0:
+            raise EthereumError(code=3, message='execution reverted')
+
+        offset = int(result_value[8:8+64], 16)
+        length = int(result_value[8+64:8+64+64], 16)
+        message = str(bytes.fromhex(result_value[8+offset*2+64:8+offset*2+64+length*2]), 'utf8')
+        raise EthereumError(code=3, message='execution reverted: '+message, data='0x'+result_value)
     if result["exit_status"] != "succeed":
         raise Exception("evm emulator error ", result)
     return result
@@ -679,6 +683,15 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                              get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
                              acc_desc["address"],
                              str(NEW_USER_AIRDROP_AMOUNT))
+
+    for token_account in output_json["token_accounts"]:
+        add_keys_05.append(AccountMeta(pubkey=token_account["key"], is_signer=False, is_writable=True))
+
+        if token_account["new"]:
+            trx.add(create_associated_token_account(signer.public_key(), token_account["owner"], token_account["mint"]))
+
+    for account_meta in output_json["solana_accounts"]:
+        add_keys_05.append(AccountMeta(pubkey=account_meta["pubkey"], is_signer=account_meta["is_signer"], is_writable=account_meta["is_writable"]))
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
 
