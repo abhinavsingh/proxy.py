@@ -160,7 +160,6 @@ class EthereumModel:
         eth_signatures = []
         for signature in signatures:
             eth_signature = '0x'+keccak_256(base58.b58decode(signature)).hexdigest()
-            self.signatures[eth_signature] = signature
             eth_signatures.append(eth_signature)
 
         return {

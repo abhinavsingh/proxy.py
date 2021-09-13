@@ -323,3 +323,8 @@ def get_trx_receipts(unsigned_msg, signature):
     from_address = w3.eth.account.recover_transaction(eth_trx_raw.hex())
 
     return (eth_trx_raw.hex(), eth_signature, from_address)
+
+
+if __name__ == "__main__":
+    indexer = Indexer()
+    indexer.run()
