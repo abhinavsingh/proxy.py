@@ -8,13 +8,12 @@ from web3 import Web3
 from web3.auto.gethdev import w3
 from solana.rpc.api import Client
 from multiprocessing.dummy import Pool as ThreadPool
-from collections import defaultdict
 from sqlite_key_value import KeyValueStore
 
 
 solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
 evm_loader_id = os.environ.get("EVM_LOADER", "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU")
-db_filename = os.environ.get("DB_NAME", "develop")
+db_filename = os.environ.get("DB_NAME", "develop.db")
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +64,6 @@ class Indexer:
 
         counter = 0
         while (continue_flag):
-            if len(poll_txs) > 100:
-                break
-
             result = self.client.get_signatures_for_address(evm_loader_id, before=minimal_tx)
             logger.debug("{:>3} get_signatures_for_address {}".format(counter, len(result["result"])))
             counter += 1
@@ -82,12 +78,12 @@ class Indexer:
 
                 ordered_txs.append(solana_signature)
 
+                if solana_signature not in self.transaction_receipts:
+                    poll_txs.add(solana_signature)
+
                 if slot < minimal_slot:
                     minimal_slot = slot
                     minimal_tx = solana_signature
-
-                if solana_signature not in self.transaction_receipts:
-                    poll_txs.add(solana_signature)
 
                 if slot > maximum_slot:
                     maximum_slot = slot
@@ -102,7 +98,7 @@ class Indexer:
 
         for transaction in results:
             (solana_signature, trx) = transaction
-            self.transaction_receipts[solana_signature] = trx
+            self.transaction_receipts[solana_signature] = json.dumps(trx)
 
         if len(self.transaction_order):
             index = 0
@@ -146,7 +142,8 @@ class Indexer:
                 continue
 
             if signature in self.transaction_receipts:
-                trx = self.transaction_receipts[signature]
+                trx = json.loads(self.transaction_receipts[signature])
+                slot = trx['slot']
                 if trx['transaction']['message']['instructions'] is not None:
                     for instruction in trx['transaction']['message']['instructions']:
                         instruction_data = base58.b58decode(instruction['data'])
@@ -327,7 +324,7 @@ class Indexer:
                         if instruction_data[0] == 0x0c: # Cancel
                             logger.debug("{:>10} {:>6} Cancel 0x{}".format(slot, counter, instruction_data.hex()))
                             storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-                            continue_table[storage_account] = ContinueStruct(signature, None, None, None, None, None, None)
+                            continue_table[storage_account] = ContinueStruct(signature, None, None, None, None, None)
 
                         if instruction_data[0] > 0x0c:
                             logger.debug("{:>10} {:>6} Unknown 0x{}".format(slot, counter, instruction_data.hex()))
