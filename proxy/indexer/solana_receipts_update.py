@@ -13,7 +13,6 @@ from sqlite_key_value import KeyValueStore
 
 solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
 evm_loader_id = os.environ.get("EVM_LOADER", "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU")
-db_filename = os.environ.get("DB_NAME", "develop.db")
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +29,17 @@ class ContinueStruct:
 class Indexer:
     def __init__(self):
         self.client = Client(solana_url)
-        self.transaction_receipts = KeyValueStore("known_transactions", filename=db_filename)
-        self.ethereum_trx = KeyValueStore("ethereum_transactions", filename=db_filename)
-        self.eth_sol_trx = KeyValueStore("ethereum_solana_transactions", filename=db_filename)
-        self.sol_eth_trx = KeyValueStore("solana_ethereum_transactions", filename=db_filename)
+        self.transaction_receipts = KeyValueStore("known_transactions")
+        self.ethereum_trx = KeyValueStore("ethereum_transactions")
+        self.eth_sol_trx = KeyValueStore("ethereum_solana_transactions")
+        self.sol_eth_trx = KeyValueStore("solana_ethereum_transactions")
         self.last_slot = 0
         self.transaction_order = []
 
     def run(self):
         while (True):
+            for key in self.ethereum_trx.iterkeys():
+                logger.debug("known transaction {}".format(key))
             # try:
             logger.debug("Start indexing")
 
@@ -50,7 +51,7 @@ class Indexer:
             #     pass
             # except Exception as err:
             #     logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
-            time.sleep(60)
+            time.sleep(15)
 
 
     def gather_unknown_transactions(self):
@@ -143,14 +144,24 @@ class Indexer:
 
             if signature in self.transaction_receipts:
                 trx = json.loads(self.transaction_receipts[signature])
+                if trx is None:
+                    logger.debug("trx is None")
+                    time.sleep(1)
+                    continue
+                if 'slot' not in trx:
+                    logger.debug("\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
+                    exit()
                 slot = trx['slot']
                 if trx['transaction']['message']['instructions'] is not None:
                     for instruction in trx['transaction']['message']['instructions']:
                         instruction_data = base58.b58decode(instruction['data'])
 
                         if instruction_data[0] == 0x00: # Write
-                            logger.debug("{:>10} {:>6} Write 0x{}".format(slot, counter, instruction_data[-20:].hex()))
+                            # logger.debug("{:>10} {:>6} Write 0x{}".format(slot, counter, instruction_data[-20:].hex()))
                             write_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
+
+                            if check_error(trx):
+                                continue
 
                             if write_account in holder_table:
                                 storage_account = holder_table[write_account][0]
@@ -208,58 +219,84 @@ class Indexer:
                                     pass
 
                         if instruction_data[0] == 0x01: # Finalize
-                            logger.debug("{:>10} {:>6} Finalize 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} Finalize 0x{}".format(slot, counter, instruction_data.hex()))
+
+                            if check_error(trx):
+                                continue
                             pass
 
                         if instruction_data[0] == 0x02: # CreateAccount
-                            logger.debug("{:>10} {:>6} CreateAccount 0x{}".format(slot, counter, instruction_data[-21:-1].hex()))
+                            # logger.debug("{:>10} {:>6} CreateAccount 0x{}".format(slot, counter, instruction_data[-21:-1].hex()))
+
+                            if check_error(trx):
+                                continue
                             pass
 
                         if instruction_data[0] == 0x03: # Call
-                            logger.debug("{:>10} {:>6} Call 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} Call 0x{}".format(slot, counter, instruction_data.hex()))
+
+                            if check_error(trx):
+                                continue
                             pass
 
                         if instruction_data[0] == 0x04: # CreateAccountWithSeed
-                            logger.debug("{:>10} {:>6} CreateAccountWithSeed 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} CreateAccountWithSeed 0x{}".format(slot, counter, instruction_data.hex()))
+
+                            if check_error(trx):
+                                continue
                             pass
 
                         if instruction_data[0] == 0x05: # CallFromRawTrx
-                            logger.debug("{:>10} {:>6} CallFromRawTrx 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} CallFromRawTrx 0x{}".format(slot, counter, instruction_data.hex()))
+
+                            if check_error(trx):
+                                continue
 
                             # collateral_pool_buf = instruction_data[1:5]
+
                             # from_addr = instruction_data[5:25]
+
                             sign = instruction_data[25:90]
                             unsigned_msg = instruction_data[90:]
 
                             (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, sign)
 
-                            (logs, status, gas_used, return_value, slot) = get_trx_results(trx)
-                            for rec in logs:
-                                rec['transactionHash'] = eth_signature
+                            got_result = get_trx_results(trx)
+                            if got_result is not None:
+                                (logs, status, gas_used, return_value, slot) = got_result
+                                for rec in logs:
+                                    rec['transactionHash'] = eth_signature
 
-                            logger.debug(eth_signature + " " + status)
+                                logger.debug(eth_signature + " " + status)
 
-                            # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                            self.ethereum_trx[eth_signature] = json.dumps( {
-                                'eth_trx': eth_trx,
-                                'slot': slot,
-                                'logs': logs,
-                                'status': status,
-                                'gas_used': gas_used,
-                                'return_value': return_value,
-                                'from_address': from_address,
-                            } )
-                            self.eth_sol_trx[eth_signature] = json.dumps([signature])
-                            self.sol_eth_trx[signature] = eth_signature
+                                # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
+                                self.ethereum_trx[eth_signature] = json.dumps( {
+                                    'eth_trx': eth_trx,
+                                    'slot': slot,
+                                    'logs': logs,
+                                    'status': status,
+                                    'gas_used': gas_used,
+                                    'return_value': return_value,
+                                    'from_address': from_address,
+                                } )
+                                self.eth_sol_trx[eth_signature] = json.dumps([signature])
+                                self.sol_eth_trx[signature] = eth_signature
+                            else:
+                                logger.debug("RESULT NOT FOUND IN 05\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
+                                time.sleep(60)
 
                         if instruction_data[0] == 0x09: # PartialCallFromRawEthereumTX
-                            logger.debug("{:>10} {:>6} PartialCallFromRawEthereumTX 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} PartialCallFromRawEthereumTX 0x{}".format(slot, counter, instruction_data.hex()))
+
+                            if check_error(trx):
+                                continue
                             storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
 
                             if storage_account in continue_table:
                                 # collateral_pool_buf = instruction_data[1:5]
                                 # step_count = instruction_data[5:13]
                                 # from_addr = instruction_data[13:33]
+
                                 sign = instruction_data[33:98]
                                 unsigned_msg = instruction_data[98:]
 
@@ -291,7 +328,10 @@ class Indexer:
                                 pass
 
                         if instruction_data[0] == 0x0a: # Continue
-                            logger.debug("{:>10} {:>6} Continue 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} Continue 0x{}".format(slot, counter, instruction_data.hex()))
+
+                            if check_error(trx):
+                                continue
                             storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
 
                             if storage_account in continue_table:
@@ -306,7 +346,10 @@ class Indexer:
 
 
                         if instruction_data[0] == 0x0b: # ExecuteTrxFromAccountDataIterative
-                            logger.debug("{:>10} {:>6} ExecuteTrxFromAccountDataIterative 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} ExecuteTrxFromAccountDataIterative 0x{}".format(slot, counter, instruction_data.hex()))
+
+                            if check_error(trx):
+                                continue
 
                             holder_account =  trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
                             storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][1]]
@@ -322,13 +365,26 @@ class Indexer:
                                     holder_table[holder_account] = (storage_account, bytearray(128*1024))
 
                         if instruction_data[0] == 0x0c: # Cancel
-                            logger.debug("{:>10} {:>6} Cancel 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} Cancel 0x{}".format(slot, counter, instruction_data.hex()))
+
+                            if check_error(trx):
+                                continue
                             storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
                             continue_table[storage_account] = ContinueStruct(signature, None, None, None, None, None)
 
                         if instruction_data[0] > 0x0c:
-                            logger.debug("{:>10} {:>6} Unknown 0x{}".format(slot, counter, instruction_data.hex()))
+                            # logger.debug("{:>10} {:>6} Unknown 0x{}".format(slot, counter, instruction_data.hex()))
 
+                            if check_error(trx):
+                                continue
+
+def check_error(trx):
+    if 'meta' in trx and 'err' in trx['meta'] and trx['meta']['err'] is not None:
+        logger.debug("Got err trx")
+        logger.debug("\n{}".format(json.dumps(trx['meta']['err'])))
+        time.sleep(1)
+        return True
+    return False
 
 def get_trx_results(trx):
     slot = trx['slot']

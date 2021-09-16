@@ -22,8 +22,6 @@ from ..threadless import ThreadlessWork
 from ..event import EventQueue, EventDispatcher
 from ...common.flags import Flags
 
-from ...indexer.solana_receipts_update import Indexer
-
 logger = logging.getLogger(__name__)
 
 LOCK = multiprocessing.Lock()
@@ -46,8 +44,8 @@ class AcceptorPool:
         self.work_queues: List[connection.Connection] = []
         self.work_klass = work_klass
 
-        self.trx_indexer: Optional[Indexer] = None
-        self.trx_indexer_thread: Optional[threading.Thread] = None
+        # self.trx_indexer: Optional[Indexer] = None
+        # self.trx_indexer_thread: Optional[threading.Thread] = None
 
         self.event_queue: Optional[EventQueue] = None
         self.event_dispatcher: Optional[EventDispatcher] = None
@@ -104,13 +102,13 @@ class AcceptorPool:
         self.event_dispatcher_thread.start()
         logger.debug('Thread ID: %d', self.event_dispatcher_thread.ident)
 
-    def start_trx_indexer(self) -> None:
-        self.trx_indexer = Indexer()
-        self.trx_indexer_thread = threading.Thread(
-            target=self.trx_indexer.run
-        )
-        self.trx_indexer_thread.start()
-        logger.debug('Indexer thread ID: %d', self.trx_indexer_thread.ident)
+    # def start_trx_indexer(self) -> None:
+    #     self.trx_indexer = Indexer()
+    #     self.trx_indexer_thread = threading.Thread(
+    #         target=self.trx_indexer.run
+    #     )
+    #     self.trx_indexer_thread.start()
+    #     logger.debug('Indexer thread ID: %d', self.trx_indexer_thread.ident)
 
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.flags.num_workers)
@@ -134,7 +132,7 @@ class AcceptorPool:
         if self.flags.enable_events:
             logger.info('Core Event enabled')
             self.start_event_dispatcher()
-        self.start_trx_indexer()
+        # self.start_trx_indexer()
         self.start_workers()
 
         # Send server socket to all acceptor processes.
