@@ -95,18 +95,20 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("\n\nhttps://github.com/neonlabsorg/proxy-model.py/issues/197")
-        print('eth_account.address:', eth_account.address)
         print('eth_account.key:', eth_account.key.hex())
+        print('eth_account.address:', eth_account.address)
         cls.deploy_erc20_wrapper_contract(cls)
 
     def deploy_erc20_wrapper_contract(self):
         compiled_interface = compile_source(ERC20_INTERFACE_SOURCE)
         interface_id, interface = compiled_interface.popitem()
+        self.interface = interface
 
         compiled_wrapper = compile_source(ERC20_WRAPPER_SOURCE)
         wrapper_id, wrapper_interface = compiled_wrapper.popitem()
+        self.wrapper = wrapper_interface
         
-        erc20 = proxy.eth.contract(abi=wrapper_interface['abi'], bytecode=wrapper_interface['bin'])
+        erc20 = proxy.eth.contract(abi=self.wrapper['abi'], bytecode=wrapper_interface['bin'])
         trx_constructor = erc20.constructor(NAME, SYMBOL, TOKEN_MINT).buildTransaction(
             {'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)}
         )
@@ -117,16 +119,22 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(trx_deploy_hash)
         #print('trx_deploy_receipt:', trx_deploy_receipt)
         print('deploy status:', trx_deploy_receipt.status)
+        self.contract_address= trx_deploy_receipt.contractAddress
 
-        self.erc20_contract = proxy.eth.contract(
-            address=trx_deploy_receipt.contractAddress,
-            abi=erc20.abi
-        )
-
-    # @unittest.skip("a.i.")
     def test_erc20_name(self):
-        name = self.erc20_contract.functions.name().call()
+        erc20 = proxy.eth.contract(address=self.contract_address, abi=self.wrapper['abi'])
+        name = erc20.functions.name().call()
         self.assertEqual(name, NAME)
+
+    def test_erc20_symbol(self):
+        erc20 = proxy.eth.contract(address=self.contract_address, abi=self.wrapper['abi'])
+        sym = erc20.functions.symbol().call()
+        self.assertEqual(sym, SYMBOL)
+
+    def test_erc20_decimals(self):
+        erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
+        decs = erc20.functions.decimals().call()
+        self.assertEqual(decs, 9)
 
     @unittest.skip("a.i.")
     def test_02_execute_with_right_nonce(self):
