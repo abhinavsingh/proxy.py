@@ -13,7 +13,7 @@ from solcx import compile_source
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
-eth_account = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197')
+eth_account = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197/admin')
 proxy.eth.default_account = eth_account.address
 
 NAME = 'NEON'
@@ -135,6 +135,11 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
         decs = erc20.functions.decimals().call()
         self.assertEqual(decs, 9)
+
+    def test_erc20_totalSupply(self):
+        erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
+        ts = erc20.functions.totalSupply().call()
+        self.assertEqual(ts, 100000000000000)
 
     @unittest.skip("a.i.")
     def test_02_execute_with_right_nonce(self):
