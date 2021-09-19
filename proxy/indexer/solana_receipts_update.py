@@ -4,17 +4,25 @@ import json
 import os
 import time
 import logging
-from web3 import Web3
-from web3.auto.gethdev import w3
 from solana.rpc.api import Client
 from multiprocessing.dummy import Pool as ThreadPool
 from sqlite_key_value import KeyValueStore
+from utils import check_error, get_trx_results, get_trx_receipts
 
 
 solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
 evm_loader_id = os.environ.get("EVM_LOADER", "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU")
 
 logger = logging.getLogger(__name__)
+
+
+class HolderStruct:
+    def __init__(self, storage_account):
+        self.storage_account = storage_account
+        self.data = bytearray(128*1024)
+        self.count_written = 0
+        self.max_written = 0
+
 
 class ContinueStruct:
     def __init__(self, signature, logs, status, gas_used, return_value, slot):
@@ -51,7 +59,7 @@ class Indexer:
             #     pass
             # except Exception as err:
             #     logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
-            time.sleep(15)
+            time.sleep(1)
 
 
     def gather_unknown_transactions(self):
@@ -164,7 +172,7 @@ class Indexer:
                                 continue
 
                             if write_account in holder_table:
-                                storage_account = holder_table[write_account][0]
+                                storage_account = holder_table[write_account].storage_account
                                 if storage_account in continue_table:
                                     continue_table[storage_account].signatures.append(signature)
 
@@ -172,51 +180,62 @@ class Indexer:
                                 length = int.from_bytes(instruction_data[8:16], "little")
                                 data = instruction_data[16:]
 
+                                logger.debug("WRITE offset {} length {}".format(offset, length))
+
+                                if holder_table[write_account].max_written < (offset + length):
+                                    holder_table[write_account].max_written = offset + length
+
                                 for index in range(length):
-                                    holder_table[write_account][1][1+offset+index] = data[index]
+                                    holder_table[write_account].data[1+offset+index] = data[index]
+                                    holder_table[write_account].count_written += 1
 
-                                signature = holder_table[write_account][1][1:66]
-                                length = int.from_bytes(holder_table[write_account][1][66:74], "little")
-                                unsigned_msg = holder_table[write_account][1][74:74+length]
+                                if holder_table[write_account].max_written == holder_table[write_account].count_written:
+                                    logger.debug("WRITE {} {}".format(holder_table[write_account].max_written, holder_table[write_account].count_written))
+                                    signature = holder_table[write_account].data[1:66]
+                                    length = int.from_bytes(holder_table[write_account].data[66:74], "little")
+                                    unsigned_msg = holder_table[write_account].data[74:74+length]
 
-                                try:
-                                    (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, signature)
+                                    try:
+                                        (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, signature)
+                                        if len(eth_trx) / 2 > holder_table[write_account].max_written:
+                                            logger.debug("WRITE got {} exp {}".format(len(eth_trx), holder_table[write_account].max_written))
+                                            continue
 
-                                    if storage_account in continue_table:
-                                        # (logs, status, gas_used, return_value, slot) = continue_table[storage_account]
-                                        continue_result = continue_table[storage_account]
-                                        for rec in continue_result.logs:
-                                            rec['transactionHash'] = eth_signature
+                                        if storage_account in continue_table:
+                                            # (logs, status, gas_used, return_value, slot) = continue_table[storage_account]
+                                            continue_result = continue_table[storage_account]
+                                            for rec in continue_result.logs:
+                                                rec['transactionHash'] = eth_signature
 
-                                        logger.debug(eth_signature + " " + continue_result.status)
+                                            logger.debug(eth_signature + " " + continue_result.status)
 
-                                        # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                        self.ethereum_trx[eth_signature] = json.dumps( {
-                                            'eth_trx': eth_trx,
-                                            'slot': continue_result.slot,
-                                            'logs': continue_result.logs,
-                                            'status': continue_result.status,
-                                            'gas_used': continue_result.gas_used,
-                                            'return_value': continue_result.return_value,
-                                            'from_address': from_address,
-                                        } )
-                                        self.eth_sol_trx[eth_signature] = json.dumps(continue_result.signatures)
-                                        for sig in continue_result.signatures:
-                                            self.sol_eth_trx[sig] = eth_signature
+                                            # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
+                                            self.ethereum_trx[eth_signature] = json.dumps( {
+                                                'eth_trx': eth_trx,
+                                                'slot': continue_result.slot,
+                                                'logs': continue_result.logs,
+                                                'status': continue_result.status,
+                                                'gas_used': continue_result.gas_used,
+                                                'return_value': continue_result.return_value,
+                                                'from_address': from_address,
+                                            } )
+                                            self.eth_sol_trx[eth_signature] = json.dumps(continue_result.signatures)
+                                            for sig in continue_result.signatures:
+                                                self.sol_eth_trx[sig] = eth_signature
 
-                                        del continue_table[storage_account]
-                                    else:
-                                        logger.error("Storage not found")
-                                        logger.error(eth_signature, "unknown")
-                                        # raise
+                                            del continue_table[storage_account]
+                                        else:
+                                            logger.error("Storage not found")
+                                            logger.error(eth_signature, "unknown")
+                                            # raise
 
-                                    del holder_table[write_account]
-                                except rlp.exceptions.DecodingError:
-                                    logger.debug("DecodingError")
-                                    pass
-                                except Exception as err:
-                                    logger.debug("could not parse trx {}".format(err))
-                                    pass
+                                        del holder_table[write_account]
+                                    except rlp.exceptions.DecodingError:
+                                        logger.debug("DecodingError")
+                                        pass
+                                    except Exception as err:
+                                        logger.debug("could not parse trx {}".format(err))
+                                        pass
 
                         if instruction_data[0] == 0x01: # Finalize
                             # logger.debug("{:>10} {:>6} Finalize 0x{}".format(slot, counter, instruction_data.hex()))
@@ -360,9 +379,9 @@ class Indexer:
                                 if holder_account in holder_table:
                                     # logger.debug("holder_account found")
                                     # logger.debug("Strange behavior. Pay attention.")
-                                    holder_table[holder_account] = (storage_account, bytearray(128*1024))
+                                    holder_table[holder_account] = HolderStruct(storage_account)
                                 else:
-                                    holder_table[holder_account] = (storage_account, bytearray(128*1024))
+                                    holder_table[holder_account] = HolderStruct(storage_account)
 
                         if instruction_data[0] == 0x0c: # Cancel
                             # logger.debug("{:>10} {:>6} Cancel 0x{}".format(slot, counter, instruction_data.hex()))
@@ -377,79 +396,6 @@ class Indexer:
 
                             if check_error(trx):
                                 continue
-
-def check_error(trx):
-    if 'meta' in trx and 'err' in trx['meta'] and trx['meta']['err'] is not None:
-        logger.debug("Got err trx")
-        logger.debug("\n{}".format(json.dumps(trx['meta']['err'])))
-        time.sleep(1)
-        return True
-    return False
-
-def get_trx_results(trx):
-    slot = trx['slot']
-    block_number = hex(slot)
-    block_hash = '0x%064x'%slot
-    got_result = False
-    logs = []
-    status = "0x1"
-    gas_used = 0
-    return_value = bytes
-    log_index = 0
-    for inner in (trx['meta']['innerInstructions']):
-        for event in inner['instructions']:
-            log = base58.b58decode(event['data'])
-            instruction = log[:1]
-            if (int().from_bytes(instruction, "little") == 7):  # OnEvent evmInstruction code
-                address = log[1:21]
-                count_topics = int().from_bytes(log[21:29], 'little')
-                topics = []
-                pos = 29
-                for _ in range(count_topics):
-                    topic_bin = log[pos:pos + 32]
-                    topics.append('0x'+topic_bin.hex())
-                    pos += 32
-                data = log[pos:]
-                rec = { 'address': '0x'+address.hex(),
-                        'topics': topics,
-                        'data': '0x'+data.hex(),
-                        'transactionLogIndex': hex(0),
-                        'transactionIndex': hex(inner['index']),
-                        'blockNumber': block_number,
-                        # 'transactionHash': trxId, # set when transaction found
-                        'logIndex': hex(log_index),
-                        'blockHash': block_hash
-                    }
-                logs.append(rec)
-                log_index +=1
-            elif int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
-                got_result = True
-                if log[1] < 0xd0:
-                    status = "0x1"
-                else:
-                    status = "0x0"
-                gas_used = int.from_bytes(log[2:10], 'little')
-                return_value = log[10:].hex()
-
-    if got_result:
-        return (logs, status, gas_used, return_value, slot)
-    else:
-        return None
-
-
-def get_trx_receipts(unsigned_msg, signature):
-    eth_trx = rlp.decode(unsigned_msg)
-
-    eth_trx[6] = int(signature[64]) + 35 + 2 * int.from_bytes(eth_trx[6], "little")
-    eth_trx[7] = signature[:32]
-    eth_trx[8] = signature[32:64]
-
-    eth_trx_raw = rlp.encode(eth_trx)
-
-    eth_signature = '0x' + bytes(Web3.keccak(eth_trx_raw)).hex()
-    from_address = w3.eth.account.recover_transaction(eth_trx_raw.hex())
-
-    return (eth_trx_raw.hex(), eth_signature, from_address)
 
 
 if __name__ == "__main__":

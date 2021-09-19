@@ -96,5 +96,8 @@ if [ "$LOCAL_CLUSTER" == "local" ]; then
   /spl/bin/spl-token balance $ETH_TOKEN_MINT --owner $ACCOUNT
 fi
 
+echo "run indexer"
+nohup python3 proxy/indexer/solana_receipts_update.py &
+
 echo run-proxy
 python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin

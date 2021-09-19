@@ -34,7 +34,7 @@ import logging
 from ..core.acceptor.pool import proxy_id_glob
 import os
 from ..indexer.sqlite_key_value import KeyValueStore
-# from ..indexer.solana_receipts_update import get_trx_results
+from ..indexer.utils import get_trx_results
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -222,7 +222,7 @@ class EthereumModel:
             "blockHash": '0x%064x'%trx_info['slot'],
             "blockNumber": hex(trx_info['slot']),
             "from": trx_info['from_address'],
-            # "to": addr_to,
+            "to": addr_to,
             "gasUsed": '0x%x' % trx_info['gas_used'],
             "cumulativeGasUsed": '0x%x' % trx_info['gas_used'],
             "contractAddress": contract,
@@ -251,7 +251,7 @@ class EthereumModel:
             "blockHash": '0x%064x'%trx_info['slot'],
             "blockNumber": hex(trx_info['slot']),
             "hash": trxId,
-            "transactionIndex": '0x'+hex(0),
+            "transactionIndex": hex(0),
             "from": trx_info['from_address'],
             "nonce": '0x'+eth_trx[0].hex(),
             "gasPrice": '0x'+eth_trx[1].hex(),
@@ -264,7 +264,7 @@ class EthereumModel:
             "s": '0x'+eth_trx[8].hex(),
         }
 
-        logger.debug ("eth_getTransactionByHash: %s", ret)
+        logger.debug ("eth_getTransactionByHash: %s", json.dumps(ret, indent=3))
         return ret
 
     def eth_getCode(self, param,  param1):
@@ -281,10 +281,17 @@ class EthereumModel:
         logger.debug('eth_sendRawTransaction rawTrx=%s', rawTrx)
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
         logger.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
+        eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
+
+        eth_trx = rlp.decode(bytearray.fromhex(rawTrx[2:]))
+        eth_trx_raw = rlp.encode(eth_trx)
+        eth_signature_recalculated = '0x' + bytes(Web3.keccak(eth_trx_raw)).hex()
 
         sender = trx.sender()
         logger.debug('Eth Sender: %s', sender)
         logger.debug('Eth Signature: %s', trx.signature().hex())
+        logger.debug('Eth Hash: %s', eth_signature)
+        logger.debug('Eth Hash 2: %s', eth_signature_recalculated)
 
         try:
             if (not trx.toAddress):
@@ -295,7 +302,9 @@ class EthereumModel:
             eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
 
-            # (logs, status, gas_used, return_value, slot) = get_trx_results(self.client.get_confirmed_transaction(signature))
+            got_result = get_trx_results(self.client.get_confirmed_transaction(signature)['result'])
+            if got_result:
+                (logs, status, gas_used, return_value, slot) = got_result
 
             # self.ethereum_trx[eth_signature] = json.dumps( {
             #     'eth_trx': rawTrx,
