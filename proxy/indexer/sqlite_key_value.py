@@ -19,16 +19,7 @@ class KeyValueStore(dict):
         self.conn.close()
 
     def __len__(self):
-        rows = None
-        while True:
-            try:
-                rows = self.conn.execute('SELECT COUNT(*) FROM {}'.format(self.table_name)).fetchone()[0]
-            except sqlite3.OperationalError:
-                pass
-            except Exception as err:
-                raise err
-            else:
-                break
+        rows = self.conn.execute('SELECT COUNT(*) FROM {}'.format(self.table_name)).fetchone()[0]
         return rows if rows is not None else 0
 
     def iterkeys(self):
@@ -47,72 +38,30 @@ class KeyValueStore(dict):
             yield row[0], row[1]
 
     def keys(self):
-        while True:
-            try:
-                return list(self.iterkeys())
-            except sqlite3.OperationalError:
-                pass
-            except Exception as err:
-                raise err
+        return list(self.iterkeys())
 
     def values(self):
-        while True:
-            try:
-                return list(self.itervalues())
-            except sqlite3.OperationalError:
-                pass
-            except Exception as err:
-                raise err
+        return list(self.itervalues())
 
     def items(self):
-        while True:
-            try:
-                return list(self.iteritems())
-            except sqlite3.OperationalError:
-                pass
-            except Exception as err:
-                raise err
+        return list(self.iteritems())
 
     def __contains__(self, key):
-        while True:
-            try:
-                return self.conn.execute('SELECT 1 FROM {} WHERE key = ?'.format(self.table_name), (key,)).fetchone() is not None
-            except sqlite3.OperationalError:
-                pass
-            except Exception as err:
-                raise err
+        return self.conn.execute('SELECT 1 FROM {} WHERE key = ?'.format(self.table_name), (key,)).fetchone() is not None
 
     def __getitem__(self, key):
-        while True:
-            try:
-                item = self.conn.execute('SELECT value FROM {} WHERE key = ?'.format(self.table_name), (key,)).fetchone()
-                if item is None:
-                    raise KeyError(key)
-                return item[0]
-            except sqlite3.OperationalError:
-                pass
-            except Exception as err:
-                raise err
+        item = self.conn.execute('SELECT value FROM {} WHERE key = ?'.format(self.table_name), (key,)).fetchone()
+        if item is None:
+            raise KeyError(key)
+        return item[0]
 
     def __setitem__(self, key, value):
-        while True:
-            try:
-                self.conn.execute('REPLACE INTO {} (key, value) VALUES (?,?)'.format(self.table_name), (key, value))
-            except sqlite3.OperationalError:
-                pass
-            except Exception as err:
-                raise err
+        self.conn.execute('REPLACE INTO {} (key, value) VALUES (?,?)'.format(self.table_name), (key, value))
 
     def __delitem__(self, key):
-        while True:
-            try:
-                if key not in self:
-                    raise KeyError(key)
-                self.conn.execute('DELETE FROM {} WHERE key = ?'.format(self.table_name), (key,))
-            except sqlite3.OperationalError:
-                pass
-            except Exception as err:
-                raise err
+        if key not in self:
+            raise KeyError(key)
+        self.conn.execute('DELETE FROM {} WHERE key = ?'.format(self.table_name), (key,))
 
     def __iter__(self):
         return self.iterkeys()
