@@ -31,7 +31,8 @@ done
 export REVISION=$(git rev-parse HEAD)
 PROXY_IMAGE=cybercoredev/proxy:${IMAGETAG:-$REVISION}
 
-UNISWAP_V2_CORE_IMAGE=cybercoredev/uniswap-v2-core:stable
+#stable # TODO return back to stable
+UNISWAP_V2_CORE_IMAGE=cybercoredev/uniswap-v2-core:5965d8f4fb709d99de99fa1f9a5daeee4ba252c6
 # Refreshing uniswap-v2-core image is required to run .buildkite/steps/deploy-test.sh locally
 docker pull $UNISWAP_V2_CORE_IMAGE
 
