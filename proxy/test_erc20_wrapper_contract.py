@@ -118,9 +118,9 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         tx_deploy = proxy.eth.account.sign_transaction(tx_constructor, admin.key)
         #print('tx_deploy:', tx_deploy)
         tx_deploy_hash = proxy.eth.send_raw_transaction(tx_deploy.rawTransaction)
-        #print('tx_deploy_hash:', tx_deploy_hash.hex())
+        print('tx_deploy_hash:', tx_deploy_hash.hex())
         tx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(tx_deploy_hash)
-        #print('tx_deploy_receipt:', tx_deploy_receipt)
+        print('tx_deploy_receipt:', tx_deploy_receipt)
         print('deploy status:', tx_deploy_receipt.status)
         self.contract_address= tx_deploy_receipt.contractAddress
 
@@ -148,7 +148,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         ts = erc20.functions.totalSupply().call()
         self.assertEqual(ts, 100000000000000)
 
-    #@unittest.skip("a.i.")
+    @unittest.skip("a.i.")
     def test_erc20_balanceOf(self):
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
         b = erc20.functions.balanceOf(admin.address).call()
@@ -156,17 +156,17 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         b = erc20.functions.balanceOf(user.address).call()
         self.assertEqual(b, 0)
 
-    @unittest.skip("a.i.")
+    #@unittest.skip("a.i.")
     def test_erc20_transfer(self):
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
         nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         tx = {'nonce': nonce}
-        #tx = erc20.functions.transfer(user.address, 1000).buildTransaction(tx)
-        #print('tx:',tx)
-        #tx = proxy.eth.account.sign_transaction(tx, admin.key)
-        #tx_hash = proxy.eth.send_raw_transaction(tx.rawTransaction)
-        #tx_receipt = proxy.eth.wait_for_transaction_receipt(tx_hash)
-        #self.assertIsNotNone(tx_receipt)
+        tx = erc20.functions.transfer(user.address, 1000).buildTransaction(tx)
+        tx = proxy.eth.account.sign_transaction(tx, admin.key)
+        tx_hash = proxy.eth.send_raw_transaction(tx.rawTransaction)
+        print('tx_hash:',tx_hash)
+        tx_receipt = proxy.eth.wait_for_transaction_receipt(tx_hash)
+        self.assertIsNotNone(tx_receipt)
 
     @unittest.skip("a.i.")
     def test_02_execute_with_right_nonce(self):
