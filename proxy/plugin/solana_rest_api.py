@@ -283,15 +283,10 @@ class EthereumModel:
         logger.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
         eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
 
-        eth_trx = rlp.decode(bytearray.fromhex(rawTrx[2:]))
-        eth_trx_raw = rlp.encode(eth_trx)
-        eth_signature_recalculated = '0x' + bytes(Web3.keccak(eth_trx_raw)).hex()
-
         sender = trx.sender()
         logger.debug('Eth Sender: %s', sender)
         logger.debug('Eth Signature: %s', trx.signature().hex())
         logger.debug('Eth Hash: %s', eth_signature)
-        logger.debug('Eth Hash 2: %s', eth_signature_recalculated)
 
         try:
             if (not trx.toAddress):
