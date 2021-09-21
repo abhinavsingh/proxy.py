@@ -6,8 +6,12 @@ import time
 import logging
 from solana.rpc.api import Client
 from multiprocessing.dummy import Pool as ThreadPool
-from utils import check_error, get_trx_results, get_trx_receipts
 from sqlitedict import SqliteDict
+
+try:
+    from utils import check_error, get_trx_results, get_trx_receipts
+except ImportError:
+    from .utils import check_error, get_trx_results, get_trx_receipts
 
 
 solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
