@@ -61,6 +61,7 @@ echo "Wait proxy..." && wait-for-proxy "$PROXY_URL"
 echo "Run proxy tests..."
 docker run --rm -ti --network=host \
      -e PROXY_URL \
+     -e EXTRA_GAS=100000 \
      --entrypoint ./proxy/deploy-test.sh \
      ${EXTRA_ARGS:-} \
      $PROXY_IMAGE \
