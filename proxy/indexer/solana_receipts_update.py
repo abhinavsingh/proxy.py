@@ -18,7 +18,7 @@ solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
 evm_loader_id = os.environ.get("EVM_LOADER", "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU")
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 
 class HolderStruct:
     def __init__(self, storage_account):
@@ -401,9 +401,12 @@ class Indexer:
                             if check_error(trx):
                                 continue
 
-
-if __name__ == "__main__":
+def run_indexer():
     logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
     logger.setLevel(logging.DEBUG)
     indexer = Indexer()
     indexer.run()
+
+
+if __name__ == "__main__":
+    run_indexer()
