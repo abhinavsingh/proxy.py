@@ -5,3 +5,4 @@ eth-keys==0.3.3
 rlp==2.0.1
 web3
 solana==0.10.0
+sqlitedict

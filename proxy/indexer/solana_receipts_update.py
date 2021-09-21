@@ -6,8 +6,8 @@ import time
 import logging
 from solana.rpc.api import Client
 from multiprocessing.dummy import Pool as ThreadPool
-from sqlite_key_value import KeyValueStore
 from utils import check_error, get_trx_results, get_trx_receipts
+from sqlitedict import SqliteDict
 
 
 solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
@@ -37,10 +37,10 @@ class ContinueStruct:
 class Indexer:
     def __init__(self):
         self.client = Client(solana_url)
-        self.transaction_receipts = KeyValueStore("known_transactions")
-        self.ethereum_trx = KeyValueStore("ethereum_transactions")
-        self.eth_sol_trx = KeyValueStore("ethereum_solana_transactions")
-        self.sol_eth_trx = KeyValueStore("solana_ethereum_transactions")
+        self.transaction_receipts = SqliteDict(filename="local.db", tablename="known_transactions", autocommit=True)
+        self.ethereum_trx = SqliteDict(filename="local.db", tablename="ethereum_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
+        self.eth_sol_trx = SqliteDict(filename="local.db", tablename="ethereum_solana_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
+        self.sol_eth_trx = SqliteDict(filename="local.db", tablename="solana_ethereum_transactions", autocommit=True)
         self.last_slot = 0
         self.transaction_order = []
 
@@ -210,7 +210,7 @@ class Indexer:
                                             logger.debug(eth_signature + " " + continue_result.status)
 
                                             # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                            self.ethereum_trx[eth_signature] = json.dumps( {
+                                            self.ethereum_trx[eth_signature] = {
                                                 'eth_trx': eth_trx,
                                                 'slot': continue_result.slot,
                                                 'logs': continue_result.logs,
@@ -218,8 +218,8 @@ class Indexer:
                                                 'gas_used': continue_result.gas_used,
                                                 'return_value': continue_result.return_value,
                                                 'from_address': from_address,
-                                            } )
-                                            self.eth_sol_trx[eth_signature] = json.dumps(continue_result.signatures)
+                                            }
+                                            self.eth_sol_trx[eth_signature] = continue_result.signatures
                                             for sig in continue_result.signatures:
                                                 self.sol_eth_trx[sig] = eth_signature
 
@@ -289,7 +289,7 @@ class Indexer:
                                 logger.debug(eth_signature + " " + status)
 
                                 # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                self.ethereum_trx[eth_signature] = json.dumps( {
+                                self.ethereum_trx[eth_signature] = {
                                     'eth_trx': eth_trx,
                                     'slot': slot,
                                     'logs': logs,
@@ -297,8 +297,8 @@ class Indexer:
                                     'gas_used': gas_used,
                                     'return_value': return_value,
                                     'from_address': from_address,
-                                } )
-                                self.eth_sol_trx[eth_signature] = json.dumps([signature])
+                                }
+                                self.eth_sol_trx[eth_signature] = [signature]
                                 self.sol_eth_trx[signature] = eth_signature
                             else:
                                 logger.debug("RESULT NOT FOUND IN 05\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
@@ -328,7 +328,7 @@ class Indexer:
                                 logger.debug(eth_signature + " " + continue_result.status)
 
                                 # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                self.ethereum_trx[eth_signature] = json.dumps( {
+                                self.ethereum_trx[eth_signature] = {
                                     'eth_trx': eth_trx,
                                     'slot': continue_result.slot,
                                     'logs': continue_result.logs,
@@ -336,8 +336,8 @@ class Indexer:
                                     'gas_used': continue_result.gas_used,
                                     'return_value': continue_result.return_value,
                                     'from_address': from_address,
-                                } )
-                                self.eth_sol_trx[eth_signature] = json.dumps(continue_result.signatures)
+                                }
+                                self.eth_sol_trx[eth_signature] = continue_result.signatures
                                 for sig in continue_result.signatures:
                                     self.sol_eth_trx[sig] = eth_signature
 

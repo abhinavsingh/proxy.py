@@ -33,8 +33,8 @@ from web3 import Web3
 import logging
 from ..core.acceptor.pool import proxy_id_glob
 import os
-from ..indexer.sqlite_key_value import KeyValueStore
 from ..indexer.utils import get_trx_results
+from sqlitedict import SqliteDict
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -87,6 +87,7 @@ class EthereumModel:
 
         self.client = SolanaClient(solana_url)
 
+        self.ethereum_trx = SqliteDict(filename="local.db", tablename="ethereum_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
 
         with proxy_id_glob.get_lock():
             self.proxy_id = proxy_id_glob.value
@@ -201,12 +202,11 @@ class EthereumModel:
 
     def eth_getTransactionReceipt(self, trxId):
         logger.debug('getTransactionReceipt: %s', trxId)
-        self.ethereum_trx = KeyValueStore("ethereum_transactions")
         if trxId not in self.ethereum_trx:
             logger.debug ("Not found receipt")
             return None
 
-        trx_info = json.loads( self.ethereum_trx[trxId] )
+        trx_info = self.ethereum_trx[trxId]
         eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
 
         addr_to = None
@@ -236,12 +236,11 @@ class EthereumModel:
 
     def eth_getTransactionByHash(self, trxId):
         logger.debug('eth_getTransactionByHash: %s', trxId)
-        self.ethereum_trx = KeyValueStore("ethereum_transactions")
         if trxId not in self.ethereum_trx:
             logger.debug ("Not found transaction")
             return None
 
-        trx_info = json.loads( self.ethereum_trx[trxId] )
+        trx_info = self.ethereum_trx[trxId]
         eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
         addr_to = None
         if eth_trx[3]:
@@ -301,7 +300,7 @@ class EthereumModel:
             if got_result:
                 (logs, status, gas_used, return_value, slot) = got_result
 
-            # self.ethereum_trx[eth_signature] = json.dumps( {
+            # self.ethereum_trx[eth_signature] = {
             #     'eth_trx': rawTrx,
             #     'slot': slot,
             #     'logs': logs,
@@ -309,7 +308,8 @@ class EthereumModel:
             #     'gas_used': gas_used,
             #     'return_value': return_value,
             #     'from_address': '0x'+sender,
-            # } )
+            # }
+            # self.eth_sol_trx[eth_signature] = signatures
 
             return eth_signature
 
