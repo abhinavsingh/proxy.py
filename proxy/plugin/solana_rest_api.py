@@ -302,17 +302,28 @@ class EthereumModel:
             got_result = get_trx_results(self.client.get_confirmed_transaction(signature)['result'])
             if got_result:
                 (logs, status, gas_used, return_value, slot) = got_result
+                for rec in logs:
+                    rec['transactionHash'] = eth_signature
 
-            # self.ethereum_trx[eth_signature] = {
-            #     'eth_trx': rawTrx,
-            #     'slot': slot,
-            #     'logs': logs,
-            #     'status': status,
-            #     'gas_used': gas_used,
-            #     'return_value': return_value,
-            #     'from_address': '0x'+sender,
-            # }
-            # self.eth_sol_trx[eth_signature] = signatures
+                self.ethereum_trx[eth_signature] = {
+                    'eth_trx': rawTrx[2:],
+                    'slot': slot,
+                    'logs': logs,
+                    'status': status,
+                    'gas_used': gas_used,
+                    'return_value': return_value,
+                    'from_address': '0x'+sender,
+                }
+            else:
+                self.ethereum_trx[eth_signature] = {
+                    'eth_trx': rawTrx[2:],
+                    'slot': None,
+                    'logs': None,
+                    'status': None,
+                    'gas_used': None,
+                    'return_value': None,
+                    'from_address': '0x'+sender,
+                }
 
             return eth_signature
 

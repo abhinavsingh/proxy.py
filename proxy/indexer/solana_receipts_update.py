@@ -208,8 +208,9 @@ class Indexer:
                                         if storage_account in continue_table:
                                             # (logs, status, gas_used, return_value, slot) = continue_table[storage_account]
                                             continue_result = continue_table[storage_account]
-                                            for rec in continue_result.logs:
-                                                rec['transactionHash'] = eth_signature
+                                            if continue_result.logs:
+                                                for rec in continue_result.logs:
+                                                    rec['transactionHash'] = eth_signature
 
                                             logger.debug(eth_signature + " " + continue_result.status)
 
@@ -311,8 +312,9 @@ class Indexer:
                                 (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, sign)
 
                                 continue_result = continue_table[storage_account]
-                                for rec in continue_result.logs:
-                                    rec['transactionHash'] = eth_signature
+                                if continue_result.logs:
+                                    for rec in continue_result.logs:
+                                        rec['transactionHash'] = eth_signature
 
                                 logger.debug(eth_signature + " " + continue_result.status)
 
@@ -389,8 +391,9 @@ class Indexer:
 
                             if storage_account in continue_table:
                                 continue_result = continue_table[storage_account]
-                                for rec in continue_result.logs:
-                                    rec['transactionHash'] = eth_signature
+                                if continue_result.logs:
+                                    for rec in continue_result.logs:
+                                        rec['transactionHash'] = eth_signature
 
                                 logger.debug(eth_signature + " " + continue_result.status)
 
