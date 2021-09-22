@@ -29,13 +29,9 @@ class HolderStruct:
 
 
 class ContinueStruct:
-    def __init__(self, signature, logs, status, gas_used, return_value, slot):
+    def __init__(self, signature, results):
         self.signatures = [signature]
-        self.logs = logs
-        self.status = status
-        self.gas_used = gas_used
-        self.return_value = return_value
-        self.slot = slot
+        self.results = results
 
 
 class Indexer:
@@ -137,7 +133,6 @@ class Indexer:
                 retry = False
             except Exception as err:
                 logger.debug(err)
-                import time
                 time.sleep(1)
 
         return (solana_signature, trx)
@@ -173,6 +168,7 @@ class Indexer:
 
                         if instruction_data[0] == 0x00: # Write
                             # logger.debug("{:>10} {:>6} Write 0x{}".format(slot, counter, instruction_data[-20:].hex()))
+
                             write_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
 
                             if write_account in holder_table:
@@ -206,27 +202,9 @@ class Indexer:
                                             continue
 
                                         if storage_account in continue_table:
-                                            # (logs, status, gas_used, return_value, slot) = continue_table[storage_account]
                                             continue_result = continue_table[storage_account]
-                                            if continue_result.logs:
-                                                for rec in continue_result.logs:
-                                                    rec['transactionHash'] = eth_signature
 
-                                            logger.debug(eth_signature + " " + continue_result.status)
-
-                                            # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                            self.ethereum_trx[eth_signature] = {
-                                                'eth_trx': eth_trx,
-                                                'slot': continue_result.slot,
-                                                'logs': continue_result.logs,
-                                                'status': continue_result.status,
-                                                'gas_used': continue_result.gas_used,
-                                                'return_value': continue_result.return_value,
-                                                'from_address': from_address,
-                                            }
-                                            self.eth_sol_trx[eth_signature] = continue_result.signatures
-                                            for sig in continue_result.signatures:
-                                                self.sol_eth_trx[sig] = eth_signature
+                                            self.submit_transaction(eth_trx, eth_signature, from_address, continue_result.results, continue_result.signatures)
 
                                             del continue_table[storage_account]
                                         else:
@@ -274,24 +252,7 @@ class Indexer:
 
                             got_result = get_trx_results(trx)
                             if got_result is not None:
-                                (logs, status, gas_used, return_value, slot) = got_result
-                                for rec in logs:
-                                    rec['transactionHash'] = eth_signature
-
-                                logger.debug(eth_signature + " " + status)
-
-                                # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                self.ethereum_trx[eth_signature] = {
-                                    'eth_trx': eth_trx,
-                                    'slot': slot,
-                                    'logs': logs,
-                                    'status': status,
-                                    'gas_used': gas_used,
-                                    'return_value': return_value,
-                                    'from_address': from_address,
-                                }
-                                self.eth_sol_trx[eth_signature] = [signature]
-                                self.sol_eth_trx[signature] = eth_signature
+                                self.submit_transaction(eth_trx, eth_signature, from_address, got_result, [signature])
                             else:
                                 logger.debug("RESULT NOT FOUND IN 05\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
                                 time.sleep(60)
@@ -312,25 +273,8 @@ class Indexer:
                                 (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, sign)
 
                                 continue_result = continue_table[storage_account]
-                                if continue_result.logs:
-                                    for rec in continue_result.logs:
-                                        rec['transactionHash'] = eth_signature
 
-                                logger.debug(eth_signature + " " + continue_result.status)
-
-                                # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                self.ethereum_trx[eth_signature] = {
-                                    'eth_trx': eth_trx,
-                                    'slot': continue_result.slot,
-                                    'logs': continue_result.logs,
-                                    'status': continue_result.status,
-                                    'gas_used': continue_result.gas_used,
-                                    'return_value': continue_result.return_value,
-                                    'from_address': from_address,
-                                }
-                                self.eth_sol_trx[eth_signature] = continue_result.signatures
-                                for sig in continue_result.signatures:
-                                    self.sol_eth_trx[sig] = eth_signature
+                                self.submit_transaction(eth_trx, eth_signature, from_address, continue_result.results, continue_result.signatures)
 
                                 del continue_table[storage_account]
                             else:
@@ -347,8 +291,7 @@ class Indexer:
                             else:
                                 got_result = get_trx_results(trx)
                                 if got_result is not None:
-                                    (logs, status, gas_used, return_value, slot) = got_result
-                                    continue_table[storage_account] =  ContinueStruct(signature, logs, status, gas_used, return_value, slot)
+                                    continue_table[storage_account] =  ContinueStruct(signature, got_result)
                                 else:
                                     logger.error("Result not found")
 
@@ -373,7 +316,7 @@ class Indexer:
                             # logger.debug("{:>10} {:>6} Cancel 0x{}".format(slot, counter, instruction_data.hex()))
 
                             storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-                            continue_table[storage_account] = ContinueStruct(signature, None, None, None, None, None)
+                            continue_table[storage_account] = ContinueStruct(signature, (None, None, None, None, None))
 
                         elif instruction_data[0] == 0x0c:
                             # logger.debug("{:>10} {:>6} PartialCallOrContinueFromRawEthereumTX 0x{}".format(slot, counter, instruction_data.hex()))
@@ -391,48 +334,14 @@ class Indexer:
 
                             if storage_account in continue_table:
                                 continue_result = continue_table[storage_account]
-                                if continue_result.logs:
-                                    for rec in continue_result.logs:
-                                        rec['transactionHash'] = eth_signature
 
-                                logger.debug(eth_signature + " " + continue_result.status)
-
-                                # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                self.ethereum_trx[eth_signature] = {
-                                    'eth_trx': eth_trx,
-                                    'slot': continue_result.slot,
-                                    'logs': continue_result.logs,
-                                    'status': continue_result.status,
-                                    'gas_used': continue_result.gas_used,
-                                    'return_value': continue_result.return_value,
-                                    'from_address': from_address,
-                                }
-                                self.eth_sol_trx[eth_signature] = continue_result.signatures
-                                for sig in continue_result.signatures:
-                                    self.sol_eth_trx[sig] = eth_signature
+                                self.submit_transaction(eth_trx, eth_signature, from_address, continue_result.results, continue_result.signatures)
 
                                 del continue_table[storage_account]
                             else:
                                 got_result = get_trx_results(trx)
                                 if got_result is not None:
-                                    (logs, status, gas_used, return_value, slot) = got_result
-                                    for rec in logs:
-                                        rec['transactionHash'] = eth_signature
-
-                                    logger.debug(eth_signature + " " + status)
-
-                                    # transactions_glob[eth_signature] = TransactionInfo(eth_trx, slot, logs, status, gas_used, return_value)
-                                    self.ethereum_trx[eth_signature] = {
-                                        'eth_trx': eth_trx,
-                                        'slot': slot,
-                                        'logs': logs,
-                                        'status': status,
-                                        'gas_used': gas_used,
-                                        'return_value': return_value,
-                                        'from_address': from_address,
-                                    }
-                                    self.eth_sol_trx[eth_signature] = [signature]
-                                    self.sol_eth_trx[signature] = eth_signature
+                                    self.submit_transaction(eth_trx, eth_signature, from_address, got_result, [signature])
 
                         elif instruction_data[0] == 0x0d:
                             # logger.debug("{:>10} {:>6} ExecuteTrxFromAccountDataIterativeOrContinue 0x{}".format(slot, counter, instruction_data.hex()))
@@ -452,14 +361,35 @@ class Indexer:
                             else:
                                 got_result = get_trx_results(trx)
                                 if got_result is not None:
-                                    (logs, status, gas_used, return_value, slot) = got_result
-                                    continue_table[storage_account] =  ContinueStruct(signature, logs, status, gas_used, return_value, slot)
+                                    continue_table[storage_account] =  ContinueStruct(signature, got_result)
                                     holder_table[holder_account] = HolderStruct(storage_account)
 
                         if instruction_data[0] > 0x0e:
-                            # logger.debug("{:>10} {:>6} Unknown 0x{}".format(slot, counter, instruction_data.hex()))
+                            logger.debug("{:>10} {:>6} Unknown 0x{}".format(slot, counter, instruction_data.hex()))
 
                             pass
+
+    def submit_transaction(self, eth_trx, eth_signature, from_address, got_result, signatures):
+        (logs, status, gas_used, return_value, slot) = got_result
+        if logs:
+            for rec in logs:
+                rec['transactionHash'] = eth_signature
+
+        logger.debug(eth_signature + " " + status)
+
+        self.ethereum_trx[eth_signature] = {
+            'eth_trx': eth_trx,
+            'slot': slot,
+            'logs': logs,
+            'status': status,
+            'gas_used': gas_used,
+            'return_value': return_value,
+            'from_address': from_address,
+        }
+        self.eth_sol_trx[eth_signature] = signatures
+        for sig in signatures:
+            self.sol_eth_trx[sig] = eth_signature
+
 
 def run_indexer():
     logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
