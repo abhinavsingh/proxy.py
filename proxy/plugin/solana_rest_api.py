@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from proxy.core.connection import client
 from typing import List, Tuple
 import json
 import unittest
@@ -43,7 +42,7 @@ logger.setLevel(logging.DEBUG)
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
-chainId = os.environ.get("NEON_CHAIN_ID", "0x6f")    # default value 110
+chainId = os.environ.get("NEON_CHAIN_ID", "0x6e")    # default value 110
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 
 class PermanentAccounts:
@@ -296,7 +295,6 @@ class EthereumModel:
             else:
                 signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=250)
 
-            eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
 
             got_result = get_trx_results(self.client.get_confirmed_transaction(signature)['result'])
