@@ -760,6 +760,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
     sender_ether = bytes.fromhex(ethTrx.sender())
     add_keys_05 = []
     trx = Transaction()
+    new_neon_token_acccounts = []
 
     output_json = call_emulated(ethTrx.toAddress.hex(), sender_ether.hex(), ethTrx.callData.hex(), hex(ethTrx.value))
     logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
@@ -789,7 +790,11 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 code_account_balance = client.get_minimum_balance_for_rent_exemption(code_account_size)["result"]
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
-            trx.add(createEtherAccountTrx(client, address, evm_loader_id, signer, code_account)[0])
+            
+            (create_trx, solana_address, token_address) = createEtherAccountTrx(client, address, evm_loader_id, signer, code_account)
+            trx.add(create_trx)
+            new_neon_token_acccounts.append(token_address)
+
             if address == sender_ether and NEW_USER_AIRDROP_AMOUNT > 0:
                 trx.add(transfer2(Transfer2Params(
                     amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
@@ -806,13 +811,13 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                              str(NEW_USER_AIRDROP_AMOUNT))
 
     for token_account in output_json["token_accounts"]:
-        add_keys_05.append(AccountMeta(pubkey=token_account["key"], is_signer=False, is_writable=True))
+        add_keys_05.append(AccountMeta(pubkey=PublicKey(token_account["key"]), is_signer=False, is_writable=True))
 
-        if token_account["new"]:
-            trx.add(create_associated_token_account(signer.public_key(), token_account["owner"], token_account["mint"]))
+        if token_account["new"] and (PublicKey(token_account["key"]) not in new_neon_token_acccounts):
+            trx.add(create_associated_token_account(signer.public_key(), PublicKey(token_account["owner"]), PublicKey(token_account["mint"])))
 
     for account_meta in output_json["solana_accounts"]:
-        add_keys_05.append(AccountMeta(pubkey=account_meta["pubkey"], is_signer=account_meta["is_signer"], is_writable=account_meta["is_writable"]))
+        add_keys_05.append(AccountMeta(pubkey=PublicKey(account_meta["pubkey"]), is_signer=account_meta["is_signer"], is_writable=account_meta["is_writable"]))
 
     caller_token = get_associated_token_address(PublicKey(sender_sol), ETH_TOKEN_MINT_ID)
 
@@ -969,7 +974,7 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
                 AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
             ]))
-    return (trx, sol)
+    return (trx, sol, associated_token)
 
 
 def write_trx_to_holder_account(signer, client, holder, ethTrx):

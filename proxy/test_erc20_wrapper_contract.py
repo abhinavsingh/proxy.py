@@ -10,7 +10,7 @@ from solcx import install_solc
 install_solc(version='0.7.6')
 from solcx import compile_source
 
-EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
+EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "100000"))
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 admin = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197/admin')
