@@ -13,7 +13,6 @@ def check_error(trx):
     if 'meta' in trx and 'err' in trx['meta'] and trx['meta']['err'] is not None:
         logger.debug("Got err trx")
         logger.debug("\n{}".format(json.dumps(trx['meta']['err'])))
-        time.sleep(1)
         return True
     return False
 

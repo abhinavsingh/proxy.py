@@ -37,7 +37,7 @@ class ContinueStruct:
 class Indexer:
     def __init__(self):
         self.client = Client(solana_url)
-        self.transaction_receipts = SqliteDict(filename="local.db", tablename="known_transactions", autocommit=True)
+        self.transaction_receipts = SqliteDict(filename="local.db", tablename="known_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
         self.ethereum_trx = SqliteDict(filename="local.db", tablename="ethereum_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
         self.eth_sol_trx = SqliteDict(filename="local.db", tablename="ethereum_solana_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
         self.sol_eth_trx = SqliteDict(filename="local.db", tablename="solana_ethereum_transactions", autocommit=True)
@@ -46,19 +46,14 @@ class Indexer:
 
     def run(self):
         while (True):
-            for key in self.ethereum_trx.iterkeys():
-                logger.debug("known transaction {}".format(key))
-            # try:
-            logger.debug("Start indexing")
+            try:
+                logger.debug("Start indexing")
 
-            self.gather_unknown_transactions()
+                self.gather_unknown_transactions()
+                self.process_receipts()
+            except Exception as err:
+                logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
 
-            # do indexation
-            self.process_receipts()
-
-            #     pass
-            # except Exception as err:
-            #     logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
             time.sleep(1)
 
 
@@ -107,7 +102,7 @@ class Indexer:
 
         for transaction in results:
             (solana_signature, trx) = transaction
-            self.transaction_receipts[solana_signature] = json.dumps(trx)
+            self.transaction_receipts[solana_signature] = trx
 
         if len(self.transaction_order):
             index = 0
@@ -150,10 +145,9 @@ class Indexer:
                 continue
 
             if signature in self.transaction_receipts:
-                trx = json.loads(self.transaction_receipts[signature])
+                trx = self.transaction_receipts[signature]
                 if trx is None:
-                    logger.debug("trx is None")
-                    time.sleep(1)
+                    logger.error("trx is None")
                     continue
                 if 'slot' not in trx:
                     logger.debug("\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
@@ -254,8 +248,7 @@ class Indexer:
                             if got_result is not None:
                                 self.submit_transaction(eth_trx, eth_signature, from_address, got_result, [signature])
                             else:
-                                logger.debug("RESULT NOT FOUND IN 05\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
-                                time.sleep(60)
+                                logger.error("RESULT NOT FOUND IN 05\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
 
                         elif instruction_data[0] == 0x09: # PartialCallFromRawEthereumTX
                             # logger.debug("{:>10} {:>6} PartialCallFromRawEthereumTX 0x{}".format(slot, counter, instruction_data.hex()))

@@ -204,11 +204,12 @@ class EthereumModel:
 
     def eth_getTransactionReceipt(self, trxId):
         logger.debug('getTransactionReceipt: %s', trxId)
-        if trxId not in self.ethereum_trx:
+
+        trx_info = self.ethereum_trx.get(trxId, None)
+        if trx_info is None:
             logger.debug ("Not found receipt")
             return None
 
-        trx_info = self.ethereum_trx[trxId]
         eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
 
         addr_to = None
@@ -238,11 +239,11 @@ class EthereumModel:
 
     def eth_getTransactionByHash(self, trxId):
         logger.debug('eth_getTransactionByHash: %s', trxId)
-        if trxId not in self.ethereum_trx:
-            logger.debug ("Not found transaction")
+        trx_info = self.ethereum_trx.get(trxId, None)
+        if trx_info is None:
+            logger.debug ("Not found receipt")
             return None
 
-        trx_info = self.ethereum_trx[trxId]
         eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
         addr_to = None
         if eth_trx[3]:
