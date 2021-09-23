@@ -1099,23 +1099,7 @@ def getTokens(client, signer, evm_loader, eth_acc, base_account):
     balance = client.get_token_account_balance(token_account, commitment=Confirmed)
     if 'error' in balance:
         if NEW_USER_AIRDROP_AMOUNT > 0:
-            trx = Transaction()
-            sender_sol_info = client.get_account_info(account, commitment=Confirmed)
-            if sender_sol_info['result']['value'] is None:
-                trx.add(createEtherAccountTrx(client, bytes(eth_acc).hex(), evm_loader_id, signer)[0])
-            trx.add(transfer2(Transfer2Params(
-                source=getTokenAddr(signer.public_key()),
-                owner=signer.public_key(),
-                dest=token_account,
-                amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
-                decimals=9,
-                mint=ETH_TOKEN_MINT_ID,
-                program_id=TOKEN_PROGRAM_ID,
-            )))
-            logger.debug("Token transfer to %s as ethereum 0x%s amount %s", token_account, bytes(eth_acc).hex(), str(NEW_USER_AIRDROP_AMOUNT))
-            send_transaction(client, trx, signer)
-
-            return getTokens(client, signer, evm_loader, eth_acc, base_account)
+            return NEW_USER_AIRDROP_AMOUNT * 1_000_000_000
         else:
             logger.debug("'error' in balance:")
             return 0
