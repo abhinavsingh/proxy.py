@@ -26,10 +26,6 @@ logger = logging.getLogger(__name__)
 
 LOCK = multiprocessing.Lock()
 
-signatures_glob = multiprocessing.Manager().dict()
-vrs_glob = multiprocessing.Manager().dict()
-eth_sender_glob = multiprocessing.Manager().dict()
-contract_address_glob = multiprocessing.Manager().dict()
 proxy_id_glob = multiprocessing.Value('i', 0)
 
 

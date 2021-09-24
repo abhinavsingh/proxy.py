@@ -22,6 +22,9 @@ from .common.flags import Flags
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 
+from multiprocessing import Process
+from .indexer.solana_receipts_update import run_indexer
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +33,7 @@ class Proxy:
     def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
         self.flags = Flags.initialize(input_args, **opts)
         self.acceptors: Optional[AcceptorPool] = None
+        self.indexer: Optional[Process] = None
 
     def write_pid_file(self) -> None:
         if self.flags.pid_file is not None:
@@ -41,6 +45,8 @@ class Proxy:
             os.remove(self.flags.pid_file)
 
     def __enter__(self) -> 'Proxy':
+        self.indexer = Process(target=run_indexer)
+        self.indexer.start()
         self.acceptors = AcceptorPool(
             flags=self.flags,
             work_klass=HttpProtocolHandler
@@ -56,6 +62,7 @@ class Proxy:
             exc_tb: Optional[TracebackType]) -> None:
         assert self.acceptors
         self.acceptors.shutdown()
+        self.indexer.terminate()
         self.delete_pid_file()
 
 
