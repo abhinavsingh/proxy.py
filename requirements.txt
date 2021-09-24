@@ -5,4 +5,5 @@ eth-keys==0.3.3
 rlp==2.0.1
 web3==5.22.0
 solana==0.10.0
+sqlitedict
 py-solc-x==1.1.0
