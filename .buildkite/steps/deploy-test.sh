@@ -23,15 +23,15 @@ while getopts t: option; do
 case "${option}" in
     t) IMAGETAG=${OPTARG};;
     *) echo "Usage: $0 [OPTIONS]. Where OPTIONS can be:"
-       echo "    -t <IMAGETAG>  tag for cybercoredev/proxy Docker-image"
+       echo "    -t <IMAGETAG>  tag for neonlabsorg/proxy Docker-image"
        exit 1;;
 esac
 done
 
 export REVISION=$(git rev-parse HEAD)
-PROXY_IMAGE=cybercoredev/proxy:${IMAGETAG:-$REVISION}
+PROXY_IMAGE=neonlabsorg/proxy:${IMAGETAG:-$REVISION}
 
-UNISWAP_V2_CORE_IMAGE=cybercoredev/uniswap-v2-core:stable
+UNISWAP_V2_CORE_IMAGE=neonlabsorg/uniswap-v2-core:stable
 # Refreshing uniswap-v2-core image is required to run .buildkite/steps/deploy-test.sh locally
 docker pull $UNISWAP_V2_CORE_IMAGE
 

@@ -15,6 +15,6 @@ else
     TAG=${BUILDKITE_BRANCH}
 fi
 
-docker pull cybercoredev/proxy:${REVISION}
-docker tag cybercoredev/proxy:${REVISION} cybercoredev/proxy:${TAG}
-docker push cybercoredev/proxy:${TAG}
+docker pull neonlabsorg/proxy:${REVISION}
+docker tag neonlabsorg/proxy:${REVISION} neonlabsorg/proxy:${TAG}
+docker push neonlabsorg/proxy:${TAG}
