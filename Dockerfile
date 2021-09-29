@@ -1,9 +1,9 @@
 ARG SOLANA_REVISION=v1.7.9-resources
 ARG EVM_LOADER_REVISION=latest
 
-FROM cybercoredev/solana:${SOLANA_REVISION} AS cli
+FROM neonlabsorg/solana:${SOLANA_REVISION} AS cli
 
-FROM cybercoredev/evm_loader:${EVM_LOADER_REVISION} AS spl
+FROM neonlabsorg/evm_loader:${EVM_LOADER_REVISION} AS spl
 
 FROM ubuntu:20.04
 
