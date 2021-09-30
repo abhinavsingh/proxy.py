@@ -477,7 +477,8 @@ def call_continue_bucked(signer, client, perm_accs, trx_accs, steps):
         except Exception as err:
             if str(err).startswith("Transaction simulation failed: Error processing Instruction 0: custom program error: 0x1"):
                 pass
-            raise
+            else:
+                raise
 
         logger.debug("Collect bucked results:")
         for trx in result_list:
@@ -507,7 +508,8 @@ def call_continue_bucked_0x0d(signer, client, perm_accs, trx_accs, steps, msg):
         except Exception as err:
             if str(err).startswith("Transaction simulation failed: Error processing Instruction 0: custom program error: 0x1"):
                 pass
-            raise
+            else:
+                raise
 
         logger.debug("Collect bucked results:")
         for trx in result_list:
