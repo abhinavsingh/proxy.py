@@ -1,6 +1,6 @@
 wheel==0.37.0
 python-coveralls==2.9.3
-coverage==5.5
+coverage==6.0
 flake8==3.9.2
 pytest==6.2.5
 pytest-cov==2.12.1
