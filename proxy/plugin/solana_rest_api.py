@@ -25,9 +25,9 @@ from sha3 import keccak_256, shake_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress,  create_account_with_seed, evm_loader_id, getTokens, \
+from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
-    Trx, deploy_contract, EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE
+    Trx, deploy_contract, EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load
 from solana.rpc.commitment import Commitment, Confirmed
 from web3 import Web3
 import logging
@@ -95,7 +95,12 @@ class EthereumModel:
         logger.debug("worker id {}".format(self.proxy_id))
 
         self.perm_accs = PermanentAccounts(self.client, self.signer, self.proxy_id)
+        neon_config_load(self)
         pass
+
+    def web3_clientVersion(self):
+        neon_config_load(self)
+        return self.neon_config_dict['web3_clientVersion']
 
     def eth_chainId(self):
         return chainId

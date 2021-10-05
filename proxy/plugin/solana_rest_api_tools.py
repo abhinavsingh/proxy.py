@@ -7,6 +7,7 @@ import re
 import struct
 import subprocess
 import time
+from datetime import datetime
 from hashlib import sha256
 from typing import NamedTuple
 import rlp
@@ -43,6 +44,7 @@ confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY",
 neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
 USE_COMBINED_START_CONTINUE = os.environ.get("USE_COMBINED_START_CONTINUE", "YES") == "YES"
 CONTINUE_COUNT_FACTOR = int(os.environ.get("CONTINUE_COUNT_FACTOR", "3"))
+TIMEOUT_TO_RELOAD_NEON_CONFIG = int(os.environ.get("TIMEOUT_TO_RELOAD_NEON_CONFIG", "3600"))
 
 ACCOUNT_SEED_VERSION=b'\1'
 
@@ -300,6 +302,7 @@ def ether2program(ether, program_id, base):
     items = output.rstrip().split(' ')
     return (items[0], int(items[1]))
 
+
 def ether2seed(ether, program_id, base):
     if isinstance(ether, str):
         if ether.startswith('0x'): ether = ether[2:]
@@ -308,6 +311,40 @@ def ether2seed(ether, program_id, base):
     acc = accountWithSeed(base, seed, PublicKey(program_id))
     logger.debug('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
     return (acc, 255, seed)
+
+
+def neon_config_load(ethereum_model):
+    try:
+        ethereum_model.neon_config_dict
+    except AttributeError:
+        logger.debug("loading the neon config dict for the first time!")
+        ethereum_model.neon_config_dict = dict()
+    else:
+        elapsed_time = datetime.now().timestamp() - ethereum_model.neon_config_dict['load_time']
+        logger.debug('elapsed_time={} proxy_id={}'.format(elapsed_time, ethereum_model.proxy_id))
+        if elapsed_time < TIMEOUT_TO_RELOAD_NEON_CONFIG:
+            return
+
+    logger.debug('load for solana_url={} and evm_loader_id={}'.format(solana_url, evm_loader_id))
+    res = solana_cli().call('program', 'dump', evm_loader_id, './evm_loader.dump')
+    substr = "Wrote program to "
+    path = ""
+    for line in res.splitlines():
+        if line.startswith(substr):
+            path = line[len(substr):].strip()
+    if path == "":
+        raise Exception("cannot program dump for ", evm_loader_id)
+    for param in neon_cli().call("neon-elf-params", path).splitlines():
+        if param.startswith('NEON_') and '=' in param:
+            v = param.split('=')
+            ethereum_model.neon_config_dict[v[0]] = v[1]
+    ethereum_model.neon_config_dict['load_time'] = datetime.now().timestamp()
+    # 'Neon/v0.3.0-rc0-d1e4ff618457ea9cbc82b38d2d927e8a62168bec
+    ethereum_model.neon_config_dict['web3_clientVersion'] = 'Neon/v' + \
+                                                            ethereum_model.neon_config_dict['NEON_PKG_VERSION'] + \
+                                                            '-' \
+                                                            + ethereum_model.neon_config_dict['NEON_REVISION']
+    logger.debug(ethereum_model.neon_config_dict)
 
 
 def call_emulated(contract_id, caller_id, data=None, value=None):

@@ -87,6 +87,8 @@ if [ "$EVM_LOADER" == "deploy" ]; then
   echo "EVM_LOADER is set to load. A new Neon-evm will be deployed. deploying evm_loader..."
   solana program deploy --upgrade-authority /spl/bin/evm_loader-keypair.json /spl/bin/evm_loader.so > evm_loader_id
   export EVM_LOADER=$(cat evm_loader_id | sed '/Program Id: \([0-9A-Za-z]\+\)/,${s//\1/;b};s/^.*$//;$q1')
+  solana program dump "$EVM_LOADER" ./evm_loader.dump
+  /spl/bin/neon-cli --evm_loader="$EVM_LOADER" neon-elf-params ./evm_loader.dump
 fi
 
 echo "EVM_LOADER=$EVM_LOADER"
