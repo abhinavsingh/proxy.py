@@ -149,12 +149,15 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print("\ntest_check_get_block_by_hash")
         block = proxy.eth.get_block(self.deploy_block_hash, full_transactions=True)
         print('block:', block)
+        self.assertEqual(len(block['transactions']), 1)
+        self.assertEqual(block['transactions'][0]['blockHash'], self.deploy_block_hash)
 
     # @unittest.skip("a.i.")
     def test_check_get_block_by_number(self):
         print("\ntest_check_get_block_by_number")
         block = proxy.eth.get_block(int(self.deploy_block_num))
         print('block:', block)
+        self.assertEqual(len(block['transactions']), 1)
 
     # @unittest.skip("a.i.")
     def test_01_call_retrieve_right_after_deploy(self):
