@@ -855,7 +855,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 code_account_balance = client.get_minimum_balance_for_rent_exemption(code_account_size)["result"]
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_account_size, PublicKey(evm_loader_id)))
                 add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
-            
+
             (create_trx, solana_address, token_address) = createEtherAccountTrx(client, address, evm_loader_id, signer, code_account)
             trx.add(create_trx)
             new_neon_token_acccounts.append(token_address)

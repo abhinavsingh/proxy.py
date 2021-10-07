@@ -11,15 +11,15 @@ logger.setLevel(logging.DEBUG)
 
 def check_error(trx):
     if 'meta' in trx and 'err' in trx['meta'] and trx['meta']['err'] is not None:
-        logger.debug("Got err trx")
-        logger.debug("\n{}".format(json.dumps(trx['meta']['err'])))
+        # logger.debug("Got err trx")
+        # logger.debug("\n{}".format(json.dumps(trx['meta']['err'])))
         return True
     return False
 
 def get_trx_results(trx):
     slot = trx['slot']
     block_number = hex(slot)
-    block_hash = '0x%064x'%slot
+    # block_hash = '0x%064x'%slot
     got_result = False
     logs = []
     status = "0x1"
@@ -48,7 +48,7 @@ def get_trx_results(trx):
                         'blockNumber': block_number,
                         # 'transactionHash': trxId, # set when transaction found
                         'logIndex': hex(log_index),
-                        'blockHash': block_hash
+                        # 'blockHash': block_hash # set on return to user
                     }
                 logs.append(rec)
                 log_index +=1
@@ -75,7 +75,6 @@ def get_trx_receipts(unsigned_msg, signature):
     eth_trx[8] = signature[32:64]
 
     eth_trx_raw = rlp.encode(eth_trx)
-    logger.debug(rlp.decode(eth_trx_raw))
 
     eth_signature = '0x' + bytes(Web3.keccak(eth_trx_raw)).hex()
     from_address = w3.eth.account.recover_transaction(eth_trx_raw.hex())

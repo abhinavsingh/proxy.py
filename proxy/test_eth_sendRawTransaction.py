@@ -109,6 +109,11 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(trx_deploy_hash)
         print('trx_deploy_receipt:', trx_deploy_receipt)
 
+        self.deploy_block_hash = trx_deploy_receipt['blockHash']
+        self.deploy_block_num = trx_deploy_receipt['blockNumber']
+        print('deploy_block_hash:', self.deploy_block_hash)
+        print('deploy_block_num:', self.deploy_block_num)
+
         self.storage_contract = proxy.eth.contract(
             address=trx_deploy_receipt.contractAddress,
             abi=storage.abi
@@ -138,6 +143,18 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             address=trx_deploy_receipt.contractAddress,
             abi=test_185_solidity_contract.abi
         )
+
+    # @unittest.skip("a.i.")
+    def test_check_get_block_by_hash(self):
+        print("\ntest_check_get_block_by_hash")
+        block = proxy.eth.get_block(self.deploy_block_hash, full_transactions=True)
+        print('block:', block)
+
+    # @unittest.skip("a.i.")
+    def test_check_get_block_by_number(self):
+        print("\ntest_check_get_block_by_number")
+        block = proxy.eth.get_block(int(self.deploy_block_num))
+        print('block:', block)
 
     # @unittest.skip("a.i.")
     def test_01_call_retrieve_right_after_deploy(self):
