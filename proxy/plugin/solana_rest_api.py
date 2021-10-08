@@ -27,7 +27,7 @@ import traceback
 import threading
 from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
-    Trx, deploy_contract, EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load
+    Trx,  EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load
 from solana.rpc.commitment import Commitment, Confirmed
 from web3 import Web3
 import logging
@@ -395,10 +395,7 @@ class EthereumModel:
         logger.debug('Eth Hash: %s', eth_signature)
 
         try:
-            if (not trx.toAddress):
-                (signature, _contract_eth) = deploy_contract(self.signer, self.client, trx, self.perm_accs, steps=1000)
-            else:
-                signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=250)
+            signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=250)
 
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
 
