@@ -126,6 +126,7 @@ class AcceptorPool:
                 lock=LOCK,
                 event_queue=self.event_queue,
             )
+            acceptor.daemon = True
             acceptor.start()
             logger.debug(
                 'Started acceptor#%d process %d',
