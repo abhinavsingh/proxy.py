@@ -1,0 +1,6 @@
+==========================================================================
+pubkey: BMp6gEnveANdvSvspESJUrNczuHz1GF5UQKjVLCkAZih
+==========================================================================
+Save this seed phrase and your BIP39 passphrase to recover your new keypair:
+give citizen flight into world observe motion tennis dash crisp rib theory
+==========================================================================
