@@ -70,11 +70,9 @@ if [ "$ADDRESS" == "no wallet" ]; then
   solana-keygen new --no-passphrase
 fi
 
-ACCOUNT_CONTENT=$(solana -u https://api.devnet.solana.com account $(solana address))
-if [ "$ACCOUNT_CONTENT" == "Error" ]; then
+if ! solana account $(solana address); then
   echo "airdropping..."
   solana airdrop 1000
-else
   # check that balance >= 10 otherwise airdroping by 1 SOL up to 10
   BALANCE=$(solana balance | tr '.' '\t'| tr '[:space:]' '\t' | cut -f1)
   while [ "$BALANCE" -lt 10 ]; do
