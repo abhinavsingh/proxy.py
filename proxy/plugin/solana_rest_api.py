@@ -315,7 +315,7 @@ class EthereumModel:
             "from": trx_info['from_address'],
             "to": addr_to,
             "gasUsed": hex(trx_info['gas_used']),
-            "cumulativeGasUsed": '0x%x' % trx_info['gas_used'],
+            "cumulativeGasUsed": hex(trx_info['gas_used']),
             "contractAddress": contract,
             "logs": logs,
             "status": trx_info['status'],
