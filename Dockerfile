@@ -42,7 +42,8 @@ COPY --from=spl /opt/collateral_pool_generator.py \
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
 COPY . /opt
-COPY --from=spl /root/.config/solana/id.json /root/.config/solana/id.json
+# COPY --from=spl /root/.config/solana/id.json /root/.config/solana/id.json
+COPY proxy/operator-keypair.json /root/.config/solana/id.json
 RUN cd /usr/local/lib/python3.8/dist-packages/ && patch -p0 </opt/solana-py.patch
 
 ENV PATH /venv/bin:/cli/bin/:/spl/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
