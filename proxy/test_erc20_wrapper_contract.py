@@ -116,10 +116,10 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
 
 
     def create_token_mint(self):
-        print('create_token_mint start')
         self.solana_client = SolanaClient(solana_url)
 
-        with open("/root/.config/solana/id.json") as f:
+        # with open("/root/.config/solana/id.json") as f:
+        with open("proxy/operator-keypair.json") as f:
             d = json.load(f)
         self.solana_account = SolanaAccount(d[0:32])
         self.solana_client.request_airdrop(self.solana_account.public_key(), 1000_000_000_000, Confirmed)
@@ -129,7 +129,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
             if balance > 0:
                 break
             sleep(1)
-        print('create_token_mint after mint, SolanaAccount: ', self.solana_account.public_key())
+        print('create_token_mint mint, SolanaAccount: ', self.solana_account.public_key())
 
         self.token = SplToken.create_mint(
             self.solana_client,
@@ -138,7 +138,6 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
             9,
             TOKEN_PROGRAM_ID,
         )
-        print('create_token_mint end')
 
     def deploy_erc20_wrapper_contract(self):
         compiled_interface = compile_source(ERC20_INTERFACE_SOURCE)
@@ -163,7 +162,6 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         self.contract_address = tx_deploy_receipt.contractAddress
 
     def create_token_accounts(self):
-        print('create_token_accounts start')
         contract_address_bytes = bytes.fromhex(self.contract_address[2:])
         contract_address_solana = PublicKey.find_program_address([b"\1", contract_address_bytes], evm_loader_id)[0]
 
@@ -175,34 +173,28 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         admin_token_info = { "key": admin_token_key, "owner": admin_address_solana, "contract": contract_address_solana, "mint": self.token.pubkey }
         self.solana_client.send_transaction(createERC20TokenAccountTrx(self.solana_account, admin_token_info), self.solana_account, opts=TxOpts(skip_preflight=True, skip_confirmation=False))
         self.token.mint_to(admin_token_key, self.solana_account, 10_000_000_000_000, opts=TxOpts(skip_preflight=True, skip_confirmation=False))
-        print('create_token_accounts end')
 
     def test_erc20_name(self):
-        print('test_erc20_name start')
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.wrapper['abi'])
         name = erc20.functions.name().call()
         self.assertEqual(name, NAME)
 
     def test_erc20_symbol(self):
-        print('test_erc20_symbol start')
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.wrapper['abi'])
         sym = erc20.functions.symbol().call()
         self.assertEqual(sym, SYMBOL)
 
     def test_erc20_decimals(self):
-        print('test_erc20_decimals start')
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
         decs = erc20.functions.decimals().call()
         self.assertEqual(decs, 9)
 
     def test_erc20_totalSupply(self):
-        print('test_erc20_totalSupply start')
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
         ts = erc20.functions.totalSupply().call()
         self.assertGreater(ts, 0)
 
     def test_erc20_balanceOf(self):
-        print('test_erc20_balanceOf start')
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
         b = erc20.functions.balanceOf(admin.address).call()
         self.assertGreater(b, 0)
@@ -210,7 +202,6 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         self.assertEqual(b, 0)
 
     def test_erc20_transfer(self):
-        print('test_erc20_transfer start')
         erc20 = proxy.eth.contract(address=self.contract_address, abi=self.interface['abi'])
         nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         tx = {'nonce': nonce}
