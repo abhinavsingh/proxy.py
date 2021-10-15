@@ -119,8 +119,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         print('create_token_mint start')
         self.solana_client = SolanaClient(solana_url)
 
-        # with open("/root/.config/solana/id.json") as f:
-        with open("proxy/operator-keypair.json") as f:
+        with open("/root/.config/solana/id.json") as f:
             d = json.load(f)
         self.solana_account = SolanaAccount(d[0:32])
         self.solana_client.request_airdrop(self.solana_account.public_key(), 1000_000_000_000, Confirmed)
