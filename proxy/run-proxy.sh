@@ -68,6 +68,9 @@ ADDRESS=$(solana address || echo "no wallet")
 
 if [ "$ADDRESS" == "no wallet" ]; then
   solana-keygen new --no-passphrase
+fi
+
+if ! solana account $(solana address); then
   echo "airdropping..."
   solana airdrop 1000
   # check that balance >= 10 otherwise airdroping by 1 SOL up to 10
