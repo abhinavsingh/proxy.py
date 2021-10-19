@@ -68,6 +68,9 @@ ADDRESS=$(solana address || echo "no wallet")
 
 if [ "$ADDRESS" == "no wallet" ]; then
   solana-keygen new --no-passphrase
+fi
+
+if ! solana account $(solana address); then
   echo "airdropping..."
   solana airdrop 1000
   # check that balance >= 10 otherwise airdroping by 1 SOL up to 10
@@ -123,5 +126,12 @@ fi
 echo "NEW_USER_AIRDROP_AMOUNT=$NEW_USER_AIRDROP_AMOUNT"
 
 
+isArg() { case "$1" in "$2"|"$2="*) true;; *) false;; esac }
+EXTRA_ARGS_TIMEOUT=' --timeout 300'
+for val in $EXTRA_ARGS; do
+    isArg $val '--timeout' && EXTRA_ARGS_TIMEOUT=''
+done
+EXTRA_ARGS+=$EXTRA_ARGS_TIMEOUT
+
 echo run-proxy
-python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin
+python3 -m proxy --hostname 0.0.0.0 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin $EXTRA_ARGS

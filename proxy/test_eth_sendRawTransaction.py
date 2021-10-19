@@ -200,32 +200,38 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
 
     # @unittest.skip("a.i.")
     def test_04_execute_with_bad_nonce(self):
-        print("\ntest_04_execute_with_bad_nonce")
-        bad_nonce = 1 + proxy.eth.get_transaction_count(proxy.eth.default_account)
-        trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': bad_nonce})
-        print('trx_store:', trx_store)
-        trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
-        print('trx_store_signed:', trx_store_signed)
-        try:
-            trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
-            print('trx_store_hash:', trx_store_hash)
-            self.assertTrue(False)
-        except Exception as e:
-            print('type(e):', type(e))
-            print('e:', e)
-            import json
-            response = json.loads(str(e).replace('\'', '\"').replace('None', 'null'))
-            print('response:', response)
-            print('code:', response['code'])
-            self.assertEqual(response['code'], -32002)
-            print('substring_err_147:', SUBSTRING_LOG_ERR_147)
-            logs = response['data']['logs']
-            print('logs:', logs)
-            log = [s for s in logs if SUBSTRING_LOG_ERR_147 in s][0]
-            print(log)
-            self.assertGreater(len(log), len(SUBSTRING_LOG_ERR_147))
-            file_name = 'src/entrypoint.rs'
-            self.assertTrue(file_name in log)
+        test_nonce_map = {
+            'grade_up_one': 1,
+            'grade_down_one': -1,
+        }
+        for name, offset in test_nonce_map.items():
+            with self.subTest(name=name):
+                print("\ntest_04_execute_with_bad_nonce {} offsets".format(offset))
+                bad_nonce = offset + proxy.eth.get_transaction_count(proxy.eth.default_account)
+                trx_store = self.storage_contract.functions.store(147).buildTransaction({'nonce': bad_nonce})
+                print('trx_store:', trx_store)
+                trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
+                print('trx_store_signed:', trx_store_signed)
+                try:
+                    trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
+                    print('trx_store_hash:', trx_store_hash)
+                    self.assertTrue(False)
+                except Exception as e:
+                    print('type(e):', type(e))
+                    print('e:', e)
+                    import json
+                    response = json.loads(str(e).replace('\'', '\"').replace('None', 'null'))
+                    print('response:', response)
+                    print('code:', response['code'])
+                    self.assertEqual(response['code'], -32002)
+                    print('substring_err_147:', SUBSTRING_LOG_ERR_147)
+                    logs = response['data']['logs']
+                    print('logs:', logs)
+                    log = [s for s in logs if SUBSTRING_LOG_ERR_147 in s][0]
+                    print(log)
+                    self.assertGreater(len(log), len(SUBSTRING_LOG_ERR_147))
+                    file_name = 'src/entrypoint.rs'
+                    self.assertTrue(file_name in log)
 
     # @unittest.skip("a.i.")
     def test_05_transfer_one_gwei(self):

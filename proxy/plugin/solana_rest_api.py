@@ -315,7 +315,7 @@ class EthereumModel:
             "from": trx_info['from_address'],
             "to": addr_to,
             "gasUsed": hex(trx_info['gas_used']),
-            "cumulativeGasUsed": '0x%x' % trx_info['gas_used'],
+            "cumulativeGasUsed": hex(trx_info['gas_used']),
             "contractAddress": contract,
             "logs": logs,
             "status": trx_info['status'],
@@ -394,6 +394,19 @@ class EthereumModel:
         logger.debug('Eth Signature: %s', trx.signature().hex())
         logger.debug('Eth Hash: %s', eth_signature)
 
+        nonce = int(self.eth_getTransactionCount('0x' + sender, None), base=16)
+
+        logger.debug('Eth Sender trx nonce: %s', nonce)
+        logger.debug('Operator nonce: %s', trx.nonce)
+
+        if (int(nonce) != int(trx.nonce)):
+            raise EthereumError(-32002, 'Verifying nonce before send transaction: Error processing Instruction 1: invalid program argument'
+                                .format(int(nonce), int(trx.nonce)),
+                                {
+                                    'logs': [
+                                        '/src/entrypoint.rs Invalid Ethereum transaction nonce: acc {}, trx {}'.format(nonce, trx.nonce),
+                                    ]
+                                })
         try:
             signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=250)
 

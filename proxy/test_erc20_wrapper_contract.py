@@ -4,6 +4,7 @@
 from time import sleep
 import unittest
 import os
+import json
 from solana.rpc.commitment import Confirmed, Recent
 from solana.rpc.types import TxOpts
 from web3 import Web3
@@ -117,7 +118,10 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
     def create_token_mint(self):
         self.solana_client = SolanaClient(solana_url)
 
-        self.solana_account = SolanaAccount()
+        # with open("/root/.config/solana/id.json") as f:
+        with open("proxy/operator-keypair.json") as f:
+            d = json.load(f)
+        self.solana_account = SolanaAccount(d[0:32])
         self.solana_client.request_airdrop(self.solana_account.public_key(), 1000_000_000_000, Confirmed)
 
         while True:
@@ -125,6 +129,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
             if balance > 0:
                 break
             sleep(1)
+        print('create_token_mint mint, SolanaAccount: ', self.solana_account.public_key())
 
         self.token = SplToken.create_mint(
             self.solana_client,

@@ -9,18 +9,23 @@ from multiprocessing.dummy import Pool as ThreadPool
 from sqlitedict import SqliteDict
 from typing import Dict, Union
 
+
 try:
-    from utils import check_error, get_trx_results, get_trx_receipts, LogDB
+    from utils import check_error, get_trx_results, get_trx_receipts, LogDB, Canceller
 except ImportError:
-    from .utils import check_error, get_trx_results, get_trx_receipts, LogDB
+    from .utils import check_error, get_trx_results, get_trx_receipts, LogDB, Canceller
 
 
 solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
 evm_loader_id = os.environ.get("EVM_LOADER", "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU")
 PARALLEL_REQUESTS = int(os.environ.get("PARALLEL_REQUESTS", "2"))
 
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+DEVNET_HISTORY_START = "7BdwyUQ61RUZP63HABJkbW66beLk22tdXnP69KsvQBJekCPVaHoJY47Rw68b3VV1UbQNHxX3uxUSLfiJrfy2bTn"
+HISTORY_START = [DEVNET_HISTORY_START]
 
 UPDATE_BLOCK_COUNT = PARALLEL_REQUESTS * 16
 
@@ -41,6 +46,7 @@ class ContinueStruct:
 class Indexer:
     def __init__(self):
         self.client = Client(solana_url)
+        self.canceller = Canceller()
         self.logs_db = LogDB(filename="local.db")
         self.blocks_by_hash = SqliteDict(filename="local.db", tablename="solana_blocks_by_hash", autocommit=True)
         self.transaction_receipts = SqliteDict(filename="local.db", tablename="known_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
@@ -49,11 +55,14 @@ class Indexer:
         self.sol_eth_trx = SqliteDict(filename="local.db", tablename="solana_ethereum_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
         self.constants = SqliteDict(filename="local.db", tablename="constants", autocommit=True)
         self.last_slot = 0
+        self.current_slot = 0
         self.transaction_order = []
         if 'last_block' not in self.constants:
             self.constants['last_block'] = 0
+        self.blocked_storages = set()
+        self.counter_ = 0
 
-    def run(self):
+    def run(self, loop = True):
         while (True):
             try:
                 logger.debug("Start indexing")
@@ -62,8 +71,12 @@ class Indexer:
                 self.process_receipts()
                 logger.debug("Start getting blocks")
                 self.gather_blocks()
+                logger.debug("Unlock accounts")
+                self.canceller.unlock_accounts(self.blocked_storages)
+                self.blocked_storages = set()
             except Exception as err:
                 logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
+
 
     def gather_unknown_transactions(self):
         poll_txs = set()
@@ -71,8 +84,11 @@ class Indexer:
 
         minimal_tx = None
         continue_flag = True
-        minimal_slot = self.client.get_slot()["result"]
+        current_slot = self.client.get_slot(commitment="confirmed")["result"]
         maximum_slot = self.last_slot
+        minimal_slot = current_slot
+
+        percent = 0
 
         counter = 0
         while (continue_flag):
@@ -92,6 +108,11 @@ class Indexer:
                 solana_signature = tx["signature"]
                 slot = tx["slot"]
 
+                if solana_signature in HISTORY_START:
+                    logger.debug(solana_signature)
+                    continue_flag = False
+                    break
+
                 ordered_txs.append(solana_signature)
 
                 if solana_signature not in self.transaction_receipts:
@@ -110,11 +131,7 @@ class Indexer:
 
         logger.debug("start getting receipts")
         pool = ThreadPool(PARALLEL_REQUESTS)
-        results = pool.map(self.get_tx_receipts, poll_txs)
-
-        for transaction in results:
-            (solana_signature, trx) = transaction
-            self.transaction_receipts[solana_signature] = trx
+        pool.map(self.get_tx_receipts, poll_txs)
 
         if len(self.transaction_order):
             index = 0
@@ -128,21 +145,29 @@ class Indexer:
             self.transaction_order = ordered_txs
 
         self.last_slot = maximum_slot
+        self.current_slot = current_slot
+
+        self.counter_ = 0
 
 
     def get_tx_receipts(self, solana_signature):
-        trx = None
+        # trx = None
         retry = True
 
         while retry:
             try:
                 trx = self.client.get_confirmed_transaction(solana_signature)['result']
+                self.transaction_receipts[solana_signature] = trx
                 retry = False
             except Exception as err:
                 logger.debug(err)
                 time.sleep(1)
 
-        return (solana_signature, trx)
+        self.counter_ += 1
+        if self.counter_ % 100 == 0:
+            logger.debug(self.counter_)
+
+        # return (solana_signature, trx)
 
 
     def process_receipts(self):
@@ -160,6 +185,7 @@ class Indexer:
                 trx = self.transaction_receipts[signature]
                 if trx is None:
                     logger.error("trx is None")
+                    del self.transaction_receipts[signature]
                     continue
                 if 'slot' not in trx:
                     logger.debug("\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
@@ -219,12 +245,16 @@ class Indexer:
                                             # raise
 
                                         del holder_table[write_account]
-                                    except rlp.exceptions.DecodingError:
-                                        logger.debug("DecodingError")
+                                    except rlp.exceptions.RLPException:
                                         pass
                                     except Exception as err:
-                                        logger.debug("could not parse trx {}".format(err))
-                                        pass
+                                        if str(err).startswith("unhashable type"):
+                                            pass
+                                        elif str(err).startswith("unsupported operand type"):
+                                            pass
+                                        else:
+                                            logger.debug("could not parse trx {}".format(err))
+                                            raise
 
                         elif instruction_data[0] == 0x01: # Finalize
                             # logger.debug("{:>10} {:>6} Finalize 0x{}".format(slot, counter, instruction_data.hex()))
@@ -283,8 +313,7 @@ class Indexer:
 
                                 del continue_table[storage_account]
                             else:
-                                # logger.debug("Storage not found")
-                                pass
+                                self.add_hunged_storage(trx, storage_account)
 
                         elif instruction_data[0] == 0x0a: # Continue
                             # logger.debug("{:>10} {:>6} Continue 0x{}".format(slot, counter, instruction_data.hex()))
@@ -297,8 +326,8 @@ class Indexer:
                                 got_result = get_trx_results(trx)
                                 if got_result is not None:
                                     continue_table[storage_account] =  ContinueStruct(signature, got_result)
-                                # else:
-                                #     logger.error("Result not found")
+                                else:
+                                    self.add_hunged_storage(trx, storage_account)
 
 
                         elif instruction_data[0] == 0x0b: # ExecuteTrxFromAccountDataIterative
@@ -316,12 +345,15 @@ class Indexer:
                                     holder_table[holder_account] = HolderStruct(storage_account)
                                 else:
                                     holder_table[holder_account] = HolderStruct(storage_account)
+                            else:
+                                self.add_hunged_storage(trx, storage_account)
+
 
                         elif instruction_data[0] == 0x0c: # Cancel
                             # logger.debug("{:>10} {:>6} Cancel 0x{}".format(slot, counter, instruction_data.hex()))
 
                             storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-                            continue_table[storage_account] = ContinueStruct(signature, (None, 0, None, None, trx['slot']))
+                            continue_table[storage_account] = ContinueStruct(signature, ([], "0x0", 0, [], trx['slot']))
 
                         elif instruction_data[0] == 0x0c:
                             # logger.debug("{:>10} {:>6} PartialCallOrContinueFromRawEthereumTX 0x{}".format(slot, counter, instruction_data.hex()))
@@ -347,6 +379,8 @@ class Indexer:
                                 got_result = get_trx_results(trx)
                                 if got_result is not None:
                                     self.submit_transaction(eth_trx, eth_signature, from_address, got_result, [signature])
+                                else:
+                                    self.add_hunged_storage(trx, storage_account)
 
                         elif instruction_data[0] == 0x0d:
                             # logger.debug("{:>10} {:>6} ExecuteTrxFromAccountDataIterativeOrContinue 0x{}".format(slot, counter, instruction_data.hex()))
@@ -368,11 +402,14 @@ class Indexer:
                                 if got_result is not None:
                                     continue_table[storage_account] =  ContinueStruct(signature, got_result)
                                     holder_table[holder_account] = HolderStruct(storage_account)
+                                else:
+                                    self.add_hunged_storage(trx, storage_account)
 
                         if instruction_data[0] > 0x0e:
                             logger.debug("{:>10} {:>6} Unknown 0x{}".format(slot, counter, instruction_data.hex()))
 
                             pass
+
 
     def submit_transaction(self, eth_trx, eth_signature, from_address, got_result, signatures):
         (logs, status, gas_used, return_value, slot) = got_result
@@ -401,6 +438,7 @@ class Indexer:
 
         logger.debug(eth_signature + " " + status)
 
+
     def gather_blocks(self):
         max_slot = self.client.get_slot(commitment="recent")["result"]
 
@@ -418,6 +456,7 @@ class Indexer:
 
         self.constants['last_block'] = max_slot
 
+
     def get_block(self, slot):
         retry = True
 
@@ -433,11 +472,16 @@ class Indexer:
         return (slot, block_hash)
 
 
+    def add_hunged_storage(self, trx, storage):
+        if abs(trx['slot'] - self.current_slot) > 16:
+            self.blocked_storages.add(storage)
+
+
 def run_indexer():
     logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
     logger.setLevel(logging.DEBUG)
     indexer = Indexer()
-    indexer.run()
+    indexer.run(False)
 
 
 if __name__ == "__main__":
