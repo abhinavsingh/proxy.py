@@ -62,15 +62,15 @@ ETH_TOKEN_MINT_ID: PublicKey = PublicKey(
 STORAGE_SIZE = 128*1024
 
 ACCOUNT_INFO_LAYOUT = cStruct(
-    "tag" / Int8ul,
+    "type" / Int8ul,
     "ether" / Bytes(20),
     "nonce" / Int8ul,
     "trx_count" / Bytes(8),
     "code_account" / Bytes(32),
-    "ro_blocked_cnt" / Int8ul,
-    "is_rw_blocked_acc" / Int8ul,
+    "is_rw_blocked" / Int8ul,
     "rw_blocked_acc" / Bytes(32),
     "eth_token_account" / Bytes(32),
+    "ro_blocked_cnt" / Int8ul,
 )
 
 CODE_INFO_LAYOUT = cStruct(
