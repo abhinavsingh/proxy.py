@@ -115,7 +115,7 @@ class CancelTest(unittest.TestCase):
         data = base64.b64decode(info['data'][0])
         acc_info = ACCOUNT_INFO_LAYOUT.parse(data)
 
-        code_address = PublicKey(acc_info.code_acc)
+        code_address = PublicKey(acc_info.code_account)
         alternate_token = get_associated_token_address(PublicKey(sol_address), ETH_TOKEN_MINT_ID)
 
         return (sol_address, alternate_token, code_address)
