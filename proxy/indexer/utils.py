@@ -45,9 +45,15 @@ def check_error(trx):
 
 
 def get_trx_results(trx):
+    # init variables for instruction owner checks
+    accounts = trx["transaction"]["message"]["accountKeys"]
+    evm_loader_instructions = []
+    for idx, instruction in enumerate(trx["transaction"]["message"]["instructions"]):
+        if accounts[instruction["programIdIndex"]] == evm_loader_id:
+            evm_loader_instructions.append(idx)
+
     slot = trx['slot']
     block_number = hex(slot)
-    # block_hash = '0x%064x'%slot
     got_result = False
     logs = []
     status = "0x1"
@@ -55,40 +61,42 @@ def get_trx_results(trx):
     return_value = bytes
     log_index = 0
     for inner in (trx['meta']['innerInstructions']):
-        for event in inner['instructions']:
-            log = base58.b58decode(event['data'])
-            instruction = log[:1]
-            if (int().from_bytes(instruction, "little") == 7):  # OnEvent evmInstruction code
-                address = log[1:21]
-                count_topics = int().from_bytes(log[21:29], 'little')
-                topics = []
-                pos = 29
-                for _ in range(count_topics):
-                    topic_bin = log[pos:pos + 32]
-                    topics.append('0x'+topic_bin.hex())
-                    pos += 32
-                data = log[pos:]
-                rec = {
-                    'address': '0x'+address.hex(),
-                    'topics': topics,
-                    'data': '0x'+data.hex(),
-                    'transactionLogIndex': hex(0),
-                    'transactionIndex': hex(inner['index']),
-                    'blockNumber': block_number,
-                    # 'transactionHash': trxId, # set when transaction found
-                    'logIndex': hex(log_index),
-                    # 'blockHash': block_hash # set when transaction found
-                }
-                logs.append(rec)
-                log_index +=1
-            elif int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
-                got_result = True
-                if log[1] < 0xd0:
-                    status = "0x1"
-                else:
-                    status = "0x0"
-                gas_used = int.from_bytes(log[2:10], 'little')
-                return_value = log[10:].hex()
+        if inner["index"] in evm_loader_instructions:
+            for event in inner['instructions']:
+                if accounts[event['programIdIndex']] == evm_loader_id:
+                    log = base58.b58decode(event['data'])
+                    instruction = log[:1]
+                    if (int().from_bytes(instruction, "little") == 7):  # OnEvent evmInstruction code
+                        address = log[1:21]
+                        count_topics = int().from_bytes(log[21:29], 'little')
+                        topics = []
+                        pos = 29
+                        for _ in range(count_topics):
+                            topic_bin = log[pos:pos + 32]
+                            topics.append('0x'+topic_bin.hex())
+                            pos += 32
+                        data = log[pos:]
+                        rec = {
+                            'address': '0x'+address.hex(),
+                            'topics': topics,
+                            'data': '0x'+data.hex(),
+                            'transactionLogIndex': hex(0),
+                            'transactionIndex': hex(inner['index']),
+                            'blockNumber': block_number,
+                            # 'transactionHash': trxId, # set when transaction found
+                            'logIndex': hex(log_index),
+                            # 'blockHash': block_hash # set when transaction found
+                        }
+                        logs.append(rec)
+                        log_index +=1
+                    elif int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
+                        got_result = True
+                        if log[1] < 0xd0:
+                            status = "0x1"
+                        else:
+                            status = "0x0"
+                        gas_used = int.from_bytes(log[2:10], 'little')
+                        return_value = log[10:].hex()
 
     if got_result:
         return (logs, status, gas_used, return_value, slot)
