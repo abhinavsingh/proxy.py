@@ -251,21 +251,22 @@ class HttpProtocolHandler(Work):
         if self.client.connection in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
-            while True:
-                try:
-                    client_data = self.client.recv(self.flags.client_recvbuf_size)
-                    break
-                except ssl.SSLWantReadError:    # Try again later
-                    # Wait until enough data recevied
-                    select.select([self.client.connection], [], [])
-                except socket.error as e:
-                    if e.errno == errno.ECONNRESET:
-                        logger.warning('%r' % e)
-                    else:
-                        logger.exception(
-                            'Exception while receiving from %s connection %r with reason %r' %
-                            (self.client.tag, self.client.connection, e))
-                    return True
+            try:
+                while True:
+                    try:
+                        client_data = self.client.recv(self.flags.client_recvbuf_size)
+                        break                
+                    except ssl.SSLWantReadError:    # Try again later
+                        # Wait until enough data recevied
+                        select.select([self.client.connection], [], [])
+            except socket.error as e:
+                if e.errno == errno.ECONNRESET:
+                    logger.warning('%r' % e)
+                else:
+                    logger.exception(
+                        'Exception while receiving from %s connection %r with reason %r' %
+                        (self.client.tag, self.client.connection, e))
+                return True
 
             if client_data is None:
                 logger.debug('Client closed connection, tearing down...')
