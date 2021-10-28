@@ -128,6 +128,8 @@ STORAGE_ACCOUNT_INFO_LAYOUT = Struct(
     "accounts_len" / Int64ul,
     "executor_data_size" / Int64ul,
     "evm_data_size" / Int64ul,
+    "gas_used_and_paid" / Int64ul,
+    "number_of_payments" / Int64ul,
 )
 
 def get_account_list(client, storage_account):

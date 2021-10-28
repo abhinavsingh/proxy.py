@@ -628,13 +628,15 @@ def sol_instr_12_cancel(signer, client, perm_accs, trx_accs):
 def make_partial_call_instruction(perm_accs, trx_accs, step_count, call_data):
     return TransactionInstruction(
         program_id = evm_loader_id,
-        data = bytearray.fromhex("09") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little") + call_data,
+        data = bytearray.fromhex("13") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little") + call_data,
         keys = [
             AccountMeta(pubkey=perm_accs.storage, is_signer=False, is_writable=True),
 
             AccountMeta(pubkey=sysinstruct, is_signer=False, is_writable=False),
             AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
             AccountMeta(pubkey=perm_accs.collateral_pool_address, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=perm_accs.operator_token, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=system, is_signer=False, is_writable=False),
 
         ] + trx_accs.eth_accounts + [
@@ -694,13 +696,15 @@ def make_continue_instruction(perm_accs, trx_accs, step_count, index=None):
 def make_call_from_account_instruction(perm_accs, trx_accs, step_count = 0):
     return TransactionInstruction(
         program_id = evm_loader_id,
-        data = bytearray.fromhex("0B") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little"),
+        data = bytearray.fromhex("16") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little"),
         keys = [
             AccountMeta(pubkey=perm_accs.holder, is_signer=False, is_writable=True),
             AccountMeta(pubkey=perm_accs.storage, is_signer=False, is_writable=True),
 
             AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
             AccountMeta(pubkey=perm_accs.collateral_pool_address, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=perm_accs.operator_token, is_signer=False, is_writable=True),
+            AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
             AccountMeta(pubkey=system, is_signer=False, is_writable=False),
 
         ] + trx_accs.eth_accounts + [

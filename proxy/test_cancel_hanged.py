@@ -1,6 +1,8 @@
 import os
 import sys
 
+from proxy.plugin.solana_rest_api_tools import sysinstruct, ETH_TOKEN_MINT_ID, system, send_transaction
+
 sys.path.append("/spl/bin/")
 os.environ['SOLANA_URL'] = "http://solana:8899"
 os.environ['EVM_LOADER'] = "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io"
@@ -175,10 +177,10 @@ class CancelTest(unittest.TestCase):
         return (trx_raw.hex(), eth_signature, from_address)
 
 
-    def sol_instr_09_partial_call(self, storage_account, step_count, evm_instruction):
+    def sol_instr_19_partial_call(self, storage_account, step_count, evm_instruction):
         return TransactionInstruction(
             program_id=self.loader.loader_id,
-            data=bytearray.fromhex("09") + self.collateral_pool_index_buf + step_count.to_bytes(8, byteorder='little') + evm_instruction,
+            data=bytearray.fromhex("13") + self.collateral_pool_index_buf + step_count.to_bytes(8, byteorder='little') + evm_instruction,
             keys=[
                 AccountMeta(pubkey=storage_account, is_signer=False, is_writable=True),
 
@@ -188,6 +190,10 @@ class CancelTest(unittest.TestCase):
                 AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=True),
                 # Collateral pool address:
                 AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
+                # Operator's NEON token account:
+                AccountMeta(pubkey=get_associated_token_address(self.acc.public_key(), ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
+                # User's NEON token account:
+                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 # System program account:
                 AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
 
@@ -207,7 +213,7 @@ class CancelTest(unittest.TestCase):
         print("Begin")
         trx = Transaction()
         trx.add(self.sol_instr_keccak(self, make_keccak_instruction_data(1, len(msg), 13)))
-        trx.add(self.sol_instr_09_partial_call(self, storage, steps, instruction))
+        trx.add(self.sol_instr_19_partial_call(self, storage, steps, instruction))
         print(trx.__dict__)
         return send_transaction(client, trx, self.acc)
 
