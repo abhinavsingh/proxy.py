@@ -23,8 +23,6 @@
 [![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
 
-[![Become a Backer](https://opencollective.com/proxypy/tiers/backer.svg?avatarHeight=72)](https://opencollective.com/proxypy)
-
 # Table of Contents
 
 - [Features](#features)
@@ -103,6 +101,8 @@
   - [Docker image not working on MacOS](#docker-image-not-working-on-macos)
   - [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
   - [None:None in access logs](#nonenone-in-access-logs)
+- [Run Dashboard](#run-dashboard)
+  - [Inspect Traffic](#inspect-traffic)
 - [Flags](#flags)
 - [Changelog](#changelog)
   - [v2.x](#v2x)
@@ -1537,6 +1537,45 @@ FILE
     /Users/abhinav/Dev/proxy.py/proxy/__init__.py
 ```
 
+# Run Dashboard
+
+Dashboard is currently under development and not yet bundled with `pip` packages.  To run dashboard, you must checkout the source.
+
+Dashboard is written in Typescript and SCSS, so let's build it first using:
+
+```bash
+$ make dashboard
+```
+
+Now start `proxy.py` with dashboard plugin and by overriding root directory for static server:
+
+```bash
+$ proxy --enable-dashboard --static-server-dir dashboard/public
+...[redacted]... - Loaded plugin proxy.http.server.HttpWebServerPlugin
+...[redacted]... - Loaded plugin proxy.dashboard.dashboard.ProxyDashboard
+...[redacted]... - Loaded plugin proxy.dashboard.inspect_traffic.InspectTrafficPlugin
+...[redacted]... - Loaded plugin proxy.http.inspector.DevtoolsProtocolPlugin
+...[redacted]... - Loaded plugin proxy.http.proxy.HttpProxyPlugin
+...[redacted]... - Listening on ::1:8899
+...[redacted]... - Core Event enabled
+```
+
+Currently, enabling dashboard will also enable all the dashboard plugins.
+
+Visit dashboard:
+
+```bash
+$ open http://localhost:8899/dashboard/
+```
+
+## Inspect Traffic
+
+Wait for embedded `Chrome Dev Console` to load.  Currently, detail about all traffic flowing through `proxy.py` is pushed to the `Inspect Traffic` tab.  However, received payloads are not yet integrated with the embedded dev console.
+
+Current functionality can be verified by opening the `Dev Console` of dashboard and inspecting the websocket connection that dashboard established with the `proxy.py` server.
+
+[![Proxy.Py Dashboard Inspect Traffic](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/Dashboard.png)](https://github.com/abhinavsingh/proxy.py)
+
 # Frequently Asked Questions
 
 ## Threads vs Threadless
@@ -1676,7 +1715,7 @@ usage: proxy [-h] [--threadless] [--backlog BACKLOG] [--enable-events] [--hostna
           [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE] [--cert-file CERT_FILE] [--disable-headers DISABLE_HEADERS] [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--basic-auth BASIC_AUTH]
           [--cache-dir CACHE_DIR] [--static-server-dir STATIC_SERVER_DIR] [--pac-file PAC_FILE] [--pac-file-url-path PAC_FILE_URL_PATH] [--filtered-client-ips FILTERED_CLIENT_IPS]
 
-proxy.py v2.3.1
+proxy.py v2.4.0
 
 options:
   -h, --help            show this help message and exit
