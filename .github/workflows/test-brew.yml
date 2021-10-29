@@ -9,13 +9,13 @@ jobs:
     strategy:
       matrix:
         os: [macOS]
-        python: [3.8]
+        python: ['3.10']
       max-parallel: 1
       fail-fast: false
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Setup Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python }}
       - name: Brew

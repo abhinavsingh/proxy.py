@@ -54,6 +54,7 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
             (httpProtocolTypes.HTTPS, ReverseProxyPlugin.REVERSE_PROXY_LOCATION)
         ]
 
+    # TODO(abhinavsingh): Upgrade to use non-blocking get/read/write API.
     def handle_request(self, request: HttpParser) -> None:
         upstream = random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS)
         url = urlparse.urlsplit(upstream)

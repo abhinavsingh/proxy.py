@@ -35,7 +35,8 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
 
     def before_upstream_connection(
             self, request: HttpParser) -> Optional[HttpParser]:
-        """Avoid upstream connection of server in the request.
+        """Avoids upstream connection to the server by returning None.
+
         Initialize, connection to upstream proxy.
         """
         # Implement your own logic here e.g. round-robin, least connection etc.
@@ -47,18 +48,19 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             self, request: HttpParser) -> Optional[HttpParser]:
         request.path = self.rebuild_original_path(request)
         self.tunnel(request)
-        # Returning None indicates core to gracefully
+        # Returning None indicates the core to gracefully
         # flush client buffer and teardown the connection
         return None
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         """Will never be called since we didn't establish an upstream connection."""
-        return chunk
+        raise Exception("This should have never been called")
 
     def on_upstream_connection_close(self) -> None:
         """Will never be called since we didn't establish an upstream connection."""
-        pass
+        raise Exception("This should have never been called")
 
+    # TODO(abhinavsingh): Upgrade to use non-blocking get/read/write API.
     def tunnel(self, request: HttpParser) -> None:
         """Send to upstream proxy, receive from upstream proxy, queue back to client."""
         assert self.conn
