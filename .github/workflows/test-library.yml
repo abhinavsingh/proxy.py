@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         os: [macOS, ubuntu, windows]
-        python: [3.6, 3.7, 3.8]
+        python: [3.6, 3.7, 3.8, 3.9, 3.10]
       max-parallel: 4
       fail-fast: false
     steps:

@@ -20,7 +20,7 @@
 [![Contributions Welcome](https://img.shields.io/static/v1?label=contributions&message=welcome%20%F0%9F%91%8D&color=green)](https://github.com/abhinavsingh/proxy.py/issues)
 [![Gitter](https://badges.gitter.im/proxy-py/community.svg)](https://gitter.im/proxy-py/community)
 
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9&color=blue)](https://www.python.org/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
 
 [![Become a Backer](https://opencollective.com/proxypy/tiers/backer.svg?avatarHeight=72)](https://opencollective.com/proxypy)
@@ -1670,129 +1670,72 @@ few obvious ones include:
 
 ```bash
 ❯ proxy -h
-usage: proxy [-h] [--threadless] [--backlog BACKLOG] [--enable-events]
-          [--hostname HOSTNAME] [--port PORT] [--num-workers NUM_WORKERS]
-          [--client-recvbuf-size CLIENT_RECVBUF_SIZE] [--key-file KEY_FILE]
-          [--timeout TIMEOUT] [--pid-file PID_FILE] [--version]
-          [--disable-http-proxy] [--enable-dashboard] [--enable-devtools]
-          [--enable-static-server] [--enable-web-server]
-          [--log-level LOG_LEVEL] [--log-file LOG_FILE]
-          [--log-format LOG_FORMAT] [--open-file-limit OPEN_FILE_LIMIT]
-          [--plugins PLUGINS] [--ca-key-file CA_KEY_FILE]
-          [--ca-cert-dir CA_CERT_DIR] [--ca-cert-file CA_CERT_FILE]
-          [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE]
-          [--cert-file CERT_FILE] [--disable-headers DISABLE_HEADERS]
-          [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-          [--basic-auth BASIC_AUTH] [--cache-dir CACHE_DIR]
-          [--static-server-dir STATIC_SERVER_DIR] [--pac-file PAC_FILE]
-          [--pac-file-url-path PAC_FILE_URL_PATH]
-          [--filtered-client-ips FILTERED_CLIENT_IPS]
+usage: proxy [-h] [--threadless] [--backlog BACKLOG] [--enable-events] [--hostname HOSTNAME] [--port PORT] [--num-workers NUM_WORKERS] [--client-recvbuf-size CLIENT_RECVBUF_SIZE] [--key-file KEY_FILE]
+          [--timeout TIMEOUT] [--pid-file PID_FILE] [--version] [--disable-http-proxy] [--enable-dashboard] [--enable-devtools] [--enable-static-server] [--enable-web-server] [--log-level LOG_LEVEL]
+          [--log-file LOG_FILE] [--log-format LOG_FORMAT] [--open-file-limit OPEN_FILE_LIMIT] [--plugins PLUGINS] [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR] [--ca-cert-file CA_CERT_FILE]
+          [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE] [--cert-file CERT_FILE] [--disable-headers DISABLE_HEADERS] [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--basic-auth BASIC_AUTH]
+          [--cache-dir CACHE_DIR] [--static-server-dir STATIC_SERVER_DIR] [--pac-file PAC_FILE] [--pac-file-url-path PAC_FILE_URL_PATH] [--filtered-client-ips FILTERED_CLIENT_IPS]
 
 proxy.py v2.3.1
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  --threadless          Default: False. When disabled a new thread is spawned
-                        to handle each client connection.
-  --backlog BACKLOG     Default: 100. Maximum number of pending connections to
-                        proxy server
-  --enable-events       Default: False. Enables core to dispatch lifecycle
-                        events. Plugins can be used to subscribe for core
-                        events.
+  --threadless          Default: False. When disabled a new thread is spawned to handle each client connection.
+  --backlog BACKLOG     Default: 100. Maximum number of pending connections to proxy server
+  --enable-events       Default: False. Enables core to dispatch lifecycle events. Plugins can be used to subscribe for core events.
   --hostname HOSTNAME   Default: ::1. Server IP address.
   --port PORT           Default: 8899. Server port.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
   --client-recvbuf-size CLIENT_RECVBUF_SIZE
-                        Default: 1 MB. Maximum amount of data received from
-                        the client in a single recv() operation. Bump this
-                        value for faster uploads at the expense of increased
-                        RAM.
-  --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
-                        TLS encryption with clients. If used, must also pass
-                        --cert-file.
-  --timeout TIMEOUT     Default: 10. Number of seconds after which an inactive
-                        connection must be dropped. Inactivity is defined by
-                        no data sent or received by the client.
+                        Default: 1 MB. Maximum amount of data received from the client in a single recv() operation. Bump this value for faster uploads at the expense of increased RAM.
+  --key-file KEY_FILE   Default: None. Server key file to enable end-to-end TLS encryption with clients. If used, must also pass --cert-file.
+  --timeout TIMEOUT     Default: 10. Number of seconds after which an inactive connection must be dropped. Inactivity is defined by no data sent or received by the client.
   --pid-file PID_FILE   Default: None. Save parent process ID to a file.
   --version, -v         Prints proxy.py version.
-  --disable-http-proxy  Default: False. Whether to disable
-                        proxy.HttpProxyPlugin.
+  --disable-http-proxy  Default: False. Whether to disable proxy.HttpProxyPlugin.
   --enable-dashboard    Default: False. Enables proxy.py dashboard.
-  --enable-devtools     Default: False. Enables integration with Chrome
-                        Devtool Frontend. Also see --devtools-ws-path.
+  --enable-devtools     Default: False. Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.
   --enable-static-server
-                        Default: False. Enable inbuilt static file server.
-                        Optionally, also use --static-server-dir to serve
-                        static content from custom directory. By default,
-                        static file server serves out of installed proxy.py
-                        python module folder.
-  --enable-web-server   Default: False. Whether to enable
-                        proxy.HttpWebServerPlugin.
+                        Default: False. Enable inbuilt static file server. Optionally, also use --static-server-dir to serve static content from custom directory. By default, static file server serves out of
+                        installed proxy.py python module folder.
+  --enable-web-server   Default: False. Whether to enable proxy.HttpWebServerPlugin.
   --log-level LOG_LEVEL
-                        Valid options: DEBUG, INFO (default), WARNING, ERROR,
-                        CRITICAL. Both upper and lowercase values are allowed.
-                        You may also simply use the leading character e.g.
-                        --log-level d
+                        Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. Both upper and lowercase values are allowed. You may also simply use the leading character e.g. --log-level d
   --log-file LOG_FILE   Default: sys.stdout. Log file destination.
   --log-format LOG_FORMAT
                         Log format for Python logger.
   --open-file-limit OPEN_FILE_LIMIT
-                        Default: 1024. Maximum number of files (TCP
-                        connections) that proxy.py can open concurrently.
+                        Default: 1024. Maximum number of files (TCP connections) that proxy.py can open concurrently.
   --plugins PLUGINS     Comma separated plugins
   --ca-key-file CA_KEY_FILE
-                        Default: None. CA key to use for signing dynamically
-                        generated HTTPS certificates. If used, must also pass
-                        --ca-cert-file and --ca-signing-key-file
+                        Default: None. CA key to use for signing dynamically generated HTTPS certificates. If used, must also pass --ca-cert-file and --ca-signing-key-file
   --ca-cert-dir CA_CERT_DIR
-                        Default: ~/.proxy.py. Directory to store dynamically
-                        generated certificates. Also see --ca-key-file, --ca-
-                        cert-file and --ca-signing-key-file
+                        Default: ~/.proxy.py. Directory to store dynamically generated certificates. Also see --ca-key-file, --ca-cert-file and --ca-signing-key-file
   --ca-cert-file CA_CERT_FILE
-                        Default: None. Signing certificate to use for signing
-                        dynamically generated HTTPS certificates. If used,
-                        must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: None. Provide path to custom CA file for peer
-                        certificate validation. Specially useful on MacOS.
+                        Default: None. Signing certificate to use for signing dynamically generated HTTPS certificates. If used, must also pass --ca-key-file and --ca-signing-key-file
+  --ca-file CA_FILE     Default: None. Provide path to custom CA file for peer certificate validation. Specially useful on MacOS.
   --ca-signing-key-file CA_SIGNING_KEY_FILE
-                        Default: None. CA signing key to use for dynamic
-                        generation of HTTPS certificates. If used, must also
-                        pass --ca-key-file and --ca-cert-file
+                        Default: None. CA signing key to use for dynamic generation of HTTPS certificates. If used, must also pass --ca-key-file and --ca-cert-file
   --cert-file CERT_FILE
-                        Default: None. Server certificate to enable end-to-end
-                        TLS encryption with clients. If used, must also pass
-                        --key-file.
+                        Default: None. Server certificate to enable end-to-end TLS encryption with clients. If used, must also pass --key-file.
   --disable-headers DISABLE_HEADERS
-                        Default: None. Comma separated list of headers to
-                        remove before dispatching client request to upstream
-                        server.
+                        Default: None. Comma separated list of headers to remove before dispatching client request to upstream server.
   --server-recvbuf-size SERVER_RECVBUF_SIZE
-                        Default: 1 MB. Maximum amount of data received from
-                        the server in a single recv() operation. Bump this
-                        value for faster downloads at the expense of increased
-                        RAM.
+                        Default: 1 MB. Maximum amount of data received from the server in a single recv() operation. Bump this value for faster downloads at the expense of increased RAM.
   --basic-auth BASIC_AUTH
-                        Default: No authentication. Specify colon separated
-                        user:password to enable basic authentication.
+                        Default: No authentication. Specify colon separated user:password to enable basic authentication.
   --cache-dir CACHE_DIR
-                        Default: A temporary directory. Flag only applicable
-                        when cache plugin is used with on-disk storage.
+                        Default: A temporary directory. Flag only applicable when cache plugin is used with on-disk storage.
   --static-server-dir STATIC_SERVER_DIR
-                        Default: "public" folder in directory where proxy.py
-                        is placed. This option is only applicable when static
-                        server is also enabled. See --enable-static-server.
-  --pac-file PAC_FILE   A file (Proxy Auto Configuration) or string to serve
-                        when the server receives a direct file request. Using
-                        this option enables proxy.HttpWebServerPlugin.
+                        Default: "public" folder in directory where proxy.py is placed. This option is only applicable when static server is also enabled. See --enable-static-server.
+  --pac-file PAC_FILE   A file (Proxy Auto Configuration) or string to serve when the server receives a direct file request. Using this option enables proxy.HttpWebServerPlugin.
   --pac-file-url-path PAC_FILE_URL_PATH
                         Default: /. Web server path to serve the PAC file.
   --filtered-client-ips FILTERED_CLIENT_IPS
-                        Default: 127.0.0.1,::1. Comma separated list of IPv4
-                        and IPv6 addresses.
+                        Default: 127.0.0.1,::1. Comma separated list of IPv4 and IPv6 addresses.
 
-Proxy.py not working? Report at:
-https://github.com/abhinavsingh/proxy.py/issues/new
+Proxy.py not working? Report at: https://github.com/abhinavsingh/proxy.py/issues/new
 ```
 
 # Changelog
