@@ -26,6 +26,8 @@ import inspect
 from types import TracebackType
 from typing import Dict, List, Optional, Generator, Any, Tuple, Type, Union, cast
 
+from proxy.core.acceptor.work import Work
+
 from .common.utils import bytes_, text_
 from .common.types import IpAddress
 from .common.version import __version__
@@ -122,18 +124,24 @@ flags.add_argument(
 
 
 class Proxy:
-    """Context manager for controlling core AcceptorPool server lifecycle.
+    """Context manager to control core AcceptorPool server lifecycle.
 
-    By default this context manager starts AcceptorPool with HttpProtocolHandler
-    worker class.
+    By default, AcceptorPool is started with HttpProtocolHandler worker class
+    i.e. we are only expecting HTTP traffic to flow between clients and server.
     """
 
     def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
         self.flags = Proxy.initialize(input_args, **opts)
         self.acceptors: Optional[AcceptorPool] = None
+        # TODO(abhinavsingh): Allow users to override the worker class itself
+        # e.g. A clear text protocol. Or imagine a TelnetProtocolHandler instead
+        # of default HttpProtocolHandler.
+        self.work_klass: Type[Work] = HttpProtocolHandler
 
     def write_pid_file(self) -> None:
         if self.flags.pid_file is not None:
+            # TODO(abhinavsingh): Multiple instances of proxy.py running on
+            # same host machine will currently result in overwriting the PID file
             with open(self.flags.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
 
@@ -144,7 +152,7 @@ class Proxy:
     def __enter__(self) -> 'Proxy':
         self.acceptors = AcceptorPool(
             flags=self.flags,
-            work_klass=HttpProtocolHandler
+            work_klass=self.work_klass
         )
         self.acceptors.setup()
         self.write_pid_file()
