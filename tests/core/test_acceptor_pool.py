@@ -49,7 +49,7 @@ class TestAcceptorPool(unittest.TestCase):
         sock.setsockopt.assert_called_with(
             socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind.assert_called_with(
-            (str(pool.flags.hostname), pool.flags.port))
+            (str(pool.flags.hostname), 8899))
         sock.listen.assert_called_with(pool.flags.backlog)
         sock.setblocking.assert_called_with(False)
 

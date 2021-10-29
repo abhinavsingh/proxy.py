@@ -111,9 +111,10 @@ class AcceptorPool:
         self.socket.bind((str(self.flags.hostname), self.flags.port))
         self.socket.listen(self.flags.backlog)
         self.socket.setblocking(False)
-        logger.info(
-            'Listening on %s:%d' %
-            (self.flags.hostname, self.flags.port))
+        # Override flags.port to match the actual port
+        # we are listening upon.  This is necessary to preserve
+        # the server port when `--port=0` is used.
+        self.flags.port = self.socket.getsockname()[1]
 
     def start_workers(self) -> None:
         """Start worker processes."""

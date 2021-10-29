@@ -132,7 +132,7 @@ class Proxy:
 
     def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
         self.flags = Proxy.initialize(input_args, **opts)
-        self.acceptors: Optional[AcceptorPool] = None
+        self.pool: Optional[AcceptorPool] = None
         # TODO(abhinavsingh): Allow users to override the worker class itself
         # e.g. A clear text protocol. Or imagine a TelnetProtocolHandler instead
         # of default HttpProtocolHandler.
@@ -150,11 +150,11 @@ class Proxy:
             os.remove(self.flags.pid_file)
 
     def __enter__(self) -> 'Proxy':
-        self.acceptors = AcceptorPool(
+        self.pool = AcceptorPool(
             flags=self.flags,
             work_klass=self.work_klass
         )
-        self.acceptors.setup()
+        self.pool.setup()
         self.write_pid_file()
         return self
 
@@ -163,8 +163,8 @@ class Proxy:
             exc_type: Optional[Type[BaseException]],
             exc_val: Optional[BaseException],
             exc_tb: Optional[TracebackType]) -> None:
-        assert self.acceptors
-        self.acceptors.shutdown()
+        assert self.pool
+        self.pool.shutdown()
         self.delete_pid_file()
 
     @staticmethod
@@ -449,7 +449,10 @@ def main(
         input_args: Optional[List[str]] = None,
         **opts: Any) -> None:
     try:
-        with Proxy(input_args=input_args, **opts):
+        with Proxy(input_args=input_args, **opts) as proxy:
+            assert proxy.pool is not None
+            logger.info('Listening on %s:%d' %
+                        (proxy.pool.flags.hostname, proxy.pool.flags.port))
             # TODO: Introduce cron feature
             # https://github.com/abhinavsingh/proxy.py/issues/392
             while True:
