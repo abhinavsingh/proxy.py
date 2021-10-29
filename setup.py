@@ -10,7 +10,7 @@
 """
 from setuptools import setup, find_packages
 
-VERSION = (2, 3, 1)
+VERSION = (2, 4, 0)
 __version__ = '.'.join(map(str, VERSION[0:3]))
 __description__ = '''⚡⚡⚡Fast, Lightweight, Pluggable, TLS interception capable proxy server
     focused on Network monitoring, controls & Application development, testing, debugging.'''
@@ -78,6 +78,7 @@ if __name__ == '__main__':
             'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: 3.8',
             'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10',
             'Topic :: Internet',
             'Topic :: Internet :: Proxy Servers',
             'Topic :: Internet :: WWW/HTTP',

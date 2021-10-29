@@ -15,6 +15,7 @@ import json
 from urllib import parse as urlparse
 from unittest import mock
 from typing import cast
+from pathlib import Path
 
 from proxy.proxy import Proxy
 from proxy.core.connection import TcpClientConnection
@@ -38,7 +39,11 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
               mock_selector: mock.Mock) -> None:
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Proxy.initialize()
+        adblock_json_path = Path(
+            __file__).parent.parent.parent / "proxy" / "plugin" / "adblock.json"
+        self.flags = Proxy.initialize(
+            input_args=["--filtered-url-regex-config",
+                        str(adblock_json_path)])
         self.plugin = mock.MagicMock()
 
         self.mock_fromfd = mock_fromfd
@@ -158,9 +163,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
     def test_filter_by_upstream_host_plugin(
             self, mock_server_conn: mock.Mock) -> None:
         request = build_http_request(
-            b'GET', b'http://google.com/',
+            b'GET', b'http://facebook.com/',
             headers={
-                b'Host': b'google.com',
+                b'Host': b'facebook.com',
             }
         )
         self._conn.recv.return_value = request
