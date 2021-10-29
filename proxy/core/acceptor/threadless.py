@@ -33,7 +33,13 @@ logger = logging.getLogger(__name__)
 
 
 class Threadless(multiprocessing.Process):
-    """Threadless provides an event loop.  Use it by implementing Threadless class.
+    """Threadless process provides an event loop.
+
+    Internally, for each client connection, an instance of `work_klass`
+    is created.  Threadless will invoke necessary lifecycle of the `Work` class
+    allowing implementations to handle accepted client connections as they wish.
+
+    Note that, all `Work` implementations share the same underlying event loop.
 
     When --threadless option is enabled, each Acceptor process also
     spawns one Threadless process.  And instead of spawning new thread
@@ -92,8 +98,13 @@ class Threadless(multiprocessing.Process):
     async def wait_for_tasks(
             self, tasks: Dict[int, Any]) -> None:
         for work_id in tasks:
-            # TODO: Resolving one handle_events here can block resolution of
-            # other tasks
+            # TODO: Resolving one handle_events here can block
+            # resolution of other tasks.  This can happen when handle_events
+            # is slow.
+            #
+            # Instead of sequential await, a better option would be to await on
+            # list of async handle_events.  This will allow all handlers to run
+            # concurrently without blocking each other.
             try:
                 teardown = await asyncio.wait_for(tasks[work_id], DEFAULT_TIMEOUT)
                 if teardown:
@@ -152,6 +163,7 @@ class Threadless(multiprocessing.Process):
         # until all the logic below completes.
         #
         # Invoke Threadless.handle_events
+        #
         # TODO: Only send readable / writables that client originally
         # registered.
         tasks = {}

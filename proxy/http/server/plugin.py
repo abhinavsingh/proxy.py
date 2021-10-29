@@ -8,13 +8,17 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from abc import ABC, abstractmethod
+import socket
 import argparse
+
+from abc import ABC, abstractmethod
 from typing import List, Tuple
 from uuid import UUID
+
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
 
+from ...common.types import Readables, Writables
 from ...core.connection import TcpClientConnection
 from ...core.event import EventQueue
 
@@ -32,6 +36,36 @@ class HttpWebServerBasePlugin(ABC):
         self.flags = flags
         self.client = client
         self.event_queue = event_queue
+
+    # TODO(abhinavsingh): get_descriptors, write_to_descriptors, read_from_descriptors
+    # can be placed into their own abstract class which can then be shared by
+    # HttpProxyBasePlugin, HttpWebServerBasePlugin and HttpProtocolHandlerPlugin class.
+    #
+    # Currently code has been shamelessly copied.  Also these methods are not
+    # marked as abstract to avoid breaking custom plugins written by users for
+    # previous versions of proxy.py
+    #
+    # Since 3.4.0
+    #
+    # @abstractmethod
+    def get_descriptors(
+            self) -> Tuple[List[socket.socket], List[socket.socket]]:
+        return [], []  # pragma: no cover
+
+    # @abstractmethod
+    def write_to_descriptors(self, w: Writables) -> bool:
+        """Implementations must now write/flush data over the socket.
+
+        Note that buffer management is in-build into the connection classes.
+        Hence implementations MUST call `flush` here, to send any buffered data
+        over the socket.
+        """
+        return False  # pragma: no cover
+
+    # @abstractmethod
+    def read_from_descriptors(self, r: Readables) -> bool:
+        """Implementations must now read data over the socket."""
+        return False  # pragma: no cover
 
     @abstractmethod
     def routes(self) -> List[Tuple[int, str]]:

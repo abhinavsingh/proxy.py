@@ -66,7 +66,7 @@ flags.add_argument(
 class HttpProtocolHandler(Work):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
-    Accepts `Client` connection object and manages HttpProtocolHandlerPlugin invocations.
+    Accepts `Client` connection and delegates to HttpProtocolHandlerPlugin.
     """
 
     def __init__(self, client: TcpClientConnection,
@@ -87,15 +87,28 @@ class HttpProtocolHandler(Work):
         return self.flags.keyfile is not None and \
             self.flags.certfile is not None
 
+    def optionally_wrap_socket(
+            self, conn: socket.socket) -> Union[ssl.SSLSocket, socket.socket]:
+        """Attempts to wrap accepted client connection using provided certificates.
+
+        Shutdown and closes client connection upon error.
+        """
+        if self.encryption_enabled():
+            assert self.flags.keyfile and self.flags.certfile
+            # TODO(abhinavsingh): Insecure TLS versions must not be accepted by default
+            conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
+        return conn
+
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
         conn = self.optionally_wrap_socket(self.client.connection)
         conn.setblocking(False)
+        # Update client connection reference if connection was wrapped
         if self.encryption_enabled():
             self.client = TcpClientConnection(conn=conn, addr=self.client.addr)
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
-                instance = klass(
+                instance: HttpProtocolHandlerPlugin = klass(
                     self.uid,
                     self.flags,
                     self.client,
@@ -116,7 +129,6 @@ class HttpProtocolHandler(Work):
         }
         if self.client.has_buffer():
             events[self.client.connection] |= selectors.EVENT_WRITE
-
         # HttpProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
@@ -130,7 +142,6 @@ class HttpProtocolHandler(Work):
                     events[w] = selectors.EVENT_WRITE
                 else:
                     events[w] |= selectors.EVENT_WRITE
-
         return events
 
     def handle_events(
@@ -189,17 +200,6 @@ class HttpProtocolHandler(Work):
             self.client.connection.close()
             logger.debug('Client connection closed')
             super().shutdown()
-
-    def optionally_wrap_socket(
-            self, conn: socket.socket) -> Union[ssl.SSLSocket, socket.socket]:
-        """Attempts to wrap accepted client connection using provided certificates.
-
-        Shutdown and closes client connection upon error.
-        """
-        if self.encryption_enabled():
-            assert self.flags.keyfile and self.flags.certfile
-            conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
-        return conn
 
     def connection_inactive_for(self) -> float:
         return time.time() - self.last_activity
