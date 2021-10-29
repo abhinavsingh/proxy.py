@@ -63,11 +63,10 @@ flags.add_argument(
 
 
 class AcceptorPool:
-    """AcceptorPool.
-
-    Pre-spawns worker processes to utilize all cores available on the system.
+    """AcceptorPool pre-spawns worker processes to utilize all cores available on the system.
     A server socket is initialized and dispatched over a pipe to these workers.
-    Each worker process then accepts new client connection.
+    Each worker process then concurrently accepts new client connection over
+    the initialized server socket.
 
     Example usage:
 
@@ -83,7 +82,9 @@ class AcceptorPool:
 
     Optionally, AcceptorPool also initialize a global event queue.
     It is a multiprocess safe queue which can be used to build pubsub patterns
-    for message sharing or signaling within proxy.py.
+    for message sharing or signaling.
+
+    TODO(abhinavsingh): Decouple event queue setup & teardown into its own class.
     """
 
     def __init__(self, flags: argparse.Namespace,
@@ -172,7 +173,6 @@ class AcceptorPool:
             logger.info('Core Event enabled')
             self.start_event_dispatcher()
         self.start_workers()
-
         # Send server socket to all acceptor processes.
         assert self.socket is not None
         for index in range(self.flags.num_workers):

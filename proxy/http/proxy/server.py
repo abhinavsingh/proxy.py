@@ -122,7 +122,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.plugins: Dict[str, HttpProxyBasePlugin] = {}
         if b'HttpProxyBasePlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProxyBasePlugin']:
-                instance = klass(
+                instance: HttpProxyBasePlugin = klass(
                     self.uid,
                     self.flags,
                     self.client,
@@ -147,10 +147,25 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.server and not self.server.closed and \
                 self.server.has_buffer() and self.server.connection:
             w.append(self.server.connection)
+
+        # TODO(abhinavsingh): We need to keep a mapping of plugin and
+        # descriptors registered by them, so that within write/read blocks
+        # we can invoke the right plugin callbacks.
+        for plugin in self.plugins.values():
+            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
+            r.extend(plugin_read_desc)
+            w.extend(plugin_write_desc)
+
         return r, w
 
     def write_to_descriptors(self, w: Writables) -> bool:
-        if self.request.has_upstream_server() and \
+        if self.server and self.server.connection not in w:
+            # Currently, we just call write/read block of each plugins.  It is
+            # plugins responsibility to ignore this callback, if passed descriptors
+            # doesn't contain the descriptor they registered.
+            for plugin in self.plugins.values():
+                plugin.write_to_descriptors(w)
+        elif self.request.has_upstream_server() and \
                 self.server and not self.server.closed and \
                 self.server.has_buffer() and \
                 self.server.connection in w:
@@ -172,7 +187,13 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        if self.request.has_upstream_server() \
+        if self.server and self.server.connection not in r:
+            # Currently, we just call write/read block of each plugins.  It is
+            # plugins responsibility to ignore this callback, if passed descriptors
+            # doesn't contain the descriptor they registered.
+            for plugin in self.plugins.values():
+                plugin.write_to_descriptors(r)
+        elif self.request.has_upstream_server() \
                 and self.server \
                 and not self.server.closed \
                 and self.server.connection in r:

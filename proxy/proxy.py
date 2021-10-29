@@ -207,7 +207,7 @@ class Proxy:
                 'plugins', args.plugins.split(text_(COMMA)))]
         )
 
-        # proxy.py currently cannot serve over HTTPS and perform TLS interception
+        # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
         # at the same time.
         if (args.cert_file and args.key_file) and \
@@ -220,6 +220,11 @@ class Proxy:
         auth_code = None
         if args.basic_auth:
             auth_code = base64.b64encode(bytes_(args.basic_auth))
+
+        # https://github.com/python/mypy/issues/5865
+        #
+        # def option(t: object, key: str, default: Any) -> Any:
+        #     return cast(t, opts.get(key, default))
 
         args.plugins = plugins
         args.auth_code = cast(
