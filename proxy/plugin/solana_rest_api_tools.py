@@ -94,10 +94,12 @@ obligatory_accounts = [
     AccountMeta(pubkey=sysvarclock, is_signer=False, is_writable=False),
 ]
 
-class TransactionAccounts:
-    def __init__(self, caller_token, eth_accounts):
+
+class TransactionInfo:
+    def __init__(self, caller_token, eth_accounts, nonce):
         self.caller_token = caller_token
         self.eth_accounts = eth_accounts
+        self.nonce = nonce
 
 class AccountInfo(NamedTuple):
     ether: eth_keys.PublicKey
@@ -484,7 +486,7 @@ def call_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg):
         logger.debug("call_continue_iterative exception:")
         logger.debug(str(err))
 
-    return sol_instr_12_cancel(signer, client, perm_accs, trx_accs)
+    return sol_instr_21_cancel(signer, client, perm_accs, trx_accs)
 
 
 def call_continue(signer, client, perm_accs, trx_accs, steps):
@@ -500,7 +502,7 @@ def call_continue(signer, client, perm_accs, trx_accs, steps):
         logger.debug("call_continue_iterative exception:")
         logger.debug(str(err))
 
-    return sol_instr_12_cancel(signer, client, perm_accs, trx_accs)
+    return sol_instr_21_cancel(signer, client, perm_accs, trx_accs)
 
 
 def call_continue_bucked(signer, client, perm_accs, trx_accs, steps):
@@ -601,11 +603,11 @@ def sol_instr_10_continue(signer, client, perm_accs, trx_accs, initial_step_coun
     raise Exception("Can't execute even one EVM instruction")
 
 
-def sol_instr_12_cancel(signer, client, perm_accs, trx_accs):
+def sol_instr_21_cancel(signer, client, perm_accs, trx_accs):
     trx = Transaction()
     trx.add(TransactionInstruction(
         program_id=evm_loader_id,
-        data=bytearray.fromhex("0C"),
+        data=bytearray.fromhex("15") + trx_accs.nonce.to_bytes(8, 'little'),
         keys=[
             AccountMeta(pubkey=perm_accs.storage, is_signer=False, is_writable=True),
             AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
@@ -974,7 +976,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
             AccountMeta(pubkey=caller_token, is_signer=False, is_writable=True),
         ] + add_keys_05
 
-    trx_accs = TransactionAccounts(caller_token, eth_accounts)
+    trx_accs = TransactionInfo(caller_token, eth_accounts, ethTrx.nonce)
 
     return (trx_accs, sender_ether, trx)
 
