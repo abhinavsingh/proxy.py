@@ -26,6 +26,8 @@ import inspect
 from types import TracebackType
 from typing import Dict, List, Optional, Generator, Any, Tuple, Type, Union, cast
 
+from proxy.core.acceptor.work import Work
+
 from .common.utils import bytes_, text_
 from .common.types import IpAddress
 from .common.version import __version__
@@ -122,18 +124,24 @@ flags.add_argument(
 
 
 class Proxy:
-    """Context manager for controlling core AcceptorPool server lifecycle.
+    """Context manager to control core AcceptorPool server lifecycle.
 
-    By default this context manager starts AcceptorPool with HttpProtocolHandler
-    worker class.
+    By default, AcceptorPool is started with HttpProtocolHandler worker class
+    i.e. we are only expecting HTTP traffic to flow between clients and server.
     """
 
     def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
         self.flags = Proxy.initialize(input_args, **opts)
-        self.acceptors: Optional[AcceptorPool] = None
+        self.pool: Optional[AcceptorPool] = None
+        # TODO(abhinavsingh): Allow users to override the worker class itself
+        # e.g. A clear text protocol. Or imagine a TelnetProtocolHandler instead
+        # of default HttpProtocolHandler.
+        self.work_klass: Type[Work] = HttpProtocolHandler
 
     def write_pid_file(self) -> None:
         if self.flags.pid_file is not None:
+            # TODO(abhinavsingh): Multiple instances of proxy.py running on
+            # same host machine will currently result in overwriting the PID file
             with open(self.flags.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
 
@@ -142,11 +150,11 @@ class Proxy:
             os.remove(self.flags.pid_file)
 
     def __enter__(self) -> 'Proxy':
-        self.acceptors = AcceptorPool(
+        self.pool = AcceptorPool(
             flags=self.flags,
-            work_klass=HttpProtocolHandler
+            work_klass=self.work_klass
         )
-        self.acceptors.setup()
+        self.pool.setup()
         self.write_pid_file()
         return self
 
@@ -155,8 +163,8 @@ class Proxy:
             exc_type: Optional[Type[BaseException]],
             exc_val: Optional[BaseException],
             exc_tb: Optional[TracebackType]) -> None:
-        assert self.acceptors
-        self.acceptors.shutdown()
+        assert self.pool
+        self.pool.shutdown()
         self.delete_pid_file()
 
     @staticmethod
@@ -202,7 +210,7 @@ class Proxy:
                 'plugins', args.plugins.split(text_(COMMA)))]
         )
 
-        # proxy.py currently cannot serve over HTTPS and perform TLS interception
+        # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
         # at the same time.
         if (args.cert_file and args.key_file) and \
@@ -215,6 +223,11 @@ class Proxy:
         auth_code = None
         if args.basic_auth:
             auth_code = base64.b64encode(bytes_(args.basic_auth))
+
+        # https://github.com/python/mypy/issues/5865
+        #
+        # def option(t: object, key: str, default: Any) -> Any:
+        #     return cast(t, opts.get(key, default))
 
         args.plugins = plugins
         args.auth_code = cast(
@@ -439,7 +452,10 @@ def main(
         input_args: Optional[List[str]] = None,
         **opts: Any) -> None:
     try:
-        with Proxy(input_args=input_args, **opts):
+        with Proxy(input_args=input_args, **opts) as proxy:
+            assert proxy.pool is not None
+            logger.info('Listening on %s:%d' %
+                        (proxy.pool.flags.hostname, proxy.pool.flags.port))
             # TODO: Introduce cron feature
             # https://github.com/abhinavsingh/proxy.py/issues/392
             while True:

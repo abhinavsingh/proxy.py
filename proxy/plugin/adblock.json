@@ -1,0 +1,32 @@
+[{
+    "regex": "tpc.googlesyndication.com/simgad/.*",
+    "notes": "Google image ads"
+},
+{
+    "regex": "tpc.googlesyndication.com/sadbundle/.*",
+    "notes": "Google animated ad bundles"
+},
+{
+    "regex": "pagead\\d+.googlesyndication.com/.*",
+    "notes": "Google tracking"
+},
+{
+    "regex": "(www){0,1}.google-analytics.com/r/collect\\?.*",
+    "notes": "Google tracking"
+},
+{
+    "regex": "(www){0,1}.facebook.com/tr/.*",
+    "notes": "Facebook tracking"
+},
+{
+    "regex": "tpc.googlesyndication.com/daca_images/simgad/.*",
+    "notes": "Google image ads"
+},
+{
+    "regex": ".*.2mdn.net/videoplayback/.*",
+    "notes": "Twitch.tv video ads"
+},
+{
+    "regex": "(www.){0,1}google.com(.*)/pagead/.*",
+    "notes": "Google ads"
+}]

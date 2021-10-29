@@ -76,7 +76,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
-                instance = klass(
+                instance: HttpWebServerBasePlugin = klass(
                     self.uid,
                     self.flags,
                     self.client,
@@ -181,11 +181,16 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
 
+    # TODO(abhinavsingh): Call plugin get/read/write descriptor callbacks
+    def get_descriptors(
+            self) -> Tuple[List[socket.socket], List[socket.socket]]:
+        return [], []
+
     def write_to_descriptors(self, w: Writables) -> bool:
-        pass
+        return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        pass
+        return False
 
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
@@ -245,7 +250,3 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
              text_(self.request.method),
              text_(self.request.path),
              (time.time() - self.start_time) * 1000))
-
-    def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        return [], []
