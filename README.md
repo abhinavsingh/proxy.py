@@ -92,6 +92,8 @@
   - [Public Key Infrastructure](#pki)
     - [API Usage](#api-usage)
     - [CLI Usage](#cli-usage)
+- [Run Dashboard](#run-dashboard)
+  - [Inspect Traffic](#inspect-traffic)
 - [Frequently Asked Questions](#frequently-asked-questions)
   - [Threads vs Threadless](#threads-vs-threadless)
   - [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
@@ -101,8 +103,6 @@
   - [Docker image not working on MacOS](#docker-image-not-working-on-macos)
   - [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
   - [None:None in access logs](#nonenone-in-access-logs)
-- [Run Dashboard](#run-dashboard)
-  - [Inspect Traffic](#inspect-traffic)
 - [Flags](#flags)
 - [Changelog](#changelog)
   - [v2.x](#v2x)
@@ -1574,7 +1574,7 @@ Wait for embedded `Chrome Dev Console` to load.  Currently, detail about all tra
 
 Current functionality can be verified by opening the `Dev Console` of dashboard and inspecting the websocket connection that dashboard established with the `proxy.py` server.
 
-[![Proxy.Py Dashboard Inspect Traffic](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/Dashboard.png)](https://github.com/abhinavsingh/proxy.py)
+[![Proxy.Py Dashboard Inspect Traffic](https://raw.githubusercontent.com/abhinavsingh/proxy.py/run-dashboard/Dashboard.png)](https://github.com/abhinavsingh/proxy.py)
 
 # Frequently Asked Questions
 
