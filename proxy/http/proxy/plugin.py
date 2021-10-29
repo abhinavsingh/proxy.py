@@ -47,7 +47,7 @@ class HttpProxyBasePlugin(ABC):
 
     # TODO(abhinavsingh): get_descriptors, write_to_descriptors, read_from_descriptors
     # can be placed into their own abstract class which can then be shared by
-    # HttpProxyBasePlugin and HttpProtocolHandlerPlugin class.
+    # HttpProxyBasePlugin, HttpWebServerBasePlugin and HttpProtocolHandlerPlugin class.
     #
     # Currently code has been shamelessly copied.  Also these methods are not
     # marked as abstract to avoid breaking custom plugins written by users for
