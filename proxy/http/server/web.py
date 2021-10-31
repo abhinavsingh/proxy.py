@@ -135,7 +135,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
-        if self.request.has_upstream_server():
+        if self.request.has_host():
             return False
 
         assert self.request.path
@@ -234,7 +234,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         return chunk
 
     def on_client_connection_close(self) -> None:
-        if self.request.has_upstream_server():
+        if self.request.has_host():
             return
         if self.switched_protocol:
             # Invoke plugin.on_websocket_close

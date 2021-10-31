@@ -137,7 +137,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        if not self.request.has_upstream_server():
+        if not self.request.has_host():
             return [], []
 
         r: List[socket.socket] = []
@@ -159,13 +159,13 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return r, w
 
     def write_to_descriptors(self, w: Writables) -> bool:
-        if self.server and self.server.connection not in w:
+        if (self.server and self.server.connection not in w) or not self.server:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered.
             for plugin in self.plugins.values():
                 plugin.write_to_descriptors(w)
-        elif self.request.has_upstream_server() and \
+        elif self.request.has_host() and \
                 self.server and not self.server.closed and \
                 self.server.has_buffer() and \
                 self.server.connection in w:
@@ -187,13 +187,13 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        if self.server and self.server.connection not in r:
+        if (self.server and self.server.connection not in r) or not self.server:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
-            # doesn't contain the descriptor they registered.
+            # doesn't contain the descriptor they registered for.
             for plugin in self.plugins.values():
-                plugin.write_to_descriptors(r)
-        elif self.request.has_upstream_server() \
+                plugin.read_from_descriptors(r)
+        elif self.request.has_host() \
                 and self.server \
                 and not self.server.closed \
                 and self.server.connection in r:
@@ -253,7 +253,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def on_client_connection_close(self) -> None:
-        if not self.request.has_upstream_server():
+        if not self.request.has_host():
             return
 
         self.access_log()
@@ -294,11 +294,29 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         #     self.access_log()
         return chunk
 
+    # Can return None to teardown connection
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
-        if not self.request.has_upstream_server():
+        if not self.request.has_host():
             return raw
 
-        if self.server and not self.server.closed:
+        # For scenarios when an upstream connection was never established,
+        # let plugin do whatever they wish to.  These are special scenarios
+        # where plugins are trying to do something magical.  Within the core
+        # we don't know the context.  Infact, we are not even sure if data
+        # exchanged is http spec compliant.
+        #
+        # Hence, here we pass raw data to HTTP proxy plugins as is.
+        if not self.server:
+            for plugin in self.plugins.values():
+                o = plugin.handle_client_data(raw)
+                if o is None:
+                    return None
+                assert o
+                raw = o
+        elif self.server and not self.server.closed:
+            # For http proxy requests, handle pipeline case.
+            # We also handle pipeline scenario for https proxy
+            # requests is TLS interception is enabled.
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
                     self.tls_interception_enabled()):
@@ -332,19 +350,26 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                             self.pipeline_request.build()))
                     if not self.pipeline_request.is_connection_upgrade():
                         self.pipeline_request = None
+            # For scenarios where we cannot peek into the data,
+            # simply queue for upstream server.
             else:
                 self.server.queue(raw)
             return None
         return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
-        if not self.request.has_upstream_server():
+        if not self.request.has_host():
             return False
 
         self.emit_request_complete()
 
-        # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
+        #
+        # before_upstream_connection can:
+        # 1) Raise HttpRequestRejected exception to reject the connection
+        # 2) return None to continue without establishing an upstream server connection
+        #    e.g. for scenarios when plugins want to return response from cache, or,
+        #    via out-of-band over the network request.
         do_connect = True
         for plugin in self.plugins.values():
             r = plugin.before_upstream_connection(self.request)
@@ -353,9 +378,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 break
             self.request = r
 
+        # Connect to upstream
         if do_connect:
             self.connect_upstream()
 
+        # Invoke plugin.handle_client_request
         for plugin in self.plugins.values():
             assert self.request is not None
             r = plugin.handle_client_request(self.request)
@@ -364,11 +391,16 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             else:
                 return False
 
+        # For https requests, respond back with tunnel established response.
+        # Optionally, setup interceptor if TLS interception is enabled.
         if self.request.method == httpMethods.CONNECT:
-            self.client.queue(
-                HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+            if self.server:
+                self.client.queue(
+                    HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
             if self.tls_interception_enabled():
                 return self.intercept()
+        # If an upstream server connection was established for http request,
+        # queue the request for upstream server.
         elif self.server:
             # - proxy-connection header is a mistake, it doesn't seem to be
             #   officially documented in any specification, drop it.
