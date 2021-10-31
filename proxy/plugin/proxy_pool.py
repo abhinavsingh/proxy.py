@@ -55,6 +55,7 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         # Cached attributes to be used during access log override
         self.request_host_port_path_method: List[Any] = [
             None, None, None, None]
+        self.total_size = 0
 
     def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
         if not self.upstream:
@@ -67,6 +68,7 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             try:
                 raw = self.upstream.recv(self.flags.server_recvbuf_size)
                 if raw is not None:
+                    self.total_size += len(raw)
                     self.client.queue(raw)
                 else:
                     return True     # Teardown because upstream proxy closed the connection
@@ -160,6 +162,7 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             'server_host': self.request_host_port_path_method[0],
             'server_port': self.request_host_port_path_method[1],
             'request_path': self.request_host_port_path_method[2],
+            'response_bytes': self.total_size,
         })
         self.access_log(context)
         return None
