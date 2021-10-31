@@ -1,14 +1,8 @@
-.DS_Store
-.coverage
-.coverage.*
-.idea
-.vscode
-.project
-.pydevproject
-.settings
-.mypy_cache
-.hypothesis
-.tox
+.*
+!.github
+!.deepsource.toml
+!.dockerignore
+!.gitignore
 
 coverage.xml
 proxy.py.iml

@@ -1029,7 +1029,7 @@ Requires `paramiko` to work. See [requirements-tunnel.txt](https://github.com/ab
 
 ## What
 
-Proxy HTTP(s) requests made on a `remote` server through `proxy.py` server
+Proxy HTTP(s) requests made on a `remote` server via a `proxy.py` server
 running on `localhost`.
 
 ### How
@@ -1044,7 +1044,7 @@ running on `localhost`.
 2. `remote` server MUST be configured to proxy HTTP(s) requests
    through the forwarded port number e.g. `:8900`.
    - `remote` and `localhost` ports CAN be same e.g. `:8899`.
-   - `:8900` is chosen in ascii art for differentiation purposes.
+   - `:8900` is chosen in the above ascii art for differentiation purposes.
 
 ### Try it
 
@@ -1095,6 +1095,8 @@ access_log:328 - remote:52067 - GET httpbin.org:80
                             |
                         FIREWALL
                      (allow tcp/22)
+
+TBD
 
 # Embed proxy.py
 
