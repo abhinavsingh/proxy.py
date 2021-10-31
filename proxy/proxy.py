@@ -28,7 +28,7 @@ from typing import Dict, List, Optional, Generator, Any, Tuple, Type, Union, cas
 
 from proxy.core.acceptor.work import Work
 
-from .common.utils import bytes_, text_
+from .common.utils import bytes_, text_, setup_logger
 from .common.types import IpAddress
 from .common.version import __version__
 from .core.acceptor import AcceptorPool
@@ -213,7 +213,7 @@ class Proxy:
             sys.exit(0)
 
         # Setup logging module
-        Proxy.setup_logger(args.log_file, args.log_level, args.log_format)
+        setup_logger(args.log_file, args.log_level, args.log_format)
 
         # Setup limits
         Proxy.set_open_file_limit(args.open_file_limit)
@@ -417,27 +417,6 @@ class Proxy:
     def is_py3() -> bool:
         """Exists only to avoid mocking sys.version_info in tests."""
         return sys.version_info[0] == 3
-
-    @staticmethod
-    def setup_logger(
-            log_file: Optional[str] = DEFAULT_LOG_FILE,
-            log_level: str = DEFAULT_LOG_LEVEL,
-            log_format: str = DEFAULT_LOG_FORMAT) -> None:
-        ll = getattr(
-            logging,
-            {'D': 'DEBUG',
-             'I': 'INFO',
-             'W': 'WARNING',
-             'E': 'ERROR',
-             'C': 'CRITICAL'}[log_level.upper()[0]])
-        if log_file:
-            logging.basicConfig(
-                filename=log_file,
-                filemode='a',
-                level=ll,
-                format=log_format)
-        else:
-            logging.basicConfig(level=ll, format=log_format)
 
     @staticmethod
     def set_open_file_limit(soft_limit: int) -> None:

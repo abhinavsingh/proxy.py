@@ -27,6 +27,7 @@ from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 from ...common.constants import DEFAULT_THREADLESS
 from ...common.flag import flags
+from ...common.utils import setup_logger
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,8 @@ class Acceptor(multiprocessing.Process):
         self.start_work(conn, addr)
 
     def run(self) -> None:
+        setup_logger(self.flags.log_file, self.flags.log_level,
+                     self.flags.log_format)
         self.selector = selectors.DefaultSelector()
         fileno = recv_handle(self.work_queue)
         self.work_queue.close()
