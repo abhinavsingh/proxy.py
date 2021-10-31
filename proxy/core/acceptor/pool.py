@@ -20,11 +20,10 @@ from typing import List, Optional, Type
 from .acceptor import Acceptor
 from .work import Work
 
-from ..event import EventManager
+from ..event import EventQueue
 
 from ...common.flag import flags
-from ...common.constants import DEFAULT_BACKLOG, DEFAULT_ENABLE_EVENTS
-from ...common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_NUM_WORKERS, DEFAULT_PORT
+from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME, DEFAULT_NUM_WORKERS, DEFAULT_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +36,6 @@ flags.add_argument(
     type=int,
     default=DEFAULT_BACKLOG,
     help='Default: 100. Maximum number of pending connections to proxy server')
-
-flags.add_argument(
-    '--enable-events',
-    action='store_true',
-    default=DEFAULT_ENABLE_EVENTS,
-    help='Default: False.  Enables core to dispatch lifecycle events. '
-    'Plugins can be used to subscribe for core events.'
-)
 
 flags.add_argument(
     '--hostname',
@@ -80,22 +71,16 @@ class AcceptorPool:
             pool.shutdown()
 
     `work_klass` must implement `work.Work` class.
-
-    Optionally, AcceptorPool also initialize a global event queue.
-    It is a multiprocess safe queue which can be used to build pubsub patterns
-    for message sharing or signaling.
-
-    TODO(abhinavsingh): Decouple event queue setup & teardown into its own class.
     """
 
     def __init__(self, flags: argparse.Namespace,
-                 work_klass: Type[Work]) -> None:
+                 work_klass: Type[Work], event_queue: Optional[EventQueue] = None) -> None:
         self.flags = flags
         self.socket: Optional[socket.socket] = None
         self.acceptors: List[Acceptor] = []
         self.work_queues: List[connection.Connection] = []
         self.work_klass = work_klass
-        self.event_manager: Optional[EventManager] = None
+        self.event_queue: Optional[EventQueue] = event_queue
 
     def listen(self) -> None:
         self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)
@@ -118,7 +103,7 @@ class AcceptorPool:
                 flags=self.flags,
                 work_klass=self.work_klass,
                 lock=LOCK,
-                event_queue=None if not self.event_manager else self.event_manager.event_queue,
+                event_queue=self.event_queue,
             )
             acceptor.start()
             logger.debug(
@@ -133,9 +118,6 @@ class AcceptorPool:
         logger.info('Shutting down %d workers' % self.flags.num_workers)
         for acceptor in self.acceptors:
             acceptor.running.set()
-        if self.flags.enable_events:
-            assert self.event_manager is not None
-            self.event_manager.stop_event_dispatcher()
         for acceptor in self.acceptors:
             acceptor.join()
         logger.debug('Acceptors shutdown')
@@ -143,10 +125,6 @@ class AcceptorPool:
     def setup(self) -> None:
         """Listen on port, setup workers and pass server socket to workers."""
         self.listen()
-        if self.flags.enable_events:
-            logger.info('Core Event enabled')
-            self.event_manager = EventManager()
-            self.event_manager.start_event_dispatcher()
         self.start_workers()
         # Send server socket to all acceptor processes.
         assert self.socket is not None
