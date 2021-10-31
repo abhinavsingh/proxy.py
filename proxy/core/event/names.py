@@ -10,6 +10,9 @@
 """
 from typing import NamedTuple
 
+# Name of the events that eventing framework will support
+# Ideally this must be configurable via command line or
+# at-least extendable via plugins.
 EventNames = NamedTuple('EventNames', [
     ('SUBSCRIBE', int),
     ('UNSUBSCRIBE', int),

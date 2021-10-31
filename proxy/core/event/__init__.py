@@ -12,6 +12,7 @@ from .queue import EventQueue
 from .names import EventNames, eventNames
 from .dispatcher import EventDispatcher
 from .subscriber import EventSubscriber
+from .manager import EventManager
 
 __all__ = [
     'eventNames',
@@ -19,4 +20,5 @@ __all__ = [
     'EventQueue',
     'EventDispatcher',
     'EventSubscriber',
+    'EventManager',
 ]

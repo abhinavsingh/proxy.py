@@ -45,7 +45,7 @@ class AuthPlugin(HttpProxyBasePlugin):
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
+        return chunk    # pragma: no cover
 
     def on_upstream_connection_close(self) -> None:
-        pass
+        pass    # pragma: no cover

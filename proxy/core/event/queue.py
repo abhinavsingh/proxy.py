@@ -19,23 +19,22 @@ from .names import eventNames
 
 
 class EventQueue:
-    """Global event queue.
+    """Global event queue.  Ideally the queue must come from multiprocessing.Manager,
+    specially if you intent to publish/subscribe from multiple processes.
 
-    Each event contains:
-
-    1. Request ID               - Globally unique
-    2. Process ID               - Process ID of event publisher.
-                                  This will be process id of acceptor workers.
-    3. Thread ID                - Thread ID of event publisher.
-                                  When --threadless is enabled, this value will
-                                  be same for all the requests
-                                  received by a single acceptor worker.
-                                  When --threadless is disabled, this value will be
-                                  Thread ID of the thread handling the client request.
-    4. Event Timestamp          - Time when this event occur
-    5. Event Name               - One of the defined or custom event name
-    6. Event Payload            - Optional data associated with the event
-    7. Publisher ID (optional)  - Optionally, publishing entity unique name / ID
+    Each published event contains following schema:
+    {
+        'request_id': 'Globally unique request ID',
+        'process_id': 'Process ID of event publisher. '
+                      'This will be the process ID of acceptor workers.',
+        'thread_id': 'Thread ID of event publisher. '
+                     'When --threadless is enabled, this value will be '
+                     'same for all the requests.'
+        'event_timestamp': 'Time when this event occured',
+        'event_name': 'one of the pre-defined or custom event name',
+        'event_payload': 'Optional data associated with the event',
+        'publisher_id': 'Optional publisher entity unique name',
+    }
     """
 
     def __init__(self, queue: DictQueueType) -> None:

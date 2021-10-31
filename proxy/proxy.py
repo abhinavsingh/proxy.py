@@ -28,11 +28,12 @@ from typing import Dict, List, Optional, Generator, Any, Tuple, Type, Union, cas
 
 from proxy.core.acceptor.work import Work
 
-from .common.utils import bytes_, text_
+from .common.utils import bytes_, text_, setup_logger
 from .common.types import IpAddress
 from .common.version import __version__
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
+from .core.event import EventManager
 from .common.flag import flags
 from .common.constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, PLUGIN_PROXY_AUTH
 from .common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS
@@ -43,7 +44,7 @@ from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PID_FILE, DEFAULT_PLUGINS
 from .common.constants import DEFAULT_VERSION, DOT, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
 from .common.constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
-from .common.constants import PLUGIN_WEB_SERVER, PY2_DEPRECATION_MESSAGE
+from .common.constants import PLUGIN_WEB_SERVER, PY2_DEPRECATION_MESSAGE, DEFAULT_ENABLE_EVENTS
 
 if os.name != 'nt':
     import resource
@@ -94,6 +95,13 @@ flags.add_argument(
     default=DEFAULT_ENABLE_WEB_SERVER,
     help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.')
 flags.add_argument(
+    '--enable-events',
+    action='store_true',
+    default=DEFAULT_ENABLE_EVENTS,
+    help='Default: False.  Enables core to dispatch lifecycle events. '
+    'Plugins can be used to subscribe for core events.'
+)
+flags.add_argument(
     '--log-level',
     type=str,
     default=DEFAULT_LOG_LEVEL,
@@ -128,6 +136,10 @@ class Proxy:
 
     By default, AcceptorPool is started with HttpProtocolHandler worker class
     i.e. we are only expecting HTTP traffic to flow between clients and server.
+
+    Optionally, also initialize a global event queue.
+    It is a multiprocess safe queue which can be used to build pubsub patterns
+    for message sharing or signaling.
     """
 
     def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
@@ -137,6 +149,7 @@ class Proxy:
         # e.g. A clear text protocol. Or imagine a TelnetProtocolHandler instead
         # of default HttpProtocolHandler.
         self.work_klass: Type[Work] = HttpProtocolHandler
+        self.event_manager: Optional[EventManager] = None
 
     def write_pid_file(self) -> None:
         if self.flags.pid_file is not None:
@@ -150,9 +163,14 @@ class Proxy:
             os.remove(self.flags.pid_file)
 
     def __enter__(self) -> 'Proxy':
+        if self.flags.enable_events:
+            logger.info('Core Event enabled')
+            self.event_manager = EventManager()
+            self.event_manager.start_event_dispatcher()
         self.pool = AcceptorPool(
             flags=self.flags,
-            work_klass=self.work_klass
+            work_klass=self.work_klass,
+            event_queue=self.event_manager.event_queue if self.event_manager is not None else None
         )
         self.pool.setup()
         self.write_pid_file()
@@ -165,6 +183,9 @@ class Proxy:
             exc_tb: Optional[TracebackType]) -> None:
         assert self.pool
         self.pool.shutdown()
+        if self.flags.enable_events:
+            assert self.event_manager is not None
+            self.event_manager.stop_event_dispatcher()
         self.delete_pid_file()
 
     @staticmethod
@@ -192,7 +213,7 @@ class Proxy:
             sys.exit(0)
 
         # Setup logging module
-        Proxy.setup_logger(args.log_file, args.log_level, args.log_format)
+        setup_logger(args.log_file, args.log_level, args.log_format)
 
         # Setup limits
         Proxy.set_open_file_limit(args.open_file_limit)
@@ -398,27 +419,6 @@ class Proxy:
         return sys.version_info[0] == 3
 
     @staticmethod
-    def setup_logger(
-            log_file: Optional[str] = DEFAULT_LOG_FILE,
-            log_level: str = DEFAULT_LOG_LEVEL,
-            log_format: str = DEFAULT_LOG_FORMAT) -> None:
-        ll = getattr(
-            logging,
-            {'D': 'DEBUG',
-             'I': 'INFO',
-             'W': 'WARNING',
-             'E': 'ERROR',
-             'C': 'CRITICAL'}[log_level.upper()[0]])
-        if log_file:
-            logging.basicConfig(
-                filename=log_file,
-                filemode='a',
-                level=ll,
-                format=log_format)
-        else:
-            logging.basicConfig(level=ll, format=log_format)
-
-    @staticmethod
     def set_open_file_limit(soft_limit: int) -> None:
         """Configure open file description soft limit on supported OS."""
         if os.name != 'nt':  # resource module not available on Windows OS
@@ -455,6 +455,13 @@ def main(
                         (proxy.pool.flags.hostname, proxy.pool.flags.port))
             # TODO: Introduce cron feature
             # https://github.com/abhinavsingh/proxy.py/issues/392
+            #
+            # TODO: Introduce ability to publish
+            # adhoc events which can modify behaviour of server
+            # at runtime.  Example, updating flags, plugin
+            # configuration etc.
+            #
+            # TODO: Python shell within running proxy.py environment
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:

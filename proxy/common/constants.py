@@ -60,8 +60,15 @@ DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_KEY_FILE = None
 DEFAULT_LOG_FILE = None
-DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s'
+DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(filename)s:%(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
+DEFAULT_HTTP_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
+    '{request_method} {server_host}:{server_port}{request_path} - ' + \
+    '{response_code} {response_reason} - {response_bytes} bytes - ' + \
+    '{connection_time_ms} ms'
+DEFAULT_HTTPS_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
+    '{request_method} {server_host}:{server_port} - ' + \
+    '{response_bytes} bytes - {connection_time_ms} ms'
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None

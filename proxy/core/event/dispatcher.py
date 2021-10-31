@@ -35,7 +35,7 @@ class EventDispatcher:
     module is not-recommended.  Python native multiprocessing queue
     doesn't provide a fanout functionality which core dispatcher module
     implements so that several plugins can consume same published
-    event at a time.
+    event concurrently.
 
     When --enable-events is used, a multiprocessing.Queue is created and
     attached to global argparse.  This queue can then be used for

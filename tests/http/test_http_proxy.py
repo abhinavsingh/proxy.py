@@ -52,6 +52,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
     def test_proxy_plugin_on_and_before_upstream_connection(
             self,
             mock_server_conn: mock.Mock) -> None:
+        self.plugin.return_value.write_to_descriptors.return_value = False
+        self.plugin.return_value.read_from_descriptors.return_value = False
         self.plugin.return_value.before_upstream_connection.side_effect = lambda r: r
         self.plugin.return_value.handle_client_request.side_effect = lambda r: r
 
@@ -76,6 +78,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
     def test_proxy_plugin_before_upstream_connection_can_teardown(
             self,
             mock_server_conn: mock.Mock) -> None:
+        self.plugin.return_value.write_to_descriptors.return_value = False
+        self.plugin.return_value.read_from_descriptors.return_value = False
         self.plugin.return_value.before_upstream_connection.side_effect = HttpProtocolException()
 
         self._conn.recv.return_value = build_http_request(
@@ -91,5 +95,5 @@ class TestHttpProxyPlugin(unittest.TestCase):
                 data=None), selectors.EVENT_READ)], ]
 
         self.protocol_handler.run_once()
-        self.plugin.return_value.before_upstream_connection.assert_called()
         mock_server_conn.assert_not_called()
+        self.plugin.return_value.before_upstream_connection.assert_called()

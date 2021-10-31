@@ -53,37 +53,42 @@ class TestMain(unittest.TestCase):
         mock_args.port = DEFAULT_PORT
         mock_args.num_workers = DEFAULT_NUM_WORKERS
         mock_args.disable_http_proxy = DEFAULT_DISABLE_HTTP_PROXY
-        mock_args.enable_web_server = DEFAULT_ENABLE_WEB_SERVER
         mock_args.pac_file = DEFAULT_PAC_FILE
         mock_args.plugins = DEFAULT_PLUGINS
         mock_args.server_recvbuf_size = DEFAULT_SERVER_RECVBUF_SIZE
         mock_args.client_recvbuf_size = DEFAULT_CLIENT_RECVBUF_SIZE
         mock_args.open_file_limit = DEFAULT_OPEN_FILE_LIMIT
-        mock_args.enable_static_server = DEFAULT_ENABLE_STATIC_SERVER
-        mock_args.enable_devtools = DEFAULT_ENABLE_DEVTOOLS
         mock_args.devtools_event_queue = None
         mock_args.devtools_ws_path = DEFAULT_DEVTOOLS_WS_PATH
         mock_args.timeout = DEFAULT_TIMEOUT
         mock_args.threadless = DEFAULT_THREADLESS
+        mock_args.enable_web_server = DEFAULT_ENABLE_WEB_SERVER
+        mock_args.enable_static_server = DEFAULT_ENABLE_STATIC_SERVER
+        mock_args.enable_devtools = DEFAULT_ENABLE_DEVTOOLS
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.Proxy.initialize')
+    @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('logging.basicConfig')
     def test_init_with_no_arguments(
             self,
             mock_logging_config: mock.Mock,
             mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
             mock_initialize: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args: List[str] = []
+        mock_initialize.return_value.enable_events = False
         main(input_args)
+        mock_event_manager.assert_not_called()
         mock_acceptor_pool.assert_called_with(
             flags=mock_initialize.return_value,
             work_klass=HttpProtocolHandler,
+            event_queue=None
         )
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()
@@ -93,12 +98,14 @@ class TestMain(unittest.TestCase):
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
+    @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     def test_pid_file_is_written_and_removed(
             self,
             mock_parse_args: mock.Mock,
             mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
             mock_open: mock.Mock,
             mock_exists: mock.Mock,
             mock_remove: mock.Mock,
@@ -108,9 +115,12 @@ class TestMain(unittest.TestCase):
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.pid_file = pid_file
+        mock_args.enable_dashboard = False
         main(['--pid-file', pid_file])
+        mock_parse_args.assert_called_once()
         mock_acceptor_pool.assert_called()
         mock_acceptor_pool.return_value.setup.assert_called()
+        mock_event_manager.assert_not_called()
         mock_open.assert_called_with(pid_file, 'wb')
         mock_open.return_value.__enter__.return_value.write.assert_called_with(
             bytes_(os.getpid()))
@@ -118,10 +128,12 @@ class TestMain(unittest.TestCase):
         mock_remove.assert_called_with(pid_file)
 
     @mock.patch('time.sleep')
+    @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     def test_basic_auth(
             self,
             mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
@@ -129,6 +141,7 @@ class TestMain(unittest.TestCase):
         flgs = Proxy.initialize(input_args)
 
         main(input_args=input_args)
+        mock_event_manager.assert_not_called()
         mock_acceptor_pool.assert_called_once()
         self.assertEqual(
             flgs.auth_code,
@@ -136,12 +149,14 @@ class TestMain(unittest.TestCase):
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')
+    @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.Proxy.is_py3')
     def test_main_py3_runs(
             self,
             mock_is_py3: mock.Mock,
             mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
             mock_print: mock.Mock,
             mock_sleep: mock.Mock) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
@@ -153,6 +168,8 @@ class TestMain(unittest.TestCase):
 
         mock_is_py3.assert_called()
         mock_print.assert_not_called()
+
+        mock_event_manager.assert_not_called()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called()
 

@@ -273,17 +273,15 @@ class HttpProtocolHandler(Work):
             try:
                 # HttpProtocolHandlerPlugin.on_client_data
                 # Can raise HttpProtocolException to teardown the connection
-                plugin_index = 0
-                plugins = list(self.plugins.values())
-                while plugin_index < len(plugins) and client_data:
-                    client_data = plugins[plugin_index].on_client_data(
-                        client_data)
+                for plugin in self.plugins.values():
+                    client_data = plugin.on_client_data(client_data)
                     if client_data is None:
                         break
-                    plugin_index += 1
 
-                # Don't parse request any further after 1st request has completed.
+                # Don't parse incoming data any further after 1st request has completed.
+                #
                 # This specially does happen for pipeline requests.
+                #
                 # Plugins can utilize on_client_data for such cases and
                 # apply custom logic to handle request data sent after 1st
                 # valid request.

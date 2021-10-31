@@ -8,14 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
+import ssl
+import time
+import errno
+import socket
 import logging
 import threading
 import subprocess
-import os
-import ssl
-import socket
-import time
-import errno
+
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
@@ -30,6 +31,7 @@ from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAU
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
+from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
@@ -137,7 +139,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def get_descriptors(
             self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        if not self.request.has_upstream_server():
+        if not self.request.has_host():
             return [], []
 
         r: List[socket.socket] = []
@@ -159,13 +161,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return r, w
 
     def write_to_descriptors(self, w: Writables) -> bool:
-        if self.server and self.server.connection not in w:
+        if (self.server and self.server.connection not in w) or not self.server:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered.
             for plugin in self.plugins.values():
-                plugin.write_to_descriptors(w)
-        elif self.request.has_upstream_server() and \
+                teardown = plugin.write_to_descriptors(w)
+                if teardown:
+                    return True
+        elif self.request.has_host() and \
                 self.server and not self.server.closed and \
                 self.server.has_buffer() and \
                 self.server.connection in w:
@@ -187,13 +191,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        if self.server and self.server.connection not in r:
+        if (self.server and self.server.connection not in r) or not self.server:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
-            # doesn't contain the descriptor they registered.
+            # doesn't contain the descriptor they registered for.
             for plugin in self.plugins.values():
-                plugin.write_to_descriptors(r)
-        elif self.request.has_upstream_server() \
+                teardown = plugin.read_from_descriptors(r)
+                if teardown:
+                    return True
+        elif self.request.has_host() \
                 and self.server \
                 and not self.server.closed \
                 and self.server.connection in r:
@@ -253,20 +259,48 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def on_client_connection_close(self) -> None:
-        if not self.request.has_upstream_server():
+        if not self.request.has_host():
             return
 
-        self.access_log()
+        context = {
+            'client_ip': self.client.addr[0],
+            'client_port': self.client.addr[1],
+            'request_method': text_(self.request.method),
+            'request_path': text_(self.request.path),
+            'server_host': text_(self.server.addr[0] if self.server else None),
+            'server_port': text_(self.server.addr[1] if self.server else None),
+            'response_bytes': self.response.total_size,
+            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            'response_code': text_(self.response.code),
+            'response_reason': text_(self.response.reason),
+        }
+        log_handled = False
+        for plugin in self.plugins.values():
+            ctx = plugin.on_access_log(context)
+            if ctx is None:
+                log_handled = True
+                break
+            context = ctx
+        if not log_handled:
+            self.access_log(context)
+
+        # Note that, server instance was initialized
+        # but not necessarily the connection object exists.
+        #
+        # Unfortunately this is still being called when an upstream
+        # server connection was never established.  This is done currently
+        # to assist proxy pool plugin to close its upstream proxy connections.
+        #
+        # In short, treat on_upstream_connection_close as on_client_connection_close
+        # equivalent within proxy plugins.
+        #
+        # Invoke plugin.on_upstream_connection_close
+        for plugin in self.plugins.values():
+            plugin.on_upstream_connection_close()
 
         # If server was never initialized, return
         if self.server is None:
             return
-
-        # Note that, server instance was initialized
-        # but not necessarily the connection object exists.
-        # Invoke plugin.on_upstream_connection_close
-        for plugin in self.plugins.values():
-            plugin.on_upstream_connection_close()
 
         try:
             try:
@@ -283,6 +317,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 'Closed server connection, has buffer %s' %
                 self.server.has_buffer())
 
+    def access_log(self, log_attrs: Dict[str, Any]) -> None:
+        access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+        if self.request.method != httpMethods.CONNECT:
+            access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
+        logger.info(access_log_format.format_map(log_attrs))
+
     def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
         # TODO: Allow to output multiple access_log lines
         # for each request over a pipelined HTTP connection (not for HTTPS).
@@ -294,11 +334,31 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         #     self.access_log()
         return chunk
 
+    # Can return None to teardown connection
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
-        if not self.request.has_upstream_server():
+        if not self.request.has_host():
             return raw
 
-        if self.server and not self.server.closed:
+        # For scenarios when an upstream connection was never established,
+        # let plugin do whatever they wish to.  These are special scenarios
+        # where plugins are trying to do something magical.  Within the core
+        # we don't know the context.  Infact, we are not even sure if data
+        # exchanged is http spec compliant.
+        #
+        # Hence, here we pass raw data to HTTP proxy plugins as is.
+        #
+        # We only call handle_client_data once original request has been
+        # completely received
+        if not self.server:
+            for plugin in self.plugins.values():
+                o = plugin.handle_client_data(raw)
+                if o is None:
+                    return None
+                raw = o
+        elif self.server and not self.server.closed:
+            # For http proxy requests, handle pipeline case.
+            # We also handle pipeline scenario for https proxy
+            # requests is TLS interception is enabled.
             if self.request.state == httpParserStates.COMPLETE and (
                     self.request.method != httpMethods.CONNECT or
                     self.tls_interception_enabled()):
@@ -332,19 +392,26 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                             self.pipeline_request.build()))
                     if not self.pipeline_request.is_connection_upgrade():
                         self.pipeline_request = None
+            # For scenarios where we cannot peek into the data,
+            # simply queue for upstream server.
             else:
                 self.server.queue(raw)
             return None
         return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
-        if not self.request.has_upstream_server():
+        if not self.request.has_host():
             return False
 
         self.emit_request_complete()
 
-        # Note: can raise HttpRequestRejected exception
         # Invoke plugin.before_upstream_connection
+        #
+        # before_upstream_connection can:
+        # 1) Raise HttpRequestRejected exception to reject the connection
+        # 2) return None to continue without establishing an upstream server connection
+        #    e.g. for scenarios when plugins want to return response from cache, or,
+        #    via out-of-band over the network request.
         do_connect = True
         for plugin in self.plugins.values():
             r = plugin.before_upstream_connection(self.request)
@@ -353,9 +420,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 break
             self.request = r
 
+        # Connect to upstream
         if do_connect:
             self.connect_upstream()
 
+        # Invoke plugin.handle_client_request
         for plugin in self.plugins.values():
             assert self.request is not None
             r = plugin.handle_client_request(self.request)
@@ -364,30 +433,35 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             else:
                 return False
 
-        if self.request.method == httpMethods.CONNECT:
-            self.client.queue(
-                HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-            if self.tls_interception_enabled():
-                return self.intercept()
-        elif self.server:
-            # - proxy-connection header is a mistake, it doesn't seem to be
-            #   officially documented in any specification, drop it.
-            # - proxy-authorization is of no use for upstream, remove it.
-            self.request.del_headers(
-                [b'proxy-authorization', b'proxy-connection'])
-            # - For HTTP/1.0, connection header defaults to close
-            # - For HTTP/1.1, connection header defaults to keep-alive
-            # Respect headers sent by client instead of manipulating
-            # Connection or Keep-Alive header.  However, note that per
-            # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection
-            # connection headers are meant for communication between client and
-            # first intercepting proxy.
-            self.request.add_headers(
-                [(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)])
-            # Disable args.disable_headers before dispatching to upstream
-            self.server.queue(
-                memoryview(self.request.build(
-                    disable_headers=self.flags.disable_headers)))
+        # For https requests, respond back with tunnel established response.
+        # Optionally, setup interceptor if TLS interception is enabled.
+        if self.server:
+            if self.request.method == httpMethods.CONNECT:
+                self.client.queue(
+                    HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+                if self.tls_interception_enabled():
+                    return self.intercept()
+            # If an upstream server connection was established for http request,
+            # queue the request for upstream server.
+            else:
+                # - proxy-connection header is a mistake, it doesn't seem to be
+                #   officially documented in any specification, drop it.
+                # - proxy-authorization is of no use for upstream, remove it.
+                self.request.del_headers(
+                    [b'proxy-authorization', b'proxy-connection'])
+                # - For HTTP/1.0, connection header defaults to close
+                # - For HTTP/1.1, connection header defaults to keep-alive
+                # Respect headers sent by client instead of manipulating
+                # Connection or Keep-Alive header.  However, note that per
+                # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection
+                # connection headers are meant for communication between client and
+                # first intercepting proxy.
+                self.request.add_headers(
+                    [(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)])
+                # Disable args.disable_headers before dispatching to upstream
+                self.server.queue(
+                    memoryview(self.request.build(
+                        disable_headers=self.flags.disable_headers)))
         return False
 
     def handle_pipeline_response(self, raw: memoryview) -> None:
@@ -399,32 +473,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.pipeline_response.parse(raw.tobytes())
         if self.pipeline_response.state == httpParserStates.COMPLETE:
             self.pipeline_response = None
-
-    def access_log(self) -> None:
-        server_host, server_port = self.server.addr if self.server else (
-            None, None)
-        connection_time_ms = (time.time() - self.start_time) * 1000
-        if self.request.method == httpMethods.CONNECT:
-            logger.info(
-                '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
-                (self.client.addr[0],
-                 self.client.addr[1],
-                 text_(self.request.method),
-                 text_(server_host),
-                 text_(server_port),
-                 self.response.total_size,
-                 connection_time_ms))
-        elif self.request.method:
-            logger.info(
-                '%s:%s - %s %s:%s%s - %s %s - %s bytes - %.2f ms' %
-                (self.client.addr[0], self.client.addr[1],
-                 text_(self.request.method),
-                 text_(server_host), server_port,
-                 text_(self.request.path),
-                 text_(self.response.code),
-                 text_(self.response.reason),
-                 self.response.total_size,
-                 connection_time_ms))
 
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port

@@ -124,6 +124,8 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.plugin.return_value.on_client_connection_close.return_value = None
 
         # Prepare mocked HttpProxyBasePlugin
+        self.proxy_plugin.return_value.write_to_descriptors.return_value = False
+        self.proxy_plugin.return_value.read_from_descriptors.return_value = False
         self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
         self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
 

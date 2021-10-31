@@ -9,21 +9,16 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
-import threading
 import multiprocessing
 import logging
 
 from typing import Dict, Any
 
-from proxy.core.event import EventQueue, EventSubscriber, EventDispatcher, eventNames
+from proxy.core.event import EventQueue, EventSubscriber, eventNames
+from proxy.core.event.manager import EventManager
 
 # Enable debug logging to view core event logs
 logging.basicConfig(level=logging.DEBUG)
-
-# Eventing requires a multiprocess safe queue
-# so that events can be safely published and received
-# between processes.
-manager = multiprocessing.Manager()
 
 main_publisher_request_id = '1234'
 process_publisher_request_id = '12345'
@@ -59,17 +54,13 @@ def on_event(payload: Dict[str, Any]) -> None:
 if __name__ == '__main__':
     start_time = time.time()
 
-    # Start dispatcher thread
-    dispatcher_queue = EventQueue(manager.Queue())
-    dispatcher_shutdown_event = threading.Event()
-    dispatcher = EventDispatcher(
-        shutdown=dispatcher_shutdown_event,
-        event_queue=dispatcher_queue)
-    dispatcher_thread = threading.Thread(target=dispatcher.run)
-    dispatcher_thread.start()
+    # Start dispatcher thread using EventManager
+    event_manager = EventManager()
+    event_manager.start_event_dispatcher()
+    assert event_manager.event_queue
 
     # Create a subscriber
-    subscriber = EventSubscriber(dispatcher_queue)
+    subscriber = EventSubscriber(event_manager.event_queue)
     # Internally, subscribe will start a separate thread
     # to receive incoming published messages
     subscriber.subscribe(on_event)
@@ -79,13 +70,13 @@ if __name__ == '__main__':
     publisher_shutdown_event = multiprocessing.Event()
     publisher = multiprocessing.Process(
         target=publisher_process, args=(
-            publisher_shutdown_event, dispatcher_queue, ))
+            publisher_shutdown_event, event_manager.event_queue, ))
     publisher.start()
 
     try:
         while True:
             # Dispatch event from main process
-            dispatcher_queue.publish(
+            event_manager.event_queue.publish(
                 request_id=main_publisher_request_id,
                 event_name=eventNames.WORK_STARTED,
                 event_payload={'time': time.time()},
@@ -100,8 +91,6 @@ if __name__ == '__main__':
         # Stop subscriber thread
         subscriber.unsubscribe()
         # Signal dispatcher to shutdown
-        dispatcher_shutdown_event.set()
-        # Wait for dispatcher shutdown
-        dispatcher_thread.join()
+        event_manager.stop_event_dispatcher()
     print('Received {0} events from main thread, {1} events from another process, in {2} seconds'.format(
         num_events_received[0], num_events_received[1], time.time() - start_time))

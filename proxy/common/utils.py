@@ -9,15 +9,17 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
-import contextlib
+import socket
+import logging
 import functools
 import ipaddress
-import socket
+import contextlib
 
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
+from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 
 
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
@@ -89,14 +91,14 @@ def build_http_pkt(line: List[bytes],
                    headers: Optional[Dict[bytes, bytes]] = None,
                    body: Optional[bytes] = None) -> bytes:
     """Build and returns a HTTP request or response packet."""
-    req = WHITESPACE.join(line) + CRLF
+    pkt = WHITESPACE.join(line) + CRLF
     if headers is not None:
         for k in headers:
-            req += build_http_header(k, headers[k]) + CRLF
-    req += CRLF
+            pkt += build_http_header(k, headers[k]) + CRLF
+    pkt += CRLF
     if body:
-        req += body
-    return req
+        pkt += body
+    return pkt
 
 
 def build_websocket_handshake_request(
@@ -226,3 +228,24 @@ def get_available_port() -> int:
         sock.bind(('', 0))
         _, port = sock.getsockname()
     return int(port)
+
+
+def setup_logger(
+        log_file: Optional[str] = DEFAULT_LOG_FILE,
+        log_level: str = DEFAULT_LOG_LEVEL,
+        log_format: str = DEFAULT_LOG_FORMAT) -> None:
+    ll = getattr(
+        logging,
+        {'D': 'DEBUG',
+            'I': 'INFO',
+            'W': 'WARNING',
+            'E': 'ERROR',
+            'C': 'CRITICAL'}[log_level.upper()[0]])
+    if log_file:
+        logging.basicConfig(
+            filename=log_file,
+            filemode='a',
+            level=ll,
+            format=log_format)
+    else:
+        logging.basicConfig(level=ll, format=log_format)
