@@ -12,7 +12,7 @@ import argparse
 import logging
 import multiprocessing
 import socket
-import threading
+
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 from typing import List, Optional, Type
@@ -20,7 +20,8 @@ from typing import List, Optional, Type
 from .acceptor import Acceptor
 from .work import Work
 
-from ..event import EventQueue, EventDispatcher
+from ..event import EventManager
+
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BACKLOG, DEFAULT_ENABLE_EVENTS
 from ...common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_NUM_WORKERS, DEFAULT_PORT
@@ -94,16 +95,7 @@ class AcceptorPool:
         self.acceptors: List[Acceptor] = []
         self.work_queues: List[connection.Connection] = []
         self.work_klass = work_klass
-
-        self.event_queue: Optional[EventQueue] = None
-        self.event_dispatcher: Optional[EventDispatcher] = None
-        self.event_dispatcher_thread: Optional[threading.Thread] = None
-        self.event_dispatcher_shutdown: Optional[threading.Event] = None
-        self.manager: Optional[multiprocessing.managers.SyncManager] = None
-
-        if self.flags.enable_events:
-            self.manager = multiprocessing.Manager()
-            self.event_queue = EventQueue(self.manager.Queue())
+        self.event_manager: Optional[EventManager] = None
 
     def listen(self) -> None:
         self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)
@@ -126,7 +118,7 @@ class AcceptorPool:
                 flags=self.flags,
                 work_klass=self.work_klass,
                 lock=LOCK,
-                event_queue=self.event_queue,
+                event_queue=None if not self.event_manager else self.event_manager.event_queue,
             )
             acceptor.start()
             logger.debug(
@@ -137,32 +129,13 @@ class AcceptorPool:
             self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.flags.num_workers)
 
-    def start_event_dispatcher(self) -> None:
-        self.event_dispatcher_shutdown = threading.Event()
-        assert self.event_dispatcher_shutdown
-        assert self.event_queue
-        self.event_dispatcher = EventDispatcher(
-            shutdown=self.event_dispatcher_shutdown,
-            event_queue=self.event_queue
-        )
-        self.event_dispatcher_thread = threading.Thread(
-            target=self.event_dispatcher.run
-        )
-        self.event_dispatcher_thread.start()
-        logger.debug('Thread ID: %d', self.event_dispatcher_thread.ident)
-
     def shutdown(self) -> None:
         logger.info('Shutting down %d workers' % self.flags.num_workers)
         for acceptor in self.acceptors:
             acceptor.running.set()
         if self.flags.enable_events:
-            assert self.event_dispatcher_shutdown
-            assert self.event_dispatcher_thread
-            self.event_dispatcher_shutdown.set()
-            self.event_dispatcher_thread.join()
-            logger.debug(
-                'Shutdown of global event dispatcher thread %d successful',
-                self.event_dispatcher_thread.ident)
+            assert self.event_manager is not None
+            self.event_manager.stop_event_dispatcher()
         for acceptor in self.acceptors:
             acceptor.join()
         logger.debug('Acceptors shutdown')
@@ -172,7 +145,8 @@ class AcceptorPool:
         self.listen()
         if self.flags.enable_events:
             logger.info('Core Event enabled')
-            self.start_event_dispatcher()
+            self.event_manager = EventManager()
+            self.event_manager.start_event_dispatcher()
         self.start_workers()
         # Send server socket to all acceptor processes.
         assert self.socket is not None
