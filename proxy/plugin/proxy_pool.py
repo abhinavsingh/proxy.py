@@ -12,17 +12,27 @@ import random
 import socket
 import logging
 
-from typing import List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple
 
 from ..core.connection.server import TcpServerConnection
-from ..common.constants import COLON, SLASH
 from ..common.types import Readables, Writables
 from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.methods import httpMethods
 from ..http.parser import HttpParser
+from ..http.methods import httpMethods
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_HTTP_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
+    '{request_method} {server_host}:{server_port}{request_path} -> ' + \
+    '{upstream_proxy_host}:{upstream_proxy_port} - ' + \
+    '{response_code} {response_reason} - {response_bytes} bytes - ' + \
+    '{connection_time_ms} ms'
+
+DEFAULT_HTTPS_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
+    '{request_method} {server_host}:{server_port} -> ' + \
+    '{upstream_proxy_host}:{upstream_proxy_port} - ' + \
+    '{response_bytes} bytes - {connection_time_ms} ms'
 
 
 class ProxyPoolPlugin(HttpProxyBasePlugin):
@@ -42,6 +52,9 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.upstream: Optional[TcpServerConnection] = None
+        # Cached attributes to be used during access log override
+        self.request_host_port_path_method: List[Any] = [
+            None, None, None, None]
 
     def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
         if not self.upstream:
@@ -89,17 +102,39 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         try:
             self.upstream.connect()
         except ConnectionRefusedError:
-            logger.info('Connection refused by upstream proxy')
+            # TODO(abhinavsingh): Try another choice, when all (or max configured) choices have
+            # exhausted, retry for configured number of times before giving up.
+            #
+            # Failing upstream proxies, must be removed from the pool temporarily.
+            # A periodic health check must put them back in the pool.  This can be achieved
+            # using a datastructure without having to spawn separate thread/process for health
+            # check.
+            logger.info(
+                'Connection refused by upstream proxy {0}:{1}'.format(*endpoint))
             raise HttpProtocolException()
-        logger.debug('Established connection to upstream proxy')
+        logger.debug(
+            'Established connection to upstream proxy {0}:{1}'.format(*endpoint))
         return None
 
     def handle_client_request(
             self, request: HttpParser) -> Optional[HttpParser]:
         """Only invoked once after client original proxy request has been received completely."""
-        request.path = self.rebuild_original_path(request)
         assert self.upstream
-        self.upstream.queue(memoryview(request.build()))
+        # For log sanity (i.e. to avoid None:None), expose upstream host:port from headers
+        host, port = None, None
+        if request.has_header(b'host'):
+            parts = request.header(b'host').decode().split(':')
+            if len(parts) == 2:
+                host, port = parts[0], parts[1]
+            else:
+                assert len(parts) == 1
+                host = parts[0]
+                port = '443' if request.method == httpMethods.CONNECT else '80'
+        path = None if not request.path else request.path.decode()
+        self.request_host_port_path_method = [
+            host, port, path, request.method]
+        # Queue original request to upstream proxy
+        self.upstream.queue(memoryview(request.build(for_proxy=True)))
         return request
 
     def handle_client_data(self, raw: memoryview) -> Optional[memoryview]:
@@ -111,27 +146,30 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
 
     def on_upstream_connection_close(self) -> None:
         """Called when client connection has been closed."""
-        if self.upstream and self.upstream.connection:
+        if self.upstream and not self.upstream.closed:
             logger.debug('Closing upstream proxy connection')
             self.upstream.close()
             self.upstream = None
 
-    @staticmethod
-    def rebuild_original_path(request: HttpParser) -> bytes:
-        """Re-builds original upstream server URL.
+    def on_access_log(self, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        addr, port = (
+            self.upstream.addr[0], self.upstream.addr[1]) if self.upstream else (None, None)
+        context.update({
+            'upstream_proxy_host': addr,
+            'upstream_proxy_port': port,
+            'server_host': self.request_host_port_path_method[0],
+            'server_port': self.request_host_port_path_method[1],
+            'request_path': self.request_host_port_path_method[2],
+        })
+        self.access_log(context)
+        return None
 
-        proxy server core by default strips upstream host:port
-        from incoming client proxy request.
-        """
-        assert request.url and request.host and request.port and request.path
-        return (
-            request.url.scheme +
-            COLON + SLASH + SLASH +
-            request.host +
-            COLON +
-            str(request.port).encode() +
-            request.path
-        ) if request.method != httpMethods.CONNECT else (request.host + COLON + str(request.port).encode())
+    def access_log(self, log_attrs: Dict[str, Any]) -> None:
+        access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+        request_method = self.request_host_port_path_method[3]
+        if request_method and request_method != httpMethods.CONNECT:
+            access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
+        logger.info(access_log_format.format_map(log_attrs))
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         """Will never be called since we didn't establish an upstream connection."""

@@ -9,11 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
-import contextlib
-import functools
-import ipaddress
 import socket
 import logging
+import functools
+import ipaddress
+import contextlib
 
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
@@ -91,14 +91,14 @@ def build_http_pkt(line: List[bytes],
                    headers: Optional[Dict[bytes, bytes]] = None,
                    body: Optional[bytes] = None) -> bytes:
     """Build and returns a HTTP request or response packet."""
-    req = WHITESPACE.join(line) + CRLF
+    pkt = WHITESPACE.join(line) + CRLF
     if headers is not None:
         for k in headers:
-            req += build_http_header(k, headers[k]) + CRLF
-    req += CRLF
+            pkt += build_http_header(k, headers[k]) + CRLF
+    pkt += CRLF
     if body:
-        req += body
-    return req
+        pkt += body
+    return pkt
 
 
 def build_websocket_handshake_request(

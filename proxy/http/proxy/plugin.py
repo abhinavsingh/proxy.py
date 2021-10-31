@@ -12,7 +12,7 @@ import socket
 import argparse
 
 from uuid import UUID
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from abc import ABC, abstractmethod
 
 from ..parser import HttpParser
@@ -133,3 +133,17 @@ class HttpProxyBasePlugin(ABC):
     def on_upstream_connection_close(self) -> None:
         """Handler called right after upstream connection has been closed."""
         pass  # pragma: no cover
+
+    def on_access_log(self, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Use this method to override default access log format (see
+        DEFAULT_HTTP_ACCESS_LOG_FORMAT and DEFAULT_HTTPS_ACCESS_LOG_FORMAT) and to
+        add/update/modify/delete context for next plugin.on_access_log invocation.
+
+        This is specially useful if a plugins want to provide extra context
+        in the access log which may not available within other plugins' context or even
+        in proxy.py core.
+
+        Returns Log context or None.  If plugin chooses to access log, they ideally
+        must return None to prevent other plugin.on_access_log invocation.
+        """
+        return context

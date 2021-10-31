@@ -14,7 +14,7 @@ from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 from .methods import httpMethods
 from .chunk_parser import ChunkParser, chunkParserStates
 
-from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
+from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, SLASH, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
 from ..common.utils import build_http_request, build_http_response, find_http_line, text_
 
 
@@ -237,7 +237,7 @@ class HttpParser:
             url += b'#' + self.url.fragment
         return url
 
-    def build(self, disable_headers: Optional[List[bytes]] = None) -> bytes:
+    def build(self, disable_headers: Optional[List[bytes]] = None, for_proxy: bool = False) -> bytes:
         """Rebuild the request object."""
         assert self.method and self.version and self.path and self.type == httpParserTypes.REQUEST_PARSER
         if disable_headers is None:
@@ -245,8 +245,20 @@ class HttpParser:
         body: Optional[bytes] = ChunkParser.to_chunks(self.body) \
             if self.is_chunked_encoded() and self.body else \
             self.body
+        path = self.path
+        if for_proxy:
+            assert self.url and self.host and self.port and self.path
+            path = (
+                self.url.scheme +
+                COLON + SLASH + SLASH +
+                self.host +
+                COLON +
+                str(self.port).encode() +
+                self.path
+            ) if self.method != httpMethods.CONNECT else (self.host + COLON + str(self.port).encode())
+
         return build_http_request(
-            self.method, self.path, self.version,
+            self.method, path, self.version,
             headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
                                                  k.lower() not in disable_headers},
             body=body

@@ -10,9 +10,11 @@
 """
 import ssl
 import socket
+
 from typing import Optional, Union, Tuple
 
 from .connection import TcpConnection, tcpConnectionTypes, TcpConnectionUninitializedException
+
 from ...common.utils import new_socket_connection
 
 
@@ -23,6 +25,7 @@ class TcpServerConnection(TcpConnection):
         super().__init__(tcpConnectionTypes.SERVER)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
         self.addr: Tuple[str, int] = (host, int(port))
+        self.closed = True
 
     @property
     def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
@@ -31,9 +34,9 @@ class TcpServerConnection(TcpConnection):
         return self._conn
 
     def connect(self) -> None:
-        if self._conn is not None:
-            return
-        self._conn = new_socket_connection(self.addr)
+        if self._conn is None:
+            self._conn = new_socket_connection(self.addr)
+        self.closed = False
 
     def wrap(self, hostname: str, ca_file: Optional[str]) -> None:
         ctx = ssl.create_default_context(

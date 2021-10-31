@@ -8,14 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
+import ssl
+import time
+import errno
+import socket
 import logging
 import threading
 import subprocess
-import os
-import ssl
-import socket
-import time
-import errno
+
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
@@ -30,6 +31,7 @@ from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAU
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
+from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
@@ -260,7 +262,27 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if not self.request.has_host():
             return
 
-        self.access_log()
+        context = {
+            'client_ip': self.client.addr[0],
+            'client_port': self.client.addr[1],
+            'request_method': text_(self.request.method),
+            'request_path': text_(self.request.path),
+            'server_host': text_(self.server.addr[0] if self.server else None),
+            'server_port': text_(self.server.addr[1] if self.server else None),
+            'response_bytes': self.response.total_size,
+            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            'response_code': text_(self.response.code),
+            'response_reason': text_(self.response.reason),
+        }
+        log_handled = False
+        for plugin in self.plugins.values():
+            ctx = plugin.on_access_log(context)
+            if ctx is None:
+                log_handled = True
+                break
+            context = ctx
+        if not log_handled:
+            self.access_log(context)
 
         # Note that, server instance was initialized
         # but not necessarily the connection object exists.
@@ -294,6 +316,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             logger.debug(
                 'Closed server connection, has buffer %s' %
                 self.server.has_buffer())
+
+    def access_log(self, log_attrs: Dict[str, Any]) -> None:
+        access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+        if self.request.method != httpMethods.CONNECT:
+            access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
+        logger.info(access_log_format.format_map(log_attrs))
 
     def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
         # TODO: Allow to output multiple access_log lines
@@ -445,32 +473,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         self.pipeline_response.parse(raw.tobytes())
         if self.pipeline_response.state == httpParserStates.COMPLETE:
             self.pipeline_response = None
-
-    def access_log(self) -> None:
-        server_host, server_port = self.server.addr if self.server else (
-            None, None)
-        connection_time_ms = (time.time() - self.start_time) * 1000
-        if self.request.method == httpMethods.CONNECT:
-            logger.info(
-                '%s:%s - %s %s:%s - %s bytes - %.2f ms' %
-                (self.client.addr[0],
-                 self.client.addr[1],
-                 text_(self.request.method),
-                 text_(server_host),
-                 text_(server_port),
-                 self.response.total_size,
-                 connection_time_ms))
-        elif self.request.method:
-            logger.info(
-                '%s:%s - %s %s:%s%s - %s %s - %s bytes - %.2f ms' %
-                (self.client.addr[0], self.client.addr[1],
-                 text_(self.request.method),
-                 text_(server_host), server_port,
-                 text_(self.request.path),
-                 text_(self.response.code),
-                 text_(self.response.reason),
-                 self.response.total_size,
-                 connection_time_ms))
 
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port
