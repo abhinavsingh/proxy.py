@@ -311,7 +311,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 o = plugin.handle_client_data(raw)
                 if o is None:
                     return None
-                assert o
                 raw = o
         elif self.server and not self.server.closed:
             # For http proxy requests, handle pipeline case.
