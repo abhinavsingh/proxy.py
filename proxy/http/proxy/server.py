@@ -258,15 +258,23 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
         self.access_log()
 
-        # If server was never initialized, return
-        if self.server is None:
-            return
-
         # Note that, server instance was initialized
         # but not necessarily the connection object exists.
+        #
+        # Unfortunately this is still being called when an upstream
+        # server connection was never established.  This is done currently
+        # to assist proxy pool plugin to close its upstream proxy connections.
+        #
+        # In short, treat on_upstream_connection_close as on_client_connection_close
+        # equivalent within proxy plugins.
+        #
         # Invoke plugin.on_upstream_connection_close
         for plugin in self.plugins.values():
             plugin.on_upstream_connection_close()
+
+        # If server was never initialized, return
+        if self.server is None:
+            return
 
         try:
             try:
@@ -306,6 +314,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # exchanged is http spec compliant.
         #
         # Hence, here we pass raw data to HTTP proxy plugins as is.
+        #
+        # We only call handle_client_data once original request has been
+        # completely received
         if not self.server:
             for plugin in self.plugins.values():
                 o = plugin.handle_client_data(raw)
@@ -392,33 +403,33 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
         # For https requests, respond back with tunnel established response.
         # Optionally, setup interceptor if TLS interception is enabled.
-        if self.request.method == httpMethods.CONNECT:
-            if self.server:
+        if self.server:
+            if self.request.method == httpMethods.CONNECT:
                 self.client.queue(
                     HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-            if self.tls_interception_enabled():
-                return self.intercept()
-        # If an upstream server connection was established for http request,
-        # queue the request for upstream server.
-        elif self.server:
-            # - proxy-connection header is a mistake, it doesn't seem to be
-            #   officially documented in any specification, drop it.
-            # - proxy-authorization is of no use for upstream, remove it.
-            self.request.del_headers(
-                [b'proxy-authorization', b'proxy-connection'])
-            # - For HTTP/1.0, connection header defaults to close
-            # - For HTTP/1.1, connection header defaults to keep-alive
-            # Respect headers sent by client instead of manipulating
-            # Connection or Keep-Alive header.  However, note that per
-            # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection
-            # connection headers are meant for communication between client and
-            # first intercepting proxy.
-            self.request.add_headers(
-                [(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)])
-            # Disable args.disable_headers before dispatching to upstream
-            self.server.queue(
-                memoryview(self.request.build(
-                    disable_headers=self.flags.disable_headers)))
+                if self.tls_interception_enabled():
+                    return self.intercept()
+            # If an upstream server connection was established for http request,
+            # queue the request for upstream server.
+            else:
+                # - proxy-connection header is a mistake, it doesn't seem to be
+                #   officially documented in any specification, drop it.
+                # - proxy-authorization is of no use for upstream, remove it.
+                self.request.del_headers(
+                    [b'proxy-authorization', b'proxy-connection'])
+                # - For HTTP/1.0, connection header defaults to close
+                # - For HTTP/1.1, connection header defaults to keep-alive
+                # Respect headers sent by client instead of manipulating
+                # Connection or Keep-Alive header.  However, note that per
+                # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection
+                # connection headers are meant for communication between client and
+                # first intercepting proxy.
+                self.request.add_headers(
+                    [(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)])
+                # Disable args.disable_headers before dispatching to upstream
+                self.server.queue(
+                    memoryview(self.request.build(
+                        disable_headers=self.flags.disable_headers)))
         return False
 
     def handle_pipeline_response(self, raw: memoryview) -> None:

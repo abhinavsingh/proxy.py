@@ -109,13 +109,12 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         self.upstream.queue(raw)
         return raw
 
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        """Will never be called since we didn't establish an upstream connection."""
-        raise Exception("This should have never been called")
-
     def on_upstream_connection_close(self) -> None:
-        """Will never be called since we didn't establish an upstream connection."""
-        raise Exception("This should have never been called")
+        """Called when client connection has been closed."""
+        if self.upstream and self.upstream.connection:
+            logger.debug('Closing upstream proxy connection')
+            self.upstream.close()
+            self.upstream = None
 
     @staticmethod
     def rebuild_original_path(request: HttpParser) -> bytes:
@@ -133,3 +132,7 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             str(request.port).encode() +
             request.path
         ) if request.method != httpMethods.CONNECT else (request.host + COLON + str(request.port).encode())
+
+    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+        """Will never be called since we didn't establish an upstream connection."""
+        raise Exception("This should have never been called")
