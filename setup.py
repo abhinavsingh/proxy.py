@@ -17,7 +17,7 @@ __description__ = '''⚡⚡⚡Fast, Lightweight, Pluggable, TLS interception cap
 __author__ = 'Abhinav Singh'
 __author_email__ = 'mailsforabhinav@gmail.com'
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
-__download_url__ = '%s/archive/master.zip' % __homepage__
+__download_url__ = '%s/archive/develop.zip' % __homepage__
 __license__ = 'BSD'
 
 if __name__ == '__main__':
