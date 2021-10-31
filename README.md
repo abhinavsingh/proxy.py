@@ -1574,7 +1574,7 @@ Wait for embedded `Chrome Dev Console` to load.  Currently, detail about all tra
 
 Current functionality can be verified by opening the `Dev Console` of dashboard and inspecting the websocket connection that dashboard established with the `proxy.py` server.
 
-[![Proxy.Py Dashboard Inspect Traffic](https://raw.githubusercontent.com/abhinavsingh/proxy.py/v3.4.0/Dashboard.png)](https://github.com/abhinavsingh/proxy.py)
+[![Proxy.Py Dashboard Inspect Traffic](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/Dashboard.png)](https://github.com/abhinavsingh/proxy.py)
 
 # Frequently Asked Questions
 
