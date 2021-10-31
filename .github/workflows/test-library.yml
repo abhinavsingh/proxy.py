@@ -37,6 +37,6 @@ jobs:
       - name: Integration testing
         if: matrix.os != 'windows'
         run: |
-          python setup.py install
+          pip install .
           proxy --hostname 127.0.0.1 --enable-web-server --pid-file proxy.pid --log-file proxy.log &
           ./tests/integration/main.sh
