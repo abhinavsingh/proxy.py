@@ -164,7 +164,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered.
             for plugin in self.plugins.values():
-                plugin.write_to_descriptors(w)
+                teardown = plugin.write_to_descriptors(w)
+                if teardown:
+                    return True
         elif self.request.has_host() and \
                 self.server and not self.server.closed and \
                 self.server.has_buffer() and \
@@ -192,7 +194,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered for.
             for plugin in self.plugins.values():
-                plugin.read_from_descriptors(r)
+                teardown = plugin.read_from_descriptors(r)
+                if teardown:
+                    return True
         elif self.request.has_host() \
                 and self.server \
                 and not self.server.closed \
