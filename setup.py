@@ -37,7 +37,9 @@ if __name__ == '__main__':
         zip_safe=False,
         packages=find_packages(exclude=['tests', 'tests.*']),
         package_data={'proxy': ['py.typed']},
-        install_requires=open('requirements.txt', 'r').read().strip().split(),
+        install_requires=[
+            'typing-extensions; python_version < "3.8"',
+        ],
         entry_points={
             'console_scripts': [
                 'proxy = proxy:entry_point'
