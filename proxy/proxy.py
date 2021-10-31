@@ -455,6 +455,13 @@ def main(
                         (proxy.pool.flags.hostname, proxy.pool.flags.port))
             # TODO: Introduce cron feature
             # https://github.com/abhinavsingh/proxy.py/issues/392
+            #
+            # TODO: Introduce ability to publish
+            # adhoc events which can modify behaviour of server
+            # at runtime.  Example, updating flags, plugin
+            # configuration etc.
+            #
+            # TODO: Python shell within running proxy.py environment
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:
