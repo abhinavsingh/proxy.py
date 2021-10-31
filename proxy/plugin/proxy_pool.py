@@ -17,6 +17,7 @@ from typing import List, Optional, Any, Tuple
 from ..core.connection.server import TcpServerConnection
 from ..common.constants import COLON, SLASH
 from ..common.types import Readables, Writables
+from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
 from ..http.methods import httpMethods
 from ..http.parser import HttpParser
@@ -40,38 +41,35 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        # TODO(abhinavsingh): Ideally connection to upstream proxy endpoints
-        # must be bootstrapped within it's own re-usable and gc'd pool, to avoid establishing
-        # a fresh upstream proxy connection for each client request.
-        #
-        # Implement your own logic here e.g. round-robin, least connection etc.
-        endpoint = random.choice(self.UPSTREAM_PROXY_POOL)
-        logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
-        self.upstream: TcpServerConnection = TcpServerConnection(
-            endpoint[0], endpoint[1])
-        self.upstream.connect()
-        logger.debug('Established connection to upstream proxy')
+        self.upstream: Optional[TcpServerConnection] = None
 
     def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
-        r: List[socket.socket] = []
-        w: List[socket.socket] = []
-        r.append(self.upstream.connection)
-        if self.upstream.has_buffer():
-            w.append(self.upstream.connection)
-        return r, w
+        if not self.upstream:
+            return [], []
+        return [self.upstream.connection], [self.upstream.connection] if self.upstream.has_buffer() else []
 
     def read_from_descriptors(self, r: Readables) -> bool:
         # Read from upstream proxy and queue for client
-        if self.upstream.connection in r:
-            raw = self.upstream.recv(self.flags.server_recvbuf_size)
-            if raw is not None:
-                self.client.queue(raw)
+        if self.upstream and self.upstream.connection in r:
+            try:
+                raw = self.upstream.recv(self.flags.server_recvbuf_size)
+                if raw is not None:
+                    self.client.queue(raw)
+                else:
+                    return True     # Teardown because upstream proxy closed the connection
+            except ConnectionResetError:
+                logger.debug('Connection reset by upstream proxy')
+                return True
         return False    # Do not teardown connection
 
     def write_to_descriptors(self, w: Writables) -> bool:
         # Flush queued data to upstream proxy now
-        if self.upstream.connection in w and self.upstream.has_buffer():
-            self.upstream.flush()
+        if self.upstream and self.upstream.connection in w and self.upstream.has_buffer():
+            try:
+                self.upstream.flush()
+            except BrokenPipeError:
+                logger.debug('BrokenPipeError when flushing to upstream proxy')
+                return True
         return False
 
     def before_upstream_connection(
@@ -79,18 +77,35 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         """Avoids establishing the default connection to upstream server
         by returning None.
         """
+        # TODO(abhinavsingh): Ideally connection to upstream proxy endpoints
+        # must be bootstrapped within it's own re-usable and gc'd pool, to avoid establishing
+        # a fresh upstream proxy connection for each client request.
+        #
+        # Implement your own logic here e.g. round-robin, least connection etc.
+        endpoint = random.choice(self.UPSTREAM_PROXY_POOL)
+        logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
+        self.upstream = TcpServerConnection(
+            endpoint[0], endpoint[1])
+        try:
+            self.upstream.connect()
+        except ConnectionRefusedError:
+            logger.info('Connection refused by upstream proxy')
+            raise HttpProtocolException()
+        logger.debug('Established connection to upstream proxy')
         return None
 
     def handle_client_request(
             self, request: HttpParser) -> Optional[HttpParser]:
         """Only invoked once after client original proxy request has been received completely."""
         request.path = self.rebuild_original_path(request)
+        assert self.upstream
         self.upstream.queue(memoryview(request.build()))
         return request
 
     def handle_client_data(self, raw: memoryview) -> Optional[memoryview]:
         """Only invoked when before_upstream_connection returns None"""
         # Queue data to the proxy endpoint
+        assert self.upstream
         self.upstream.queue(raw)
         return raw
 
