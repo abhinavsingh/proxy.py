@@ -26,8 +26,8 @@ jobs:
           pip install -r requirements-tunnel.txt
       - name: Quality Check
         run: |
-          flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
-          mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
+          flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/
+          mypy --strict --ignore-missing-imports proxy/ tests/
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Upload coverage to Codecov
