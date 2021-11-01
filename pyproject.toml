@@ -1,0 +1,6 @@
+[build-system]
+requires = [
+  # Essentials
+  "setuptools",
+]
+build-backend = "setuptools.build_meta"

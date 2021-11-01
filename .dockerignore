@@ -4,7 +4,8 @@
 # Except proxy
 !proxy
 !requirements.txt
-!setup.py
+!pyproject.toml
+!setup.cfg
 !README.md
 
 # Ignore __pycache__ directory

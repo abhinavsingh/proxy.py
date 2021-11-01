@@ -2,7 +2,8 @@ FROM python:3.10-alpine as base
 FROM base as builder
 
 COPY requirements.txt /app/
-COPY setup.py /app/
+COPY pyproject.toml /app/
+COPY setup.cfg /app/
 COPY README.md /app/
 COPY proxy/ /app/proxy/
 WORKDIR /app
