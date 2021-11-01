@@ -115,7 +115,7 @@ class Threadless(multiprocessing.Process):
 
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
-            fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
+            fileno, family=self.flags.family,
             type=socket.SOCK_STREAM)
 
     def accept_client(self) -> None:

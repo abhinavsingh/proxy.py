@@ -19,7 +19,7 @@ class TcpClientConnection(TcpConnection):
     """An accepted client connection request."""
 
     def __init__(self,
-                 conn: Union[ssl.SSLSocket, socket.socket],
+                 conn: Optional[Union[ssl.SSLSocket, socket.socket]],
                  addr: Tuple[str, int]):
         super().__init__(tcpConnectionTypes.CLIENT)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn

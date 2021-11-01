@@ -74,7 +74,8 @@ class AcceptorPool:
     """
 
     def __init__(self, flags: argparse.Namespace,
-                 work_klass: Type[Work], event_queue: Optional[EventQueue] = None) -> None:
+                 work_klass: Type[Work],
+                 event_queue: Optional[EventQueue] = None) -> None:
         self.flags = flags
         self.socket: Optional[socket.socket] = None
         self.acceptors: List[Acceptor] = []

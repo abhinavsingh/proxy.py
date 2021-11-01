@@ -54,10 +54,16 @@ class TcpConnection(ABC):
         """Users must handle BrokenPipeError exceptions"""
         return self.connection.send(data)
 
+    def _recv(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> bytes:
+        return self.connection.recv(buffer_size)
+
+    def _close(self) -> None:
+        self.connection.close()
+
     def recv(
             self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[memoryview]:
         """Users must handle socket.error exceptions"""
-        data: bytes = self.connection.recv(buffer_size)
+        data: bytes = self._recv(buffer_size)
         if len(data) == 0:
             return None
         logger.debug(
@@ -68,7 +74,7 @@ class TcpConnection(ABC):
 
     def close(self) -> bool:
         if not self.closed:
-            self.connection.close()
+            self._close()
             self.closed = True
         return self.closed
 

@@ -25,13 +25,13 @@ import inspect
 
 from types import TracebackType
 from typing import Dict, List, Optional, Generator, Any, Tuple, Type, Union, cast
-
-from proxy.core.acceptor.work import Work
+# from paramiko.channel import Channel
 
 from .common.utils import bytes_, text_, setup_logger
 from .common.types import IpAddress
 from .common.version import __version__
-from .core.acceptor import AcceptorPool
+from .core.acceptor import AcceptorPool, Work
+# from .core.ssh import TunnelAcceptorPool
 from .http.handler import HttpProtocolHandler
 from .core.event import EventManager
 from .common.flag import flags
@@ -45,6 +45,7 @@ from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PID_FILE, DEFAULT
 from .common.constants import DEFAULT_VERSION, DOT, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
 from .common.constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
 from .common.constants import PLUGIN_WEB_SERVER, PY2_DEPRECATION_MESSAGE, DEFAULT_ENABLE_EVENTS
+from .common.constants import DEFAULT_ENABLE_TUNNEL
 
 if os.name != 'nt':
     import resource
@@ -72,14 +73,12 @@ flags.add_argument(
     '--enable-dashboard',
     action='store_true',
     default=DEFAULT_ENABLE_DASHBOARD,
-    help='Default: False.  Enables proxy.py dashboard.'
-)
+    help='Default: False.  Enables proxy.py dashboard.')
 flags.add_argument(
     '--enable-devtools',
     action='store_true',
     default=DEFAULT_ENABLE_DEVTOOLS,
-    help='Default: False.  Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.'
-)
+    help='Default: False.  Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.')
 flags.add_argument(
     '--enable-static-server',
     action='store_true',
@@ -87,8 +86,7 @@ flags.add_argument(
     help='Default: False.  Enable inbuilt static file server. '
     'Optionally, also use --static-server-dir to serve static content '
     'from custom directory.  By default, static file server serves '
-    'out of installed proxy.py python module folder.'
-)
+    'out of installed proxy.py python module folder.')
 flags.add_argument(
     '--enable-web-server',
     action='store_true',
@@ -99,8 +97,12 @@ flags.add_argument(
     action='store_true',
     default=DEFAULT_ENABLE_EVENTS,
     help='Default: False.  Enables core to dispatch lifecycle events. '
-    'Plugins can be used to subscribe for core events.'
-)
+    'Plugins can be used to subscribe for core events.')
+flags.add_argument(
+    '--enable-tunnel',
+    action='store_true',
+    default=DEFAULT_ENABLE_TUNNEL,
+    help='Default: False.  Enable SSH tunnel.')
 flags.add_argument(
     '--log-level',
     type=str,
@@ -448,6 +450,10 @@ def start(
 def main(
         input_args: Optional[List[str]] = None,
         **opts: Any) -> None:
+    # flags = Proxy.initialize(input_args=input_args, opts=opts)
+    # ssh_tunnel = TunnelAcceptorPool(flags=flags)
+    # ssh_tunnel.run()
+    # return
     try:
         with Proxy(input_args=input_args, **opts) as proxy:
             assert proxy.pool is not None

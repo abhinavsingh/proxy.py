@@ -56,11 +56,12 @@ DEFAULT_ENABLE_EVENTS = False
 DEFAULT_EVENTS_QUEUE = None
 DEFAULT_ENABLE_STATIC_SERVER = False
 DEFAULT_ENABLE_WEB_SERVER = False
+DEFAULT_ENABLE_TUNNEL = False
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_KEY_FILE = None
 DEFAULT_LOG_FILE = None
-DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(filename)s:%(funcName)s:%(lineno)d - %(message)s'
+DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(module)s:%(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_HTTP_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port}{request_path} - ' + \
