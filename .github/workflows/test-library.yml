@@ -26,8 +26,8 @@ jobs:
           pip install -r requirements-tunnel.txt
       - name: Quality Check
         run: |
-          flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/ setup.py
-          mypy --strict --ignore-missing-imports proxy/ tests/ setup.py
+          flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/
+          mypy --strict --ignore-missing-imports proxy/ tests/
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Upload coverage to Codecov
@@ -37,6 +37,82 @@ jobs:
       - name: Integration testing
         if: matrix.os != 'windows'
         run: |
-          python setup.py install
+          pip install .
           proxy --hostname 127.0.0.1 --enable-web-server --pid-file proxy.pid --log-file proxy.log &
           ./tests/integration/main.sh
+
+  tox:
+    name: ${{ matrix.toxenv }}
+
+    runs-on: Ubuntu-latest
+    strategy:
+      matrix:
+        toxenv:
+        - cleanup-dists,build-dists,metadata-validation
+      fail-fast: false
+
+    env:
+      PY_COLORS: 1
+      TOX_PARALLEL_NO_SPINNER: 1
+      TOXENV: ${{ matrix.toxenv }}
+
+    steps:
+    - name: Switch to using Python v3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+    - name: >-
+        Calculate Python interpreter version hash value
+        for use in the cache key
+      id: calc-cache-key-py
+      run: |
+        from hashlib import sha512
+        from sys import version
+
+        hash = sha512(version.encode()).hexdigest()
+        print(f'::set-output name=py-hash-key::{hash}')
+      shell: python
+    - name: Get pip cache dir
+      id: pip-cache
+      run: >-
+        echo "::set-output name=dir::$(pip cache dir)"
+    - name: Set up pip cache
+      uses: actions/cache@v2.1.5
+      with:
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: >-
+          ${{ runner.os }}-pip-${{
+          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
+          hashFiles('tox.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{
+              steps.calc-cache-key-py.outputs.py-hash-key
+          }}-
+          ${{ runner.os }}-pip-
+    - name: Install tox
+      run: >-
+        python -m
+        pip install
+        --user
+        tox
+
+    - name: Grab the source from Git
+      uses: actions/checkout@v2
+
+    - name: >-
+        Pre-populate tox envs: `${{ env.TOXENV }}`
+      run: >-
+        python -m
+        tox
+        --parallel auto
+        --parallel-live
+        --skip-missing-interpreters false
+        --notest
+    - name: >-
+        Run tox envs: `${{ env.TOXENV }}`
+      run: >-
+        python -m
+        tox
+        --parallel auto
+        --parallel-live
+        --skip-missing-interpreters false

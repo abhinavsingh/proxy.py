@@ -30,7 +30,6 @@ autopep8:
 	autopep8 --recursive --in-place --aggressive examples
 	autopep8 --recursive --in-place --aggressive proxy
 	autopep8 --recursive --in-place --aggressive tests
-	autopep8 --recursive --in-place --aggressive setup.py
 
 https-certificates:
 	# Generate server key
@@ -90,14 +89,14 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-lint:
-	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 examples/ proxy/ tests/ setup.py
-	mypy --strict --ignore-missing-imports examples/ proxy/ tests/ setup.py
+	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 examples/ proxy/ tests/
+	mypy --strict --ignore-missing-imports examples/ proxy/ tests/
 
 lib-test: lib-clean lib-version lib-lint
 	pytest -v tests/
 
 lib-package: lib-clean lib-version
-	python setup.py sdist
+	python -m tox -e cleanup-dists,build-dists,metadata-validation
 
 lib-release-test: lib-package
 	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
