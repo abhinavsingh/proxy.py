@@ -24,10 +24,6 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-testing.txt
           pip install -r requirements-tunnel.txt
-      - name: Quality Check
-        run: |
-          flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/
-          mypy --strict --ignore-missing-imports proxy/ tests/
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Upload coverage to Codecov
@@ -49,6 +45,7 @@ jobs:
       matrix:
         toxenv:
         - cleanup-dists,build-dists,metadata-validation
+        - lint
       fail-fast: false
 
     env:
