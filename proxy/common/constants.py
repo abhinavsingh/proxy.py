@@ -86,3 +86,5 @@ PLUGIN_PAC_FILE = 'proxy.http.server.HttpWebServerPacFilePlugin'
 PLUGIN_DEVTOOLS_PROTOCOL = 'proxy.http.inspector.DevtoolsProtocolPlugin'
 PLUGIN_DASHBOARD = 'proxy.dashboard.dashboard.ProxyDashboard'
 PLUGIN_INSPECT_TRAFFIC = 'proxy.dashboard.inspect_traffic.InspectTrafficPlugin'
+
+GWEI_PER_ETH_COUNT = 1_000_000_000
