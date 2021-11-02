@@ -139,7 +139,6 @@ class EthereumModel:
             slot = int(tag, 16)
         return slot
 
-
     def eth_blockNumber(self):
         slot = self.client.get_slot(commitment=Confirmed)['result']
         logger.debug("eth_blockNumber %s", hex(slot))
@@ -467,6 +466,7 @@ class EthereumModel:
             logger.debug("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
             raise
 
+
 class JsonEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, bytearray):
@@ -536,7 +536,6 @@ class SolanaContractTests(unittest.TestCase):
         self.assertTrue(receiptId in block['transactions'])
 
 
-
 class SolanaProxyPlugin(HttpWebServerBasePlugin):
     """Extend in-built Web Server to add Reverse Proxy capabilities.
     """
@@ -597,7 +596,6 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 })))
             return
 
-        # print('headers', request.headers)
         logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
         response = None
 
