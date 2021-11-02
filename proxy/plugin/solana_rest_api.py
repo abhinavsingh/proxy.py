@@ -25,7 +25,7 @@ from sha3 import keccak_256, shake_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, getTokens, \
+from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, get_token_account_balance, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
     Trx,  EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load
 from solana.rpc.commitment import Commitment, Confirmed
@@ -150,7 +150,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
-        balance = getTokens(self.client, self.signer, evm_loader_id, eth_acc, self.signer.public_key())
+        balance = get_token_account_balance(self.client, self.signer, evm_loader_id, eth_acc, self.signer.public_key())
 
         return hex(balance*10**9)
 
