@@ -342,7 +342,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # For scenarios when an upstream connection was never established,
         # let plugin do whatever they wish to.  These are special scenarios
         # where plugins are trying to do something magical.  Within the core
-        # we don't know the context.  Infact, we are not even sure if data
+        # we don't know the context.  In fact, we are not even sure if data
         # exchanged is http spec compliant.
         #
         # Hence, here we pass raw data to HTTP proxy plugins as is.
