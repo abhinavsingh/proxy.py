@@ -21,7 +21,7 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from .eth_proto import Trx as EthTrx
 from solana.rpc.api import Client as SolanaClient
-from sha3 import keccak_256, shake_256
+from sha3 import keccak_256
 import base58
 import traceback
 import threading
@@ -49,15 +49,15 @@ class PermanentAccounts:
     def __init__(self, client, signer, proxy_id):
         self.operator = signer.public_key()
         self.operator_token = getTokenAddr(self.operator)
+        self.proxy_id = proxy_id
 
         proxy_id_bytes = proxy_id.to_bytes((proxy_id.bit_length() + 7) // 8, 'big')
-        signer_public_key_bytes = bytes(signer.public_key())
 
-        storage_seed = shake_256(b"storage" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
+        storage_seed = keccak_256(b"storage" + proxy_id_bytes).hexdigest()[:32]
         storage_seed = bytes(storage_seed, 'utf8')
         self.storage = create_account_with_seed(client, funding=signer, base=signer, seed=storage_seed, storage_size=STORAGE_SIZE)
 
-        holder_seed = shake_256(b"holder" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
+        holder_seed = keccak_256(b"holder" + proxy_id_bytes).hexdigest()[:32]
         holder_seed = bytes(holder_seed, 'utf8')
         self.holder = create_account_with_seed(client, funding=signer, base=signer, seed=holder_seed, storage_size=STORAGE_SIZE)
 
