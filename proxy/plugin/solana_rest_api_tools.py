@@ -67,6 +67,11 @@ ETH_TOKEN_MINT_ID: PublicKey = PublicKey(
 
 STORAGE_SIZE = 128 * 1024
 
+
+class SolanaErrors(Enum):
+    AccountNotFound = "Invalid param: could not find account"
+
+
 ACCOUNT_INFO_LAYOUT = cStruct(
     "type" / Int8ul,
     "ether" / Bytes(20),
