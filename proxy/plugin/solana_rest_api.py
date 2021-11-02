@@ -27,7 +27,7 @@ import traceback
 import threading
 from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, getTokens, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
-    Trx,  EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load
+    Trx,  EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load, MINIMAL_GAS_PRICE
 from solana.rpc.commitment import Commitment, Confirmed
 from web3 import Web3
 import logging
@@ -113,7 +113,7 @@ class EthereumModel:
         return str(int(chainId,base=16))
 
     def eth_gasPrice(self):
-        return hex(1*10**9)
+        return hex(MINIMAL_GAS_PRICE)
 
     def eth_estimateGas(self, param):
         try:
@@ -387,6 +387,9 @@ class EthereumModel:
         logger.debug('eth_sendRawTransaction rawTrx=%s', rawTrx)
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
         logger.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
+        if trx.gasPrice < MINIMAL_GAS_PRICE:
+            raise Exception("The transaction gasPrice is less then the minimum allowable value ({}<{})".format(trx.gasPrice, MINIMAL_GAS_PRICE))
+
         eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
 
         sender = trx.sender()
