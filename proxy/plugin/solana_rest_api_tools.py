@@ -10,26 +10,32 @@ import subprocess
 import time
 from datetime import datetime
 from hashlib import sha256
-from typing import NamedTuple
+from typing import NamedTuple, Optional, Union, Dict
+from enum import Enum
 import rlp
 from base58 import b58decode, b58encode
 from construct import Bytes, Int8ul, Int32ul, Int64ul
 from construct import Struct as cStruct
 from eth_keys import keys as eth_keys
 from sha3 import keccak_256
-from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT
-from solana._layouts.system_instructions import InstructionType as SystemInstructionType
+from web3.auto import w3
+
+from solana.account import Account as SolanaAccount
 from solana.blockhash import Blockhash
 from solana.publickey import PublicKey
-from solana.rpc.api import Client, SendTransactionError
+from solana.rpc.api import Client as SolanaClient, SendTransactionError
 from solana.rpc.commitment import Commitment, Confirmed
 from solana.rpc.types import TxOpts
 from solana.sysvar import *
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
+from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT
+from solana._layouts.system_instructions import InstructionType as SystemInstructionType
+
 from spl.token.constants import ACCOUNT_LEN, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address, create_associated_token_account, transfer2, Transfer2Params
-from web3.auto import w3
 
+from ..common.utils import get_from_dict
+from ..common.constants import GWEI_PER_ETH_COUNT
 from .eth_proto import Trx
 
 logger = logging.getLogger(__name__)
