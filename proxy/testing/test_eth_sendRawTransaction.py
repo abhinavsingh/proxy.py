@@ -2,7 +2,7 @@ import unittest
 import os
 from web3 import Web3
 from solcx import install_solc
-from .common.constants import GWEI_PER_ETH_COUNT
+from ..common.constants import GWEI_PER_ETH_COUNT
 
 # install_solc(version='latest')
 install_solc(version='0.7.0')
