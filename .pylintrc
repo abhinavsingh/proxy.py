@@ -271,7 +271,10 @@ indent-after-paren=4
 indent-string='    '
 
 # Maximum number of characters on a single line.
-max-line-length=100
+# Accessibility/large fonts and PEP8 friendly:
+#max-line-length = 79
+# Accessibility/large fonts and PEP8 unfriendly:
+max-line-length = 127
 
 # Maximum number of lines in a module.
 max-module-lines=1000
