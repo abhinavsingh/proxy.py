@@ -1104,7 +1104,8 @@ def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
     logger.debug('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
     logger.debug('associatedTokenAccount: {}'.format(associated_token))
     base = signer.public_key()
-    data=bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
+
+    data = bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
             lamports=0,
             space=0,
             ether=bytes.fromhex(ether),
@@ -1208,19 +1209,67 @@ def getLamports(client, evm_loader, eth_acc, base_account):
     (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
-def getTokens(client, signer, evm_loader, eth_acc, base_account):
-    (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
+
+def create_and_mint_tkn_acc(client: SolanaClient, signer: SolanaAccount, token_account: str, eth_acc: EthereumAddress):
+    logger.debug(f"Create and mint on account: {eth_acc} aka: {token_account} at token: {ETH_TOKEN_MINT_ID}")
+    trx = Transaction()
+    sender_sol_info = client.get_account_info(token_account, commitment=Confirmed)
+    value = get_from_dict(sender_sol_info, "result", "value")
+    if value is not None:
+        logger.warning(f"Failed to create eth account: {eth_acc}, already exists")
+        return
+
+    transfer_instruction = createEtherAccountTrx(client, bytes(eth_acc).hex(), evm_loader_id, signer)
+    trx.add(transfer_instruction[0])
+
+    transfer_instruction = transfer2(Transfer2Params(source=getTokenAddr(signer.public_key()),
+                                                     owner=signer.public_key(),
+                                                     dest=getTokenAddr(token_account),
+                                                     amount=NEW_USER_AIRDROP_AMOUNT * GWEI_PER_ETH_COUNT,
+                                                     decimals=9,
+                                                     mint=ETH_TOKEN_MINT_ID,
+                                                     program_id=TOKEN_PROGRAM_ID))
+    trx.add(transfer_instruction)
+
+    logger.debug(f"Token transfer to: {token_account} as ethereum {eth_acc} amount {NEW_USER_AIRDROP_AMOUNT}")
+    result = send_transaction(client, trx, signer)
+    error = result.get("error")
+    if error is not None:
+        logger.error(f"Failed to create and mint token account: {eth_acc}, error occurred: {error}")
+        raise Exception("Create account error")
+
+
+def get_token_balance_impl(client: SolanaClient, account: str, eth_acc: EthereumAddress) -> [Optional[int], Optional[Union[Dict, str]]]:
     token_account = get_associated_token_address(PublicKey(account), ETH_TOKEN_MINT_ID)
+    rpc_response = client.get_token_account_balance(token_account, commitment=Confirmed)
+    error = rpc_response.get('error')
+    if error is None:
+        balance = get_from_dict(rpc_response, "result", "value", "amount")
+        if balance is None:
+            return None, f"Failed to get token balance from: {rpc_response}, by eth account:" \
+                         f" {eth_acc} aka: {token_account} at token: {ETH_TOKEN_MINT_ID}"
+        return balance, None
+    return None, error
 
-    balance = client.get_token_account_balance(token_account, commitment=Confirmed)
-    if 'error' in balance:
-        if NEW_USER_AIRDROP_AMOUNT > 0:
-            return NEW_USER_AIRDROP_AMOUNT * 1_000_000_000
-        else:
-            logger.debug("'error' in balance:")
-            return 0
 
-    return int(balance['result']['value']['amount'])
+def get_token_balance(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_acc: EthereumAddress, base_account: PublicKey) -> int:
+    account, nonce = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
+    logger.debug(f"Get balance for eth account: {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
+
+    balance, error = get_token_balance_impl(client, account, eth_acc)
+    if error is None:
+        return int(balance)
+
+    if error.get("message") == SolanaErrors.AccountNotFound.value and NEW_USER_AIRDROP_AMOUNT > 0:
+        logger.debug(f"Account not found:  {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
+        create_and_mint_tkn_acc(client, signer, account, eth_acc)
+        balance, error = get_token_balance_impl(client, account, eth_acc)
+        if error is None:
+            return int(balance)
+
+    logger.error(f"Failed to get balance for account: {eth_acc}, error occurred: {error}")
+    raise Exception("Getting balance error")
+
 
 def getTokenAddr(account):
     return get_associated_token_address(PublicKey(account), ETH_TOKEN_MINT_ID)
