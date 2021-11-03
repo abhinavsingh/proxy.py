@@ -89,8 +89,7 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-lint:
-	flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 examples/ proxy/ tests/
-	mypy --strict --ignore-missing-imports examples/ proxy/ tests/
+	python -m tox -e lint
 
 lib-test: lib-clean lib-version lib-lint
 	pytest -v tests/
