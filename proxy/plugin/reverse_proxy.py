@@ -59,7 +59,7 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
         upstream = random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS)
         url = urlparse.urlsplit(upstream)
         assert url.hostname
-        with socket_connection((text_(url.hostname), url.port if url.port else DEFAULT_HTTP_PORT)) as conn:
+        with socket_connection((text_(url.hostname), url.port or DEFAULT_HTTP_PORT)) as conn:
             conn.send(request.build())
             self.client.queue(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
 

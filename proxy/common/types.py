@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+
 import queue
 import ipaddress
 import sys
@@ -22,10 +23,7 @@ if sys.version_info >= (3, 8):
 else:
     from typing_extensions import Protocol
 
-if TYPE_CHECKING:
-    DictQueueType = queue.Queue[Dict[str, Any]]    # pragma: no cover
-else:
-    DictQueueType = queue.Queue
+DictQueueType = queue.Queue[Dict[str, Any]] if TYPE_CHECKING else queue.Queue
 
 
 class HasFileno(Protocol):

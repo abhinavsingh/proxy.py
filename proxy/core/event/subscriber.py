@@ -59,11 +59,8 @@ class EventSubscriber:
 
         try:
             self.event_queue.unsubscribe(self.relay_sub_id)
-        except BrokenPipeError:
+        except (BrokenPipeError, EOFError):
             pass
-        except EOFError:
-            pass
-
         self.relay_shutdown.set()
         self.relay_thread.join()
         logger.debug(

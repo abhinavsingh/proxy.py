@@ -83,11 +83,7 @@ class EventDispatcher:
                     self.run_once()
                 except queue.Empty:
                     pass
-        except BrokenPipeError:
-            pass
-        except EOFError:
-            pass
-        except KeyboardInterrupt:
+        except (BrokenPipeError, EOFError, KeyboardInterrupt):
             pass
         except Exception as e:
             logger.exception('Event dispatcher exception', exc_info=e)
