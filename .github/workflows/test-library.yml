@@ -116,3 +116,16 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+
+  check:  # This job does nothing and is only used for the branch protection
+    needs:
+    - build
+    - tox
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Report success of the test matrix
+      run: >-
+        print("All's good")
+      shell: python
