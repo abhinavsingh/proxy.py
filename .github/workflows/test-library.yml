@@ -24,10 +24,6 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-testing.txt
           pip install -r requirements-tunnel.txt
-      - name: Quality Check
-        run: |
-          flake8 --ignore=W504 --max-line-length=127 --max-complexity=19 proxy/ tests/
-          mypy --strict --ignore-missing-imports proxy/ tests/
       - name: Run Tests
         run: pytest --cov=proxy tests/
       - name: Upload coverage to Codecov
@@ -49,6 +45,7 @@ jobs:
       matrix:
         toxenv:
         - cleanup-dists,build-dists,metadata-validation
+        - lint
       fail-fast: false
 
     env:
@@ -116,3 +113,16 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+
+  check:  # This job does nothing and is only used for the branch protection
+    needs:
+    - build
+    - tox
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Report success of the test matrix
+      run: >-
+        print("All's good")
+      shell: python
