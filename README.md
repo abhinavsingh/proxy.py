@@ -1193,7 +1193,7 @@ if __name__ == '__main__':
 Note that it supports:
 
 1. The fully-qualified name of a class as `bytes`
-2. Any `type` instance for a Proxy.py plugin class. This is espacially useful for custom plugins defined locally.
+2. Any `type` instance for a Proxy.py plugin class. This is especially useful for custom plugins defined locally.
 
 # Unit testing with proxy.py
 

@@ -30,7 +30,7 @@ class BaseTcpServerHandler(Work):
 
     Implementations must provide:
     a) handle_data(data: memoryview)
-    c) (optionally) intialize, is_inactive and shutdown methods
+    c) (optionally) initialize, is_inactive and shutdown methods
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

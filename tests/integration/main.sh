@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # TODO: Option to also shutdown proxy.py after
-# integration testing is done.  Atleast on
+# integration testing is done.  At least on
 # macOS and ubuntu, pkill and kill commands
 # will do the job.
 #
