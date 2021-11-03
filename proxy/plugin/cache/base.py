@@ -30,7 +30,8 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
     def __init__(
             self,
             *args: Any,
-            **kwargs: Any) -> None:
+            **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.store: Optional[CacheStore] = None
 
@@ -38,7 +39,8 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         self.store = store
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         assert self.store
         try:
             self.store.open(request)
@@ -47,7 +49,8 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         return request
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         assert self.store
         return self.store.cache_request(request)
 

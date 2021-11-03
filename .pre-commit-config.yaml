@@ -1,9 +1,11 @@
 ---
 repos:
-# - repo: https://github.com/asottile/add-trailing-comma.git
-#   rev: v2.0.1
-#   hooks:
-#   - id: add-trailing-comma
+- repo: https://github.com/asottile/add-trailing-comma.git
+  rev: v2.0.1
+  hooks:
+  - id: add-trailing-comma
+    args:
+    - --py36-plus
 
 # - repo: https://github.com/timothycrosley/isort.git
 #   rev: 5.4.2

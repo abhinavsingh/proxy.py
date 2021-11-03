@@ -29,7 +29,7 @@ flags.add_argument(
     '--filtered-url-regex-config',
     type=str,
     default='',
-    help='Default: No config.  Comma separated list of IPv4 and IPv6 addresses.'
+    help='Default: No config.  Comma separated list of IPv4 and IPv6 addresses.',
 )
 
 
@@ -48,11 +48,13 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
                 self.filters = json.load(f)
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         return request
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         # determine host
         request_host = None
         if request.host:
@@ -68,7 +70,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         # build URL
         url = b'%s%s' % (
             request_host,
-            request.path
+            request.path,
         )
         # check URL against list
         rule_number = 1
@@ -76,11 +78,13 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             # if regex matches on URL
             if re.search(text_(blocked_entry['regex']), text_(url)):
                 # log that the request has been filtered
-                logger.info("Blocked: %r with status_code '%r' by rule number '%r'" % (
-                    text_(url),
-                    httpStatusCodes.NOT_FOUND,
-                    rule_number,
-                ))
+                logger.info(
+                    "Blocked: %r with status_code '%r' by rule number '%r'" % (
+                        text_(url),
+                        httpStatusCodes.NOT_FOUND,
+                        rule_number,
+                    ),
+                )
                 # close the connection with the status code from the filter
                 # list
                 raise HttpRequestRejected(

@@ -50,7 +50,8 @@ class EventDispatcher:
     def __init__(
             self,
             shutdown: threading.Event,
-            event_queue: EventQueue) -> None:
+            event_queue: EventQueue,
+    ) -> None:
         self.shutdown: threading.Event = shutdown
         self.event_queue: EventQueue = event_queue
         self.subscribers: Dict[str, DictQueueType] = {}

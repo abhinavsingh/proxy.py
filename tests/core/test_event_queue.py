@@ -30,17 +30,19 @@ class TestCoreEvent(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__
+            publisher_id=self.__class__.__name__,
         )
-        self.assertEqual(evq.queue.get(), {
-            'request_id': '1234',
-            'process_id': os.getpid(),
-            'thread_id': threading.get_ident(),
-            'event_timestamp': 1234567,
-            'event_name': eventNames.WORK_STARTED,
-            'event_payload': {'hello': 'events'},
-            'publisher_id': self.__class__.__name__,
-        })
+        self.assertEqual(
+            evq.queue.get(), {
+                'request_id': '1234',
+                'process_id': os.getpid(),
+                'thread_id': threading.get_ident(),
+                'event_timestamp': 1234567,
+                'event_name': eventNames.WORK_STARTED,
+                'event_payload': {'hello': 'events'},
+                'publisher_id': self.__class__.__name__,
+            },
+        )
 
     def test_subscribe(self) -> None:
         evq = EventQueue(MANAGER.Queue())

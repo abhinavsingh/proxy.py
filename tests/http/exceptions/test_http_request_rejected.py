@@ -28,15 +28,19 @@ class TestHttpRequestRejected(unittest.TestCase):
 
     def test_status_code_response(self) -> None:
         e = HttpRequestRejected(status_code=200, reason=b'OK')
-        self.assertEqual(e.response(self.request), CRLF.join([
-            b'HTTP/1.1 200 OK',
-            CRLF
-        ]))
+        self.assertEqual(
+            e.response(self.request), CRLF.join([
+                b'HTTP/1.1 200 OK',
+                CRLF,
+            ]),
+        )
 
     def test_body_response(self) -> None:
         e = HttpRequestRejected(
             status_code=httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
-            body=b'Nothing here')
+            body=b'Nothing here',
+        )
         self.assertEqual(
             e.response(self.request),
-            build_http_response(httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND', body=b'Nothing here'))
+            build_http_response(httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND', body=b'Nothing here'),
+        )

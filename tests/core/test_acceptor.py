@@ -30,7 +30,8 @@ class TestAcceptor(unittest.TestCase):
             work_queue=self.pipe[1],
             flags=self.flags,
             lock=multiprocessing.Lock(),
-            work_klass=self.mock_protocol_handler)
+            work_klass=self.mock_protocol_handler,
+        )
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -39,7 +40,8 @@ class TestAcceptor(unittest.TestCase):
             self,
             mock_recv_handle: mock.Mock,
             mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock) -> None:
+            mock_selector: mock.Mock,
+    ) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
@@ -66,7 +68,8 @@ class TestAcceptor(unittest.TestCase):
             mock_fromfd: mock.Mock,
             mock_selector: mock.Mock,
             mock_thread: mock.Mock,
-            mock_client: mock.Mock) -> None:
+            mock_client: mock.Mock,
+    ) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
@@ -87,7 +90,7 @@ class TestAcceptor(unittest.TestCase):
         mock_fromfd.assert_called_with(
             fileno,
             family=socket.AF_INET6,
-            type=socket.SOCK_STREAM
+            type=socket.SOCK_STREAM,
         )
         self.mock_protocol_handler.assert_called_with(
             mock_client.return_value,
@@ -95,6 +98,7 @@ class TestAcceptor(unittest.TestCase):
             event_queue=None,
         )
         mock_thread.assert_called_with(
-            target=self.mock_protocol_handler.return_value.run)
+            target=self.mock_protocol_handler.return_value.run,
+        )
         mock_thread.return_value.start.assert_called()
         sock.close.assert_called()

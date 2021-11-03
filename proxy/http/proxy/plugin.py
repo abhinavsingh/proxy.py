@@ -32,7 +32,8 @@ class HttpProxyBasePlugin(ABC):
             uid: UUID,
             flags: argparse.Namespace,
             client: TcpClientConnection,
-            event_queue: EventQueue) -> None:
+            event_queue: EventQueue,
+    ) -> None:
         self.uid = uid                  # pragma: no cover
         self.flags = flags              # pragma: no cover
         self.client = client            # pragma: no cover
@@ -57,7 +58,8 @@ class HttpProxyBasePlugin(ABC):
     #
     # @abstractmethod
     def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket]]:
+            self,
+    ) -> Tuple[List[socket.socket], List[socket.socket]]:
         return [], []  # pragma: no cover
 
     # @abstractmethod
@@ -77,7 +79,8 @@ class HttpProxyBasePlugin(ABC):
 
     @abstractmethod
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         """Handler called just before Proxy upstream connection is established.
 
         Return optionally modified request object.
@@ -90,7 +93,8 @@ class HttpProxyBasePlugin(ABC):
     #
     # @abstractmethod
     def handle_client_data(
-            self, raw: memoryview) -> Optional[memoryview]:
+            self, raw: memoryview,
+    ) -> Optional[memoryview]:
         """Handler called in special scenarios when an upstream server connection
         is never established.
 
@@ -104,7 +108,8 @@ class HttpProxyBasePlugin(ABC):
 
     @abstractmethod
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         """Handler called before dispatching client request to upstream.
 
         Note: For pipelined (keep-alive) connections, this handler can be

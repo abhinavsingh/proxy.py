@@ -45,13 +45,13 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
 
     REVERSE_PROXY_LOCATION: str = r'/get$'
     REVERSE_PROXY_PASS = [
-        b'http://httpbin.org/get'
+        b'http://httpbin.org/get',
     ]
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
             (httpProtocolTypes.HTTP, ReverseProxyPlugin.REVERSE_PROXY_LOCATION),
-            (httpProtocolTypes.HTTPS, ReverseProxyPlugin.REVERSE_PROXY_LOCATION)
+            (httpProtocolTypes.HTTPS, ReverseProxyPlugin.REVERSE_PROXY_LOCATION),
         ]
 
     # TODO(abhinavsingh): Upgrade to use non-blocking get/read/write API.

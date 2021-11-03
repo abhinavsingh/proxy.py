@@ -37,23 +37,31 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
             # inspection can only be enabled if --enable-events is used
             if not self.flags.enable_events:
                 self.client.queue(
-                    memoryview(WebsocketFrame.text(
-                        bytes_(
-                            json.dumps(
-                                {'id': message['id'], 'response': 'not enabled'})
-                        )
-                    ))
+                    memoryview(
+                        WebsocketFrame.text(
+                            bytes_(
+                                json.dumps(
+                                    {'id': message['id'], 'response': 'not enabled'},
+                                ),
+                            ),
+                        ),
+                    ),
                 )
             else:
                 self.subscriber.subscribe(
                     lambda event: InspectTrafficPlugin.callback(
-                        self.client, event))
+                        self.client, event,
+                    ),
+                )
                 self.reply(
-                    {'id': message['id'], 'response': 'inspection_enabled'})
+                    {'id': message['id'], 'response': 'inspection_enabled'},
+                )
         elif message['method'] == 'disable_inspection':
             self.subscriber.unsubscribe()
-            self.reply({'id': message['id'],
-                        'response': 'inspection_disabled'})
+            self.reply({
+                'id': message['id'],
+                'response': 'inspection_disabled',
+            })
         else:
             raise NotImplementedError()
 
@@ -61,6 +69,11 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
     def callback(client: TcpClientConnection, event: Dict[str, Any]) -> None:
         event['push'] = 'inspect_traffic'
         client.queue(
-            memoryview(WebsocketFrame.text(
-                bytes_(
-                    json.dumps(event)))))
+            memoryview(
+                WebsocketFrame.text(
+                    bytes_(
+                        json.dumps(event),
+                    ),
+                ),
+            ),
+        )

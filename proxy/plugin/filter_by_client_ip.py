@@ -21,7 +21,7 @@ flags.add_argument(
     '--filtered-client-ips',
     type=str,
     default='127.0.0.1,::1',
-    help='Default: 127.0.0.1,::1.  Comma separated list of IPv4 and IPv6 addresses.'
+    help='Default: 127.0.0.1,::1.  Comma separated list of IPv4 and IPv6 addresses.',
 )
 
 
@@ -29,18 +29,20 @@ class FilterByClientIpPlugin(HttpProxyBasePlugin):
     """Drop traffic by inspecting incoming client IP address."""
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         if self.client.addr[0] in self.flags.filtered_client_ips.split(','):
             raise HttpRequestRejected(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT, reason=b'I\'m a tea pot',
                 headers={
                     b'Connection': b'close',
-                }
+                },
             )
         return request
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:

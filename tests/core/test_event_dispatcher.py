@@ -27,7 +27,8 @@ class TestEventDispatcher(unittest.TestCase):
         self.event_queue = EventQueue(multiprocessing.Manager().Queue())
         self.dispatcher = EventDispatcher(
             shutdown=self.dispatcher_shutdown,
-            event_queue=self.event_queue)
+            event_queue=self.event_queue,
+        )
 
     def tearDown(self) -> None:
         self.dispatcher_shutdown.set()
@@ -37,7 +38,7 @@ class TestEventDispatcher(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__
+            publisher_id=self.__class__.__name__,
         )
         self.dispatcher.run_once()
         with self.assertRaises(queue.Empty):
@@ -53,18 +54,20 @@ class TestEventDispatcher(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__
+            publisher_id=self.__class__.__name__,
         )
         self.dispatcher.run_once()
-        self.assertEqual(q.get(), {
-            'request_id': '1234',
-            'process_id': os.getpid(),
-            'thread_id': threading.get_ident(),
-            'event_timestamp': 1234567,
-            'event_name': eventNames.WORK_STARTED,
-            'event_payload': {'hello': 'events'},
-            'publisher_id': self.__class__.__name__,
-        })
+        self.assertEqual(
+            q.get(), {
+                'request_id': '1234',
+                'process_id': os.getpid(),
+                'thread_id': threading.get_ident(),
+                'event_timestamp': 1234567,
+                'event_name': eventNames.WORK_STARTED,
+                'event_payload': {'hello': 'events'},
+                'publisher_id': self.__class__.__name__,
+            },
+        )
         return q
 
     def test_subscribe(self) -> None:
@@ -78,7 +81,7 @@ class TestEventDispatcher(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__
+            publisher_id=self.__class__.__name__,
         )
         self.dispatcher.run_once()
         with self.assertRaises(queue.Empty):

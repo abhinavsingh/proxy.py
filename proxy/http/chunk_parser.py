@@ -14,11 +14,13 @@ from ..common.utils import bytes_, find_http_line
 from ..common.constants import CRLF, DEFAULT_BUFFER_SIZE
 
 
-ChunkParserStates = NamedTuple('ChunkParserStates', [
-    ('WAITING_FOR_SIZE', int),
-    ('WAITING_FOR_DATA', int),
-    ('COMPLETE', int),
-])
+ChunkParserStates = NamedTuple(
+    'ChunkParserStates', [
+        ('WAITING_FOR_SIZE', int),
+        ('WAITING_FOR_DATA', int),
+        ('COMPLETE', int),
+    ],
+)
 chunkParserStates = ChunkParserStates(1, 2, 3)
 
 

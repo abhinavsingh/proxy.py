@@ -25,8 +25,10 @@ process_publisher_request_id = '12345'
 num_events_received = [0, 0]
 
 
-def publisher_process(shutdown_event: multiprocessing.synchronize.Event,
-                      dispatcher_queue: EventQueue) -> None:
+def publisher_process(
+    shutdown_event: multiprocessing.synchronize.Event,
+    dispatcher_queue: EventQueue,
+) -> None:
     print('publisher starting')
     try:
         while not shutdown_event.is_set():
@@ -34,7 +36,7 @@ def publisher_process(shutdown_event: multiprocessing.synchronize.Event,
                 request_id=process_publisher_request_id,
                 event_name=eventNames.WORK_STARTED,
                 event_payload={'time': time.time()},
-                publisher_id='eventing_pubsub_process'
+                publisher_id='eventing_pubsub_process',
             )
     except KeyboardInterrupt:
         pass
@@ -70,7 +72,8 @@ if __name__ == '__main__':
     publisher_shutdown_event = multiprocessing.Event()
     publisher = multiprocessing.Process(
         target=publisher_process, args=(
-            publisher_shutdown_event, event_manager.event_queue, ))
+            publisher_shutdown_event, event_manager.event_queue, ),
+    )
     publisher.start()
 
     try:
@@ -80,7 +83,7 @@ if __name__ == '__main__':
                 request_id=main_publisher_request_id,
                 event_name=eventNames.WORK_STARTED,
                 event_payload={'time': time.time()},
-                publisher_id='eventing_pubsub_main'
+                publisher_id='eventing_pubsub_main',
             )
     except KeyboardInterrupt:
         print('bye!!!')
@@ -92,5 +95,8 @@ if __name__ == '__main__':
         subscriber.unsubscribe()
         # Signal dispatcher to shutdown
         event_manager.stop_event_dispatcher()
-    print('Received {0} events from main thread, {1} events from another process, in {2} seconds'.format(
-        num_events_received[0], num_events_received[1], time.time() - start_time))
+    print(
+        'Received {0} events from main thread, {1} events from another process, in {2} seconds'.format(
+            num_events_received[0], num_events_received[1], time.time() - start_time,
+        ),
+    )

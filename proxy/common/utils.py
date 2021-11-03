@@ -46,22 +46,27 @@ def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
     return s
 
 
-def build_http_request(method: bytes, url: bytes,
-                       protocol_version: bytes = HTTP_1_1,
-                       headers: Optional[Dict[bytes, bytes]] = None,
-                       body: Optional[bytes] = None) -> bytes:
+def build_http_request(
+    method: bytes, url: bytes,
+    protocol_version: bytes = HTTP_1_1,
+    headers: Optional[Dict[bytes, bytes]] = None,
+    body: Optional[bytes] = None,
+) -> bytes:
     """Build and returns a HTTP request packet."""
     if headers is None:
         headers = {}
     return build_http_pkt(
-        [method, url, protocol_version], headers, body)
+        [method, url, protocol_version], headers, body,
+    )
 
 
-def build_http_response(status_code: int,
-                        protocol_version: bytes = HTTP_1_1,
-                        reason: Optional[bytes] = None,
-                        headers: Optional[Dict[bytes, bytes]] = None,
-                        body: Optional[bytes] = None) -> bytes:
+def build_http_response(
+    status_code: int,
+    protocol_version: bytes = HTTP_1_1,
+    reason: Optional[bytes] = None,
+    headers: Optional[Dict[bytes, bytes]] = None,
+    body: Optional[bytes] = None,
+) -> bytes:
     """Build and returns a HTTP response packet."""
     line = [protocol_version, bytes_(status_code)]
     if reason:
@@ -87,9 +92,11 @@ def build_http_header(k: bytes, v: bytes) -> bytes:
     return k + COLON + WHITESPACE + v
 
 
-def build_http_pkt(line: List[bytes],
-                   headers: Optional[Dict[bytes, bytes]] = None,
-                   body: Optional[bytes] = None) -> bytes:
+def build_http_pkt(
+    line: List[bytes],
+    headers: Optional[Dict[bytes, bytes]] = None,
+    body: Optional[bytes] = None,
+) -> bytes:
     """Build and returns a HTTP request or response packet."""
     pkt = WHITESPACE.join(line) + CRLF
     if headers is not None:
@@ -105,7 +112,8 @@ def build_websocket_handshake_request(
         key: bytes,
         method: bytes = b'GET',
         url: bytes = b'/',
-        host: bytes = b'localhost') -> bytes:
+        host: bytes = b'localhost',
+) -> bytes:
     """
     Build and returns a Websocket handshake request packet.
 
@@ -121,7 +129,7 @@ def build_websocket_handshake_request(
             b'Upgrade': b'websocket',
             b'Sec-WebSocket-Key': key,
             b'Sec-WebSocket-Version': b'13',
-        }
+        },
     )
 
 
@@ -136,8 +144,8 @@ def build_websocket_handshake_response(accept: bytes) -> bytes:
         headers={
             b'Upgrade': b'websocket',
             b'Connection': b'Upgrade',
-            b'Sec-WebSocket-Accept': accept
-        }
+            b'Sec-WebSocket-Accept': accept,
+        },
     )
 
 
@@ -153,15 +161,19 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
     return line, rest
 
 
-def wrap_socket(conn: socket.socket, keyfile: str,
-                certfile: str) -> ssl.SSLSocket:
+def wrap_socket(
+    conn: socket.socket, keyfile: str,
+    certfile: str,
+) -> ssl.SSLSocket:
     ctx = ssl.create_default_context(
-        ssl.Purpose.CLIENT_AUTH)
+        ssl.Purpose.CLIENT_AUTH,
+    )
     ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
     ctx.verify_mode = ssl.CERT_NONE
     ctx.load_cert_chain(
         certfile=certfile,
-        keyfile=keyfile)
+        keyfile=keyfile,
+    )
     return ctx.wrap_socket(
         conn,
         server_side=True,
@@ -169,18 +181,21 @@ def wrap_socket(conn: socket.socket, keyfile: str,
 
 
 def new_socket_connection(
-        addr: Tuple[str, int], timeout: int = DEFAULT_TIMEOUT) -> socket.socket:
+        addr: Tuple[str, int], timeout: int = DEFAULT_TIMEOUT,
+) -> socket.socket:
     conn = None
     try:
         ip = ipaddress.ip_address(addr[0])
         if ip.version == 4:
             conn = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM, 0)
+                socket.AF_INET, socket.SOCK_STREAM, 0,
+            )
             conn.settimeout(timeout)
             conn.connect(addr)
         else:
             conn = socket.socket(
-                socket.AF_INET6, socket.SOCK_STREAM, 0)
+                socket.AF_INET6, socket.SOCK_STREAM, 0,
+            )
             conn.settimeout(timeout)
             conn.connect((addr[0], addr[1], 0, 0))
     except ValueError:
@@ -209,12 +224,14 @@ class socket_connection(contextlib.ContextDecorator):
             self,
             exc_type: Optional[Type[BaseException]],
             exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType]) -> None:
+            exc_tb: Optional[TracebackType],
+    ) -> None:
         if self.conn:
             self.conn.close()
 
     def __call__(   # type: ignore
-            self, func: Callable[..., Any]) -> Callable[[Tuple[Any, ...], Dict[str, Any]], Any]:
+            self, func: Callable[..., Any],
+    ) -> Callable[[Tuple[Any, ...], Dict[str, Any]], Any]:
         @functools.wraps(func)
         def decorated(*args: Any, **kwargs: Any) -> Any:
             with self as conn:
@@ -233,19 +250,24 @@ def get_available_port() -> int:
 def setup_logger(
         log_file: Optional[str] = DEFAULT_LOG_FILE,
         log_level: str = DEFAULT_LOG_LEVEL,
-        log_format: str = DEFAULT_LOG_FORMAT) -> None:
+        log_format: str = DEFAULT_LOG_FORMAT,
+) -> None:
     ll = getattr(
         logging,
-        {'D': 'DEBUG',
+        {
+            'D': 'DEBUG',
             'I': 'INFO',
             'W': 'WARNING',
             'E': 'ERROR',
-            'C': 'CRITICAL'}[log_level.upper()[0]])
+            'C': 'CRITICAL',
+        }[log_level.upper()[0]],
+    )
     if log_file:
         logging.basicConfig(
             filename=log_file,
             filemode='a',
             level=ll,
-            format=log_format)
+            format=log_format,
+        )
     else:
         logging.basicConfig(level=ll, format=log_format)

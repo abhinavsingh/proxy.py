@@ -18,14 +18,16 @@ import io
 from typing import TypeVar, Type, Optional, NamedTuple
 
 
-WebsocketOpcodes = NamedTuple('WebsocketOpcodes', [
-    ('CONTINUATION_FRAME', int),
-    ('TEXT_FRAME', int),
-    ('BINARY_FRAME', int),
-    ('CONNECTION_CLOSE', int),
-    ('PING', int),
-    ('PONG', int),
-])
+WebsocketOpcodes = NamedTuple(
+    'WebsocketOpcodes', [
+        ('CONTINUATION_FRAME', int),
+        ('TEXT_FRAME', int),
+        ('BINARY_FRAME', int),
+        ('CONNECTION_CLOSE', int),
+        ('PING', int),
+        ('PONG', int),
+    ],
+)
 websocketOpcodes = WebsocketOpcodes(0x0, 0x1, 0x2, 0x8, 0x9, 0xA)
 
 
@@ -91,35 +93,38 @@ class WebsocketFrame:
                 (1 << 6 if self.rsv1 else 0) |
                 (1 << 5 if self.rsv2 else 0) |
                 (1 << 4 if self.rsv3 else 0) |
-                self.opcode
-            ))
+                self.opcode,
+            ),
+        )
         assert self.payload_length is not None
         if self.payload_length < 126:
             raw.write(
                 struct.pack(
                     '!B',
-                    (1 << 7 if self.masked else 0) | self.payload_length
-                )
+                    (1 << 7 if self.masked else 0) | self.payload_length,
+                ),
             )
         elif self.payload_length < 1 << 16:
             raw.write(
                 struct.pack(
                     '!BH',
                     (1 << 7 if self.masked else 0) | 126,
-                    self.payload_length
-                )
+                    self.payload_length,
+                ),
             )
         elif self.payload_length < 1 << 64:
             raw.write(
                 struct.pack(
                     '!BHQ',
                     (1 << 7 if self.masked else 0) | 127,
-                    self.payload_length
-                )
+                    self.payload_length,
+                ),
             )
         else:
-            raise ValueError(f'Invalid payload_length { self.payload_length },'
-                             f'maximum allowed { 1 << 64 }')
+            raise ValueError(
+                f'Invalid payload_length { self.payload_length },'
+                f'maximum allowed { 1 << 64 }',
+            )
         if self.masked and self.data:
             mask = secrets.token_bytes(4) if self.mask is None else self.mask
             raw.write(mask)

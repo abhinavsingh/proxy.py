@@ -23,9 +23,11 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    def setUp(self,
-              mock_fromfd: mock.Mock,
-              mock_selector: mock.Mock) -> None:
+    def setUp(
+        self,
+        mock_fromfd: mock.Mock,
+        mock_selector: mock.Mock,
+    ) -> None:
         self.mock_fromfd = mock_fromfd
         self.mock_selector = mock_selector
 
@@ -35,7 +37,8 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
-            flags=self.flags)
+            flags=self.flags,
+        )
         self.protocol_handler.initialize()
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
@@ -43,20 +46,27 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
             headers={
-                b'Host': b'upstream.host'
-            })
+                b'Host': b'upstream.host',
+            },
+        )
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
 
         self.protocol_handler.run_once()
         mock_server_conn.assert_not_called()
         self.assertEqual(self.protocol_handler.client.has_buffer(), True)
         self.assertEqual(
-            self.protocol_handler.client.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT)
+            self.protocol_handler.client.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT,
+        )
         self._conn.send.assert_not_called()
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
@@ -66,19 +76,26 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
             headers={
                 b'Host': b'upstream.host',
                 b'Proxy-Authorization': b'Basic hello',
-            })
+            },
+        )
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
 
         self.protocol_handler.run_once()
         mock_server_conn.assert_not_called()
         self.assertEqual(self.protocol_handler.client.has_buffer(), True)
         self.assertEqual(
-            self.protocol_handler.client.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT)
+            self.protocol_handler.client.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT,
+        )
         self._conn.send.assert_not_called()
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
@@ -88,13 +105,19 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
             headers={
                 b'Host': b'upstream.host',
                 b'Proxy-Authorization': b'Basic dXNlcjpwYXNz',
-            })
+            },
+        )
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
 
         self.protocol_handler.run_once()
         mock_server_conn.assert_called_once()
@@ -107,13 +130,19 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
             headers={
                 b'Host': b'upstream.host',
                 b'Proxy-Authorization': b'bAsIc dXNlcjpwYXNz',
-            })
+            },
+        )
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
 
         self.protocol_handler.run_once()
         mock_server_conn.assert_called_once()

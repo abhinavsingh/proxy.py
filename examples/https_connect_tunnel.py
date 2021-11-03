@@ -23,16 +23,20 @@ from proxy.core.base import BaseTcpTunnelHandler
 class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
     """A https CONNECT tunnel."""
 
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(build_http_response(
-        httpStatusCodes.OK,
-        reason=b'Connection established'
-    ))
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(
+        build_http_response(
+            httpStatusCodes.OK,
+            reason=b'Connection established',
+        ),
+    )
 
-    PROXY_TUNNEL_UNSUPPORTED_SCHEME = memoryview(build_http_response(
-        httpStatusCodes.BAD_REQUEST,
-        headers={b'Connection': b'close'},
-        reason=b'Unsupported protocol scheme'
-    ))
+    PROXY_TUNNEL_UNSUPPORTED_SCHEME = memoryview(
+        build_http_response(
+            httpStatusCodes.BAD_REQUEST,
+            headers={b'Connection': b'close'},
+            reason=b'Unsupported protocol scheme',
+        ),
+    )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -49,7 +53,8 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
         # Drop the request if not a CONNECT request
         if self.request.method != httpMethods.CONNECT:
             self.client.queue(
-                HttpsConnectTunnelHandler.PROXY_TUNNEL_UNSUPPORTED_SCHEME)
+                HttpsConnectTunnelHandler.PROXY_TUNNEL_UNSUPPORTED_SCHEME,
+            )
             return True
 
         # CONNECT requests are short and we need not worry about
@@ -61,7 +66,8 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
 
         # Queue tunnel established response to client
         self.client.queue(
-            HttpsConnectTunnelHandler.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+            HttpsConnectTunnelHandler.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+        )
 
         return None
 
@@ -70,7 +76,8 @@ def main() -> None:
     # This example requires `threadless=True`
     pool = AcceptorPool(
         flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
-        work_klass=HttpsConnectTunnelHandler)
+        work_klass=HttpsConnectTunnelHandler,
+    )
     try:
         pool.setup()
         while True:

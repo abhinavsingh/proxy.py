@@ -31,7 +31,8 @@ class HttpWebServerBasePlugin(ABC):
             uid: UUID,
             flags: argparse.Namespace,
             client: TcpClientConnection,
-            event_queue: EventQueue):
+            event_queue: EventQueue,
+    ):
         self.uid = uid
         self.flags = flags
         self.client = client
@@ -49,7 +50,8 @@ class HttpWebServerBasePlugin(ABC):
     #
     # @abstractmethod
     def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket]]:
+            self,
+    ) -> Tuple[List[socket.socket], List[socket.socket]]:
         return [], []  # pragma: no cover
 
     # @abstractmethod

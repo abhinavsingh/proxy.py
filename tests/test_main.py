@@ -78,7 +78,8 @@ class TestMain(unittest.TestCase):
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
             mock_initialize: mock.Mock,
-            mock_sleep: mock.Mock) -> None:
+            mock_sleep: mock.Mock,
+    ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args: List[str] = []
@@ -88,7 +89,7 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.assert_called_with(
             flags=mock_initialize.return_value,
             work_klass=HttpProtocolHandler,
-            event_queue=None
+            event_queue=None,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()
@@ -109,7 +110,8 @@ class TestMain(unittest.TestCase):
             mock_open: mock.Mock,
             mock_exists: mock.Mock,
             mock_remove: mock.Mock,
-            mock_sleep: mock.Mock) -> None:
+            mock_sleep: mock.Mock,
+    ) -> None:
         pid_file = get_temp_file('pid')
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_args = mock_parse_args.return_value
@@ -123,7 +125,8 @@ class TestMain(unittest.TestCase):
         mock_event_manager.assert_not_called()
         mock_open.assert_called_with(pid_file, 'wb')
         mock_open.return_value.__enter__.return_value.write.assert_called_with(
-            bytes_(os.getpid()))
+            bytes_(os.getpid()),
+        )
         mock_exists.assert_called_with(pid_file)
         mock_remove.assert_called_with(pid_file)
 
@@ -134,7 +137,8 @@ class TestMain(unittest.TestCase):
             self,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
-            mock_sleep: mock.Mock) -> None:
+            mock_sleep: mock.Mock,
+    ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args = ['--basic-auth', 'user:pass']
@@ -145,7 +149,8 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.assert_called_once()
         self.assertEqual(
             flgs.auth_code,
-            b'dXNlcjpwYXNz')
+            b'dXNlcjpwYXNz',
+        )
 
     @mock.patch('time.sleep')
     @mock.patch('builtins.print')
@@ -158,7 +163,8 @@ class TestMain(unittest.TestCase):
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
             mock_print: mock.Mock,
-            mock_sleep: mock.Mock) -> None:
+            mock_sleep: mock.Mock,
+    ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args = ['--basic-auth', 'user:pass']
@@ -178,7 +184,8 @@ class TestMain(unittest.TestCase):
     def test_main_py2_exit(
             self,
             mock_is_py3: mock.Mock,
-            mock_print: mock.Mock) -> None:
+            mock_print: mock.Mock,
+    ) -> None:
         mock_is_py3.return_value = False
         with self.assertRaises(SystemExit) as e:
             main(num_workers=1)
@@ -189,7 +196,8 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.print')
     def test_main_version(
             self,
-            mock_print: mock.Mock) -> None:
+            mock_print: mock.Mock,
+    ) -> None:
         with self.assertRaises(SystemExit) as e:
             main(['--version'])
             mock_print.assert_called_with(__version__)

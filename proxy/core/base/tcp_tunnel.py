@@ -38,8 +38,11 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
 
     def shutdown(self) -> None:
         if self.upstream:
-            print('Connection closed with upstream {0}:{1}'.format(
-                text_(self.request.host), self.request.port))
+            print(
+                'Connection closed with upstream {0}:{1}'.format(
+                    text_(self.request.host), self.request.port,
+                ),
+            )
             self.upstream.close()
         super().shutdown()
 
@@ -61,7 +64,8 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
     def handle_events(
             self,
             readables: Readables,
-            writables: Writables) -> bool:
+            writables: Writables,
+    ) -> bool:
         # Handle client events
         do_shutdown: bool = super().handle_events(readables, writables)
         if do_shutdown:
@@ -82,7 +86,11 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
     def connect_upstream(self) -> None:
         assert self.request.host and self.request.port
         self.upstream = TcpServerConnection(
-            text_(self.request.host), self.request.port)
+            text_(self.request.host), self.request.port,
+        )
         self.upstream.connect()
-        print('Connection established with upstream {0}:{1}'.format(
-            text_(self.request.host), self.request.port))
+        print(
+            'Connection established with upstream {0}:{1}'.format(
+                text_(self.request.host), self.request.port,
+            ),
+        )

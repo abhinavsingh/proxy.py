@@ -27,19 +27,28 @@ from ...core.connection import tcpConnectionTypes, TcpConnection
 
 class WebsocketClient(TcpConnection):
 
-    def __init__(self,
-                 hostname: bytes,
-                 port: int,
-                 path: bytes = b'/',
-                 on_message: Optional[Callable[[WebsocketFrame], None]] = None) -> None:
+    def __init__(
+        self,
+        hostname: bytes,
+        port: int,
+        path: bytes = b'/',
+        on_message: Optional[Callable[[WebsocketFrame], None]] = None,
+    ) -> None:
         super().__init__(tcpConnectionTypes.CLIENT)
         self.hostname: bytes = hostname
         self.port: int = port
         self.path: bytes = path
         self.sock: socket.socket = new_socket_connection(
-            (socket.gethostbyname(text_(self.hostname)), self.port))
-        self.on_message: Optional[Callable[[
-            WebsocketFrame], None]] = on_message
+            (socket.gethostbyname(text_(self.hostname)), self.port),
+        )
+        self.on_message: Optional[
+            Callable[
+                [
+                    WebsocketFrame,
+                ],
+                None,
+            ]
+        ] = on_message
         self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
 
     @property
@@ -56,7 +65,9 @@ class WebsocketClient(TcpConnection):
             build_websocket_handshake_request(
                 key,
                 url=self.path,
-                host=self.hostname))
+                host=self.hostname,
+            ),
+        )
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
         accept = response.header(b'Sec-Websocket-Accept')
