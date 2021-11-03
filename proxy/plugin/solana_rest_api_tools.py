@@ -850,7 +850,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
         if acc_desc["new"] == False:
 
             address = bytes.fromhex(acc_desc["address"][2:])
-            if acc_desc["code_size_current"] and acc_desc["code_size"]:
+            if acc_desc["code_size_current"] is not None and acc_desc["code_size"] is not None:
                 if acc_desc["code_size"] > acc_desc["code_size_current"]:
                     code_size = acc_desc["code_size"] + 2048
                     seed = b58encode(ACCOUNT_SEED_VERSION + os.urandom(20))
@@ -863,7 +863,11 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                     resize_instr.append(TransactionInstruction(
                         keys=[
                             AccountMeta(pubkey=PublicKey(acc_desc["account"]), is_signer=False, is_writable=True),
-                            AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=True),
+                            (
+                                AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=True)
+                                if acc_desc["contract"] else
+                                AccountMeta(pubkey=PublicKey("11111111111111111111111111111111"), is_signer=False, is_writable=False)
+                            ),
                             AccountMeta(pubkey=code_account_new, is_signer=False, is_writable=True),
                             AccountMeta(pubkey=signer.public_key(), is_signer=True, is_writable=False)
                         ],
