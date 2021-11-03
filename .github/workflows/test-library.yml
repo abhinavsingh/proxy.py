@@ -1,5 +1,5 @@
 ---
-name: Proxy.py Library
+name: lib
 
 on: [push, pull_request]  # yamllint disable-line rule:truthy
 
@@ -15,7 +15,8 @@ concurrency:
 jobs:
   integration:
     runs-on: ${{ matrix.os }}-latest
-    name: Library - Python ${{ matrix.python }} on ${{ matrix.os }}
+    name: >-
+      e2e: 🐍${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [macOS, Ubuntu]
@@ -41,14 +42,23 @@ jobs:
         ./tests/integration/main.sh
 
   lint:
-    name: ${{ matrix.toxenv }}
+    name: >-
+      ${{
+          toJSON(matrix.custom_job_name)
+          && matrix.custom_job_name
+          || matrix.toxenv
+      }}
 
     runs-on: Ubuntu-latest
     strategy:
       matrix:
         toxenv:
-        - cleanup-dists,build-dists,metadata-validation
         - lint
+        custom_job_name:
+        - ''
+        include:
+        - custom_job_name: build-dists
+          toxenv: cleanup-dists,build-dists,metadata-validation
       fail-fast: false
 
     env:
