@@ -479,7 +479,7 @@ class Proxy:
     @staticmethod
     def is_py3() -> bool:
         """Exists only to avoid mocking sys.version_info in tests."""
-        return sys.version_info[0] == 3
+        return sys.version_info[0] != 2
 
     @staticmethod
     def set_open_file_limit(soft_limit: int) -> None:
