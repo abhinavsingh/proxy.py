@@ -15,16 +15,13 @@ CA_KEY_FILE_PATH := ca-key.pem
 CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
-.PHONY: all https-certificates ca-certificates autopep8 devtools
-.PHONY: lib-version lib-clean lib-test lib-package lib-coverage lib-lint
+.PHONY: all https-certificates sign-https-certificates ca-certificates
+.PHONY: lib-version lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile
 .PHONY: container container-run container-release
-.PHONY: dashboard dashboard-clean
+.PHONY: devtools dashboard dashboard-clean
 
 all: lib-test
-
-devtools:
-	pushd dashboard && npm run devtools && popd
 
 https-certificates:
 	# Generate server key
@@ -86,8 +83,10 @@ lib-clean:
 lib-lint:
 	python -m tox -e lint
 
-lib-test: lib-clean lib-version lib-lint
+lib-pytest:
 	python -m tox -e python -- -v
+
+lib-test: lib-clean lib-version lib-lint lib-pytest
 
 lib-package: lib-clean lib-version
 	python -m tox -e cleanup-dists,build-dists,metadata-validation
@@ -104,6 +103,9 @@ lib-coverage:
 
 lib-profile:
 	sudo py-spy record -o profile.svg -t -F -s -- python -m proxy
+
+devtools:
+	pushd dashboard && npm run devtools && popd
 
 dashboard:
 	pushd dashboard && npm run build && popd
