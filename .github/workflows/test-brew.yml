@@ -1,6 +1,7 @@
+---
 name: Proxy.py Brew
 
-on: [push, pull_request]
+on: [push, pull_request]  # yamllint disable-line rule:truthy
 
 jobs:
   build:
@@ -13,14 +14,15 @@ jobs:
       max-parallel: 1
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Brew
-        run: |
-          brew install ./helper/homebrew/develop/proxy.rb
-      - name: Verify
-        run: |
-          proxy -h
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Brew
+      run: |
+        brew install ./helper/homebrew/develop/proxy.rb
+    - name: Verify
+      run: |
+        proxy -h
+...

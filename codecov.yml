@@ -1,7 +1,8 @@
+---
 codecov:
-  require_ci_to_pass: yes
+  require_ci_to_pass: yes  # yamllint disable-line rule:truthy
   notify:
-    wait_for_ci: yes
+    wait_for_ci: yes  # yamllint disable-line rule:truthy
 coverage:
   status:
     project:
@@ -10,3 +11,4 @@ coverage:
     patch:
       default:
         threshold: 1%
+...
