@@ -12,7 +12,6 @@ import abc
 import argparse
 import base64
 import collections
-import contextlib
 import ipaddress
 import multiprocessing
 import os
@@ -24,7 +23,7 @@ import importlib
 import inspect
 
 from types import TracebackType
-from typing import Dict, List, Optional, Generator, Any, Tuple, Type, Union, cast
+from typing import Dict, List, Optional, Any, Tuple, Type, Union, cast
 
 from proxy.core.acceptor.work import Work
 
@@ -495,21 +494,6 @@ class Proxy:
                 logger.debug(
                     'Open file soft limit set to %d', soft_limit,
                 )
-
-
-@contextlib.contextmanager
-def start(
-        input_args: Optional[List[str]] = None,
-        **opts: Any,
-) -> Generator[Proxy, None, None]:
-    """Deprecated.  Kept for backward compatibility.
-
-    New users must directly use proxy.Proxy context manager class."""
-    try:
-        with Proxy(input_args, **opts) as p:
-            yield p
-    except KeyboardInterrupt:
-        pass
 
 
 def main(
