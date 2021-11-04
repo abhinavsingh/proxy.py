@@ -1,6 +1,7 @@
+---
 name: Proxy.py Library
 
-on: [push, pull_request]
+on: [push, pull_request]  # yamllint disable-line rule:truthy
 
 concurrency:
   group: >-
@@ -22,29 +23,34 @@ jobs:
       max-parallel: 4
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-testing.txt
-          pip install -r requirements-tunnel.txt
-      - name: Run Tests
-        run: pytest --cov=proxy tests/
-      - name: Upload coverage to Codecov
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        run: codecov
-      - name: Integration testing
-        if: matrix.os != 'windows'
-        run: |
-          pip install .
-          proxy --hostname 127.0.0.1 --enable-web-server --pid-file proxy.pid --log-file proxy.log &
-          ./tests/integration/main.sh
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-testing.txt
+        pip install -r requirements-tunnel.txt
+    - name: Run Tests
+      run: pytest --cov=proxy tests/
+    - name: Upload coverage to Codecov
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: codecov
+    - name: Integration testing
+      if: matrix.os != 'windows'
+      run: |
+        pip install .
+        proxy \
+          --hostname 127.0.0.1 \
+          --enable-web-server \
+          --pid-file proxy.pid \
+          --log-file proxy.log \
+          &
+        ./tests/integration/main.sh
 
   tox:
     name: ${{ matrix.toxenv }}
@@ -135,3 +141,4 @@ jobs:
       run: >-
         print("All's good")
       shell: python
+...
