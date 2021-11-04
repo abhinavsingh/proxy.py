@@ -40,11 +40,13 @@ class TcpServerConnection(TcpConnection):
 
     def wrap(self, hostname: str, ca_file: Optional[str]) -> None:
         ctx = ssl.create_default_context(
-            ssl.Purpose.SERVER_AUTH, cafile=ca_file)
+            ssl.Purpose.SERVER_AUTH, cafile=ca_file,
+        )
         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1
         ctx.check_hostname = True
         self.connection.setblocking(True)
         self._conn = ctx.wrap_socket(
             self.connection,
-            server_hostname=hostname)
+            server_hostname=hostname,
+        )
         self.connection.setblocking(False)

@@ -30,7 +30,7 @@ flags.add_argument(
     type=str,
     default=DEFAULT_DEVTOOLS_WS_PATH,
     help='Default: /devtools.  Only applicable '
-    'if --enable-devtools is used.'
+    'if --enable-devtools is used.',
 )
 
 
@@ -52,7 +52,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
-            (httpProtocolTypes.WEBSOCKET, text_(self.flags.devtools_ws_path))
+            (httpProtocolTypes.WEBSOCKET, text_(self.flags.devtools_ws_path)),
         ]
 
     def handle_request(self, request: HttpParser) -> None:
@@ -60,7 +60,8 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
 
     def on_websocket_open(self) -> None:
         self.subscriber.subscribe(
-            lambda event: CoreEventsToDevtoolsProtocol.transformer(self.client, event))
+            lambda event: CoreEventsToDevtoolsProtocol.transformer(self.client, event),
+        )
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         try:
@@ -88,7 +89,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
             'Emulation.canEmulate',
         ):
             data: Dict[str, Any] = {
-                'result': False
+                'result': False,
             }
         elif method == 'Page.getResourceTree':
             data = {
@@ -100,9 +101,9 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
                             'mimeType': 'other',
                         },
                         'childFrames': [],
-                        'resources': []
-                    }
-                }
+                        'resources': [],
+                    },
+                },
             }
         elif method == 'Network.getResponseBody':
             connection_id = message['params']['requestId']
@@ -110,7 +111,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
                 'result': {
                     'body': text_(CoreEventsToDevtoolsProtocol.RESPONSES[connection_id]),
                     'base64Encoded': False,
-                }
+                },
             }
         else:
             logging.warning('Unhandled devtools method %s', method)

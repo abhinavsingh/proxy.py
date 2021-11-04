@@ -25,9 +25,11 @@ class TestHttpProxyPlugin(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    def setUp(self,
-              mock_fromfd: mock.Mock,
-              mock_selector: mock.Mock) -> None:
+    def setUp(
+        self,
+        mock_fromfd: mock.Mock,
+        mock_selector: mock.Mock,
+    ) -> None:
         self.mock_fromfd = mock_fromfd
         self.mock_selector = mock_selector
 
@@ -37,12 +39,13 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self.plugin = mock.MagicMock()
         self.flags.plugins = {
             b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],
-            b'HttpProxyBasePlugin': [self.plugin]
+            b'HttpProxyBasePlugin': [self.plugin],
         }
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
-            flags=self.flags)
+            flags=self.flags,
+        )
         self.protocol_handler.initialize()
 
     def test_proxy_plugin_initialized(self) -> None:
@@ -51,7 +54,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_proxy_plugin_on_and_before_upstream_connection(
             self,
-            mock_server_conn: mock.Mock) -> None:
+            mock_server_conn: mock.Mock,
+    ) -> None:
         self.plugin.return_value.write_to_descriptors.return_value = False
         self.plugin.return_value.read_from_descriptors.return_value = False
         self.plugin.return_value.before_upstream_connection.side_effect = lambda r: r
@@ -60,14 +64,20 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
             headers={
-                b'Host': b'upstream.host'
-            })
+                b'Host': b'upstream.host',
+            },
+        )
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
 
         self.protocol_handler.run_once()
         mock_server_conn.assert_called_with('upstream.host', DEFAULT_HTTP_PORT)
@@ -77,7 +87,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_proxy_plugin_before_upstream_connection_can_teardown(
             self,
-            mock_server_conn: mock.Mock) -> None:
+            mock_server_conn: mock.Mock,
+    ) -> None:
         self.plugin.return_value.write_to_descriptors.return_value = False
         self.plugin.return_value.read_from_descriptors.return_value = False
         self.plugin.return_value.before_upstream_connection.side_effect = HttpProtocolException()
@@ -85,14 +96,20 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
             headers={
-                b'Host': b'upstream.host'
-            })
+                b'Host': b'upstream.host',
+            },
+        )
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
 
         self.protocol_handler.run_once()
         mock_server_conn.assert_not_called()

@@ -18,20 +18,24 @@ from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, SLASH, CRLF, WHIT
 from ..common.utils import build_http_request, build_http_response, find_http_line, text_
 
 
-HttpParserStates = NamedTuple('HttpParserStates', [
-    ('INITIALIZED', int),
-    ('LINE_RCVD', int),
-    ('RCVING_HEADERS', int),
-    ('HEADERS_COMPLETE', int),
-    ('RCVING_BODY', int),
-    ('COMPLETE', int),
-])
+HttpParserStates = NamedTuple(
+    'HttpParserStates', [
+        ('INITIALIZED', int),
+        ('LINE_RCVD', int),
+        ('RCVING_HEADERS', int),
+        ('HEADERS_COMPLETE', int),
+        ('RCVING_BODY', int),
+        ('COMPLETE', int),
+    ],
+)
 httpParserStates = HttpParserStates(1, 2, 3, 4, 5, 6)
 
-HttpParserTypes = NamedTuple('HttpParserTypes', [
-    ('REQUEST_PARSER', int),
-    ('RESPONSE_PARSER', int),
-])
+HttpParserTypes = NamedTuple(
+    'HttpParserTypes', [
+        ('REQUEST_PARSER', int),
+        ('RESPONSE_PARSER', int),
+    ],
+)
 httpParserTypes = HttpParserTypes(1, 2)
 
 
@@ -126,7 +130,8 @@ class HttpParser:
             else:
                 raise KeyError(
                     'Invalid request. Method: %r, Url: %r' %
-                    (self.method, self.url))
+                    (self.method, self.url),
+                )
             self.path = self.build_path()
 
     def is_chunked_encoded(self) -> bool:
@@ -134,8 +139,10 @@ class HttpParser:
                self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def body_expected(self) -> bool:
-        return (b'content-length' in self.headers and
-                int(self.header(b'content-length')) > 0) or \
+        return (
+            b'content-length' in self.headers and
+            int(self.header(b'content-length')) > 0
+        ) or \
             self.is_chunked_encoded()
 
     def parse(self, raw: bytes) -> None:
@@ -150,7 +157,8 @@ class HttpParser:
         while more and self.state != httpParserStates.COMPLETE:
             if self.state in (
                     httpParserStates.HEADERS_COMPLETE,
-                    httpParserStates.RCVING_BODY):
+                    httpParserStates.RCVING_BODY,
+            ):
                 if b'content-length' in self.headers:
                     self.state = httpParserStates.RCVING_BODY
                     if self.body is None:
@@ -172,7 +180,8 @@ class HttpParser:
                     more = False
                 else:
                     raise NotImplementedError(
-                        'Parser shouldn\'t have reached here')
+                        'Parser shouldn\'t have reached here',
+                    )
             else:
                 more, raw = self.process(raw)
         self.buffer = raw
@@ -259,9 +268,11 @@ class HttpParser:
 
         return build_http_request(
             self.method, path, self.version,
-            headers={} if not self.headers else {self.headers[k][0]: self.headers[k][1] for k in self.headers if
-                                                 k.lower() not in disable_headers},
-            body=body
+            headers={} if not self.headers else {
+                self.headers[k][0]: self.headers[k][1] for k in self.headers if
+                k.lower() not in disable_headers
+            },
+            body=body,
         )
 
     def build_response(self) -> bytes:
@@ -272,8 +283,10 @@ class HttpParser:
             protocol_version=self.version,
             reason=self.reason,
             headers={} if not self.headers else {
-                self.headers[k][0]: self.headers[k][1] for k in self.headers},
-            body=self.body if not self.is_chunked_encoded() else ChunkParser.to_chunks(self.body))
+                self.headers[k][0]: self.headers[k][1] for k in self.headers
+            },
+            body=self.body if not self.is_chunked_encoded() else ChunkParser.to_chunks(self.body),
+        )
 
     def has_host(self) -> bool:
         """Host field SHOULD be None for incoming local WebServer requests."""
@@ -281,8 +294,10 @@ class HttpParser:
 
     def is_http_1_1_keep_alive(self) -> bool:
         return self.version == HTTP_1_1 and \
-            (not self.has_header(b'Connection') or
-             self.header(b'Connection').lower() == b'keep-alive')
+            (
+                not self.has_header(b'Connection') or
+                self.header(b'Connection').lower() == b'keep-alive'
+            )
 
     def is_connection_upgrade(self) -> bool:
         return self.version == HTTP_1_1 and \

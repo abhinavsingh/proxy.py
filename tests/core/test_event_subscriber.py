@@ -30,7 +30,8 @@ class TestEventSubscriber(unittest.TestCase):
         self.event_queue = EventQueue(multiprocessing.Manager().Queue())
         self.dispatcher = EventDispatcher(
             shutdown=self.dispatcher_shutdown,
-            event_queue=self.event_queue)
+            event_queue=self.event_queue,
+        )
         self.subscriber = EventSubscriber(self.event_queue)
 
         self.subscriber.subscribe(self.callback)
@@ -40,7 +41,7 @@ class TestEventSubscriber(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__
+            publisher_id=self.__class__.__name__,
         )
         self.dispatcher.run_once()
 
@@ -49,12 +50,14 @@ class TestEventSubscriber(unittest.TestCase):
         self.dispatcher_shutdown.set()
 
     def callback(self, ev: Dict[str, Any]) -> None:
-        self.assertEqual(ev, {
-            'request_id': '1234',
-            'process_id': os.getpid(),
-            'thread_id': PUBLISHER_ID,
-            'event_timestamp': 1234567,
-            'event_name': eventNames.WORK_STARTED,
-            'event_payload': {'hello': 'events'},
-            'publisher_id': self.__class__.__name__,
-        })
+        self.assertEqual(
+            ev, {
+                'request_id': '1234',
+                'process_id': os.getpid(),
+                'thread_id': PUBLISHER_ID,
+                'event_timestamp': 1234567,
+                'event_name': eventNames.WORK_STARTED,
+                'event_payload': {'hello': 'events'},
+                'publisher_id': self.__class__.__name__,
+            },
+        )

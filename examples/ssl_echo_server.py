@@ -29,11 +29,13 @@ class EchoSSLServerHandler(BaseTcpServerHandler):
         conn = wrap_socket(
             self.client.connection,
             self.flags.keyfile,
-            self.flags.certfile)
+            self.flags.certfile,
+        )
         conn.setblocking(False)
         # Upgrade plain TcpClientConnection to SSL connection object
         self.client = TcpClientConnection(
-            conn=conn, addr=self.client.addr)
+            conn=conn, addr=self.client.addr,
+        )
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
         # echo back to client
@@ -49,8 +51,10 @@ def main() -> None:
             num_workers=1,
             threadless=True,
             keyfile='https-key.pem',
-            certfile='https-signed-cert.pem'),
-        work_klass=EchoSSLServerHandler)
+            certfile='https-signed-cert.pem',
+        ),
+        work_klass=EchoSSLServerHandler,
+    )
     try:
         pool.setup()
         while True:

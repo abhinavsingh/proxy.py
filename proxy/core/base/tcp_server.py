@@ -61,7 +61,8 @@ class BaseTcpServerHandler(Work):
     def handle_events(
             self,
             readables: Readables,
-            writables: Writables) -> bool:
+            writables: Writables,
+    ) -> bool:
         """Return True to shutdown work."""
         do_shutdown = False
         if self.client.connection in readables:
@@ -71,25 +72,33 @@ class BaseTcpServerHandler(Work):
                     # Client closed connection, signal shutdown
                     print(
                         'Connection closed by client {0}'.format(
-                            self.client.addr))
+                            self.client.addr,
+                        ),
+                    )
                     do_shutdown = True
                 else:
                     r = self.handle_data(data)
                     if isinstance(r, bool) and r is True:
                         print(
                             'Implementation signaled shutdown for client {0}'.format(
-                                self.client.addr))
+                                self.client.addr,
+                            ),
+                        )
                         if self.client.has_buffer():
                             print(
                                 'Client {0} has pending buffer, will be flushed before shutting down'.format(
-                                    self.client.addr))
+                                    self.client.addr,
+                                ),
+                            )
                             self.must_flush_before_shutdown = True
                         else:
                             do_shutdown = True
             except ConnectionResetError:
                 print(
                     'Connection reset by client {0}'.format(
-                        self.client.addr))
+                        self.client.addr,
+                    ),
+                )
                 do_shutdown = True
 
         if self.client.connection in writables:
@@ -102,5 +111,7 @@ class BaseTcpServerHandler(Work):
         if do_shutdown:
             print(
                 'Shutting down client {0} connection'.format(
-                    self.client.addr))
+                    self.client.addr,
+                ),
+            )
         return do_shutdown

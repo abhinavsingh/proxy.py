@@ -43,13 +43,14 @@ flags.add_argument(
     help='Default: 1 MB. Maximum amount of data received from the '
     'client in a single recv() operation. Bump this '
     'value for faster uploads at the expense of '
-    'increased RAM.')
+    'increased RAM.',
+)
 flags.add_argument(
     '--key-file',
     type=str,
     default=DEFAULT_KEY_FILE,
     help='Default: None. Server key file to enable end-to-end TLS encryption with clients. '
-    'If used, must also pass --cert-file.'
+    'If used, must also pass --cert-file.',
 )
 flags.add_argument(
     '--timeout',
@@ -58,7 +59,7 @@ flags.add_argument(
     help='Default: ' + str(DEFAULT_TIMEOUT) +
     '.  Number of seconds after which '
     'an inactive connection must be dropped.  Inactivity is defined by no '
-    'data sent or received by the client.'
+    'data sent or received by the client.',
 )
 
 
@@ -68,10 +69,12 @@ class HttpProtocolHandler(Work):
     Accepts `Client` connection and delegates to HttpProtocolHandlerPlugin.
     """
 
-    def __init__(self, client: TcpClientConnection,
-                 flags: argparse.Namespace,
-                 event_queue: Optional[EventQueue] = None,
-                 uid: Optional[UUID] = None):
+    def __init__(
+        self, client: TcpClientConnection,
+        flags: argparse.Namespace,
+        event_queue: Optional[EventQueue] = None,
+        uid: Optional[UUID] = None,
+    ):
         super().__init__(client, flags, event_queue, uid)
 
         self.start_time: float = time.time()
@@ -87,7 +90,8 @@ class HttpProtocolHandler(Work):
             self.flags.certfile is not None
 
     def optionally_wrap_socket(
-            self, conn: socket.socket) -> Union[ssl.SSLSocket, socket.socket]:
+            self, conn: socket.socket,
+    ) -> Union[ssl.SSLSocket, socket.socket]:
         """Attempts to wrap accepted client connection using provided certificates.
 
         Shutdown and closes client connection upon error.
@@ -112,7 +116,8 @@ class HttpProtocolHandler(Work):
                     self.flags,
                     self.client,
                     self.request,
-                    self.event_queue)
+                    self.event_queue,
+                )
                 self.plugins[instance.name()] = instance
         logger.debug('Handling connection %r' % self.client.connection)
 
@@ -124,7 +129,7 @@ class HttpProtocolHandler(Work):
 
     def get_events(self) -> Dict[socket.socket, int]:
         events: Dict[socket.socket, int] = {
-            self.client.connection: selectors.EVENT_READ
+            self.client.connection: selectors.EVENT_READ,
         }
         if self.client.has_buffer():
             events[self.client.connection] |= selectors.EVENT_WRITE
@@ -146,7 +151,8 @@ class HttpProtocolHandler(Work):
     def handle_events(
             self,
             readables: Readables,
-            writables: Writables) -> bool:
+            writables: Writables,
+    ) -> bool:
         """Returns True if proxy must teardown."""
         # Flush buffer for ready to write sockets
         teardown = self.handle_writables(writables)
@@ -184,7 +190,8 @@ class HttpProtocolHandler(Work):
             logger.debug(
                 'Closing client connection %r '
                 'at address %r has buffer %s' %
-                (self.client.connection, self.client.addr, self.client.has_buffer()))
+                (self.client.connection, self.client.addr, self.client.has_buffer()),
+            )
 
             conn = self.client.connection
             # Unwrap if wrapped before shutdown.
@@ -209,10 +216,12 @@ class HttpProtocolHandler(Work):
         try:
             self.selector.register(
                 self.client.connection,
-                selectors.EVENT_WRITE)
+                selectors.EVENT_WRITE,
+            )
             while self.client.has_buffer():
-                ev: List[Tuple[selectors.SelectorKey, int]
-                         ] = self.selector.select(timeout=1)
+                ev: List[
+                    Tuple[selectors.SelectorKey, int]
+                ] = self.selector.select(timeout=1)
                 if len(ev) == 0:
                     continue
                 self.client.flush()
@@ -239,7 +248,8 @@ class HttpProtocolHandler(Work):
                 self.client.flush()
             except BrokenPipeError:
                 logger.error(
-                    'BrokenPipeError when flushing buffer for client')
+                    'BrokenPipeError when flushing buffer for client',
+                )
                 return True
             except OSError:
                 logger.error('OSError when flushing buffer to client')
@@ -254,7 +264,8 @@ class HttpProtocolHandler(Work):
                 client_data = self.client.recv(self.flags.client_recvbuf_size)
             except ssl.SSLWantReadError:    # Try again later
                 logger.warning(
-                    'SSLWantReadError encountered while reading from client, will retry ...')
+                    'SSLWantReadError encountered while reading from client, will retry ...',
+                )
                 return False
             except socket.error as e:
                 if e.errno == errno.ECONNRESET:
@@ -262,7 +273,8 @@ class HttpProtocolHandler(Work):
                 else:
                     logger.exception(
                         'Exception while receiving from %s connection %r with reason %r' %
-                        (self.client.tag, self.client.connection, e))
+                        (self.client.tag, self.client.connection, e),
+                    )
                 return True
 
             if client_data is None:
@@ -296,7 +308,8 @@ class HttpProtocolHandler(Work):
                             upgraded_sock = plugin.on_request_complete()
                             if isinstance(upgraded_sock, ssl.SSLSocket):
                                 logger.debug(
-                                    'Updated client conn to %s', upgraded_sock)
+                                    'Updated client conn to %s', upgraded_sock,
+                                )
                                 self.client._conn = upgraded_sock
                                 for plugin_ in self.plugins.values():
                                     if plugin_ != plugin:
@@ -305,7 +318,8 @@ class HttpProtocolHandler(Work):
                                 return True
             except HttpProtocolException as e:
                 logger.debug(
-                    'HttpProtocolException type raised')
+                    'HttpProtocolException type raised',
+                )
                 response: Optional[memoryview] = e.response(self.request)
                 if response:
                     self.client.queue(response)
@@ -314,8 +328,10 @@ class HttpProtocolHandler(Work):
 
     @contextlib.contextmanager
     def selected_events(self) -> \
-            Generator[Tuple[Readables, Writables],
-                      None, None]:
+            Generator[
+                Tuple[Readables, Writables],
+                None, None,
+            ]:
         events = self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
@@ -346,7 +362,8 @@ class HttpProtocolHandler(Work):
                 if self.is_inactive():
                     logger.debug(
                         'Client buffer is empty and maximum inactivity has reached '
-                        'between client and server connection, tearing down...')
+                        'between client and server connection, tearing down...',
+                    )
                     break
                 teardown = self.run_once()
                 if teardown:
@@ -358,6 +375,7 @@ class HttpProtocolHandler(Work):
         except Exception as e:
             logger.exception(
                 'Exception while handling connection %r' %
-                self.client.connection, exc_info=e)
+                self.client.connection, exc_info=e,
+            )
         finally:
             self.shutdown()

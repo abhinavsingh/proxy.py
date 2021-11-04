@@ -29,14 +29,17 @@ class CoreEventsToDevtoolsProtocol:
     RESPONSES: Dict[str, bytes] = {}
 
     @staticmethod
-    def transformer(client: TcpClientConnection,
-                    event: Dict[str, Any]) -> None:
+    def transformer(
+        client: TcpClientConnection,
+        event: Dict[str, Any],
+    ) -> None:
         event_name = event['event_name']
         if event_name == eventNames.REQUEST_COMPLETE:
             data = CoreEventsToDevtoolsProtocol.request_complete(event)
         elif event_name == eventNames.RESPONSE_HEADERS_COMPLETE:
             data = CoreEventsToDevtoolsProtocol.response_headers_complete(
-                event)
+                event,
+            )
         elif event_name == eventNames.RESPONSE_CHUNK_RECEIVED:
             data = CoreEventsToDevtoolsProtocol.response_chunk_received(event)
         elif event_name == eventNames.RESPONSE_COMPLETE:
@@ -45,9 +48,14 @@ class CoreEventsToDevtoolsProtocol:
             # drop core events unrelated to Devtools
             return
         client.queue(
-            memoryview(WebsocketFrame.text(
-                bytes_(
-                    json.dumps(data)))))
+            memoryview(
+                WebsocketFrame.text(
+                    bytes_(
+                        json.dumps(data),
+                    ),
+                ),
+            ),
+        )
 
     @staticmethod
     def request_complete(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -75,7 +83,7 @@ class CoreEventsToDevtoolsProtocol:
                 'mixedContentType': 'none',
             },
             'initiator': {
-                'type': 'other'
+                'type': 'other',
             },
         }
 
@@ -120,7 +128,7 @@ class CoreEventsToDevtoolsProtocol:
                 'requestHeaders': '',
                 'remoteIPAddress': '',
                 'remotePort': '',
-            }
+            },
         }
 
     @staticmethod

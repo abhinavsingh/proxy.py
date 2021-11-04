@@ -27,7 +27,8 @@ class TestAcceptorPool(unittest.TestCase):
             mock_acceptor: mock.Mock,
             mock_socket: mock.Mock,
             mock_pipe: mock.Mock,
-            mock_send_handle: mock.Mock) -> None:
+            mock_send_handle: mock.Mock,
+    ) -> None:
         acceptor1 = mock.MagicMock()
         acceptor2 = mock.MagicMock()
         mock_acceptor.side_effect = [acceptor1, acceptor2]
@@ -44,12 +45,14 @@ class TestAcceptorPool(unittest.TestCase):
         work_klass.assert_not_called()
         mock_socket.assert_called_with(
             socket.AF_INET6 if pool.flags.hostname.version == 6 else socket.AF_INET,
-            socket.SOCK_STREAM
+            socket.SOCK_STREAM,
         )
         sock.setsockopt.assert_called_with(
-            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1,
+        )
         sock.bind.assert_called_with(
-            (str(pool.flags.hostname), 8899))
+            (str(pool.flags.hostname), 8899),
+        )
         sock.listen.assert_called_with(pool.flags.backlog)
         sock.setblocking.assert_called_with(False)
 

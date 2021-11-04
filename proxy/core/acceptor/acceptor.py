@@ -37,7 +37,7 @@ flags.add_argument(
     action='store_true',
     default=DEFAULT_THREADLESS,
     help='Default: False.  When disabled a new thread is spawned '
-    'to handle each client connection.'
+    'to handle each client connection.',
 )
 
 
@@ -64,7 +64,8 @@ class Acceptor(multiprocessing.Process):
             flags: argparse.Namespace,
             work_klass: Type[Work],
             lock: multiprocessing.synchronize.Lock,
-            event_queue: Optional[EventQueue] = None) -> None:
+            event_queue: Optional[EventQueue] = None,
+    ) -> None:
         super().__init__()
         self.idd = idd
         self.work_queue: connection.Connection = work_queue
@@ -86,7 +87,7 @@ class Acceptor(multiprocessing.Process):
             client_queue=pipe[1],
             flags=self.flags,
             work_klass=self.work_klass,
-            event_queue=self.event_queue
+            event_queue=self.event_queue,
         )
         self.threadless_process.start()
         logger.debug('Started process %d', self.threadless_process.pid)
@@ -106,21 +107,21 @@ class Acceptor(multiprocessing.Process):
             send_handle(
                 self.threadless_client_queue,
                 conn.fileno(),
-                self.threadless_process.pid
+                self.threadless_process.pid,
             )
             conn.close()
         else:
             work = self.work_klass(
                 TcpClientConnection(conn, addr),
                 flags=self.flags,
-                event_queue=self.event_queue
+                event_queue=self.event_queue,
             )
             work_thread = threading.Thread(target=work.run)
             work_thread.daemon = True
             work.publish_event(
                 event_name=eventNames.WORK_STARTED,
                 event_payload={'fileno': conn.fileno(), 'addr': addr},
-                publisher_id=self.__class__.__name__
+                publisher_id=self.__class__.__name__,
             )
             work_thread.start()
 
@@ -134,15 +135,17 @@ class Acceptor(multiprocessing.Process):
         self.start_work(conn, addr)
 
     def run(self) -> None:
-        setup_logger(self.flags.log_file, self.flags.log_level,
-                     self.flags.log_format)
+        setup_logger(
+            self.flags.log_file, self.flags.log_level,
+            self.flags.log_format,
+        )
         self.selector = selectors.DefaultSelector()
         fileno = recv_handle(self.work_queue)
         self.work_queue.close()
         self.sock = socket.fromfd(
             fileno,
             family=self.flags.family,
-            type=socket.SOCK_STREAM
+            type=socket.SOCK_STREAM,
         )
         try:
             self.selector.register(self.sock, selectors.EVENT_READ)

@@ -40,10 +40,10 @@ class EventManager:
         assert self.event_queue
         self.event_dispatcher = EventDispatcher(
             shutdown=self.event_dispatcher_shutdown,
-            event_queue=self.event_queue
+            event_queue=self.event_queue,
         )
         self.event_dispatcher_thread = threading.Thread(
-            target=self.event_dispatcher.run
+            target=self.event_dispatcher.run,
         )
         self.event_dispatcher_thread.start()
         logger.debug('Thread ID: %d', self.event_dispatcher_thread.ident)
@@ -55,4 +55,5 @@ class EventManager:
         self.event_dispatcher_thread.join()
         logger.debug(
             'Shutdown of global event dispatcher thread %d successful',
-            self.event_dispatcher_thread.ident)
+            self.event_dispatcher_thread.ident,
+        )

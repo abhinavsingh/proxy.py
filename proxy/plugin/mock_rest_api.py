@@ -50,35 +50,48 @@ class ProposedRestApiPlugin(HttpProxyBasePlugin):
                     'url': text_(API_SERVER) + '/v1/users/2/',
                     'username': 'someone',
                 },
-            ]
+            ],
         },
     }
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         # Return None to disable establishing connection to upstream
         # Most likely our api.example.com won't even exist under development
         # scenario
         return None
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         if request.host != self.API_SERVER:
             return request
         assert request.path
         if request.path in self.REST_API_SPEC:
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.OK,
-                reason=b'OK',
-                headers={b'Content-Type': b'application/json'},
-                body=bytes_(json.dumps(
-                    self.REST_API_SPEC[request.path]))
-            )))
+            self.client.queue(
+                memoryview(
+                    build_http_response(
+                        httpStatusCodes.OK,
+                        reason=b'OK',
+                        headers={b'Content-Type': b'application/json'},
+                        body=bytes_(
+                            json.dumps(
+                                self.REST_API_SPEC[request.path],
+                            ),
+                        ),
+                    ),
+                ),
+            )
         else:
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.NOT_FOUND,
-                reason=b'NOT FOUND', body=b'Not Found'
-            )))
+            self.client.queue(
+                memoryview(
+                    build_http_response(
+                        httpStatusCodes.NOT_FOUND,
+                        reason=b'NOT FOUND', body=b'Not Found',
+                    ),
+                ),
+            )
         return None
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
