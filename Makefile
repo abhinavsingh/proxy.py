@@ -26,11 +26,6 @@ all: lib-test
 devtools:
 	pushd dashboard && npm run devtools && popd
 
-autopep8:
-	autopep8 --recursive --in-place --aggressive examples
-	autopep8 --recursive --in-place --aggressive proxy
-	autopep8 --recursive --in-place --aggressive tests
-
 https-certificates:
 	# Generate server key
 	python -m proxy.common.pki gen_private_key \
