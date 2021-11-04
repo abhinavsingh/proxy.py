@@ -206,6 +206,7 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
 
