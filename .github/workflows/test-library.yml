@@ -1,43 +1,46 @@
+---
 name: Proxy.py Library
 
-on: [push, pull_request]
+on: [push, pull_request]  # yamllint disable-line rule:truthy
+
+concurrency:
+  group: >-
+    ${{
+        github.workflow
+    }}-${{
+        github.event.pull_request.number || github.sha
+    }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  integration:
     runs-on: ${{ matrix.os }}-latest
     name: Library - Python ${{ matrix.python }} on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macOS, ubuntu, windows]
+        os: [macOS, Ubuntu]
         python: ['3.6', '3.7', '3.8', '3.9', '3.10']
       max-parallel: 4
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-testing.txt
-          pip install -r requirements-tunnel.txt
-      - name: Run Tests
-        run: pytest --cov=proxy tests/
-      - name: Upload coverage to Codecov
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        run: codecov
-      - name: Integration testing
-        if: matrix.os != 'windows'
-        run: |
-          pip install .
-          proxy --hostname 127.0.0.1 --enable-web-server --pid-file proxy.pid --log-file proxy.log &
-          ./tests/integration/main.sh
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Integration testing
+      run: |
+        pip install -U pip
+        pip install .
+        proxy \
+          --hostname 127.0.0.1 \
+          --enable-web-server \
+          --pid-file proxy.pid \
+          --log-file proxy.log \
+          &
+        ./tests/integration/main.sh
 
-  tox:
+  lint:
     name: ${{ matrix.toxenv }}
 
     runs-on: Ubuntu-latest
@@ -114,10 +117,103 @@ jobs:
         --parallel-live
         --skip-missing-interpreters false
 
+  test:
+    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
+
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - macOS
+        - Ubuntu
+        - Windows
+        python:
+        # NOTE: The latest and the lowest supported Pythons are prioritized
+        # NOTE: to improve the responsiveness. It's nice to see the most
+        # NOTE: important results first.
+        - '3.10'
+        - 3.6
+        - 3.9
+        - 3.8
+        - 3.7
+      max-parallel: 4
+
+    env:
+      PY_COLORS: 1
+      TOX_PARALLEL_NO_SPINNER: 1
+      TOXENV: python
+
+    steps:
+    - name: Switch to using Python v${{ matrix.python }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: >-
+        Calculate Python interpreter version hash value
+        for use in the cache key
+      id: calc-cache-key-py
+      run: |
+        from hashlib import sha512
+        from sys import version
+
+        hash = sha512(version.encode()).hexdigest()
+        print(f'::set-output name=py-hash-key::{hash}')
+      shell: python
+    - name: Get pip cache dir
+      id: pip-cache
+      run: >-
+        echo "::set-output name=dir::$(pip cache dir)"
+    - name: Set up pip cache
+      uses: actions/cache@v2.1.5
+      with:
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: >-
+          ${{ runner.os }}-pip-${{
+          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
+          hashFiles('tox.ini', 'requirements.txt', 'requirements-testing.txt')
+          }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{
+              steps.calc-cache-key-py.outputs.py-hash-key
+          }}-
+          ${{ runner.os }}-pip-
+    - name: Install tox
+      run: >-
+        python -m
+        pip install
+        --user
+        tox
+
+    - name: Grab the source from Git
+      uses: actions/checkout@v2
+
+    - name: Pre-populate the testing env
+      run: >-
+        python -m
+        tox
+        --parallel auto
+        --parallel-live
+        --skip-missing-interpreters false
+        --notest
+    - name: Run the testing
+      run: >-
+        python -m
+        tox
+        --parallel auto
+        --parallel-live
+        --skip-missing-interpreters false
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
+        verbose: true
+
   check:  # This job does nothing and is only used for the branch protection
     needs:
-    - build
-    - tox
+    - integration
+    - lint
+    - test
 
     runs-on: ubuntu-latest
 
@@ -126,3 +222,4 @@ jobs:
       run: >-
         print("All's good")
       shell: python
+...

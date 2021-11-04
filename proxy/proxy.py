@@ -56,29 +56,32 @@ flags.add_argument(
     '--pid-file',
     type=str,
     default=DEFAULT_PID_FILE,
-    help='Default: None. Save parent process ID to a file.')
+    help='Default: None. Save parent process ID to a file.',
+)
 flags.add_argument(
     '--version',
     '-v',
     action='store_true',
     default=DEFAULT_VERSION,
-    help='Prints proxy.py version.')
+    help='Prints proxy.py version.',
+)
 flags.add_argument(
     '--disable-http-proxy',
     action='store_true',
     default=DEFAULT_DISABLE_HTTP_PROXY,
-    help='Default: False.  Whether to disable proxy.HttpProxyPlugin.')
+    help='Default: False.  Whether to disable proxy.HttpProxyPlugin.',
+)
 flags.add_argument(
     '--enable-dashboard',
     action='store_true',
     default=DEFAULT_ENABLE_DASHBOARD,
-    help='Default: False.  Enables proxy.py dashboard.'
+    help='Default: False.  Enables proxy.py dashboard.',
 )
 flags.add_argument(
     '--enable-devtools',
     action='store_true',
     default=DEFAULT_ENABLE_DEVTOOLS,
-    help='Default: False.  Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.'
+    help='Default: False.  Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.',
 )
 flags.add_argument(
     '--enable-static-server',
@@ -87,19 +90,20 @@ flags.add_argument(
     help='Default: False.  Enable inbuilt static file server. '
     'Optionally, also use --static-server-dir to serve static content '
     'from custom directory.  By default, static file server serves '
-    'out of installed proxy.py python module folder.'
+    'out of installed proxy.py python module folder.',
 )
 flags.add_argument(
     '--enable-web-server',
     action='store_true',
     default=DEFAULT_ENABLE_WEB_SERVER,
-    help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.')
+    help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.',
+)
 flags.add_argument(
     '--enable-events',
     action='store_true',
     default=DEFAULT_ENABLE_EVENTS,
     help='Default: False.  Enables core to dispatch lifecycle events. '
-    'Plugins can be used to subscribe for core events.'
+    'Plugins can be used to subscribe for core events.',
 )
 flags.add_argument(
     '--log-level',
@@ -107,28 +111,33 @@ flags.add_argument(
     default=DEFAULT_LOG_LEVEL,
     help='Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. '
     'Both upper and lowercase values are allowed. '
-    'You may also simply use the leading character e.g. --log-level d')
+    'You may also simply use the leading character e.g. --log-level d',
+)
 flags.add_argument(
     '--log-file',
     type=str,
     default=DEFAULT_LOG_FILE,
-    help='Default: sys.stdout. Log file destination.')
+    help='Default: sys.stdout. Log file destination.',
+)
 flags.add_argument(
     '--log-format',
     type=str,
     default=DEFAULT_LOG_FORMAT,
-    help='Log format for Python logger.')
+    help='Log format for Python logger.',
+)
 flags.add_argument(
     '--open-file-limit',
     type=int,
     default=DEFAULT_OPEN_FILE_LIMIT,
     help='Default: 1024. Maximum number of files (TCP connections) '
-    'that proxy.py can open concurrently.')
+    'that proxy.py can open concurrently.',
+)
 flags.add_argument(
     '--plugins',
     type=str,
     default=DEFAULT_PLUGINS,
-    help='Comma separated plugins')
+    help='Comma separated plugins',
+)
 
 
 class Proxy:
@@ -170,7 +179,7 @@ class Proxy:
         self.pool = AcceptorPool(
             flags=self.flags,
             work_klass=self.work_klass,
-            event_queue=self.event_manager.event_queue if self.event_manager is not None else None
+            event_queue=self.event_manager.event_queue if self.event_manager is not None else None,
         )
         self.pool.setup()
         self.write_pid_file()
@@ -180,7 +189,8 @@ class Proxy:
             self,
             exc_type: Optional[Type[BaseException]],
             exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType]) -> None:
+            exc_tb: Optional[TracebackType],
+    ) -> None:
         assert self.pool
         self.pool.shutdown()
         if self.flags.enable_events:
@@ -189,8 +199,10 @@ class Proxy:
         self.delete_pid_file()
 
     @staticmethod
-    def initialize(input_args: Optional[List[str]]
-                   = None, **opts: Any) -> argparse.Namespace:
+    def initialize(
+        input_args: Optional[List[str]]
+        = None, **opts: Any,
+    ) -> argparse.Namespace:
         if input_args is None:
             input_args = []
 
@@ -224,8 +236,10 @@ class Proxy:
         # Load default plugins along with user provided --plugins
         plugins = Proxy.load_plugins(
             [bytes_(p) for p in collections.OrderedDict(default_plugins).keys()] +
-            [p if isinstance(p, type) else bytes_(p) for p in opts.get(
-                'plugins', args.plugins.split(text_(COMMA)))]
+            [
+                p if isinstance(p, type) else bytes_(p)
+                for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
+            ],
         )
 
         # proxy.py currently cannot serve over HTTPS and also perform TLS interception
@@ -233,8 +247,10 @@ class Proxy:
         # at the same time.
         if (args.cert_file and args.key_file) and \
                 (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
-            print('You can either enable end-to-end encryption OR TLS interception,'
-                  'not both together.')
+            print(
+                'You can either enable end-to-end encryption OR TLS interception,'
+                'not both together.',
+            )
             sys.exit(1)
 
         # Generate auth_code required for basic authentication if enabled
@@ -252,83 +268,124 @@ class Proxy:
             Optional[bytes],
             opts.get(
                 'auth_code',
-                auth_code))
+                auth_code,
+            ),
+        )
         args.server_recvbuf_size = cast(
             int,
             opts.get(
                 'server_recvbuf_size',
-                args.server_recvbuf_size))
+                args.server_recvbuf_size,
+            ),
+        )
         args.client_recvbuf_size = cast(
             int,
             opts.get(
                 'client_recvbuf_size',
-                args.client_recvbuf_size))
+                args.client_recvbuf_size,
+            ),
+        )
         args.pac_file = cast(
             Optional[str], opts.get(
                 'pac_file', bytes_(
-                    args.pac_file)))
+                    args.pac_file,
+                ),
+            ),
+        )
         args.pac_file_url_path = cast(
             Optional[bytes], opts.get(
                 'pac_file_url_path', bytes_(
-                    args.pac_file_url_path)))
-        disabled_headers = cast(Optional[List[bytes]], opts.get('disable_headers', [
-            header.lower() for header in bytes_(
-                args.disable_headers).split(COMMA) if header.strip() != b'']))
+                    args.pac_file_url_path,
+                ),
+            ),
+        )
+        disabled_headers = cast(
+            Optional[List[bytes]], opts.get(
+                'disable_headers', [
+                    header.lower()
+                    for header in bytes_(args.disable_headers).split(COMMA)
+                    if header.strip() != b''
+                ],
+            ),
+        )
         args.disable_headers = disabled_headers if disabled_headers is not None else DEFAULT_DISABLE_HEADERS
         args.certfile = cast(
             Optional[str], opts.get(
-                'cert_file', args.cert_file))
+                'cert_file', args.cert_file,
+            ),
+        )
         args.keyfile = cast(Optional[str], opts.get('key_file', args.key_file))
         args.ca_key_file = cast(
             Optional[str], opts.get(
-                'ca_key_file', args.ca_key_file))
+                'ca_key_file', args.ca_key_file,
+            ),
+        )
         args.ca_cert_file = cast(
             Optional[str], opts.get(
-                'ca_cert_file', args.ca_cert_file))
+                'ca_cert_file', args.ca_cert_file,
+            ),
+        )
         args.ca_signing_key_file = cast(
             Optional[str],
             opts.get(
                 'ca_signing_key_file',
-                args.ca_signing_key_file))
+                args.ca_signing_key_file,
+            ),
+        )
         args.ca_file = cast(
             Optional[str],
             opts.get(
                 'ca_file',
-                args.ca_file))
-        args.hostname = cast(IpAddress,
-                             opts.get('hostname', ipaddress.ip_address(args.hostname)))
+                args.ca_file,
+            ),
+        )
+        args.hostname = cast(
+            IpAddress,
+            opts.get('hostname', ipaddress.ip_address(args.hostname)),
+        )
         args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)
         num_workers = num_workers if num_workers is not None else DEFAULT_NUM_WORKERS
         args.num_workers = cast(
-            int, num_workers if num_workers > 0 else multiprocessing.cpu_count())
+            int, num_workers if num_workers > 0 else multiprocessing.cpu_count(),
+        )
         args.static_server_dir = cast(
             str,
             opts.get(
                 'static_server_dir',
-                args.static_server_dir))
+                args.static_server_dir,
+            ),
+        )
         args.enable_static_server = cast(
             bool,
             opts.get(
                 'enable_static_server',
-                args.enable_static_server))
+                args.enable_static_server,
+            ),
+        )
         args.devtools_ws_path = cast(
             bytes,
             opts.get(
                 'devtools_ws_path',
-                getattr(args, 'devtools_ws_path', DEFAULT_DEVTOOLS_WS_PATH)))
+                getattr(args, 'devtools_ws_path', DEFAULT_DEVTOOLS_WS_PATH),
+            ),
+        )
         args.timeout = cast(int, opts.get('timeout', args.timeout))
         args.threadless = cast(bool, opts.get('threadless', args.threadless))
         args.enable_events = cast(
             bool,
             opts.get(
                 'enable_events',
-                args.enable_events))
+                args.enable_events,
+            ),
+        )
         args.pid_file = cast(
             Optional[str], opts.get(
-                'pid_file', args.pid_file))
+                'pid_file', args.pid_file,
+            ),
+        )
 
         args.proxy_py_data_dir = DEFAULT_DATA_DIRECTORY_PATH
         os.makedirs(args.proxy_py_data_dir, exist_ok=True)
@@ -337,21 +394,23 @@ class Proxy:
         args.ca_cert_dir = cast(Optional[str], ca_cert_dir)
         if args.ca_cert_dir is None:
             args.ca_cert_dir = os.path.join(
-                args.proxy_py_data_dir, 'certificates')
+                args.proxy_py_data_dir, 'certificates',
+            )
             os.makedirs(args.ca_cert_dir, exist_ok=True)
 
         return args
 
     @staticmethod
-    def load_plugins(plugins: List[Union[bytes, type]]
-                     ) -> Dict[bytes, List[type]]:
+    def load_plugins(
+        plugins: List[Union[bytes, type]],
+    ) -> Dict[bytes, List[type]]:
         """Accepts a comma separated list of Python modules and returns
         a list of respective Python classes."""
         p: Dict[bytes, List[type]] = {
             b'HttpProtocolHandlerPlugin': [],
             b'HttpProxyBasePlugin': [],
             b'HttpWebServerBasePlugin': [],
-            b'ProxyDashboardWebsocketPlugin': []
+            b'ProxyDashboardWebsocketPlugin': [],
         }
         for plugin_ in plugins:
             klass, module_name = Proxy.import_plugin(plugin_)
@@ -381,13 +440,17 @@ class Proxy:
             klass = getattr(
                 importlib.import_module(
                     module_name.replace(
-                        os.path.sep, text_(DOT))),
-                klass_name)
+                        os.path.sep, text_(DOT),
+                    ),
+                ),
+                klass_name,
+            )
         return (klass, module_name)
 
     @staticmethod
     def get_default_plugins(
-            args: argparse.Namespace) -> List[Tuple[str, bool]]:
+            args: argparse.Namespace,
+    ) -> List[Tuple[str, bool]]:
         # Prepare list of plugins to load based upon
         # --enable-*, --disable-* and --basic-auth flags.
         default_plugins: List[Tuple[str, bool]] = []
@@ -423,18 +486,22 @@ class Proxy:
         """Configure open file description soft limit on supported OS."""
         if os.name != 'nt':  # resource module not available on Windows OS
             curr_soft_limit, curr_hard_limit = resource.getrlimit(
-                resource.RLIMIT_NOFILE)
+                resource.RLIMIT_NOFILE,
+            )
             if curr_soft_limit < soft_limit < curr_hard_limit:
                 resource.setrlimit(
-                    resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit))
+                    resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit),
+                )
                 logger.debug(
-                    'Open file soft limit set to %d', soft_limit)
+                    'Open file soft limit set to %d', soft_limit,
+                )
 
 
 @contextlib.contextmanager
 def start(
         input_args: Optional[List[str]] = None,
-        **opts: Any) -> Generator[Proxy, None, None]:
+        **opts: Any,
+) -> Generator[Proxy, None, None]:
     """Deprecated.  Kept for backward compatibility.
 
     New users must directly use proxy.Proxy context manager class."""
@@ -447,12 +514,15 @@ def start(
 
 def main(
         input_args: Optional[List[str]] = None,
-        **opts: Any) -> None:
+        **opts: Any,
+) -> None:
     try:
         with Proxy(input_args=input_args, **opts) as proxy:
             assert proxy.pool is not None
-            logger.info('Listening on %s:%d' %
-                        (proxy.pool.flags.hostname, proxy.pool.flags.port))
+            logger.info(
+                'Listening on %s:%d' %
+                (proxy.pool.flags.hostname, proxy.pool.flags.port),
+            )
             # TODO: Introduce cron feature
             # https://github.com/abhinavsingh/proxy.py/issues/392
             #

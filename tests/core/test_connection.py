@@ -22,8 +22,10 @@ from proxy.common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT, DEFAULT_
 class TestTcpConnection(unittest.TestCase):
     class TcpConnectionToTest(TcpConnection):
 
-        def __init__(self, conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None,
-                     tag: int = tcpConnectionTypes.CLIENT) -> None:
+        def __init__(
+            self, conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None,
+            tag: int = tcpConnectionTypes.CLIENT,
+        ) -> None:
             super().__init__(tag)
             self._conn = conn
 
@@ -65,48 +67,60 @@ class TestTcpConnection(unittest.TestCase):
 
     @mock.patch('socket.socket')
     def testTcpServerEstablishesIPv6Connection(
-            self, mock_socket: mock.Mock) -> None:
+            self, mock_socket: mock.Mock,
+    ) -> None:
         conn = TcpServerConnection(
-            str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT)
+            str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT,
+        )
         conn.connect()
         mock_socket.assert_called()
         mock_socket.return_value.connect.assert_called_with(
-            (str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT, 0, 0))
+            (str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT, 0, 0),
+        )
 
     @mock.patch('proxy.core.connection.server.new_socket_connection')
     def testTcpServerIgnoresDoubleConnectSilently(
             self,
-            mock_new_socket_connection: mock.Mock) -> None:
+            mock_new_socket_connection: mock.Mock,
+    ) -> None:
         conn = TcpServerConnection(
-            str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT)
+            str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT,
+        )
         conn.connect()
         conn.connect()
         mock_new_socket_connection.assert_called_once()
 
     @mock.patch('socket.socket')
     def testTcpServerEstablishesIPv4Connection(
-            self, mock_socket: mock.Mock) -> None:
+            self, mock_socket: mock.Mock,
+    ) -> None:
         conn = TcpServerConnection(
-            str(DEFAULT_IPV4_HOSTNAME), DEFAULT_PORT)
+            str(DEFAULT_IPV4_HOSTNAME), DEFAULT_PORT,
+        )
         conn.connect()
         mock_socket.assert_called()
         mock_socket.return_value.connect.assert_called_with(
-            (str(DEFAULT_IPV4_HOSTNAME), DEFAULT_PORT))
+            (str(DEFAULT_IPV4_HOSTNAME), DEFAULT_PORT),
+        )
 
     @mock.patch('proxy.core.connection.server.new_socket_connection')
     def testTcpServerConnectionProperty(
             self,
-            mock_new_socket_connection: mock.Mock) -> None:
+            mock_new_socket_connection: mock.Mock,
+    ) -> None:
         conn = TcpServerConnection(
-            str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT)
+            str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT,
+        )
         conn.connect()
         self.assertEqual(
             conn.connection,
-            mock_new_socket_connection.return_value)
+            mock_new_socket_connection.return_value,
+        )
 
     def testTcpServerRaisesTcpConnectionUninitializedException(self) -> None:
         conn = TcpServerConnection(
-            str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT)
+            str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT,
+        )
         with self.assertRaises(TcpConnectionUninitializedException):
             _ = conn.connection
 

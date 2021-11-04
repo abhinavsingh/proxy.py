@@ -20,15 +20,18 @@ class ProxyAuthenticationFailed(HttpProtocolException):
     """Exception raised when Http Proxy auth is enabled and
     incoming request doesn't present necessary credentials."""
 
-    RESPONSE_PKT = memoryview(build_http_response(
-        httpStatusCodes.PROXY_AUTH_REQUIRED,
-        reason=b'Proxy Authentication Required',
-        headers={
-            PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-            b'Proxy-Authenticate': b'Basic',
-            b'Connection': b'close',
-        },
-        body=b'Proxy Authentication Required'))
+    RESPONSE_PKT = memoryview(
+        build_http_response(
+            httpStatusCodes.PROXY_AUTH_REQUIRED,
+            reason=b'Proxy Authentication Required',
+            headers={
+                PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
+                b'Proxy-Authenticate': b'Basic',
+                b'Connection': b'close',
+            },
+            body=b'Proxy Authentication Required',
+        ),
+    )
 
     def response(self, _request: HttpParser) -> memoryview:
         return self.RESPONSE_PKT

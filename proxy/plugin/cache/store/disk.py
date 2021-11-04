@@ -27,7 +27,7 @@ flags.add_argument(
     '--cache-dir',
     type=str,
     default=tempfile.gettempdir(),
-    help='Default: A temporary directory.  Flag only applicable when cache plugin is used with on-disk storage.'
+    help='Default: A temporary directory.  Flag only applicable when cache plugin is used with on-disk storage.',
 )
 
 
@@ -42,7 +42,8 @@ class OnDiskCacheStore(CacheStore):
     def open(self, request: HttpParser) -> None:
         self.cache_file_path = os.path.join(
             self.cache_dir,
-            '%s-%s.txt' % (text_(request.host), self.uid.hex))
+            '%s-%s.txt' % (text_(request.host), self.uid.hex),
+        )
         self.cache_file = open(self.cache_file_path, "wb")
 
     def cache_request(self, request: HttpParser) -> Optional[HttpParser]:

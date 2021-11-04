@@ -20,17 +20,23 @@ class ManInTheMiddlePlugin(HttpProxyBasePlugin):
     """Modifies upstream server responses."""
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         return request
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return memoryview(build_http_response(
-            httpStatusCodes.OK,
-            reason=b'OK', body=b'Hello from man in the middle'))
+        return memoryview(
+            build_http_response(
+                httpStatusCodes.OK,
+                reason=b'OK',
+                body=b'Hello from man in the middle',
+            ),
+        )
 
     def on_upstream_connection_close(self) -> None:
         pass

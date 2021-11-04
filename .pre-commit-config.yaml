@@ -1,9 +1,11 @@
 ---
 repos:
-# - repo: https://github.com/asottile/add-trailing-comma.git
-#   rev: v2.0.1
-#   hooks:
-#   - id: add-trailing-comma
+- repo: https://github.com/asottile/add-trailing-comma.git
+  rev: v2.0.1
+  hooks:
+  - id: add-trailing-comma
+    args:
+    - --py36-plus
 
 # - repo: https://github.com/timothycrosley/isort.git
 #   rev: 5.4.2
@@ -85,12 +87,10 @@ repos:
   - id: check-byte-order-marker
   - id: check-case-conflict
   # disabled due to pre-commit/pre-commit-hooks#159
-  #- id: check-docstring-first
+  # - id: check-docstring-first
   - id: check-json
   - id: check-symlinks
   - id: check-yaml
-    # args:
-    # - --unsafe
   - id: detect-private-key
 
   # Heavy checks:
@@ -141,20 +141,6 @@ repos:
   rev: v1.26.2
   hooks:
   - id: yamllint
-    exclude: |
-      (?x)
-      ^
-      \.pre-commit-config\.yaml|
-      (
-        \.github/(
-          workflows/(
-            codeql-analysis|test-(brew|dashboard|docker|library)
-          )|
-          FUNDING
-        )|
-        codecov
-      )\.yml
-      $
     args:
     - --strict
     types: [file, yaml]

@@ -18,9 +18,11 @@ from .connection import TcpConnection, tcpConnectionTypes, TcpConnectionUninitia
 class TcpClientConnection(TcpConnection):
     """An accepted client connection request."""
 
-    def __init__(self,
-                 conn: Union[ssl.SSLSocket, socket.socket],
-                 addr: Tuple[str, int]):
+    def __init__(
+        self,
+        conn: Union[ssl.SSLSocket, socket.socket],
+        addr: Tuple[str, int],
+    ):
         super().__init__(tcpConnectionTypes.CLIENT)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
         self.addr: Tuple[str, int] = addr
@@ -40,5 +42,6 @@ class TcpClientConnection(TcpConnection):
             # ca_certs=self.flags.ca_cert_file,
             certfile=certfile,
             keyfile=keyfile,
-            ssl_version=ssl.PROTOCOL_TLS)
+            ssl_version=ssl.PROTOCOL_TLS,
+        )
         self.connection.setblocking(False)

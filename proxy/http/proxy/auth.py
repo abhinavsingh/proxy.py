@@ -22,14 +22,16 @@ flags.add_argument(
     type=str,
     default=DEFAULT_BASIC_AUTH,
     help='Default: No authentication. Specify colon separated user:password '
-    'to enable basic authentication.')
+    'to enable basic authentication.',
+)
 
 
 class AuthPlugin(HttpProxyBasePlugin):
     """Performs proxy authentication."""
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         if self.flags.auth_code:
             if b'proxy-authorization' not in request.headers:
                 raise ProxyAuthenticationFailed()
@@ -41,7 +43,8 @@ class AuthPlugin(HttpProxyBasePlugin):
         return request
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:

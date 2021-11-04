@@ -45,7 +45,7 @@ class EventQueue:
         request_id: str,
         event_name: int,
         event_payload: Dict[str, Any],
-        publisher_id: Optional[str] = None
+        publisher_id: Optional[str] = None,
     ) -> None:
         self.queue.put({
             'request_id': request_id,
@@ -60,7 +60,8 @@ class EventQueue:
     def subscribe(
             self,
             sub_id: str,
-            channel: DictQueueType) -> None:
+            channel: DictQueueType,
+    ) -> None:
         """Subscribe to global events."""
         self.queue.put({
             'event_name': eventNames.SUBSCRIBE,
@@ -69,7 +70,8 @@ class EventQueue:
 
     def unsubscribe(
             self,
-            sub_id: str) -> None:
+            sub_id: str,
+    ) -> None:
         """Unsubscribe by subscriber id."""
         self.queue.put({
             'event_name': eventNames.UNSUBSCRIBE,

@@ -56,7 +56,8 @@ class Threadless(multiprocessing.Process):
             client_queue: connection.Connection,
             flags: argparse.Namespace,
             work_klass: Type[Work],
-            event_queue: Optional[EventQueue] = None) -> None:
+            event_queue: Optional[EventQueue] = None,
+    ) -> None:
         super().__init__()
         self.client_queue = client_queue
         self.flags = flags
@@ -69,8 +70,10 @@ class Threadless(multiprocessing.Process):
         self.loop: Optional[asyncio.AbstractEventLoop] = None
 
     @contextlib.contextmanager
-    def selected_events(self) -> Generator[Tuple[Readables, Writables],
-                                           None, None]:
+    def selected_events(self) -> Generator[
+        Tuple[Readables, Writables],
+        None, None,
+    ]:
         events: Dict[socket.socket, int] = {}
         for work in self.works.values():
             events.update(work.get_events())
@@ -92,12 +95,14 @@ class Threadless(multiprocessing.Process):
     async def handle_events(
             self, fileno: int,
             readables: Readables,
-            writables: Writables) -> bool:
+            writables: Writables
+    ) -> bool:
         return self.works[fileno].handle_events(readables, writables)
 
     # TODO: Use correct future typing annotations
     async def wait_for_tasks(
-            self, tasks: Dict[int, Any]) -> None:
+            self, tasks: Dict[int, Any]
+    ) -> None:
         for work_id in tasks:
             # TODO: Resolving one handle_events here can block
             # resolution of other tasks.  This can happen when handle_events
@@ -116,7 +121,8 @@ class Threadless(multiprocessing.Process):
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
             fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
-            type=socket.SOCK_STREAM)
+            type=socket.SOCK_STREAM,
+        )
 
     def accept_client(self) -> None:
         addr = self.client_queue.recv()
@@ -124,19 +130,20 @@ class Threadless(multiprocessing.Process):
         self.works[fileno] = self.work_klass(
             TcpClientConnection(conn=self.fromfd(fileno), addr=addr),
             flags=self.flags,
-            event_queue=self.event_queue
+            event_queue=self.event_queue,
         )
         self.works[fileno].publish_event(
             event_name=eventNames.WORK_STARTED,
             event_payload={'fileno': fileno, 'addr': addr},
-            publisher_id=self.__class__.__name__
+            publisher_id=self.__class__.__name__,
         )
         try:
             self.works[fileno].initialize()
         except Exception as e:
             logger.exception(
                 'Exception occurred during initialization',
-                exc_info=e)
+                exc_info=e,
+            )
             self.cleanup(fileno)
 
     def cleanup_inactive(self) -> None:
@@ -170,7 +177,8 @@ class Threadless(multiprocessing.Process):
         tasks = {}
         for fileno in self.works:
             tasks[fileno] = self.loop.create_task(
-                self.handle_events(fileno, readables, writables))
+                self.handle_events(fileno, readables, writables),
+            )
         # Accepted client connection from Acceptor
         if self.client_queue in readables:
             self.accept_client()
@@ -180,8 +188,10 @@ class Threadless(multiprocessing.Process):
         self.cleanup_inactive()
 
     def run(self) -> None:
-        setup_logger(self.flags.log_file, self.flags.log_level,
-                     self.flags.log_format)
+        setup_logger(
+            self.flags.log_file, self.flags.log_level,
+            self.flags.log_format,
+        )
         try:
             self.selector = selectors.DefaultSelector()
             self.selector.register(self.client_queue, selectors.EVENT_READ)

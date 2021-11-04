@@ -34,16 +34,22 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
-    def setUp(self,
-              mock_fromfd: mock.Mock,
-              mock_selector: mock.Mock) -> None:
+    def setUp(
+        self,
+        mock_fromfd: mock.Mock,
+        mock_selector: mock.Mock,
+    ) -> None:
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
         adblock_json_path = Path(
-            __file__).parent.parent.parent / "proxy" / "plugin" / "adblock.json"
+            __file__,
+        ).parent.parent.parent / "proxy" / "plugin" / "adblock.json"
         self.flags = Proxy.initialize(
-            input_args=["--filtered-url-regex-config",
-                        str(adblock_json_path)])
+            input_args=[
+                "--filtered-url-regex-config",
+                str(adblock_json_path),
+            ],
+        )
         self.plugin = mock.MagicMock()
 
         self.mock_fromfd = mock_fromfd
@@ -58,12 +64,14 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
-            flags=self.flags)
+            flags=self.flags,
+        )
         self.protocol_handler.initialize()
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_modify_post_data_plugin(
-            self, mock_server_conn: mock.Mock) -> None:
+            self, mock_server_conn: mock.Mock,
+    ) -> None:
         original = b'{"key": "value"}'
         modified = b'{"key": "modified"}'
 
@@ -74,14 +82,19 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 b'Content-Type': b'application/x-www-form-urlencoded',
                 b'Content-Length': bytes_(len(original)),
             },
-            body=original
+            body=original,
         )
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
 
         self.protocol_handler.run_once()
         mock_server_conn.assert_called_with('httpbin.org', DEFAULT_HTTP_PORT)
@@ -94,27 +107,34 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                     b'Content-Type': b'application/json',
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
-                body=modified
-            )
+                body=modified,
+            ),
         )
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_proposed_rest_api_plugin(
-            self, mock_server_conn: mock.Mock) -> None:
+            self, mock_server_conn: mock.Mock,
+    ) -> None:
         path = b'/v1/users/'
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://%s%s' % (
-                ProposedRestApiPlugin.API_SERVER, path),
+                ProposedRestApiPlugin.API_SERVER, path,
+            ),
             headers={
                 b'Host': ProposedRestApiPlugin.API_SERVER,
-            }
+            },
         )
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
         self.protocol_handler.run_once()
 
         mock_server_conn.assert_not_called()
@@ -125,29 +145,39 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 headers={b'Content-Type': b'application/json'},
                 body=bytes_(
                     json.dumps(
-                        ProposedRestApiPlugin.REST_API_SPEC[path]))
-            ))
+                        ProposedRestApiPlugin.REST_API_SPEC[path],
+                    ),
+                ),
+            ),
+        )
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_redirect_to_custom_server_plugin(
-            self, mock_server_conn: mock.Mock) -> None:
+            self, mock_server_conn: mock.Mock,
+    ) -> None:
         request = build_http_request(
             b'GET', b'http://example.org/get',
             headers={
                 b'Host': b'example.org',
-            }
+            },
         )
         self._conn.recv.return_value = request
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
         self.protocol_handler.run_once()
 
         upstream = urlparse.urlsplit(
-            RedirectToCustomServerPlugin.UPSTREAM_SERVER)
+            RedirectToCustomServerPlugin.UPSTREAM_SERVER,
+        )
         mock_server_conn.assert_called_with('localhost', 8899)
         mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(
@@ -155,26 +185,32 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 headers={
                     b'Host': upstream.netloc,
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
-                }
-            )
+                },
+            ),
         )
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_filter_by_upstream_host_plugin(
-            self, mock_server_conn: mock.Mock) -> None:
+            self, mock_server_conn: mock.Mock,
+    ) -> None:
         request = build_http_request(
             b'GET', b'http://facebook.com/',
             headers={
                 b'Host': b'facebook.com',
-            }
+            },
         )
         self._conn.recv.return_value = request
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
         self.protocol_handler.run_once()
 
         mock_server_conn.assert_not_called()
@@ -184,19 +220,20 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 status_code=httpStatusCodes.I_AM_A_TEAPOT,
                 reason=b'I\'m a tea pot',
                 headers={
-                    b'Connection': b'close'
+                    b'Connection': b'close',
                 },
-            )
+            ),
         )
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_man_in_the_middle_plugin(
-            self, mock_server_conn: mock.Mock) -> None:
+            self, mock_server_conn: mock.Mock,
+    ) -> None:
         request = build_http_request(
             b'GET', b'http://super.secure/',
             headers={
                 b'Host': b'super.secure',
-            }
+            },
         )
         self._conn.recv.return_value = request
 
@@ -213,21 +250,34 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         type(server).closed = mock.PropertyMock(side_effect=closed)
 
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)],
-            [(selectors.SelectorKey(
-                fileobj=server.connection,
-                fd=server.connection.fileno,
-                events=selectors.EVENT_WRITE,
-                data=None), selectors.EVENT_WRITE)],
-            [(selectors.SelectorKey(
-                fileobj=server.connection,
-                fd=server.connection.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+            [(
+                selectors.SelectorKey(
+                    fileobj=server.connection,
+                    fd=server.connection.fileno,
+                    events=selectors.EVENT_WRITE,
+                    data=None,
+                ),
+                selectors.EVENT_WRITE,
+            )],
+            [(
+                selectors.SelectorKey(
+                    fileobj=server.connection,
+                    fd=server.connection.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
 
         # Client read
         self.protocol_handler.run_once()
@@ -238,8 +288,8 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 b'GET', b'/',
                 headers={
                     b'Host': b'super.secure',
-                    b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE
-                }
+                    b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
+                },
             )
         server.queue.assert_called_once_with(queued_request)
 
@@ -251,31 +301,39 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         server.recv.return_value = \
             build_http_response(
                 httpStatusCodes.OK,
-                reason=b'OK', body=b'Original Response From Upstream')
+                reason=b'OK', body=b'Original Response From Upstream',
+            )
         self.protocol_handler.run_once()
         self.assertEqual(
             self.protocol_handler.client.buffer[0].tobytes(),
             build_http_response(
                 httpStatusCodes.OK,
-                reason=b'OK', body=b'Hello from man in the middle')
+                reason=b'OK', body=b'Hello from man in the middle',
+            ),
         )
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_filter_by_url_regex_plugin(
-            self, mock_server_conn: mock.Mock) -> None:
+            self, mock_server_conn: mock.Mock,
+    ) -> None:
         request = build_http_request(
             b'GET', b'http://www.facebook.com/tr/',
             headers={
                 b'Host': b'www.facebook.com',
-            }
+            },
         )
         self._conn.recv.return_value = request
         self.mock_selector.return_value.select.side_effect = [
-            [(selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
-                events=selectors.EVENT_READ,
-                data=None), selectors.EVENT_READ)], ]
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn,
+                    fd=self._conn.fileno,
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
         self.protocol_handler.run_once()
 
         self.assertEqual(
@@ -284,5 +342,5 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 status_code=httpStatusCodes.NOT_FOUND,
                 reason=b'Blocked',
                 headers={b'Connection': b'close'},
-            )
+            ),
         )

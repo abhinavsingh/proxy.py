@@ -54,7 +54,8 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         self.upstream: Optional[TcpServerConnection] = None
         # Cached attributes to be used during access log override
         self.request_host_port_path_method: List[Any] = [
-            None, None, None, None]
+            None, None, None, None,
+        ]
         self.total_size = 0
 
     def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
@@ -88,7 +89,8 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         return False
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         """Avoids establishing the default connection to upstream server
         by returning None.
         """
@@ -100,7 +102,8 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         endpoint = random.choice(self.UPSTREAM_PROXY_POOL)
         logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
         self.upstream = TcpServerConnection(
-            endpoint[0], endpoint[1])
+            endpoint[0], endpoint[1],
+        )
         try:
             self.upstream.connect()
         except ConnectionRefusedError:
@@ -112,14 +115,17 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             # using a datastructure without having to spawn separate thread/process for health
             # check.
             logger.info(
-                'Connection refused by upstream proxy {0}:{1}'.format(*endpoint))
+                'Connection refused by upstream proxy {0}:{1}'.format(*endpoint),
+            )
             raise HttpProtocolException()
         logger.debug(
-            'Established connection to upstream proxy {0}:{1}'.format(*endpoint))
+            'Established connection to upstream proxy {0}:{1}'.format(*endpoint),
+        )
         return None
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         """Only invoked once after client original proxy request has been received completely."""
         assert self.upstream
         # For log sanity (i.e. to avoid None:None), expose upstream host:port from headers
@@ -137,7 +143,8 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
                 port = '443' if request.method == httpMethods.CONNECT else '80'
         path = None if not request.path else request.path.decode()
         self.request_host_port_path_method = [
-            host, port, path, request.method]
+            host, port, path, request.method,
+        ]
         # Queue original request to upstream proxy
         self.upstream.queue(memoryview(request.build(for_proxy=True)))
         return request
@@ -158,7 +165,8 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
 
     def on_access_log(self, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         addr, port = (
-            self.upstream.addr[0], self.upstream.addr[1]) if self.upstream else (None, None)
+            self.upstream.addr[0], self.upstream.addr[1],
+        ) if self.upstream else (None, None)
         context.update({
             'upstream_proxy_host': addr,
             'upstream_proxy_port': port,

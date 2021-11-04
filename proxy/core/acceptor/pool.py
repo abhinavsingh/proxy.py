@@ -35,23 +35,27 @@ flags.add_argument(
     '--backlog',
     type=int,
     default=DEFAULT_BACKLOG,
-    help='Default: 100. Maximum number of pending connections to proxy server')
+    help='Default: 100. Maximum number of pending connections to proxy server',
+)
 
 flags.add_argument(
     '--hostname',
     type=str,
     default=str(DEFAULT_IPV6_HOSTNAME),
-    help='Default: ::1. Server IP address.')
+    help='Default: ::1. Server IP address.',
+)
 
 flags.add_argument(
     '--port', type=int, default=DEFAULT_PORT,
-    help='Default: 8899. Server port.')
+    help='Default: 8899. Server port.',
+)
 
 flags.add_argument(
     '--num-workers',
     type=int,
     default=DEFAULT_NUM_WORKERS,
-    help='Defaults to number of CPU cores.')
+    help='Defaults to number of CPU cores.',
+)
 
 
 class AcceptorPool:
@@ -73,8 +77,10 @@ class AcceptorPool:
     `work_klass` must implement `work.Work` class.
     """
 
-    def __init__(self, flags: argparse.Namespace,
-                 work_klass: Type[Work], event_queue: Optional[EventQueue] = None) -> None:
+    def __init__(
+        self, flags: argparse.Namespace,
+        work_klass: Type[Work], event_queue: Optional[EventQueue] = None,
+    ) -> None:
         self.flags = flags
         self.socket: Optional[socket.socket] = None
         self.acceptors: List[Acceptor] = []
@@ -109,7 +115,8 @@ class AcceptorPool:
             logger.debug(
                 'Started acceptor#%d process %d',
                 acceptor_id,
-                acceptor.pid)
+                acceptor.pid,
+            )
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.flags.num_workers)
@@ -132,7 +139,7 @@ class AcceptorPool:
             send_handle(
                 self.work_queues[index],
                 self.socket.fileno(),
-                self.acceptors[index].pid
+                self.acceptors[index].pid,
             )
             self.work_queues[index].close()
         self.socket.close()

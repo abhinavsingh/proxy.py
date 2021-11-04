@@ -32,11 +32,21 @@ class WebServerPlugin(HttpWebServerBasePlugin):
 
     def handle_request(self, request: HttpParser) -> None:
         if request.path == b'/http-route-example':
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.OK, body=b'HTTP route response')))
+            self.client.queue(
+                memoryview(
+                    build_http_response(
+                        httpStatusCodes.OK, body=b'HTTP route response',
+                    ),
+                ),
+            )
         elif request.path == b'/https-route-example':
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.OK, body=b'HTTPS route response')))
+            self.client.queue(
+                memoryview(
+                    build_http_response(
+                        httpStatusCodes.OK, body=b'HTTPS route response',
+                    ),
+                ),
+            )
 
     def on_websocket_open(self) -> None:
         logger.info('Websocket open')

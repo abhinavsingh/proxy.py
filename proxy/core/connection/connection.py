@@ -19,10 +19,12 @@ from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
 logger = logging.getLogger(__name__)
 
 
-TcpConnectionTypes = NamedTuple('TcpConnectionTypes', [
-    ('SERVER', int),
-    ('CLIENT', int),
-])
+TcpConnectionTypes = NamedTuple(
+    'TcpConnectionTypes', [
+        ('SERVER', int),
+        ('CLIENT', int),
+    ],
+)
 tcpConnectionTypes = TcpConnectionTypes(1, 2)
 
 
@@ -55,14 +57,16 @@ class TcpConnection(ABC):
         return self.connection.send(data)
 
     def recv(
-            self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> Optional[memoryview]:
+            self, buffer_size: int = DEFAULT_BUFFER_SIZE,
+    ) -> Optional[memoryview]:
         """Users must handle socket.error exceptions"""
         data: bytes = self.connection.recv(buffer_size)
         if len(data) == 0:
             return None
         logger.debug(
             'received %d bytes from %s' %
-            (len(data), self.tag))
+            (len(data), self.tag),
+        )
         # logger.info(data)
         return memoryview(data)
 

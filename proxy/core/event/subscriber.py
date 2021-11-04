@@ -39,13 +39,15 @@ class EventSubscriber:
         self.relay_channel = self.manager.Queue()
         self.relay_thread = threading.Thread(
             target=self.relay,
-            args=(self.relay_shutdown, self.relay_channel, callback))
+            args=(self.relay_shutdown, self.relay_channel, callback),
+        )
         self.relay_thread.start()
         self.relay_sub_id = uuid.uuid4().hex
         self.event_queue.subscribe(self.relay_sub_id, self.relay_channel)
         logger.debug(
             'Subscribed relay sub id %s from core events',
-            self.relay_sub_id)
+            self.relay_sub_id,
+        )
 
     def unsubscribe(self) -> None:
         if self.relay_sub_id is None:
@@ -65,7 +67,8 @@ class EventSubscriber:
         self.relay_thread.join()
         logger.debug(
             'Un-subscribed relay sub id %s from core events',
-            self.relay_sub_id)
+            self.relay_sub_id,
+        )
 
         self.relay_thread = None
         self.relay_shutdown = None
@@ -76,7 +79,8 @@ class EventSubscriber:
     def relay(
             shutdown: threading.Event,
             channel: DictQueueType,
-            callback: Callable[[Dict[str, Any]], None]) -> None:
+            callback: Callable[[Dict[str, Any]], None],
+    ) -> None:
         while not shutdown.is_set():
             try:
                 ev = channel.get(timeout=1)

@@ -92,7 +92,7 @@ lib-lint:
 	python -m tox -e lint
 
 lib-test: lib-clean lib-version lib-lint
-	pytest -v tests/
+	python -m tox -e python -- -v
 
 lib-package: lib-clean lib-version
 	python -m tox -e cleanup-dists,build-dists,metadata-validation

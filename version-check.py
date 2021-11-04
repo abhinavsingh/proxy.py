@@ -21,10 +21,14 @@ from proxy.common.version import __version__ as lib_version
 # Version is also hardcoded in README.md flags section
 readme_version_cmd = 'cat README.md | grep "proxy.py v" | tail -2 | head -1 | cut -d " " -f 2 | cut -c2-'
 readme_version_output = subprocess.check_output(
-    ['bash', '-c', readme_version_cmd])
+    ['bash', '-c', readme_version_cmd],
+)
 readme_version = readme_version_output.decode().strip()
 
 if readme_version != lib_version:
-    print('Version mismatch found. {0} (readme) vs {1} (lib).'.format(
-        readme_version, lib_version))
+    print(
+        'Version mismatch found. {0} (readme) vs {1} (lib).'.format(
+            readme_version, lib_version,
+        ),
+    )
     sys.exit(1)

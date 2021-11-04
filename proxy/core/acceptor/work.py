@@ -28,7 +28,8 @@ class Work(ABC):
             client: TcpClientConnection,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
-            uid: Optional[UUID] = None) -> None:
+            uid: Optional[UUID] = None,
+    ) -> None:
         self.client = client
         self.flags = flags
         self.event_queue = event_queue
@@ -43,7 +44,8 @@ class Work(ABC):
     def handle_events(
             self,
             readables: Readables,
-            writables: Writables) -> bool:
+            writables: Writables,
+    ) -> bool:
         """Handle readable and writable sockets.
 
         Return True to shutdown work."""
@@ -63,7 +65,7 @@ class Work(ABC):
         self.publish_event(
             event_name=eventNames.WORK_FINISHED,
             event_payload={},
-            publisher_id=self.__class__.__name__
+            publisher_id=self.__class__.__name__,
         )
 
     def run(self) -> None:
@@ -77,7 +79,8 @@ class Work(ABC):
             self,
             event_name: int,
             event_payload: Dict[str, Any],
-            publisher_id: Optional[str] = None) -> None:
+            publisher_id: Optional[str] = None,
+    ) -> None:
         """Convenience method provided to publish events into the global event queue."""
         if not self.flags.enable_events:
             return
@@ -86,5 +89,5 @@ class Work(ABC):
             self.uid.hex,
             event_name,
             event_payload,
-            publisher_id
+            publisher_id,
         )

@@ -63,18 +63,25 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         if request.path == b'/dashboard/':
             self.client.queue(
                 HttpWebServerPlugin.read_and_build_static_file_response(
-                    os.path.join(self.flags.static_server_dir, 'dashboard', 'proxy.html')))
+                    os.path.join(self.flags.static_server_dir, 'dashboard', 'proxy.html'),
+                ),
+            )
         elif request.path in (
                 b'/dashboard',
-                b'/dashboard/proxy.html'):
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.PERMANENT_REDIRECT, reason=b'Permanent Redirect',
-                headers={
-                    b'Location': b'/dashboard/',
-                    b'Content-Length': b'0',
-                    b'Connection': b'close',
-                }
-            )))
+                b'/dashboard/proxy.html',
+        ):
+            self.client.queue(
+                memoryview(
+                    build_http_response(
+                        httpStatusCodes.PERMANENT_REDIRECT, reason=b'Permanent Redirect',
+                        headers={
+                            b'Location': b'/dashboard/',
+                            b'Content-Length': b'0',
+                            b'Connection': b'close',
+                        },
+                    ),
+                ),
+            )
 
     def on_websocket_open(self) -> None:
         logger.info('app ws opened')
@@ -104,6 +111,11 @@ class ProxyDashboard(HttpWebServerBasePlugin):
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
-            memoryview(WebsocketFrame.text(
-                bytes_(
-                    json.dumps(data)))))
+            memoryview(
+                WebsocketFrame.text(
+                    bytes_(
+                        json.dumps(data),
+                    ),
+                ),
+            ),
+        )

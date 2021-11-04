@@ -22,7 +22,8 @@ from proxy.http.methods import httpMethods
 
 
 @unittest.skipIf(
-    os.name == 'nt', 'Disabled for Windows due to weird permission issues.')
+    os.name == 'nt', 'Disabled for Windows due to weird permission issues.',
+)
 class TestProxyPyEmbedded(TestCase):
     """This test case is a demonstration of proxy.TestCase and also serves as
     integration test suite for proxy.py."""
@@ -39,7 +40,8 @@ class TestProxyPyEmbedded(TestCase):
                     httpMethods.GET, b'http://localhost:%d/' % self.PROXY_PORT,
                     headers={
                         b'Host': b'localhost:%d' % self.PROXY_PORT,
-                    })
+                    },
+                ),
             )
             response = conn.recv(DEFAULT_CLIENT_RECVBUF_SIZE)
         self.assertEqual(
@@ -48,9 +50,9 @@ class TestProxyPyEmbedded(TestCase):
                 httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
                 headers={
                     b'Server': PROXY_AGENT_HEADER_VALUE,
-                    b'Connection': b'close'
-                }
-            )
+                    b'Connection': b'close',
+                },
+            ),
         )
 
     def test_proxy_vcr(self) -> None:
@@ -77,7 +79,8 @@ class TestProxyPyEmbedded(TestCase):
         with self.assertRaises(urllib.error.HTTPError):
             r: http.client.HTTPResponse = opener.open(
                 'http://localhost:%d/' %
-                self.PROXY_PORT, timeout=10)
+                self.PROXY_PORT, timeout=10,
+            )
             self.assertEqual(r.status, 404)
             self.assertEqual(r.headers.get('server'), PROXY_AGENT_HEADER_VALUE)
             self.assertEqual(r.headers.get('connection'), b'close')

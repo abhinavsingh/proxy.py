@@ -36,7 +36,7 @@ class FlagParser:
         self.actions: List[str] = []
         self.parser = argparse.ArgumentParser(
             description='proxy.py v%s' % __version__,
-            epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__
+            epilog='Proxy.py not working? Report at: %s/issues/new' % __homepage__,
         )
 
     def add_argument(self, *args: Any, **kwargs: Any) -> argparse.Action:
@@ -46,7 +46,8 @@ class FlagParser:
         return action
 
     def parse_args(
-            self, input_args: Optional[List[str]]) -> argparse.Namespace:
+            self, input_args: Optional[List[str]],
+    ) -> argparse.Namespace:
         """Parse flags from input arguments."""
         self.args = self.parser.parse_args(input_args)
         return self.args

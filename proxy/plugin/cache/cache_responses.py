@@ -24,5 +24,6 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.disk_store = OnDiskCacheStore(
-            uid=self.uid, cache_dir=self.flags.cache_dir)
+            uid=self.uid, cache_dir=self.flags.cache_dir,
+        )
         self.set_store(self.disk_store)

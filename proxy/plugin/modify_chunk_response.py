@@ -30,11 +30,13 @@ class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
         self.response = HttpParser(httpParserTypes.RESPONSE_PARSER)
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         return request
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:

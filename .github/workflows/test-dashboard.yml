@@ -1,6 +1,7 @@
+---
 name: Proxy.py Dashboard
 
-on: [push, pull_request]
+on: [push, pull_request]  # yamllint disable-line rule:truthy
 
 jobs:
   build:
@@ -13,18 +14,19 @@ jobs:
       max-parallel: 4
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Node
-        uses: actions/setup-node@v2
-        with:
-          node-version: ${{ matrix.node }}
-      - name: Install Dependencies
-        run: |
-          cd dashboard
-          npm install
-          cd ..
-      - name: Build Dashboard
-        run: |
-          cd dashboard
-          npm run build
-          cd ..
+    - uses: actions/checkout@v2
+    - name: Setup Node
+      uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node }}
+    - name: Install Dependencies
+      run: |
+        cd dashboard
+        npm install
+        cd ..
+    - name: Build Dashboard
+      run: |
+        cd dashboard
+        npm run build
+        cd ..
+...

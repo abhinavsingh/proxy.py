@@ -50,7 +50,8 @@ class HttpProtocolHandlerPlugin(ABC):
             flags: argparse.Namespace,
             client: TcpClientConnection,
             request: HttpParser,
-            event_queue: EventQueue):
+            event_queue: EventQueue,
+    ):
         self.uid: UUID = uid
         self.flags: argparse.Namespace = flags
         self.client: TcpClientConnection = client
@@ -67,7 +68,8 @@ class HttpProtocolHandlerPlugin(ABC):
 
     @abstractmethod
     def get_descriptors(
-            self) -> Tuple[List[socket.socket], List[socket.socket]]:
+            self,
+    ) -> Tuple[List[socket.socket], List[socket.socket]]:
         """Implementations must return a list of descriptions that they wish to
         read from and write into."""
         return [], []  # pragma: no cover
