@@ -214,7 +214,7 @@ jobs:
         --parallel-live
         --skip-missing-interpreters false
     - name: Upload coverage to Codecov
-      run: codecov
+      uses: codecov/codecov-action@v2
       with:
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
