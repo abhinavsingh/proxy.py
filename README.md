@@ -56,6 +56,7 @@
     - [Proxy Pool Plugin](#proxypoolplugin)
     - [FilterByClientIpPlugin](#filterbyclientipplugin)
     - [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
+    - [CustomDnsResolverPlugin](#customdnsresolverplugin)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
     - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
@@ -719,6 +720,22 @@ plugin
 ```
 
 Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending hardcoded chunks, parse and modify the original `JSON` chunks received from the upstream server.
+
+### CustomDnsResolverPlugin
+
+This plugin demonstrate how to use a custom DNS resolution implementation with `proxy.py`.
+This example plugin currently uses Python's in-built resolution mechanism.  Customize code
+to your taste.  Example, query your custom DNS server, implement DoH or other mechanisms.
+
+Start `proxy.py` as:
+
+```bash
+❯ proxy \
+    --plugins proxy.plugin.CustomDnsResolverPlugin
+```
+
+`HttpProxyBasePlugin.resolve_dns` can also be used to configure `network interface` which
+must be used as the `source_address` for connection to the upstream server.
 
 ## HTTP Web Server Plugins
 

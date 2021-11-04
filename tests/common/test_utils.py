@@ -43,7 +43,9 @@ class TestSocketConnectionUtils(unittest.TestCase):
     @mock.patch('socket.create_connection')
     def test_new_socket_connection_dual(self, mock_socket: mock.Mock) -> None:
         conn = new_socket_connection(self.addr_dual)
-        mock_socket.assert_called_with(self.addr_dual, timeout=DEFAULT_TIMEOUT)
+        mock_socket.assert_called_with(
+            self.addr_dual, timeout=DEFAULT_TIMEOUT, source_address=None,
+        )
         self.assertEqual(conn, mock_socket.return_value)
 
     @mock.patch('proxy.common.utils.new_socket_connection')

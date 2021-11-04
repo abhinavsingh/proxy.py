@@ -509,7 +509,21 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     'Connecting to upstream %s:%s' %
                     (text_(host), port),
                 )
-                self.server.connect()
+                # Invoke plugin.resolve_dns
+                upstream_ip, source_addr = None, None
+                for plugin in self.plugins.values():
+                    upstream_ip, source_addr = plugin.resolve_dns(
+                        text_(host), port,
+                    )
+                    if upstream_ip or source_addr:
+                        break
+                # Connect with overridden upstream IP and source address
+                # if any of the plugin returned a non-null value.
+                self.server.connect(
+                    addr=None if not upstream_ip else (
+                        upstream_ip, port,
+                    ), source_address=source_addr,
+                )
                 self.server.connection.setblocking(False)
                 logger.debug(
                     'Connected to upstream %s:%s' %

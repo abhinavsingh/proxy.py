@@ -133,6 +133,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self.proxy_plugin.return_value.read_from_descriptors.return_value = False
         self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
         self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
+        self.proxy_plugin.return_value.resolve_dns.return_value = None, None
 
         self.mock_selector.return_value.select.side_effect = [
             [(

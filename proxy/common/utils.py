@@ -181,7 +181,7 @@ def wrap_socket(
 
 
 def new_socket_connection(
-        addr: Tuple[str, int], timeout: int = DEFAULT_TIMEOUT,
+        addr: Tuple[str, int], timeout: int = DEFAULT_TIMEOUT, source_address: Optional[Tuple[str, int]] = None,
 ) -> socket.socket:
     conn = None
     try:
@@ -205,7 +205,7 @@ def new_socket_connection(
         return conn
 
     # try to establish dual stack IPv4/IPv6 connection.
-    return socket.create_connection(addr, timeout=timeout)
+    return socket.create_connection(addr, timeout=timeout, source_address=source_address)
 
 
 class socket_connection(contextlib.ContextDecorator):

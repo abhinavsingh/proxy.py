@@ -1,0 +1,52 @@
+# -*- coding: utf-8 -*-
+"""
+    proxy.py
+    ~~~~~~~~
+    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
+    Network monitoring, controls & Application development, testing, debugging.
+
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
+"""
+import socket
+
+from typing import Optional, Tuple
+
+from ..http.parser import HttpParser
+from ..http.proxy import HttpProxyBasePlugin
+
+
+class CustomDnsResolverPlugin(HttpProxyBasePlugin):
+    """This plugin demonstrate how to use your own custom DNS resolver."""
+
+    def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:
+        """Here we are using in-built python resolver for demonstration.
+
+        Ideally you would like to query your custom DNS server or even use DoH to make
+        real sense out of this plugin.
+
+        2nd parameter returned is None.  Return a 2-tuple to configure underlying interface
+        to use for connection to the upstream server.
+        """
+        try:
+            return socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)[0][4][0], None
+        except socket.gaierror:
+            # Ideally we can also thrown HttpRequestRejected or HttpProtocolException here
+            # Returning None simply fallback to core generated exceptions.
+            return None, None
+
+    def before_upstream_connection(
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
+        return request
+
+    def handle_client_request(
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
+        return request
+
+    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+        return chunk
+
+    def on_upstream_connection_close(self) -> None:
+        pass
