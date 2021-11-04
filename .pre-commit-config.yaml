@@ -160,6 +160,9 @@ repos:
   rev: v0.910
   hooks:
   - id: mypy
+    additional_dependencies:
+    - paramiko == 2.8.0
+    - types-paramiko == 2.7.3
     args:
     # FIXME: get rid of missing imports ignore
     - --ignore-missing-imports
