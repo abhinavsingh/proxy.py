@@ -9,6 +9,7 @@
 .mypy_cache
 .hypothesis
 .tox
+.python-version
 
 coverage.xml
 proxy.py.iml

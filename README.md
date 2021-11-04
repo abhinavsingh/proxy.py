@@ -69,18 +69,19 @@
 - [Embed proxy.py](#embed-proxypy)
   - [Blocking Mode](#blocking-mode)
   - [Non-blocking Mode](#non-blocking-mode)
+  - [Ephemeral Port](#ephemeral-port)
   - [Loading Plugins](#loading-plugins)
 - [Unit testing with proxy.py](#unit-testing-with-proxypy)
   - [proxy.TestCase](#proxytestcase)
   - [Override Startup Flags](#override-startup-flags)
   - [With unittest.TestCase](#with-unittesttestcase)
 - [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
+  - [High level architecture](#high-level-architecture)
   - [Everything is a plugin](#everything-is-a-plugin)
-  - [Internal Architecture](#internal-architecture)
   - [Internal Documentation](#internal-documentation)
   - [Development Guide](#development-guide)
     - [Setup Local Environment](#setup-local-environment)
-    - [Setup pre-commit hook](#setup-pre-commit-hook)
+    - [Setup Git Hooks](#setup-git-hooks)
     - [Sending a Pull Request](#sending-a-pull-request)
 - [Utilities](#utilities)
   - [TCP](#tcp-sockets)
@@ -307,8 +308,7 @@ To start `proxy.py` from source code follow these instructions:
 - Install deps
 
   ```bash
-  ❯ pip install -r requirements.txt
-  ❯ pip install -r requirements-testing.txt
+  ❯ pip install -rrequirements.txt -rrequirements-testing.txt -rrequirements-tunnel.txt
   ```
 
 - Run tests
@@ -1149,24 +1149,40 @@ by using `start` method: Example:
 import proxy
 
 if __name__ == '__main__':
-  with proxy.start([]):
+  with proxy.Proxy([]) as p:
     # ... your logic here ...
 ```
 
 Note that:
 
-1. `start` is similar to `main`, except `start` won't block.
-1. `start` is a context manager.
+1. `Proxy` is similar to `main`, except `Proxy` does not block.
+1. Internally `Proxy` is a context manager.
    It will start `proxy.py` when called and will shut it down
-   once scope ends.
-1. Just like `main`, startup flags with `start` method
+   once the scope ends.
+1. Just like `main`, startup flags with `Proxy`
    can be customized by either passing flags as list of
-   input arguments e.g. `start(['--port', '8899'])` or
-   by using passing flags as kwargs e.g. `start(port=8899)`.
+   input arguments e.g. `Proxy(['--port', '8899'])` or
+   by using passing flags as kwargs e.g. `Proxy(port=8899)`.
+
+## Ephemeral Port
+
+Use `--port=0` to bind `proxy.py` on a random port allocated by the kernel.
+
+In embedded mode, you can access this port.  Example:
+
+```python
+import proxy
+
+if __name__ == '__main__':
+  with proxy.Proxy([]) as p:
+    print(p.pool.flags.port)
+```
+
+`pool.flags.port` will give you access to the random port allocated by the kernel.
 
 ## Loading Plugins
 
-You can, of course, list plugins to load in the input arguments list of `proxy.main`, `proxy.start` or the `Proxy` constructor. Use the `--plugins` flag as when starting from command line:
+You can, of course, list plugins to load in the input arguments list of `proxy.main` or `Proxy` constructor. Use the `--plugins` flag when starting from command line:
 
 ```python
 import proxy
@@ -1177,7 +1193,7 @@ if __name__ == '__main__':
   ])
 ```
 
-However, for simplicity you can pass the list of plugins to load as a keyword argument to `proxy.main`, `proxy.start` or the `Proxy` constructor:
+For simplicity you can pass the list of plugins to load as a keyword argument to `proxy.main` or the `Proxy` constructor:
 
 ```python
 import proxy
@@ -1193,19 +1209,18 @@ if __name__ == '__main__':
 Note that it supports:
 
 1. The fully-qualified name of a class as `bytes`
-2. Any `type` instance for a Proxy.py plugin class. This is especially useful for custom plugins defined locally.
+2. Any `type` instance of a plugin class. This is especially useful for plugins defined at runtime
 
 # Unit testing with proxy.py
 
 ## proxy.TestCase
 
-To setup and teardown `proxy.py` for your Python unittest classes,
+To setup and teardown `proxy.py` for your Python `unittest` classes,
 simply use `proxy.TestCase` instead of `unittest.TestCase`.
 Example:
 
 ```python
 import proxy
-
 
 class TestProxyPyEmbedded(proxy.TestCase):
 
@@ -1217,7 +1232,7 @@ Note that:
 
 1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and teardown `proxy.py`.
 2. `proxy.py` server will listen on a random available port on the system.
-   This random port is available as `self.PROXY_PORT` within your test cases.
+   This random port is available as `self.PROXY.pool.flags.port` within your test cases.
 3. Only a single worker is started by default (`--num-workers 1`) for faster setup and teardown.
 4. Most importantly, `proxy.TestCase` also ensures `proxy.py` server
    is up and running before proceeding with execution of tests. By default,
@@ -1272,52 +1287,63 @@ or simply setup / teardown `proxy.py` within
 
 # Plugin Developer and Contributor Guide
 
+## High level architecture
+
+```bash
+                        +-------------+
+                        |  Proxy([])  |
+                        +------+------+
+                               |
+                               |
+                   +-----------v--------------+
+                   |    AcceptorPool(...)     |
+                   +------------+-------------+
+                                |
+                                |
++-----------------+             |           +-----------------+
+|   Acceptor(..)  <-------------+----------->  Acceptor(..)   |
++-----------------+                         +-----------------+
+```
+
+`proxy.py` is made with performance in mind.  By default, `proxy.py`
+will try to utilize all available CPU cores to it for accepting new
+client connections. This is achieved by starting `AcceptorPool` which
+listens on configured server port. Then, `AcceptorPool` starts `Acceptor`
+processes (`--num-workers`) to accept incoming client connections.
+
+Each `Acceptor` process delegates the accepted client connection
+to a `Work` class.  Currently, `HttpProtocolHandler` is the default
+work klass hardcoded into the code.
+
+`HttpProtocolHandler` simply assumes that incoming clients will follow
+HTTP specification.  Specific HTTP proxy and HTTP server implementations
+are written as plugins of `HttpProtocolHandler`.
+
+See documentation of `HttpProtocolHandlerPlugin` for available lifecycle hooks.
+Use `HttpProtocolHandlerPlugin` to add new features for http(s) clients. Example,
+See `HttpWebServerPlugin`.
+
 ## Everything is a plugin
 
-As you might have guessed by now, in `proxy.py` everything is a plugin.
+Within `proxy.py` everything is a plugin.
 
-- We enabled proxy server plugins using `--plugins` flag.
-  All the [plugin examples](#plugin-examples) were implementing
-  `HttpProxyBasePlugin`. See documentation of
-  [HttpProxyBasePlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L894-L938)
-  for available lifecycle hooks. Use `HttpProxyBasePlugin` to modify
-  behavior of http(s) proxy protocol between client and upstream server.
-  Example, [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
+- We enabled `proxy server` plugins using `--plugins` flag.
+  Proxy server `HttpProxyPlugin` is a plugin of `HttpProtocolHandler`.
+  Further, Proxy server allows plugin through `HttpProxyBasePlugin` specification.
 
-- We also enabled inbuilt web server using `--enable-web-server`.
-  Inbuilt web server implements `HttpProtocolHandlerPlugin` plugin.
-  See documentation of [HttpProtocolHandlerPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L793-L850)
-  for available lifecycle hooks. Use `HttpProtocolHandlerPlugin` to add
-  new features for http(s) clients. Example,
-  [HttpWebServerPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1185-L1260).
+- All the proxy server [plugin examples](#plugin-examples) were implementing
+  `HttpProxyBasePlugin`. See documentation of `HttpProxyBasePlugin` for available
+  lifecycle hooks. Use `HttpProxyBasePlugin` to modify behavior of http(s) proxy protocol
+  between client and upstream server. Example,
+  [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
+
+- We also enabled inbuilt `web server` using `--enable-web-server`.
+  Web server `HttpWebServerPlugin` is a plugin of `HttpProtocolHandler`
+  and implements `HttpProtocolHandlerPlugin` specification.
 
 - There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
   Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
-  http(s) server. [HttpProxyPlugin](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L941-L1182)
-  also implements `HttpProtocolHandlerPlugin`.
-
-## Internal Architecture
-
-- [HttpProtocolHandler](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L1263-L1440)
-  thread is started with the accepted [TcpClientConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L230-L237).
-  `HttpProtocolHandler` is responsible for parsing incoming client request and invoking
-  `HttpProtocolHandlerPlugin` lifecycle hooks.
-
-- `HttpProxyPlugin` which implements `HttpProtocolHandlerPlugin` also has its own plugin
-  mechanism. Its responsibility is to establish connection between client and
-  upstream [TcpServerConnection](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L204-L227)
-  and invoke `HttpProxyBasePlugin` lifecycle hooks.
-
-- `HttpProtocolHandler` threads are started by [Acceptor](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L424-L472)
-  processes.
-
-- `--num-workers` `Acceptor` processes are started by
-  [AcceptorPool](https://github.com/abhinavsingh/proxy.py/blob/b03629fa0df1595eb4995427bc601063be7fdca9/proxy.py#L368-L421)
-  on start-up.
-
-- `AcceptorPool` listens on server socket and pass the handler to `Acceptor` processes.
-  Workers are responsible for accepting new client connections and starting
-  `HttpProtocolHandler` thread.
+  http(s) server.
 
 ## Development Guide
 
@@ -1327,12 +1353,22 @@ Contributors must start `proxy.py` from source to verify and develop new feature
 
 See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
 
-### Setup pre-commit hook
+[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)]
+(https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
+you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends
+to be problematic.  See linked thread for more details.
 
-Pre-commit hook ensures lint checking and tests execution.
+### Setup Git Hooks
+
+Pre-commit hook ensures tests are passing.
 
 1. `cd /path/to/proxy.py`
 2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
+
+Pre-push hook ensures lint and tests are passing.
+
+1. `cd /path/to/proxy.py`
+2. `ln -s $(PWD)/git-pre-push .git/hooks/pre-push`
 
 ### Sending a Pull Request
 

@@ -15,7 +15,7 @@ from typing import Optional, List, Generator, Any
 
 from ..proxy import Proxy
 from ..common.constants import DEFAULT_TIMEOUT
-from ..common.utils import get_available_port, new_socket_connection
+from ..common.utils import new_socket_connection
 from ..plugin import CacheResponsesPlugin
 
 
@@ -27,21 +27,18 @@ class TestCase(unittest.TestCase):
         '--threadless',
     ]
 
-    PROXY_PORT: int = 8899
     PROXY: Optional[Proxy] = None
     INPUT_ARGS: Optional[List[str]] = None
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.PROXY_PORT = get_available_port()
-
         cls.INPUT_ARGS = getattr(cls, 'PROXY_PY_STARTUP_FLAGS') \
             if hasattr(cls, 'PROXY_PY_STARTUP_FLAGS') \
             else cls.DEFAULT_PROXY_PY_STARTUP_FLAGS
         cls.INPUT_ARGS.append('--hostname')
         cls.INPUT_ARGS.append('0.0.0.0')
         cls.INPUT_ARGS.append('--port')
-        cls.INPUT_ARGS.append(str(cls.PROXY_PORT))
+        cls.INPUT_ARGS.append('0')
 
         cls.PROXY = Proxy(input_args=cls.INPUT_ARGS)
         cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(
@@ -49,7 +46,8 @@ class TestCase(unittest.TestCase):
         )
 
         cls.PROXY.__enter__()
-        cls.wait_for_server(cls.PROXY_PORT)
+        assert cls.PROXY.pool
+        cls.wait_for_server(cls.PROXY.pool.flags.port)
 
     @staticmethod
     def wait_for_server(
@@ -77,7 +75,6 @@ class TestCase(unittest.TestCase):
     def tearDownClass(cls) -> None:
         assert cls.PROXY
         cls.PROXY.__exit__(None, None, None)
-        cls.PROXY_PORT = 8899
         cls.PROXY = None
         cls.INPUT_ARGS = None
 
