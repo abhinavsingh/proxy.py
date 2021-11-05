@@ -3,8 +3,10 @@ set -xeuo pipefail
 
 echo "Deploy test..."
 
+solana config set -u $SOLANA_URL
 solana address || solana-keygen new --no-passphrase
-export $(/spl/bin/neon-cli --evm_loader JxujFZpNBPADbfw2MnPPgnnFGruzp2ELSFWPQgrjz5D neon-elf-params /spl/bin/evm_loader.so | grep NEON_REVISION | xargs)
+solana program dump "$EVM_LOADER" ./evm_loader.dump
+export $(/spl/bin/neon-cli --evm_loader "$EVM_LOADER" neon-elf-params ./evm_loader.dump)
 
 curl -v --header "Content-Type: application/json" --data '{"method":"eth_blockNumber","id":1,"jsonrpc":"2.0","params":[]}' $PROXY_URL
 

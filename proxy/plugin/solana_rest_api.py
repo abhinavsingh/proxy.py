@@ -42,7 +42,6 @@ logger.setLevel(logging.DEBUG)
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
-chainId = os.environ.get("NEON_CHAIN_ID", "0x6e")    # default value 110
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 
 class PermanentAccounts:
@@ -107,10 +106,14 @@ class EthereumModel:
         return self.neon_config_dict['web3_clientVersion']
 
     def eth_chainId(self):
-        return chainId
+        neon_config_load(self)
+        # NEON_CHAIN_ID is a string in decimal form
+        return hex(int(self.neon_config_dict['NEON_CHAIN_ID']))
 
     def net_version(self):
-        return str(int(chainId,base=16))
+        neon_config_load(self)
+        # NEON_CHAIN_ID is a string in decimal form
+        return self.neon_config_dict['NEON_CHAIN_ID']
 
     def eth_gasPrice(self):
         return hex(MINIMAL_GAS_PRICE)
