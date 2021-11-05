@@ -28,11 +28,15 @@ from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 
 logger = logging.getLogger(__name__)
 
+# We need CA bundle to verify TLS connection to upstream servers
 PURE_LIB = sysconfig.get_path('purelib')
 assert PURE_LIB
 CACERT_PEM_PATH = Path(PURE_LIB) / 'certifi' / 'cacert.pem'
 
 
+# TODO: ReverseProxyPlugin and ProxyPoolPlugin are implementing
+# a similar behavior.  Abstract that particular logic out into its
+# own class.
 class ReverseProxyPlugin(HttpWebServerBasePlugin):
     """Extend in-built Web Server to add Reverse Proxy capabilities.
 
@@ -141,5 +145,8 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         pass
 
-    def on_websocket_close(self) -> None:
-        pass
+    def on_client_connection_close(self) -> None:
+        if self.upstream and not self.upstream.closed:
+            logger.debug('Closing upstream server connection')
+            self.upstream.close()
+            self.upstream = None

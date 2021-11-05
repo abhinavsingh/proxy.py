@@ -86,6 +86,10 @@ class HttpWebServerBasePlugin(ABC):
         """Handle the request and serve response."""
         raise NotImplementedError()     # pragma: no cover
 
+    def on_client_connection_close(self) -> None:
+        """Client has closed the connection, do any clean up task now."""
+        pass
+
     @abstractmethod
     def on_websocket_open(self) -> None:
         """Called when websocket handshake has finished."""
@@ -96,7 +100,14 @@ class HttpWebServerBasePlugin(ABC):
         """Handle websocket frame."""
         raise NotImplementedError()     # pragma: no cover
 
-    @abstractmethod
-    def on_websocket_close(self) -> None:
-        """Called when websocket connection has been closed."""
-        raise NotImplementedError()     # pragma: no cover
+    # Deprecated since v2.4.0
+    #
+    # Instead use on_client_connection_close.
+    #
+    # This callback is no longer invoked.  Kindly
+    # update your plugin before upgrading to v2.4.0.
+    #
+    # @abstractmethod
+    # def on_websocket_close(self) -> None:
+    #     """Called when websocket connection has been closed."""
+    #     raise NotImplementedError()     # pragma: no cover

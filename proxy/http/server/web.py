@@ -274,10 +274,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def on_client_connection_close(self) -> None:
         if self.request.has_host():
             return
-        if self.switched_protocol:
-            # Invoke plugin.on_websocket_close
-            assert self.route
-            self.route.on_websocket_close()
+        if self.route:
+            self.route.on_client_connection_close()
         self.access_log()
 
     # TODO: Allow plugins to customize access_log, similar

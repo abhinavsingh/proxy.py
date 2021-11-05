@@ -60,7 +60,8 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
 
     def on_websocket_open(self) -> None:
         self.subscriber.subscribe(
-            lambda event: CoreEventsToDevtoolsProtocol.transformer(self.client, event),
+            lambda event: CoreEventsToDevtoolsProtocol.transformer(
+                self.client, event),
         )
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
@@ -73,7 +74,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
             return
         self.handle_devtools_message(message)
 
-    def on_websocket_close(self) -> None:
+    def on_client_connection_close(self) -> None:
         self.subscriber.unsubscribe()
 
     def handle_devtools_message(self, message: Dict[str, Any]) -> None:
