@@ -205,7 +205,7 @@ class Proxy:
         if input_args is None:
             input_args = []
 
-        if not Proxy.is_py3():
+        if Proxy.is_py2():
             print(PY2_DEPRECATION_MESSAGE)
             sys.exit(1)
 
@@ -476,9 +476,9 @@ class Proxy:
         return default_plugins
 
     @staticmethod
-    def is_py3() -> bool:
+    def is_py2() -> bool:
         """Exists only to avoid mocking sys.version_info in tests."""
-        return sys.version_info[0] != 2
+        return sys.version_info[0] == 2
 
     @staticmethod
     def set_open_file_limit(soft_limit: int) -> None:
