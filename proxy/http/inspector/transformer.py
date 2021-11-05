@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import json
-import secrets
 import time
 from typing import Any, Dict
 
@@ -86,7 +85,7 @@ class CoreEventsToDevtoolsProtocol:
                 'initiator': {
                     'type': 'other',
                 },
-            }
+            },
         }
 
     @staticmethod
@@ -133,7 +132,7 @@ class CoreEventsToDevtoolsProtocol:
                     'remoteIPAddress': '',
                     'remotePort': '',
                 },
-            }
+            },
         }
 
     @staticmethod
@@ -145,7 +144,7 @@ class CoreEventsToDevtoolsProtocol:
                 'timestamp': time.time(),
                 'dataLength': event['event_payload']['chunk_size'],
                 'encodedDataLength': event['event_payload']['encoded_chunk_size'],
-            }
+            },
         }
 
     @staticmethod
@@ -157,5 +156,5 @@ class CoreEventsToDevtoolsProtocol:
                 'timestamp': time.time(),
                 'encodedDataLength': event['event_payload']['encoded_response_size'],
                 'shouldReportCorbBlocking': False,
-            }
+            },
         }

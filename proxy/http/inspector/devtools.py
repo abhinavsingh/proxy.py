@@ -21,7 +21,6 @@ from ...common.utils import bytes_, text_
 from ...core.event import EventSubscriber
 from ...common.flag import flags
 from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DEVTOOLS_DOC_URL
-from ...common.constants import DEFAULT_DEVTOOLS_FRAME_ID
 
 logger = logging.getLogger(__name__)
 

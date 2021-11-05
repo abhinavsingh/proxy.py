@@ -774,7 +774,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             request_id=self.uid.hex,
             event_name=eventNames.RESPONSE_COMPLETE,
             event_payload={
-                'encoded_response_size': self.response.total_size
+                'encoded_response_size': self.response.total_size,
             },
             publisher_id=self.__class__.__name__,
         )
