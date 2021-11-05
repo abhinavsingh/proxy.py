@@ -282,7 +282,7 @@ class TestWebServerPlugin(unittest.TestCase):
         )
         self.protocol_handler.initialize()
         plugin.assert_called()
-        with mock.patch.object(self.protocol_handler, 'run_once') as mock_run_once:
+        with mock.patch.object(self.protocol_handler, '_run_once') as mock_run_once:
             mock_run_once.return_value = True
             self.protocol_handler.run()
         self.assertTrue(self._conn.closed)
