@@ -96,7 +96,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
     ) -> None:
         self.protocol_handler.run_once()
         self.assertTrue(
-            cast(HttpProxyPlugin, self.protocol_handler.plugins['HttpProxyPlugin']).server is not None,
+            cast(HttpProxyPlugin,
+                 self.protocol_handler.plugins['HttpProxyPlugin']).upstream is not None,
         )
         self.assertEqual(
             self.protocol_handler.client.buffer[0],
