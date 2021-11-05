@@ -54,14 +54,16 @@ class CloudflareDnsResolverPlugin(HttpProxyBasePlugin):
             # TODO: Support resolution via Authority (SOA) to add support for
             # AAAA (IPv6) query
             r = httpx.get(
-                "https://{0}.cloudflare-dns.com/dns-query?name={1}&type=A".format(
-                    self.flags.cloudflare_dns_mode, host),
+                'https://{0}.cloudflare-dns.com/dns-query?name={1}&type=A'.format(
+                    self.flags.cloudflare_dns_mode, host,
+                ),
                 headers={'accept': 'application/dns-json'},
                 verify=context,
                 timeout=httpx.Timeout(timeout=5.0),
                 proxies={
                     'all://': None,
-                })
+                },
+            )
             if r.status_code != 200:
                 return None, None
             response = r.json()

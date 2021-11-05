@@ -531,7 +531,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 )
             except Exception as e:  # TimeoutError, socket.gaierror
                 logger.exception(
-                    'Unable to connect with upstream server', exc_info=e)
+                    'Unable to connect with upstream server', exc_info=e,
+                )
                 self.server.closed = True
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
         else:
