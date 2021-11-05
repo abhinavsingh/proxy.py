@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
 import socket
 import selectors
 import ssl
@@ -18,7 +17,6 @@ import errno
 import logging
 
 from typing import Tuple, List, Union, Optional, Generator, Dict, Any
-from uuid import UUID
 
 from .plugin import HttpProtocolHandlerPlugin
 from .parser import HttpParser, httpParserStates, httpParserTypes
@@ -27,7 +25,6 @@ from .exception import HttpProtocolException
 from ..common.types import Readables, Writables
 from ..common.utils import wrap_socket
 from ..core.acceptor.work import Work
-from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 from ..common.flag import flags
 from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
