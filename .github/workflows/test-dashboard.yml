@@ -1,12 +1,12 @@
 ---
-name: Proxy.py Dashboard
+name: dashboard
 
 on: [push, pull_request]  # yamllint disable-line rule:truthy
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
-    name: Dashboard - Node ${{ matrix.node }} on ${{ matrix.os }}
+    name: Node ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [macOS, ubuntu, windows]
