@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import ssl
 import random
 import socket
 import logging
@@ -96,6 +97,9 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
                     self.client.queue(raw)
                 else:
                     return True     # Teardown because upstream server closed the connection
+            except ssl.SSLWantReadError:
+                logger.info('Upstream server SSLWantReadError, will retry')
+                return False
             except ConnectionResetError:
                 logger.debug('Connection reset by upstream server')
                 return True
@@ -105,6 +109,9 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
         if self.upstream and self.upstream.connection in w and self.upstream.has_buffer():
             try:
                 self.upstream.flush()
+            except ssl.SSLWantWriteError:
+                logger.info('Upstream server SSLWantWriteError, will retry')
+                return False
             except BrokenPipeError:
                 logger.debug(
                     'BrokenPipeError when flushing to upstream server',
