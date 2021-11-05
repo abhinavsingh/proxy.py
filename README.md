@@ -56,6 +56,7 @@
     - [Proxy Pool Plugin](#proxypoolplugin)
     - [FilterByClientIpPlugin](#filterbyclientipplugin)
     - [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
+    - [CloudflareDnsResolverPlugin](#cloudflarednsresolverplugin)
     - [CustomDnsResolverPlugin](#customdnsresolverplugin)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
     - [Reverse Proxy](#reverse-proxy)
@@ -721,6 +722,20 @@ plugin
 
 Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending hardcoded chunks, parse and modify the original `JSON` chunks received from the upstream server.
 
+### CloudflareDnsResolverPlugin
+
+This plugin uses `Cloudflare` hosted `DNS-over-HTTPS` [API](https://developers.cloudflare.com/1.1.1.1/encrypted-dns/dns-over-https/make-api-requests/dns-json) (json).
+
+Start `proxy.py` as:
+
+```bash
+❯ proxy \
+    --plugins proxy.plugin.CloudflareDnsResolverPlugin
+```
+
+By default, `CloudflareDnsResolverPlugin` runs in `security` mode (provides malware protection).  Use `--cloudflare-dns-mode family` to also enable
+adult content protection.
+
 ### CustomDnsResolverPlugin
 
 This plugin demonstrate how to use a custom DNS resolution implementation with `proxy.py`.
@@ -1030,7 +1045,9 @@ with TLS Interception:
 
 **This is a WIP and may not work as documented**
 
-Requires `paramiko` to work. See [requirements-tunnel.txt](https://github.com/abhinavsingh/proxy.py/blob/develop/requirements-tunnel.txt)
+Requires `paramiko` to work.
+
+See [requirements-tunnel.txt](https://github.com/abhinavsingh/proxy.py/blob/develop/requirements-tunnel.txt)
 
 ## Proxy Remote Requests Locally
 
@@ -1199,7 +1216,8 @@ if __name__ == '__main__':
 
 ## Loading Plugins
 
-You can, of course, list plugins to load in the input arguments list of `proxy.main` or `Proxy` constructor. Use the `--plugins` flag when starting from command line:
+You can, of course, list plugins to load in the input arguments list of `proxy.main` or
+`Proxy` constructor. Use the `--plugins` flag when starting from command line:
 
 ```python
 import proxy
@@ -1210,7 +1228,8 @@ if __name__ == '__main__':
   ])
 ```
 
-For simplicity you can pass the list of plugins to load as a keyword argument to `proxy.main` or the `Proxy` constructor:
+For simplicity you can pass the list of plugins to load as a keyword argument to `proxy.main` or
+the `Proxy` constructor:
 
 ```python
 import proxy
@@ -1370,8 +1389,8 @@ Contributors must start `proxy.py` from source to verify and develop new feature
 
 See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
 
-[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)]
-(https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
+
+[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
 you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends
 to be problematic.  See linked thread for more details.
 
@@ -1592,7 +1611,8 @@ FILE
 
 # Run Dashboard
 
-Dashboard is currently under development and not yet bundled with `pip` packages.  To run dashboard, you must checkout the source.
+Dashboard is currently under development and not yet bundled with `pip` packages.
+To run dashboard, you must checkout the source.
 
 Dashboard is written in Typescript and SCSS, so let's build it first using:
 
@@ -1623,9 +1643,12 @@ $ open http://localhost:8899/dashboard/
 
 ## Inspect Traffic
 
-Wait for embedded `Chrome Dev Console` to load.  Currently, detail about all traffic flowing through `proxy.py` is pushed to the `Inspect Traffic` tab.  However, received payloads are not yet integrated with the embedded dev console.
+Wait for embedded `Chrome Dev Console` to load.  Currently, detail about all traffic flowing
+through `proxy.py` is pushed to the `Inspect Traffic` tab.  However, received payloads are not
+yet integrated with the embedded dev console.
 
-Current functionality can be verified by opening the `Dev Console` of dashboard and inspecting the websocket connection that dashboard established with the `proxy.py` server.
+Current functionality can be verified by opening the `Dev Console` of dashboard and inspecting
+the websocket connection that dashboard established with the `proxy.py` server.
 
 [![Proxy.Py Dashboard Inspect Traffic](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/Dashboard.png)](https://github.com/abhinavsingh/proxy.py)
 
