@@ -201,7 +201,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        if (self.upstream and self.upstream.connection not in r) or not self.upstream:
+        if (self.upstream and not
+                self.upstream.closed and
+                self.upstream.connection not in r) or not self.upstream:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered for.

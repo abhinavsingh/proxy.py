@@ -210,9 +210,10 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # HttpProtocolHandlerPlugin.on_client_data
             # Can raise HttpProtocolException to teardown the connection
             for plugin in self.plugins.values():
-                data = plugin.on_client_data(data)
-                if data is None:
+                optional_data = plugin.on_client_data(data)
+                if optional_data is None:
                     break
+                data = optional_data
             # Don't parse incoming data any further after 1st request has completed.
             #
             # This specially does happen for pipeline requests.
@@ -247,6 +248,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             if response:
                 self.client.queue(response)
             return True
+        return False
 
     def handle_writables(self, writables: Writables) -> bool:
         if self.client.connection in writables and self.client.has_buffer():
