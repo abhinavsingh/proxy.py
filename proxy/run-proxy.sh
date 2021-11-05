@@ -10,7 +10,6 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$ETH_TOKEN_MINT"               ]] && export ETH_TOKEN_MINT=deploy
   [[ -z "$COLLATERAL_POOL_BASE"         ]] && export COLLATERAL_POOL_BASE=deploy
   [[ -z "$NEW_USER_AIRDROP_AMOUNT"      ]] && export NEW_USER_AIRDROP_AMOUNT=100
-  [[ -z "$NEON_CHAIN_ID"                ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=100000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="0.5"
   [[ -z "$USE_COMBINED_START_CONTINUE"  ]] && export USE_COMBINED_START_CONTINUE="YES"
@@ -22,7 +21,6 @@ elif [ "$CONFIG" == "local" ]; then
   [[ -z "$ETH_TOKEN_MINT"               ]] && export ETH_TOKEN_MINT=deploy
   [[ -z "$COLLATERAL_POOL_BASE"         ]] && export COLLATERAL_POOL_BASE=deploy
   [[ -z "$NEW_USER_AIRDROP_AMOUNT"      ]] && export NEW_USER_AIRDROP_AMOUNT=10
-  [[ -z "$NEON_CHAIN_ID"                ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=0
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="0.9"
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=0
@@ -32,7 +30,6 @@ elif [ "$CONFIG" == "devnet" ]; then
   [[ -z "$ETH_TOKEN_MINT"               ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
   [[ -z "$COLLATERAL_POOL_BASE"         ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
   [[ -z "$NEW_USER_AIRDROP_AMOUNT"      ]] && export NEW_USER_AIRDROP_AMOUNT=0
-  [[ -z "$NEON_CHAIN_ID"                ]] && export NEON_CHAIN_ID=0x6e
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="10"
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=1
@@ -42,7 +39,6 @@ elif [ "$CONFIG" == "testnet" ]; then
   [[ -z "$ETH_TOKEN_MINT"               ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
   [[ -z "$COLLATERAL_POOL_BASE"         ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
   [[ -z "$NEW_USER_AIRDROP_AMOUNT"      ]] && export NEW_USER_AIRDROP_AMOUNT=0
-  [[ -z "$NEON_CHAIN_ID"                ]] && export NEON_CHAIN_ID=0x6f
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="15"
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE="1"
@@ -54,7 +50,6 @@ fi
 [[ -z "$EVM_LOADER"               ]] && echo "EVM_LOADER is not set" && exit 1
 [[ -z "$ETH_TOKEN_MINT"           ]] && echo "ETH_TOKEN_MINT is not set" && exit 1
 [[ -z "$COLLATERAL_POOL_BASE"     ]] && echo "COLLATERAL_POOL_BASE is not set" && exit 1
-[[ -z "$NEON_CHAIN_ID"            ]] && echo "NEON_CHAIN_ID is not set" && exit 1
 
 echo SOLANA_URL=$SOLANA_URL
 
