@@ -24,7 +24,7 @@ from .exception import HttpProtocolException
 
 from ..common.types import Readables, Writables
 from ..common.utils import wrap_socket
-from ..core.acceptor.work import Work
+from ..core.base import BaseTcpServerHandler
 from ..core.connection import TcpClientConnection
 from ..common.flag import flags
 from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
@@ -65,7 +65,7 @@ SelectedEventsGeneratorType = Generator[
 ]
 
 
-class HttpProtocolHandler(Work):
+class HttpProtocolHandler(BaseTcpServerHandler):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection and delegates to HttpProtocolHandlerPlugin.
@@ -78,7 +78,6 @@ class HttpProtocolHandler(Work):
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.selector: Optional[selectors.DefaultSelector] = None
-        print(self.flags.threadless)
         if not self.flags.threadless:
             self.selector = selectors.DefaultSelector()
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
@@ -153,11 +152,8 @@ class HttpProtocolHandler(Work):
             super().shutdown()
 
     def get_events(self) -> Dict[socket.socket, int]:
-        events: Dict[socket.socket, int] = {
-            self.client.connection: selectors.EVENT_READ,
-        }
-        if self.client.has_buffer():
-            events[self.client.connection] |= selectors.EVENT_WRITE
+        # Get default client events
+        events: Dict[socket.socket, int] = super().get_events()
         # HttpProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
@@ -173,6 +169,7 @@ class HttpProtocolHandler(Work):
                     events[w] |= selectors.EVENT_WRITE
         return events
 
+    # We override super().handle_events and never call it
     def handle_events(
             self,
             readables: Readables,
@@ -203,13 +200,62 @@ class HttpProtocolHandler(Work):
 
         return False
 
+    def handle_data(self, data: memoryview) -> Optional[bool]:
+        if data is None:
+            logger.debug('Client closed connection, tearing down...')
+            self.client.closed = True
+            return True
+
+        try:
+            # HttpProtocolHandlerPlugin.on_client_data
+            # Can raise HttpProtocolException to teardown the connection
+            for plugin in self.plugins.values():
+                data = plugin.on_client_data(data)
+                if data is None:
+                    break
+            # Don't parse incoming data any further after 1st request has completed.
+            #
+            # This specially does happen for pipeline requests.
+            #
+            # Plugins can utilize on_client_data for such cases and
+            # apply custom logic to handle request data sent after 1st
+            # valid request.
+            if data and self.request.state != httpParserStates.COMPLETE:
+                # Parse http request
+                # TODO(abhinavsingh): Remove .tobytes after parser is
+                # memoryview compliant
+                self.request.parse(data.tobytes())
+                if self.request.state == httpParserStates.COMPLETE:
+                    # Invoke plugin.on_request_complete
+                    for plugin in self.plugins.values():
+                        upgraded_sock = plugin.on_request_complete()
+                        if isinstance(upgraded_sock, ssl.SSLSocket):
+                            logger.debug(
+                                'Updated client conn to %s', upgraded_sock,
+                            )
+                            self.client._conn = upgraded_sock
+                            for plugin_ in self.plugins.values():
+                                if plugin_ != plugin:
+                                    plugin_.client._conn = upgraded_sock
+                        elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
+                            return True
+        except HttpProtocolException as e:
+            logger.debug(
+                'HttpProtocolException type raised',
+            )
+            response: Optional[memoryview] = e.response(self.request)
+            if response:
+                self.client.queue(response)
+            return True
+
     def handle_writables(self, writables: Writables) -> bool:
-        if self.client.has_buffer() and self.client.connection in writables:
+        if self.client.connection in writables and self.client.has_buffer():
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
 
             # TODO(abhinavsingh): This hook could just reside within server recv block
             # instead of invoking when flushed to client.
+            #
             # Invoke plugin.on_response_chunk
             chunk = self.client.buffer
             for plugin in self.plugins.values():
@@ -218,7 +264,10 @@ class HttpProtocolHandler(Work):
                     break
 
             try:
-                self.client.flush()
+                # Call super() for client flush
+                teardown = super().handle_writables(writables)
+                if teardown:
+                    return True
             except BrokenPipeError:
                 logger.error(
                     'BrokenPipeError when flushing buffer for client',
@@ -234,7 +283,9 @@ class HttpProtocolHandler(Work):
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
             try:
-                client_data = self.client.recv(self.flags.client_recvbuf_size)
+                teardown = super().handle_readables(readables)
+                if teardown:
+                    return teardown
             except ssl.SSLWantReadError:    # Try again later
                 logger.warning(
                     'SSLWantReadError encountered while reading from client, will retry ...',
@@ -248,54 +299,6 @@ class HttpProtocolHandler(Work):
                         'Exception while receiving from %s connection %r with reason %r' %
                         (self.client.tag, self.client.connection, e),
                     )
-                return True
-
-            if client_data is None:
-                logger.debug('Client closed connection, tearing down...')
-                self.client.closed = True
-                return True
-
-            try:
-                # HttpProtocolHandlerPlugin.on_client_data
-                # Can raise HttpProtocolException to teardown the connection
-                for plugin in self.plugins.values():
-                    client_data = plugin.on_client_data(client_data)
-                    if client_data is None:
-                        break
-
-                # Don't parse incoming data any further after 1st request has completed.
-                #
-                # This specially does happen for pipeline requests.
-                #
-                # Plugins can utilize on_client_data for such cases and
-                # apply custom logic to handle request data sent after 1st
-                # valid request.
-                if client_data and self.request.state != httpParserStates.COMPLETE:
-                    # Parse http request
-                    # TODO(abhinavsingh): Remove .tobytes after parser is
-                    # memoryview compliant
-                    self.request.parse(client_data.tobytes())
-                    if self.request.state == httpParserStates.COMPLETE:
-                        # Invoke plugin.on_request_complete
-                        for plugin in self.plugins.values():
-                            upgraded_sock = plugin.on_request_complete()
-                            if isinstance(upgraded_sock, ssl.SSLSocket):
-                                logger.debug(
-                                    'Updated client conn to %s', upgraded_sock,
-                                )
-                                self.client._conn = upgraded_sock
-                                for plugin_ in self.plugins.values():
-                                    if plugin_ != plugin:
-                                        plugin_.client._conn = upgraded_sock
-                            elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
-                                return True
-            except HttpProtocolException as e:
-                logger.debug(
-                    'HttpProtocolException type raised',
-                )
-                response: Optional[memoryview] = e.response(self.request)
-                if response:
-                    self.client.queue(response)
                 return True
         return False
 

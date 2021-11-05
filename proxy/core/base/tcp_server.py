@@ -73,56 +73,63 @@ class BaseTcpServerHandler(Work):
             writables: Writables,
     ) -> bool:
         """Return True to shutdown work."""
-        do_shutdown = False
-        if self.client.connection in readables:
-            try:
-                data = self.client.recv()
-                if data is None:
-                    # Client closed connection, signal shutdown
-                    logger.debug(
-                        'Connection closed by client {0}'.format(
-                            self.client.addr,
-                        ),
-                    )
-                    do_shutdown = True
-                else:
-                    r = self.handle_data(data)
-                    if isinstance(r, bool) and r is True:
-                        logger.debug(
-                            'Implementation signaled shutdown for client {0}'.format(
-                                self.client.addr,
-                            ),
-                        )
-                        if self.client.has_buffer():
-                            logger.debug(
-                                'Client {0} has pending buffer, will be flushed before shutting down'.format(
-                                    self.client.addr,
-                                ),
-                            )
-                            self.must_flush_before_shutdown = True
-                        else:
-                            do_shutdown = True
-            except ConnectionResetError:
-                logger.debug(
-                    'Connection reset by client {0}'.format(
-                        self.client.addr,
-                    ),
-                )
-                do_shutdown = True
-
-        if self.client.connection in writables:
-            logger.debug(
-                'Flushing buffer to client {0}'.format(self.client.addr),
-            )
-            self.client.flush()
-            if self.must_flush_before_shutdown is True:
-                do_shutdown = True
-            self.must_flush_before_shutdown = False
-
-        if do_shutdown:
+        teardown = self.handle_writables(
+            writables,
+        ) or self.handle_readables(readables)
+        if teardown:
             logger.debug(
                 'Shutting down client {0} connection'.format(
                     self.client.addr,
                 ),
             )
-        return do_shutdown
+        return teardown
+
+    def handle_writables(self, writables: Writables) -> bool:
+        teardown = False
+        if self.client.connection in writables and self.client.has_buffer():
+            logger.debug(
+                'Flushing buffer to client {0}'.format(self.client.addr),
+            )
+            self.client.flush()
+            if self.must_flush_before_shutdown is True:
+                teardown = True
+            self.must_flush_before_shutdown = False
+        return teardown
+
+    def handle_readables(self, readables: Readables) -> bool:
+        teardown = False
+        if self.client.connection in readables:
+            data = self.client.recv(self.flags.client_recvbuf_size)
+            if data is None:
+                # Client closed connection, signal shutdown
+                logger.debug(
+                    'Connection closed by client {0}'.format(
+                        self.client.addr,
+                    ),
+                )
+                teardown = True
+            else:
+                r = self.handle_data(data)
+                if isinstance(r, bool) and r is True:
+                    logger.debug(
+                        'Implementation signaled shutdown for client {0}'.format(
+                            self.client.addr,
+                        ),
+                    )
+                    if self.client.has_buffer():
+                        logger.debug(
+                            'Client {0} has pending buffer, will be flushed before shutting down'.format(
+                                self.client.addr,
+                            ),
+                        )
+                        self.must_flush_before_shutdown = True
+                    else:
+                        teardown = True
+            # except ConnectionResetError:
+            #     logger.debug(
+            #         'Connection reset by client {0}'.format(
+            #             self.client.addr,
+            #         ),
+            #     )
+            #     teardown = True
+        return teardown
