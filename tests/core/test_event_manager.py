@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import unittest
-
 from unittest import mock
 
 from proxy.core.event import EventManager

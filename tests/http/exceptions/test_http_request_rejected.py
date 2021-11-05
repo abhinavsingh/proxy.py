@@ -10,11 +10,11 @@
 """
 import unittest
 
-from proxy.http import httpStatusCodes
-from proxy.http.parser import HttpParser, httpParserTypes
-from proxy.http.exception import HttpRequestRejected
 from proxy.common.constants import CRLF
 from proxy.common.utils import build_http_response
+from proxy.http import httpStatusCodes
+from proxy.http.exception import HttpRequestRejected
+from proxy.http.parser import HttpParser, httpParserTypes
 
 
 class TestHttpRequestRejected(unittest.TestCase):

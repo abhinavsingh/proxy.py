@@ -18,6 +18,7 @@ from .http_request_rejected import HttpRequestRejected
 from .proxy_auth_failed import ProxyAuthenticationFailed
 from .proxy_conn_failed import ProxyConnectionFailed
 
+
 __all__ = [
     'HttpProtocolException',
     'HttpRequestRejected',

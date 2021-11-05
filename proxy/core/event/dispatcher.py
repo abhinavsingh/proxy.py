@@ -8,16 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import queue
 import logging
+import queue
 import threading
-
 from multiprocessing import connection
+from typing import Any, Dict, List
 
-from typing import Dict, Any, List
-
-from .queue import EventQueue
 from .names import eventNames
+from .queue import EventQueue
+
 
 logger = logging.getLogger(__name__)
 

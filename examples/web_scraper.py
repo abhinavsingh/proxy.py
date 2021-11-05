@@ -8,14 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import time
 import socket
-
+import time
 from typing import Dict
 
 from proxy import Proxy
-from proxy.core.acceptor import Work
 from proxy.common.types import Readables, Writables
+from proxy.core.acceptor import Work
 
 
 class WebScraper(Work):

@@ -14,14 +14,13 @@
        Websocket
 """
 import json
-from typing import List, Dict, Any
-
-from .plugin import ProxyDashboardWebsocketPlugin
+from typing import Any, Dict, List
 
 from ..common.utils import bytes_
-from ..core.event import EventSubscriber
 from ..core.connection import TcpClientConnection
+from ..core.event import EventSubscriber
 from ..http.websocket import WebsocketFrame
+from .plugin import ProxyDashboardWebsocketPlugin
 
 
 class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):

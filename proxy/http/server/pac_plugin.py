@@ -14,18 +14,15 @@
        pac
 """
 import gzip
+from typing import Any, List, Optional, Tuple
 
-from typing import List, Tuple, Optional, Any
-
+from ...common.constants import DEFAULT_PAC_FILE, DEFAULT_PAC_FILE_URL_PATH
+from ...common.flag import flags
+from ...common.utils import build_http_response, bytes_, text_
+from ..parser import HttpParser
+from ..websocket import WebsocketFrame
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
-
-from ..websocket import WebsocketFrame
-from ..parser import HttpParser
-
-from ...common.utils import bytes_, text_, build_http_response
-from ...common.flag import flags
-from ...common.constants import DEFAULT_PAC_FILE, DEFAULT_PAC_FILE_URL_PATH
 
 
 flags.add_argument(

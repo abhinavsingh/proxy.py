@@ -15,12 +15,11 @@
 """
 from typing import Optional
 
-from ..exception import ProxyAuthenticationFailed
-
-from ...common.flag import flags
 from ...common.constants import DEFAULT_BASIC_AUTH
+from ...common.flag import flags
 from ...http.parser import HttpParser
 from ...http.proxy import HttpProxyBasePlugin
+from ..exception import ProxyAuthenticationFailed
 
 
 flags.add_argument(

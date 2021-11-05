@@ -9,15 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import http.client
-import urllib.request
 import urllib.error
+import urllib.request
 
 import pytest
 
 from proxy import TestCase
 from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
 from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
-from proxy.common.utils import socket_connection, build_http_request
+from proxy.common.utils import build_http_request, socket_connection
 from proxy.http import httpMethods
 from proxy.http.server import HttpWebServerPlugin
 

@@ -12,19 +12,18 @@
 
        tcp
 """
-import socket
 import logging
 import selectors
-
+import socket
 from abc import abstractmethod
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
 
-from ...http.parser import HttpParser, httpParserTypes
 from ...common.types import Readables, Writables
 from ...common.utils import text_
-
+from ...http.parser import HttpParser, httpParserTypes
 from ..connection import TcpServerConnection
 from .tcp_server import BaseTcpServerHandler
+
 
 logger = logging.getLogger(__name__)
 

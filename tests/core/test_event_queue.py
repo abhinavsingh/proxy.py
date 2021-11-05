@@ -11,8 +11,8 @@
 import multiprocessing
 import os
 import threading
-import unittest
 
+import unittest
 from unittest import mock
 
 from proxy.core.event import EventQueue, eventNames

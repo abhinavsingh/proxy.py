@@ -12,19 +12,17 @@
 
        http
 """
-import socket
 import argparse
-
-from uuid import UUID
+import socket
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
-
-from ..websocket import WebsocketFrame
-from ..parser import HttpParser
+from uuid import UUID
 
 from ...common.types import Readables, Writables
 from ...core.connection import TcpClientConnection
 from ...core.event import EventQueue
+from ..parser import HttpParser
+from ..websocket import WebsocketFrame
 
 
 class HttpWebServerBasePlugin(ABC):

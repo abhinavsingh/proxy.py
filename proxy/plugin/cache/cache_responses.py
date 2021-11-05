@@ -11,8 +11,8 @@
 import multiprocessing
 from typing import Any
 
-from .store.disk import OnDiskCacheStore
 from .base import BaseCacheResponsesPlugin
+from .store.disk import OnDiskCacheStore
 
 
 class CacheResponsesPlugin(BaseCacheResponsesPlugin):

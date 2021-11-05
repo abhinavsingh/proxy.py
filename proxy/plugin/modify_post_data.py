@@ -11,7 +11,6 @@
 from typing import Optional
 
 from ..common.utils import bytes_
-
 from ..http import httpMethods
 from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin

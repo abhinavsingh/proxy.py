@@ -13,21 +13,18 @@
        http
        websocket
 """
-import ssl
 import base64
-import socket
 import secrets
 import selectors
-
-from typing import Optional, Union, Callable
-
-from .frame import WebsocketFrame
-
-from ..parser import httpParserTypes, HttpParser
+import socket
+import ssl
+from typing import Callable, Optional, Union
 
 from ...common.constants import DEFAULT_BUFFER_SIZE
-from ...common.utils import new_socket_connection, build_websocket_handshake_request, text_
-from ...core.connection import tcpConnectionTypes, TcpConnection
+from ...common.utils import build_websocket_handshake_request, new_socket_connection, text_
+from ...core.connection import TcpConnection, tcpConnectionTypes
+from ..parser import HttpParser, httpParserTypes
+from .frame import WebsocketFrame
 
 
 class WebsocketClient(TcpConnection):

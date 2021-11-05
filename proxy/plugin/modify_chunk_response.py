@@ -10,7 +10,7 @@
 """
 from typing import Any
 
-from ..http.parser import HttpParser, httpParserTypes, httpParserStates
+from ..http.parser import HttpParser, httpParserStates, httpParserTypes
 from ..http.proxy import HttpProxyBasePlugin
 
 

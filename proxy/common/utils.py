@@ -15,19 +15,19 @@
        Websocket
        WebSocket
 """
-import sys
-import ssl
-import socket
-import logging
+import contextlib
 import functools
 import ipaddress
-import contextlib
-
+import logging
+import socket
+import ssl
+import sys
 from types import TracebackType
-from typing import Optional, Dict, Any, List, Tuple, Type, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 
 from ._compat import IS_WINDOWS  # noqa: WPS436
-from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT, DEFAULT_THREADLESS
+from .constants import COLON, CRLF, DEFAULT_THREADLESS, DEFAULT_TIMEOUT, HTTP_1_1, WHITESPACE
+
 
 if not IS_WINDOWS:
     import resource

@@ -8,24 +8,23 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import selectors
 import base64
-
+import selectors
 from typing import cast
+
+import unittest
 from unittest import mock
 
-from proxy.common.plugins import Plugins
-from proxy.common.flag import FlagParser
-from proxy.common.version import __version__
-from proxy.common.utils import bytes_
 from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER
+from proxy.common.flag import FlagParser
+from proxy.common.plugins import Plugins
+from proxy.common.utils import bytes_
+from proxy.common.version import __version__
 from proxy.core.connection import TcpClientConnection
-from proxy.http.parser import HttpParser
-from proxy.http.proxy import HttpProxyPlugin
-from proxy.http.parser import httpParserStates, httpParserTypes
-from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
 from proxy.http import HttpProtocolHandler
+from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
+from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
+from proxy.http.proxy import HttpProxyPlugin
 
 
 class TestHttpProtocolHandler(unittest.TestCase):

@@ -9,11 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import socket
+
 import unittest
 from unittest import mock
 
-from proxy.common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT, DEFAULT_TIMEOUT
-from proxy.common.constants import DEFAULT_HTTP_PORT
+from proxy.common.constants import DEFAULT_HTTP_PORT, DEFAULT_IPV4_HOSTNAME, DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT
+from proxy.common.constants import DEFAULT_TIMEOUT
 from proxy.common.utils import new_socket_connection, socket_connection
 
 

@@ -16,6 +16,7 @@ from typing import Optional, Tuple
 
 from ...common.constants import WHITESPACE
 
+
 PROXY_PROTOCOL_V2_SIGNATURE = b'\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A'
 
 

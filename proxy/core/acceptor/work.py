@@ -14,14 +14,13 @@
 """
 import argparse
 import socket
-
 from abc import ABC, abstractmethod
-from uuid import uuid4, UUID
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+from uuid import UUID, uuid4
 
-from ..event import eventNames, EventQueue
-from ..connection import TcpClientConnection
 from ...common.types import Readables, Writables
+from ..connection import TcpClientConnection
+from ..event import EventQueue, eventNames
 
 
 class Work(ABC):

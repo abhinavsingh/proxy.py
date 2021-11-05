@@ -12,11 +12,11 @@
 
        http
 """
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from .base import HttpProtocolException
-from ..parser import HttpParser
 from ...common.utils import build_http_response
+from ..parser import HttpParser
+from .base import HttpProtocolException
 
 
 class HttpRequestRejected(HttpProtocolException):

@@ -7,12 +7,12 @@ repos:
     args:
     - --py36-plus
 
-# - repo: https://github.com/timothycrosley/isort.git
-#   rev: 5.4.2
-#   hooks:
-#   - id: isort
-#     args:
-#     - --honor-noqa
+- repo: https://github.com/timothycrosley/isort.git
+  rev: 5.10.0
+  hooks:
+  - id: isort
+    args:
+    - --honor-noqa
 
 - repo: https://github.com/Lucas-C/pre-commit-hooks.git
   rev: v1.1.7

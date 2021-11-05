@@ -9,10 +9,10 @@
     :license: BSD, see LICENSE for more details.
 """
 from typing import Type
-from proxy.http.proxy import HttpProxyBasePlugin
 
-from proxy.plugin import ModifyPostDataPlugin, ProposedRestApiPlugin, RedirectToCustomServerPlugin, \
-    FilterByUpstreamHostPlugin, CacheResponsesPlugin, ManInTheMiddlePlugin, FilterByURLRegexPlugin
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.plugin import CacheResponsesPlugin, FilterByUpstreamHostPlugin, FilterByURLRegexPlugin, ManInTheMiddlePlugin
+from proxy.plugin import ModifyPostDataPlugin, ProposedRestApiPlugin, RedirectToCustomServerPlugin
 
 
 def get_plugin_by_test_name(test_name: str) -> Type[HttpProxyBasePlugin]:

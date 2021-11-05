@@ -14,8 +14,9 @@
        Submodules
        Subpackages
 """
-from .proxy import entry_point, main, Proxy
+from .proxy import Proxy, entry_point, main
 from .testing import TestCase
+
 
 __all__ = [
     # PyPi package entry_point. See

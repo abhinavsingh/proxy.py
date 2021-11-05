@@ -8,18 +8,17 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from typing import Dict, List
+
 import unittest
-
 from unittest import mock
-from typing import List, Dict
 
-from proxy.http.proxy import HttpProxyPlugin
-from proxy.plugin import CacheResponsesPlugin
-from proxy.plugin import FilterByUpstreamHostPlugin
-from proxy.common.utils import bytes_
-from proxy.common.flag import FlagParser
-from proxy.common.version import __version__
 from proxy.common.constants import PLUGIN_HTTP_PROXY, PY2_DEPRECATION_MESSAGE
+from proxy.common.flag import FlagParser
+from proxy.common.utils import bytes_
+from proxy.common.version import __version__
+from proxy.http.proxy import HttpProxyPlugin
+from proxy.plugin import CacheResponsesPlugin, FilterByUpstreamHostPlugin
 
 
 class TestFlags(unittest.TestCase):

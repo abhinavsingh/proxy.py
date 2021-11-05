@@ -10,13 +10,14 @@
 """
 import contextlib
 import time
-import unittest
-from typing import Optional, List, Generator, Any
+from typing import Any, Generator, List, Optional
 
-from ..proxy import Proxy
+import unittest
+
 from ..common.constants import DEFAULT_TIMEOUT
 from ..common.utils import new_socket_connection
 from ..plugin import CacheResponsesPlugin
+from ..proxy import Proxy
 
 
 class TestCase(unittest.TestCase):

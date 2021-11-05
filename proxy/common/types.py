@@ -8,11 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import queue
 import ipaddress
+import queue
 import sys
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
-from typing import TYPE_CHECKING, Dict, Any, List, Union
 
 # NOTE: Using try/except causes linting problems which is why it's necessary
 # NOTE: to use this mypy/pylint idiom for py36-py38 compatibility

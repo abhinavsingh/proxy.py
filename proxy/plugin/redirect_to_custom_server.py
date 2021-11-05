@@ -8,11 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from urllib import parse as urlparse
 from typing import Optional
+from urllib import parse as urlparse
 
-from ..http.proxy import HttpProxyBasePlugin
 from ..http.parser import HttpParser
+from ..http.proxy import HttpProxyBasePlugin
 
 
 class RedirectToCustomServerPlugin(HttpProxyBasePlugin):

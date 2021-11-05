@@ -8,10 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import ssl
 import socket
-
-from typing import Union, Tuple, Optional
+import ssl
+from typing import Optional, Tuple, Union
 
 from .connection import TcpConnection, TcpConnectionUninitializedException
 from .types import tcpConnectionTypes

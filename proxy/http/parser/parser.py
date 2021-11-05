@@ -12,20 +12,18 @@
 
        http
 """
-from typing import TypeVar, Optional, Dict, Type, Tuple, List
+from typing import Dict, List, Optional, Tuple, Type, TypeVar
 
-from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_ENABLE_PROXY_PROTOCOL
-from ...common.constants import HTTP_1_1, HTTP_1_0, SLASH, CRLF
-from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
-from ...common.utils import build_http_request, build_http_response, find_http_line, text_
+from ...common.constants import COLON, CRLF, DEFAULT_DISABLE_HEADERS, DEFAULT_ENABLE_PROXY_PROTOCOL, DEFAULT_HTTP_PORT
+from ...common.constants import HTTP_1_0, HTTP_1_1, SLASH, WHITESPACE
 from ...common.flag import flags
-
-from ..url import Url
+from ...common.utils import build_http_request, build_http_response, find_http_line, text_
 from ..methods import httpMethods
-
-from .protocol import ProxyProtocol
+from ..url import Url
 from .chunk import ChunkParser, chunkParserStates
-from .types import httpParserTypes, httpParserStates
+from .protocol import ProxyProtocol
+from .types import httpParserStates, httpParserTypes
+
 
 flags.add_argument(
     '--enable-proxy-protocol',

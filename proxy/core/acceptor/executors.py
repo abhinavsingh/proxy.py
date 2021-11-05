@@ -12,26 +12,23 @@
 
        acceptor
 """
-import socket
-import logging
 import argparse
-import threading
+import logging
 import multiprocessing
-
+import socket
+import threading
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
+from typing import Any, List, Optional, Tuple
 
-from typing import Any, Optional, List, Tuple
-
-from .work import Work
-from .threadless import Threadless
-
-from ..connection import TcpClientConnection
-from ..event import EventQueue, eventNames
-
+from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
 from ...common.flag import flags
 from ...common.utils import is_threadless
-from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
+from ..connection import TcpClientConnection
+from ..event import EventQueue, eventNames
+from .threadless import Threadless
+from .work import Work
+
 
 logger = logging.getLogger(__name__)
 

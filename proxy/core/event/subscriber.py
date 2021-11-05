@@ -8,18 +8,17 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import uuid
-import queue
 import logging
-import threading
 import multiprocessing
-
+import queue
+import threading
+import uuid
 from multiprocessing import connection
+from typing import Any, Callable, Dict, Optional
 
-from typing import Dict, Optional, Any, Callable
-
-from .queue import EventQueue
 from .names import eventNames
+from .queue import EventQueue
+
 
 logger = logging.getLogger(__name__)
 

@@ -8,29 +8,27 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
-import sys
-import base64
-import socket
 import argparse
-import ipaddress
+import base64
 import collections
+import ipaddress
 import multiprocessing
-
-from typing import Optional, List, Any, cast
+import os
+import socket
+import sys
+from typing import Any, List, Optional, cast
 
 from ._compat import IS_WINDOWS  # noqa: WPS436
+from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS
+from .constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS, PLUGIN_DASHBOARD
+from .constants import PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE, PLUGIN_PROXY_AUTH
+from .constants import PLUGIN_WEB_SERVER, PY2_DEPRECATION_MESSAGE
+from .logger import Logger
 from .plugins import Plugins
 from .types import IpAddress
 from .utils import bytes_, is_py2, set_open_file_limit
-from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS
-from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
-from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, DEFAULT_MIN_COMPRESSION_LIMIT
-from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
-from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
-from .logger import Logger
-
 from .version import __version__
+
 
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 

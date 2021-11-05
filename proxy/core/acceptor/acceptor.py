@@ -13,24 +13,21 @@
        acceptor
        pre
 """
-import socket
-import logging
 import argparse
-import selectors
+import logging
 import multiprocessing
 import multiprocessing.synchronize
-
+import selectors
+import socket
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
-
 from typing import List, Optional, Tuple
 
 from proxy.core.acceptor.executors import ThreadlessPool
-
+from ...common.logger import Logger
+from ...common.utils import is_threadless
 from ..event import EventQueue
 
-from ...common.utils import is_threadless
-from ...common.logger import Logger
 
 logger = logging.getLogger(__name__)
 

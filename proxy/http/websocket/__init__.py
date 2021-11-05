@@ -15,8 +15,9 @@
        websocket
        Websocket
 """
-from .frame import WebsocketFrame, websocketOpcodes
 from .client import WebsocketClient
+from .frame import WebsocketFrame, websocketOpcodes
+
 
 __all__ = [
     'websocketOpcodes',

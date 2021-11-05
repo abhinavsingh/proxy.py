@@ -13,9 +13,10 @@
        http
        Submodules
 """
+from .auth import AuthPlugin
 from .plugin import HttpProxyBasePlugin
 from .server import HttpProxyPlugin
-from .auth import AuthPlugin
+
 
 __all__ = [
     'HttpProxyBasePlugin',

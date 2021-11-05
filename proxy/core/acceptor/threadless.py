@@ -13,26 +13,24 @@
        acceptor
 """
 import argparse
-import os
-import socket
-import logging
 import asyncio
-import selectors
 import contextlib
+import logging
 import multiprocessing
-
+import os
+import selectors
+import socket
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
-from typing import Dict, Optional, Tuple, List, Generator, Any
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
-from .work import Work
-
-from ..connection import TcpClientConnection
-from ..event import EventQueue, eventNames
-
+from ...common.constants import DEFAULT_TIMEOUT
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_TIMEOUT
+from ..connection import TcpClientConnection
+from ..event import EventQueue, eventNames
+from .work import Work
+
 
 logger = logging.getLogger(__name__)
 

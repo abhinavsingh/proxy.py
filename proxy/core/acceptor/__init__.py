@@ -16,11 +16,12 @@
        Submodules
 """
 from .acceptor import Acceptor
-from .pool import AcceptorPool
-from .work import Work
-from .threadless import Threadless
 from .executors import ThreadlessPool
 from .listener import Listener
+from .pool import AcceptorPool
+from .threadless import Threadless
+from .work import Work
+
 
 __all__ = [
     'Acceptor',

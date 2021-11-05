@@ -8,16 +8,17 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import multiprocessing
 import os
 import queue
 import threading
-import unittest
-import multiprocessing
-from typing import Dict, Any
+from typing import Any, Dict
 
+import unittest
 from unittest import mock
 
-from proxy.core.event import EventQueue, EventDispatcher, EventSubscriber, eventNames
+from proxy.core.event import EventDispatcher, EventQueue, EventSubscriber, eventNames
+
 
 PUBLISHER_ID = threading.get_ident()
 

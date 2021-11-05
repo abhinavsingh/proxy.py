@@ -8,14 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
-import sys
-import time
-import secrets
-import pathlib
-import sysconfig
 import ipaddress
-
+import os
+import pathlib
+import secrets
+import sys
+import sysconfig
+import time
 from typing import Any, List
 
 from ._compat import IS_WINDOWS  # noqa: WPS436

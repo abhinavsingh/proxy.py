@@ -8,14 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import socket
-import selectors
 import multiprocessing
+import selectors
+import socket
+
+import unittest
 from unittest import mock
 
-from proxy.core.acceptor import Acceptor
 from proxy.common.flag import FlagParser
+from proxy.core.acceptor import Acceptor
 
 
 class TestAcceptor(unittest.TestCase):

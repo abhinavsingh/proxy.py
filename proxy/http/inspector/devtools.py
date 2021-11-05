@@ -15,18 +15,17 @@
 """
 import json
 import logging
-from typing import List, Tuple, Any, Dict
+from typing import Any, Dict, List, Tuple
 
-from .transformer import CoreEventsToDevtoolsProtocol
-from ..parser import HttpParser
-from ..websocket import WebsocketFrame, websocketOpcodes
-from ..server import HttpWebServerBasePlugin, httpProtocolTypes
-
+from ...common.constants import DEFAULT_DEVTOOLS_DOC_URL, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_ENABLE_DEVTOOLS
+from ...common.flag import flags
 from ...common.utils import bytes_, text_
 from ...core.event import EventSubscriber
-from ...common.flag import flags
-from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DEVTOOLS_DOC_URL
-from ...common.constants import DEFAULT_ENABLE_DEVTOOLS
+from ..parser import HttpParser
+from ..server import HttpWebServerBasePlugin, httpProtocolTypes
+from ..websocket import WebsocketFrame, websocketOpcodes
+from .transformer import CoreEventsToDevtoolsProtocol
+
 
 logger = logging.getLogger(__name__)
 

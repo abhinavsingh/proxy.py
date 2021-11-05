@@ -8,11 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import sys
 import subprocess
-
+import sys
 from pathlib import Path
+
 from proxy.common.version import __version__ as lib_version
+
 
 # This script ensures our versions never run out of sync.
 #

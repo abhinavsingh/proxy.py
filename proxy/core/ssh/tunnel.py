@@ -9,9 +9,10 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
+from typing import Callable, Optional, Tuple
+
 import paramiko
 
-from typing import Optional, Tuple, Callable
 
 logger = logging.getLogger(__name__)
 

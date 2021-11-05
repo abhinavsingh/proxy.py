@@ -16,12 +16,12 @@ import json
 import time
 from typing import Any, Dict
 
-from ..websocket import WebsocketFrame
-from ...common.constants import PROXY_PY_START_TIME, DEFAULT_DEVTOOLS_DOC_URL
-from ...common.constants import DEFAULT_DEVTOOLS_FRAME_ID, DEFAULT_DEVTOOLS_LOADER_ID
+from ...common.constants import DEFAULT_DEVTOOLS_DOC_URL, DEFAULT_DEVTOOLS_FRAME_ID, DEFAULT_DEVTOOLS_LOADER_ID
+from ...common.constants import PROXY_PY_START_TIME
 from ...common.utils import bytes_
 from ...core.connection import TcpClientConnection
 from ...core.event import eventNames
+from ..websocket import WebsocketFrame
 
 
 class CoreEventsToDevtoolsProtocol:

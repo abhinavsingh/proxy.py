@@ -9,14 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import selectors
+
 import unittest
 from unittest import mock
 
 from proxy.common.flag import FlagParser
-from proxy.http.exception.proxy_auth_failed import ProxyAuthenticationFailed
-from proxy.http import HttpProtocolHandler
-from proxy.core.connection import TcpClientConnection
 from proxy.common.utils import build_http_request
+from proxy.core.connection import TcpClientConnection
+from proxy.http import HttpProtocolHandler
+from proxy.http.exception.proxy_auth_failed import ProxyAuthenticationFailed
 
 
 class TestHttpProxyAuthFailed(unittest.TestCase):

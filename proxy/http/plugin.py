@@ -12,18 +12,16 @@
 
        http
 """
-import socket
 import argparse
-
-from uuid import UUID
+import socket
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Union, Optional
-
-from .parser import HttpParser
+from typing import List, Optional, Tuple, Union
+from uuid import UUID
 
 from ..common.types import Readables, Writables
-from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
+from ..core.event import EventQueue
+from .parser import HttpParser
 
 
 class HttpProtocolHandlerPlugin(ABC):

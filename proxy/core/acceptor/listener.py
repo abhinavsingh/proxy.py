@@ -12,15 +12,14 @@
 
        acceptor
 """
+import argparse
+import logging
 import os
 import socket
-import logging
-import argparse
+from typing import Any, Optional
 
-from typing import Optional, Any
-
-from ...common.flag import flags
 from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT
+from ...common.flag import flags
 
 
 flags.add_argument(

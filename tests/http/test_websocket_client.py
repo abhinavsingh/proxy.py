@@ -11,9 +11,9 @@
 import unittest
 from unittest import mock
 
-from proxy.common.utils import build_websocket_handshake_response, build_websocket_handshake_request
-from proxy.http.websocket import WebsocketClient, WebsocketFrame
 from proxy.common.constants import DEFAULT_PORT
+from proxy.common.utils import build_websocket_handshake_request, build_websocket_handshake_response
+from proxy.http.websocket import WebsocketClient, WebsocketFrame
 
 
 class TestWebsocketClient(unittest.TestCase):

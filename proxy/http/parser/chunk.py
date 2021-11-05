@@ -13,10 +13,10 @@
        http
        iterable
 """
-from typing import NamedTuple, Tuple, List, Optional
+from typing import List, NamedTuple, Optional, Tuple
 
-from ...common.utils import bytes_, find_http_line
 from ...common.constants import CRLF, DEFAULT_BUFFER_SIZE
+from ...common.utils import bytes_, find_http_line
 
 
 ChunkParserStates = NamedTuple(

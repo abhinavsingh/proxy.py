@@ -8,21 +8,21 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import uuid
-import unittest
+import selectors
 import socket
 import ssl
-import selectors
-
+import uuid
 from typing import Any
-from unittest import mock
-from proxy.common.constants import DEFAULT_CA_FILE
 
+import unittest
+from unittest import mock
+
+from proxy.common.constants import DEFAULT_CA_FILE
+from proxy.common.flag import FlagParser
+from proxy.common.utils import build_http_request, bytes_
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.http import HttpProtocolHandler, httpMethods
 from proxy.http.proxy import HttpProxyPlugin
-from proxy.common.utils import build_http_request, bytes_
-from proxy.common.flag import FlagParser
 
 
 class TestHttpProxyTlsInterception(unittest.TestCase):

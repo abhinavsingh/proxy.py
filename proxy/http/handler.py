@@ -12,26 +12,24 @@
 
        http
 """
-import ssl
-import time
+import contextlib
 import errno
-import socket
 import logging
 import selectors
-import contextlib
+import socket
+import ssl
+import time
+from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
-from typing import Tuple, List, Union, Optional, Generator, Dict, Any
-
-from .plugin import HttpProtocolHandlerPlugin
-from .parser import HttpParser, httpParserStates, httpParserTypes
-from .exception import HttpProtocolException
-
+from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
+from ..common.flag import flags
 from ..common.types import Readables, Writables
-from ..common.utils import wrap_socket, is_threadless
+from ..common.utils import is_threadless, wrap_socket
 from ..core.base import BaseTcpServerHandler
 from ..core.connection import TcpClientConnection
-from ..common.flag import flags
-from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
+from .exception import HttpProtocolException
+from .parser import HttpParser, httpParserStates, httpParserTypes
+from .plugin import HttpProtocolHandlerPlugin
 
 
 logger = logging.getLogger(__name__)

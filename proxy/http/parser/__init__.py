@@ -13,10 +13,11 @@
        http
        Submodules
 """
-from .parser import HttpParser
 from .chunk import ChunkParser, chunkParserStates
+from .parser import HttpParser
+from .protocol import PROXY_PROTOCOL_V2_SIGNATURE, ProxyProtocol
 from .types import httpParserStates, httpParserTypes
-from .protocol import ProxyProtocol, PROXY_PROTOCOL_V2_SIGNATURE
+
 
 __all__ = [
     'HttpParser',

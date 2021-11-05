@@ -8,21 +8,19 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import logging
 import random
 import socket
-import logging
-
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..common.flag import flags
 from ..common.types import Readables, Writables
-
+from ..core.connection.server import TcpServerConnection
 from ..http import Url, httpMethods
-from ..http.parser import HttpParser
 from ..http.exception import HttpProtocolException
+from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
 
-from ..core.connection.server import TcpServerConnection
 
 logger = logging.getLogger(__name__)
 

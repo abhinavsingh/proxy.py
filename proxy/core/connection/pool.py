@@ -13,12 +13,11 @@
        reusability
 """
 import logging
-
-from typing import Set, Dict, Tuple
+from typing import Dict, Set, Tuple
 
 from ...common.flag import flags
-
 from .server import TcpServerConnection
+
 
 logger = logging.getLogger(__name__)
 

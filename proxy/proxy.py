@@ -12,20 +12,18 @@
 
        eventing
 """
+import logging
 import os
 import sys
 import time
-import logging
+from typing import Any, List, Optional
 
-from typing import List, Optional, Any
-
-from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
-from .core.event import EventManager
-from .common.utils import bytes_
+from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
+from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PID_FILE, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_WORK_KLASS
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
-from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
-from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
+from .common.utils import bytes_
+from .core.acceptor import AcceptorPool, Listener, ThreadlessPool
+from .core.event import EventManager
 
 
 logger = logging.getLogger(__name__)

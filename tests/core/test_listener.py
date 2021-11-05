@@ -11,15 +11,14 @@
 import os
 import socket
 import tempfile
-import unittest
-
-from unittest import mock
 
 import pytest
+import unittest
+from unittest import mock
 
-from proxy.core.acceptor import Listener
 from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
 from proxy.common.flag import FlagParser
+from proxy.core.acceptor import Listener
 
 
 class TestListener(unittest.TestCase):

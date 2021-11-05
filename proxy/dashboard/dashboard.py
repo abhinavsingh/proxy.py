@@ -8,19 +8,18 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
 import json
 import logging
-from typing import List, Tuple, Any, Dict
-
-from .plugin import ProxyDashboardWebsocketPlugin
+import os
+from typing import Any, Dict, List, Tuple
 
 from ..common.utils import build_http_response, bytes_
-
 from ..http import httpStatusCodes
 from ..http.parser import HttpParser
+from ..http.server import HttpWebServerBasePlugin, HttpWebServerPlugin, httpProtocolTypes
 from ..http.websocket import WebsocketFrame
-from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
+from .plugin import ProxyDashboardWebsocketPlugin
+
 
 logger = logging.getLogger(__name__)
 

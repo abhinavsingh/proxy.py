@@ -14,22 +14,19 @@
        acceptors
        pre
 """
-import logging
 import argparse
+import logging
 import multiprocessing
-
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
-
 from typing import Any, List, Optional
 
-from .listener import Listener
-from .acceptor import Acceptor
-
-from ..event import EventQueue
-
-from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_ACCEPTORS
+from ...common.flag import flags
+from ..event import EventQueue
+from .acceptor import Acceptor
+from .listener import Listener
+
 
 # Lock shared by acceptors for
 # sequential acceptance of work.

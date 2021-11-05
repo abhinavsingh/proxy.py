@@ -8,14 +8,14 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import time
-import multiprocessing
 import logging
-
-from typing import Dict, Any, Optional
+import multiprocessing
+import time
+from typing import Any, Dict, Optional
 
 from proxy.common.constants import DEFAULT_LOG_FORMAT
 from proxy.core.event import EventManager, EventQueue, EventSubscriber, eventNames
+
 
 logging.basicConfig(level=logging.DEBUG, format=DEFAULT_LOG_FORMAT)
 

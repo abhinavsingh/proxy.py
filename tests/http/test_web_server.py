@@ -10,18 +10,19 @@
 """
 import gzip
 import os
-import tempfile
-import unittest
 import selectors
+import tempfile
+
+import unittest
 from unittest import mock
 
-from proxy.common.plugins import Plugins
+from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
 from proxy.common.flag import FlagParser
+from proxy.common.plugins import Plugins
+from proxy.common.utils import build_http_request, build_http_response, bytes_, text_
 from proxy.core.connection import TcpClientConnection
 from proxy.http import HttpProtocolHandler
 from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
-from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
-from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
 from proxy.http.server import HttpWebServerPlugin
 
 

@@ -9,11 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import tempfile
-import unittest
 import subprocess
-from unittest import mock
+import tempfile
 from typing import Tuple
+
+import unittest
+from unittest import mock
 
 from proxy.common import pki
 

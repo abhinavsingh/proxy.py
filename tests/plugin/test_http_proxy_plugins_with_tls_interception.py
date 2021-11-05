@@ -8,21 +8,19 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import socket
 import selectors
+import socket
 import ssl
-
-from unittest import mock
 from typing import Any, cast
 
+import unittest
+from unittest import mock
+
 from proxy.common.flag import FlagParser
-from proxy.common.utils import bytes_, build_http_request, build_http_response
+from proxy.common.utils import build_http_request, build_http_response, bytes_
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
-
-from proxy.http import httpMethods, httpStatusCodes, HttpProtocolHandler
+from proxy.http import HttpProtocolHandler, httpMethods, httpStatusCodes
 from proxy.http.proxy import HttpProxyPlugin
-
 from .utils import get_plugin_by_test_name
 
 

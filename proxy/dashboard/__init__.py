@@ -18,6 +18,7 @@ from .dashboard import ProxyDashboard
 from .inspect_traffic import InspectTrafficPlugin
 from .plugin import ProxyDashboardWebsocketPlugin
 
+
 __all__ = [
     'ProxyDashboard',
     'InspectTrafficPlugin',

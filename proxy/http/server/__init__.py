@@ -13,10 +13,11 @@
        http
        Submodules
 """
-from .web import HttpWebServerPlugin
 from .pac_plugin import HttpWebServerPacFilePlugin
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
+from .web import HttpWebServerPlugin
+
 
 __all__ = [
     'HttpWebServerPlugin',

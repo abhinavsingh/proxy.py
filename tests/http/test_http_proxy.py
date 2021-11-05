@@ -8,17 +8,18 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
 import selectors
+
+import unittest
 from unittest import mock
 
 from proxy.common.constants import DEFAULT_HTTP_PORT
 from proxy.common.flag import FlagParser
+from proxy.common.utils import build_http_request
 from proxy.core.connection import TcpClientConnection
-from proxy.http.proxy import HttpProxyPlugin
 from proxy.http import HttpProtocolHandler
 from proxy.http.exception import HttpProtocolException
-from proxy.common.utils import build_http_request
+from proxy.http.proxy import HttpProxyPlugin
 
 
 class TestHttpProxyPlugin(unittest.TestCase):

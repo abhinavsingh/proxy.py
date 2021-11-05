@@ -13,39 +13,33 @@
        http
        reusability
 """
-import os
-import ssl
-import time
 import errno
-import socket
 import logging
-import threading
+import os
+import socket
+import ssl
 import subprocess
+import threading
+import time
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
-from typing import Optional, List, Union, Dict, cast, Any, Tuple
-
+from ...common.constants import COMMA, DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE, DEFAULT_CA_KEY_FILE
+from ...common.constants import DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CERT_FILE, DEFAULT_DISABLE_HEADERS
+from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+from ...common.constants import DEFAULT_SERVER_RECVBUF_SIZE, PLUGIN_PROXY_AUTH, PROXY_AGENT_HEADER_VALUE
+from ...common.flag import flags
+from ...common.pki import gen_csr, gen_public_key, sign_csr
+from ...common.types import Readables, Writables
+from ...common.utils import build_http_response, text_
+from ...core.connection import ConnectionPool, TcpConnectionUninitializedException, TcpServerConnection
+from ...core.event import eventNames
+from ..codes import httpStatusCodes
+from ..exception import HttpProtocolException, ProxyConnectionFailed
+from ..methods import httpMethods
+from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..plugin import HttpProtocolHandlerPlugin
 from .plugin import HttpProxyBasePlugin
 
-from ..methods import httpMethods
-from ..codes import httpStatusCodes
-from ..plugin import HttpProtocolHandlerPlugin
-from ..exception import HttpProtocolException, ProxyConnectionFailed
-from ..parser import HttpParser, httpParserStates, httpParserTypes
-
-from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
-from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
-from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
-from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
-from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
-from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_PROXY_AUTH
-from ...common.utils import build_http_response, text_
-from ...common.pki import gen_public_key, gen_csr, sign_csr
-
-from ...core.event import eventNames
-from ...core.connection import TcpServerConnection, ConnectionPool
-from ...core.connection import TcpConnectionUninitializedException
-from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
 

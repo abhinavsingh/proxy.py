@@ -14,11 +14,12 @@
        Subpackages
        Submodules
 """
-from .handler import HttpProtocolHandler
-from .plugin import HttpProtocolHandlerPlugin
 from .codes import httpStatusCodes
+from .handler import HttpProtocolHandler
 from .methods import httpMethods
+from .plugin import HttpProtocolHandlerPlugin
 from .url import Url
+
 
 __all__ = [
     'HttpProtocolHandler',

@@ -14,11 +14,12 @@
        iterable
        Submodules
 """
-from .queue import EventQueue
-from .names import EventNames, eventNames
 from .dispatcher import EventDispatcher
-from .subscriber import EventSubscriber
 from .manager import EventManager
+from .names import EventNames, eventNames
+from .queue import EventQueue
+from .subscriber import EventSubscriber
+
 
 __all__ = [
     'eventNames',

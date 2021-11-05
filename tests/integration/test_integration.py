@@ -1,6 +1,6 @@
 """Test the simplest proxy use scenario for smoke."""
 from pathlib import Path
-from subprocess import check_output, Popen
+from subprocess import Popen, check_output
 from typing import Generator
 
 import pytest

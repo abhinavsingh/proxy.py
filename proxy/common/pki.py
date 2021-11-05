@@ -12,20 +12,19 @@
 
        pki
 """
-import os
-import sys
-import uuid
-import time
-import logging
-import tempfile
 import argparse
 import contextlib
+import logging
+import os
 import subprocess
+import sys
+import tempfile
+import time
+import uuid
+from typing import Generator, List, Optional, Tuple
 
-from typing import List, Generator, Optional, Tuple
-
-from .utils import bytes_
 from .constants import COMMA
+from .utils import bytes_
 from .version import __version__
 
 

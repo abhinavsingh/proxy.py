@@ -12,4 +12,5 @@ import logging
 
 from proxy.common.constants import DEFAULT_LOG_FORMAT
 
+
 logging.basicConfig(level=logging.DEBUG, format=DEFAULT_LOG_FORMAT)

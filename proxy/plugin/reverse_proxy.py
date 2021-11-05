@@ -8,22 +8,22 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import ssl
+import logging
 import random
 import socket
-import logging
-
-from typing import List, Optional, Tuple, Any
+import ssl
+from typing import Any, List, Optional, Tuple
 from urllib import parse as urlparse
 
-from ..common.utils import text_
-from ..common.constants import DEFAULT_HTTPS_PORT, DEFAULT_HTTP_PORT
+from ..common.constants import DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
 from ..common.types import Readables, Writables
+from ..common.utils import text_
 from ..core.connection import TcpServerConnection
 from ..http.exception import HttpProtocolException
 from ..http.parser import HttpParser
-from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
+from ..http.websocket import WebsocketFrame
+
 
 logger = logging.getLogger(__name__)
 

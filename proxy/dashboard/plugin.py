@@ -11,12 +11,12 @@
 import argparse
 import json
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 from ..common.utils import bytes_
-from ..http.websocket import WebsocketFrame
 from ..core.connection import TcpClientConnection
 from ..core.event import EventQueue
+from ..http.websocket import WebsocketFrame
 
 
 class ProxyDashboardWebsocketPlugin(ABC):

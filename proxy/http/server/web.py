@@ -12,30 +12,27 @@
 
        http
 """
-import re
 import gzip
-import time
-import socket
 import logging
 import mimetypes
+import re
+import socket
+import time
+from typing import Any, Dict, List, Optional, Pattern, Tuple, Union
 
-from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
-
-from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
-from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
-from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
-from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.types import Readables, Writables
+from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER, DEFAULT_MIN_COMPRESSION_LIMIT
+from ...common.constants import DEFAULT_STATIC_SERVER_DIR, DEFAULT_WEB_ACCESS_LOG_FORMAT, PROXY_AGENT_HEADER_VALUE
 from ...common.flag import flags
-
+from ...common.types import Readables, Writables
+from ...common.utils import build_http_response, build_websocket_handshake_response, bytes_, text_
 from ..codes import httpStatusCodes
 from ..exception import HttpProtocolException
+from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes
-
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
+
 
 logger = logging.getLogger(__name__)
 

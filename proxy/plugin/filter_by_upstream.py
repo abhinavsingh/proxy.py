@@ -10,13 +10,12 @@
 """
 from typing import Optional
 
-from ..common.utils import text_
 from ..common.flag import flags
-
+from ..common.utils import text_
 from ..http import httpStatusCodes
+from ..http.exception import HttpRequestRejected
 from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.exception import HttpRequestRejected
 
 
 flags.add_argument(

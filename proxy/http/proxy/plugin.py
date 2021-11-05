@@ -12,18 +12,16 @@
 
        http
 """
-import socket
 import argparse
-
+import socket
 from abc import ABC
-from uuid import UUID
 from typing import Any, Dict, List, Optional, Tuple
-
-from ..parser import HttpParser
+from uuid import UUID
 
 from ...common.types import Readables, Writables
-from ...core.event import EventQueue
 from ...core.connection import TcpClientConnection
+from ...core.event import EventQueue
+from ..parser import HttpParser
 
 
 class HttpProxyBasePlugin(ABC):

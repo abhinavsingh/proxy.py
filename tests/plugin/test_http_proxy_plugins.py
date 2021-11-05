@@ -8,25 +8,22 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import selectors
 import json
-
-from urllib import parse as urlparse
-from unittest import mock
-from typing import cast
+import selectors
 from pathlib import Path
+from typing import cast
+from urllib import parse as urlparse
 
+import unittest
+from unittest import mock
+
+from proxy.common.constants import DEFAULT_HTTP_PORT, PROXY_AGENT_HEADER_VALUE
 from proxy.common.flag import FlagParser
+from proxy.common.utils import build_http_request, build_http_response, bytes_
 from proxy.core.connection import TcpClientConnection
-from proxy.http import HttpProtocolHandler
-from proxy.http import httpStatusCodes
+from proxy.http import HttpProtocolHandler, httpStatusCodes
 from proxy.http.proxy import HttpProxyPlugin
-from proxy.common.utils import build_http_request, bytes_, build_http_response
-from proxy.common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_HTTP_PORT
-
 from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
-
 from .utils import get_plugin_by_test_name
 
 

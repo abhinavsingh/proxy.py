@@ -10,8 +10,9 @@
 """
 import logging
 
-from proxy.core.connection import TcpServerConnection
 from proxy.common.constants import DEFAULT_BUFFER_SIZE
+from proxy.core.connection import TcpServerConnection
+
 
 logger = logging.getLogger(__name__)
 

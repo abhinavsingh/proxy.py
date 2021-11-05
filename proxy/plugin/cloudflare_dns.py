@@ -16,6 +16,7 @@
 """
 import logging
 
+
 try:
     import httpx
 except ImportError:     # pragma: no cover
@@ -25,6 +26,7 @@ from typing import Optional, Tuple
 
 from ..common.flag import flags
 from ..http.proxy import HttpProxyBasePlugin
+
 
 logger = logging.getLogger(__name__)
 

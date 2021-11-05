@@ -12,15 +12,15 @@
 
        tcp
 """
-import socket
 import logging
 import selectors
-
+import socket
 from abc import abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from ...core.acceptor import Work
 from ...common.types import Readables, Writables
+from ...core.acceptor import Work
+
 
 logger = logging.getLogger(__name__)
 

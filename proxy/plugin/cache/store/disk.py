@@ -11,14 +11,14 @@
 import logging
 import os
 import tempfile
-from typing import Optional, BinaryIO
+from typing import BinaryIO, Optional
 from uuid import UUID
 
 from ....common.flag import flags
 from ....common.utils import text_
 from ....http.parser import HttpParser
-
 from .base import CacheStore
+
 
 logger = logging.getLogger(__name__)
 

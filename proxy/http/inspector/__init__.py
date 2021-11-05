@@ -15,6 +15,7 @@
 """
 from .devtools import DevtoolsProtocolPlugin
 
+
 __all__ = [
     'DevtoolsProtocolPlugin',
 ]

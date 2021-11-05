@@ -8,16 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import ssl
-import socket
 import logging
-
+import socket
+import ssl
 from abc import ABC, abstractmethod
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
-
 from .types import tcpConnectionTypes
+
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,6 @@
        dns
 """
 import socket
-
 from typing import Optional, Tuple
 
 from ..http.proxy import HttpProxyBasePlugin

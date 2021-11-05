@@ -13,16 +13,15 @@
        eventing
 """
 import logging
-import threading
 import multiprocessing
-
+import threading
 from typing import Any, Optional
 
-from .queue import EventQueue
-from .dispatcher import EventDispatcher
-
-from ...common.flag import flags
 from ...common.constants import DEFAULT_ENABLE_EVENTS
+from ...common.flag import flags
+from .dispatcher import EventDispatcher
+from .queue import EventQueue
+
 
 logger = logging.getLogger(__name__)
 

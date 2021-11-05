@@ -9,15 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import time
 import threading
-
+import time
 from multiprocessing import connection
-
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 from ...common.types import DictQueueType
-
 from .names import eventNames
 
 
