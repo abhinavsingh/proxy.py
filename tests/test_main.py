@@ -230,3 +230,18 @@ class TestMain(unittest.TestCase):
             main(['--version'])
             mock_print.assert_called_with(__version__)
         self.assertEqual(e.exception.code, 0)
+
+    def test_enable_dashboard(self) -> None:
+        pass
+
+    def test_enable_devtools(self) -> None:
+        pass
+
+    def test_pac_file(self) -> None:
+        pass
+
+    def test_imports_plugin(self) -> None:
+        pass
+
+    def test_cannot_enable_https_proxy_and_tls_interception_mutually(self) -> None:
+        pass

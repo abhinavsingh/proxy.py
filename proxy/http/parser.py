@@ -180,7 +180,8 @@ class HttpParser:
                     more = False
                 else:
                     raise NotImplementedError(
-                        'Parser shouldn\'t have reached here',
+                        'Parser shouldn\'t have reached here. ' +
+                        'This can happen when content length header is missing but their is a body in the payload',
                     )
             else:
                 more, raw = self.process(raw)
@@ -285,7 +286,8 @@ class HttpParser:
             headers={} if not self.headers else {
                 self.headers[k][0]: self.headers[k][1] for k in self.headers
             },
-            body=self.body if not self.is_chunked_encoded() else ChunkParser.to_chunks(self.body),
+            body=self.body if not self.is_chunked_encoded(
+            ) else ChunkParser.to_chunks(self.body),
         )
 
     def has_host(self) -> bool:
