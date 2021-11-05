@@ -38,6 +38,13 @@ class HttpWebServerBasePlugin(ABC):
         self.client = client
         self.event_queue = event_queue
 
+    def name(self) -> str:
+        """A unique name for your plugin.
+
+        Defaults to name of the class. This helps plugin developers to directly
+        access a specific plugin by its name."""
+        return self.__class__.__name__      # pragma: no cover
+
     # TODO(abhinavsingh): get_descriptors, write_to_descriptors, read_from_descriptors
     # can be placed into their own abstract class which can then be shared by
     # HttpProxyBasePlugin, HttpWebServerBasePlugin and HttpProtocolHandlerPlugin class.

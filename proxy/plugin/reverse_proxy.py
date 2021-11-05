@@ -9,14 +9,27 @@
     :license: BSD, see LICENSE for more details.
 """
 import random
-from typing import List, Tuple
+import socket
+import logging
+import sysconfig
+
+from pathlib import Path
+from typing import List, Optional, Tuple, Any
 from urllib import parse as urlparse
 
-from ..common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_HTTP_PORT
-from ..common.utils import socket_connection, text_
+from ..common.utils import text_
+from ..common.constants import DEFAULT_HTTPS_PORT, DEFAULT_HTTP_PORT
+from ..common.types import Readables, Writables
+from ..core.connection import TcpServerConnection
+from ..http.exception import HttpProtocolException
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
+
+logger = logging.getLogger(__name__)
+
+CACERT_PEM_PATH = Path(sysconfig.get_path('purelib')) / \
+    'certifi' / 'cacert.pem'
 
 
 class ReverseProxyPlugin(HttpWebServerBasePlugin):
@@ -39,14 +52,25 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
             "User-Agent": "curl/7.64.1"
           },
           "origin": "1.2.3.4, 5.6.7.8",
-          "url": "https://localhost/get"
+          "url": "http://localhost/get"
         }
     """
 
+    # TODO: We must use nginx python parser and
+    # make this plugin nginx.conf complaint.
     REVERSE_PROXY_LOCATION: str = r'/get$'
+    # Randomly choose either http or https upstream endpoint.
+    #
+    # This is just to demonstrate that both http and https upstream
+    # reverse proxy works.
     REVERSE_PROXY_PASS = [
         b'http://httpbin.org/get',
+        b'https://httpbin.org/get',
     ]
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        self.upstream: Optional[TcpServerConnection] = None
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
@@ -54,14 +78,61 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
             (httpProtocolTypes.HTTPS, ReverseProxyPlugin.REVERSE_PROXY_LOCATION),
         ]
 
-    # TODO(abhinavsingh): Upgrade to use non-blocking get/read/write API.
+    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
+        if not self.upstream:
+            return [], []
+        return [self.upstream.connection], [self.upstream.connection] if self.upstream.has_buffer() else []
+
+    def read_from_descriptors(self, r: Readables) -> bool:
+        if self.upstream and self.upstream.connection in r:
+            try:
+                raw = self.upstream.recv(self.flags.server_recvbuf_size)
+                if raw is not None:
+                    self.client.queue(raw)
+                else:
+                    return True     # Teardown because upstream server closed the connection
+            except ConnectionResetError:
+                logger.debug('Connection reset by upstream server')
+                return True
+        return super().read_from_descriptors(r)
+
+    def write_to_descriptors(self, w: Writables) -> bool:
+        if self.upstream and self.upstream.connection in w and self.upstream.has_buffer():
+            try:
+                self.upstream.flush()
+            except BrokenPipeError:
+                logger.debug(
+                    'BrokenPipeError when flushing to upstream server',
+                )
+                return True
+        return super().write_to_descriptors(w)
+
     def handle_request(self, request: HttpParser) -> None:
-        upstream = random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS)
-        url = urlparse.urlsplit(upstream)
+        url = urlparse.urlsplit(
+            random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS),
+        )
         assert url.hostname
-        with socket_connection((text_(url.hostname), url.port if url.port else DEFAULT_HTTP_PORT)) as conn:
-            conn.send(request.build())
-            self.client.queue(memoryview(conn.recv(DEFAULT_BUFFER_SIZE)))
+        port = url.port or (
+            DEFAULT_HTTP_PORT if url.scheme ==
+            b'http' else DEFAULT_HTTPS_PORT
+        )
+        self.upstream = TcpServerConnection(url.hostname, port)
+        try:
+            self.upstream.connect()
+            if url.scheme == b'https':
+                self.upstream.wrap(
+                    text_(
+                        url.hostname,
+                    ), ca_file=str(CACERT_PEM_PATH),
+                )
+            self.upstream.queue(memoryview(request.build()))
+        except ConnectionRefusedError:
+            logger.info(
+                'Connection refused by upstream server {0}:{1}'.format(
+                    url.hostname, port,
+                ),
+            )
+            raise HttpProtocolException()
 
     def on_websocket_open(self) -> None:
         pass

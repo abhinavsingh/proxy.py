@@ -198,6 +198,8 @@ class Threadless(multiprocessing.Process):
             self.loop = asyncio.get_event_loop()
             while not self.running.is_set():
                 self.run_once()
+        except KeyboardInterrupt:
+            pass
         finally:
             assert self.selector is not None
             self.selector.unregister(self.client_queue)
