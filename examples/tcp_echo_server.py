@@ -30,18 +30,15 @@ class EchoServerHandler(BaseTcpServerHandler):
 
 def main() -> None:
     # This example requires `threadless=True`
-    pool = AcceptorPool(
+    with AcceptorPool(
         flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
         work_klass=EchoServerHandler,
-    )
-    try:
-        pool.setup()
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        pool.shutdown()
+    ):
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':

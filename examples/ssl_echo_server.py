@@ -45,7 +45,7 @@ class EchoSSLServerHandler(BaseTcpServerHandler):
 
 def main() -> None:
     # This example requires `threadless=True`
-    pool = AcceptorPool(
+    with AcceptorPool(
         flags=Proxy.initialize(
             port=12345,
             num_workers=1,
@@ -54,15 +54,12 @@ def main() -> None:
             certfile='https-signed-cert.pem',
         ),
         work_klass=EchoSSLServerHandler,
-    )
-    try:
-        pool.setup()
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        pool.shutdown()
+    ):
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':

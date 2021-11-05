@@ -14,6 +14,7 @@ import multiprocessing
 import socket
 
 from multiprocessing import connection
+from types import TracebackType
 from multiprocessing.reduction import send_handle
 from typing import List, Optional, Type
 
@@ -87,6 +88,18 @@ class AcceptorPool:
         self.work_queues: List[connection.Connection] = []
         self.work_klass = work_klass
         self.event_queue: Optional[EventQueue] = event_queue
+
+    def __enter__(self) -> 'AcceptorPool':
+        self.setup()
+        return self
+
+    def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_val: Optional[BaseException],
+            exc_tb: Optional[TracebackType],
+    ) -> None:
+        self.shutdown()
 
     def listen(self) -> None:
         self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)

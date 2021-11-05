@@ -16,9 +16,9 @@ import asyncio
 import selectors
 import contextlib
 import multiprocessing
+
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
-
 from typing import Dict, Optional, Tuple, List, Generator, Any, Type
 
 from .work import Work
