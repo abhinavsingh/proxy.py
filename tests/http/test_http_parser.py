@@ -638,7 +638,10 @@ class TestHttpParser(unittest.TestCase):
 
     def test_request_factory(self) -> None:
         r = HttpParser.request(
-            b'POST http://localhost:12345 HTTP/1.1' + CRLF + b'key: value' + CRLF + b'Content-Length: 13' + CRLF + CRLF + b'Hello from py',
+            b'POST http://localhost:12345 HTTP/1.1' + CRLF +
+            b'key: value' + CRLF +
+            b'Content-Length: 13' + CRLF + CRLF +
+            b'Hello from py',
         )
         self.assertEqual(r.host, b'localhost')
         self.assertEqual(r.port, 12345)
