@@ -17,7 +17,7 @@ import contextlib
 import errno
 import logging
 
-from typing import Tuple, List, Union, Optional, Generator, Dict
+from typing import Tuple, List, Union, Optional, Generator, Dict, Any
 from uuid import UUID
 
 from .plugin import HttpProtocolHandlerPlugin
@@ -74,19 +74,13 @@ class HttpProtocolHandler(Work):
     Accepts `Client` connection and delegates to HttpProtocolHandlerPlugin.
     """
 
-    def __init__(
-        self, client: TcpClientConnection,
-        flags: argparse.Namespace,
-        event_queue: Optional[EventQueue] = None,
-        uid: Optional[UUID] = None,
-    ):
-        super().__init__(client, flags, event_queue, uid)
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
         self.start_time: float = time.time()
         self.last_activity: float = self.start_time
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.selector = selectors.DefaultSelector()
-        self.client: TcpClientConnection = client
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 
     ##
