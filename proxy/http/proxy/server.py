@@ -267,8 +267,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 else:
                     # TODO(abhinavsingh): Remove .tobytes after parser is
                     # memoryview compliant
-                    self.response.parse(raw.tobytes())
-                    self.emit_response_events()
+                    chunk = raw.tobytes()
+                    self.response.parse(chunk)
+                    self.emit_response_events(len(chunk))
             else:
                 self.response.total_size += len(raw)
             # queue raw data for client
@@ -727,14 +728,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             publisher_id=self.__class__.__name__,
         )
 
-    def emit_response_events(self) -> None:
+    def emit_response_events(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
 
         if self.response.state == httpParserStates.COMPLETE:
             self.emit_response_complete()
         elif self.response.state == httpParserStates.RCVING_BODY:
-            self.emit_response_chunk_received()
+            self.emit_response_chunk_received(chunk_size)
         elif self.response.state == httpParserStates.HEADERS_COMPLETE:
             self.emit_response_headers_complete()
 
@@ -742,10 +743,38 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if not self.flags.enable_events:
             return
 
-    def emit_response_chunk_received(self) -> None:
+        self.event_queue.publish(
+            request_id=self.uid.hex,
+            event_name=eventNames.RESPONSE_HEADERS_COMPLETE,
+            event_payload={
+                'headers': {text_(k): text_(v[1]) for k, v in self.response.headers.items()},
+            },
+            publisher_id=self.__class__.__name__,
+        )
+
+    def emit_response_chunk_received(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
+
+        self.event_queue.publish(
+            request_id=self.uid.hex,
+            event_name=eventNames.RESPONSE_CHUNK_RECEIVED,
+            event_payload={
+                'chunk_size': chunk_size,
+                'encoded_chunk_size': chunk_size,
+            },
+            publisher_id=self.__class__.__name__,
+        )
 
     def emit_response_complete(self) -> None:
         if not self.flags.enable_events:
             return
+
+        self.event_queue.publish(
+            request_id=self.uid.hex,
+            event_name=eventNames.RESPONSE_COMPLETE,
+            event_payload={
+                'encoded_response_size': self.response.total_size
+            },
+            publisher_id=self.__class__.__name__,
+        )
