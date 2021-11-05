@@ -14,9 +14,10 @@ import multiprocessing
 import socket
 
 from multiprocessing import connection
-from types import TracebackType
 from multiprocessing.reduction import send_handle
+
 from typing import List, Optional, Type
+from types import TracebackType
 
 from .acceptor import Acceptor
 from .work import Work
