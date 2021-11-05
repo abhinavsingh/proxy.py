@@ -28,8 +28,9 @@ from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 
 logger = logging.getLogger(__name__)
 
-CACERT_PEM_PATH = Path(sysconfig.get_path('purelib')) / \
-    'certifi' / 'cacert.pem'
+PURE_LIB = sysconfig.get_path('purelib')
+assert PURE_LIB
+CACERT_PEM_PATH = Path(PURE_LIB) / 'certifi' / 'cacert.pem'
 
 
 class ReverseProxyPlugin(HttpWebServerBasePlugin):
@@ -116,7 +117,7 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
             DEFAULT_HTTP_PORT if url.scheme ==
             b'http' else DEFAULT_HTTPS_PORT
         )
-        self.upstream = TcpServerConnection(url.hostname, port)
+        self.upstream = TcpServerConnection(text_(url.hostname), port)
         try:
             self.upstream.connect()
             if url.scheme == b'https':
@@ -129,7 +130,7 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
         except ConnectionRefusedError:
             logger.info(
                 'Connection refused by upstream server {0}:{1}'.format(
-                    url.hostname, port,
+                    text_(url.hostname), port,
                 ),
             )
             raise HttpProtocolException()
