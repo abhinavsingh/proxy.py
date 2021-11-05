@@ -19,7 +19,7 @@ from proxy.proxy import main, Proxy, entry_point
 from proxy.common.utils import bytes_
 from proxy.http.handler import HttpProtocolHandler
 
-from proxy.common.constants import DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BASIC_AUTH
+from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_BASIC_AUTH
 from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
 from proxy.common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
 from proxy.common.constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
@@ -66,25 +66,22 @@ class TestMain(unittest.TestCase):
         mock_args.enable_static_server = DEFAULT_ENABLE_STATIC_SERVER
         mock_args.enable_devtools = DEFAULT_ENABLE_DEVTOOLS
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
+        mock_args.enable_dashboard = DEFAULT_ENABLE_DASHBOARD
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.Proxy.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('logging.basicConfig')
     def test_entry_point(
             self,
-            mock_logging_config: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
             mock_initialize: mock.Mock,
             mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
-
         mock_initialize.return_value.enable_events = False
         entry_point()
-
         mock_event_manager.assert_not_called()
         mock_acceptor_pool.assert_called_with(
             flags=mock_initialize.return_value,
@@ -99,20 +96,16 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.Proxy.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('logging.basicConfig')
     def test_main_with_no_arguments(
             self,
-            mock_logging_config: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
             mock_initialize: mock.Mock,
             mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
-
-        input_args: List[str] = []
         mock_initialize.return_value.enable_events = False
-        main(input_args)
+        main([])
         mock_event_manager.assert_not_called()
         mock_acceptor_pool.assert_called_with(
             flags=mock_initialize.return_value,
@@ -122,6 +115,66 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()
         mock_sleep.assert_called()
+
+    @mock.patch('time.sleep')
+    @mock.patch('proxy.proxy.Proxy.initialize')
+    @mock.patch('proxy.proxy.EventManager')
+    @mock.patch('proxy.proxy.AcceptorPool')
+    def test_enable_events(
+        self,
+        mock_acceptor_pool: mock.Mock,
+        mock_event_manager: mock.Mock,
+        mock_initialize: mock.Mock,
+        mock_sleep: mock.Mock,
+    ) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_initialize.return_value.enable_events = True
+        main([])
+        mock_event_manager.assert_called_once()
+        mock_event_manager.return_value.start_event_dispatcher.assert_called_once()
+        mock_event_manager.return_value.stop_event_dispatcher.assert_called_once()
+        mock_acceptor_pool.assert_called_with(
+            flags=mock_initialize.return_value,
+            work_klass=HttpProtocolHandler,
+            event_queue=mock_event_manager.return_value.event_queue,
+        )
+        mock_acceptor_pool.return_value.setup.assert_called()
+        mock_acceptor_pool.return_value.shutdown.assert_called()
+        mock_sleep.assert_called()
+
+    @mock.patch('time.sleep')
+    @mock.patch('proxy.proxy.Proxy.load_plugins')
+    @mock.patch('proxy.common.flag.FlagParser.parse_args')
+    @mock.patch('proxy.proxy.EventManager')
+    @mock.patch('proxy.proxy.AcceptorPool')
+    def test_enable_dashboard(
+        self,
+        mock_acceptor_pool: mock.Mock,
+        mock_event_manager: mock.Mock,
+        mock_parse_args: mock.Mock,
+        mock_load_plugins: mock.Mock,
+        mock_sleep: mock.Mock,
+    ) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_args = mock_parse_args.return_value
+        self.mock_default_args(mock_args)
+        mock_args.enable_dashboard = True
+        main(['--enable-dashboard'])
+        mock_load_plugins.assert_called()
+        self.assertEqual(mock_load_plugins.call_args_list[0][0][0], [
+            b'proxy.http.server.HttpWebServerPlugin',
+            b'proxy.dashboard.dashboard.ProxyDashboard',
+            b'proxy.dashboard.inspect_traffic.InspectTrafficPlugin',
+            b'proxy.http.inspector.DevtoolsProtocolPlugin',
+            b'proxy.http.proxy.HttpProxyPlugin',
+        ])
+        mock_parse_args.assert_called_once()
+        mock_acceptor_pool.assert_called()
+        mock_acceptor_pool.return_value.setup.assert_called()
+        # dashboard will also enable eventing
+        mock_event_manager.assert_called_once()
+        mock_event_manager.return_value.start_event_dispatcher.assert_called_once()
+        mock_event_manager.return_value.stop_event_dispatcher.assert_called_once()
 
     @mock.patch('time.sleep')
     @mock.patch('os.remove')
@@ -145,7 +198,6 @@ class TestMain(unittest.TestCase):
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.pid_file = pid_file
-        mock_args.enable_dashboard = False
         main(['--pid-file', pid_file])
         mock_parse_args.assert_called_once()
         mock_acceptor_pool.assert_called()
@@ -230,9 +282,6 @@ class TestMain(unittest.TestCase):
             main(['--version'])
             mock_print.assert_called_with(__version__)
         self.assertEqual(e.exception.code, 0)
-
-    def test_enable_dashboard(self) -> None:
-        pass
 
     def test_enable_devtools(self) -> None:
         pass
