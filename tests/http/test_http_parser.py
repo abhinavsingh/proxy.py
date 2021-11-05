@@ -272,7 +272,10 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(b'Content-Type: text/plain' + CRLF)
         self.assertEqual(self.parser.buffer, b'')
         self.assertEqual(
-            self.parser.headers[b'content-type'], (b'Content-Type', b'text/plain'),
+            self.parser.headers[b'content-type'], (
+                b'Content-Type',
+                b'text/plain',
+            ),
         )
         self.assertEqual(
             self.parser.state,
@@ -632,3 +635,33 @@ class TestHttpParser(unittest.TestCase):
         self.parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.parser.parse(response)
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
+
+    def test_request_factory(self) -> None:
+        r = HttpParser.request(
+            b'POST http://localhost:12345 HTTP/1.1' + CRLF +
+            b'key: value' + CRLF +
+            b'Content-Length: 13' + CRLF + CRLF +
+            b'Hello from py',
+        )
+        self.assertEqual(r.host, b'localhost')
+        self.assertEqual(r.port, 12345)
+        self.assertEqual(r.path, b'/')
+        self.assertEqual(r.header(b'key'), b'value')
+        self.assertEqual(r.header(b'KEY'), b'value')
+        self.assertEqual(r.header(b'content-length'), b'13')
+        self.assertEqual(r.body, b'Hello from py')
+
+    def test_response_factory(self) -> None:
+        r = HttpParser.response(
+            b'HTTP/1.1 200 OK\r\nkey: value\r\n\r\n',
+        )
+        self.assertEqual(r.code, b'200')
+        self.assertEqual(r.reason, b'OK')
+        self.assertEqual(r.header(b'key'), b'value')
+
+    def test_parser_shouldnt_have_reached_here(self) -> None:
+        with self.assertRaises(NotImplementedError):
+            HttpParser.request(
+                b'POST http://localhost:12345 HTTP/1.1' + CRLF +
+                b'key: value' + CRLF + CRLF + b'Hello from py',
+            )

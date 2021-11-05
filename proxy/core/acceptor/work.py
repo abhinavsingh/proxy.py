@@ -73,7 +73,7 @@ class Work(ABC):
         compatibility with threaded mode where work class is started as
         a separate thread.
         """
-        pass
+        pass    # pragma: no cover
 
     def publish_event(
             self,

@@ -1,12 +1,12 @@
 ---
-name: Proxy.py Docker
+name: docker
 
 on: [push, pull_request]  # yamllint disable-line rule:truthy
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}-latest
-    name: Docker - Python ${{ matrix.python }} on ${{ matrix.os }}
+    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu]

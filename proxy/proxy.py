@@ -23,7 +23,7 @@ import importlib
 import inspect
 
 from types import TracebackType
-from typing import Dict, List, Optional, Any, Tuple, Type, Union, cast
+from typing import Dict, List, Optional, Any, Type, Union, cast
 
 from proxy.core.acceptor.work import Work
 
@@ -205,7 +205,7 @@ class Proxy:
         if input_args is None:
             input_args = []
 
-        if not Proxy.is_py3():
+        if Proxy.is_py2():
             print(PY2_DEPRECATION_MESSAGE)
             sys.exit(1)
 
@@ -230,16 +230,15 @@ class Proxy:
         Proxy.set_open_file_limit(args.open_file_limit)
 
         # Load plugins
-        default_plugins = Proxy.get_default_plugins(args)
+        default_plugins = [bytes_(p) for p in Proxy.get_default_plugins(args)]
+        extra_plugins = [
+            p if isinstance(p, type) else bytes_(p)
+            for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
+            if not (isinstance(p, str) and len(p) == 0)
+        ]
 
         # Load default plugins along with user provided --plugins
-        plugins = Proxy.load_plugins(
-            [bytes_(p) for p in collections.OrderedDict(default_plugins).keys()] +
-            [
-                p if isinstance(p, type) else bytes_(p)
-                for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
-            ],
-        )
+        plugins = Proxy.load_plugins(default_plugins + extra_plugins)
 
         # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
@@ -413,8 +412,7 @@ class Proxy:
         }
         for plugin_ in plugins:
             klass, module_name = Proxy.import_plugin(plugin_)
-            if klass is None and module_name is None:
-                continue
+            assert klass and module_name
             mro = list(inspect.getmro(klass))
             mro.reverse()
             iterator = iter(mro)
@@ -433,8 +431,7 @@ class Proxy:
             klass = plugin
         else:
             plugin_ = text_(plugin.strip())
-            if plugin_ == '':
-                return (None, None)
+            assert plugin_ != ''
             module_name, klass_name = plugin_.rsplit(text_(DOT), 1)
             klass = getattr(
                 importlib.import_module(
@@ -449,36 +446,37 @@ class Proxy:
     @staticmethod
     def get_default_plugins(
             args: argparse.Namespace,
-    ) -> List[Tuple[str, bool]]:
-        # Prepare list of plugins to load based upon
-        # --enable-*, --disable-* and --basic-auth flags.
-        default_plugins: List[Tuple[str, bool]] = []
+    ) -> List[str]:
+        """Prepare list of plugins to load based upon
+        --enable-*, --disable-* and --basic-auth flags.
+        """
+        default_plugins: List[str] = []
         if args.basic_auth is not None:
-            default_plugins.append((PLUGIN_PROXY_AUTH, True))
+            default_plugins.append(PLUGIN_PROXY_AUTH)
         if args.enable_dashboard:
-            default_plugins.append((PLUGIN_WEB_SERVER, True))
+            default_plugins.append(PLUGIN_WEB_SERVER)
             args.enable_static_server = True
-            default_plugins.append((PLUGIN_DASHBOARD, True))
-            default_plugins.append((PLUGIN_INSPECT_TRAFFIC, True))
+            default_plugins.append(PLUGIN_DASHBOARD)
+            default_plugins.append(PLUGIN_INSPECT_TRAFFIC)
             args.enable_events = True
             args.enable_devtools = True
         if args.enable_devtools:
-            default_plugins.append((PLUGIN_DEVTOOLS_PROTOCOL, True))
-            default_plugins.append((PLUGIN_WEB_SERVER, True))
+            default_plugins.append(PLUGIN_DEVTOOLS_PROTOCOL)
+            default_plugins.append(PLUGIN_WEB_SERVER)
         if not args.disable_http_proxy:
-            default_plugins.append((PLUGIN_HTTP_PROXY, True))
+            default_plugins.append(PLUGIN_HTTP_PROXY)
         if args.enable_web_server or \
                 args.pac_file is not None or \
                 args.enable_static_server:
-            default_plugins.append((PLUGIN_WEB_SERVER, True))
+            default_plugins.append(PLUGIN_WEB_SERVER)
         if args.pac_file is not None:
-            default_plugins.append((PLUGIN_PAC_FILE, True))
-        return default_plugins
+            default_plugins.append(PLUGIN_PAC_FILE)
+        return list(collections.OrderedDict.fromkeys(default_plugins).keys())
 
     @staticmethod
-    def is_py3() -> bool:
+    def is_py2() -> bool:
         """Exists only to avoid mocking sys.version_info in tests."""
-        return sys.version_info[0] != 2
+        return sys.version_info[0] == 2
 
     @staticmethod
     def set_open_file_limit(soft_limit: int) -> None:
@@ -515,7 +513,7 @@ def main(
             # at runtime.  Example, updating flags, plugin
             # configuration etc.
             #
-            # TODO: Python shell within running proxy.py environment
+            # TODO: Python shell within running proxy.py environment?
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:

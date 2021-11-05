@@ -115,3 +115,42 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self.protocol_handler.run_once()
         mock_server_conn.assert_not_called()
         self.plugin.return_value.before_upstream_connection.assert_called()
+
+    def test_proxy_plugin_plugins_can_teardown_from_write_to_descriptors(self) -> None:
+        pass
+
+    def test_proxy_plugin_retries_on_ssl_want_write_error(self) -> None:
+        pass
+
+    def test_proxy_plugin_broken_pipe_error_on_write_will_teardown(self) -> None:
+        pass
+
+    def test_proxy_plugin_plugins_can_teardown_from_read_from_descriptors(self) -> None:
+        pass
+
+    def test_proxy_plugin_retries_on_ssl_want_read_error(self) -> None:
+        pass
+
+    def test_proxy_plugin_timeout_error_on_read_will_teardown(self) -> None:
+        pass
+
+    def test_proxy_plugin_invokes_handle_pipeline_response(self) -> None:
+        pass
+
+    def test_proxy_plugin_invokes_on_access_log(self) -> None:
+        pass
+
+    def test_proxy_plugin_skips_server_teardown_when_client_closes_and_server_never_initialized(self) -> None:
+        pass
+
+    def test_proxy_plugin_invokes_handle_client_data(self) -> None:
+        pass
+
+    def test_proxy_plugin_handles_pipeline_response(self) -> None:
+        pass
+
+    def test_proxy_plugin_invokes_resolve_dns(self) -> None:
+        pass
+
+    def test_proxy_plugin_require_both_host_port_to_connect(self) -> None:
+        pass
