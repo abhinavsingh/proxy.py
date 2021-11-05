@@ -231,9 +231,10 @@ class Proxy:
 
         # Load plugins
         default_plugins = [bytes_(p) for p in Proxy.get_default_plugins(args)]
-        extra_plugins = [] if args.plugins.strip() == '' else [
+        extra_plugins = [
             p if isinstance(p, type) else bytes_(p)
             for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
+            if not (isinstance(p, str) and len(p) == 0)
         ]
 
         # Load default plugins along with user provided --plugins
@@ -471,7 +472,7 @@ class Proxy:
             default_plugins.append(PLUGIN_WEB_SERVER)
         if args.pac_file is not None:
             default_plugins.append(PLUGIN_PAC_FILE)
-        return collections.OrderedDict.fromkeys(default_plugins).keys()
+        return list(collections.OrderedDict.fromkeys(default_plugins).keys())
 
     @staticmethod
     def is_py2() -> bool:
