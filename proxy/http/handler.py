@@ -80,7 +80,10 @@ class HttpProtocolHandler(Work):
         self.last_activity: float = self.start_time
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        self.selector = selectors.DefaultSelector()
+        self.selector: Optional[selectors.DefaultSelector] = None
+        print(self.flags.threadless)
+        if not self.flags.threadless:
+            self.selector = selectors.DefaultSelector()
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 
     ##
@@ -116,7 +119,17 @@ class HttpProtocolHandler(Work):
     def shutdown(self) -> None:
         try:
             # Flush pending buffer if any
-            self._flush()
+            # TODO: This can block as it register, select, unregister.
+            # _flush is only for use with threaded mode.  In threadless
+            # mode BaseTcpServerHandler provides must_flush_before_shutdown
+            # implementation.
+            if self.selector:
+                self._flush()
+            else:
+                # Call flush for threadless mode assuming client is write ready
+                # This may fail or block.  Using BaseTcpServerHandler will
+                # solve this issue.
+                self.client.flush()
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
@@ -346,6 +359,7 @@ class HttpProtocolHandler(Work):
 
     @contextlib.contextmanager
     def _selected_events(self) -> SelectedEventsGeneratorType:
+        assert self.selector
         events = self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
@@ -369,6 +383,7 @@ class HttpProtocolHandler(Work):
             return False
 
     def _flush(self) -> None:
+        assert self.selector
         if not self.client.has_buffer():
             return
         try:

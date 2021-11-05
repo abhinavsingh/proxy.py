@@ -24,16 +24,22 @@ logger = logging.getLogger(__name__)
 class BaseTcpServerHandler(Work):
     """BaseTcpServerHandler implements Work interface.
 
-    An instance of BaseTcpServerHandler is created for each client
-    connection.  BaseServerHandler lifecycle is controlled by
-    Threadless core using asyncio.
+    BaseTcpServerHandler lifecycle is controlled by Threadless core
+    using asyncio.  If you want to also support threaded mode, also
+    implement the optional run() method from Work class.
 
-    BaseServerHandler ensures that pending buffers are flushed
-    before client connection is closed.
+    An instance of BaseTcpServerHandler is created for each client
+    connection.  BaseTcpServerHandler ensures that server is always
+    ready to accept new data from the client.  It also ensures, client
+    is ready to accept new data before flushing data to it.
+
+    Most importantly, BaseTcpServerHandler ensures that pending buffers
+    to the client are flushed before connection is closed.
 
     Implementations must provide:
-    a) handle_data(data: memoryview)
-    c) (optionally) initialize, is_inactive and shutdown methods
+    a) handle_data(data: memoryview) implementation
+    b) Optionally, also implement other Work method
+       e.g. initialize, is_inactive, shutdown
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
