@@ -89,8 +89,7 @@ class BaseTcpServerHandler(Work):
                         )
                         if self.client.has_buffer():
                             logger.debug(
-                                'Client {0} has pending buffer, ' +
-                                'will be flushed before shutting down'.format(
+                                'Client {0} has pending buffer, will be flushed before shutting down'.format(
                                     self.client.addr,
                                 ),
                             )
@@ -107,7 +106,8 @@ class BaseTcpServerHandler(Work):
 
         if self.client.connection in writables:
             logger.debug(
-                'Flushing buffer to client {0}'.format(self.client.addr))
+                'Flushing buffer to client {0}'.format(self.client.addr),
+            )
             self.client.flush()
             if self.must_flush_before_shutdown is True:
                 do_shutdown = True
