@@ -161,13 +161,15 @@ class TestMain(unittest.TestCase):
         mock_args.enable_dashboard = True
         main(['--enable-dashboard'])
         mock_load_plugins.assert_called()
-        self.assertEqual(mock_load_plugins.call_args_list[0][0][0], [
-            b'proxy.http.server.HttpWebServerPlugin',
-            b'proxy.dashboard.dashboard.ProxyDashboard',
-            b'proxy.dashboard.inspect_traffic.InspectTrafficPlugin',
-            b'proxy.http.inspector.DevtoolsProtocolPlugin',
-            b'proxy.http.proxy.HttpProxyPlugin',
-        ])
+        self.assertEqual(
+            mock_load_plugins.call_args_list[0][0][0], [
+                b'proxy.http.server.HttpWebServerPlugin',
+                b'proxy.dashboard.dashboard.ProxyDashboard',
+                b'proxy.dashboard.inspect_traffic.InspectTrafficPlugin',
+                b'proxy.http.inspector.DevtoolsProtocolPlugin',
+                b'proxy.http.proxy.HttpProxyPlugin',
+            ],
+        )
         mock_parse_args.assert_called_once()
         mock_acceptor_pool.assert_called()
         mock_acceptor_pool.return_value.setup.assert_called()
