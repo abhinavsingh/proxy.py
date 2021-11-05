@@ -63,7 +63,10 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         if request.path == b'/dashboard/':
             self.client.queue(
                 HttpWebServerPlugin.read_and_build_static_file_response(
-                    os.path.join(self.flags.static_server_dir, 'dashboard', 'proxy.html'),
+                    os.path.join(
+                        self.flags.static_server_dir,
+                        'dashboard', 'proxy.html',
+                    ),
                 ),
             )
         elif request.path in (
@@ -105,7 +108,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
             logger.info(frame.opcode)
             self.reply({'id': message['id'], 'response': 'not_implemented'})
 
-    def on_websocket_close(self) -> None:
+    def on_client_connection_close(self) -> None:
         logger.info('app ws closed')
         # TODO(abhinavsingh): unsubscribe
 

@@ -62,7 +62,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         pass    # pragma: no cover
 
-    def on_websocket_close(self) -> None:
+    def on_client_connection_close(self) -> None:
         pass    # pragma: no cover
 
     def cache_pac_file_response(self) -> None:

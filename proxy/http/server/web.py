@@ -83,6 +83,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         }
         self.route: Optional[HttpWebServerBasePlugin] = None
 
+        self.plugins: Dict[str, HttpWebServerBasePlugin] = {}
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
                 instance: HttpWebServerBasePlugin = klass(
@@ -91,6 +92,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     self.client,
                     self.event_queue,
                 )
+                self.plugins[instance.name()] = instance
                 for (protocol, route) in instance.routes():
                     self.routes[protocol][re.compile(route)] = instance
 
@@ -201,16 +203,28 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
 
-    # TODO(abhinavsingh): Call plugin get/read/write descriptor callbacks
     def get_descriptors(
             self,
     ) -> Tuple[List[socket.socket], List[socket.socket]]:
-        return [], []
+        r, w = [], []
+        for plugin in self.plugins.values():
+            r1, w1 = plugin.get_descriptors()
+            r.extend(r1)
+            w.extend(w1)
+        return r, w
 
     def write_to_descriptors(self, w: Writables) -> bool:
+        for plugin in self.plugins.values():
+            teardown = plugin.write_to_descriptors(w)
+            if teardown:
+                return True
         return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
+        for plugin in self.plugins.values():
+            teardown = plugin.read_from_descriptors(r)
+            if teardown:
+                return True
         return False
 
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
@@ -260,12 +274,12 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def on_client_connection_close(self) -> None:
         if self.request.has_host():
             return
-        if self.switched_protocol:
-            # Invoke plugin.on_websocket_close
-            assert self.route
-            self.route.on_websocket_close()
+        if self.route:
+            self.route.on_client_connection_close()
         self.access_log()
 
+    # TODO: Allow plugins to customize access_log, similar
+    # to how proxy server plugins are able to do it.
     def access_log(self) -> None:
         logger.info(
             '%s:%s - %s %s - %.2f ms' %
