@@ -13,13 +13,16 @@ class Test_Environment(unittest.TestCase):
         read_elf_params(cls.elf_params)
 
     def test_neon_chain_id(self):
+        print("\n\nhttps://github.com/neonlabsorg/neon-evm/issues/347")
         neon_chain_id = self.elf_params.get('NEON_CHAIN_ID', None)
         print(f"NEON_CHAIN_ID = {neon_chain_id}")
         assert (neon_chain_id is not None)
-        eth_chainId = proxy.eth.chain_id
-        print(f"eth_chainId = {eth_chainId}, type = {type(eth_chainId)}")
+
+        eth_chainId: int = proxy.eth.chain_id
+        print(f"eth_chainId = {eth_chainId}")
         assert(eth_chainId == int(neon_chain_id))
-        net_version = proxy.net.version
-        print(f"net_version = {net_version}, type = {type(net_version)}")
+
+        net_version: str = proxy.net.version
+        print(f"net_version = {net_version}")
         assert (net_version == neon_chain_id)
 
