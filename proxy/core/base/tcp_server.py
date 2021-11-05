@@ -8,14 +8,17 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from abc import abstractmethod
 import socket
+import logging
 import selectors
 
+from abc import abstractmethod
 from typing import Dict, Any, Optional
 
 from proxy.core.acceptor import Work
 from proxy.common.types import Readables, Writables
+
+logger = logging.getLogger(__name__)
 
 
 class BaseTcpServerHandler(Work):
@@ -36,7 +39,7 @@ class BaseTcpServerHandler(Work):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.must_flush_before_shutdown = False
-        print('Connection accepted from {0}'.format(self.client.addr))
+        logger.debug('Connection accepted from {0}'.format(self.client.addr))
 
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
@@ -70,7 +73,7 @@ class BaseTcpServerHandler(Work):
                 data = self.client.recv()
                 if data is None:
                     # Client closed connection, signal shutdown
-                    print(
+                    logger.debug(
                         'Connection closed by client {0}'.format(
                             self.client.addr,
                         ),
@@ -79,14 +82,15 @@ class BaseTcpServerHandler(Work):
                 else:
                     r = self.handle_data(data)
                     if isinstance(r, bool) and r is True:
-                        print(
+                        logger.debug(
                             'Implementation signaled shutdown for client {0}'.format(
                                 self.client.addr,
                             ),
                         )
                         if self.client.has_buffer():
-                            print(
-                                'Client {0} has pending buffer, will be flushed before shutting down'.format(
+                            logger.debug(
+                                'Client {0} has pending buffer, ' +
+                                'will be flushed before shutting down'.format(
                                     self.client.addr,
                                 ),
                             )
@@ -94,7 +98,7 @@ class BaseTcpServerHandler(Work):
                         else:
                             do_shutdown = True
             except ConnectionResetError:
-                print(
+                logger.debug(
                     'Connection reset by client {0}'.format(
                         self.client.addr,
                     ),
@@ -102,14 +106,15 @@ class BaseTcpServerHandler(Work):
                 do_shutdown = True
 
         if self.client.connection in writables:
-            print('Flushing buffer to client {0}'.format(self.client.addr))
+            logger.debug(
+                'Flushing buffer to client {0}'.format(self.client.addr))
             self.client.flush()
             if self.must_flush_before_shutdown is True:
                 do_shutdown = True
             self.must_flush_before_shutdown = False
 
         if do_shutdown:
-            print(
+            logger.debug(
                 'Shutting down client {0} connection'.format(
                     self.client.addr,
                 ),

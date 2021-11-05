@@ -68,7 +68,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'GET http://localhost:%d HTTP/1.1' %
             self.http_server_port
         ) + CRLF
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.request.state,
             httpParserStates.LINE_RCVD,
@@ -88,13 +88,13 @@ class TestHttpProtocolHandler(unittest.TestCase):
             CRLF,
         ])
         self.assert_data_queued(mock_server_connection, server)
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         server.flush.assert_called_once()
 
     def assert_tunnel_response(
             self, mock_server_connection: mock.Mock, server: mock.Mock,
     ) -> None:
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertTrue(
             cast(
                 HttpProxyPlugin,
@@ -183,10 +183,10 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.assert_tunnel_response(mock_server_connection, server)
 
         # Dispatch tunnel established response to client
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assert_data_queued_to_server(server)
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(server.queue.call_count, 1)
         server.flush.assert_called_once()
 
@@ -197,7 +197,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'Host: unknown.domain',
             CRLF,
         ])
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.client.buffer[0],
             ProxyConnectionFailed.RESPONSE_PKT,
@@ -229,7 +229,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'Host: abhinavsingh.com',
             CRLF,
         ])
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.client.buffer[0],
             ProxyAuthenticationFailed.RESPONSE_PKT,
@@ -265,14 +265,14 @@ class TestHttpProtocolHandler(unittest.TestCase):
         assert self.http_server_port is not None
 
         self._conn.recv.return_value = b'GET http://localhost:%d HTTP/1.1' % self.http_server_port
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.request.state,
             httpParserStates.INITIALIZED,
         )
 
         self._conn.recv.return_value = CRLF
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.request.state,
             httpParserStates.LINE_RCVD,
@@ -331,7 +331,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.protocol_handler.client.flush()
         self.assert_data_queued_to_server(server)
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         server.flush.assert_called_once()
 
     def mock_selector_for_client_read_read_server_write(
@@ -376,7 +376,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
     def assert_data_queued(
             self, mock_server_connection: mock.Mock, server: mock.Mock,
     ) -> None:
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.request.state,
             httpParserStates.COMPLETE,
@@ -411,7 +411,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         ])
 
         self._conn.recv.return_value = pkt
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
 
         server.queue.assert_called_once_with(pkt)
         server.buffer_size.return_value = len(pkt)
