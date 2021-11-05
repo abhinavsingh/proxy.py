@@ -77,6 +77,22 @@ class HttpProxyBasePlugin(ABC):
         """Implementations must now read data over the socket."""
         return False  # pragma: no cover
 
+    def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:
+        """Resolve upstream server host to an IP address.
+
+        Optionally also override the source address to use for
+        connection with upstream server.
+
+        For upstream IP:
+        Return None to use default resolver available to the system.
+        Return ip address as string to use your custom resolver.
+
+        For source address:
+        Return None to use default source address
+        Return 2-tuple representing (host, port) to use as source address
+        """
+        return None, None
+
     @abstractmethod
     def before_upstream_connection(
             self, request: HttpParser,

@@ -60,6 +60,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self.plugin.return_value.read_from_descriptors.return_value = False
         self.plugin.return_value.before_upstream_connection.side_effect = lambda r: r
         self.plugin.return_value.handle_client_request.side_effect = lambda r: r
+        self.plugin.return_value.resolve_dns.return_value = None, None
 
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
