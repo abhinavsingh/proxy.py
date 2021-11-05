@@ -63,8 +63,10 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         if request.path == b'/dashboard/':
             self.client.queue(
                 HttpWebServerPlugin.read_and_build_static_file_response(
-                    os.path.join(self.flags.static_server_dir,
-                                 'dashboard', 'proxy.html'),
+                    os.path.join(
+                        self.flags.static_server_dir,
+                        'dashboard', 'proxy.html',
+                    ),
                 ),
             )
         elif request.path in (
