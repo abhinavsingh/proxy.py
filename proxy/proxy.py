@@ -412,8 +412,7 @@ class Proxy:
         }
         for plugin_ in plugins:
             klass, module_name = Proxy.import_plugin(plugin_)
-            if klass is None and module_name is None:
-                continue
+            assert klass and module_name
             mro = list(inspect.getmro(klass))
             mro.reverse()
             iterator = iter(mro)
@@ -432,8 +431,7 @@ class Proxy:
             klass = plugin
         else:
             plugin_ = text_(plugin.strip())
-            if plugin_ == '':
-                return (None, None)
+            assert plugin_ != ''
             module_name, klass_name = plugin_.rsplit(text_(DOT), 1)
             klass = getattr(
                 importlib.import_module(
@@ -449,8 +447,9 @@ class Proxy:
     def get_default_plugins(
             args: argparse.Namespace,
     ) -> List[str]:
-        # Prepare list of plugins to load based upon
-        # --enable-*, --disable-* and --basic-auth flags.
+        """Prepare list of plugins to load based upon
+        --enable-*, --disable-* and --basic-auth flags.
+        """
         default_plugins: List[str] = []
         if args.basic_auth is not None:
             default_plugins.append(PLUGIN_PROXY_AUTH)
@@ -514,7 +513,7 @@ def main(
             # at runtime.  Example, updating flags, plugin
             # configuration etc.
             #
-            # TODO: Python shell within running proxy.py environment
+            # TODO: Python shell within running proxy.py environment?
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:

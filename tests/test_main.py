@@ -178,6 +178,39 @@ class TestMain(unittest.TestCase):
         mock_event_manager.return_value.stop_event_dispatcher.assert_called_once()
 
     @mock.patch('time.sleep')
+    @mock.patch('proxy.proxy.Proxy.load_plugins')
+    @mock.patch('proxy.common.flag.FlagParser.parse_args')
+    @mock.patch('proxy.proxy.EventManager')
+    @mock.patch('proxy.proxy.AcceptorPool')
+    def test_enable_devtools(
+        self,
+        mock_acceptor_pool: mock.Mock,
+        mock_event_manager: mock.Mock,
+        mock_parse_args: mock.Mock,
+        mock_load_plugins: mock.Mock,
+        mock_sleep: mock.Mock,
+    ) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_args = mock_parse_args.return_value
+        self.mock_default_args(mock_args)
+        mock_args.enable_devtools = True
+        main(['--enable-devtools'])
+        mock_load_plugins.assert_called()
+        print(mock_load_plugins.call_args_list[0][0][0])
+        self.assertEqual(
+            mock_load_plugins.call_args_list[0][0][0], [
+                b'proxy.http.inspector.DevtoolsProtocolPlugin',
+                b'proxy.http.server.HttpWebServerPlugin',
+                b'proxy.http.proxy.HttpProxyPlugin',
+            ],
+        )
+        mock_parse_args.assert_called_once()
+        mock_acceptor_pool.assert_called()
+        mock_acceptor_pool.return_value.setup.assert_called()
+        # Currently --enable-devtools alone doesn't enable eventing core
+        mock_event_manager.assert_not_called()
+
+    @mock.patch('time.sleep')
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
     @mock.patch('builtins.open')
@@ -284,14 +317,11 @@ class TestMain(unittest.TestCase):
             mock_print.assert_called_with(__version__)
         self.assertEqual(e.exception.code, 0)
 
-    def test_enable_devtools(self) -> None:
-        pass
+    # def test_pac_file(self) -> None:
+    #     pass
 
-    def test_pac_file(self) -> None:
-        pass
+    # def test_imports_plugin(self) -> None:
+    #     pass
 
-    def test_imports_plugin(self) -> None:
-        pass
-
-    def test_cannot_enable_https_proxy_and_tls_interception_mutually(self) -> None:
-        pass
+    # def test_cannot_enable_https_proxy_and_tls_interception_mutually(self) -> None:
+    #     pass
