@@ -43,7 +43,17 @@ T = TypeVar('T', bound='HttpParser')
 
 
 class HttpParser:
-    """HTTP request/response parser."""
+    """HTTP request/response parser.
+
+    TODO: Make me zero-copy by using memoryview.
+    Currently due to chunk/buffer handling we
+    are not able to utilize memoryview
+    efficiently.
+
+    For this to happen we must store `buffer`
+    as List[memoryview] instead of raw bytes and
+    update parser to work accordingly.
+    """
 
     def __init__(self, parser_type: int) -> None:
         self.type: int = parser_type
@@ -70,7 +80,22 @@ class HttpParser:
         self.body: Optional[bytes] = None
 
         self.chunk_parser: Optional[ChunkParser] = None
-        self.url: Optional[urlparse.SplitResultBytes] = None
+
+        # TODO: Deprecate me, we don't need this in core.
+        #
+        # Deprecated since v2.4.0
+        #
+        # This is mostly for developers so that they can directly
+        # utilize a url object, but is unnecessary as parser
+        # provides all the necessary parsed information.
+        #
+        # But developers can utilize urlsplit or whatever
+        # library they are using when necessary. This will certainly
+        # give some performance boost as url parsing won't be needed
+        # for every request/response object.
+        #
+        # (except query string and fragments)
+        self._url: Optional[urlparse.SplitResultBytes] = None
 
     @classmethod
     def request(cls: Type[T], raw: bytes) -> T:
@@ -115,7 +140,7 @@ class HttpParser:
         # with urlsplit, which expects a fully qualified url.
         if self.method == httpMethods.CONNECT:
             url = b'https://' + url
-        self.url = urlparse.urlsplit(url)
+        self._url = urlparse.urlsplit(url)
         self._set_line_attributes()
 
     def is_chunked_encoded(self) -> bool:
@@ -151,9 +176,9 @@ class HttpParser:
         body: Optional[bytes] = self._get_body_or_chunks()
         path = self.path
         if for_proxy:
-            assert self.url and self.host and self.port and self.path
+            assert self._url and self.host and self.port and self.path
             path = (
-                self.url.scheme +
+                self._url.scheme +
                 COLON + SLASH + SLASH +
                 self.host +
                 COLON +
@@ -280,27 +305,27 @@ class HttpParser:
 
     def _set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
-            if self.method == httpMethods.CONNECT and self.url:
-                self.host = self.url.hostname
-                self.port = 443 if self.url.port is None else self.url.port
-            elif self.url:
-                self.host, self.port = self.url.hostname, self.url.port \
-                    if self.url.port else DEFAULT_HTTP_PORT
+            if self.method == httpMethods.CONNECT and self._url:
+                self.host = self._url.hostname
+                self.port = 443 if self._url.port is None else self._url.port
+            elif self._url:
+                self.host, self.port = self._url.hostname, self._url.port \
+                    if self._url.port else DEFAULT_HTTP_PORT
             else:
                 raise KeyError(
                     'Invalid request. Method: %r, Url: %r' %
-                    (self.method, self.url),
+                    (self.method, self._url),
                 )
             self.path = self._build_path()
 
     def _build_path(self) -> bytes:
-        if not self.url:
+        if not self._url:
             return b'/None'
-        url = self.url.path
+        url = self._url.path
         if url == b'':
             url = b'/'
-        if not self.url.query == b'':
-            url += b'?' + self.url.query
-        if not self.url.fragment == b'':
-            url += b'#' + self.url.fragment
+        if not self._url.query == b'':
+            url += b'?' + self._url.query
+        if not self._url.fragment == b'':
+            url += b'#' + self._url.fragment
         return url

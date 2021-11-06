@@ -161,9 +161,9 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.total_size, len(pkt))
         self.assertEqual(self.parser._build_path(), b'/path/dir/?a=b&c=d#p=q')
         self.assertEqual(self.parser.method, b'GET')
-        assert self.parser.url
-        self.assertEqual(self.parser.url.hostname, b'example.com')
-        self.assertEqual(self.parser.url.port, None)
+        assert self.parser._url
+        self.assertEqual(self.parser._url.hostname, b'example.com')
+        self.assertEqual(self.parser._url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
         self.assertEqual(
@@ -200,7 +200,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(pkt)
         self.assertEqual(self.parser.total_size, len(pkt))
         self.assertEqual(self.parser.method, None)
-        self.assertEqual(self.parser.url, None)
+        self.assertEqual(self.parser._url, None)
         self.assertEqual(self.parser.version, None)
         self.assertEqual(
             self.parser.state,
@@ -210,9 +210,9 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(CRLF)
         self.assertEqual(self.parser.total_size, len(pkt) + len(CRLF))
         self.assertEqual(self.parser.method, b'GET')
-        assert self.parser.url
-        self.assertEqual(self.parser.url.hostname, b'localhost')
-        self.assertEqual(self.parser.url.port, 8080)
+        assert self.parser._url
+        self.assertEqual(self.parser._url.hostname, b'localhost')
+        self.assertEqual(self.parser._url.port, 8080)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
@@ -248,9 +248,9 @@ class TestHttpParser(unittest.TestCase):
             ]),
         )
         self.assertEqual(self.parser.method, b'GET')
-        assert self.parser.url
-        self.assertEqual(self.parser.url.hostname, b'localhost')
-        self.assertEqual(self.parser.url.port, 8080)
+        assert self.parser._url
+        self.assertEqual(self.parser._url.hostname, b'localhost')
+        self.assertEqual(self.parser._url.port, 8080)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.buffer, b'Host: ')
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
@@ -295,9 +295,9 @@ class TestHttpParser(unittest.TestCase):
         ])
         self.parser.parse(raw % b'http://localhost')
         self.assertEqual(self.parser.method, b'POST')
-        assert self.parser.url
-        self.assertEqual(self.parser.url.hostname, b'localhost')
-        self.assertEqual(self.parser.url.port, None)
+        assert self.parser._url
+        self.assertEqual(self.parser._url.hostname, b'localhost')
+        self.assertEqual(self.parser._url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(
             self.parser.headers[b'content-type'],
@@ -334,9 +334,9 @@ class TestHttpParser(unittest.TestCase):
             ]),
         )
         self.assertEqual(self.parser.method, b'POST')
-        assert self.parser.url
-        self.assertEqual(self.parser.url.hostname, b'localhost')
-        self.assertEqual(self.parser.url.port, None)
+        assert self.parser._url
+        self.assertEqual(self.parser._url.hostname, b'localhost')
+        self.assertEqual(self.parser._url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assert_state_change_with_crlf(
             httpParserStates.RCVING_HEADERS,
