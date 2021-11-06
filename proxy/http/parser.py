@@ -285,8 +285,9 @@ class HttpParser:
             headers={} if not self.headers else {
                 self.headers[k][0]: self.headers[k][1] for k in self.headers
             },
-            body=self.body if not self.is_chunked_encoded(
-            ) else ChunkParser.to_chunks(self.body),
+            body=None if not self.body else (
+                self.body if not self.is_chunked_encoded() else ChunkParser.to_chunks(self.body)
+            ),
         )
 
     def has_host(self) -> bool:
