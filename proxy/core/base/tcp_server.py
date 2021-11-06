@@ -92,8 +92,9 @@ class BaseTcpServerHandler(Work):
             )
             self.client.flush()
             if self.must_flush_before_shutdown is True:
-                teardown = True
-            self.must_flush_before_shutdown = False
+                if not self.client.has_buffer():
+                    teardown = True
+                    self.must_flush_before_shutdown = False
         return teardown
 
     def handle_readables(self, readables: Readables) -> bool:
