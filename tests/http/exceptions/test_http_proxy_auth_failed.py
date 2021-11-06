@@ -61,7 +61,7 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         mock_server_conn.assert_not_called()
         self.assertEqual(self.protocol_handler.client.has_buffer(), True)
         self.assertEqual(
@@ -90,7 +90,7 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         mock_server_conn.assert_not_called()
         self.assertEqual(self.protocol_handler.client.has_buffer(), True)
         self.assertEqual(
@@ -119,7 +119,7 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         mock_server_conn.assert_called_once()
         self.assertEqual(self.protocol_handler.client.has_buffer(), False)
 
@@ -144,6 +144,6 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         mock_server_conn.assert_called_once()
         self.assertEqual(self.protocol_handler.client.has_buffer(), False)

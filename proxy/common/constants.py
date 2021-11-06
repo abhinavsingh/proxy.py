@@ -10,6 +10,7 @@
 """
 import os
 import time
+import secrets
 import pathlib
 import ipaddress
 
@@ -60,7 +61,7 @@ DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_KEY_FILE = None
 DEFAULT_LOG_FILE = None
-DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(filename)s:%(funcName)s:%(lineno)d - %(message)s'
+DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(module)s.%(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
 DEFAULT_HTTP_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port}{request_path} - ' + \
@@ -84,6 +85,10 @@ DEFAULT_VERSION = False
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 DEFAULT_MAX_SEND_SIZE = 16 * 1024
+
+DEFAULT_DEVTOOLS_DOC_URL = 'http://proxy'
+DEFAULT_DEVTOOLS_FRAME_ID = secrets.token_hex(8)
+DEFAULT_DEVTOOLS_LOADER_ID = secrets.token_hex(8)
 
 DEFAULT_DATA_DIRECTORY_PATH = os.path.join(str(pathlib.Path.home()), '.proxy')
 

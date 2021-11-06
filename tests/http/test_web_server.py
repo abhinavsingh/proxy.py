@@ -57,7 +57,7 @@ class TestWebServerPlugin(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.mock_selector_for_client_read(mock_selector)
         self.init_and_make_pac_file_request(pac_file)
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.request.state,
             httpParserStates.COMPLETE,
@@ -81,7 +81,7 @@ class TestWebServerPlugin(unittest.TestCase):
         self.mock_selector_for_client_read(mock_selector)
         pac_file_content = b'function FindProxyForURL(url, host) { return "PROXY localhost:8899; DIRECT"; }'
         self.init_and_make_pac_file_request(text_(pac_file_content))
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.request.state,
             httpParserStates.COMPLETE,
@@ -126,7 +126,7 @@ class TestWebServerPlugin(unittest.TestCase):
             b'GET /hello HTTP/1.1',
             CRLF,
         ])
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.request.state,
             httpParserStates.COMPLETE,
@@ -194,8 +194,8 @@ class TestWebServerPlugin(unittest.TestCase):
         )
         self.protocol_handler.initialize()
 
-        self.protocol_handler.run_once()
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
+        self.protocol_handler._run_once()
 
         self.assertEqual(mock_selector.return_value.select.call_count, 2)
         self.assertEqual(self._conn.send.call_count, 1)
@@ -258,8 +258,8 @@ class TestWebServerPlugin(unittest.TestCase):
         )
         self.protocol_handler.initialize()
 
-        self.protocol_handler.run_once()
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
+        self.protocol_handler._run_once()
 
         self.assertEqual(mock_selector.return_value.select.call_count, 2)
         self.assertEqual(self._conn.send.call_count, 1)
@@ -282,7 +282,7 @@ class TestWebServerPlugin(unittest.TestCase):
         )
         self.protocol_handler.initialize()
         plugin.assert_called()
-        with mock.patch.object(self.protocol_handler, 'run_once') as mock_run_once:
+        with mock.patch.object(self.protocol_handler, '_run_once') as mock_run_once:
             mock_run_once.return_value = True
             self.protocol_handler.run()
         self.assertTrue(self._conn.closed)

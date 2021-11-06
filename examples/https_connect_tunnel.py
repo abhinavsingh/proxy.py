@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
+
 from typing import Any, Optional
 
 from proxy.proxy import Proxy
@@ -74,18 +75,15 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
 
 def main() -> None:
     # This example requires `threadless=True`
-    pool = AcceptorPool(
-        flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
-        work_klass=HttpsConnectTunnelHandler,
-    )
-    try:
-        pool.setup()
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        pool.shutdown()
+    with AcceptorPool(
+            flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
+            work_klass=HttpsConnectTunnelHandler,
+    ):
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':

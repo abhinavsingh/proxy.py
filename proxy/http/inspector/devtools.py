@@ -20,7 +20,7 @@ from ..server import HttpWebServerBasePlugin, httpProtocolTypes
 from ...common.utils import bytes_, text_
 from ...core.event import EventSubscriber
 from ...common.flag import flags
-from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH
+from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DEVTOOLS_DOC_URL
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,6 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
       dispatching to client.
     - Core events unrelated to DevTools protocol are dropped.
     """
-
-    DOC_URL = 'http://dashboard.proxy.py'
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -82,7 +80,6 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         frame = WebsocketFrame()
         frame.fin = True
         frame.opcode = websocketOpcodes.TEXT_FRAME
-
         # logger.info(message)
         method = message['method']
         if method in (
@@ -99,7 +96,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
                     'frameTree': {
                         'frame': {
                             'id': 1,
-                            'url': DevtoolsProtocolPlugin.DOC_URL,
+                            'url': DEFAULT_DEVTOOLS_DOC_URL,
                             'mimeType': 'other',
                         },
                         'childFrames': [],
@@ -118,7 +115,6 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         else:
             logging.warning('Unhandled devtools method %s', method)
             data = {}
-
         data['id'] = message['id']
         frame.data = bytes_(json.dumps(data))
         self.client.queue(memoryview(frame.build()))
