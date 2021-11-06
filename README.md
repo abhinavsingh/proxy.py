@@ -58,6 +58,7 @@
     - [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
     - [CloudflareDnsResolverPlugin](#cloudflarednsresolverplugin)
     - [CustomDnsResolverPlugin](#customdnsresolverplugin)
+    - [CustomNetworkInterface](#customnetworkinterface)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
     - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
@@ -258,10 +259,11 @@ Things to notice from above logs:
 - `Started N workers` - Use `--num-workers` flag to customize number of worker processes.
   By default, `proxy.py` will start as many workers as there are CPU cores on the machine.
 
-- `Started server on ::1:8899` - By default, `proxy.py` listens on IPv6 `::1`, which
-  is equivalent of IPv4 `127.0.0.1`. If you want to access `proxy.py` externally,
+- `Started server on ::1:8899` - By default, `proxy.py` listens on IPv6 `::1`,
+  which is equivalent of IPv4 `127.0.0.1`. If you want to access `proxy.py` externally,
   use `--hostname ::` or `--hostname 0.0.0.0` or bind to any other interface available
-  on your machine.
+  on your machine.  See [CustomNetworkInterface](#customnetworkinterface) for how to customize
+  your system public IP as seen by the upstream servers.
 
 - `Port 8899` - Use `--port` flag to customize default TCP port.
 
@@ -757,8 +759,15 @@ Start `proxy.py` as:
     --plugins proxy.plugin.CustomDnsResolverPlugin
 ```
 
-`HttpProxyBasePlugin.resolve_dns` can also be used to configure `network interface` which
-must be used as the `source_address` for connection to the upstream server.
+### CustomNetworkInterface
+
+`HttpProxyBasePlugin.resolve_dns` callback can also be used to configure `network interface` which must be used as the `source_address` for connection to the upstream server.
+
+See [this thread](https://github.com/abhinavsingh/proxy.py/issues/535#issuecomment-961510862)
+for more details.
+
+PS: There is no plugin named, but [CustomDnsResolverPlugin](#customdnsresolverplugin)
+can be easily customized according to your needs.
 
 ## HTTP Web Server Plugins
 
