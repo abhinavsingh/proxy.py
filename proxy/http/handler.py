@@ -234,9 +234,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                         elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                             return True
         except HttpProtocolException as e:
-            logger.debug(
-                'HttpProtocolException type raised',
-            )
+            logger.debug('HttpProtocolException raised')
             response: Optional[memoryview] = e.response(self.request)
             if response:
                 self.client.queue(response)

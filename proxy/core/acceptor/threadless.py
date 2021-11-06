@@ -34,21 +34,22 @@ logger = logging.getLogger(__name__)
 
 
 class Threadless(multiprocessing.Process):
-    """Threadless process provides an event loop.
+    """Work executor process.
 
-    Internally, for each client connection, an instance of `work_klass`
-    is created.  Threadless will invoke necessary lifecycle of the `Work` class
-    allowing implementations to handle accepted client connections as they wish.
+    Threadless process provides an event loop, which is shared across
+    multiple `Work` instances to handle work.
 
-    Note that, all `Work` implementations share the same underlying event loop.
+    Threadless takes input a `work_klass` and an `event_queue`.  `work_klass`
+    must conform to the `Work` protocol.  Work is received over the
+    `event_queue`.
 
-    When --threadless option is enabled, each Acceptor process also
-    spawns one Threadless process.  And instead of spawning new thread
-    for each accepted client connection, Acceptor process sends
-    accepted client connection to Threadless process over a pipe.
+    When a work is accepted, threadless creates a new instance of `work_klass`.
+    Threadless will then invoke necessary lifecycle of the `Work` protocol,
+    allowing `work_klass` implementation to handle the assigned work.
 
-    Example, HttpProtocolHandler implements Work class to hooks into the
-    event loop provided by Threadless process.
+    Example, `BaseTcpServerHandler` implements `Work` protocol. It expects
+    a client connection as work payload and hooks into the threadless
+    event loop to handle the client connection.
     """
 
     def __init__(
@@ -82,13 +83,10 @@ class Threadless(multiprocessing.Process):
             for fd in worker_events:
                 # Can throw ValueError: Invalid file descriptor: -1
                 #
-                # Work classes must handle the exception and shutdown
-                # gracefully otherwise this will result in bringing down the
-                # entire threadless process
-                #
-                # This is only possible when work.get_events pass
-                # an invalid file descriptor.  Example, because of bad
-                # exception handling within the work implementation class.
+                # A guard within Work classes may not help here due to
+                # asynchronous nature.  Hence, threadless will handle
+                # ValueError exceptions raised by selector.register
+                # for invalid fd.
                 self.selector.register(fd, worker_events[fd])
         ev = self.selector.select(timeout=1)
         readables = []
@@ -180,6 +178,10 @@ class Threadless(multiprocessing.Process):
         # Note that selector from now on is idle,
         # until all the logic below completes.
         #
+        # This is where one process per CPU architecture shines,
+        # as other threadless processes can continue process work
+        # within their context.
+        #
         # Invoke Threadless.handle_events
         #
         # TODO: Only send readable / writables that client originally
@@ -194,7 +196,7 @@ class Threadless(multiprocessing.Process):
             self.accept_client()
         # Wait for Threadless.handle_events to complete
         self.loop.run_until_complete(self.wait_for_tasks(tasks))
-        # Remove and shutdown inactive connections
+        # Remove and shutdown inactive workers
         self.cleanup_inactive()
 
     def run(self) -> None:

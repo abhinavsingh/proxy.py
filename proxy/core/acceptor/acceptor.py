@@ -42,19 +42,25 @@ flags.add_argument(
 
 
 class Acceptor(multiprocessing.Process):
-    """Socket server acceptor process.
+    """Work acceptor process.
 
-    Accepts a server socket fd over `work_queue` and start listening for client
-    connections over the passed server socket. By default, it spawns a separate thread
-    to handle each client request.
+    On start-up, `Acceptor` accepts a file descriptor which will be used to
+    accept new work.  File descriptor is accepted over a `work_queue` which is
+    closed immediately after receiving the descriptor.
 
-    However, if `--threadless` option is enabled, Acceptor process will also pre-spawns a `Threadless`
-    process at startup.  Accepted client connections are then passed to the `Threadless` process
-    which internally uses asyncio event loop to handle client connections.
+    `Acceptor` goes on to listen for new work over the received server socket.
+    By default, `Acceptor` will spawn a new thread to handle each work.
 
-    TODO(abhinavsingh): Instead of starting `Threadless` process, can we work with a `Threadless` thread?
-    What are the performance implications of sharing fds between threads vs processes?  How much performance
-    degradation happen when processes are running on separate CPU cores?
+    However, when `--threadless` option is enabled, `Acceptor` process will also pre-spawns a
+    `Threadless` process during start-up.  Accepted work is passed to these `Threadless` processes.
+    `Acceptor` process shares accepted work with a `Threadless` process over it's dedicated pipe.
+
+    TODO(abhinavsingh): Open questions:
+    1) Instead of starting `Threadless` process, can we work with a `Threadless` thread?
+    2) What are the performance implications of sharing fds between threads vs processes?
+    3) How much performance degradation happens when acceptor and threadless processes are
+       running on separate CPU cores?
+    4) Can we ensure both acceptor and threadless process are pinned to the same CPU core?
     """
 
     def __init__(
@@ -67,18 +73,26 @@ class Acceptor(multiprocessing.Process):
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
-        self.idd = idd
-        self.work_queue: connection.Connection = work_queue
         self.flags = flags
-        self.work_klass = work_klass
+        # Lock shared by all acceptor processes
+        # to avoid concurrent accept over server socket
         self.lock = lock
+        # Index assigned by `AcceptorPool`
+        self.idd = idd
+        # Queue over which server socket fd is received on start-up
+        self.work_queue: connection.Connection = work_queue
+        # Worker class
+        self.work_klass = work_klass
+        # Eventing core queue
         self.event_queue = event_queue
-
+        # Selector & threadless states
         self.running = multiprocessing.Event()
         self.selector: Optional[selectors.DefaultSelector] = None
-        self.sock: Optional[socket.socket] = None
         self.threadless_process: Optional[Threadless] = None
         self.threadless_client_queue: Optional[connection.Connection] = None
+        # File descriptor used to accept new work
+        # Currently, a socket fd is assumed.
+        self.sock: Optional[socket.socket] = None
 
     def start_threadless_process(self) -> None:
         pipe = multiprocessing.Pipe()
@@ -99,31 +113,30 @@ class Acceptor(multiprocessing.Process):
         self.threadless_process.join()
         self.threadless_client_queue.close()
 
-    def start_work(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
-        if self.flags.threadless and \
-                self.threadless_client_queue and \
-                self.threadless_process:
-            self.threadless_client_queue.send(addr)
-            send_handle(
-                self.threadless_client_queue,
-                conn.fileno(),
-                self.threadless_process.pid,
-            )
-            conn.close()
-        else:
-            work = self.work_klass(
-                TcpClientConnection(conn, addr),
-                flags=self.flags,
-                event_queue=self.event_queue,
-            )
-            work_thread = threading.Thread(target=work.run)
-            work_thread.daemon = True
-            work.publish_event(
-                event_name=eventNames.WORK_STARTED,
-                event_payload={'fileno': conn.fileno(), 'addr': addr},
-                publisher_id=self.__class__.__name__,
-            )
-            work_thread.start()
+    def _start_threadless_work(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
+        assert self.threadless_process and self.threadless_client_queue
+        self.threadless_client_queue.send(addr)
+        send_handle(
+            self.threadless_client_queue,
+            conn.fileno(),
+            self.threadless_process.pid,
+        )
+        conn.close()
+
+    def _start_threaded_work(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
+        work = self.work_klass(
+            TcpClientConnection(conn, addr),
+            flags=self.flags,
+            event_queue=self.event_queue,
+        )
+        work_thread = threading.Thread(target=work.run)
+        work_thread.daemon = True
+        work.publish_event(
+            event_name=eventNames.WORK_STARTED,
+            event_payload={'fileno': conn.fileno(), 'addr': addr},
+            publisher_id=self.__class__.__name__,
+        )
+        work_thread.start()
 
     def run_once(self) -> None:
         with self.lock:
@@ -132,7 +145,14 @@ class Acceptor(multiprocessing.Process):
             if len(events) == 0:
                 return
             conn, addr = self.sock.accept()
-        self.start_work(conn, addr)
+        if (
+                self.flags.threadless and
+                self.threadless_client_queue and
+                self.threadless_process
+        ):
+            self._start_threadless_work(conn, addr)
+        else:
+            self._start_threaded_work(conn, addr)
 
     def run(self) -> None:
         setup_logger(

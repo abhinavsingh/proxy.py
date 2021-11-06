@@ -102,7 +102,6 @@ class BaseTcpServerHandler(Work):
         if self.client.connection in readables:
             data = self.client.recv(self.flags.client_recvbuf_size)
             if data is None:
-                # Client closed connection, signal shutdown
                 logger.debug(
                     'Connection closed by client {0}'.format(
                         self.client.addr,
@@ -126,11 +125,4 @@ class BaseTcpServerHandler(Work):
                         self.must_flush_before_shutdown = True
                     else:
                         teardown = True
-            # except ConnectionResetError:
-            #     logger.debug(
-            #         'Connection reset by client {0}'.format(
-            #             self.client.addr,
-            #         ),
-            #     )
-            #     teardown = True
         return teardown
