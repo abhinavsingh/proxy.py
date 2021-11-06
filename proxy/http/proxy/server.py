@@ -67,8 +67,8 @@ flags.add_argument(
     '--ca-file',
     type=str,
     default=DEFAULT_CA_FILE,
-    help='Default: None. Provide path to custom CA file for peer certificate validation. '
-    'Specially useful on MacOS.',
+    help='Default: ' + str(DEFAULT_CA_FILE) +
+    '. Provide path to custom CA bundle for peer certificate verification'
 )
 flags.add_argument(
     '--ca-signing-key-file',

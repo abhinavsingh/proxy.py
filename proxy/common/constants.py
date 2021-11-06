@@ -12,6 +12,7 @@ import os
 import time
 import secrets
 import pathlib
+import sysconfig
 import ipaddress
 
 from typing import List
@@ -22,6 +23,10 @@ PROXY_PY_START_TIME = time.time()
 
 # /path/to/proxy.py/proxy folder
 PROXY_PY_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+# Path to virtualenv/lib/python3.X/site-packages
+PROXY_PY_SITE_PACKAGES = sysconfig.get_path('purelib')
+assert PROXY_PY_SITE_PACKAGES
 
 CRLF = b'\r\n'
 COLON = b':'
@@ -46,7 +51,8 @@ DEFAULT_CA_CERT_FILE = None
 DEFAULT_CA_KEY_FILE = None
 DEFAULT_CA_SIGNING_KEY_FILE = None
 DEFAULT_CERT_FILE = None
-DEFAULT_CA_FILE = None
+DEFAULT_CA_FILE = pathlib.Path(
+    PROXY_PY_SITE_PACKAGES) / 'certifi' / 'cacert.pem'
 DEFAULT_CLIENT_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
