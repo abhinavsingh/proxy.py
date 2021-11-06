@@ -1724,7 +1724,7 @@ few obvious ones include:
 
 ## OSError when wrapping client for TLS Interception
 
-With `TLS Interception` on, you might occassionally see following exceptions:
+With `TLS Interception` on, you might occasionally see following exceptions:
 
 ```console
 2021-11-06 23:33:34,540 - pid:91032 [E] server.intercept:678 - OSError when wrapping client

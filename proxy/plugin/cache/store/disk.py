@@ -27,7 +27,8 @@ flags.add_argument(
     '--cache-dir',
     type=str,
     default=tempfile.gettempdir(),
-    help='Default: A temporary directory.  Flag only applicable when cache plugin is used with on-disk storage.',
+    help='Default: A temporary directory.  ' +
+    'Flag only applicable when cache plugin is used with on-disk storage.',
 )
 
 

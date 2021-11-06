@@ -669,6 +669,37 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 'TimeoutExpired during certificate generation', exc_info=e,
             )
             return True
+        except ssl.SSLCertVerificationError:    # Client raised certificate verification error
+            # When --disable-interception-on-ssl-cert-verification-error flag is on,
+            # we will cache such upstream hosts and avoid intercepting them for future
+            # requests.
+            logger.warning(
+                'ssl.SSLCertVerificationError: ' +
+                'Client raised cert verification error for upstream: {0}'.format(
+                    self.upstream.addr[0],
+                ),
+            )
+            return True
+        except ssl.SSLError as e:
+            if e.reason == "TLSV1_ALERT_UNKNOWN_CA":
+                logger.warning(
+                    'TLSV1_ALERT_UNKNOWN_CA: ' +
+                    'Client raised cert verification error for upstream: {0}'.format(
+                        self.upstream.addr[0],
+                    )
+                )
+            else:
+                logger.exception(
+                    'OSError when wrapping client', exc_info=e,
+                )
+            return True
+        except ssl.SSLEOFError as e:
+            logger.warning(
+                'ssl.SSLEOFError {0} when wrapping client for upstream: {1}'.format(
+                    str(e), self.upstream.addr[0],
+                ),
+            )
+            return True
         except BrokenPipeError:
             logger.error(
                 'BrokenPipeError when wrapping client',
