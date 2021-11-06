@@ -17,6 +17,8 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     name: >-
       e2e: 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    needs:
+    - build
     strategy:
       matrix:
         os: [macOS, Ubuntu]
@@ -25,40 +27,118 @@ jobs:
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
+    - name: Make the env clean of non-test files
+      run: |
+        shopt -s extglob
+        mv -v tests/integration/main.sh integration-test.sh
+        rm -rf !integration-test.sh
+      shell: bash
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python }}
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
     - name: Integration testing
       run: |
-        pip install -U pip
-        pip install .
+        pip install dist/proxy.py-*-py3-none-any.whl
         proxy \
           --hostname 127.0.0.1 \
           --enable-web-server \
           --pid-file proxy.pid \
           --log-file proxy.log \
           &
-        ./tests/integration/main.sh
+        ./integration-test.sh
+
+  build:
+    name: build-dists
+
+    runs-on: Ubuntu-latest
+
+    env:
+      PY_COLORS: 1
+      TOX_PARALLEL_NO_SPINNER: 1
+      TOXENV: cleanup-dists,build-dists
+
+    steps:
+    - name: Switch to using Python v3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+    - name: >-
+        Calculate Python interpreter version hash value
+        for use in the cache key
+      id: calc-cache-key-py
+      run: |
+        from hashlib import sha512
+        from sys import version
+
+        hash = sha512(version.encode()).hexdigest()
+        print(f'::set-output name=py-hash-key::{hash}')
+      shell: python
+    - name: Get pip cache dir
+      id: pip-cache
+      run: >-
+        echo "::set-output name=dir::$(pip cache dir)"
+    - name: Set up pip cache
+      uses: actions/cache@v2.1.5
+      with:
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: >-
+          ${{ runner.os }}-pip-${{
+          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
+          hashFiles('tox.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{
+              steps.calc-cache-key-py.outputs.py-hash-key
+          }}-
+          ${{ runner.os }}-pip-
+    - name: Install tox
+      run: >-
+        python -m
+        pip install
+        --user
+        tox
+
+    - name: Grab the source from Git
+      uses: actions/checkout@v2
+
+    - name: Pre-populate the tox env
+      run: >-
+        python -m
+        tox
+        --parallel auto
+        --parallel-live
+        --skip-missing-interpreters false
+        --notest
+    - name: Build dists
+      run: >-
+        python -m
+        tox
+        --parallel auto
+        --parallel-live
+        --skip-missing-interpreters false
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist
+        retention-days: 30  # Defaults to 90
 
   lint:
-    name: >-
-      ${{
-          toJSON(matrix.custom_job_name)
-          && matrix.custom_job_name
-          || matrix.toxenv
-      }}
+    name: ${{ matrix.toxenv }}
+    needs:
+    - build
 
     runs-on: Ubuntu-latest
     strategy:
       matrix:
         toxenv:
         - lint
-        custom_job_name:
-        - ''
-        include:
-        - custom_job_name: build-dists
-          toxenv: cleanup-dists,build-dists,metadata-validation
+        - metadata-validation
       fail-fast: false
 
     env:
@@ -109,6 +189,19 @@ jobs:
     - name: Grab the source from Git
       uses: actions/checkout@v2
 
+    - name: Make the env clean of non-test files
+      if: matrix.toxenv == 'metadata-validation'
+      run: |
+        shopt -s extglob
+        rm -rf !tox.ini
+      shell: bash
+    - name: Download all the dists
+      if: matrix.toxenv == 'metadata-validation'
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+
     - name: >-
         Pre-populate tox envs: `${{ env.TOXENV }}`
       run: >-
@@ -129,6 +222,8 @@ jobs:
 
   test:
     name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    needs:
+    - build
 
     runs-on: ${{ matrix.os }}-latest
     strategy:
@@ -198,6 +293,12 @@ jobs:
     - name: Grab the source from Git
       uses: actions/checkout@v2
 
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+
     - name: Pre-populate the testing env
       run: >-
         python -m
@@ -205,7 +306,9 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+        --installpkg dist/proxy.py-*-py3-none-any.whl
         --notest
+      shell: bash
     - name: Run the testing
       run: >-
         python -m
@@ -213,6 +316,7 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+        --skip-pkg-install
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       with:
