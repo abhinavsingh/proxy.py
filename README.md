@@ -120,7 +120,7 @@
   - Threadless executions using coroutine
   - Made to handle `tens-of-thousands` connections / sec
 
-    ```bash
+    ```console
     # On Macbook Pro 2015 / 2.8 GHz Intel Core i7
     ❯ hey -n 10000 -c 100 http://localhost:8899/
 
@@ -180,19 +180,19 @@
 
 Install from `PyPi`
 
-```bash
+```console
 ❯ pip install --upgrade proxy.py
 ```
 
 or from GitHub `master` branch
 
-```bash
+```console
 ❯ pip install git+https://github.com/abhinavsingh/proxy.py.git@master
 ```
 
 ### Development Version with PIP
 
-```bash
+```console
 ❯ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
 ```
 
@@ -200,13 +200,13 @@ or from GitHub `master` branch
 
 #### Stable Version from Docker Hub
 
-```bash
+```console
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
 #### Build Development Version Locally
 
-```bash
+```console
 ❯ git clone https://github.com/abhinavsingh/proxy.py.git
 ❯ cd proxy.py
 ❯ make container
@@ -220,13 +220,13 @@ or from GitHub `master` branch
 
 ### Stable Version with HomeBrew
 
-```bash
+```console
 ❯ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/stable/proxy.rb
 ```
 
 ### Development Version with HomeBrew
 
-```bash
+```console
 ❯ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/develop/proxy.rb
 ```
 
@@ -241,7 +241,7 @@ an executable named `proxy` is placed under your `$PATH`.
 
 Simply type `proxy` on command line to start it with default configuration.
 
-```bash
+```console
 ❯ proxy
 ...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
 ...[redacted]... - Starting 8 workers
@@ -271,7 +271,7 @@ All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`.
 
 Lets start `proxy.py` with `DEBUG` level logging:
 
-```bash
+```console
 ❯ proxy --log-level d
 ...[redacted]... - Open file descriptor soft limit set to 1024
 ...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
@@ -296,33 +296,33 @@ To start `proxy.py` from source code follow these instructions:
 
 - Clone repo
 
-  ```bash
+  ```console
   ❯ git clone https://github.com/abhinavsingh/proxy.py.git
   ❯ cd proxy.py
   ```
 
 - Create a Python 3 virtual env
 
-  ```bash
+  ```console
   ❯ python3 -m venv venv
   ❯ source venv/bin/activate
   ```
 
 - Install deps
 
-  ```bash
+  ```console
   ❯ pip install -rrequirements.txt -rrequirements-testing.txt -rrequirements-tunnel.txt
   ```
 
 - Run tests
 
-  ```bash
+  ```console
   ❯ make
   ```
 
 - Run proxy.py
 
-  ```bash
+  ```console
   ❯ python -m proxy
   ```
 
@@ -364,7 +364,7 @@ Add support for short links in your favorite browsers / applications.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ShortLinkPlugin
 ```
@@ -393,7 +393,7 @@ Modifies POST request body before sending request to upstream server.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ModifyPostDataPlugin
 ```
@@ -403,7 +403,7 @@ and enforced `Content-Type: application/json`.
 
 Verify the same using `curl -x localhost:8899 -d '{"key": "value"}' http://httpbin.org/post`
 
-```bash
+```console
 {
   "args": {},
   "data": "{\"key\": \"modified\"}",
@@ -447,20 +447,20 @@ without need of an actual upstream REST API server.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ProposedRestApiPlugin
 ```
 
 Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1/users/`
 
-```bash
+```console
 {"count": 2, "next": null, "previous": null, "results": [{"email": "you@example.com", "groups": [], "url": "api.example.com/v1/users/1/", "username": "admin"}, {"email": "someone@example.com", "groups": [], "url": "api.example.com/v1/users/2/", "username": "admin"}]}
 ```
 
 Verify the same by inspecting `proxy.py` logs:
 
-```bash
+```console
 2019-09-27 12:44:02,212 - INFO - pid:7077 - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
 ```
 
@@ -478,7 +478,7 @@ also running on `8899` port.
 
 Start `proxy.py` and enable inbuilt web server:
 
-```bash
+```console
 ❯ proxy \
     --enable-web-server \
     --plugins proxy.plugin.RedirectToCustomServerPlugin
@@ -512,14 +512,14 @@ By default, plugin drops traffic for `facebook.com` and `www.facebok.com`.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.FilterByUpstreamHostPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://facebook.com`:
 
-```bash
+```console
 ... [redacted] ...
 < HTTP/1.1 418 I'm a tea pot
 < Proxy-agent: proxy.py v1.0.0
@@ -532,7 +532,7 @@ Above `418 I'm a tea pot` is sent by our plugin.
 
 Verify the same by inspecting logs for `proxy.py`:
 
-```bash
+```console
 2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
 Traceback (most recent call last):
 ... [redacted] ...
@@ -545,14 +545,14 @@ Caches Upstream Server Responses.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.CacheResponsesPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
 
-```bash
+```console
 ... [redacted] ...
 < HTTP/1.1 200 OK
 < Access-Control-Allow-Credentials: true
@@ -582,14 +582,14 @@ Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
 
 Get path to the cache file from `proxy.py` logs:
 
-```bash
+```console
 ... [redacted] ... - GET httpbin.org:80/get - 200 OK - 556 bytes
 ... [redacted] ... - Cached response at /var/folders/k9/x93q0_xn1ls9zy76m2mf2k_00000gn/T/httpbin.org-1569378301.407512.txt
 ```
 
 Verify contents of the cache file `cat /path/to/your/cache/httpbin.org.txt`
 
-```bash
+```console
 HTTP/1.1 200 OK
 Access-Control-Allow-Credentials: true
 Access-Control-Allow-Origin: *
@@ -621,14 +621,14 @@ Modifies upstream server responses.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ManInTheMiddlePlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`:
 
-```bash
+```console
 ... [redacted] ...
 < HTTP/1.1 200 OK
 < Content-Length: 28
@@ -650,17 +650,17 @@ Let's start upstream proxies first.
 
 Start `proxy.py` on port `9000` and `9001`
 
-```bash
+```console
 ❯ proxy --port 9000
 ```
 
-```bash
+```console
 ❯ proxy --port 9001
 ```
 
 Now, start `proxy.py` with `ProxyPoolPlugin` (on default `8899` port):
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ProxyPoolPlugin
 ```
@@ -679,14 +679,14 @@ plugin blocks traffic from `127.0.0.1` and `::1`.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.FilterByClientIpPlugin
 ```
 
 Send a request using `curl -v -x localhost:8899 http://google.com`:
 
-```bash
+```console
 ... [redacted] ...
 > Proxy-Connection: Keep-Alive
 >
@@ -704,14 +704,14 @@ This plugin demonstrate how to modify chunked encoded responses. In able to do s
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ModifyChunkResponsePlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://httpbin.org/stream/5`:
 
-```bash
+```console
 ... [redacted] ...
 modify
 chunk
@@ -730,13 +730,13 @@ This plugin uses `Cloudflare` hosted `DNS-over-HTTPS` [API](https://developers.c
 `DoH` mandates a HTTP2 compliant client. Unfortunately `proxy.py`
 doesn't provide that yet, so we use a dependency. Install it:
 
-```bash
+```console
 ❯ pip install "httpx[http2]"
 ```
 
 Now start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.CloudflareDnsResolverPlugin
 ```
@@ -752,7 +752,7 @@ to your taste.  Example, query your custom DNS server, implement DoH or other me
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.CustomDnsResolverPlugin
 ```
@@ -768,7 +768,7 @@ Extend in-built Web Server to add Reverse Proxy capabilities.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy --enable-web-server \
     --plugins proxy.plugin.ReverseProxyPlugin
 ```
@@ -776,7 +776,7 @@ Start `proxy.py` as:
 With default configuration, `ReverseProxyPlugin` plugin is equivalent to
 following `Nginx` config:
 
-```bash
+```console
 location /get {
     proxy_pass http://httpbin.org/get
 }
@@ -784,7 +784,7 @@ location /get {
 
 Verify using `curl -v localhost:8899/get`:
 
-```bash
+```console
 {
   "args": {},
   "headers": {
@@ -803,14 +803,14 @@ Demonstrates inbuilt web server routing using plugin.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy --enable-web-server \
     --plugins proxy.plugin.WebServerPlugin
 ```
 
 Verify using `curl -v localhost:8899/http-route-example`, should return:
 
-```bash
+```console
 HTTP route response
 ```
 
@@ -836,13 +836,13 @@ instead of being dropped.
 
 By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`. For enabling end-to-end encrypting using `tls` / `https` first generate certificates. **Checkout** the repository and run:
 
-```bash
+```console
 make https-certificates
 ```
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --cert-file https-cert.pem \
     --key-file https-key.pem
@@ -850,7 +850,7 @@ Start `proxy.py` as:
 
 Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https://httpbin.org/get`:
 
-```bash
+```console
 {
   "args": {},
   "headers": {
@@ -867,13 +867,13 @@ If you want to avoid passing `--proxy-cacert` flag, also consider signing genera
 
 First, generate CA certificates:
 
-```bash
+```console
 make ca-certificates
 ```
 
 Then, sign SSL certificate:
 
-```bash
+```console
 make sign-https-certificates
 ```
 
@@ -884,14 +884,14 @@ Now restart the server with `--cert-file https-signed-cert.pem` flag. Note that 
 By default, `proxy.py` will not decrypt `https` traffic between client and server.
 To enable TLS interception first generate root CA certificates:
 
-```bash
+```console
 ❯ make ca-certificates
 ```
 
 Lets also enable `CacheResponsePlugin` so that we can verify decrypted
 response from the server. Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.CacheResponsesPlugin \
     --ca-key-file ca-key.pem \
@@ -903,11 +903,11 @@ response from the server. Start `proxy.py` as:
 
 Verify TLS interception using `curl`
 
-```bash
+```console
 ❯ curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get
 ```
 
-```bash
+```console
 *  issuer: C=US; ST=CA; L=SanFrancisco; O=proxy.py; OU=CA; CN=Proxy PY CA; emailAddress=proxyca@mailserver.com
 *  SSL certificate verify ok.
 > GET /get HTTP/1.1
@@ -933,7 +933,7 @@ file from `proxy.py` logs.
 
 `❯ cat /path/to/your/tmp/directory/httpbin.org-1569452863.924174.txt`
 
-```bash
+```console
 HTTP/1.1 200 OK
 Access-Control-Allow-Credentials: true
 Access-Control-Allow-Origin: *
@@ -979,20 +979,20 @@ with TLS Interception:
 
 1. Generate CA certificates on host computer
 
-   ```bash
+   ```console
    ❯ make ca-certificates
    ```
 
 2. Copy all generated certificates into a separate directory. We'll later mount this directory into our docker container
 
-   ```bash
+   ```console
    ❯ mkdir /tmp/ca-certificates
    ❯ cp ca-cert.pem ca-key.pem ca-signing-key.pem /tmp/ca-certificates
    ```
 
 3. Start docker container
 
-   ```bash
+   ```console
    ❯ docker run -it --rm \
        -v /tmp/ca-certificates:/tmp/ca-certificates \
        -p 8899:8899 \
@@ -1010,7 +1010,7 @@ with TLS Interception:
 
 4. From another terminal, try TLS Interception using `curl`. You can omit `--cacert` flag if CA certificate is already trusted by the system.
 
-   ```bash
+   ```console
    ❯ curl -v \
        --cacert ca-cert.pem \
        -x 127.0.0.1:8899 \
@@ -1019,7 +1019,7 @@ with TLS Interception:
 
 5. Verify `issuer` field from response headers.
 
-   ```bash
+   ```console
    * Server certificate:
    *  subject: CN=httpbin.org; C=NA; ST=Unavailable; L=Unavailable; O=Unavailable; OU=Unavailable
    *  start date: Jun 17 09:26:57 2020 GMT
@@ -1031,14 +1031,14 @@ with TLS Interception:
 
 6. Back on docker terminal, copy response dump path logs.
 
-   ```bash
+   ```console
    ...[redacted]... [I] access_log:338 - 172.17.0.1:56498 - CONNECT httpbin.org:443 - 1031 bytes - 1216.70 ms
    ...[redacted]... [I] close:49 - Cached response at /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
    ```
 
 7. In another terminal, `cat` the response dump:
 
-   ```bash
+   ```console
    ❯ docker exec -it $(docker ps | grep proxy.py | awk '{ print $1 }') cat /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
    HTTP/1.1 200 OK
    ...[redacted]...
@@ -1091,7 +1091,7 @@ running on `localhost`.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ # On localhost
 ❯ proxy --enable-tunnel \
     --tunnel-username username \
@@ -1104,7 +1104,7 @@ Start `proxy.py` as:
 Make a HTTP proxy request on `remote` server and
 verify that response contains public IP address of `localhost` as origin:
 
-```bash
+```console
 ❯ # On remote
 ❯ curl -x 127.0.0.1:8899 http://httpbin.org/get
 {
@@ -1121,7 +1121,7 @@ verify that response contains public IP address of `localhost` as origin:
 
 Also, verify that `proxy.py` logs on `localhost` contains `remote` IP as client IP.
 
-```bash
+```console
 access_log:328 - remote:52067 - GET httpbin.org:80
 ```
 
@@ -1485,7 +1485,7 @@ Use `proxy.common.pki` module for:
 2. Generating CSR requests
 3. Signing CSR requests using custom CA.
 
-```bash
+```console
 python -m proxy.common.pki -h
 usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
               [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
@@ -1513,7 +1513,7 @@ optional arguments:
 Browse through internal class hierarchy and documentation using `pydoc3`.
 Example:
 
-```bash
+```console
 ❯ pydoc3 proxy
 
 PACKAGE CONTENTS
@@ -1536,14 +1536,14 @@ To run dashboard, you must checkout the source.
 
 Dashboard is written in Typescript and SCSS, so let's build it first using:
 
-```bash
-$ make dashboard
+```console
+❯ make dashboard
 ```
 
 Now start `proxy.py` with dashboard plugin and by overriding root directory for static server:
 
-```bash
-$ proxy --enable-dashboard --static-server-dir dashboard/public
+```console
+❯ proxy --enable-dashboard --static-server-dir dashboard/public
 ...[redacted]... - Loaded plugin proxy.http.server.HttpWebServerPlugin
 ...[redacted]... - Loaded plugin proxy.dashboard.dashboard.ProxyDashboard
 ...[redacted]... - Loaded plugin proxy.dashboard.inspect_traffic.InspectTrafficPlugin
@@ -1557,8 +1557,8 @@ Currently, enabling dashboard will also enable all the dashboard plugins.
 
 Visit dashboard:
 
-```bash
-$ open http://localhost:8899/dashboard/
+```console
+❯ open http://localhost:8899/dashboard/
 ```
 
 ## Inspect Traffic
@@ -1577,8 +1577,8 @@ the websocket connection that dashboard established with the `proxy.py` server.
 For scenarios where you want direct access to `Chrome DevTools` protocol websocket endpoint,
 start `proxy.py` as:
 
-```bash
-$ proxy --enable-devtools --enable-events
+```console
+❯ proxy --enable-devtools --enable-events
 ```
 
 Now point your CDT instance to `ws://localhost:8899/devtools`.
@@ -1631,7 +1631,7 @@ Make sure plugin modules are discoverable by adding them to `PYTHONPATH`. Exampl
 
 `PYTHONPATH=/path/to/my/app proxy --plugins my_app.proxyPlugin`
 
-```bash
+```console
 ...[redacted]... - Loaded plugin proxy.HttpProxyPlugin
 ...[redacted]... - Loaded plugin my_app.proxyPlugin
 ```
@@ -1696,7 +1696,7 @@ without any socket leaks.
 If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issues/new)
 with `requests per second` sent and output of following debug script:
 
-```bash
+```console
 ❯ ./helper/monitor_open_files.sh <proxy-py-pid>
 ```
 
@@ -1716,7 +1716,7 @@ few obvious ones include:
 
 ## High level architecture
 
-```bash
+```console
                         +-------------+
                         |  Proxy([])  |
                         +------+------+
@@ -1806,7 +1806,7 @@ for list of tests.
 
 # Flags
 
-```bash
+```console
 ❯ proxy -h
 usage: proxy [-h] [--threadless] [--backlog BACKLOG] [--enable-events] [--hostname HOSTNAME] [--port PORT] [--num-workers NUM_WORKERS] [--client-recvbuf-size CLIENT_RECVBUF_SIZE] [--key-file KEY_FILE]
           [--timeout TIMEOUT] [--pid-file PID_FILE] [--version] [--disable-http-proxy] [--enable-dashboard] [--enable-devtools] [--enable-static-server] [--enable-web-server] [--log-level LOG_LEVEL]
