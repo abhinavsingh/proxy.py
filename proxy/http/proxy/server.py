@@ -694,7 +694,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             )
             return True
         except ssl.SSLError as e:
-            if e.reason == "SSLV3_ALERT_HANDSHAKE_FAILURE":
+            if e.reason == 'SSLV3_ALERT_HANDSHAKE_FAILURE':
                 logger.warning(
                     '{0}: '.format(e.reason) +
                     'Server raised handshake alert failure for upstream: {0}'.format(
