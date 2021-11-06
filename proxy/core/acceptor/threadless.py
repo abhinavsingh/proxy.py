@@ -195,7 +195,7 @@ class Threadless(multiprocessing.Process):
         try:
             self.selector = selectors.DefaultSelector()
             self.selector.register(self.client_queue, selectors.EVENT_READ)
-            self.loop = asyncio.get_event_loop()
+            self.loop = asyncio.get_event_loop_policy().get_event_loop()
             while not self.running.is_set():
                 self.run_once()
         except KeyboardInterrupt:

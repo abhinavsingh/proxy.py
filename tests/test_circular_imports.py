@@ -1,22 +1,32 @@
-"""Tests for circular imports in all local packages and modules.
+# -*- coding: utf-8 -*-
+"""
+    proxy.py
+    ~~~~~~~~
+    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
+    Network monitoring, controls & Application development, testing, debugging.
 
-This ensures all internal packages can be imported right away without
-any need to import some other module before doing so.
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
 
-This module is based on an idea that pytest uses for self-testing:
-* https://github.com/sanitizers/octomachinery/blob/be18b54/tests/circular_imports_test.py
-* https://github.com/pytest-dev/pytest/blob/d18c75b/testing/test_meta.py
-* https://twitter.com/codewithanthony/status/1229445110510735361
+    Tests for circular imports in all local packages and modules.
+
+    This ensures all internal packages can be imported right away without
+    any need to import some other module before doing so.
+
+    This module is based on an idea that pytest uses for self-testing:
+    * https://github.com/sanitizers/octomachinery/blob/be18b54/tests/circular_imports_test.py
+    * https://github.com/pytest-dev/pytest/blob/d18c75b/testing/test_meta.py
+    * https://twitter.com/codewithanthony/status/1229445110510735361
 """
 from itertools import chain
 from pathlib import Path
 from types import ModuleType
 from typing import Generator, List
+
 import os
 import pkgutil
 import subprocess
 import sys
-
 import pytest
 
 import proxy

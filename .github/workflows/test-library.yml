@@ -21,7 +21,7 @@ jobs:
     - build
     strategy:
       matrix:
-        os: [macOS, Ubuntu]
+        os: [Ubuntu, macOS]
         python: ['3.6', '3.7', '3.8', '3.9', '3.10']
       max-parallel: 4
       fail-fast: false

@@ -181,7 +181,7 @@ def wrap_socket(
 
 
 def new_socket_connection(
-        addr: Tuple[str, int], timeout: int = DEFAULT_TIMEOUT, source_address: Optional[Tuple[str, int]] = None,
+        addr: Tuple[str, int], timeout: float = DEFAULT_TIMEOUT, source_address: Optional[Tuple[str, int]] = None,
 ) -> socket.socket:
     conn = None
     try:
