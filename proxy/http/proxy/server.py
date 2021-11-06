@@ -661,14 +661,16 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         teardown = self.wrap_server()
         if teardown:
             raise HttpProtocolException(
-                'Exception when wrapping server for interception')
+                'Exception when wrapping server for interception',
+            )
         # Generate certificate and perform handshake with client
         # wrap_client also flushes client data before wrapping
         # sending to client can raise, handle expected exceptions
         teardown = self.wrap_client()
         if teardown:
             raise HttpProtocolException(
-                'Exception when wrapping client for interception')
+                'Exception when wrapping client for interception',
+            )
         # Update all plugin connection reference
         # TODO(abhinavsingh): Is this required?
         for plugin in self.plugins.values():
