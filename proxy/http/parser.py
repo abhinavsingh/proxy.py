@@ -138,12 +138,11 @@ class HttpParser:
         return b'transfer-encoding' in self.headers and \
                self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
+    def content_expected(self) -> bool:
+        return b'content-length' in self.headers and int(self.header(b'content-length')) > 0
+
     def body_expected(self) -> bool:
-        return (
-            b'content-length' in self.headers and
-            int(self.header(b'content-length')) > 0
-        ) or \
-            self.is_chunked_encoded()
+        return self.content_expected() or self.is_chunked_encoded()
 
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
@@ -278,7 +277,7 @@ class HttpParser:
 
     def build_response(self) -> bytes:
         """Rebuild the response object."""
-        assert self.code and self.version and self.body and self.type == httpParserTypes.RESPONSE_PARSER
+        assert self.code and self.version and self.type == httpParserTypes.RESPONSE_PARSER
         return build_http_response(
             status_code=int(self.code),
             protocol_version=self.version,
