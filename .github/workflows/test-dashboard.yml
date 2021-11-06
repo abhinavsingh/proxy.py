@@ -9,7 +9,7 @@ jobs:
     name: Node ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macOS, ubuntu, windows]
+        os: [ubuntu, windows, macOS]
         node: ['10.x', '11.x', '12.x']
       max-parallel: 4
       fail-fast: false
