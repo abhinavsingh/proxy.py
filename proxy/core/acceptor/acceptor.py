@@ -114,6 +114,7 @@ class Acceptor(multiprocessing.Process):
         self.threadless_client_queue.close()
 
     def _start_threadless_work(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
+        assert self.threadless_process and self.threadless_client_queue
         self.threadless_client_queue.send(addr)
         send_handle(
             self.threadless_client_queue,
@@ -137,11 +138,6 @@ class Acceptor(multiprocessing.Process):
         )
         work_thread.start()
 
-    def _can_execute_threadless(self) -> bool:
-        return self.flags.threadless and \
-            self.threadless_client_queue and \
-            self.threadless_process
-
     def run_once(self) -> None:
         with self.lock:
             assert self.selector and self.sock
@@ -150,7 +146,12 @@ class Acceptor(multiprocessing.Process):
                 return
             conn, addr = self.sock.accept()
         self._start_threadless_work(conn, addr) \
-            if self._can_execute_threadless() else self._start_threaded_work(conn, addr)
+            if (
+                self.flags.threadless and
+                self.threadless_client_queue and
+                self.threadless_process
+            ) \
+            else self._start_threaded_work(conn, addr)
 
     def run(self) -> None:
         setup_logger(
