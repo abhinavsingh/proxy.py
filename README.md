@@ -740,8 +740,8 @@ Now start `proxy.py` as:
     --plugins proxy.plugin.CloudflareDnsResolverPlugin
 ```
 
-By default, `CloudflareDnsResolverPlugin` runs in `security` mode (provides malware protection).  Use `--cloudflare-dns-mode family` to also enable
-adult content protection.
+By default, `CloudflareDnsResolverPlugin` runs in `security` mode and provides malware protection.
+Use `--cloudflare-dns-mode family` to also enable adult content protection too.
 
 ### CustomDnsResolverPlugin
 
@@ -833,8 +833,7 @@ instead of being dropped.
 
 # End-to-End Encryption
 
-By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`.
-For enabling end-to-end encrypting using `tls` / `https` first generate certificates:
+By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`. For enabling end-to-end encrypting using `tls` / `https` first generate certificates. **Checkout** the repository and run:
 
 ```bash
 make https-certificates
@@ -1617,6 +1616,8 @@ FILE
 ```
 
 # Run Dashboard
+
+**This is a WIP and may not work as documented**
 
 Dashboard is currently under development and not yet bundled with `pip` packages.
 To run dashboard, you must checkout the source.
