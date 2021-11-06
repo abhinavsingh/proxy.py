@@ -58,10 +58,9 @@ class TestCase(unittest.TestCase):
         start_time = time.time()
         while True:
             try:
-                conn = new_socket_connection(
+                new_socket_connection(
                     ('localhost', proxy_port),
-                )
-                conn.close()
+                ).close()
                 break
             except ConnectionRefusedError:
                 time.sleep(0.1)

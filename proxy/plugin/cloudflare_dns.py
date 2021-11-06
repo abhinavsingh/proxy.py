@@ -74,7 +74,8 @@ class CloudflareDnsResolverPlugin(HttpProxyBasePlugin):
             # instead of making a DNS query repeatedly for the same host.
             return answers[0]['data'], None
         except Exception as e:
-            logger.exception('Unable to resolve DNS-over-HTTPS', exc_info=e)
+            logger.info(
+                'Unable to resolve DNS-over-HTTPS for host {0} : {1}'.format(host, str(e)))
             return None, None
 
     def before_upstream_connection(
