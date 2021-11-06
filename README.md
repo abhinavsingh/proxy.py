@@ -77,14 +77,6 @@
   - [proxy.TestCase](#proxytestcase)
   - [Override Startup Flags](#override-startup-flags)
   - [With unittest.TestCase](#with-unittesttestcase)
-- [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
-  - [High level architecture](#high-level-architecture)
-  - [Everything is a plugin](#everything-is-a-plugin)
-  - [Internal Documentation](#internal-documentation)
-  - [Development Guide](#development-guide)
-    - [Setup Local Environment](#setup-local-environment)
-    - [Setup Git Hooks](#setup-git-hooks)
-    - [Sending a Pull Request](#sending-a-pull-request)
 - [Utilities](#utilities)
   - [TCP](#tcp-sockets)
     - [new_socket_connection](#new_socket_connection)
@@ -107,6 +99,14 @@
   - [Docker image not working on MacOS](#docker-image-not-working-on-macos)
   - [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
   - [None:None in access logs](#nonenone-in-access-logs)
+- [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
+  - [High level architecture](#high-level-architecture)
+  - [Everything is a plugin](#everything-is-a-plugin)
+  - [Internal Documentation](#internal-documentation)
+  - [Development Guide](#development-guide)
+    - [Setup Local Environment](#setup-local-environment)
+    - [Setup Git Hooks](#setup-git-hooks)
+    - [Sending a Pull Request](#sending-a-pull-request)
 - [Flags](#flags)
 - [Changelog](#changelog)
   - [v2.x](#v2x)
@@ -1331,98 +1331,6 @@ class TestProxyPyEmbedded(unittest.TestCase):
 or simply setup / teardown `proxy.py` within
 `setUpClass` and `teardownClass` class methods.
 
-# Plugin Developer and Contributor Guide
-
-## High level architecture
-
-```bash
-                        +-------------+
-                        |  Proxy([])  |
-                        +------+------+
-                               |
-                               |
-                   +-----------v--------------+
-                   |    AcceptorPool(...)     |
-                   +------------+-------------+
-                                |
-                                |
-+-----------------+             |           +-----------------+
-|   Acceptor(..)  <-------------+----------->  Acceptor(..)   |
-+-----------------+                         +-----------------+
-```
-
-`proxy.py` is made with performance in mind.  By default, `proxy.py`
-will try to utilize all available CPU cores to it for accepting new
-client connections. This is achieved by starting `AcceptorPool` which
-listens on configured server port. Then, `AcceptorPool` starts `Acceptor`
-processes (`--num-workers`) to accept incoming client connections.
-
-Each `Acceptor` process delegates the accepted client connection
-to a `Work` class.  Currently, `HttpProtocolHandler` is the default
-work klass hardcoded into the code.
-
-`HttpProtocolHandler` simply assumes that incoming clients will follow
-HTTP specification.  Specific HTTP proxy and HTTP server implementations
-are written as plugins of `HttpProtocolHandler`.
-
-See documentation of `HttpProtocolHandlerPlugin` for available lifecycle hooks.
-Use `HttpProtocolHandlerPlugin` to add new features for http(s) clients. Example,
-See `HttpWebServerPlugin`.
-
-## Everything is a plugin
-
-Within `proxy.py` everything is a plugin.
-
-- We enabled `proxy server` plugins using `--plugins` flag.
-  Proxy server `HttpProxyPlugin` is a plugin of `HttpProtocolHandler`.
-  Further, Proxy server allows plugin through `HttpProxyBasePlugin` specification.
-
-- All the proxy server [plugin examples](#plugin-examples) were implementing
-  `HttpProxyBasePlugin`. See documentation of `HttpProxyBasePlugin` for available
-  lifecycle hooks. Use `HttpProxyBasePlugin` to modify behavior of http(s) proxy protocol
-  between client and upstream server. Example,
-  [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
-
-- We also enabled inbuilt `web server` using `--enable-web-server`.
-  Web server `HttpWebServerPlugin` is a plugin of `HttpProtocolHandler`
-  and implements `HttpProtocolHandlerPlugin` specification.
-
-- There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
-  Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
-  http(s) server.
-
-## Development Guide
-
-### Setup Local Environment
-
-Contributors must start `proxy.py` from source to verify and develop new features / fixes.
-
-See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
-
-
-[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
-you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends
-to be problematic.  See linked thread for more details.
-
-### Setup Git Hooks
-
-Pre-commit hook ensures tests are passing.
-
-1. `cd /path/to/proxy.py`
-2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
-
-Pre-push hook ensures lint and tests are passing.
-
-1. `cd /path/to/proxy.py`
-2. `ln -s $(PWD)/git-pre-push .git/hooks/pre-push`
-
-### Sending a Pull Request
-
-Every pull request is tested using GitHub actions.
-
-See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
-for list of tests.
-
 # Utilities
 
 ## TCP Sockets
@@ -1803,6 +1711,98 @@ few obvious ones include:
 
 1. Client established a connection but never completed the request.
 2. A plugin returned a response prematurely, avoiding connection to upstream server.
+
+# Plugin Developer and Contributor Guide
+
+## High level architecture
+
+```bash
+                        +-------------+
+                        |  Proxy([])  |
+                        +------+------+
+                               |
+                               |
+                   +-----------v--------------+
+                   |    AcceptorPool(...)     |
+                   +------------+-------------+
+                                |
+                                |
++-----------------+             |           +-----------------+
+|   Acceptor(..)  <-------------+----------->  Acceptor(..)   |
++-----------------+                         +-----------------+
+```
+
+`proxy.py` is made with performance in mind.  By default, `proxy.py`
+will try to utilize all available CPU cores to it for accepting new
+client connections. This is achieved by starting `AcceptorPool` which
+listens on configured server port. Then, `AcceptorPool` starts `Acceptor`
+processes (`--num-workers`) to accept incoming client connections.
+
+Each `Acceptor` process delegates the accepted client connection
+to a `Work` class.  Currently, `HttpProtocolHandler` is the default
+work klass hardcoded into the code.
+
+`HttpProtocolHandler` simply assumes that incoming clients will follow
+HTTP specification.  Specific HTTP proxy and HTTP server implementations
+are written as plugins of `HttpProtocolHandler`.
+
+See documentation of `HttpProtocolHandlerPlugin` for available lifecycle hooks.
+Use `HttpProtocolHandlerPlugin` to add new features for http(s) clients. Example,
+See `HttpWebServerPlugin`.
+
+## Everything is a plugin
+
+Within `proxy.py` everything is a plugin.
+
+- We enabled `proxy server` plugins using `--plugins` flag.
+  Proxy server `HttpProxyPlugin` is a plugin of `HttpProtocolHandler`.
+  Further, Proxy server allows plugin through `HttpProxyBasePlugin` specification.
+
+- All the proxy server [plugin examples](#plugin-examples) were implementing
+  `HttpProxyBasePlugin`. See documentation of `HttpProxyBasePlugin` for available
+  lifecycle hooks. Use `HttpProxyBasePlugin` to modify behavior of http(s) proxy protocol
+  between client and upstream server. Example,
+  [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
+
+- We also enabled inbuilt `web server` using `--enable-web-server`.
+  Web server `HttpWebServerPlugin` is a plugin of `HttpProtocolHandler`
+  and implements `HttpProtocolHandlerPlugin` specification.
+
+- There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
+  Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
+  http(s) server.
+
+## Development Guide
+
+### Setup Local Environment
+
+Contributors must start `proxy.py` from source to verify and develop new features / fixes.
+
+See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
+
+
+[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
+you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends
+to be problematic.  See linked thread for more details.
+
+### Setup Git Hooks
+
+Pre-commit hook ensures tests are passing.
+
+1. `cd /path/to/proxy.py`
+2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
+
+Pre-push hook ensures lint and tests are passing.
+
+1. `cd /path/to/proxy.py`
+2. `ln -s $(PWD)/git-pre-push .git/hooks/pre-push`
+
+### Sending a Pull Request
+
+Every pull request is tested using GitHub actions.
+
+See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
+for list of tests.
 
 # Flags
 
