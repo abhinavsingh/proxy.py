@@ -58,6 +58,7 @@
     - [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
     - [CloudflareDnsResolverPlugin](#cloudflarednsresolverplugin)
     - [CustomDnsResolverPlugin](#customdnsresolverplugin)
+    - [CustomNetworkInterface](#customnetworkinterface)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
     - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
@@ -77,14 +78,6 @@
   - [proxy.TestCase](#proxytestcase)
   - [Override Startup Flags](#override-startup-flags)
   - [With unittest.TestCase](#with-unittesttestcase)
-- [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
-  - [High level architecture](#high-level-architecture)
-  - [Everything is a plugin](#everything-is-a-plugin)
-  - [Internal Documentation](#internal-documentation)
-  - [Development Guide](#development-guide)
-    - [Setup Local Environment](#setup-local-environment)
-    - [Setup Git Hooks](#setup-git-hooks)
-    - [Sending a Pull Request](#sending-a-pull-request)
 - [Utilities](#utilities)
   - [TCP](#tcp-sockets)
     - [new_socket_connection](#new_socket_connection)
@@ -97,6 +90,7 @@
     - [CLI Usage](#cli-usage)
 - [Run Dashboard](#run-dashboard)
   - [Inspect Traffic](#inspect-traffic)
+- [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
   - [Threads vs Threadless](#threads-vs-threadless)
   - [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
@@ -106,6 +100,14 @@
   - [Docker image not working on MacOS](#docker-image-not-working-on-macos)
   - [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
   - [None:None in access logs](#nonenone-in-access-logs)
+- [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
+  - [High level architecture](#high-level-architecture)
+  - [Everything is a plugin](#everything-is-a-plugin)
+  - [Internal Documentation](#internal-documentation)
+  - [Development Guide](#development-guide)
+    - [Setup Local Environment](#setup-local-environment)
+    - [Setup Git Hooks](#setup-git-hooks)
+    - [Sending a Pull Request](#sending-a-pull-request)
 - [Flags](#flags)
 - [Changelog](#changelog)
   - [v2.x](#v2x)
@@ -119,7 +121,7 @@
   - Threadless executions using coroutine
   - Made to handle `tens-of-thousands` connections / sec
 
-    ```bash
+    ```console
     # On Macbook Pro 2015 / 2.8 GHz Intel Core i7
     ❯ hey -n 10000 -c 100 http://localhost:8899/
 
@@ -179,19 +181,19 @@
 
 Install from `PyPi`
 
-```bash
+```console
 ❯ pip install --upgrade proxy.py
 ```
 
 or from GitHub `master` branch
 
-```bash
+```console
 ❯ pip install git+https://github.com/abhinavsingh/proxy.py.git@master
 ```
 
 ### Development Version with PIP
 
-```bash
+```console
 ❯ pip install git+https://github.com/abhinavsingh/proxy.py.git@develop
 ```
 
@@ -199,13 +201,13 @@ or from GitHub `master` branch
 
 #### Stable Version from Docker Hub
 
-```bash
+```console
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
 #### Build Development Version Locally
 
-```bash
+```console
 ❯ git clone https://github.com/abhinavsingh/proxy.py.git
 ❯ cd proxy.py
 ❯ make container
@@ -219,13 +221,13 @@ or from GitHub `master` branch
 
 ### Stable Version with HomeBrew
 
-```bash
+```console
 ❯ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/stable/proxy.rb
 ```
 
 ### Development Version with HomeBrew
 
-```bash
+```console
 ❯ brew install https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/helper/homebrew/develop/proxy.rb
 ```
 
@@ -240,7 +242,7 @@ an executable named `proxy` is placed under your `$PATH`.
 
 Simply type `proxy` on command line to start it with default configuration.
 
-```bash
+```console
 ❯ proxy
 ...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
 ...[redacted]... - Starting 8 workers
@@ -257,10 +259,11 @@ Things to notice from above logs:
 - `Started N workers` - Use `--num-workers` flag to customize number of worker processes.
   By default, `proxy.py` will start as many workers as there are CPU cores on the machine.
 
-- `Started server on ::1:8899` - By default, `proxy.py` listens on IPv6 `::1`, which
-  is equivalent of IPv4 `127.0.0.1`. If you want to access `proxy.py` externally,
+- `Started server on ::1:8899` - By default, `proxy.py` listens on IPv6 `::1`,
+  which is equivalent of IPv4 `127.0.0.1`. If you want to access `proxy.py` externally,
   use `--hostname ::` or `--hostname 0.0.0.0` or bind to any other interface available
-  on your machine.
+  on your machine.  See [CustomNetworkInterface](#customnetworkinterface) for how to customize
+  your system public IP as seen by the upstream servers.
 
 - `Port 8899` - Use `--port` flag to customize default TCP port.
 
@@ -270,7 +273,7 @@ All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`.
 
 Lets start `proxy.py` with `DEBUG` level logging:
 
-```bash
+```console
 ❯ proxy --log-level d
 ...[redacted]... - Open file descriptor soft limit set to 1024
 ...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
@@ -295,33 +298,33 @@ To start `proxy.py` from source code follow these instructions:
 
 - Clone repo
 
-  ```bash
+  ```console
   ❯ git clone https://github.com/abhinavsingh/proxy.py.git
   ❯ cd proxy.py
   ```
 
 - Create a Python 3 virtual env
 
-  ```bash
+  ```console
   ❯ python3 -m venv venv
   ❯ source venv/bin/activate
   ```
 
 - Install deps
 
-  ```bash
+  ```console
   ❯ pip install -rrequirements.txt -rrequirements-testing.txt -rrequirements-tunnel.txt
   ```
 
 - Run tests
 
-  ```bash
+  ```console
   ❯ make
   ```
 
 - Run proxy.py
 
-  ```bash
+  ```console
   ❯ python -m proxy
   ```
 
@@ -363,7 +366,7 @@ Add support for short links in your favorite browsers / applications.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ShortLinkPlugin
 ```
@@ -392,7 +395,7 @@ Modifies POST request body before sending request to upstream server.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ModifyPostDataPlugin
 ```
@@ -402,7 +405,7 @@ and enforced `Content-Type: application/json`.
 
 Verify the same using `curl -x localhost:8899 -d '{"key": "value"}' http://httpbin.org/post`
 
-```bash
+```console
 {
   "args": {},
   "data": "{\"key\": \"modified\"}",
@@ -446,20 +449,20 @@ without need of an actual upstream REST API server.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ProposedRestApiPlugin
 ```
 
 Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1/users/`
 
-```bash
+```console
 {"count": 2, "next": null, "previous": null, "results": [{"email": "you@example.com", "groups": [], "url": "api.example.com/v1/users/1/", "username": "admin"}, {"email": "someone@example.com", "groups": [], "url": "api.example.com/v1/users/2/", "username": "admin"}]}
 ```
 
 Verify the same by inspecting `proxy.py` logs:
 
-```bash
+```console
 2019-09-27 12:44:02,212 - INFO - pid:7077 - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
 ```
 
@@ -477,7 +480,7 @@ also running on `8899` port.
 
 Start `proxy.py` and enable inbuilt web server:
 
-```bash
+```console
 ❯ proxy \
     --enable-web-server \
     --plugins proxy.plugin.RedirectToCustomServerPlugin
@@ -507,18 +510,18 @@ Along with the proxy request log, you must also see a http web server request lo
 ### FilterByUpstreamHostPlugin
 
 Drops traffic by inspecting upstream host.
-By default, plugin drops traffic for `google.com` and `www.google.com`.
+By default, plugin drops traffic for `facebook.com` and `www.facebok.com`.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.FilterByUpstreamHostPlugin
 ```
 
-Verify using `curl -v -x localhost:8899 http://google.com`:
+Verify using `curl -v -x localhost:8899 http://facebook.com`:
 
-```bash
+```console
 ... [redacted] ...
 < HTTP/1.1 418 I'm a tea pot
 < Proxy-agent: proxy.py v1.0.0
@@ -531,7 +534,7 @@ Above `418 I'm a tea pot` is sent by our plugin.
 
 Verify the same by inspecting logs for `proxy.py`:
 
-```bash
+```console
 2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
 Traceback (most recent call last):
 ... [redacted] ...
@@ -544,14 +547,14 @@ Caches Upstream Server Responses.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.CacheResponsesPlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
 
-```bash
+```console
 ... [redacted] ...
 < HTTP/1.1 200 OK
 < Access-Control-Allow-Credentials: true
@@ -581,14 +584,14 @@ Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
 
 Get path to the cache file from `proxy.py` logs:
 
-```bash
+```console
 ... [redacted] ... - GET httpbin.org:80/get - 200 OK - 556 bytes
 ... [redacted] ... - Cached response at /var/folders/k9/x93q0_xn1ls9zy76m2mf2k_00000gn/T/httpbin.org-1569378301.407512.txt
 ```
 
 Verify contents of the cache file `cat /path/to/your/cache/httpbin.org.txt`
 
-```bash
+```console
 HTTP/1.1 200 OK
 Access-Control-Allow-Credentials: true
 Access-Control-Allow-Origin: *
@@ -620,14 +623,14 @@ Modifies upstream server responses.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ManInTheMiddlePlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://google.com`:
 
-```bash
+```console
 ... [redacted] ...
 < HTTP/1.1 200 OK
 < Content-Length: 28
@@ -649,17 +652,17 @@ Let's start upstream proxies first.
 
 Start `proxy.py` on port `9000` and `9001`
 
-```bash
+```console
 ❯ proxy --port 9000
 ```
 
-```bash
+```console
 ❯ proxy --port 9001
 ```
 
 Now, start `proxy.py` with `ProxyPoolPlugin` (on default `8899` port):
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ProxyPoolPlugin
 ```
@@ -678,14 +681,14 @@ plugin blocks traffic from `127.0.0.1` and `::1`.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.FilterByClientIpPlugin
 ```
 
 Send a request using `curl -v -x localhost:8899 http://google.com`:
 
-```bash
+```console
 ... [redacted] ...
 > Proxy-Connection: Keep-Alive
 >
@@ -703,14 +706,14 @@ This plugin demonstrate how to modify chunked encoded responses. In able to do s
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.ModifyChunkResponsePlugin
 ```
 
 Verify using `curl -v -x localhost:8899 http://httpbin.org/stream/5`:
 
-```bash
+```console
 ... [redacted] ...
 modify
 chunk
@@ -726,15 +729,22 @@ Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending ha
 
 This plugin uses `Cloudflare` hosted `DNS-over-HTTPS` [API](https://developers.cloudflare.com/1.1.1.1/encrypted-dns/dns-over-https/make-api-requests/dns-json) (json).
 
-Start `proxy.py` as:
+`DoH` mandates a HTTP2 compliant client. Unfortunately `proxy.py`
+doesn't provide that yet, so we use a dependency. Install it:
 
-```bash
+```console
+❯ pip install "httpx[http2]"
+```
+
+Now start `proxy.py` as:
+
+```console
 ❯ proxy \
     --plugins proxy.plugin.CloudflareDnsResolverPlugin
 ```
 
-By default, `CloudflareDnsResolverPlugin` runs in `security` mode (provides malware protection).  Use `--cloudflare-dns-mode family` to also enable
-adult content protection.
+By default, `CloudflareDnsResolverPlugin` runs in `security` mode and provides malware protection.
+Use `--cloudflare-dns-mode family` to also enable adult content protection too.
 
 ### CustomDnsResolverPlugin
 
@@ -744,13 +754,20 @@ to your taste.  Example, query your custom DNS server, implement DoH or other me
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.CustomDnsResolverPlugin
 ```
 
-`HttpProxyBasePlugin.resolve_dns` can also be used to configure `network interface` which
-must be used as the `source_address` for connection to the upstream server.
+### CustomNetworkInterface
+
+`HttpProxyBasePlugin.resolve_dns` callback can also be used to configure `network interface` which must be used as the `source_address` for connection to the upstream server.
+
+See [this thread](https://github.com/abhinavsingh/proxy.py/issues/535#issuecomment-961510862)
+for more details.
+
+PS: There is no plugin named, but [CustomDnsResolverPlugin](#customdnsresolverplugin)
+can be easily customized according to your needs.
 
 ## HTTP Web Server Plugins
 
@@ -760,7 +777,7 @@ Extend in-built Web Server to add Reverse Proxy capabilities.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy --enable-web-server \
     --plugins proxy.plugin.ReverseProxyPlugin
 ```
@@ -768,7 +785,7 @@ Start `proxy.py` as:
 With default configuration, `ReverseProxyPlugin` plugin is equivalent to
 following `Nginx` config:
 
-```bash
+```console
 location /get {
     proxy_pass http://httpbin.org/get
 }
@@ -776,7 +793,7 @@ location /get {
 
 Verify using `curl -v localhost:8899/get`:
 
-```bash
+```console
 {
   "args": {},
   "headers": {
@@ -795,14 +812,14 @@ Demonstrates inbuilt web server routing using plugin.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy --enable-web-server \
     --plugins proxy.plugin.WebServerPlugin
 ```
 
 Verify using `curl -v localhost:8899/http-route-example`, should return:
 
-```bash
+```console
 HTTP route response
 ```
 
@@ -815,27 +832,26 @@ on the command line.
 Plugins are called in the same order as they are passed. Example,
 say we are using both `FilterByUpstreamHostPlugin` and
 `RedirectToCustomServerPlugin`. Idea is to drop all incoming `http`
-requests for `google.com` and `www.google.com` and redirect other
+requests for `facebook.com` and `www.facebook.com` and redirect other
 `http` requests to our inbuilt web server.
 
 Hence, in this scenario it is important to use
 `FilterByUpstreamHostPlugin` before `RedirectToCustomServerPlugin`.
 If we enable `RedirectToCustomServerPlugin` before `FilterByUpstreamHostPlugin`,
-`google` requests will also get redirected to inbuilt web server,
+`facebook` requests will also get redirected to inbuilt web server,
 instead of being dropped.
 
 # End-to-End Encryption
 
-By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`.
-For enabling end-to-end encrypting using `tls` / `https` first generate certificates:
+By default, `proxy.py` uses `http` protocol for communication with clients e.g. `curl`, `browser`. For enabling end-to-end encrypting using `tls` / `https` first generate certificates. **Checkout** the repository and run:
 
-```bash
+```console
 make https-certificates
 ```
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --cert-file https-cert.pem \
     --key-file https-key.pem
@@ -843,7 +859,7 @@ Start `proxy.py` as:
 
 Verify using `curl -x https://localhost:8899 --proxy-cacert https-cert.pem https://httpbin.org/get`:
 
-```bash
+```console
 {
   "args": {},
   "headers": {
@@ -860,13 +876,13 @@ If you want to avoid passing `--proxy-cacert` flag, also consider signing genera
 
 First, generate CA certificates:
 
-```bash
+```console
 make ca-certificates
 ```
 
 Then, sign SSL certificate:
 
-```bash
+```console
 make sign-https-certificates
 ```
 
@@ -877,14 +893,14 @@ Now restart the server with `--cert-file https-signed-cert.pem` flag. Note that 
 By default, `proxy.py` will not decrypt `https` traffic between client and server.
 To enable TLS interception first generate root CA certificates:
 
-```bash
+```console
 ❯ make ca-certificates
 ```
 
 Lets also enable `CacheResponsePlugin` so that we can verify decrypted
 response from the server. Start `proxy.py` as:
 
-```bash
+```console
 ❯ proxy \
     --plugins proxy.plugin.CacheResponsesPlugin \
     --ca-key-file ca-key.pem \
@@ -896,11 +912,11 @@ response from the server. Start `proxy.py` as:
 
 Verify TLS interception using `curl`
 
-```bash
+```console
 ❯ curl -v -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get
 ```
 
-```bash
+```console
 *  issuer: C=US; ST=CA; L=SanFrancisco; O=proxy.py; OU=CA; CN=Proxy PY CA; emailAddress=proxyca@mailserver.com
 *  SSL certificate verify ok.
 > GET /get HTTP/1.1
@@ -926,7 +942,7 @@ file from `proxy.py` logs.
 
 `❯ cat /path/to/your/tmp/directory/httpbin.org-1569452863.924174.txt`
 
-```bash
+```console
 HTTP/1.1 200 OK
 Access-Control-Allow-Credentials: true
 Access-Control-Allow-Origin: *
@@ -972,20 +988,20 @@ with TLS Interception:
 
 1. Generate CA certificates on host computer
 
-   ```bash
+   ```console
    ❯ make ca-certificates
    ```
 
 2. Copy all generated certificates into a separate directory. We'll later mount this directory into our docker container
 
-   ```bash
+   ```console
    ❯ mkdir /tmp/ca-certificates
    ❯ cp ca-cert.pem ca-key.pem ca-signing-key.pem /tmp/ca-certificates
    ```
 
 3. Start docker container
 
-   ```bash
+   ```console
    ❯ docker run -it --rm \
        -v /tmp/ca-certificates:/tmp/ca-certificates \
        -p 8899:8899 \
@@ -1003,7 +1019,7 @@ with TLS Interception:
 
 4. From another terminal, try TLS Interception using `curl`. You can omit `--cacert` flag if CA certificate is already trusted by the system.
 
-   ```bash
+   ```console
    ❯ curl -v \
        --cacert ca-cert.pem \
        -x 127.0.0.1:8899 \
@@ -1012,7 +1028,7 @@ with TLS Interception:
 
 5. Verify `issuer` field from response headers.
 
-   ```bash
+   ```console
    * Server certificate:
    *  subject: CN=httpbin.org; C=NA; ST=Unavailable; L=Unavailable; O=Unavailable; OU=Unavailable
    *  start date: Jun 17 09:26:57 2020 GMT
@@ -1024,14 +1040,14 @@ with TLS Interception:
 
 6. Back on docker terminal, copy response dump path logs.
 
-   ```bash
+   ```console
    ...[redacted]... [I] access_log:338 - 172.17.0.1:56498 - CONNECT httpbin.org:443 - 1031 bytes - 1216.70 ms
    ...[redacted]... [I] close:49 - Cached response at /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
    ```
 
 7. In another terminal, `cat` the response dump:
 
-   ```bash
+   ```console
    ❯ docker exec -it $(docker ps | grep proxy.py | awk '{ print $1 }') cat /tmp/httpbin.org-ae1a927d064e4ab386ea319eb38fe251.txt
    HTTP/1.1 200 OK
    ...[redacted]...
@@ -1084,7 +1100,7 @@ running on `localhost`.
 
 Start `proxy.py` as:
 
-```bash
+```console
 ❯ # On localhost
 ❯ proxy --enable-tunnel \
     --tunnel-username username \
@@ -1097,7 +1113,7 @@ Start `proxy.py` as:
 Make a HTTP proxy request on `remote` server and
 verify that response contains public IP address of `localhost` as origin:
 
-```bash
+```console
 ❯ # On remote
 ❯ curl -x 127.0.0.1:8899 http://httpbin.org/get
 {
@@ -1114,7 +1130,7 @@ verify that response contains public IP address of `localhost` as origin:
 
 Also, verify that `proxy.py` logs on `localhost` contains `remote` IP as client IP.
 
-```bash
+```console
 access_log:328 - remote:52067 - GET httpbin.org:80
 ```
 
@@ -1177,7 +1193,7 @@ Note that:
 ## Non-blocking Mode
 
 Start `proxy.py` in non-blocking embedded mode with default configuration
-by using `start` method: Example:
+by using `Proxy` context manager: Example:
 
 ```python
 import proxy
@@ -1190,10 +1206,10 @@ if __name__ == '__main__':
 Note that:
 
 1. `Proxy` is similar to `main`, except `Proxy` does not block.
-1. Internally `Proxy` is a context manager.
-   It will start `proxy.py` when called and will shut it down
+2. Internally `Proxy` is a context manager.
+3. It will start `proxy.py` when called and will shut it down
    once the scope ends.
-1. Just like `main`, startup flags with `Proxy`
+4. Just like `main`, startup flags with `Proxy`
    can be customized by either passing flags as list of
    input arguments e.g. `Proxy(['--port', '8899'])` or
    by using passing flags as kwargs e.g. `Proxy(port=8899)`.
@@ -1216,8 +1232,15 @@ if __name__ == '__main__':
 
 ## Loading Plugins
 
-You can, of course, list plugins to load in the input arguments list of `proxy.main` or
-`Proxy` constructor. Use the `--plugins` flag when starting from command line:
+Users can use `--plugins` flag multiple times to load multiple plugins.
+See [Unable to load plugins](#unable-to-load-plugins) if you are running into issues.
+
+When using in embedded mode, you have a few more options.  Example:
+
+1. Provide a fully-qualified name of the plugin class as `bytes` to the `proxy.main` method or `proxy.Proxy` context manager.
+2. Provide `type` instance of the plugin class. This is especially useful if you plan to define plugins at runtime.
+
+Example, load a single plugin using `--plugins` flag:
 
 ```python
 import proxy
@@ -1228,8 +1251,9 @@ if __name__ == '__main__':
   ])
 ```
 
-For simplicity you can pass the list of plugins to load as a keyword argument to `proxy.main` or
-the `Proxy` constructor:
+For simplicity, you can also pass the list of plugins as a keyword argument to `proxy.main` or the `Proxy` constructor.
+
+Example:
 
 ```python
 import proxy
@@ -1241,11 +1265,6 @@ if __name__ == '__main__':
     FilterByUpstreamHostPlugin,
   ])
 ```
-
-Note that it supports:
-
-1. The fully-qualified name of a class as `bytes`
-2. Any `type` instance of a plugin class. This is especially useful for plugins defined at runtime
 
 # Unit testing with proxy.py
 
@@ -1320,98 +1339,6 @@ class TestProxyPyEmbedded(unittest.TestCase):
 
 or simply setup / teardown `proxy.py` within
 `setUpClass` and `teardownClass` class methods.
-
-# Plugin Developer and Contributor Guide
-
-## High level architecture
-
-```bash
-                        +-------------+
-                        |  Proxy([])  |
-                        +------+------+
-                               |
-                               |
-                   +-----------v--------------+
-                   |    AcceptorPool(...)     |
-                   +------------+-------------+
-                                |
-                                |
-+-----------------+             |           +-----------------+
-|   Acceptor(..)  <-------------+----------->  Acceptor(..)   |
-+-----------------+                         +-----------------+
-```
-
-`proxy.py` is made with performance in mind.  By default, `proxy.py`
-will try to utilize all available CPU cores to it for accepting new
-client connections. This is achieved by starting `AcceptorPool` which
-listens on configured server port. Then, `AcceptorPool` starts `Acceptor`
-processes (`--num-workers`) to accept incoming client connections.
-
-Each `Acceptor` process delegates the accepted client connection
-to a `Work` class.  Currently, `HttpProtocolHandler` is the default
-work klass hardcoded into the code.
-
-`HttpProtocolHandler` simply assumes that incoming clients will follow
-HTTP specification.  Specific HTTP proxy and HTTP server implementations
-are written as plugins of `HttpProtocolHandler`.
-
-See documentation of `HttpProtocolHandlerPlugin` for available lifecycle hooks.
-Use `HttpProtocolHandlerPlugin` to add new features for http(s) clients. Example,
-See `HttpWebServerPlugin`.
-
-## Everything is a plugin
-
-Within `proxy.py` everything is a plugin.
-
-- We enabled `proxy server` plugins using `--plugins` flag.
-  Proxy server `HttpProxyPlugin` is a plugin of `HttpProtocolHandler`.
-  Further, Proxy server allows plugin through `HttpProxyBasePlugin` specification.
-
-- All the proxy server [plugin examples](#plugin-examples) were implementing
-  `HttpProxyBasePlugin`. See documentation of `HttpProxyBasePlugin` for available
-  lifecycle hooks. Use `HttpProxyBasePlugin` to modify behavior of http(s) proxy protocol
-  between client and upstream server. Example,
-  [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
-
-- We also enabled inbuilt `web server` using `--enable-web-server`.
-  Web server `HttpWebServerPlugin` is a plugin of `HttpProtocolHandler`
-  and implements `HttpProtocolHandlerPlugin` specification.
-
-- There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
-  Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
-  http(s) server.
-
-## Development Guide
-
-### Setup Local Environment
-
-Contributors must start `proxy.py` from source to verify and develop new features / fixes.
-
-See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
-
-
-[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
-you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends
-to be problematic.  See linked thread for more details.
-
-### Setup Git Hooks
-
-Pre-commit hook ensures tests are passing.
-
-1. `cd /path/to/proxy.py`
-2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
-
-Pre-push hook ensures lint and tests are passing.
-
-1. `cd /path/to/proxy.py`
-2. `ln -s $(PWD)/git-pre-push .git/hooks/pre-push`
-
-### Sending a Pull Request
-
-Every pull request is tested using GitHub actions.
-
-See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
-for list of tests.
 
 # Utilities
 
@@ -1567,7 +1494,7 @@ Use `proxy.common.pki` module for:
 2. Generating CSR requests
 3. Signing CSR requests using custom CA.
 
-```bash
+```console
 python -m proxy.common.pki -h
 usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
               [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
@@ -1595,7 +1522,7 @@ optional arguments:
 Browse through internal class hierarchy and documentation using `pydoc3`.
 Example:
 
-```bash
+```console
 ❯ pydoc3 proxy
 
 PACKAGE CONTENTS
@@ -1611,19 +1538,21 @@ FILE
 
 # Run Dashboard
 
+**This is a WIP and may not work as documented**
+
 Dashboard is currently under development and not yet bundled with `pip` packages.
 To run dashboard, you must checkout the source.
 
 Dashboard is written in Typescript and SCSS, so let's build it first using:
 
-```bash
-$ make dashboard
+```console
+❯ make dashboard
 ```
 
 Now start `proxy.py` with dashboard plugin and by overriding root directory for static server:
 
-```bash
-$ proxy --enable-dashboard --static-server-dir dashboard/public
+```console
+❯ proxy --enable-dashboard --static-server-dir dashboard/public
 ...[redacted]... - Loaded plugin proxy.http.server.HttpWebServerPlugin
 ...[redacted]... - Loaded plugin proxy.dashboard.dashboard.ProxyDashboard
 ...[redacted]... - Loaded plugin proxy.dashboard.inspect_traffic.InspectTrafficPlugin
@@ -1637,8 +1566,8 @@ Currently, enabling dashboard will also enable all the dashboard plugins.
 
 Visit dashboard:
 
-```bash
-$ open http://localhost:8899/dashboard/
+```console
+❯ open http://localhost:8899/dashboard/
 ```
 
 ## Inspect Traffic
@@ -1651,6 +1580,17 @@ Current functionality can be verified by opening the `Dev Console` of dashboard 
 the websocket connection that dashboard established with the `proxy.py` server.
 
 [![Proxy.Py Dashboard Inspect Traffic](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/Dashboard.png)](https://github.com/abhinavsingh/proxy.py)
+
+# Chrome DevTools Protocol
+
+For scenarios where you want direct access to `Chrome DevTools` protocol websocket endpoint,
+start `proxy.py` as:
+
+```console
+❯ proxy --enable-devtools --enable-events
+```
+
+Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
 
@@ -1700,7 +1640,7 @@ Make sure plugin modules are discoverable by adding them to `PYTHONPATH`. Exampl
 
 `PYTHONPATH=/path/to/my/app proxy --plugins my_app.proxyPlugin`
 
-```bash
+```console
 ...[redacted]... - Loaded plugin proxy.HttpProxyPlugin
 ...[redacted]... - Loaded plugin my_app.proxyPlugin
 ```
@@ -1765,7 +1705,7 @@ without any socket leaks.
 If nothing helps, [open an issue](https://github.com/abhinavsingh/proxy.py/issues/new)
 with `requests per second` sent and output of following debug script:
 
-```bash
+```console
 ❯ ./helper/monitor_open_files.sh <proxy-py-pid>
 ```
 
@@ -1781,9 +1721,101 @@ few obvious ones include:
 1. Client established a connection but never completed the request.
 2. A plugin returned a response prematurely, avoiding connection to upstream server.
 
+# Plugin Developer and Contributor Guide
+
+## High level architecture
+
+```console
+                        +-------------+
+                        |  Proxy([])  |
+                        +------+------+
+                               |
+                               |
+                   +-----------v--------------+
+                   |    AcceptorPool(...)     |
+                   +------------+-------------+
+                                |
+                                |
++-----------------+             |           +-----------------+
+|   Acceptor(..)  <-------------+----------->  Acceptor(..)   |
++-----------------+                         +-----------------+
+```
+
+`proxy.py` is made with performance in mind.  By default, `proxy.py`
+will try to utilize all available CPU cores to it for accepting new
+client connections. This is achieved by starting `AcceptorPool` which
+listens on configured server port. Then, `AcceptorPool` starts `Acceptor`
+processes (`--num-workers`) to accept incoming client connections.
+
+Each `Acceptor` process delegates the accepted client connection
+to a `Work` class.  Currently, `HttpProtocolHandler` is the default
+work klass hardcoded into the code.
+
+`HttpProtocolHandler` simply assumes that incoming clients will follow
+HTTP specification.  Specific HTTP proxy and HTTP server implementations
+are written as plugins of `HttpProtocolHandler`.
+
+See documentation of `HttpProtocolHandlerPlugin` for available lifecycle hooks.
+Use `HttpProtocolHandlerPlugin` to add new features for http(s) clients. Example,
+See `HttpWebServerPlugin`.
+
+## Everything is a plugin
+
+Within `proxy.py` everything is a plugin.
+
+- We enabled `proxy server` plugins using `--plugins` flag.
+  Proxy server `HttpProxyPlugin` is a plugin of `HttpProtocolHandler`.
+  Further, Proxy server allows plugin through `HttpProxyBasePlugin` specification.
+
+- All the proxy server [plugin examples](#plugin-examples) were implementing
+  `HttpProxyBasePlugin`. See documentation of `HttpProxyBasePlugin` for available
+  lifecycle hooks. Use `HttpProxyBasePlugin` to modify behavior of http(s) proxy protocol
+  between client and upstream server. Example,
+  [FilterByUpstreamHostPlugin](#filterbyupstreamhostplugin).
+
+- We also enabled inbuilt `web server` using `--enable-web-server`.
+  Web server `HttpWebServerPlugin` is a plugin of `HttpProtocolHandler`
+  and implements `HttpProtocolHandlerPlugin` specification.
+
+- There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
+  Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
+  http(s) server.
+
+## Development Guide
+
+### Setup Local Environment
+
+Contributors must start `proxy.py` from source to verify and develop new features / fixes.
+
+See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
+
+
+[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
+you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends
+to be problematic.  See linked thread for more details.
+
+### Setup Git Hooks
+
+Pre-commit hook ensures tests are passing.
+
+1. `cd /path/to/proxy.py`
+2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
+
+Pre-push hook ensures lint and tests are passing.
+
+1. `cd /path/to/proxy.py`
+2. `ln -s $(PWD)/git-pre-push .git/hooks/pre-push`
+
+### Sending a Pull Request
+
+Every pull request is tested using GitHub actions.
+
+See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
+for list of tests.
+
 # Flags
 
-```bash
+```console
 ❯ proxy -h
 usage: proxy [-h] [--threadless] [--backlog BACKLOG] [--enable-events] [--hostname HOSTNAME] [--port PORT] [--num-workers NUM_WORKERS] [--client-recvbuf-size CLIENT_RECVBUF_SIZE] [--key-file KEY_FILE]
           [--timeout TIMEOUT] [--pid-file PID_FILE] [--version] [--disable-http-proxy] [--enable-dashboard] [--enable-devtools] [--enable-static-server] [--enable-web-server] [--log-level LOG_LEVEL]
