@@ -147,7 +147,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
 
         # Assert our mocked plugins invocations
         self.plugin.return_value.get_descriptors.assert_called()

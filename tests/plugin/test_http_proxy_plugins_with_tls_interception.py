@@ -161,7 +161,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         self._conn.recv.return_value = build_http_request(
             httpMethods.CONNECT, b'uni.corn:443',
         )
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
 
         self.assertEqual(self.mock_sign_csr.call_count, 1)
         self.assertEqual(self.mock_gen_csr.call_count, 1)
@@ -191,7 +191,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
             },
             body=original,
         )
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.server.queue.assert_called_with(
             build_http_request(
                 b'POST', b'/',
@@ -214,11 +214,11 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         self.client_ssl_connection.recv.return_value = request
 
         # Client read
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.server.queue.assert_called_once_with(request)
 
         # Server write
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.server.flush.assert_called_once()
 
         # Server read
@@ -227,7 +227,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Original Response From Upstream',
             )
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.client.buffer[0].tobytes(),
             build_http_response(

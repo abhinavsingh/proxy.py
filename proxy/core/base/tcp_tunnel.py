@@ -22,7 +22,15 @@ from .tcp_server import BaseTcpServerHandler
 
 
 class BaseTcpTunnelHandler(BaseTcpServerHandler):
-    """Base TCP tunnel interface."""
+    """BaseTcpTunnelHandler build on-top of BaseTcpServerHandler work klass.
+
+    On-top of BaseTcpServerHandler implementation,
+    BaseTcpTunnelHandler introduces an upstream TcpServerConnection
+    and adds it to the core event loop when needed.
+
+    Currently, implementations must call connect_upstream from within
+    handle_data.  See HttpsConnectTunnelHandler for example usage.
+    """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
