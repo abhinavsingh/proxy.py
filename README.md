@@ -726,7 +726,14 @@ Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending ha
 
 This plugin uses `Cloudflare` hosted `DNS-over-HTTPS` [API](https://developers.cloudflare.com/1.1.1.1/encrypted-dns/dns-over-https/make-api-requests/dns-json) (json).
 
-Start `proxy.py` as:
+`DoH` mandates a HTTP2 compliant client. Unfortunately `proxy.py`
+doesn't provide that yet, so we use a dependency. Install it:
+
+```bash
+❯ pip install "httpx[http2]"
+```
+
+Now start `proxy.py` as:
 
 ```bash
 ❯ proxy \
