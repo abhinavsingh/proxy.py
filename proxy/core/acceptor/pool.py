@@ -25,11 +25,13 @@ from .work import Work
 from ..event import EventQueue
 
 from ...common.flag import flags
-from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME, DEFAULT_NUM_WORKERS, DEFAULT_PORT
+from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME
+from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_PORT
 
 logger = logging.getLogger(__name__)
 
-# Lock shared by worker processes
+# Lock shared by acceptors for
+# sequential acceptance of work.
 LOCK = multiprocessing.Lock()
 
 
@@ -61,20 +63,18 @@ flags.add_argument(
 
 
 class AcceptorPool:
-    """AcceptorPool pre-spawns worker processes to utilize all cores available on the system.
-    A server socket is initialized and dispatched over a pipe to these workers.
-    Each worker process then concurrently accepts new client connection over
-    the initialized server socket.
+    """AcceptorPool is a helper class which pre-spawns `Acceptor` processes
+    to utilize all available CPU cores for accepting new work.
+
+    A file descriptor to consume work from is shared with `Acceptor` processes
+    over a pipe.  Each `Acceptor` process then concurrently accepts new work over
+    the shared file descriptor.
 
     Example usage:
 
-        pool = AcceptorPool(flags=..., work_klass=...)
-        try:
-            pool.setup()
+        with AcceptorPool(flags=..., work_klass=...) as pool:
             while True:
                 time.sleep(1)
-        finally:
-            pool.shutdown()
 
     `work_klass` must implement `work.Work` class.
     """
@@ -84,11 +84,16 @@ class AcceptorPool:
         work_klass: Type[Work], event_queue: Optional[EventQueue] = None,
     ) -> None:
         self.flags = flags
-        self.socket: Optional[socket.socket] = None
-        self.acceptors: List[Acceptor] = []
-        self.work_queues: List[connection.Connection] = []
-        self.work_klass = work_klass
+        # Eventing core queue
         self.event_queue: Optional[EventQueue] = event_queue
+        # File descriptor to use for accepting new work
+        self.socket: Optional[socket.socket] = None
+        # Acceptor process instances
+        self.acceptors: List[Acceptor] = []
+        # Work queue used to share file descriptor with acceptor processes
+        self.work_queues: List[connection.Connection] = []
+        # Work class implementation
+        self.work_klass = work_klass
 
     def __enter__(self) -> 'AcceptorPool':
         self.setup()
@@ -102,19 +107,42 @@ class AcceptorPool:
     ) -> None:
         self.shutdown()
 
-    def listen(self) -> None:
+    def setup(self) -> None:
+        """Listen on port and setup acceptors."""
+        self._listen()
+        # Override flags.port to match the actual port
+        # we are listening upon.  This is necessary to preserve
+        # the server port when `--port=0` is used.
+        self.flags.port = self.socket.getsockname()[1]
+        self._start_acceptors()
+        # Send file descriptor to all acceptor processes.
+        assert self.socket is not None
+        for index in range(self.flags.num_workers):
+            send_handle(
+                self.work_queues[index],
+                self.socket.fileno(),
+                self.acceptors[index].pid,
+            )
+            self.work_queues[index].close()
+        self.socket.close()
+
+    def shutdown(self) -> None:
+        logger.info('Shutting down %d workers' % self.flags.num_workers)
+        for acceptor in self.acceptors:
+            acceptor.running.set()
+        for acceptor in self.acceptors:
+            acceptor.join()
+        logger.debug('Acceptors shutdown')
+
+    def _listen(self) -> None:
         self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((str(self.flags.hostname), self.flags.port))
         self.socket.listen(self.flags.backlog)
         self.socket.setblocking(False)
-        # Override flags.port to match the actual port
-        # we are listening upon.  This is necessary to preserve
-        # the server port when `--port=0` is used.
-        self.flags.port = self.socket.getsockname()[1]
 
-    def start_workers(self) -> None:
-        """Start worker processes."""
+    def _start_acceptors(self) -> None:
+        """Start acceptor processes."""
         for acceptor_id in range(self.flags.num_workers):
             work_queue = multiprocessing.Pipe()
             acceptor = Acceptor(
@@ -134,26 +162,3 @@ class AcceptorPool:
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.flags.num_workers)
-
-    def shutdown(self) -> None:
-        logger.info('Shutting down %d workers' % self.flags.num_workers)
-        for acceptor in self.acceptors:
-            acceptor.running.set()
-        for acceptor in self.acceptors:
-            acceptor.join()
-        logger.debug('Acceptors shutdown')
-
-    def setup(self) -> None:
-        """Listen on port, setup workers and pass server socket to workers."""
-        self.listen()
-        self.start_workers()
-        # Send server socket to all acceptor processes.
-        assert self.socket is not None
-        for index in range(self.flags.num_workers):
-            send_handle(
-                self.work_queues[index],
-                self.socket.fileno(),
-                self.acceptors[index].pid,
-            )
-            self.work_queues[index].close()
-        self.socket.close()
