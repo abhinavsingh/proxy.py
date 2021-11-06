@@ -12,9 +12,7 @@ import ssl
 import random
 import socket
 import logging
-import sysconfig
 
-from pathlib import Path
 from typing import List, Optional, Tuple, Any
 from urllib import parse as urlparse
 
@@ -28,11 +26,6 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 
 logger = logging.getLogger(__name__)
-
-# We need CA bundle to verify TLS connection to upstream servers
-PURE_LIB = sysconfig.get_path('purelib')
-assert PURE_LIB
-CACERT_PEM_PATH = Path(PURE_LIB) / 'certifi' / 'cacert.pem'
 
 
 # TODO: ReverseProxyPlugin and ProxyPoolPlugin are implementing
@@ -135,7 +128,7 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
                 self.upstream.wrap(
                     text_(
                         url.hostname,
-                    ), ca_file=str(CACERT_PEM_PATH),
+                    ), ca_file=str(self.flags.ca_file),
                 )
             self.upstream.queue(memoryview(request.build()))
         except ConnectionRefusedError:

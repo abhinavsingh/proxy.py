@@ -74,12 +74,22 @@ class Threadless(multiprocessing.Process):
         Tuple[Readables, Writables],
         None, None,
     ]:
+        assert self.selector is not None
         events: Dict[socket.socket, int] = {}
         for work in self.works.values():
-            events.update(work.get_events())
-        assert self.selector is not None
-        for fd in events:
-            self.selector.register(fd, events[fd])
+            worker_events = work.get_events()
+            events.update(worker_events)
+            for fd in worker_events:
+                # Can throw ValueError: Invalid file descriptor: -1
+                #
+                # Work classes must handle the exception and shutdown
+                # gracefully otherwise this will result in bringing down the
+                # entire threadless process
+                #
+                # This is only possible when work.get_events pass
+                # an invalid file descriptor.  Example, because of bad
+                # exception handling within the work implementation class.
+                self.selector.register(fd, worker_events[fd])
         ev = self.selector.select(timeout=1)
         readables = []
         writables = []
