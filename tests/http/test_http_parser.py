@@ -117,7 +117,7 @@ class TestHttpParser(unittest.TestCase):
 
     def test_set_host_port_raises(self) -> None:
         with self.assertRaises(KeyError):
-            self.parser.set_line_attributes()
+            self.parser._set_line_attributes()
 
     def test_find_line(self) -> None:
         self.assertEqual(
@@ -159,7 +159,7 @@ class TestHttpParser(unittest.TestCase):
         )
         self.parser.parse(pkt)
         self.assertEqual(self.parser.total_size, len(pkt))
-        self.assertEqual(self.parser.build_path(), b'/path/dir/?a=b&c=d#p=q')
+        self.assertEqual(self.parser._build_path(), b'/path/dir/?a=b&c=d#p=q')
         self.assertEqual(self.parser.method, b'GET')
         assert self.parser.url
         self.assertEqual(self.parser.url.hostname, b'example.com')
@@ -181,7 +181,7 @@ class TestHttpParser(unittest.TestCase):
         )
 
     def test_build_url_none(self) -> None:
-        self.assertEqual(self.parser.build_path(), b'/None')
+        self.assertEqual(self.parser._build_path(), b'/None')
 
     def test_line_rcvd_to_rcving_headers_state_change(self) -> None:
         pkt = b'GET http://localhost HTTP/1.1'
