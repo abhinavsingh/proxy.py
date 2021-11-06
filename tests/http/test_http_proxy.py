@@ -80,7 +80,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         mock_server_conn.assert_called_with('upstream.host', DEFAULT_HTTP_PORT)
         self.plugin.return_value.before_upstream_connection.assert_called()
         self.plugin.return_value.handle_client_request.assert_called()
@@ -112,7 +112,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         mock_server_conn.assert_not_called()
         self.plugin.return_value.before_upstream_connection.assert_called()
 
