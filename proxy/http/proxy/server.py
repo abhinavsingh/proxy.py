@@ -121,7 +121,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.start_time: float = time.time()
-        self.server: Optional[TcpServerConnection] = None
+        self.upstream: Optional[TcpServerConnection] = None
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.pipeline_request: Optional[HttpParser] = None
         self.pipeline_response: Optional[HttpParser] = None
@@ -151,11 +151,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
         r: List[socket.socket] = []
         w: List[socket.socket] = []
-        if self.server and not self.server.closed and self.server.connection:
-            r.append(self.server.connection)
-        if self.server and not self.server.closed and \
-                self.server.has_buffer() and self.server.connection:
-            w.append(self.server.connection)
+        if self.upstream and not self.upstream.closed and self.upstream.connection:
+            r.append(self.upstream.connection)
+        if self.upstream and not self.upstream.closed and \
+                self.upstream.has_buffer() and self.upstream.connection:
+            w.append(self.upstream.connection)
 
         # TODO(abhinavsingh): We need to keep a mapping of plugin and
         # descriptors registered by them, so that within write/read blocks
@@ -168,7 +168,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return r, w
 
     def write_to_descriptors(self, w: Writables) -> bool:
-        if (self.server and self.server.connection not in w) or not self.server:
+        if (self.upstream and self.upstream.connection not in w) or not self.upstream:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered.
@@ -177,12 +177,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if teardown:
                     return True
         elif self.request.has_host() and \
-                self.server and not self.server.closed and \
-                self.server.has_buffer() and \
-                self.server.connection in w:
+                self.upstream and not self.upstream.closed and \
+                self.upstream.has_buffer() and \
+                self.upstream.connection in w:
             logger.debug('Server is write ready, flushing buffer')
             try:
-                self.server.flush()
+                self.upstream.flush()
             except ssl.SSLWantWriteError:
                 logger.warning(
                     'SSLWantWriteError while trying to flush to server, will retry',
@@ -201,7 +201,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        if (self.server and self.server.connection not in r) or not self.server:
+        if (
+            self.upstream and not
+            self.upstream.closed and
+            self.upstream.connection not in r
+        ) or not self.upstream:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered for.
@@ -210,17 +214,17 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if teardown:
                     return True
         elif self.request.has_host() \
-                and self.server \
-                and not self.server.closed \
-                and self.server.connection in r:
+                and self.upstream \
+                and not self.upstream.closed \
+                and self.upstream.connection in r:
             logger.debug('Server is ready for reads, reading...')
             try:
-                raw = self.server.recv(self.flags.server_recvbuf_size)
+                raw = self.upstream.recv(self.flags.server_recvbuf_size)
             except TimeoutError as e:
                 if e.errno == errno.ETIMEDOUT:
                     logger.warning(
                         '%s:%d timed out on recv' %
-                        self.server.addr,
+                        self.upstream.addr,
                     )
                     return True
                 raise e
@@ -231,7 +235,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if e.errno == errno.EHOSTUNREACH:
                     logger.warning(
                         '%s:%d unreachable on recv' %
-                        self.server.addr,
+                        self.upstream.addr,
                     )
                     return True
                 if e.errno == errno.ECONNRESET:
@@ -239,7 +243,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 else:
                     logger.exception(
                         'Exception while receiving from %s connection %r with reason %r' %
-                        (self.server.tag, self.server.connection, e),
+                        (self.upstream.tag, self.upstream.connection, e),
                     )
                 return True
 
@@ -263,8 +267,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 else:
                     # TODO(abhinavsingh): Remove .tobytes after parser is
                     # memoryview compliant
-                    self.response.parse(raw.tobytes())
-                    self.emit_response_events()
+                    chunk = raw.tobytes()
+                    self.response.parse(chunk)
+                    self.emit_response_events(len(chunk))
             else:
                 self.response.total_size += len(raw)
             # queue raw data for client
@@ -280,8 +285,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             'client_port': self.client.addr[1],
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
-            'server_host': text_(self.server.addr[0] if self.server else None),
-            'server_port': text_(self.server.addr[1] if self.server else None),
+            'server_host': text_(self.upstream.addr[0] if self.upstream else None),
+            'server_port': text_(self.upstream.addr[1] if self.upstream else None),
             'response_bytes': self.response.total_size,
             'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
             'response_code': text_(self.response.code),
@@ -312,23 +317,23 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             plugin.on_upstream_connection_close()
 
         # If server was never initialized, return
-        if self.server is None:
+        if self.upstream is None:
             return
 
         try:
             try:
-                self.server.connection.shutdown(socket.SHUT_WR)
+                self.upstream.connection.shutdown(socket.SHUT_WR)
             except OSError:
                 pass
             finally:
                 # TODO: Unwrap if wrapped before close?
-                self.server.connection.close()
+                self.upstream.connection.close()
         except TcpConnectionUninitializedException:
             pass
         finally:
             logger.debug(
                 'Closed server connection, has buffer %s' %
-                self.server.has_buffer(),
+                self.upstream.has_buffer(),
             )
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
@@ -363,13 +368,13 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         #
         # We only call handle_client_data once original request has been
         # completely received
-        if not self.server:
+        if not self.upstream:
             for plugin in self.plugins.values():
                 o = plugin.handle_client_data(raw)
                 if o is None:
                     return None
                 raw = o
-        elif self.server and not self.server.closed:
+        elif self.upstream and not self.upstream.closed:
             # For http proxy requests, handle pipeline case.
             # We also handle pipeline scenario for https proxy
             # requests is TLS interception is enabled.
@@ -382,7 +387,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # Previous pipelined request was a WebSocket
                     # upgrade request. Incoming client data now
                     # must be treated as WebSocket protocol packets.
-                    self.server.queue(raw)
+                    self.upstream.queue(raw)
                     return None
 
                 if self.pipeline_request is None:
@@ -403,7 +408,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     assert self.pipeline_request is not None
                     # TODO(abhinavsingh): Remove memoryview wrapping here after
                     # parser is fully memoryview compliant
-                    self.server.queue(
+                    self.upstream.queue(
                         memoryview(
                             self.pipeline_request.build(),
                         ),
@@ -413,7 +418,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # For scenarios where we cannot peek into the data,
             # simply queue for upstream server.
             else:
-                self.server.queue(raw)
+                self.upstream.queue(raw)
             return None
         return raw
 
@@ -453,7 +458,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
         # For https requests, respond back with tunnel established response.
         # Optionally, setup interceptor if TLS interception is enabled.
-        if self.server:
+        if self.upstream:
             if self.request.method == httpMethods.CONNECT:
                 self.client.queue(
                     HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
@@ -480,7 +485,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     [(b'Via', b'1.1 %s' % PROXY_AGENT_HEADER_VALUE)],
                 )
                 # Disable args.disable_headers before dispatching to upstream
-                self.server.queue(
+                self.upstream.queue(
                     memoryview(
                         self.request.build(
                             disable_headers=self.flags.disable_headers,
@@ -503,7 +508,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port
         if host and port:
-            self.server = TcpServerConnection(text_(host), port)
+            self.upstream = TcpServerConnection(text_(host), port)
             try:
                 logger.debug(
                     'Connecting to upstream %s:%s' %
@@ -519,12 +524,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         break
                 # Connect with overridden upstream IP and source address
                 # if any of the plugin returned a non-null value.
-                self.server.connect(
+                self.upstream.connect(
                     addr=None if not upstream_ip else (
                         upstream_ip, port,
                     ), source_address=source_addr,
                 )
-                self.server.connection.setblocking(False)
+                self.upstream.connection.setblocking(False)
                 logger.debug(
                     'Connected to upstream %s:%s' %
                     (text_(host), port),
@@ -533,7 +538,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 logger.exception(
                     'Unable to connect with upstream server', exc_info=e,
                 )
-                self.server.closed = True
+                self.upstream.closed = True
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
         else:
             logger.exception('Both host and port must exist')
@@ -681,16 +686,16 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return self.client.connection
 
     def wrap_server(self) -> None:
-        assert self.server is not None
-        assert isinstance(self.server.connection, socket.socket)
-        self.server.wrap(text_(self.request.host), self.flags.ca_file)
-        assert isinstance(self.server.connection, ssl.SSLSocket)
+        assert self.upstream is not None
+        assert isinstance(self.upstream.connection, socket.socket)
+        self.upstream.wrap(text_(self.request.host), self.flags.ca_file)
+        assert isinstance(self.upstream.connection, ssl.SSLSocket)
 
     def wrap_client(self) -> None:
-        assert self.server is not None and self.flags.ca_signing_key_file is not None
-        assert isinstance(self.server.connection, ssl.SSLSocket)
+        assert self.upstream is not None and self.flags.ca_signing_key_file is not None
+        assert isinstance(self.upstream.connection, ssl.SSLSocket)
         generated_cert = self.generate_upstream_certificate(
-            cast(Dict[str, Any], self.server.connection.getpeercert()),
+            cast(Dict[str, Any], self.upstream.connection.getpeercert()),
         )
         self.client.wrap(self.flags.ca_signing_key_file, generated_cert)
         logger.debug(
@@ -723,14 +728,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             publisher_id=self.__class__.__name__,
         )
 
-    def emit_response_events(self) -> None:
+    def emit_response_events(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
 
         if self.response.state == httpParserStates.COMPLETE:
             self.emit_response_complete()
         elif self.response.state == httpParserStates.RCVING_BODY:
-            self.emit_response_chunk_received()
+            self.emit_response_chunk_received(chunk_size)
         elif self.response.state == httpParserStates.HEADERS_COMPLETE:
             self.emit_response_headers_complete()
 
@@ -738,10 +743,38 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if not self.flags.enable_events:
             return
 
-    def emit_response_chunk_received(self) -> None:
+        self.event_queue.publish(
+            request_id=self.uid.hex,
+            event_name=eventNames.RESPONSE_HEADERS_COMPLETE,
+            event_payload={
+                'headers': {text_(k): text_(v[1]) for k, v in self.response.headers.items()},
+            },
+            publisher_id=self.__class__.__name__,
+        )
+
+    def emit_response_chunk_received(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
+
+        self.event_queue.publish(
+            request_id=self.uid.hex,
+            event_name=eventNames.RESPONSE_CHUNK_RECEIVED,
+            event_payload={
+                'chunk_size': chunk_size,
+                'encoded_chunk_size': chunk_size,
+            },
+            publisher_id=self.__class__.__name__,
+        )
 
     def emit_response_complete(self) -> None:
         if not self.flags.enable_events:
             return
+
+        self.event_queue.publish(
+            request_id=self.uid.hex,
+            event_name=eventNames.RESPONSE_COMPLETE,
+            event_payload={
+                'encoded_response_size': self.response.total_size,
+            },
+            publisher_id=self.__class__.__name__,
+        )

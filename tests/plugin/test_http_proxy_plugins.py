@@ -96,7 +96,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         mock_server_conn.assert_called_with('httpbin.org', DEFAULT_HTTP_PORT)
         mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(
@@ -135,7 +135,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 selectors.EVENT_READ,
             )],
         ]
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
 
         mock_server_conn.assert_not_called()
         self.assertEqual(
@@ -173,7 +173,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 selectors.EVENT_READ,
             )],
         ]
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
 
         upstream = urlparse.urlsplit(
             RedirectToCustomServerPlugin.UPSTREAM_SERVER,
@@ -211,7 +211,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 selectors.EVENT_READ,
             )],
         ]
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
 
         mock_server_conn.assert_not_called()
         self.assertEqual(
@@ -280,7 +280,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         ]
 
         # Client read
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         mock_server_conn.assert_called_with('super.secure', DEFAULT_HTTP_PORT)
         server.connect.assert_called_once()
         queued_request = \
@@ -294,7 +294,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         server.queue.assert_called_once_with(queued_request)
 
         # Server write
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         server.flush.assert_called_once()
 
         # Server read
@@ -303,7 +303,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Original Response From Upstream',
             )
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.client.buffer[0].tobytes(),
             build_http_response(
@@ -334,7 +334,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 selectors.EVENT_READ,
             )],
         ]
-        self.protocol_handler.run_once()
+        self.protocol_handler._run_once()
 
         self.assertEqual(
             self.protocol_handler.client.buffer[0].tobytes(),

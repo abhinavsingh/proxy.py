@@ -98,7 +98,7 @@ lib-release: lib-package
 	twine upload dist/*
 
 lib-coverage:
-	pytest --cov=proxy --cov-report=html tests/
+	pytest --cov=proxy --cov=tests --cov-report=html tests/
 	open htmlcov/index.html
 
 lib-profile:
