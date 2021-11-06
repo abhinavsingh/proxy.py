@@ -151,10 +151,18 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
         r: List[socket.socket] = []
         w: List[socket.socket] = []
-        if self.upstream and not self.upstream.closed and self.upstream.connection:
+        if (
+            self.upstream and
+            not self.upstream.closed and
+            self.upstream.connection
+        ):
             r.append(self.upstream.connection)
-        if self.upstream and not self.upstream.closed and \
-                self.upstream.has_buffer() and self.upstream.connection:
+        if (
+            self.upstream and
+            not self.upstream.closed and
+            self.upstream.has_buffer() and
+            self.upstream.connection
+        ):
             w.append(self.upstream.connection)
 
         # TODO(abhinavsingh): We need to keep a mapping of plugin and
@@ -658,19 +666,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def intercept(self) -> Union[socket.socket, bool]:
         # Perform SSL/TLS handshake with upstream
-        teardown = self.wrap_server()
-        if teardown:
-            raise HttpProtocolException(
-                'Exception when wrapping server for interception',
-            )
+        self.wrap_server()
         # Generate certificate and perform handshake with client
         # wrap_client also flushes client data before wrapping
         # sending to client can raise, handle expected exceptions
-        teardown = self.wrap_client()
-        if teardown:
-            raise HttpProtocolException(
-                'Exception when wrapping client for interception',
-            )
+        self.wrap_client()
         # Update all plugin connection reference
         # TODO(abhinavsingh): Is this required?
         for plugin in self.plugins.values():
@@ -680,6 +680,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def wrap_server(self) -> bool:
         assert self.upstream is not None
         assert isinstance(self.upstream.connection, socket.socket)
+        do_close = False
         try:
             self.upstream.wrap(text_(self.request.host), self.flags.ca_file)
         except ssl.SSLCertVerificationError:    # Server raised certificate verification error
@@ -692,7 +693,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.upstream.addr[0],
                 ),
             )
-            return True
+            do_close = True
         except ssl.SSLError as e:
             if e.reason == 'SSLV3_ALERT_HANDSHAKE_FAILURE':
                 logger.warning(
@@ -707,13 +708,19 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         self.upstream.addr[0],
                     ), exc_info=e,
                 )
-            return True
+            do_close = True
+        finally:
+            if do_close:
+                raise HttpProtocolException(
+                    'Exception when wrapping server for interception',
+                )
         assert isinstance(self.upstream.connection, ssl.SSLSocket)
         return False
 
     def wrap_client(self) -> bool:
         assert self.upstream is not None and self.flags.ca_signing_key_file is not None
         assert isinstance(self.upstream.connection, ssl.SSLSocket)
+        do_close = False
         try:
             # TODO: Perform async certificate generation
             generated_cert = self.generate_upstream_certificate(
@@ -724,7 +731,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             logger.exception(
                 'TimeoutExpired during certificate generation', exc_info=e,
             )
-            return True
+            do_close = True
         except ssl.SSLCertVerificationError:    # Client raised certificate verification error
             # When --disable-interception-on-ssl-cert-verification-error flag is on,
             # we will cache such upstream hosts and avoid intercepting them for future
@@ -735,14 +742,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.upstream.addr[0],
                 ),
             )
-            return True
+            do_close = True
         except ssl.SSLEOFError as e:
             logger.warning(
                 'ssl.SSLEOFError {0} when wrapping client for upstream: {1}'.format(
                     str(e), self.upstream.addr[0],
                 ),
             )
-            return True
+            do_close = True
         except ssl.SSLError as e:
             if e.reason in ('TLSV1_ALERT_UNKNOWN_CA', 'UNSUPPORTED_PROTOCOL'):
                 logger.warning(
@@ -757,21 +764,26 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         self.upstream.addr[0],
                     ), exc_info=e,
                 )
-            return True
+            do_close = True
         except BrokenPipeError:
             logger.error(
                 'BrokenPipeError when wrapping client for upstream: {0}'.format(
                     self.upstream.addr[0],
                 ),
             )
-            return True
+            do_close = True
         except OSError as e:
             logger.exception(
                 'OSError when wrapping client for upstream: {0}'.format(
                     self.upstream.addr[0],
                 ), exc_info=e,
             )
-            return True
+            do_close = True
+        finally:
+            if do_close:
+                raise HttpProtocolException(
+                    'Exception when wrapping client for interception',
+                )
         logger.debug('TLS intercepting using %s', generated_cert)
         return False
 
