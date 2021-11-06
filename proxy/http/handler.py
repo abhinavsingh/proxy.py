@@ -114,18 +114,11 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     def shutdown(self) -> None:
         try:
-            # Flush pending buffer if any
-            # TODO: This can block as it register, select, unregister.
-            # _flush is only for use with threaded mode.  In threadless
-            # mode BaseTcpServerHandler provides must_flush_before_shutdown
-            # implementation.
+            # Flush pending buffer in threaded mode only.
+            # For threadless mode, BaseTcpServerHandler implements
+            # the must_flush_before_shutdown logic automagically.
             if self.selector:
                 self._flush()
-            else:
-                # Call flush for threadless mode assuming client is write ready
-                # This may fail or block.  Using BaseTcpServerHandler will
-                # solve this issue.
-                self.client.flush()
 
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
