@@ -681,12 +681,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             )
             return True
         except ssl.SSLError as e:
-            if e.reason == "TLSV1_ALERT_UNKNOWN_CA":
+            if e.reason == 'TLSV1_ALERT_UNKNOWN_CA':
                 logger.warning(
                     'TLSV1_ALERT_UNKNOWN_CA: ' +
                     'Client raised cert verification error for upstream: {0}'.format(
                         self.upstream.addr[0],
-                    )
+                    ),
                 )
             else:
                 logger.exception(
