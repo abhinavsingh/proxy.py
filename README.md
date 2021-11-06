@@ -730,7 +730,7 @@ This plugin uses `Cloudflare` hosted `DNS-over-HTTPS` [API](https://developers.c
 `DoH` mandates a HTTP2 compliant client. Unfortunately `proxy.py`
 doesn't provide that yet, so we use a dependency. Install it:
 
-```bash
+```console
 ❯ pip install "httpx[http2]"
 ```
 
