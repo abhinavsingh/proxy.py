@@ -507,7 +507,7 @@ Along with the proxy request log, you must also see a http web server request lo
 ### FilterByUpstreamHostPlugin
 
 Drops traffic by inspecting upstream host.
-By default, plugin drops traffic for `google.com` and `www.google.com`.
+By default, plugin drops traffic for `facebook.com` and `www.facebok.com`.
 
 Start `proxy.py` as:
 
@@ -516,7 +516,7 @@ Start `proxy.py` as:
     --plugins proxy.plugin.FilterByUpstreamHostPlugin
 ```
 
-Verify using `curl -v -x localhost:8899 http://google.com`:
+Verify using `curl -v -x localhost:8899 http://facebook.com`:
 
 ```bash
 ... [redacted] ...
@@ -815,13 +815,13 @@ on the command line.
 Plugins are called in the same order as they are passed. Example,
 say we are using both `FilterByUpstreamHostPlugin` and
 `RedirectToCustomServerPlugin`. Idea is to drop all incoming `http`
-requests for `google.com` and `www.google.com` and redirect other
+requests for `facebook.com` and `www.facebook.com` and redirect other
 `http` requests to our inbuilt web server.
 
 Hence, in this scenario it is important to use
 `FilterByUpstreamHostPlugin` before `RedirectToCustomServerPlugin`.
 If we enable `RedirectToCustomServerPlugin` before `FilterByUpstreamHostPlugin`,
-`google` requests will also get redirected to inbuilt web server,
+`facebook` requests will also get redirected to inbuilt web server,
 instead of being dropped.
 
 # End-to-End Encryption
