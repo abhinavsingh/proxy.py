@@ -145,13 +145,14 @@ class Acceptor(multiprocessing.Process):
             if len(events) == 0:
                 return
             conn, addr = self.sock.accept()
-        self._start_threadless_work(conn, addr) \
-            if (
+        if (
                 self.flags.threadless and
                 self.threadless_client_queue and
                 self.threadless_process
-            ) \
-            else self._start_threaded_work(conn, addr)
+        ):
+            self._start_threadless_work(conn, addr)
+        else:
+            self._start_threaded_work(conn, addr)
 
     def run(self) -> None:
         setup_logger(
