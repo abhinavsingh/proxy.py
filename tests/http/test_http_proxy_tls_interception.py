@@ -16,6 +16,7 @@ import selectors
 
 from typing import Any
 from unittest import mock
+from proxy.common.constants import DEFAULT_CA_FILE
 
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.http.handler import HttpProtocolHandler
@@ -168,7 +169,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         )
 
         self.mock_ssl_context.assert_called_with(
-            ssl.Purpose.SERVER_AUTH, cafile=None,
+            ssl.Purpose.SERVER_AUTH, cafile=str(DEFAULT_CA_FILE),
         )
         # self.assertEqual(self.mock_ssl_context.return_value.options,
         # ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 |

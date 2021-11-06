@@ -514,6 +514,10 @@ def main(
             # configuration etc.
             #
             # TODO: Python shell within running proxy.py environment?
+            #
+            # TODO: Pid watcher which watches for processes started
+            # by proxy.py core.  May be alert or restart those processes
+            # on failure.
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:

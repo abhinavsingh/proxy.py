@@ -66,9 +66,9 @@ flags.add_argument(
 flags.add_argument(
     '--ca-file',
     type=str,
-    default=DEFAULT_CA_FILE,
+    default=str(DEFAULT_CA_FILE),
     help='Default: ' + str(DEFAULT_CA_FILE) +
-    '. Provide path to custom CA bundle for peer certificate verification'
+    '. Provide path to custom CA bundle for peer certificate verification',
 )
 flags.add_argument(
     '--ca-signing-key-file',
@@ -692,6 +692,21 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.upstream.addr[0],
                 ),
             )
+            return True
+        except ssl.SSLError as e:
+            if e.reason == "SSLV3_ALERT_HANDSHAKE_FAILURE":
+                logger.warning(
+                    '{0}: '.format(e.reason) +
+                    'Server raised handshake alert failure for upstream: {0}'.format(
+                        self.upstream.addr[0],
+                    ),
+                )
+            else:
+                logger.exception(
+                    'SSLError when wrapping client for upstream: {0}'.format(
+                        self.upstream.addr[0],
+                    ), exc_info=e,
+                )
             return True
         assert isinstance(self.upstream.connection, ssl.SSLSocket)
         return False
