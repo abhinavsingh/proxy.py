@@ -1183,7 +1183,7 @@ Note that:
 ## Non-blocking Mode
 
 Start `proxy.py` in non-blocking embedded mode with default configuration
-by using `start` method: Example:
+by using `Proxy` context manager: Example:
 
 ```python
 import proxy
@@ -1196,10 +1196,10 @@ if __name__ == '__main__':
 Note that:
 
 1. `Proxy` is similar to `main`, except `Proxy` does not block.
-1. Internally `Proxy` is a context manager.
-   It will start `proxy.py` when called and will shut it down
+2. Internally `Proxy` is a context manager.
+3. It will start `proxy.py` when called and will shut it down
    once the scope ends.
-1. Just like `main`, startup flags with `Proxy`
+4. Just like `main`, startup flags with `Proxy`
    can be customized by either passing flags as list of
    input arguments e.g. `Proxy(['--port', '8899'])` or
    by using passing flags as kwargs e.g. `Proxy(port=8899)`.
@@ -1222,8 +1222,15 @@ if __name__ == '__main__':
 
 ## Loading Plugins
 
-You can, of course, list plugins to load in the input arguments list of `proxy.main` or
-`Proxy` constructor. Use the `--plugins` flag when starting from command line:
+Users can use `--plugins` flag multiple times to load multiple plugins.
+See [Unable to load plugins](#unable-to-load-plugins) if you are running into issues.
+
+When using in embedded mode, you have a few more options.  Example:
+
+1. Provide a fully-qualified name of the plugin class as `bytes` to the `proxy.main` method or `proxy.Proxy` context manager.
+2. Provide `type` instance of the plugin class. This is especially useful if you plan to define plugins at runtime.
+
+Example, load a single plugin using `--plugins` flag:
 
 ```python
 import proxy
@@ -1234,8 +1241,9 @@ if __name__ == '__main__':
   ])
 ```
 
-For simplicity you can pass the list of plugins to load as a keyword argument to `proxy.main` or
-the `Proxy` constructor:
+For simplicity, you can also pass the list of plugins as a keyword argument to `proxy.main` or the `Proxy` constructor.
+
+Example:
 
 ```python
 import proxy
@@ -1247,11 +1255,6 @@ if __name__ == '__main__':
     FilterByUpstreamHostPlugin,
   ])
 ```
-
-Note that it supports:
-
-1. The fully-qualified name of a class as `bytes`
-2. Any `type` instance of a plugin class. This is especially useful for plugins defined at runtime
 
 # Unit testing with proxy.py
 
