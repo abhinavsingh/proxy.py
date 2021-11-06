@@ -144,6 +144,11 @@ class HttpParser:
     def body_expected(self) -> bool:
         return self.content_expected() or self.is_chunked_encoded()
 
+    def get_body_or_chunks(self) -> Optional[bytes]:
+        return ChunkParser.to_chunks(self.body) \
+            if self.body and self.is_chunked_encoded() else \
+            self.body
+
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
 
@@ -251,9 +256,7 @@ class HttpParser:
         assert self.method and self.version and self.path and self.type == httpParserTypes.REQUEST_PARSER
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
-        body: Optional[bytes] = ChunkParser.to_chunks(self.body) \
-            if self.is_chunked_encoded() and self.body else \
-            self.body
+        body: Optional[bytes] = self.get_body_or_chunks()
         path = self.path
         if for_proxy:
             assert self.url and self.host and self.port and self.path
@@ -285,9 +288,7 @@ class HttpParser:
             headers={} if not self.headers else {
                 self.headers[k][0]: self.headers[k][1] for k in self.headers
             },
-            body=None if not self.body else (
-                self.body if not self.is_chunked_encoded() else ChunkParser.to_chunks(self.body)
-            ),
+            body=self.get_body_or_chunks(),
         )
 
     def has_host(self) -> bool:
