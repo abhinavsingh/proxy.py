@@ -52,7 +52,7 @@ class TestCase(unittest.TestCase):
     @staticmethod
     def wait_for_server(
         proxy_port: int,
-        wait_for_seconds: int = DEFAULT_TIMEOUT,
+        wait_for_seconds: float = DEFAULT_TIMEOUT,
     ) -> None:
         """Wait for proxy.py server to come up."""
         start_time = time.time()
