@@ -45,8 +45,9 @@ class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
         self.response.parse(chunk.tobytes())
         # If response is complete, modify and dispatch to client
         if self.response.state == httpParserStates.COMPLETE:
-            # Avoid setting a body for responses where content is not expected
-            if self.response.content_expected():
+            # Avoid setting a body for responses where a body is not expected.
+            # Otherwise, example curl will report warnings.
+            if self.response.body_expected():
                 self.response.body = b'\n'.join(self.DEFAULT_CHUNKS) + b'\n'
             self.client.queue(memoryview(self.response.build_response()))
         return memoryview(b'')
