@@ -113,6 +113,7 @@ class AcceptorPool:
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
+        assert self.socket
         self.flags.port = self.socket.getsockname()[1]
         self._start_acceptors()
         # Send file descriptor to all acceptor processes.
