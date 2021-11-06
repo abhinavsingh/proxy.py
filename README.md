@@ -100,6 +100,7 @@
   - [Docker image not working on MacOS](#docker-image-not-working-on-macos)
   - [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
   - [None:None in access logs](#nonenone-in-access-logs)
+  - [OSError when wrapping client for TLS Interception](#oserror-when-wrapping-client-for-tls-interception)
 - [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
   - [High level architecture](#high-level-architecture)
   - [Everything is a plugin](#everything-is-a-plugin)
@@ -1720,6 +1721,52 @@ few obvious ones include:
 
 1. Client established a connection but never completed the request.
 2. A plugin returned a response prematurely, avoiding connection to upstream server.
+
+## OSError when wrapping client for TLS Interception
+
+With `TLS Interception` on, you might occassionally see following exceptions:
+
+```console
+2021-11-06 23:33:34,540 - pid:91032 [E] server.intercept:678 - OSError when wrapping client
+Traceback (most recent call last):
+  ...[redacted]...
+  ...[redacted]...
+  ...[redacted]...
+ssl.SSLError: [SSL: TLSV1_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca (_ssl.c:997)
+...[redacted]... - CONNECT oauth2.googleapis.com:443 - 0 bytes - 272.08 ms
+```
+
+Some clients can throw `TLSV1_ALERT_UNKNOWN_CA` if they cannot verify the certificate of the server
+because it is signed by an unknown issuer CA.  Which is the case when we are doing TLS interception.
+This can be for a variety of reasons e.g. certificate pinning etc.
+
+Another exception you might see is `CERTIFICATE_VERIFY_FAILED`:
+
+```console
+2021-11-06 23:36:02,002 - pid:91033 [E] handler.handle_readables:293 - Exception while receiving from client connection <socket.socket fd=28, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('127.0.0.1', 8899), raddr=('127.0.0.1', 51961)> with reason SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self signed certificate in certificate chain (_ssl.c:997)')
+Traceback (most recent call last):
+  ...[redacted]...
+  ...[redacted]...
+  ...[redacted]...
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self signed certificate in certificate chain (_ssl.c:997)
+...[redacted]... - CONNECT init.push.apple.com:443 - 0 bytes - 892.99 ms
+```
+
+In future, we might support serving original HTTPS content for such clients while still
+performing TLS interception in the background.  This will keep the clients happy without
+impacting our ability to TLS intercept.  Unfortunately, this feature is currently not available.
+
+Another example with `SSLEOFError` exception:
+
+```console
+2021-11-06 23:46:40,446 - pid:91034 [E] server.intercept:678 - OSError when wrapping client
+Traceback (most recent call last):
+  ...[redacted]...
+  ...[redacted]...
+  ...[redacted]...
+ssl.SSLEOFError: EOF occurred in violation of protocol (_ssl.c:997)
+...[redacted]... - CONNECT stock.adobe.io:443 - 0 bytes - 685.32 ms
+```
 
 # Plugin Developer and Contributor Guide
 
