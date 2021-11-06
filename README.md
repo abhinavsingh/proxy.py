@@ -97,6 +97,7 @@
     - [CLI Usage](#cli-usage)
 - [Run Dashboard](#run-dashboard)
   - [Inspect Traffic](#inspect-traffic)
+- [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
   - [Threads vs Threadless](#threads-vs-threadless)
   - [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
@@ -1662,6 +1663,17 @@ Current functionality can be verified by opening the `Dev Console` of dashboard 
 the websocket connection that dashboard established with the `proxy.py` server.
 
 [![Proxy.Py Dashboard Inspect Traffic](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/Dashboard.png)](https://github.com/abhinavsingh/proxy.py)
+
+# Chrome DevTools Protocol
+
+For scenarios where you want direct access to `Chrome DevTools` protocol websocket endpoint,
+start `proxy.py` as:
+
+```bash
+$ proxy --enable-devtools --enable-events
+```
+
+Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
 
