@@ -127,7 +127,6 @@ class AcceptorPool:
         # the server port when `--port=0` is used.
         assert self.socket
         self.flags.port = self.socket.getsockname()[1]
-        print(self.flags.port)
         self._start_acceptors()
         # Send file descriptor to all acceptor processes.
         assert self.socket is not None

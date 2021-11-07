@@ -288,15 +288,17 @@ if __name__ == '__main__':
 
     # Validation
     if args.action not in available_actions:
-        print('Invalid --action. Valid values ' + ', '.join(available_actions))
+        logger.error('Invalid --action. Valid values ' +
+                     ', '.join(available_actions))
         sys.exit(1)
     if args.action in ('gen_private_key', 'gen_public_key'):
         if args.private_key_path is None:
-            print('--private-key-path is required for ' + args.action)
+            logger.error('--private-key-path is required for ' + args.action)
             sys.exit(1)
     if args.action == 'gen_public_key':
         if args.public_key_path is None:
-            print('--public-key-file is required for private key generation')
+            logger.error(
+                '--public-key-file is required for private key generation')
             sys.exit(1)
 
     # Execute

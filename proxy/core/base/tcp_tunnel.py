@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import socket
+import logging
 import selectors
 
 from abc import abstractmethod
@@ -20,6 +21,8 @@ from ...common.utils import text_
 
 from ..connection import TcpServerConnection
 from .tcp_server import BaseTcpServerHandler
+
+logger = logging.getLogger(__name__)
 
 
 class BaseTcpTunnelHandler(BaseTcpServerHandler):
@@ -47,7 +50,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
 
     def shutdown(self) -> None:
         if self.upstream:
-            print(
+            logger.debug(
                 'Connection closed with upstream {0}:{1}'.format(
                     text_(self.request.host), self.request.port,
                 ),
@@ -84,7 +87,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
             data = self.upstream.recv()
             if data is None:
                 # Server closed connection
-                print('Connection closed by server')
+                logger.debug('Connection closed by server')
                 return True
             # tunnel data to client
             self.work.queue(data)
@@ -98,7 +101,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
             text_(self.request.host), self.request.port,
         )
         self.upstream.connect()
-        print(
+        logger.debug(
             'Connection established with upstream {0}:{1}'.format(
                 text_(self.request.host), self.request.port,
             ),

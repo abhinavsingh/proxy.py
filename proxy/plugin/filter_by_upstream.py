@@ -32,7 +32,6 @@ class FilterByUpstreamHostPlugin(HttpProxyBasePlugin):
     def before_upstream_connection(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
-        print(self.flags.filtered_upstream_hosts)
         if text_(request.host) in self.flags.filtered_upstream_hosts.split(','):
             raise HttpRequestRejected(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT, reason=b'I\'m a tea pot',

@@ -9,8 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
-from proxy.http.websocket import WebsocketClient, WebsocketFrame, websocketOpcodes
+import logging
 
+from proxy.http.websocket import WebsocketClient, WebsocketFrame, websocketOpcodes
 
 # globals
 client: WebsocketClient
@@ -18,11 +19,13 @@ last_dispatch_time: float
 static_frame = memoryview(WebsocketFrame.text(b'hello'))
 num_echos = 10
 
+logger = logging.getLogger(__name__)
+
 
 def on_message(frame: WebsocketFrame) -> None:
     """WebsocketClient on_message callback."""
     global client, num_echos, last_dispatch_time
-    print(
+    logger.info(
         'Received %r after %d millisec' %
         (frame.data, (time.time() - last_dispatch_time) * 1000),
     )
