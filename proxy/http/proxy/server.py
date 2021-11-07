@@ -186,7 +186,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.upstream.closed = True
             with self.lock:
                 self.pool.release(self.upstream)
-        self.upstream = None
+            self.upstream = None
         return True
 
     def write_to_descriptors(self, w: Writables) -> bool:
