@@ -31,6 +31,9 @@ from .constants import DOT, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
 from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
 from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
 
+if os.name != 'nt':
+    import resource
+
 logger = logging.getLogger(__name__)
 
 
@@ -368,7 +371,6 @@ def get_default_plugins(
 def set_open_file_limit(soft_limit: int) -> None:
     """Configure open file description soft limit on supported OS."""
     if os.name != 'nt':  # resource module not available on Windows OS
-        import resource
         curr_soft_limit, curr_hard_limit = resource.getrlimit(
             resource.RLIMIT_NOFILE,
         )

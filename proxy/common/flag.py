@@ -32,9 +32,8 @@ __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 class FlagParser:
     """Wrapper around argparse module.
 
-    proxy.py core and plugin classes must import `flag.flags` and
-    use `add_argument` to define their own flags within respective
-    class files.
+    Import `flag.flags` and use `add_argument` API
+    to define custom flags within respective Python files.
 
     Best Practice:
     1. Define flags at the top of your class files.
@@ -42,6 +41,19 @@ class FlagParser:
        within class methods.  It MAY result into runtime exception,
        especially if your class is initialized multiple times or if
        class method registering the flag gets invoked multiple times.
+
+    TODO: Currently `initialize` staticmethod contains knowledge
+    about several common flags defined by proxy.py core.
+
+    This logic must be decoupled.  flags.add_argument must
+    also provide a callback to resolve the final flag value
+    based upon availability in input_args, **opts and
+    default values.
+
+    Supporting such a framework is complex but achievable.
+    One problem is that resolution of certain flags
+    can depend upon availability of other flags. This
+    will lead us into dependency graph modeling domain.
     """
 
     def __init__(self) -> None:
