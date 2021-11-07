@@ -14,15 +14,19 @@ import base64
 import socket
 import argparse
 import ipaddress
+import collections
 import multiprocessing
 
 from typing import Optional, List, Any, cast
 
 from .types import IpAddress
 from .utils import text_, bytes_, setup_logger, is_py2, set_open_file_limit
-from .utils import get_default_plugins, import_plugin, load_plugins
+from .utils import import_plugin, load_plugins
 from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
+from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
+from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
+from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
 
 from .version import __version__
 
@@ -110,7 +114,8 @@ class FlagParser:
         set_open_file_limit(args.open_file_limit)
 
         # Load plugins
-        default_plugins = [bytes_(p) for p in get_default_plugins(args)]
+        default_plugins = [bytes_(p)
+                           for p in FlagParser.get_default_plugins(args)]
         extra_plugins = [
             p if isinstance(p, type) else bytes_(p)
             for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
@@ -288,6 +293,36 @@ class FlagParser:
             os.makedirs(args.ca_cert_dir, exist_ok=True)
 
         return args
+
+    @staticmethod
+    def get_default_plugins(
+            args: argparse.Namespace,
+    ) -> List[str]:
+        """Prepare list of plugins to load based upon
+        --enable-*, --disable-* and --basic-auth flags.
+        """
+        default_plugins: List[str] = []
+        if args.basic_auth is not None:
+            default_plugins.append(PLUGIN_PROXY_AUTH)
+        if hasattr(args, 'enable_dashboard') and args.enable_dashboard:
+            default_plugins.append(PLUGIN_WEB_SERVER)
+            args.enable_static_server = True
+            default_plugins.append(PLUGIN_DASHBOARD)
+            default_plugins.append(PLUGIN_INSPECT_TRAFFIC)
+            args.enable_events = True
+            args.enable_devtools = True
+        if hasattr(args, 'enable_devtools') and args.enable_devtools:
+            default_plugins.append(PLUGIN_DEVTOOLS_PROTOCOL)
+            default_plugins.append(PLUGIN_WEB_SERVER)
+        if not args.disable_http_proxy:
+            default_plugins.append(PLUGIN_HTTP_PROXY)
+        if args.enable_web_server or \
+                args.pac_file is not None or \
+                args.enable_static_server:
+            default_plugins.append(PLUGIN_WEB_SERVER)
+        if args.pac_file is not None:
+            default_plugins.append(PLUGIN_PAC_FILE)
+        return list(collections.OrderedDict.fromkeys(default_plugins).keys())
 
 
 flags = FlagParser()
