@@ -5,9 +5,11 @@ on:   # yamllint disable-line rule:truthy
   push:
     paths:
     - 'dashboard/**'
+    - '.github/workflows/test-dashboard.yml'
   pull_request:
     paths:
     - 'dashboard/**'
+    - '.github/workflows/test-dashboard.yml'
 
 jobs:
   build:
