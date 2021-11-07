@@ -101,12 +101,6 @@ flags.add_argument(
     'value for faster downloads at the expense of '
     'increased RAM.',
 )
-flags.add_argument(
-    '--enable-conn-pool',
-    action='store_true',
-    default=False,
-    help='Default: False.  Enable upstream connection pooling.',
-)
 
 
 class HttpProxyPlugin(HttpProtocolHandlerPlugin):
@@ -356,22 +350,23 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # Release the connection for reusability
             with self.lock:
                 self.pool.release(self.upstream)
-        else:
+            return
+
+        try:
             try:
-                try:
-                    self.upstream.connection.shutdown(socket.SHUT_WR)
-                except OSError:
-                    pass
-                finally:
-                    # TODO: Unwrap if wrapped before close?
-                    self.upstream.connection.close()
-            except TcpConnectionUninitializedException:
+                self.upstream.connection.shutdown(socket.SHUT_WR)
+            except OSError:
                 pass
             finally:
-                logger.debug(
-                    'Closed server connection, has buffer %s' %
-                    self.upstream.has_buffer(),
-                )
+                # TODO: Unwrap if wrapped before close?
+                self.upstream.connection.close()
+        except TcpConnectionUninitializedException:
+            pass
+        finally:
+            logger.debug(
+                'Closed server connection, has buffer %s' %
+                self.upstream.has_buffer(),
+            )
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
         access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT

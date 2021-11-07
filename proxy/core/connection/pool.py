@@ -12,9 +12,18 @@ import logging
 
 from typing import Set, Dict, Tuple
 
+from ...common.flag import flags
 from .server import TcpServerConnection
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--enable-conn-pool',
+    action='store_true',
+    default=False,
+    help='Default: False.  (WIP) Enable upstream connection pooling.',
+)
 
 
 class ConnectionPool:
