@@ -14,9 +14,10 @@ import os
 
 from unittest import mock
 
-from proxy.proxy import main, Proxy, entry_point
+from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
 from proxy.http.handler import HttpProtocolHandler
+from proxy.common.flag import FlagParser
 
 from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT
 from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
@@ -68,7 +69,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_dashboard = DEFAULT_ENABLE_DASHBOARD
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.proxy.Proxy.initialize')
+    @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     def test_entry_point(
@@ -92,7 +93,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.proxy.Proxy.initialize')
+    @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     def test_main_with_no_arguments(
@@ -116,7 +117,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.proxy.Proxy.initialize')
+    @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     def test_enable_events(
@@ -142,7 +143,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.proxy.Proxy.load_plugins')
+    @mock.patch('proxy.common.flag.load_plugins')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
@@ -178,7 +179,7 @@ class TestMain(unittest.TestCase):
         mock_event_manager.return_value.stop_event_dispatcher.assert_called_once()
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.proxy.Proxy.load_plugins')
+    @mock.patch('proxy.common.flag.load_plugins')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
@@ -256,7 +257,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.side_effect = KeyboardInterrupt()
 
         input_args = ['--basic-auth', 'user:pass']
-        flgs = Proxy.initialize(input_args)
+        flgs = FlagParser.initialize(input_args)
 
         main(input_args=input_args)
         mock_event_manager.assert_not_called()
@@ -270,7 +271,7 @@ class TestMain(unittest.TestCase):
     @mock.patch('builtins.print')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.proxy.Proxy.is_py2')
+    @mock.patch('proxy.common.flag.is_py2')
     def test_main_py3_runs(
             self,
             mock_is_py2: mock.Mock,
@@ -294,7 +295,7 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called()
 
     @mock.patch('builtins.print')
-    @mock.patch('proxy.proxy.Proxy.is_py2')
+    @mock.patch('proxy.common.flag.is_py2')
     def test_main_py2_exit(
             self,
             mock_is_py2: mock.Mock,

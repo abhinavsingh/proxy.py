@@ -23,7 +23,7 @@ from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.methods import httpMethods
 from proxy.common.utils import build_http_request, bytes_
-from proxy.proxy import Proxy
+from proxy.common.flag import FlagParser
 
 
 class TestHttpProxyTlsInterception(unittest.TestCase):
@@ -84,7 +84,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Proxy.initialize(
+        self.flags = FlagParser.initialize(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem',

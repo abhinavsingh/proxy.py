@@ -17,7 +17,7 @@ from unittest import mock
 from typing import cast
 from pathlib import Path
 
-from proxy.proxy import Proxy
+from proxy.common.flag import FlagParser
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
@@ -44,7 +44,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         adblock_json_path = Path(
             __file__,
         ).parent.parent.parent / "proxy" / "plugin" / "adblock.json"
-        self.flags = Proxy.initialize(
+        self.flags = FlagParser.initialize(
             input_args=[
                 "--filtered-url-regex-config",
                 str(adblock_json_path),
