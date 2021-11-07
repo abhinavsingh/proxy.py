@@ -67,7 +67,7 @@ flags.add_argument(
     type=str,
     default=None,
     help='Default: None. Unix socket path to use.  ' +
-    'When provided --host and --port flags are ignored'
+    'When provided --host and --port flags are ignored',
 )
 
 

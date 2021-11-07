@@ -222,7 +222,8 @@ class FlagParser:
             opts.get('hostname', ipaddress.ip_address(args.hostname)),
         )
         args.family = socket.AF_UNIX if args.unix_socket_path else (
-            socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET)
+            socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
+        )
         args.port = cast(int, opts.get('port', args.port))
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)

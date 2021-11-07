@@ -47,10 +47,12 @@ class BaseTcpServerHandler(Work):
         self.must_flush_before_shutdown = False
         if self.flags.unix_socket_path:
             logger.debug(
-                'Connection accepted from {0}'.format(self.work.address))
+                'Connection accepted from {0}'.format(self.work.address),
+            )
         else:
             logger.debug(
-                'Connection accepted from {0}'.format(self.work.address))
+                'Connection accepted from {0}'.format(self.work.address),
+            )
 
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
