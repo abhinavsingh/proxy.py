@@ -114,8 +114,10 @@ class FlagParser:
         set_open_file_limit(args.open_file_limit)
 
         # Load plugins
-        default_plugins = [bytes_(p)
-                           for p in FlagParser.get_default_plugins(args)]
+        default_plugins = [
+            bytes_(p)
+            for p in FlagParser.get_default_plugins(args)
+        ]
         extra_plugins = [
             p if isinstance(p, type) else bytes_(p)
             for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
