@@ -37,6 +37,7 @@ from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
 from ...core.connection import TcpServerConnection, TcpConnectionUninitializedException
+from ...core.connection import ConnectionPool
 from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     # Used to synchronization during certificate generation.
     lock = threading.Lock()
 
+    # Shared connection pool
+    pool = ConnectionPool()
+
     def __init__(
             self,
             *args: Any, **kwargs: Any,
@@ -175,6 +179,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
         return r, w
 
+    def _close_and_release(self) -> bool:
+        self.upstream.closed = True
+        self.pool.release(self.upstream)
+        return True
+
     def write_to_descriptors(self, w: Writables) -> bool:
         if (self.upstream and self.upstream.connection not in w) or not self.upstream:
             # Currently, we just call write/read block of each plugins.  It is
@@ -200,12 +209,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 logger.error(
                     'BrokenPipeError when flushing buffer for server',
                 )
-                return True
+                return self._close_and_release()
             except OSError as e:
                 logger.exception(
                     'OSError when flushing buffer to server', exc_info=e,
                 )
-                return True
+                return self._close_and_release()
         return False
 
     def read_from_descriptors(self, r: Readables) -> bool:
@@ -229,6 +238,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             try:
                 raw = self.upstream.recv(self.flags.server_recvbuf_size)
             except TimeoutError as e:
+                self._close_and_release()
                 if e.errno == errno.ETIMEDOUT:
                     logger.warning(
                         '%s:%d timed out on recv' %
@@ -245,7 +255,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         '%s:%d unreachable on recv' %
                         self.upstream.addr,
                     )
-                    return True
                 if e.errno == errno.ECONNRESET:
                     logger.warning('Connection reset by upstream: %r' % e)
                 else:
@@ -253,11 +262,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         'Exception while receiving from %s connection %r with reason %r' %
                         (self.upstream.tag, self.upstream.connection, e),
                     )
-                return True
+                return self._close_and_release()
 
             if raw is None:
                 logger.debug('Server closed connection, tearing down...')
-                return True
+                return self._close_and_release()
 
             for plugin in self.plugins.values():
                 raw = plugin.handle_upstream_chunk(raw)
@@ -328,21 +337,23 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.upstream is None:
             return
 
-        try:
-            try:
-                self.upstream.connection.shutdown(socket.SHUT_WR)
-            except OSError:
-                pass
-            finally:
-                # TODO: Unwrap if wrapped before close?
-                self.upstream.connection.close()
-        except TcpConnectionUninitializedException:
-            pass
-        finally:
-            logger.debug(
-                'Closed server connection, has buffer %s' %
-                self.upstream.has_buffer(),
-            )
+        if not self.upstream.closed:
+            self.pool.release(self.upstream)
+        # try:
+        #     try:
+        #         self.upstream.connection.shutdown(socket.SHUT_WR)
+        #     except OSError:
+        #         pass
+        #     finally:
+        #         # TODO: Unwrap if wrapped before close?
+        #         self.upstream.connection.close()
+        # except TcpConnectionUninitializedException:
+        #     pass
+        # finally:
+        #     logger.debug(
+        #         'Closed server connection, has buffer %s' %
+        #         self.upstream.has_buffer(),
+        #     )
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
         access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
@@ -516,7 +527,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port
         if host and port:
-            self.upstream = TcpServerConnection(text_(host), port)
+            # self.upstream = TcpServerConnection(text_(host), port)
+            self.upstream = self.pool.acquire(text_(host), port)
             try:
                 logger.debug(
                     'Connecting to upstream %s:%s' %
@@ -546,7 +558,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 logger.exception(
                     'Unable to connect with upstream server', exc_info=e,
                 )
-                self.upstream.closed = True
+                self._close_and_release()
                 raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
         else:
             logger.exception('Both host and port must exist')
