@@ -11,7 +11,7 @@
 import logging
 import multiprocessing
 
-from typing import Set, List, Dict, Tuple
+from typing import Set, Dict, Tuple
 
 from .server import TcpServerConnection
 
