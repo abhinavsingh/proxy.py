@@ -1,7 +1,19 @@
 ---
 name: brew
 
-on: [push, pull_request]  # yamllint disable-line rule:truthy
+on:   # yamllint disable-line rule:truthy
+  push:
+    paths:
+    - 'proxy/**'
+    - 'tests/**'
+    - 'examples/**'
+    - '.github/workflows/test-brew.yml'
+  pull_request:
+    paths:
+    - 'proxy/**'
+    - 'tests/**'
+    - 'examples/**'
+    - '.github/workflows/test-brew.yml'
 
 jobs:
   build:
