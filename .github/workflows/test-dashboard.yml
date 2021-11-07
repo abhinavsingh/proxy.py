@@ -1,7 +1,13 @@
 ---
 name: dashboard
 
-on: [push, pull_request]  # yamllint disable-line rule:truthy
+on:
+  push:
+    paths:
+      - 'dashboard/**'
+  pull_request:
+    paths:
+      - 'dashboard/**'
 
 jobs:
   build:

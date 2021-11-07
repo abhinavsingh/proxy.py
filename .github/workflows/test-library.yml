@@ -1,7 +1,15 @@
 ---
 name: lib
 
-on: [push, pull_request]  # yamllint disable-line rule:truthy
+on:
+  push:
+    paths:
+      - 'proxy/**'
+      - 'tests/**'
+  pull_request:
+    paths:
+      - 'proxy/**'
+      - 'tests/**'
 
 concurrency:
   group: >-
