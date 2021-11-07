@@ -25,15 +25,18 @@ class Work(ABC):
 
     def __init__(
             self,
-            client: TcpClientConnection,
+            work: TcpClientConnection,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
             uid: Optional[UUID] = None,
     ) -> None:
-        self.client = client
-        self.flags = flags
-        self.event_queue = event_queue
+        # Work uuid
         self.uid: UUID = uid if uid is not None else uuid4()
+        self.flags = flags
+        # Eventing core queue
+        self.event_queue = event_queue
+        # Accept work
+        self.work = work
 
     @abstractmethod
     def get_events(self) -> Dict[socket.socket, int]:

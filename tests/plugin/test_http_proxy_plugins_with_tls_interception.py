@@ -170,14 +170,14 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
         self.mock_server_conn.assert_called_once_with('uni.corn', 443)
         self.server.connect.assert_called()
         self.assertEqual(
-            self.protocol_handler.client.connection,
+            self.protocol_handler.work.connection,
             self.client_ssl_connection,
         )
         self.assertEqual(self.server.connection, self.server_ssl_connection)
         self._conn.send.assert_called_with(
             HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
-        self.assertFalse(self.protocol_handler.client.has_buffer())
+        self.assertFalse(self.protocol_handler.work.has_buffer())
 
     def test_modify_post_data_plugin(self) -> None:
         original = b'{"key": "value"}'
@@ -229,7 +229,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
             )
         self.protocol_handler._run_once()
         self.assertEqual(
-            self.protocol_handler.client.buffer[0].tobytes(),
+            self.protocol_handler.work.buffer[0].tobytes(),
             build_http_response(
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Hello from man in the middle',

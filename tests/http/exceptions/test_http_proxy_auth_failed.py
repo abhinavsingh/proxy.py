@@ -63,9 +63,9 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
 
         self.protocol_handler._run_once()
         mock_server_conn.assert_not_called()
-        self.assertEqual(self.protocol_handler.client.has_buffer(), True)
+        self.assertEqual(self.protocol_handler.work.has_buffer(), True)
         self.assertEqual(
-            self.protocol_handler.client.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT,
+            self.protocol_handler.work.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT,
         )
         self._conn.send.assert_not_called()
 
@@ -92,9 +92,9 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
 
         self.protocol_handler._run_once()
         mock_server_conn.assert_not_called()
-        self.assertEqual(self.protocol_handler.client.has_buffer(), True)
+        self.assertEqual(self.protocol_handler.work.has_buffer(), True)
         self.assertEqual(
-            self.protocol_handler.client.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT,
+            self.protocol_handler.work.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT,
         )
         self._conn.send.assert_not_called()
 
@@ -121,7 +121,7 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
 
         self.protocol_handler._run_once()
         mock_server_conn.assert_called_once()
-        self.assertEqual(self.protocol_handler.client.has_buffer(), False)
+        self.assertEqual(self.protocol_handler.work.has_buffer(), False)
 
     @mock.patch('proxy.http.proxy.server.TcpServerConnection')
     def test_proxy_auth_works_with_mixed_case_basic_string(self, mock_server_conn: mock.Mock) -> None:
@@ -146,4 +146,4 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
 
         self.protocol_handler._run_once()
         mock_server_conn.assert_called_once()
-        self.assertEqual(self.protocol_handler.client.has_buffer(), False)
+        self.assertEqual(self.protocol_handler.work.has_buffer(), False)

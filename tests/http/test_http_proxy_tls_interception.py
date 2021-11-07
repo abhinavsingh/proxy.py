@@ -201,7 +201,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         )
         self.assertEqual(self._conn.setblocking.call_count, 2)
         self.assertEqual(
-            self.protocol_handler.client.connection,
+            self.protocol_handler.work.connection,
             self.mock_ssl_wrap.return_value,
         )
 

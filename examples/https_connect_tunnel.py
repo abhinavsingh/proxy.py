@@ -53,7 +53,7 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
 
         # Drop the request if not a CONNECT request
         if self.request.method != httpMethods.CONNECT:
-            self.client.queue(
+            self.work.queue(
                 HttpsConnectTunnelHandler.PROXY_TUNNEL_UNSUPPORTED_SCHEME,
             )
             return True
@@ -66,7 +66,7 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
         self.connect_upstream()
 
         # Queue tunnel established response to client
-        self.client.queue(
+        self.work.queue(
             HttpsConnectTunnelHandler.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
 

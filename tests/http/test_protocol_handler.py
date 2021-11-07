@@ -102,7 +102,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             ).upstream is not None,
         )
         self.assertEqual(
-            self.protocol_handler.client.buffer[0],
+            self.protocol_handler.work.buffer[0],
             HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
         mock_server_connection.assert_called_once()
@@ -111,7 +111,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         server.closed = False
 
         parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        parser.parse(self.protocol_handler.client.buffer[0].tobytes())
+        parser.parse(self.protocol_handler.work.buffer[0].tobytes())
         self.assertEqual(parser.state, httpParserStates.COMPLETE)
         assert parser.code is not None
         self.assertEqual(int(parser.code), 200)
@@ -199,7 +199,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         ])
         self.protocol_handler._run_once()
         self.assertEqual(
-            self.protocol_handler.client.buffer[0],
+            self.protocol_handler.work.buffer[0],
             ProxyConnectionFailed.RESPONSE_PKT,
         )
 
@@ -231,7 +231,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         ])
         self.protocol_handler._run_once()
         self.assertEqual(
-            self.protocol_handler.client.buffer[0],
+            self.protocol_handler.work.buffer[0],
             ProxyAuthenticationFailed.RESPONSE_PKT,
         )
 
@@ -328,7 +328,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
             CRLF,
         ])
         self.assert_tunnel_response(mock_server_connection, server)
-        self.protocol_handler.client.flush()
+        self.protocol_handler.work.flush()
         self.assert_data_queued_to_server(server)
 
         self.protocol_handler._run_once()

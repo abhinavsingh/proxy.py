@@ -89,25 +89,25 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
-        conn = self._optionally_wrap_socket(self.client.connection)
+        conn = self._optionally_wrap_socket(self.work.connection)
         conn.setblocking(False)
         # Update client connection reference if connection was wrapped
         if self._encryption_enabled():
-            self.client = TcpClientConnection(conn=conn, addr=self.client.addr)
+            self.work = TcpClientConnection(conn=conn, addr=self.work.addr)
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
                 instance: HttpProtocolHandlerPlugin = klass(
                     self.uid,
                     self.flags,
-                    self.client,
+                    self.work,
                     self.request,
                     self.event_queue,
                 )
                 self.plugins[instance.name()] = instance
-        logger.debug('Handling connection %r' % self.client.connection)
+        logger.debug('Handling connection %r' % self.work.connection)
 
     def is_inactive(self) -> bool:
-        if not self.client.has_buffer() and \
+        if not self.work.has_buffer() and \
                 self._connection_inactive_for() > self.flags.timeout:
             return True
         return False
@@ -127,20 +127,20 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             logger.debug(
                 'Closing client connection %r '
                 'at address %r has buffer %s' %
-                (self.client.connection, self.client.addr, self.client.has_buffer()),
+                (self.work.connection, self.work.addr, self.work.has_buffer()),
             )
 
-            conn = self.client.connection
+            conn = self.work.connection
             # Unwrap if wrapped before shutdown.
             if self._encryption_enabled() and \
-                    isinstance(self.client.connection, ssl.SSLSocket):
-                conn = self.client.connection.unwrap()
+                    isinstance(self.work.connection, ssl.SSLSocket):
+                conn = self.work.connection.unwrap()
             conn.shutdown(socket.SHUT_WR)
             logger.debug('Client connection shutdown successful')
         except OSError:
             pass
         finally:
-            self.client.connection.close()
+            self.work.connection.close()
             logger.debug('Client connection closed')
             super().shutdown()
 
@@ -196,7 +196,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     def handle_data(self, data: memoryview) -> Optional[bool]:
         if data is None:
             logger.debug('Client closed connection, tearing down...')
-            self.client.closed = True
+            self.work.closed = True
             return True
 
         try:
@@ -227,7 +227,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                             logger.debug(
                                 'Updated client conn to %s', upgraded_sock,
                             )
-                            self.client._conn = upgraded_sock
+                            self.work._conn = upgraded_sock
                             for plugin_ in self.plugins.values():
                                 if plugin_ != plugin:
                                     plugin_.client._conn = upgraded_sock
@@ -237,12 +237,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             logger.debug('HttpProtocolException raised')
             response: Optional[memoryview] = e.response(self.request)
             if response:
-                self.client.queue(response)
+                self.work.queue(response)
             return True
         return False
 
     def handle_writables(self, writables: Writables) -> bool:
-        if self.client.connection in writables and self.client.has_buffer():
+        if self.work.connection in writables and self.work.has_buffer():
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
 
@@ -250,7 +250,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # instead of invoking when flushed to client.
             #
             # Invoke plugin.on_response_chunk
-            chunk = self.client.buffer
+            chunk = self.work.buffer
             for plugin in self.plugins.values():
                 chunk = plugin.on_response_chunk(chunk)
                 if chunk is None:
@@ -272,7 +272,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return False
 
     def handle_readables(self, readables: Readables) -> bool:
-        if self.client.connection in readables:
+        if self.work.connection in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
             try:
@@ -290,7 +290,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 else:
                     logger.exception(
                         'Exception while receiving from %s connection %r with reason %r' %
-                        (self.client.tag, self.client.connection, e),
+                        (self.work.tag, self.work.connection, e),
                     )
                 return True
         return False
@@ -324,7 +324,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         except Exception as e:
             logger.exception(
                 'Exception while handling connection %r' %
-                self.client.connection, exc_info=e,
+                self.work.connection, exc_info=e,
             )
         finally:
             self.shutdown()
@@ -377,24 +377,24 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     def _flush(self) -> None:
         assert self.selector
-        if not self.client.has_buffer():
+        if not self.work.has_buffer():
             return
         try:
             self.selector.register(
-                self.client.connection,
+                self.work.connection,
                 selectors.EVENT_WRITE,
             )
-            while self.client.has_buffer():
+            while self.work.has_buffer():
                 ev: List[
                     Tuple[selectors.SelectorKey, int]
                 ] = self.selector.select(timeout=1)
                 if len(ev) == 0:
                     continue
-                self.client.flush()
+                self.work.flush()
         except BrokenPipeError:
             pass
         finally:
-            self.selector.unregister(self.client.connection)
+            self.selector.unregister(self.work.connection)
 
     def _connection_inactive_for(self) -> float:
         return time.time() - self.last_activity

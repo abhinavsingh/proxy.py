@@ -45,7 +45,7 @@ class BaseTcpServerHandler(Work):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.must_flush_before_shutdown = False
-        logger.debug('Connection accepted from {0}'.format(self.client.addr))
+        logger.debug('Connection accepted from {0}'.format(self.work.addr))
 
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
@@ -57,14 +57,14 @@ class BaseTcpServerHandler(Work):
         # We always want to read from client
         # Register for EVENT_READ events
         if self.must_flush_before_shutdown is False:
-            events[self.client.connection] = selectors.EVENT_READ
+            events[self.work.connection] = selectors.EVENT_READ
         # If there is pending buffer for client
         # also register for EVENT_WRITE events
-        if self.client.has_buffer():
-            if self.client.connection in events:
-                events[self.client.connection] |= selectors.EVENT_WRITE
+        if self.work.has_buffer():
+            if self.work.connection in events:
+                events[self.work.connection] |= selectors.EVENT_WRITE
             else:
-                events[self.client.connection] = selectors.EVENT_WRITE
+                events[self.work.connection] = selectors.EVENT_WRITE
         return events
 
     def handle_events(
@@ -79,32 +79,32 @@ class BaseTcpServerHandler(Work):
         if teardown:
             logger.debug(
                 'Shutting down client {0} connection'.format(
-                    self.client.addr,
+                    self.work.addr,
                 ),
             )
         return teardown
 
     def handle_writables(self, writables: Writables) -> bool:
         teardown = False
-        if self.client.connection in writables and self.client.has_buffer():
+        if self.work.connection in writables and self.work.has_buffer():
             logger.debug(
-                'Flushing buffer to client {0}'.format(self.client.addr),
+                'Flushing buffer to client {0}'.format(self.work.addr),
             )
-            self.client.flush()
+            self.work.flush()
             if self.must_flush_before_shutdown is True:
-                if not self.client.has_buffer():
+                if not self.work.has_buffer():
                     teardown = True
                     self.must_flush_before_shutdown = False
         return teardown
 
     def handle_readables(self, readables: Readables) -> bool:
         teardown = False
-        if self.client.connection in readables:
-            data = self.client.recv(self.flags.client_recvbuf_size)
+        if self.work.connection in readables:
+            data = self.work.recv(self.flags.client_recvbuf_size)
             if data is None:
                 logger.debug(
                     'Connection closed by client {0}'.format(
-                        self.client.addr,
+                        self.work.addr,
                     ),
                 )
                 teardown = True
@@ -113,13 +113,13 @@ class BaseTcpServerHandler(Work):
                 if isinstance(r, bool) and r is True:
                     logger.debug(
                         'Implementation signaled shutdown for client {0}'.format(
-                            self.client.addr,
+                            self.work.addr,
                         ),
                     )
-                    if self.client.has_buffer():
+                    if self.work.has_buffer():
                         logger.debug(
                             'Client {0} has pending buffer, will be flushed before shutting down'.format(
-                                self.client.addr,
+                                self.work.addr,
                             ),
                         )
                         self.must_flush_before_shutdown = True
