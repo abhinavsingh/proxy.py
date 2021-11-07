@@ -28,7 +28,8 @@ class TestConnectionPool(unittest.TestCase):
         ]
         mock_conn.closed = False
         # Acquire
-        conn = pool.acquire(*addr)
+        created, conn = pool.acquire(*addr)
+        self.assertTrue(created)
         mock_tcp_server_connection.assert_called_once_with(*addr)
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
@@ -38,7 +39,8 @@ class TestConnectionPool(unittest.TestCase):
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
         # Reacquire
-        conn = pool.acquire(*addr)
+        created, conn = pool.acquire(*addr)
+        self.assertFalse(created)
         mock_conn.reset.assert_called_once()
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
@@ -55,7 +57,8 @@ class TestConnectionPool(unittest.TestCase):
         mock_conn.closed = True
         mock_conn.addr = addr
         # Acquire
-        conn = pool.acquire(*addr)
+        created, conn = pool.acquire(*addr)
+        self.assertTrue(created)
         mock_tcp_server_connection.assert_called_once_with(*addr)
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
@@ -64,6 +67,7 @@ class TestConnectionPool(unittest.TestCase):
         pool.release(conn)
         self.assertEqual(len(pool.pools[addr]), 0)
         # Acquire
-        conn = pool.acquire(*addr)
+        created, conn = pool.acquire(*addr)
+        self.assertTrue(created)
         self.assertEqual(mock_tcp_server_connection.call_count, 2)
         mock_conn.is_reusable.assert_not_called()

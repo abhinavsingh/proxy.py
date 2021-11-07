@@ -9,18 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-import multiprocessing
 
 from typing import Set, Dict, Tuple
 
 from .server import TcpServerConnection
 
 logger = logging.getLogger(__name__)
-
-# Lock used by ConnectionPool to remain multi-process & multi-thread safe
-#
-# TODO: Make me lock free
-LOCK = multiprocessing.Lock()
 
 
 class ConnectionPool:
@@ -35,7 +29,22 @@ class ConnectionPool:
 
     TODO: Listen for read events from the connections
     to remove them from the pool when peer closes the
-    connection.
+    connection.  This can also be achieved lazily by
+    the pool users.  Example, if acquired connection
+    is stale, reacquire.
+
+    TODO: Ideally, ConnectionPool must be shared across
+    all cores to make SSL session cache to also work
+    without additional out-of-bound synchronizations.
+
+    TODO: ConnectionPool currently WONT work for
+    HTTPS connection. This is because of missing support for
+    session cache, session ticket, abbr TLS handshake
+    and other necessary features to make it work.
+
+    NOTE: However, for all HTTP only connections, ConnectionPool
+    can be used to save upon connection setup time and
+    speed-up performance of requests.
     """
 
     def __init__(self) -> None:
@@ -44,30 +53,29 @@ class ConnectionPool:
 
     def acquire(self, host: str, port: int) -> Tuple[bool, TcpServerConnection]:
         """Returns a connection for use with the server."""
-        with LOCK:
-            addr = (host, port)
-            # Return a reusable connection if available
-            if addr in self.pools:
-                for old_conn in self.pools[addr]:
-                    if old_conn.is_reusable():
-                        old_conn.mark_inuse()
-                        logger.debug(
-                            'Reusing connection#{2} for upstream {0}:{1}'.format(
-                                host, port, id(old_conn),
-                            ),
-                        )
-                        return False, old_conn
-            # Create new connection
-            new_conn = TcpServerConnection(*addr)
-            if addr not in self.pools:
-                self.pools[addr] = set()
-            self.pools[addr].add(new_conn)
-            logger.debug(
-                'Created new connection#{2} for upstream {0}:{1}'.format(
-                    host, port, id(new_conn),
-                ),
-            )
-            return True, new_conn
+        addr = (host, port)
+        # Return a reusable connection if available
+        if addr in self.pools:
+            for old_conn in self.pools[addr]:
+                if old_conn.is_reusable():
+                    old_conn.mark_inuse()
+                    logger.debug(
+                        'Reusing connection#{2} for upstream {0}:{1}'.format(
+                            host, port, id(old_conn),
+                        ),
+                    )
+                    return False, old_conn
+        # Create new connection
+        new_conn = TcpServerConnection(*addr)
+        if addr not in self.pools:
+            self.pools[addr] = set()
+        self.pools[addr].add(new_conn)
+        logger.debug(
+            'Created new connection#{2} for upstream {0}:{1}'.format(
+                host, port, id(new_conn),
+            ),
+        )
+        return True, new_conn
 
     def release(self, conn: TcpServerConnection) -> None:
         """Release the connection.
@@ -75,20 +83,19 @@ class ConnectionPool:
         If the connection has not been closed,
         then it will be retained in the pool for reusability.
         """
-        with LOCK:
-            if conn.closed:
-                logger.debug(
-                    'Removing connection#{2} from pool from upstream {0}:{1}'.format(
-                        conn.addr[0], conn.addr[1], id(conn),
-                    ),
-                )
-                self.pools[conn.addr].remove(conn)
-            else:
-                logger.debug(
-                    'Retaining connection#{2} to upstream {0}:{1}'.format(
-                        conn.addr[0], conn.addr[1], id(conn),
-                    ),
-                )
-                assert not conn.is_reusable()
-                # Reset for reusability
-                conn.reset()
+        if conn.closed:
+            logger.debug(
+                'Removing connection#{2} from pool from upstream {0}:{1}'.format(
+                    conn.addr[0], conn.addr[1], id(conn),
+                ),
+            )
+            self.pools[conn.addr].remove(conn)
+        else:
+            logger.debug(
+                'Retaining connection#{2} to upstream {0}:{1}'.format(
+                    conn.addr[0], conn.addr[1], id(conn),
+                ),
+            )
+            assert not conn.is_reusable()
+            # Reset for reusability
+            conn.reset()

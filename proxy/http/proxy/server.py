@@ -37,6 +37,7 @@ from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
 from ...core.connection import TcpServerConnection, ConnectionPool
+from ...core.connection import TcpConnectionUninitializedException
 from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
@@ -100,6 +101,12 @@ flags.add_argument(
     'value for faster downloads at the expense of '
     'increased RAM.',
 )
+flags.add_argument(
+    '--enable-conn-pool',
+    action='store_true',
+    default=False,
+    help='Default: False.  Enable upstream connection pooling.',
+)
 
 
 class HttpProxyPlugin(HttpProtocolHandlerPlugin):
@@ -112,7 +119,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         ),
     )
 
-    # Used to synchronization during certificate generation.
+    # Used to synchronization during certificate generation and
+    # connection pool operations.
     lock = threading.Lock()
 
     # Shared connection pool
@@ -179,9 +187,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return r, w
 
     def _close_and_release(self) -> bool:
-        assert self.upstream and not self.upstream.closed
-        self.upstream.closed = True
-        self.pool.release(self.upstream)
+        if self.flags.enable_conn_pool:
+            assert self.upstream and not self.upstream.closed
+            self.upstream.closed = True
+            with self.lock:
+                self.pool.release(self.upstream)
+        self.upstream = None
         return True
 
     def write_to_descriptors(self, w: Writables) -> bool:
@@ -258,7 +269,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if e.errno == errno.ECONNRESET:
                     logger.warning(
                         'Connection reset by upstream: {0}:{1}'.format(
-                            *self.upstream.addr),
+                            *self.upstream.addr,
+                        ),
                     )
                 else:
                     logger.exception(
@@ -336,27 +348,30 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         for plugin in self.plugins.values():
             plugin.on_upstream_connection_close()
 
-        # If server was never initialized, return
+        # If server was never initialized or was _close_and_release
         if self.upstream is None:
             return
 
-        if not self.upstream.closed:
-            self.pool.release(self.upstream)
-        # try:
-        #     try:
-        #         self.upstream.connection.shutdown(socket.SHUT_WR)
-        #     except OSError:
-        #         pass
-        #     finally:
-        #         # TODO: Unwrap if wrapped before close?
-        #         self.upstream.connection.close()
-        # except TcpConnectionUninitializedException:
-        #     pass
-        # finally:
-        #     logger.debug(
-        #         'Closed server connection, has buffer %s' %
-        #         self.upstream.has_buffer(),
-        #     )
+        if self.flags.enable_conn_pool:
+            # Release the connection for reusability
+            with self.lock:
+                self.pool.release(self.upstream)
+        else:
+            try:
+                try:
+                    self.upstream.connection.shutdown(socket.SHUT_WR)
+                except OSError:
+                    pass
+                finally:
+                    # TODO: Unwrap if wrapped before close?
+                    self.upstream.connection.close()
+            except TcpConnectionUninitializedException:
+                pass
+            finally:
+                logger.debug(
+                    'Closed server connection, has buffer %s' %
+                    self.upstream.has_buffer(),
+                )
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
         access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
@@ -530,11 +545,27 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port
         if host and port:
-            # self.upstream = TcpServerConnection(text_(host), port)
-            created, self.upstream = self.pool.acquire(text_(host), port)
+            if self.flags.enable_conn_pool:
+                with self.lock:
+                    created, self.upstream = self.pool.acquire(
+                        text_(host), port,
+                    )
+            else:
+                created, self.upstream = True, TcpServerConnection(
+                    text_(host), port,
+                )
             if not created:
-                logger.info('Reusing connection to upstream %s:%d' %
-                            (text_(host), port))
+                # NOTE: Acquired connection might be in an unusable state.
+                #
+                # This can only be confirmed by reading from connection.
+                # For stale connections, we will receive None, indicating
+                # to drop the connection.
+                #
+                # If that happen, we must acquire a fresh connection.
+                logger.info(
+                    'Reusing connection to upstream %s:%d' %
+                    (text_(host), port),
+                )
                 return
             try:
                 logger.debug(
@@ -565,11 +596,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 logger.warning(
                     'Unable to connect with upstream %s:%d due to %s' % (
                         text_(host), port, str(e),
-                    )
+                    ),
                 )
-                self.pool.release(self.upstream)
+                if self.flags.enable_conn_pool:
+                    with self.lock:
+                        self.pool.release(self.upstream)
                 raise ProxyConnectionFailed(
-                    text_(host), port, repr(e)) from e
+                    text_(host), port, repr(e),
+                ) from e
         else:
             logger.exception('Both host and port must exist')
             raise HttpProtocolException()
