@@ -6,6 +6,7 @@ Looking for `proxy.py` plugin examples?  Check [proxy/plugin](https://github.com
 
 Table of Contents
 =================
+* [Generic Work Acceptor and Executor](#generic-work-acceptor-and-executor)
 * [WebSocket Client](#websocket-client)
 * [TCP Echo Server](#tcp-echo-server)
 * [TCP Echo Client](#tcp-echo-client)
@@ -13,6 +14,17 @@ Table of Contents
 * [SSL Echo Client](#ssl-echo-client)
 * [PubSub Eventing](#pubsub-eventing)
 * [Https Connect Tunnel](#https-connect-tunnel)
+
+## Generic Work Acceptor and Executor
+
+1. Makes use of `proxy.core.AcceptorPool` and `proxy.core.Work`
+2. Demonstrates how to perform generic work using `proxy.py` core.
+
+Start `web_scraper.py` as:
+
+```console
+❯ PYTHONPATH=. python examples/web_scraper.py
+```
 
 ## WebSocket Client
 
@@ -22,7 +34,7 @@ Table of Contents
 
 Start `websocket_client.py` as:
 
-```bash
+```console
 ❯ PYTHONPATH=. python examples/websocket_client.py
 Received b'hello' after 306 millisec
 Received b'hello' after 308 millisec
@@ -44,7 +56,7 @@ Received b'hello' after 309 millisec
 
 Start `tcp_echo_server.py` as:
 
-```bash
+```console
 ❯ PYTHONPATH=. python examples/tcp_echo_server.py
 Connection accepted from ('::1', 53285, 0, 0)
 Connection closed by client ('::1', 53285, 0, 0)
@@ -57,7 +69,7 @@ Connection closed by client ('::1', 53285, 0, 0)
 
 Start `tcp_echo_client.py` as:
 
-```bash
+```console
 ❯ PYTHONPATH=. python examples/tcp_echo_client.py
 b'hello'
 b'hello'
@@ -81,7 +93,7 @@ KeyboardInterrupt
 
 Start `ssl_echo_server.py` as:
 
-```bash
+```console
 ❯ PYTHONPATH=. python examples/ssl_echo_server.py
 ```
 
@@ -92,7 +104,7 @@ Start `ssl_echo_server.py` as:
 
 Start `ssl_echo_client.py` as:
 
-```bash
+```console
 ❯ PYTHONPATH=. python examples/ssl_echo_client.py
 ```
 
@@ -107,7 +119,7 @@ Start `ssl_echo_client.py` as:
 
 Start `pubsub_eventing.py` as:
 
-```bash
+```console
 ❯ PYTHONPATH=. python examples/pubsub_eventing.py
 DEBUG:proxy.core.event.subscriber:Subscribed relay sub id 5eb22010764f4d44900f41e2fb408ca6 from core events
 publisher starting
