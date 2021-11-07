@@ -129,8 +129,9 @@ class Proxy:
     i.e. we are only expecting HTTP traffic to flow between clients and server.
 
     Optionally, also initialize a global event queue.
-    It is a multiprocess safe queue which can be used to build pubsub patterns
-    for message sharing or signaling.
+    It is a multiprocess safe queue which can be used to
+    build pubsub patterns for message sharing or signaling
+    within the running proxy environment.
     """
 
     def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
@@ -188,10 +189,16 @@ def main(
     try:
         with Proxy(input_args=input_args, **opts) as proxy:
             assert proxy.pool is not None
-            logger.info(
-                'Listening on %s:%d' %
-                (proxy.pool.flags.hostname, proxy.pool.flags.port),
-            )
+            if proxy.flags.unix_socket_path:
+                logger.info(
+                    'Listening on %s' %
+                    (proxy.flags.unix_socket_path),
+                )
+            else:
+                logger.info(
+                    'Listening on %s:%s' %
+                    (proxy.pool.flags.hostname, proxy.pool.flags.port),
+                )
             # TODO: Introduce cron feature
             # https://github.com/abhinavsingh/proxy.py/issues/392
             #

@@ -113,9 +113,12 @@ class Acceptor(multiprocessing.Process):
         self.threadless_process.join()
         self.threadless_client_queue.close()
 
-    def _start_threadless_work(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
+    def _start_threadless_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
         assert self.threadless_process and self.threadless_client_queue
-        self.threadless_client_queue.send(addr)
+        # Accepted client address is empty string for
+        # unix socket domain, avoid sending empty string
+        if not self.flags.unix_socket_path:
+            self.threadless_client_queue.send(addr)
         send_handle(
             self.threadless_client_queue,
             conn.fileno(),
@@ -123,7 +126,7 @@ class Acceptor(multiprocessing.Process):
         )
         conn.close()
 
-    def _start_threaded_work(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
+    def _start_threaded_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
         work = self.work_klass(
             TcpClientConnection(conn, addr),
             flags=self.flags,
@@ -145,6 +148,7 @@ class Acceptor(multiprocessing.Process):
             if len(events) == 0:
                 return
             conn, addr = self.sock.accept()
+        addr = None if addr == '' else addr
         if (
                 self.flags.threadless and
                 self.threadless_client_queue and

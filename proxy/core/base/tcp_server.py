@@ -45,7 +45,12 @@ class BaseTcpServerHandler(Work):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.must_flush_before_shutdown = False
-        logger.debug('Connection accepted from {0}'.format(self.work.addr))
+        if self.flags.unix_socket_path:
+            logger.debug(
+                'Connection accepted from {0}'.format(self.work.address))
+        else:
+            logger.debug(
+                'Connection accepted from {0}'.format(self.work.address))
 
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
@@ -79,7 +84,7 @@ class BaseTcpServerHandler(Work):
         if teardown:
             logger.debug(
                 'Shutting down client {0} connection'.format(
-                    self.work.addr,
+                    self.work.address,
                 ),
             )
         return teardown
@@ -88,7 +93,7 @@ class BaseTcpServerHandler(Work):
         teardown = False
         if self.work.connection in writables and self.work.has_buffer():
             logger.debug(
-                'Flushing buffer to client {0}'.format(self.work.addr),
+                'Flushing buffer to client {0}'.format(self.work.address),
             )
             self.work.flush()
             if self.must_flush_before_shutdown is True:
@@ -104,7 +109,7 @@ class BaseTcpServerHandler(Work):
             if data is None:
                 logger.debug(
                     'Connection closed by client {0}'.format(
-                        self.work.addr,
+                        self.work.address,
                     ),
                 )
                 teardown = True
@@ -113,13 +118,13 @@ class BaseTcpServerHandler(Work):
                 if isinstance(r, bool) and r is True:
                     logger.debug(
                         'Implementation signaled shutdown for client {0}'.format(
-                            self.work.addr,
+                            self.work.address,
                         ),
                     )
                     if self.work.has_buffer():
                         logger.debug(
                             'Client {0} has pending buffer, will be flushed before shutting down'.format(
-                                self.work.addr,
+                                self.work.address,
                             ),
                         )
                         self.must_flush_before_shutdown = True
