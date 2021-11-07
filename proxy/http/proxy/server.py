@@ -36,8 +36,7 @@ from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
-from ...core.connection import TcpServerConnection, TcpConnectionUninitializedException
-from ...core.connection import ConnectionPool
+from ...core.connection import TcpServerConnection, ConnectionPool
 from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
