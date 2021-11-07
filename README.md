@@ -314,10 +314,10 @@ To start `proxy.py` from source code follow these instructions:
 - Install deps
 
   ```console
-  ❯ pip install -rrequirements.txt -rrequirements-testing.txt -rrequirements-tunnel.txt
+  ❯ make lib-dep
   ```
 
-- Run tests
+- Optionally, run tests
 
   ```console
   ❯ make
