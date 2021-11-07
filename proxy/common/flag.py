@@ -221,9 +221,15 @@ class FlagParser:
             IpAddress,
             opts.get('hostname', ipaddress.ip_address(args.hostname)),
         )
-        args.family = socket.AF_UNIX if args.unix_socket_path else (
-            socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
-        )
+        # AF_UNIX is not available on Windows
+        # See https://bugs.python.org/issue33408
+        if os.name != 'nt':
+            args.family = socket.AF_UNIX if args.unix_socket_path else (
+                socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
+            )
+        else:
+            assert args.unix_socket_path is None
+            args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)
