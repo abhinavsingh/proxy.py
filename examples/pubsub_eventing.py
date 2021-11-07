@@ -24,12 +24,14 @@ main_publisher_request_id = '1234'
 process_publisher_request_id = '12345'
 num_events_received = [0, 0]
 
+logger = logging.getLogger(__name__)
+
 
 def publisher_process(
     shutdown_event: multiprocessing.synchronize.Event,
     dispatcher_queue: EventQueue,
 ) -> None:
-    print('publisher starting')
+    logger.info('publisher starting')
     try:
         while not shutdown_event.is_set():
             dispatcher_queue.publish(
@@ -40,7 +42,7 @@ def publisher_process(
             )
     except KeyboardInterrupt:
         pass
-    print('publisher shutdown')
+    logger.info('publisher shutdown')
 
 
 def on_event(payload: Dict[str, Any]) -> None:
@@ -50,7 +52,6 @@ def on_event(payload: Dict[str, Any]) -> None:
         num_events_received[0] += 1
     else:
         num_events_received[1] += 1
-    # print(payload)
 
 
 if __name__ == '__main__':
@@ -86,7 +87,7 @@ if __name__ == '__main__':
                 publisher_id='eventing_pubsub_main',
             )
     except KeyboardInterrupt:
-        print('bye!!!')
+        logger.info('bye!!!')
     finally:
         # Stop publisher
         publisher_shutdown_event.set()
@@ -95,8 +96,9 @@ if __name__ == '__main__':
         subscriber.unsubscribe()
         # Signal dispatcher to shutdown
         event_manager.stop_event_dispatcher()
-    print(
+    logger.info(
         'Received {0} events from main thread, {1} events from another process, in {2} seconds'.format(
-            num_events_received[0], num_events_received[1], time.time() - start_time,
+            num_events_received[0], num_events_received[1], time.time(
+            ) - start_time,
         ),
     )

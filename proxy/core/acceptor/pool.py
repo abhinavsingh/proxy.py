@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
 import argparse
 import logging
 import multiprocessing
@@ -61,6 +62,14 @@ flags.add_argument(
     help='Defaults to number of CPU cores.',
 )
 
+flags.add_argument(
+    '--unix-socket-path',
+    type=str,
+    default=None,
+    help='Default: None. Unix socket path to use.  ' +
+    'When provided --host and --port flags are ignored',
+)
+
 
 class AcceptorPool:
     """AcceptorPool is a helper class which pre-spawns `Acceptor` processes
@@ -108,8 +117,11 @@ class AcceptorPool:
         self.shutdown()
 
     def setup(self) -> None:
-        """Listen on port and setup acceptors."""
-        self._listen()
+        """Setup socket and acceptors."""
+        if self.flags.unix_socket_path:
+            self._listen_unix_socket()
+        else:
+            self._listen_server_port()
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
@@ -133,9 +145,18 @@ class AcceptorPool:
             acceptor.running.set()
         for acceptor in self.acceptors:
             acceptor.join()
+        if self.flags.unix_socket_path:
+            os.remove(self.flags.unix_socket_path)
         logger.debug('Acceptors shutdown')
 
-    def _listen(self) -> None:
+    def _listen_unix_socket(self) -> None:
+        self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.bind(self.flags.unix_socket_path)
+        self.socket.listen(self.flags.backlog)
+        self.socket.setblocking(False)
+
+    def _listen_server_port(self) -> None:
         self.socket = socket.socket(self.flags.family, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((str(self.flags.hostname), self.flags.port))

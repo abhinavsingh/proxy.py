@@ -21,11 +21,16 @@ class TcpClientConnection(TcpConnection):
     def __init__(
         self,
         conn: Union[ssl.SSLSocket, socket.socket],
-        addr: Tuple[str, int],
+        # optional for unix socket servers
+        addr: Optional[Tuple[str, int]] = None,
     ) -> None:
         super().__init__(tcpConnectionTypes.CLIENT)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
-        self.addr: Tuple[str, int] = addr
+        self.addr: Optional[Tuple[str, int]] = addr
+
+    @property
+    def address(self) -> str:
+        return 'unix:client' if not self.addr else '{0}:{1}'.format(self.addr[0], self.addr[1])
 
     @property
     def connection(self) -> Union[ssl.SSLSocket, socket.socket]:

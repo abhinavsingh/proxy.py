@@ -307,8 +307,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             return
 
         context = {
-            'client_ip': self.client.addr[0],
-            'client_port': self.client.addr[1],
+            'client_ip': None if not self.client.addr else self.client.addr[0],
+            'client_port': None if not self.client.addr else self.client.addr[1],
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
             'server_host': text_(self.upstream.addr[0] if self.upstream else None),

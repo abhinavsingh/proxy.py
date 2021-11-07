@@ -282,10 +282,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     # to how proxy server plugins are able to do it.
     def access_log(self) -> None:
         logger.info(
-            '%s:%s - %s %s - %.2f ms' %
+            '%s - %s %s - %.2f ms' %
             (
-                self.client.addr[0],
-                self.client.addr[1],
+                self.client.address,
                 text_(self.request.method),
                 text_(self.request.path),
                 (time.time() - self.start_time) * 1000,

@@ -8,9 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import logging
+import paramiko
+
 from typing import Optional, Tuple, Callable
 
-import paramiko
+logger = logging.getLogger(__name__)
 
 
 class Tunnel:
@@ -44,12 +47,12 @@ class Tunnel:
                 username=self.ssh_username,
                 key_filename=self.private_pem_key,
             )
-            print('SSH connection established...')
+            logger.info('SSH connection established...')
             transport: Optional[paramiko.transport.Transport] = ssh.get_transport(
             )
             assert transport is not None
             transport.request_port_forward('', self.remote_proxy_port)
-            print('Tunnel port forward setup successful...')
+            logger.info('Tunnel port forward setup successful...')
             while True:
                 conn: Optional[paramiko.channel.Channel] = transport.accept(
                     timeout=1,

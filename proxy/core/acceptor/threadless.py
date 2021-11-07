@@ -133,7 +133,11 @@ class Threadless(multiprocessing.Process):
         )
 
     def accept_client(self) -> None:
-        addr = self.client_queue.recv()
+        # Acceptor will not send address for
+        # unix socket domain environments.
+        addr = None
+        if not self.flags.unix_socket_path:
+            addr = self.client_queue.recv()
         fileno = recv_handle(self.client_queue)
         self.works[fileno] = self.work_klass(
             TcpClientConnection(conn=self.fromfd(fileno), addr=addr),

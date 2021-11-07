@@ -197,7 +197,6 @@ class TestMain(unittest.TestCase):
         mock_args.enable_devtools = True
         main(['--enable-devtools'])
         mock_load_plugins.assert_called()
-        print(mock_load_plugins.call_args_list[0][0][0])
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
                 b'proxy.http.inspector.DevtoolsProtocolPlugin',

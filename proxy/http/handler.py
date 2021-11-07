@@ -126,8 +126,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
             logger.debug(
                 'Closing client connection %r '
-                'at address %r has buffer %s' %
-                (self.work.connection, self.work.addr, self.work.has_buffer()),
+                'at address %s has buffer %s' %
+                (self.work.connection, self.work.address, self.work.has_buffer()),
             )
 
             conn = self.work.connection
