@@ -12,7 +12,7 @@ import unittest
 import socket
 from unittest import mock
 
-from proxy.proxy import Proxy
+from proxy.common.flag import FlagParser
 from proxy.core.acceptor import AcceptorPool
 
 
@@ -36,7 +36,7 @@ class TestAcceptorPool(unittest.TestCase):
         num_workers = 2
         sock = mock_socket.return_value
         work_klass = mock.MagicMock()
-        flags = Proxy.initialize(num_workers=2)
+        flags = FlagParser.initialize(num_workers=2)
 
         pool = AcceptorPool(flags=flags, work_klass=work_klass)
         pool.setup()

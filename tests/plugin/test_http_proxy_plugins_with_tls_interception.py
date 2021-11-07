@@ -16,9 +16,8 @@ import ssl
 from unittest import mock
 from typing import Any, cast
 
-from proxy.proxy import Proxy
-from proxy.common.utils import bytes_
-from proxy.common.utils import build_http_request, build_http_response
+from proxy.common.flag import FlagParser
+from proxy.common.utils import bytes_, build_http_request, build_http_response
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
@@ -64,7 +63,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Proxy.initialize(
+        self.flags = FlagParser.initialize(
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem',

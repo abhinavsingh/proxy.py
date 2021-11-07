@@ -15,11 +15,11 @@ import unittest
 import selectors
 from unittest import mock
 
-from proxy.proxy import Proxy
+from proxy.common.flag import FlagParser
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.parser import httpParserStates
-from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
+from proxy.common.utils import build_http_response, build_http_request, bytes_, text_, load_plugins
 from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
 from proxy.http.server import HttpWebServerPlugin
 
@@ -33,8 +33,8 @@ class TestWebServerPlugin(unittest.TestCase):
         self._addr = ('127.0.0.1', 54382)
         self._conn = mock_fromfd.return_value
         self.mock_selector = mock_selector
-        self.flags = Proxy.initialize()
-        self.flags.plugins = Proxy.load_plugins([
+        self.flags = FlagParser.initialize()
+        self.flags.plugins = load_plugins([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -112,8 +112,8 @@ class TestWebServerPlugin(unittest.TestCase):
                 selectors.EVENT_READ,
             ),
         ]
-        flags = Proxy.initialize()
-        flags.plugins = Proxy.load_plugins([
+        flags = FlagParser.initialize()
+        flags.plugins = load_plugins([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -179,11 +179,11 @@ class TestWebServerPlugin(unittest.TestCase):
             )],
         ]
 
-        flags = Proxy.initialize(
+        flags = FlagParser.initialize(
             enable_static_server=True,
             static_server_dir=static_server_dir,
         )
-        flags.plugins = Proxy.load_plugins([
+        flags.plugins = load_plugins([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -246,8 +246,8 @@ class TestWebServerPlugin(unittest.TestCase):
             )],
         ]
 
-        flags = Proxy.initialize(enable_static_server=True)
-        flags.plugins = Proxy.load_plugins([
+        flags = FlagParser.initialize(enable_static_server=True)
+        flags.plugins = load_plugins([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -272,7 +272,7 @@ class TestWebServerPlugin(unittest.TestCase):
     def test_on_client_connection_called_on_teardown(
             self, mock_fromfd: mock.Mock,
     ) -> None:
-        flags = Proxy.initialize()
+        flags = FlagParser.initialize()
         plugin = mock.MagicMock()
         flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
         self._conn = mock_fromfd.return_value
@@ -289,8 +289,8 @@ class TestWebServerPlugin(unittest.TestCase):
         plugin.return_value.on_client_connection_close.assert_called()
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
-        flags = Proxy.initialize(pac_file=pac_file)
-        flags.plugins = Proxy.load_plugins([
+        flags = FlagParser.initialize(pac_file=pac_file)
+        flags.plugins = load_plugins([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
             bytes_(PLUGIN_PAC_FILE),

@@ -12,7 +12,7 @@ import selectors
 import unittest
 from unittest import mock
 
-from proxy.proxy import Proxy
+from proxy.common.flag import FlagParser
 from proxy.http.exception.proxy_auth_failed import ProxyAuthenticationFailed
 from proxy.http.handler import HttpProtocolHandler
 from proxy.core.connection import TcpClientConnection
@@ -33,7 +33,7 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = Proxy.initialize(["--basic-auth", "user:pass"])
+        self.flags = FlagParser.initialize(["--basic-auth", "user:pass"])
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),

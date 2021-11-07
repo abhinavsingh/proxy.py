@@ -1550,6 +1550,12 @@ Dashboard is written in Typescript and SCSS, so let's build it first using:
 ❯ make dashboard
 ```
 
+Also build the embedded `Chrome DevTools` if you plan on using it:
+
+```console
+❯ make devtools
+```
+
 Now start `proxy.py` with dashboard plugin and by overriding root directory for static server:
 
 ```console

@@ -8,18 +8,38 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
+import abc
+import sys
 import ssl
 import socket
 import logging
+import inspect
+import argparse
+import importlib
 import functools
 import ipaddress
 import contextlib
+import collections
 
 from types import TracebackType
-from typing import Optional, Dict, Any, List, Tuple, Type, Callable
+from typing import Optional, Dict, Any, List, Tuple, Type, Callable, Union
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
 from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
+from .constants import DOT, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
+from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
+from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
+
+if os.name != 'nt':
+    import resource
+
+logger = logging.getLogger(__name__)
+
+
+def is_py2() -> bool:
+    """Exists only to avoid mocking sys.version_info in tests."""
+    return sys.version_info[0] == 2
 
 
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
@@ -271,3 +291,93 @@ def setup_logger(
         )
     else:
         logging.basicConfig(level=ll, format=log_format)
+
+
+def load_plugins(
+    plugins: List[Union[bytes, type]],
+) -> Dict[bytes, List[type]]:
+    """Accepts a comma separated list of Python modules and returns
+    a list of respective Python classes."""
+    p: Dict[bytes, List[type]] = {
+        b'HttpProtocolHandlerPlugin': [],
+        b'HttpProxyBasePlugin': [],
+        b'HttpWebServerBasePlugin': [],
+        b'ProxyDashboardWebsocketPlugin': [],
+    }
+    for plugin_ in plugins:
+        klass, module_name = import_plugin(plugin_)
+        assert klass and module_name
+        mro = list(inspect.getmro(klass))
+        mro.reverse()
+        iterator = iter(mro)
+        while next(iterator) is not abc.ABC:
+            pass
+        base_klass = next(iterator)
+        if klass not in p[bytes_(base_klass.__name__)]:
+            p[bytes_(base_klass.__name__)].append(klass)
+        logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
+    return p
+
+
+def import_plugin(plugin: Union[bytes, type]) -> Any:
+    if isinstance(plugin, type):
+        module_name = '__main__'
+        klass = plugin
+    else:
+        plugin_ = text_(plugin.strip())
+        assert plugin_ != ''
+        module_name, klass_name = plugin_.rsplit(text_(DOT), 1)
+        klass = getattr(
+            importlib.import_module(
+                module_name.replace(
+                    os.path.sep, text_(DOT),
+                ),
+            ),
+            klass_name,
+        )
+    return (klass, module_name)
+
+
+def get_default_plugins(
+        args: argparse.Namespace,
+) -> List[str]:
+    """Prepare list of plugins to load based upon
+    --enable-*, --disable-* and --basic-auth flags.
+    """
+    default_plugins: List[str] = []
+    if args.basic_auth is not None:
+        default_plugins.append(PLUGIN_PROXY_AUTH)
+    if args.enable_dashboard:
+        default_plugins.append(PLUGIN_WEB_SERVER)
+        args.enable_static_server = True
+        default_plugins.append(PLUGIN_DASHBOARD)
+        default_plugins.append(PLUGIN_INSPECT_TRAFFIC)
+        args.enable_events = True
+        args.enable_devtools = True
+    if args.enable_devtools:
+        default_plugins.append(PLUGIN_DEVTOOLS_PROTOCOL)
+        default_plugins.append(PLUGIN_WEB_SERVER)
+    if not args.disable_http_proxy:
+        default_plugins.append(PLUGIN_HTTP_PROXY)
+    if args.enable_web_server or \
+            args.pac_file is not None or \
+            args.enable_static_server:
+        default_plugins.append(PLUGIN_WEB_SERVER)
+    if args.pac_file is not None:
+        default_plugins.append(PLUGIN_PAC_FILE)
+    return list(collections.OrderedDict.fromkeys(default_plugins).keys())
+
+
+def set_open_file_limit(soft_limit: int) -> None:
+    """Configure open file description soft limit on supported OS."""
+    if os.name != 'nt':  # resource module not available on Windows OS
+        curr_soft_limit, curr_hard_limit = resource.getrlimit(
+            resource.RLIMIT_NOFILE,
+        )
+        if curr_soft_limit < soft_limit < curr_hard_limit:
+            resource.setrlimit(
+                resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit),
+            )
+            logger.debug(
+                'Open file soft limit set to %d', soft_limit,
+            )

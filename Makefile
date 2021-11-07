@@ -18,6 +18,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-version lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile
+.PHONY: lib-flake8, lib-mypy
 .PHONY: container container-run container-release
 .PHONY: devtools dashboard dashboard-clean
 
@@ -82,6 +83,12 @@ lib-clean:
 
 lib-lint:
 	python -m tox -e lint
+
+lib-flake8:
+	tox -e lint -- flake8 --all-files
+
+lib-mypy:
+	tox -e lint -- mypy --all-files
 
 lib-pytest:
 	python -m tox -e python -- -v
