@@ -53,7 +53,8 @@ class ConnectionPool:
                         old_conn.mark_inuse()
                         logger.debug(
                             'Reusing connection#{2} for upstream {0}:{1}'.format(
-                                host, port, id(old_conn)),
+                                host, port, id(old_conn),
+                            ),
                         )
                         return old_conn
             # Create new connection
@@ -63,7 +64,8 @@ class ConnectionPool:
             self.pools[addr].add(new_conn)
             logger.debug(
                 'Created new connection#{2} for upstream {0}:{1}'.format(
-                    host, port, id(new_conn)),
+                    host, port, id(new_conn),
+                ),
             )
             return new_conn
 
@@ -84,7 +86,8 @@ class ConnectionPool:
             else:
                 logger.debug(
                     'Retaining connection#{2} to upstream {0}:{1}'.format(
-                        conn.addr[0], conn.addr[1], id(conn)),
+                        conn.addr[0], conn.addr[1], id(conn),
+                    ),
                 )
                 assert not conn.is_reusable()
                 # Reset for reusability
