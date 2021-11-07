@@ -16,8 +16,6 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
     def setUpClass(cls) -> None:
         proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
         cls.proxy = Web3(Web3.HTTPProvider(proxy_url))
-        cls.logger = logging.getLogger()
-        cls.logger.setLevel(logging.DEBUG)
 
     def test_airdrop_on_get_balance(self):
         account: eth_account.account.LocalAccount = eth_account.account.Account.create()
@@ -28,8 +26,6 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
 
     def test_airdrop_on_deploy(self):
         contract_owner: eth_account.account.LocalAccount = self.proxy.eth.account.create()
-        print(f"contract_owner {contract_owner.address}")
-
         compiled_sol = solcx.compile_source(self._CONTRACT_STORAGE_SOURCE)
         contract_id, contract_interface = compiled_sol.popitem()
         storage = self.proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])

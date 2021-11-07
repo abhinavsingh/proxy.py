@@ -69,6 +69,7 @@ docker run --rm -ti --network=container:proxy \
      -e EVM_LOADER \
      -e SOLANA_URL \
      -e EXTRA_GAS=100000 \
+     -e NEW_USER_AIRDROP_AMOUNT= 100 \
      --entrypoint ./proxy/deploy-test.sh \
      ${EXTRA_ARGS:-} \
      $PROXY_IMAGE \
