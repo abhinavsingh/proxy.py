@@ -29,6 +29,19 @@ from .version import __version__
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 
 
+# TODO: Currently `initialize` staticmethod contains knowledge
+# about several common flags defined by proxy.py core.
+
+# This logic must be decoupled.  flags.add_argument must
+# also provide a callback to resolve the final flag value
+# based upon availability in input_args, **opts and
+# default values.
+
+# Supporting such a framework is complex but achievable.
+# One problem is that resolution of certain flags
+# can depend upon availability of other flags.
+
+# This will lead us into dependency graph modeling domain.
 class FlagParser:
     """Wrapper around argparse module.
 
@@ -41,19 +54,6 @@ class FlagParser:
        within class methods.  It MAY result into runtime exception,
        especially if your class is initialized multiple times or if
        class method registering the flag gets invoked multiple times.
-
-    TODO: Currently `initialize` staticmethod contains knowledge
-    about several common flags defined by proxy.py core.
-
-    This logic must be decoupled.  flags.add_argument must
-    also provide a callback to resolve the final flag value
-    based upon availability in input_args, **opts and
-    default values.
-
-    Supporting such a framework is complex but achievable.
-    One problem is that resolution of certain flags
-    can depend upon availability of other flags. This
-    will lead us into dependency graph modeling domain.
     """
 
     def __init__(self) -> None:
