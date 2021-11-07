@@ -27,19 +27,19 @@ class EchoSSLServerHandler(BaseTcpServerHandler):
         # here using wrap_socket() utility.
         assert self.flags.keyfile is not None and self.flags.certfile is not None
         conn = wrap_socket(
-            self.client.connection,
+            self.work.connection,
             self.flags.keyfile,
             self.flags.certfile,
         )
         conn.setblocking(False)
         # Upgrade plain TcpClientConnection to SSL connection object
-        self.client = TcpClientConnection(
-            conn=conn, addr=self.client.addr,
+        self.work = TcpClientConnection(
+            conn=conn, addr=self.work.addr,
         )
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
         # echo back to client
-        self.client.queue(data)
+        self.work.queue(data)
         return None
 
 
