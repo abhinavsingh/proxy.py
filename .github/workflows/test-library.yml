@@ -6,11 +6,13 @@ on:   # yamllint disable-line rule:truthy
     paths:
     - 'proxy/**'
     - 'tests/**'
+    - 'examples/**'
     - '.github/workflows/test-library.yml'
   pull_request:
     paths:
     - 'proxy/**'
     - 'tests/**'
+    - 'examples/**'
     - '.github/workflows/test-library.yml'
 
 concurrency:
