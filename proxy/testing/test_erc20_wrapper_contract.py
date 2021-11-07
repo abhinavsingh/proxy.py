@@ -15,7 +15,7 @@ from solana.rpc.api import Client as SolanaClient
 from solana.account import Account as SolanaAccount
 from solana.publickey import PublicKey
 
-from proxy.plugin.solana_rest_api_tools import createERC20TokenAccountTrx, createEtherAccountTrx
+from proxy.plugin.solana_rest_api_tools import createERC20TokenAccountTrx, create_eth_account_trx
 
 # install_solc(version='latest')
 install_solc(version='0.7.6')
@@ -66,7 +66,7 @@ interface IERC20 {
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    
+
     function approveSolana(bytes32 spender, uint64 value) external returns (bool);
     event ApprovalSolana(address indexed owner, bytes32 indexed spender, uint64 value);
 }
@@ -147,7 +147,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         compiled_wrapper = compile_source(ERC20_WRAPPER_SOURCE)
         wrapper_id, wrapper_interface = compiled_wrapper.popitem()
         self.wrapper = wrapper_interface
-        
+
         erc20 = proxy.eth.contract(abi=self.wrapper['abi'], bytecode=wrapper_interface['bin'])
         nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         tx = {'nonce': nonce}
