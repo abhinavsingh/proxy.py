@@ -20,11 +20,11 @@ class EchoServerHandler(BaseTcpServerHandler):
     """Sets client socket to non-blocking during initialization."""
 
     def initialize(self) -> None:
-        self.client.connection.setblocking(False)
+        self.work.connection.setblocking(False)
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
         # echo back to client
-        self.client.queue(data)
+        self.work.queue(data)
         return None
 
 

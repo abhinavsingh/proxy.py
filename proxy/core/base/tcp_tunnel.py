@@ -43,7 +43,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
         pass    # pragma: no cover
 
     def initialize(self) -> None:
-        self.client.connection.setblocking(False)
+        self.work.connection.setblocking(False)
 
     def shutdown(self) -> None:
         if self.upstream:
@@ -87,7 +87,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
                 print('Connection closed by server')
                 return True
             # tunnel data to client
-            self.client.queue(data)
+            self.work.queue(data)
         if self.upstream and self.upstream.connection in writables:
             self.upstream.flush()
         return False

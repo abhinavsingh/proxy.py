@@ -132,7 +132,7 @@ class TestWebServerPlugin(unittest.TestCase):
             httpParserStates.COMPLETE,
         )
         self.assertEqual(
-            self.protocol_handler.client.buffer[0],
+            self.protocol_handler.work.buffer[0],
             HttpWebServerPlugin.DEFAULT_404_RESPONSE,
         )
 

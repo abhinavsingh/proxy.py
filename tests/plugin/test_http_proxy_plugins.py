@@ -139,7 +139,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
 
         mock_server_conn.assert_not_called()
         self.assertEqual(
-            self.protocol_handler.client.buffer[0].tobytes(),
+            self.protocol_handler.work.buffer[0].tobytes(),
             build_http_response(
                 httpStatusCodes.OK, reason=b'OK',
                 headers={b'Content-Type': b'application/json'},
@@ -215,7 +215,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
 
         mock_server_conn.assert_not_called()
         self.assertEqual(
-            self.protocol_handler.client.buffer[0].tobytes(),
+            self.protocol_handler.work.buffer[0].tobytes(),
             build_http_response(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT,
                 reason=b'I\'m a tea pot',
@@ -305,7 +305,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )
         self.protocol_handler._run_once()
         self.assertEqual(
-            self.protocol_handler.client.buffer[0].tobytes(),
+            self.protocol_handler.work.buffer[0].tobytes(),
             build_http_response(
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Hello from man in the middle',
@@ -337,7 +337,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         self.protocol_handler._run_once()
 
         self.assertEqual(
-            self.protocol_handler.client.buffer[0].tobytes(),
+            self.protocol_handler.work.buffer[0].tobytes(),
             build_http_response(
                 status_code=httpStatusCodes.NOT_FOUND,
                 reason=b'Blocked',
