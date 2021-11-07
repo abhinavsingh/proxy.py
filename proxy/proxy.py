@@ -19,7 +19,6 @@ from typing import List, Optional, Any, Type
 from proxy.core.acceptor.work import Work
 
 from .common.utils import bytes_
-from .common.version import __version__
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 from .core.event import EventManager
