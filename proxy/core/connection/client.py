@@ -22,7 +22,7 @@ class TcpClientConnection(TcpConnection):
         self,
         conn: Union[ssl.SSLSocket, socket.socket],
         addr: Tuple[str, int],
-    ):
+    ) -> None:
         super().__init__(tcpConnectionTypes.CLIENT)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
         self.addr: Tuple[str, int] = addr

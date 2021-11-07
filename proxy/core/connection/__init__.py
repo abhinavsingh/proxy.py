@@ -11,6 +11,7 @@
 from .connection import TcpConnection, TcpConnectionUninitializedException, tcpConnectionTypes
 from .client import TcpClientConnection
 from .server import TcpServerConnection
+from .pool import ConnectionPool
 
 __all__ = [
     'TcpConnection',
@@ -18,4 +19,5 @@ __all__ = [
     'TcpServerConnection',
     'TcpClientConnection',
     'tcpConnectionTypes',
+    'ConnectionPool',
 ]

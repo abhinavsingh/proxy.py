@@ -8,9 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from abc import abstractmethod
 import socket
 import selectors
+
+from abc import abstractmethod
 from typing import Any, Optional, Dict
 
 from ...http.parser import HttpParser, httpParserTypes

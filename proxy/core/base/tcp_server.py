@@ -15,8 +15,8 @@ import selectors
 from abc import abstractmethod
 from typing import Dict, Any, Optional
 
-from proxy.core.acceptor import Work
-from proxy.common.types import Readables, Writables
+from ...core.acceptor import Work
+from ...common.types import Readables, Writables
 
 logger = logging.getLogger(__name__)
 

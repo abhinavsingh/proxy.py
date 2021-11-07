@@ -74,17 +74,17 @@ class Acceptor(multiprocessing.Process):
     ) -> None:
         super().__init__()
         self.flags = flags
+        # Eventing core queue
+        self.event_queue = event_queue
+        # Index assigned by `AcceptorPool`
+        self.idd = idd
         # Lock shared by all acceptor processes
         # to avoid concurrent accept over server socket
         self.lock = lock
-        # Index assigned by `AcceptorPool`
-        self.idd = idd
         # Queue over which server socket fd is received on start-up
         self.work_queue: connection.Connection = work_queue
         # Worker class
         self.work_klass = work_klass
-        # Eventing core queue
-        self.event_queue = event_queue
         # Selector & threadless states
         self.running = multiprocessing.Event()
         self.selector: Optional[selectors.DefaultSelector] = None
