@@ -179,7 +179,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return r, w
 
     def _close_and_release(self) -> bool:
-        assert self.upstream
+        assert self.upstream and not self.upstream.closed
         self.upstream.closed = True
         self.pool.release(self.upstream)
         return True
@@ -256,7 +256,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         self.upstream.addr,
                     )
                 if e.errno == errno.ECONNRESET:
-                    logger.warning('Connection reset by upstream: %r' % e)
+                    logger.warning(
+                        'Connection reset by upstream: {0}:{1}'.format(*self.upstream.addr),
+                    )
                 else:
                     logger.exception(
                         'Exception while receiving from %s connection %r with reason %r' %

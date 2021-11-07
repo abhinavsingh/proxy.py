@@ -31,20 +31,18 @@ class TestConnectionPool(unittest.TestCase):
         conn = pool.acquire(*addr)
         mock_tcp_server_connection.assert_called_once_with(*addr)
         self.assertEqual(conn, mock_conn)
-        self.assertEqual(len(pool.connections), 1)
-        self.assertEqual(pool.connections[0], conn)
         self.assertEqual(len(pool.pools[addr]), 1)
-        # Release
+        self.assertTrue(conn in pool.pools[addr])
+        # Release (connection must be retained because not closed)
         pool.release(conn)
-        self.assertEqual(len(pool.connections), 1)
         self.assertEqual(len(pool.pools[addr]), 1)
+        self.assertTrue(conn in pool.pools[addr])
         # Reacquire
         conn = pool.acquire(*addr)
         mock_conn.reset.assert_called_once()
         self.assertEqual(conn, mock_conn)
-        self.assertEqual(len(pool.connections), 1)
-        self.assertEqual(pool.connections[0], conn)
         self.assertEqual(len(pool.pools[addr]), 1)
+        self.assertTrue(conn in pool.pools[addr])
 
     @mock.patch('proxy.core.connection.pool.TcpServerConnection')
     def test_closed_connections_are_removed_on_release(
@@ -60,12 +58,10 @@ class TestConnectionPool(unittest.TestCase):
         conn = pool.acquire(*addr)
         mock_tcp_server_connection.assert_called_once_with(*addr)
         self.assertEqual(conn, mock_conn)
-        self.assertEqual(len(pool.connections), 1)
-        self.assertEqual(pool.connections[0], conn)
         self.assertEqual(len(pool.pools[addr]), 1)
+        self.assertTrue(conn in pool.pools[addr])
         # Release
         pool.release(conn)
-        self.assertEqual(len(pool.connections), 0)
         self.assertEqual(len(pool.pools[addr]), 0)
         # Acquire
         conn = pool.acquire(*addr)
