@@ -21,7 +21,7 @@ from ...common.utils import new_socket_connection
 class TcpServerConnection(TcpConnection):
     """Establishes connection to upstream server."""
 
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int) -> None:
         super().__init__(tcpConnectionTypes.SERVER)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
         self.addr: Tuple[str, int] = (host, int(port))

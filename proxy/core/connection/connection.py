@@ -39,12 +39,14 @@ class TcpConnection(ABC):
     when reading and writing into the socket.
 
     Implement the connection property abstract method to return
-    a socket connection object."""
+    a socket connection object.
+    """
 
-    def __init__(self, tag: int):
+    def __init__(self, tag: int) -> None:
+        self.tag: str = 'server' if tag == tcpConnectionTypes.SERVER else 'client'
         self.buffer: List[memoryview] = []
         self.closed: bool = False
-        self.tag: str = 'server' if tag == tcpConnectionTypes.SERVER else 'client'
+        self._reusable: bool = False
 
     @property
     @abstractmethod
@@ -95,3 +97,14 @@ class TcpConnection(ABC):
         del mv
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
         return sent
+
+    def is_reusable(self) -> bool:
+        return self._reusable
+
+    def mark_inuse(self) -> bool:
+        self._reusable = False
+
+    def reset(self):
+        assert not self.closed
+        self._reusable = True
+        self.buffer = []
