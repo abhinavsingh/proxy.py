@@ -7,8 +7,6 @@ from web3 import Web3
 import solcx
 import logging
 
-from semantic_version import Version
-
 NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 
 

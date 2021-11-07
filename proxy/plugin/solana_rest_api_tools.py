@@ -316,6 +316,8 @@ def solana2ether(public_key):
 def ether2program(ether, program_id, base):
     if isinstance(ether, str):
         pass
+    elif isinstance(ether, EthereumAddress):
+        ether = str(ether)
     else:
         ether = ether.hex()
     output = neon_cli().call("create-program-address", ether)
@@ -930,11 +932,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_size, PublicKey(evm_loader_id)))
                 code_account_writable = acc_desc["writable"]
 
-            create_trx, solana_address, token_address = create_eth_account_trx(client, address, evm_loader_id, signer, code_account)
-            trx.add(create_trx)
-            add_airdrop_transfer_to_trx(signer, solana_address, trx)
-
-
+            create_and_mint_token_trx(client, signer, EthereumAddress(address), trx, code_account)
 
         if address == to_address:
             contract_sol = PublicKey(acc_desc["account"])
@@ -1087,30 +1085,26 @@ def call_signed_with_holder_acc(signer, client, ethTrx, perm_accs, trx_accs, ste
     return call_continue(signer, client, perm_accs, trx_accs, steps)
 
 
-def create_eth_account_trx(client: SolanaClient, ether: EthereumAddress, evm_loader_id, signer, code_acc=None) -> Tuple[Transaction, str, str]:
-    if isinstance(ether, str):
-        if ether.startswith('0x'):
-            ether = ether[2:]
-    else:
-        ether = ether.hex()
+def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: EthereumAddress, evm_loader_id, code_acc=None) -> Tuple[Transaction, str, str]:
+
     logger.debug(f"Signer: {signer}")
     (sol, nonce) = ether2program(ether, evm_loader_id, signer.public_key())
     associated_token = get_associated_token_address(PublicKey(sol), ETH_TOKEN_MINT_ID)
     logger.debug('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
     logger.debug('associatedTokenAccount: {}'.format(associated_token))
 
-    # sender_sol_info = client.get_account_info(sol, commitment=Confirmed)
-    # value = get_from_dict(sender_sol_info, "result", "value")
-    # if value is not None:
-    #     logger.error(f"Failed to create eth account: {ether}, associated: {associated_token}, already exists")
-    #     raise Exception("Account already exists")
+    sender_sol_info = client.get_account_info(sol, commitment=Confirmed)
+    value = get_from_dict(sender_sol_info, "result", "value")
+    if value is not None:
+        logger.error(f"Failed to create eth account: {ether}, associated: {associated_token}, already exists")
+        raise Exception("Account already exists")
 
     base = signer.public_key()
 
     data = bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
             lamports=0,
             space=0,
-            ether=bytes.fromhex(ether),
+            ether=bytes(ether),
             nonce=nonce))
     trx = Transaction()
     if code_acc is None:
@@ -1231,8 +1225,8 @@ def add_airdrop_transfer_to_trx(owner_account: SolanaAccount, dest_account: str,
     #              str(NEW_USER_AIRDROP_AMOUNT))
 
 
-def create_and_mint_token_trx(client: SolanaClient, signer: SolanaAccount, eth_acc: str, trx: Transaction):
-    create_trx, solana_address, token_address = create_eth_account_trx(client, eth_acc, evm_loader_id, signer)
+def create_and_mint_token_trx(client: SolanaClient, signer: SolanaAccount, eth_acc: str, trx: Transaction, code_acc=None):
+    create_trx, solana_address, token_address = create_eth_account_trx(client, signer, eth_acc, evm_loader_id, code_acc)
     logger.debug(f"Create token related to eth_acc: {eth_acc}, aka: {solana_address}, token_address: {token_address}, at token: {ETH_TOKEN_MINT_ID}")
     trx.add(create_trx)
     add_airdrop_transfer_to_trx(signer, solana_address, trx)
@@ -1241,7 +1235,7 @@ def create_and_mint_token_trx(client: SolanaClient, signer: SolanaAccount, eth_a
 
 def create_and_mint_tkn_acc(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
     trx = Transaction()
-    create_and_mint_token_trx(client, signer, str(eth_acc), trx)
+    create_and_mint_token_trx(client, signer, eth_acc, trx)
     result = send_transaction(client, trx, signer)
     error = result.get("error")
     if error is not None:
@@ -1263,6 +1257,7 @@ def get_token_balance_impl(client: SolanaClient, account: str, eth_acc: Ethereum
 
 
 def get_token_balance(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_acc: EthereumAddress, base_account: PublicKey) -> int:
+
     account, nonce = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     logger.debug(f"Get balance for eth account: {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
 
