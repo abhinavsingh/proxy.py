@@ -137,7 +137,7 @@ class TestWebServerPlugin(unittest.TestCase):
         )
 
     @unittest.skipIf(
-        os.environ.get('GITHUB_ACTIONS', False),
+        os.environ.get('GITHUB_ACTIONS', True),
         'Disabled on GitHub actions because this test is flaky on GitHub infrastructure.',
     )
     @mock.patch('selectors.DefaultSelector')
