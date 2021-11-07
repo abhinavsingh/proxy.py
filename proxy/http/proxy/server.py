@@ -180,6 +180,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return r, w
 
     def _close_and_release(self) -> bool:
+        assert self.upstream
         self.upstream.closed = True
         self.pool.release(self.upstream)
         return True

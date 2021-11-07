@@ -101,10 +101,10 @@ class TcpConnection(ABC):
     def is_reusable(self) -> bool:
         return self._reusable
 
-    def mark_inuse(self) -> bool:
+    def mark_inuse(self) -> None:
         self._reusable = False
 
-    def reset(self):
+    def reset(self) -> None:
         assert not self.closed
         self._reusable = True
         self.buffer = []

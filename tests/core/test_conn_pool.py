@@ -48,7 +48,8 @@ class TestConnectionPool(unittest.TestCase):
 
     @mock.patch('proxy.core.connection.pool.TcpServerConnection')
     def test_closed_connections_are_removed_on_release(
-            self, mock_tcp_server_connection: mock.Mock) -> None:
+            self, mock_tcp_server_connection: mock.Mock,
+    ) -> None:
         pool = ConnectionPool()
         addr = ('localhost', 1234)
         # Mock
