@@ -257,7 +257,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     )
                 if e.errno == errno.ECONNRESET:
                     logger.warning(
-                        'Connection reset by upstream: {0}:{1}'.format(*self.upstream.addr),
+                        'Connection reset by upstream: {0}:{1}'.format(
+                            *self.upstream.addr),
                     )
                 else:
                     logger.exception(
@@ -530,10 +531,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         host, port = self.request.host, self.request.port
         if host and port:
             # self.upstream = TcpServerConnection(text_(host), port)
-            self.upstream = self.pool.acquire(text_(host), port)
+            created, self.upstream = self.pool.acquire(text_(host), port)
+            if not created:
+                logger.info('Reusing connection to upstream %s:%d' %
+                            (text_(host), port))
+                return
             try:
                 logger.debug(
-                    'Connecting to upstream %s:%s' %
+                    'Connecting to upstream %s:%d' %
                     (text_(host), port),
                 )
                 # Invoke plugin.resolve_dns
@@ -557,11 +562,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     (text_(host), port),
                 )
             except Exception as e:  # TimeoutError, socket.gaierror
-                logger.exception(
-                    'Unable to connect with upstream server', exc_info=e,
+                logger.warning(
+                    'Unable to connect with upstream %s:%d due to %s' % (
+                        text_(host), port, str(e),
+                    )
                 )
-                self._close_and_release()
-                raise ProxyConnectionFailed(text_(host), port, repr(e)) from e
+                self.pool.release(self.upstream)
+                raise ProxyConnectionFailed(
+                    text_(host), port, repr(e)) from e
         else:
             logger.exception('Both host and port must exist')
             raise HttpProtocolException()

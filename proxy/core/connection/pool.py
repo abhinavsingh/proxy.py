@@ -42,7 +42,7 @@ class ConnectionPool:
         # Pools of connection per upstream server
         self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
 
-    def acquire(self, host: str, port: int) -> TcpServerConnection:
+    def acquire(self, host: str, port: int) -> Tuple[bool, TcpServerConnection]:
         """Returns a connection for use with the server."""
         with LOCK:
             addr = (host, port)
@@ -56,7 +56,7 @@ class ConnectionPool:
                                 host, port, id(old_conn),
                             ),
                         )
-                        return old_conn
+                        return False, old_conn
             # Create new connection
             new_conn = TcpServerConnection(*addr)
             if addr not in self.pools:
@@ -67,7 +67,7 @@ class ConnectionPool:
                     host, port, id(new_conn),
                 ),
             )
-            return new_conn
+            return True, new_conn
 
     def release(self, conn: TcpServerConnection) -> None:
         """Release the connection.

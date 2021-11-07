@@ -38,7 +38,7 @@ class TcpServerConnection(TcpConnection):
             self._conn = new_socket_connection(
                 addr or self.addr, source_address=source_address,
             )
-        self.closed = False
+            self.closed = False
 
     def wrap(self, hostname: str, ca_file: Optional[str]) -> None:
         ctx = ssl.create_default_context(
