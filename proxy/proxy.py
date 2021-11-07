@@ -23,23 +23,13 @@ from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 from .core.event import EventManager
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_ENABLE_EVENTS
-from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_DEVTOOLS
-from .common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
-from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PID_FILE, DEFAULT_PLUGINS
-from .common.constants import DEFAULT_VERSION
+from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
 
 
 logger = logging.getLogger(__name__)
 
 
-flags.add_argument(
-    '--pid-file',
-    type=str,
-    default=DEFAULT_PID_FILE,
-    help='Default: None. Save parent process ID to a file.',
-)
 flags.add_argument(
     '--version',
     '-v',
@@ -47,46 +37,7 @@ flags.add_argument(
     default=DEFAULT_VERSION,
     help='Prints proxy.py version.',
 )
-flags.add_argument(
-    '--disable-http-proxy',
-    action='store_true',
-    default=DEFAULT_DISABLE_HTTP_PROXY,
-    help='Default: False.  Whether to disable proxy.HttpProxyPlugin.',
-)
-flags.add_argument(
-    '--enable-dashboard',
-    action='store_true',
-    default=DEFAULT_ENABLE_DASHBOARD,
-    help='Default: False.  Enables proxy.py dashboard.',
-)
-flags.add_argument(
-    '--enable-devtools',
-    action='store_true',
-    default=DEFAULT_ENABLE_DEVTOOLS,
-    help='Default: False.  Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.',
-)
-flags.add_argument(
-    '--enable-static-server',
-    action='store_true',
-    default=DEFAULT_ENABLE_STATIC_SERVER,
-    help='Default: False.  Enable inbuilt static file server. '
-    'Optionally, also use --static-server-dir to serve static content '
-    'from custom directory.  By default, static file server serves '
-    'out of installed proxy.py python module folder.',
-)
-flags.add_argument(
-    '--enable-web-server',
-    action='store_true',
-    default=DEFAULT_ENABLE_WEB_SERVER,
-    help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.',
-)
-flags.add_argument(
-    '--enable-events',
-    action='store_true',
-    default=DEFAULT_ENABLE_EVENTS,
-    help='Default: False.  Enables core to dispatch lifecycle events. '
-    'Plugins can be used to subscribe for core events.',
-)
+
 flags.add_argument(
     '--log-level',
     type=str,
@@ -95,18 +46,21 @@ flags.add_argument(
     'Both upper and lowercase values are allowed. '
     'You may also simply use the leading character e.g. --log-level d',
 )
+
 flags.add_argument(
     '--log-file',
     type=str,
     default=DEFAULT_LOG_FILE,
     help='Default: sys.stdout. Log file destination.',
 )
+
 flags.add_argument(
     '--log-format',
     type=str,
     default=DEFAULT_LOG_FORMAT,
     help='Log format for Python logger.',
 )
+
 flags.add_argument(
     '--open-file-limit',
     type=int,
@@ -114,6 +68,7 @@ flags.add_argument(
     help='Default: 1024. Maximum number of files (TCP connections) '
     'that proxy.py can open concurrently.',
 )
+
 flags.add_argument(
     '--plugins',
     type=str,

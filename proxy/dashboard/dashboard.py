@@ -14,13 +14,23 @@ from typing import List, Tuple, Any, Dict
 
 from .plugin import ProxyDashboardWebsocketPlugin
 
+from ..common.flag import flags
 from ..common.utils import build_http_response, bytes_
+from ..common.constants import DEFAULT_ENABLE_DASHBOARD
 from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.codes import httpStatusCodes
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--enable-dashboard',
+    action='store_true',
+    default=DEFAULT_ENABLE_DASHBOARD,
+    help='Default: False.  Enables proxy.py dashboard.',
+)
 
 
 class ProxyDashboard(HttpWebServerBasePlugin):

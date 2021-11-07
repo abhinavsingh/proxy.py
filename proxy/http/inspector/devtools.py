@@ -21,9 +21,17 @@ from ...common.utils import bytes_, text_
 from ...core.event import EventSubscriber
 from ...common.flag import flags
 from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DEVTOOLS_DOC_URL
+from ...common.constants import DEFAULT_ENABLE_DEVTOOLS
 
 logger = logging.getLogger(__name__)
 
+
+flags.add_argument(
+    '--enable-devtools',
+    action='store_true',
+    default=DEFAULT_ENABLE_DEVTOOLS,
+    help='Default: False.  Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.',
+)
 
 flags.add_argument(
     '--devtools-ws-path',

@@ -14,8 +14,7 @@ import logging
 
 from typing import Dict, Any
 
-from proxy.core.event import EventQueue, EventSubscriber, eventNames
-from proxy.core.event.manager import EventManager
+from proxy.core.event import EventManager, EventQueue, EventSubscriber, eventNames
 
 # Enable debug logging to view core event logs
 logging.basicConfig(level=logging.DEBUG)

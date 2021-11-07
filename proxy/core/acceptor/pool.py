@@ -28,6 +28,7 @@ from ..event import EventQueue
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME
 from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_PORT
+from ...common.constants import DEFAULT_PID_FILE
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,13 @@ logger = logging.getLogger(__name__)
 # sequential acceptance of work.
 LOCK = multiprocessing.Lock()
 
+
+flags.add_argument(
+    '--pid-file',
+    type=str,
+    default=DEFAULT_PID_FILE,
+    help='Default: None. Save parent process ID to a file.',
+)
 
 flags.add_argument(
     '--backlog',
