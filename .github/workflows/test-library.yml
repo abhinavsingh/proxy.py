@@ -7,12 +7,20 @@ on:   # yamllint disable-line rule:truthy
     - 'proxy/**'
     - 'tests/**'
     - 'examples/**'
+    - 'requirements*'
+    - 'setup.cfg'
+    - 'version-check.py'
+    - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
   pull_request:
     paths:
     - 'proxy/**'
     - 'tests/**'
     - 'examples/**'
+    - 'requirements*'
+    - 'setup.cfg'
+    - 'version-check.py'
+    - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
 
 concurrency:

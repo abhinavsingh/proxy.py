@@ -7,13 +7,23 @@ on:   # yamllint disable-line rule:truthy
     - 'proxy/**'
     - 'tests/**'
     - 'examples/**'
+    - 'requirements*'
+    - 'setup.cfg'
+    - 'version-check.py'
+    - 'MANIFEST.in'
     - '.github/workflows/test-docker.yml'
+    - 'Dockerfile'
   pull_request:
     paths:
     - 'proxy/**'
     - 'tests/**'
     - 'examples/**'
+    - 'requirements*'
+    - 'setup.cfg'
+    - 'version-check.py'
+    - 'MANIFEST.in'
     - '.github/workflows/test-docker.yml'
+    - 'Dockerfile'
 
 jobs:
   build:
