@@ -46,7 +46,7 @@ class ConnectionPool:
     all cores to make SSL session cache to also work
     without additional out-of-bound synchronizations.
 
-    TODO: ConnectionPool currently WONT work for
+    TODO: ConnectionPool currently WON'T work for
     HTTPS connection. This is because of missing support for
     session cache, session ticket, abbr TLS handshake
     and other necessary features to make it work.
