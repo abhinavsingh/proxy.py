@@ -17,7 +17,19 @@ from typing import Optional
 from .queue import EventQueue
 from .dispatcher import EventDispatcher
 
+from ...common.flag import flags
+from ...common.constants import DEFAULT_ENABLE_EVENTS
+
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--enable-events',
+    action='store_true',
+    default=DEFAULT_ENABLE_EVENTS,
+    help='Default: False.  Enables core to dispatch lifecycle events. '
+    'Plugins can be used to subscribe for core events.',
+)
 
 
 class EventManager:

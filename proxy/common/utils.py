@@ -15,21 +15,17 @@ import ssl
 import socket
 import logging
 import inspect
-import argparse
 import importlib
 import functools
 import ipaddress
 import contextlib
-import collections
 
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable, Union
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
 from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
-from .constants import DOT, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
-from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
-from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
+from .constants import DOT
 
 if os.name != 'nt':
     import resource
@@ -336,36 +332,6 @@ def import_plugin(plugin: Union[bytes, type]) -> Any:
             klass_name,
         )
     return (klass, module_name)
-
-
-def get_default_plugins(
-        args: argparse.Namespace,
-) -> List[str]:
-    """Prepare list of plugins to load based upon
-    --enable-*, --disable-* and --basic-auth flags.
-    """
-    default_plugins: List[str] = []
-    if args.basic_auth is not None:
-        default_plugins.append(PLUGIN_PROXY_AUTH)
-    if args.enable_dashboard:
-        default_plugins.append(PLUGIN_WEB_SERVER)
-        args.enable_static_server = True
-        default_plugins.append(PLUGIN_DASHBOARD)
-        default_plugins.append(PLUGIN_INSPECT_TRAFFIC)
-        args.enable_events = True
-        args.enable_devtools = True
-    if args.enable_devtools:
-        default_plugins.append(PLUGIN_DEVTOOLS_PROTOCOL)
-        default_plugins.append(PLUGIN_WEB_SERVER)
-    if not args.disable_http_proxy:
-        default_plugins.append(PLUGIN_HTTP_PROXY)
-    if args.enable_web_server or \
-            args.pac_file is not None or \
-            args.enable_static_server:
-        default_plugins.append(PLUGIN_WEB_SERVER)
-    if args.pac_file is not None:
-        default_plugins.append(PLUGIN_PAC_FILE)
-    return list(collections.OrderedDict.fromkeys(default_plugins).keys())
 
 
 def set_open_file_limit(soft_limit: int) -> None:

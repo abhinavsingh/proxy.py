@@ -32,6 +32,7 @@ from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
 from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
@@ -44,12 +45,20 @@ logger = logging.getLogger(__name__)
 
 
 flags.add_argument(
+    '--disable-http-proxy',
+    action='store_true',
+    default=DEFAULT_DISABLE_HTTP_PROXY,
+    help='Default: False.  Whether to disable proxy.HttpProxyPlugin.',
+)
+
+flags.add_argument(
     '--ca-key-file',
     type=str,
     default=DEFAULT_CA_KEY_FILE,
     help='Default: None. CA key to use for signing dynamically generated '
     'HTTPS certificates.  If used, must also pass --ca-cert-file and --ca-signing-key-file',
 )
+
 flags.add_argument(
     '--ca-cert-dir',
     type=str,
@@ -57,6 +66,7 @@ flags.add_argument(
     help='Default: ~/.proxy.py. Directory to store dynamically generated certificates. '
     'Also see --ca-key-file, --ca-cert-file and --ca-signing-key-file',
 )
+
 flags.add_argument(
     '--ca-cert-file',
     type=str,
@@ -64,6 +74,7 @@ flags.add_argument(
     help='Default: None. Signing certificate to use for signing dynamically generated '
     'HTTPS certificates.  If used, must also pass --ca-key-file and --ca-signing-key-file',
 )
+
 flags.add_argument(
     '--ca-file',
     type=str,
@@ -71,6 +82,7 @@ flags.add_argument(
     help='Default: ' + str(DEFAULT_CA_FILE) +
     '. Provide path to custom CA bundle for peer certificate verification',
 )
+
 flags.add_argument(
     '--ca-signing-key-file',
     type=str,
@@ -78,6 +90,7 @@ flags.add_argument(
     help='Default: None. CA signing key to use for dynamic generation of '
     'HTTPS certificates.  If used, must also pass --ca-key-file and --ca-cert-file',
 )
+
 flags.add_argument(
     '--cert-file',
     type=str,
@@ -85,6 +98,7 @@ flags.add_argument(
     help='Default: None. Server certificate to enable end-to-end TLS encryption with clients. '
     'If used, must also pass --key-file.',
 )
+
 flags.add_argument(
     '--disable-headers',
     type=str,
@@ -92,6 +106,7 @@ flags.add_argument(
     help='Default: None.  Comma separated list of headers to remove before '
     'dispatching client request to upstream server.',
 )
+
 flags.add_argument(
     '--server-recvbuf-size',
     type=int,

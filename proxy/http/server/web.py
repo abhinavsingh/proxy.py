@@ -27,11 +27,29 @@ from ..plugin import HttpProtocolHandlerPlugin
 
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
 from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
+from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
 
+
+flags.add_argument(
+    '--enable-web-server',
+    action='store_true',
+    default=DEFAULT_ENABLE_WEB_SERVER,
+    help='Default: False.  Whether to enable proxy.HttpWebServerPlugin.',
+)
+
+flags.add_argument(
+    '--enable-static-server',
+    action='store_true',
+    default=DEFAULT_ENABLE_STATIC_SERVER,
+    help='Default: False.  Enable inbuilt static file server. '
+    'Optionally, also use --static-server-dir to serve static content '
+    'from custom directory.  By default, static file server serves '
+    'out of installed proxy.py python module folder.',
+)
 
 flags.add_argument(
     '--static-server-dir',
