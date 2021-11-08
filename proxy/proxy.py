@@ -114,7 +114,7 @@ class Proxy:
         if self.flags.enable_events:
             logger.info('Core Event enabled')
             self.event_manager = EventManager()
-            self.event_manager.start_event_dispatcher()
+            self.event_manager.setup()
         self.pool = AcceptorPool(
             flags=self.flags,
             work_klass=self.work_klass,
@@ -133,7 +133,7 @@ class Proxy:
         self.pool.shutdown()
         if self.flags.enable_events:
             assert self.event_manager is not None
-            self.event_manager.stop_event_dispatcher()
+            self.event_manager.shutdown()
 
 
 def main(

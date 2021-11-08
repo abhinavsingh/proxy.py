@@ -12,7 +12,8 @@ import logging
 import threading
 import multiprocessing
 
-from typing import Optional
+from typing import Optional, List, Optional, Type
+from types import TracebackType
 
 from .queue import EventQueue
 from .dispatcher import EventDispatcher
@@ -44,7 +45,19 @@ class EventManager:
         self.event_dispatcher_shutdown: Optional[threading.Event] = None
         self.manager: Optional[multiprocessing.managers.SyncManager] = None
 
-    def start_event_dispatcher(self) -> None:
+    def __enter__(self) -> 'EventManager':
+        self.setup()
+        return self
+
+    def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_val: Optional[BaseException],
+            exc_tb: Optional[TracebackType],
+    ) -> None:
+        self.shutdown()
+
+    def setup(self) -> None:
         self.manager = multiprocessing.Manager()
         self.event_queue = EventQueue(self.manager.Queue())
         self.event_dispatcher_shutdown = threading.Event()
@@ -60,7 +73,7 @@ class EventManager:
         self.event_dispatcher_thread.start()
         logger.debug('Thread ID: %d', self.event_dispatcher_thread.ident)
 
-    def stop_event_dispatcher(self) -> None:
+    def shutdown(self) -> None:
         assert self.event_dispatcher_shutdown
         assert self.event_dispatcher_thread
         self.event_dispatcher_shutdown.set()

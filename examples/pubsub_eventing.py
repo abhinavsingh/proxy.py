@@ -44,6 +44,7 @@ def publisher_process(
     logger.info('publisher shutdown')
 
 
+# Execute within a separate thread context
 def on_event(payload: Dict[str, Any]) -> None:
     '''Subscriber callback.'''
     global num_events_received
@@ -55,49 +56,47 @@ def on_event(payload: Dict[str, Any]) -> None:
 
 if __name__ == '__main__':
     start_time = time.time()
+    # Start eventing core
+    with EventManager() as event_manager:
+        assert event_manager.event_queue
 
-    # Start dispatcher thread using EventManager
-    event_manager = EventManager()
-    event_manager.start_event_dispatcher()
-    assert event_manager.event_queue
+        # Create a subscriber.
+        # Internally, subscribe will start a separate thread
+        # to receive incoming published messages.
+        subscriber = EventSubscriber(event_manager.event_queue)
+        subscriber.subscribe(on_event)
 
-    # Create a subscriber
-    subscriber = EventSubscriber(event_manager.event_queue)
-    # Internally, subscribe will start a separate thread
-    # to receive incoming published messages
-    subscriber.subscribe(on_event)
+        # Start a publisher process to demonstrate safe exchange
+        # of messages between processes.
+        publisher_shutdown_event = multiprocessing.Event()
+        publisher = multiprocessing.Process(
+            target=publisher_process, args=(
+                publisher_shutdown_event, event_manager.event_queue, ),
+        )
+        publisher.start()
 
-    # Start a publisher process to demonstrate safe exchange
-    # of messages between processes.
-    publisher_shutdown_event = multiprocessing.Event()
-    publisher = multiprocessing.Process(
-        target=publisher_process, args=(
-            publisher_shutdown_event, event_manager.event_queue, ),
-    )
-    publisher.start()
-
-    try:
-        while True:
-            # Dispatch event from main process
-            event_manager.event_queue.publish(
-                request_id=main_publisher_request_id,
-                event_name=eventNames.WORK_STARTED,
-                event_payload={'time': time.time()},
-                publisher_id='eventing_pubsub_main',
-            )
-    except KeyboardInterrupt:
-        logger.info('bye!!!')
-    finally:
-        # Stop publisher
-        publisher_shutdown_event.set()
-        publisher.join()
-        # Stop subscriber thread
-        subscriber.unsubscribe()
-        # Signal dispatcher to shutdown
-        event_manager.stop_event_dispatcher()
-    logger.info(
-        'Received {0} events from main thread, {1} events from another process, in {2} seconds'.format(
-            num_events_received[0], num_events_received[1], time.time(
-            ) - start_time,
-        ),
-    )
+        # Dispatch event from main process too
+        # to demonstrate safe exchange of messages
+        # between threads.
+        try:
+            while True:
+                event_manager.event_queue.publish(
+                    request_id=main_publisher_request_id,
+                    event_name=eventNames.WORK_STARTED,
+                    event_payload={'time': time.time()},
+                    publisher_id='eventing_pubsub_main',
+                )
+        except KeyboardInterrupt:
+            logger.info('bye!!!')
+        finally:
+            # Stop publisher
+            publisher_shutdown_event.set()
+            publisher.join()
+            # Stop subscriber thread
+            subscriber.unsubscribe()
+        logger.info(
+            'Received {0} events from main thread, {1} events from another process, in {2} seconds'.format(
+                num_events_received[0], num_events_received[1], time.time(
+                ) - start_time,
+            ),
+        )

@@ -127,8 +127,8 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.enable_events = True
         main([])
         mock_event_manager.assert_called_once()
-        mock_event_manager.return_value.start_event_dispatcher.assert_called_once()
-        mock_event_manager.return_value.stop_event_dispatcher.assert_called_once()
+        mock_event_manager.return_value.setup.assert_called_once()
+        mock_event_manager.return_value.shutdown.assert_called_once()
         mock_acceptor_pool.assert_called_with(
             flags=mock_initialize.return_value,
             work_klass=HttpProtocolHandler,
@@ -171,8 +171,8 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called()
         # dashboard will also enable eventing
         mock_event_manager.assert_called_once()
-        mock_event_manager.return_value.start_event_dispatcher.assert_called_once()
-        mock_event_manager.return_value.stop_event_dispatcher.assert_called_once()
+        mock_event_manager.return_value.setup.assert_called_once()
+        mock_event_manager.return_value.shutdown.assert_called_once()
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.common.plugins.Plugins.load')
