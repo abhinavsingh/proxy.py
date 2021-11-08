@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
+import sys
 import time
 import secrets
 import pathlib
@@ -18,6 +19,15 @@ import ipaddress
 from typing import List
 
 from .version import __version__
+
+
+def _env_threadless_compliant() -> bool:
+    """Returns true for Python 3.8+ across all platforms
+    except Windows."""
+    if os.name == 'nt':
+        return False
+    return sys.version_info.major >= 3 and sys.version_info.minor >= 8
+
 
 PROXY_PY_START_TIME = time.time()
 
@@ -86,7 +96,7 @@ DEFAULT_PLUGINS = ''
 DEFAULT_PORT = 8899
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, "public")
-DEFAULT_THREADLESS = False
+DEFAULT_THREADLESS = _env_threadless_compliant()
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_VERSION = False
 DEFAULT_HTTP_PORT = 80

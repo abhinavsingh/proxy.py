@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 def is_py2() -> bool:
     """Exists only to avoid mocking sys.version_info in tests."""
-    return sys.version_info[0] == 2
+    return sys.version_info.major == 2
 
 
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:

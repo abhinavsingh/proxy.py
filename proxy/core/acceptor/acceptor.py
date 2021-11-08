@@ -36,7 +36,9 @@ flags.add_argument(
     '--threadless',
     action='store_true',
     default=DEFAULT_THREADLESS,
-    help='Default: False.  When disabled a new thread is spawned '
+    help='Default: ' + ('True' if DEFAULT_THREADLESS else 'False') + '.  ' +
+    'Enabled by default on Python 3.8+ (mac, linux).  ' +
+    'When disabled a new thread is spawned '
     'to handle each client connection.',
 )
 
