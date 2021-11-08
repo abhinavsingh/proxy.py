@@ -124,7 +124,8 @@ class Proxy:
         self.pool.setup()
         assert self.pool is not None
         mode = 'threadless' if is_threadless(
-            self.flags.threadless, self.flags.threaded) else 'threaded'
+            self.flags.threadless, self.flags.threaded,
+        ) else 'threaded'
         if self.flags.unix_socket_path:
             logger.info(
                 'Listening on %s (%s)' %
