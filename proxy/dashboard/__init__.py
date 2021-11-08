@@ -15,5 +15,5 @@ from .plugin import ProxyDashboardWebsocketPlugin
 __all__ = [
     'ProxyDashboard',
     'InspectTrafficPlugin',
-    'ProxyDashboardWebsocketPlugin'
+    'ProxyDashboardWebsocketPlugin',
 ]
