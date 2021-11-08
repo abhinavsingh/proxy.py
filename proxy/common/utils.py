@@ -18,7 +18,7 @@ import ipaddress
 import contextlib
 
 from types import TracebackType
-from typing import Optional, Dict, Any, List, Tuple, Type, Callable, Union
+from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
 

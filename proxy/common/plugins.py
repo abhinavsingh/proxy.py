@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class Plugins:
 
     @staticmethod
-    def discover(input_args: Optional[List[str]]) -> None:
+    def discover(input_args: List[str]) -> None:
         """Search for plugin and plugins flag in command line arguments,
         then iterates over each value and discovers the plugin.
         """
@@ -39,7 +39,7 @@ class Plugins:
     @staticmethod
     def load(
         plugins: List[Union[bytes, type]],
-        abc_plugins: List[bytes] = DEFAULT_ABC_PLUGINS,
+        abc_plugins: List[str] = DEFAULT_ABC_PLUGINS,
     ) -> Dict[bytes, List[type]]:
         """Accepts a list Python modules, scans them to identify
         if they are an implementation of abstract plugin classes and
