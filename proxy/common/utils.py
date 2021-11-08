@@ -24,7 +24,6 @@ from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable, Union
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
-from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .constants import DOT, DEFAULT_ABC_PLUGINS
 
 if os.name != 'nt':
@@ -261,32 +260,6 @@ def get_available_port() -> int:
         sock.bind(('', 0))
         _, port = sock.getsockname()
     return int(port)
-
-
-def setup_logger(
-        log_file: Optional[str] = DEFAULT_LOG_FILE,
-        log_level: str = DEFAULT_LOG_LEVEL,
-        log_format: str = DEFAULT_LOG_FORMAT,
-) -> None:
-    ll = getattr(
-        logging,
-        {
-            'D': 'DEBUG',
-            'I': 'INFO',
-            'W': 'WARNING',
-            'E': 'ERROR',
-            'C': 'CRITICAL',
-        }[log_level.upper()[0]],
-    )
-    if log_file:
-        logging.basicConfig(
-            filename=log_file,
-            filemode='a',
-            level=ll,
-            format=log_format,
-        )
-    else:
-        logging.basicConfig(level=ll, format=log_format)
 
 
 def load_plugins(
