@@ -132,7 +132,7 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.assert_called_with(
             flags=mock_initialize.return_value,
             work_klass=HttpProtocolHandler,
-            event_queue=mock_event_manager.return_value.event_queue,
+            event_queue=mock_event_manager.return_value.queue,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()

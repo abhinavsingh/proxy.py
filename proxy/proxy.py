@@ -118,7 +118,7 @@ class Proxy:
         self.pool = AcceptorPool(
             flags=self.flags,
             work_klass=self.work_klass,
-            event_queue=self.event_manager.event_queue if self.event_manager is not None else None,
+            event_queue=self.event_manager.queue if self.event_manager is not None else None,
         )
         self.pool.setup()
         return self

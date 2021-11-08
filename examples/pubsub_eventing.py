@@ -58,12 +58,12 @@ if __name__ == '__main__':
     start_time = time.time()
     # Start eventing core
     with EventManager() as event_manager:
-        assert event_manager.event_queue
+        assert event_manager.queue
 
         # Create a subscriber.
         # Internally, subscribe will start a separate thread
         # to receive incoming published messages.
-        subscriber = EventSubscriber(event_manager.event_queue)
+        subscriber = EventSubscriber(event_manager.queue)
         subscriber.subscribe(on_event)
 
         # Start a publisher process to demonstrate safe exchange
@@ -71,7 +71,7 @@ if __name__ == '__main__':
         publisher_shutdown_event = multiprocessing.Event()
         publisher = multiprocessing.Process(
             target=publisher_process, args=(
-                publisher_shutdown_event, event_manager.event_queue, ),
+                publisher_shutdown_event, event_manager.queue, ),
         )
         publisher.start()
 
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         # between threads.
         try:
             while True:
-                event_manager.event_queue.publish(
+                event_manager.queue.publish(
                     request_id=main_publisher_request_id,
                     event_name=eventNames.WORK_STARTED,
                     event_payload={'time': time.time()},

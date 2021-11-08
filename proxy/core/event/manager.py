@@ -34,15 +34,16 @@ flags.add_argument(
 
 
 class EventManager:
-    """Event manager is an encapsulation around various initialization, dispatcher
-    start / stop API required for end-to-end eventing.
+    """Event manager is a context manager which provides
+    encapsulation around various setup and shutdown steps
+    to start the eventing core.
     """
 
     def __init__(self) -> None:
-        self.event_queue: Optional[EventQueue] = None
-        self.event_dispatcher: Optional[EventDispatcher] = None
-        self.event_dispatcher_thread: Optional[threading.Thread] = None
-        self.event_dispatcher_shutdown: Optional[threading.Event] = None
+        self.queue: Optional[EventQueue] = None
+        self.dispatcher: Optional[EventDispatcher] = None
+        self.dispatcher_thread: Optional[threading.Thread] = None
+        self.dispatcher_shutdown: Optional[threading.Event] = None
         self.manager: Optional[multiprocessing.managers.SyncManager] = None
 
     def __enter__(self) -> 'EventManager':
@@ -59,26 +60,26 @@ class EventManager:
 
     def setup(self) -> None:
         self.manager = multiprocessing.Manager()
-        self.event_queue = EventQueue(self.manager.Queue())
-        self.event_dispatcher_shutdown = threading.Event()
-        assert self.event_dispatcher_shutdown
-        assert self.event_queue
-        self.event_dispatcher = EventDispatcher(
-            shutdown=self.event_dispatcher_shutdown,
-            event_queue=self.event_queue,
+        self.queue = EventQueue(self.manager.Queue())
+        self.dispatcher_shutdown = threading.Event()
+        assert self.dispatcher_shutdown
+        assert self.queue
+        self.dispatcher = EventDispatcher(
+            shutdown=self.dispatcher_shutdown,
+            event_queue=self.queue,
         )
-        self.event_dispatcher_thread = threading.Thread(
-            target=self.event_dispatcher.run,
+        self.dispatcher_thread = threading.Thread(
+            target=self.dispatcher.run,
         )
-        self.event_dispatcher_thread.start()
-        logger.debug('Thread ID: %d', self.event_dispatcher_thread.ident)
+        self.dispatcher_thread.start()
+        logger.debug('Thread ID: %d', self.dispatcher_thread.ident)
 
     def shutdown(self) -> None:
-        assert self.event_dispatcher_shutdown
-        assert self.event_dispatcher_thread
-        self.event_dispatcher_shutdown.set()
-        self.event_dispatcher_thread.join()
+        assert self.dispatcher_shutdown
+        assert self.dispatcher_thread
+        self.dispatcher_shutdown.set()
+        self.dispatcher_thread.join()
         logger.debug(
             'Shutdown of global event dispatcher thread %d successful',
-            self.event_dispatcher_thread.ident,
+            self.dispatcher_thread.ident,
         )
