@@ -9,7 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 from .proxy import entry_point, main, Proxy
-from .testing.test_case import TestCase
+from .testing import TestCase
 
 __all__ = [
     # PyPi package entry_point. See

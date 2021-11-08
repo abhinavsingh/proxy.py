@@ -27,6 +27,8 @@ from proxy.common.constants import DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DE
 from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT, DEFAULT_BASIC_AUTH
 from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, PY2_DEPRECATION_MESSAGE
+from proxy.common.constants import PLUGIN_INSPECT_TRAFFIC, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEB_SERVER
+from proxy.common.constants import PLUGIN_HTTP_PROXY
 from proxy.common.version import __version__
 
 
@@ -163,11 +165,11 @@ class TestMain(unittest.TestCase):
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
-                b'proxy.http.server.HttpWebServerPlugin',
-                b'proxy.dashboard.dashboard.ProxyDashboard',
-                b'proxy.dashboard.inspect_traffic.InspectTrafficPlugin',
-                b'proxy.http.inspector.DevtoolsProtocolPlugin',
-                b'proxy.http.proxy.HttpProxyPlugin',
+                bytes_(PLUGIN_WEB_SERVER),
+                bytes_(PLUGIN_DASHBOARD),
+                bytes_(PLUGIN_INSPECT_TRAFFIC),
+                bytes_(PLUGIN_DEVTOOLS_PROTOCOL),
+                bytes_(PLUGIN_HTTP_PROXY),
             ],
         )
         mock_parse_args.assert_called_once()
@@ -199,9 +201,9 @@ class TestMain(unittest.TestCase):
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
-                b'proxy.http.inspector.DevtoolsProtocolPlugin',
-                b'proxy.http.server.HttpWebServerPlugin',
-                b'proxy.http.proxy.HttpProxyPlugin',
+                bytes_(PLUGIN_DEVTOOLS_PROTOCOL),
+                bytes_(PLUGIN_WEB_SERVER),
+                bytes_(PLUGIN_HTTP_PROXY),
             ],
         )
         mock_parse_args.assert_called_once()

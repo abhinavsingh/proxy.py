@@ -286,7 +286,10 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 return False
             except socket.error as e:
                 if e.errno == errno.ECONNRESET:
-                    logger.warning('%r' % e)
+                    # Most requests for mobile devices will end up
+                    # with client closed connection.  Using `debug`
+                    # here to avoid flooding the logs.
+                    logger.debug('%r' % e)
                 else:
                     logger.exception(
                         'Exception while receiving from %s connection %r with reason %r' %
