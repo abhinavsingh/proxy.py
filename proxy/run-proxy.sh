@@ -7,8 +7,6 @@ date
 if [ "$CONFIG" == "ci" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="http://solana:8899"
   [[ -z "$EVM_LOADER"                   ]] && export EVM_LOADER=deploy
-  [[ -z "$ETH_TOKEN_MINT"               ]] && export ETH_TOKEN_MINT=deploy
-  [[ -z "$COLLATERAL_POOL_BASE"         ]] && export COLLATERAL_POOL_BASE=deploy
   [[ -z "$NEW_USER_AIRDROP_AMOUNT"      ]] && export NEW_USER_AIRDROP_AMOUNT=100
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=100000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="0.5"
@@ -18,8 +16,6 @@ if [ "$CONFIG" == "ci" ]; then
 elif [ "$CONFIG" == "local" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="http://localhost:8899"
   [[ -z "$EVM_LOADER"                   ]] && export EVM_LOADER=deploy
-  [[ -z "$ETH_TOKEN_MINT"               ]] && export ETH_TOKEN_MINT=deploy
-  [[ -z "$COLLATERAL_POOL_BASE"         ]] && export COLLATERAL_POOL_BASE=deploy
   [[ -z "$NEW_USER_AIRDROP_AMOUNT"      ]] && export NEW_USER_AIRDROP_AMOUNT=10
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=0
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="0.9"
@@ -27,8 +23,6 @@ elif [ "$CONFIG" == "local" ]; then
 elif [ "$CONFIG" == "devnet" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="https://api.devnet.solana.com"
   [[ -z "$EVM_LOADER"                   ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
-  [[ -z "$ETH_TOKEN_MINT"               ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
-  [[ -z "$COLLATERAL_POOL_BASE"         ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
   [[ -z "$NEW_USER_AIRDROP_AMOUNT"      ]] && export NEW_USER_AIRDROP_AMOUNT=0
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="10"
@@ -36,8 +30,6 @@ elif [ "$CONFIG" == "devnet" ]; then
 elif [ "$CONFIG" == "testnet" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="https://api.testnet.solana.com"
   [[ -z "$EVM_LOADER"                   ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
-  [[ -z "$ETH_TOKEN_MINT"               ]] && export ETH_TOKEN_MINT=89dre8rZjLNft7HoupGiyxu3MNftR577ZYu8bHe2kK7g
-  [[ -z "$COLLATERAL_POOL_BASE"         ]] && export COLLATERAL_POOL_BASE=7SBdHNeF9FFYySEoszpjZXXQsAiwa5Lzpsz6nUJWusEx
   [[ -z "$NEW_USER_AIRDROP_AMOUNT"      ]] && export NEW_USER_AIRDROP_AMOUNT=0
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="15"
@@ -48,8 +40,6 @@ fi
 
 [[ -z "$SOLANA_URL"               ]] && echo "SOLANA_URL is not set" && exit 1
 [[ -z "$EVM_LOADER"               ]] && echo "EVM_LOADER is not set" && exit 1
-[[ -z "$ETH_TOKEN_MINT"           ]] && echo "ETH_TOKEN_MINT is not set" && exit 1
-[[ -z "$COLLATERAL_POOL_BASE"     ]] && echo "COLLATERAL_POOL_BASE is not set" && exit 1
 
 echo SOLANA_URL=$SOLANA_URL
 
@@ -96,22 +86,15 @@ fi
 echo "EVM_LOADER=$EVM_LOADER"
 
 
-if [ "$ETH_TOKEN_MINT" == "deploy" ]; then
-  echo "ETH_TOKEN_MINT is set to load. A new token will be created. Creating token..."
-  export ETH_TOKEN_MINT=$(/spl/bin/spl-token create-token --owner /spl/bin/test_token_owner -- /spl/bin/test_token_keypair | grep -Po 'Creating token \K[^\n]*')
-fi
-
+echo "A new token will be created. Creating token..."
+export ETH_TOKEN_MINT=$(/spl/bin/spl-token create-token --owner /spl/bin/test_token_owner -- /spl/bin/test_token_keypair | grep -Po 'Creating token \K[^\n]*')
 echo "ETH_TOKEN_MINT=$ETH_TOKEN_MINT"
 
 
-if [ "$COLLATERAL_POOL_BASE" == "deploy" ]; then
-  echo "COLLATERAL_POOL_BASE is set to create. A new collateral pool accounts will be created. Creating accounts..."
-  #generate collateral pool accounts
-  solana -k /spl/bin/collateral-pool-keypair.json airdrop 1000
-  python3 /spl/bin/collateral_pool_generator.py /spl/bin/collateral-pool-keypair.json
-  export COLLATERAL_POOL_BASE=$(solana-keygen pubkey -f /spl/bin/collateral-pool-keypair.json)
-fi
-
+echo "A new collateral pool accounts will be created. Creating accounts..."
+solana -k /spl/bin/collateral-pool-keypair.json airdrop 1000
+python3 /spl/bin/collateral_pool_generator.py /spl/bin/collateral-pool-keypair.json
+export COLLATERAL_POOL_BASE=$(solana-keygen pubkey -f /spl/bin/collateral-pool-keypair.json)
 echo "COLLATERAL_POOL_BASE=$COLLATERAL_POOL_BASE"
 
 

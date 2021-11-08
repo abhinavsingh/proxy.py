@@ -25,8 +25,8 @@ from sha3 import keccak_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, getTokens, \
-    getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
+from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, getTokens, \
+    getAccountInfo, call_signed, call_emulated, \
     Trx,  EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load, MINIMAL_GAS_PRICE
 from solana.rpc.commitment import Commitment, Confirmed
 from web3 import Web3
@@ -35,6 +35,7 @@ from ..core.acceptor.pool import proxy_id_glob
 import os
 from ..indexer.utils import get_trx_results, LogDB
 from sqlitedict import SqliteDict
+from proxy.environment import evm_loader_id, solana_cli, solana_url
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

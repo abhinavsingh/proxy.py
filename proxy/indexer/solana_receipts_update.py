@@ -8,6 +8,7 @@ from solana.rpc.api import Client
 from multiprocessing.dummy import Pool as ThreadPool
 from sqlitedict import SqliteDict
 from typing import Dict, Union
+from proxy.environment import solana_url, evm_loader_id
 
 
 try:
@@ -16,10 +17,7 @@ except ImportError:
     from .utils import check_error, get_trx_results, get_trx_receipts, LogDB, Canceller
 
 
-solana_url = os.environ.get("SOLANA_URL", "https://api.devnet.solana.com")
-evm_loader_id = os.environ.get("EVM_LOADER", "eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU")
 PARALLEL_REQUESTS = int(os.environ.get("PARALLEL_REQUESTS", "2"))
-
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

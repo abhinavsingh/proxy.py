@@ -6,7 +6,6 @@ import os
 import random
 import re
 import struct
-import subprocess
 import time
 from datetime import datetime
 from hashlib import sha256
@@ -29,20 +28,17 @@ from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from spl.token.constants import ACCOUNT_LEN, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address, create_associated_token_account, transfer2, Transfer2Params
 from web3.auto import w3
-
+from proxy.environment import neon_cli, evm_loader_id, ETH_TOKEN_MINT_ID, COLLATERAL_POOL_BASE, read_elf_params
 from .eth_proto import Trx
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
-evm_loader_id = os.environ.get("EVM_LOADER")
-COLLATERAL_POOL_BASE = os.environ.get("COLLATERAL_POOL_BASE")
+
 NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 #evm_loader_id = "EfyDoGDRPy7wrLfSLyXrbhiAG6NmufMk1ytap13gLy1"
 location_bin = ".deploy_contract.bin"
 confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "0.1"))
-neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
 USE_COMBINED_START_CONTINUE = os.environ.get("USE_COMBINED_START_CONTINUE", "YES") == "YES"
 CONTINUE_COUNT_FACTOR = int(os.environ.get("CONTINUE_COUNT_FACTOR", "3"))
 TIMEOUT_TO_RELOAD_NEON_CONFIG = int(os.environ.get("TIMEOUT_TO_RELOAD_NEON_CONFIG", "3600"))
@@ -56,10 +52,6 @@ keccakprog = "KeccakSecp256k11111111111111111111111111111"
 rentid = "SysvarRent111111111111111111111111111111111"
 incinerator = "1nc1nerator11111111111111111111111111111111"
 system = "11111111111111111111111111111111"
-
-ETH_TOKEN_MINT_ID: PublicKey = PublicKey(
-    os.environ.get("ETH_TOKEN_MINT", "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU")
-)
 
 STORAGE_SIZE = 128*1024
 
@@ -245,34 +237,7 @@ def emulator(contract, sender, data, value):
     return neon_cli().call("emulate", sender, contract, data, value)
 
 
-class solana_cli:
-    def call(self, *args):
-        try:
-            cmd = ["solana",
-                   "--url", solana_url,
-                   ] + list(args)
-            print(cmd)
-            return subprocess.check_output(cmd, universal_newlines=True)
-        except subprocess.CalledProcessError as err:
-            import sys
-            logger.debug("ERR: solana error {}".format(err))
-            raise
 
-
-class neon_cli:
-    def call(self, *args):
-        try:
-            cmd = ["neon-cli",
-                   "--commitment=recent",
-                   "--url", solana_url,
-                   "--evm_loader={}".format(evm_loader_id),
-                   ] + list(args)
-            print(cmd)
-            return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True)
-        except subprocess.CalledProcessError as err:
-            import sys
-            logger.debug("ERR: neon-cli error {}".format(err))
-            raise
 
 def confirm_transaction(client, tx_sig, confirmations=0):
     """Confirm a transaction."""
@@ -318,20 +283,6 @@ def ether2seed(ether, program_id, base):
     logger.debug('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
     return (acc, 255, seed)
 
-def read_elf_params(out_dict):
-    logger.debug('load for solana_url={} and evm_loader_id={}'.format(solana_url, evm_loader_id))
-    res = solana_cli().call('program', 'dump', evm_loader_id, './evm_loader.dump')
-    substr = "Wrote program to "
-    path = ""
-    for line in res.splitlines():
-        if line.startswith(substr):
-            path = line[len(substr):].strip()
-    if path == "":
-        raise Exception("cannot program dump for ", evm_loader_id)
-    for param in neon_cli().call("neon-elf-params", path).splitlines():
-        if param.startswith('NEON_') and '=' in param:
-            v = param.split('=')
-            out_dict[v[0]] = v[1]
 
 def neon_config_load(ethereum_model):
     try:

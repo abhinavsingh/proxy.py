@@ -1,7 +1,7 @@
 import unittest
 import os
 from web3 import Web3
-from proxy.plugin.solana_rest_api_tools import read_elf_params
+from proxy.environment import read_elf_params
 
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
