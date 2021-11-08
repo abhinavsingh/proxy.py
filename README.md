@@ -266,7 +266,7 @@ Simply type `proxy` on command line to start with default configuration.
 ```console
 ❯ proxy
 ...[redacted]... - Loaded plugin proxy.http_proxy.HttpProxyPlugin
-...[redacted]... - Starting 8 workers
+...[redacted]... - Starting 8 threadless workers
 ...[redacted]... - Started server on ::1:8899
 ```
 
@@ -275,12 +275,13 @@ Simply type `proxy` on command line to start with default configuration.
 Things to notice from above logs:
 
 - `Loaded plugin`
-  - `proxy.py` will load `proxy.http.proxy.HttpProxyPlugin` by default.
+  - `proxy.py` will load `proxy.http.proxy.HttpProxyPlugin` by default
   - As name suggests, this core plugin adds `http(s)` proxy server capabilities to `proxy.py` instance
 
-- `Started N workers`
-  - Use `--num-workers` flag to customize number of worker processes.
-  - By default, `proxy.py` will start as many workers as there are CPU cores on the machine.
+- `Started N threadless workers`
+  - By default, `proxy.py` will start as many workers as there are CPU cores on the machine
+  - Use `--num-workers` flag to customize number of worker processes
+  - See [Threads vs Threadless](#threads-vs-threadless) to understand how to control execution mode
 
 - `Started server on ::1:8899`
   - By default, `proxy.py` listens on IPv6 `::1`, which is equivalent of IPv4 `127.0.0.1`
@@ -1628,19 +1629,23 @@ Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 ## Threads vs Threadless
 
-### Pre v2.x
+### `v1.x`
 
 `proxy.py` used to spawn new threads for handling client requests.
 
-### Starting v2.0
+### `v2.0+`
 
 `proxy.py` added support for threadless execution of client requests using `asyncio`.
 
-### Starting v2.4.0
+### `v2.4.0+`
 
-Threadless execution was turned ON by default for `Python 3.8+` on `mac` and `linux` environments.  `proxy.py` threadless execution has been reported safe on these environments by our users.  If you are running into trouble, fallback to threaded mode using `--threaded` flag.
+Threadless execution was turned ON by default for `Python 3.8+` on `mac` and `linux` environments.
 
-For `windows` and `Python < 3.8`, you can still try out threadless mode by starting `proxy.py` with `--threadless` flag.  If threadless works for you, consider sending a PR by editing `_env_threadless_compliant` method in the `proxy/common/constants.py` file.
+`proxy.py` threadless execution has been reported safe on these environments by our users. If you are running into trouble, fallback to threaded mode using `--threaded` flag.
+
+For `windows` and `Python < 3.8`, you can still try out threadless mode by starting `proxy.py` with `--threadless` flag.
+
+If threadless works for you, consider sending a PR by editing `_env_threadless_compliant` method in the `proxy/common/constants.py` file.
 
 ## SyntaxError: invalid syntax
 
