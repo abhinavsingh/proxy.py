@@ -13,8 +13,9 @@ import socket
 
 from typing import Dict
 
+from proxy import Proxy
 from proxy.common.flag import FlagParser
-from proxy.core.acceptor import Work, AcceptorPool
+from proxy.core.acceptor import Work
 from proxy.common.types import Readables, Writables
 
 
@@ -56,7 +57,7 @@ class WebScraper(Work):
 
 
 if __name__ == '__main__':
-    with AcceptorPool(
+    with Proxy(
         flags=FlagParser.initialize(
             port=12345,
             num_workers=1,

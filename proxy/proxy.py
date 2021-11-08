@@ -101,13 +101,15 @@ class Proxy:
     for message sharing and/or signaling.
     """
 
-    def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
+    def __init__(
+        self,
+        input_args: Optional[List[str]] = None,
+        work_klass: Type[Work] = HttpProtocolHandler,
+        **opts: Any,
+    ) -> None:
+        self.work_klass: Type[Work] = work_klass
         self.flags = FlagParser.initialize(input_args, **opts)
         self.pool: Optional[AcceptorPool] = None
-        # TODO(abhinavsingh): Allow users to override the worker class itself
-        # e.g. A clear text protocol. Or imagine a TelnetProtocolHandler instead
-        # of default HttpProtocolHandler.
-        self.work_klass: Type[Work] = HttpProtocolHandler
         self.event_manager: Optional[EventManager] = None
 
     def __enter__(self) -> 'Proxy':

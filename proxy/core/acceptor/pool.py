@@ -99,7 +99,8 @@ class AcceptorPool:
 
     def __init__(
         self, flags: argparse.Namespace,
-        work_klass: Type[Work], event_queue: Optional[EventQueue] = None,
+        work_klass: Type[Work],
+        event_queue: Optional[EventQueue] = None,
     ) -> None:
         self.flags = flags
         # Eventing core queue
