@@ -25,6 +25,7 @@ from .work import Work
 
 from ..event import EventQueue
 
+from ...common.utils import bytes_
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME
 from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_PORT
@@ -126,6 +127,7 @@ class AcceptorPool:
 
     def setup(self) -> None:
         """Setup socket and acceptors."""
+        self._write_pid_file()
         if self.flags.unix_socket_path:
             self._listen_unix_socket()
         else:
@@ -155,6 +157,7 @@ class AcceptorPool:
             acceptor.join()
         if self.flags.unix_socket_path:
             os.remove(self.flags.unix_socket_path)
+        self._delete_pid_file()
         logger.debug('Acceptors shutdown')
 
     def _listen_unix_socket(self) -> None:
@@ -192,3 +195,14 @@ class AcceptorPool:
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
         logger.info('Started %d workers' % self.flags.num_workers)
+
+    def _write_pid_file(self) -> None:
+        if self.flags.pid_file is not None:
+            # NOTE: Multiple instances of proxy.py running on
+            # same host machine will currently result in overwriting the PID file
+            with open(self.flags.pid_file, 'wb') as pid_file:
+                pid_file.write(bytes_(os.getpid()))
+
+    def _delete_pid_file(self) -> None:
+        if self.flags.pid_file and os.path.exists(self.flags.pid_file):
+            os.remove(self.flags.pid_file)
