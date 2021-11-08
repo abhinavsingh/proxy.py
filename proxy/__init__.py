@@ -10,7 +10,6 @@
 """
 from .proxy import entry_point, main, Proxy
 from .testing import TestCase
-from .dashboard import ProxyDashboard
 
 __all__ = [
     # PyPi package entry_point. See
@@ -23,12 +22,4 @@ __all__ = [
     # https://github.com/abhinavsingh/proxy.py#unit-testing-with-proxypy
     'TestCase',
     'Proxy',
-    # This is here to make sure --enable-dashboard
-    # flag is discoverable by automagically.
-    #
-    # Because, ProxyDashboard is not imported anywhere,
-    # without this patch, users will have to explicitly
-    # enable proxy.dashboard.ProxyDashboard plugin
-    # to use --enable-dashboard flag.
-    'ProxyDashboard',
 ]
