@@ -49,7 +49,12 @@ class TestEventDispatcher(unittest.TestCase):
     @mock.patch('time.time')
     def subscribe(self, mock_time: mock.Mock) -> DictQueueType:
         mock_time.return_value = 1234567
-        q = self.manager.Queue()
+        # Do not use self.manager here, otherwise you may be
+        # TypeError: AutoProxy() got an unexpected keyword argument 'manager_owned'.
+        #
+        # Queue used for subscription must be acquired from a separate
+        # multiprocessing.Manager than the one used for event_queue.
+        q = multiprocessing.Manager().Queue()
         self.event_queue.subscribe(sub_id='1234', channel=q)
         self.dispatcher.run_once()
         self.event_queue.publish(
