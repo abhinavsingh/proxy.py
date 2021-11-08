@@ -20,7 +20,6 @@ from proxy.core.acceptor.work import Work
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 from .core.event import EventManager
-from .common.utils import is_threadless
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
@@ -123,18 +122,15 @@ class Proxy:
         )
         self.pool.setup()
         assert self.pool is not None
-        mode = 'threadless' if is_threadless(
-            self.flags.threadless, self.flags.threaded,
-        ) else 'threaded'
         if self.flags.unix_socket_path:
             logger.info(
-                'Listening on %s (%s)' %
-                (self.flags.unix_socket_path, mode),
+                'Listening on %s' %
+                self.flags.unix_socket_path,
             )
         else:
             logger.info(
-                'Listening on %s:%s (%s)' %
-                (self.pool.flags.hostname, self.pool.flags.port, mode),
+                'Listening on %s:%s' %
+                (self.pool.flags.hostname, self.pool.flags.port),
             )
         return self
 

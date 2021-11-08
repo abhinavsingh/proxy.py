@@ -25,7 +25,7 @@ from .work import Work
 
 from ..event import EventQueue
 
-from ...common.utils import bytes_
+from ...common.utils import bytes_, is_threadless
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME
 from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_PORT
@@ -194,7 +194,10 @@ class AcceptorPool:
             )
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
-        logger.info('Started %d workers' % self.flags.num_workers)
+        mode = 'threadless' if is_threadless(
+            self.flags.threadless, self.flags.threaded,
+        ) else 'threaded'
+        logger.info('Started %d %s workers' % (self.flags.num_workers, mode))
 
     def _write_pid_file(self) -> None:
         if self.flags.pid_file is not None:
