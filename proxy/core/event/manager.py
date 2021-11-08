@@ -79,6 +79,7 @@ class EventManager:
         assert self.dispatcher_thread
         self.dispatcher_shutdown.set()
         self.dispatcher_thread.join()
+        self.manager.shutdown()
         logger.debug(
             'Shutdown of global event dispatcher thread %d successful',
             self.dispatcher_thread.ident,

@@ -17,15 +17,19 @@ from unittest import mock
 
 from proxy.core.event import EventQueue, eventNames
 
-MANAGER = multiprocessing.Manager()
-
 
 class TestCoreEvent(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.manager = multiprocessing.Manager()
+
+    def tearDown(self) -> None:
+        self.manager.shutdown()
 
     @mock.patch('time.time')
     def test_publish(self, mock_time: mock.Mock) -> None:
         mock_time.return_value = 1234567
-        evq = EventQueue(MANAGER.Queue())
+        evq = EventQueue(self.manager.Queue())
         evq.publish(
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
@@ -45,7 +49,7 @@ class TestCoreEvent(unittest.TestCase):
         )
 
     def test_subscribe(self) -> None:
-        evq = EventQueue(MANAGER.Queue())
+        evq = EventQueue(self.manager.Queue())
         q = multiprocessing.Manager().Queue()
         evq.subscribe('1234', q)
         ev = evq.queue.get()
@@ -53,7 +57,7 @@ class TestCoreEvent(unittest.TestCase):
         self.assertEqual(ev['event_payload']['sub_id'], '1234')
 
     def test_unsubscribe(self) -> None:
-        evq = EventQueue(MANAGER.Queue())
+        evq = EventQueue(self.manager.Queue())
         evq.unsubscribe('1234')
         ev = evq.queue.get()
         self.assertEqual(ev['event_name'], eventNames.UNSUBSCRIBE)
