@@ -119,7 +119,7 @@
 - Fast & Scalable
 
   - Scales by using all available cores on the system
-  - Threadless executions using coroutine
+  - Threadless executions using asyncio
   - Made to handle `tens-of-thousands` connections / sec
 
     ```console
@@ -146,32 +146,44 @@
   - Uses only `~5-20MB` RAM
   - No external dependency other than standard Python library
 - Programmable
-  - Optionally enable builtin Web Server
-  - Customize proxy and http routing via [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin)
-  - Enable plugin using command line option e.g. `--plugins proxy.plugin.CacheResponsesPlugin`
-  - Plugin API is currently in development phase, expect breaking changes.
+  - Customize proxy behavior using [Proxy Server Plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin). Example:
+    - `--plugins proxy.plugin.ProxyPoolPlugin`
+  - Optionally, enable builtin [Web Server Plugins](#http-web-server-plugins). Example:
+    - `--plugins proxy.plugin.ReverseProxyPlugin`
+  - Plugin API is currently in development phase, expect breaking changes
 - Realtime Dashboard
-  - Optionally enable bundled dashboard.
+  - Optionally enable bundled [dashboard](#run-dashboard).
     - Available at `http://localhost:8899/dashboard`.
-  - Inspect, Monitor, Control and Configure `proxy.py` at runtime.
-  - Extend dashboard using plugins.
-  - Dashboard is currently in development phase, expect breaking changes.
+  - [Inspect, Monitor, Control and Configure](#inspect-traffic) `proxy.py` at runtime
+  - [Chrome DevTools Protocol](#chrome-devtools-protocol) support
+  - Extend dashboard using plugins
+  - Dashboard is currently in development phase, expect breaking changes
 - Secure
-  - Enable end-to-end encryption between clients and `proxy.py` using TLS
+  - Enable end-to-end encryption between clients and `proxy.py`
   - See [End-to-End Encryption](#end-to-end-encryption)
+- Private
+  - Everyone deserves privacy. Browse with malware and adult content protection
+  - See [DNS-over-HTTPS](#cloudflarednsresolverplugin)
 - Man-In-The-Middle
   - Can decrypt TLS traffic between clients and upstream servers
   - See [TLS Interception](#tls-interception)
 - Supported proxy protocols
   - `http(s)`
     - `http1`
-    - `http1.1` pipeline
+    - `http1.1` with pipeline
   - `http2`
   - `websockets`
+- Static file server support
+  - See `--enable-static-server` and `--static-server-dir` flags
 - Optimized for large file uploads and downloads
-- IPv4 and IPv6 support
+  - See `--client-recvbuf-size` and `--server-recvbuf-size` flag
+- `IPv4` and `IPv6` support
+  - See `--hostname` flag
+- Unix domain socket support
+  - See `--unix-socket-path` flag
 - Basic authentication support
-- Can serve a [PAC (Proxy Auto-configuration)](https://en.wikipedia.org/wiki/Proxy_auto-config) file
+  - See `--basic-auth` flag
+- [PAC (Proxy Auto-configuration)](https://en.wikipedia.org/wiki/Proxy_auto-config) support
   - See `--pac-file` and `--pac-file-url-path` flags
 
 # Install
