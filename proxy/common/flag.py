@@ -270,6 +270,7 @@ class FlagParser:
         )
         args.timeout = cast(int, opts.get('timeout', args.timeout))
         args.threadless = cast(bool, opts.get('threadless', args.threadless))
+        args.threaded = cast(bool, opts.get('threaded', args.threaded))
         args.enable_events = cast(
             bool,
             opts.get(

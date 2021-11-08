@@ -88,6 +88,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             ca_cert_file='ca-cert.pem',
             ca_key_file='ca-key.pem',
             ca_signing_key_file='ca-signing-key.pem',
+            threaded=True,
         )
         self.plugin = mock.MagicMock()
         self.proxy_plugin = mock.MagicMock()

@@ -20,6 +20,7 @@ from proxy.core.acceptor.work import Work
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 from .core.event import EventManager
+from .common.utils import is_threadless
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
@@ -121,6 +122,20 @@ class Proxy:
             event_queue=self.event_manager.queue if self.event_manager is not None else None,
         )
         self.pool.setup()
+        assert self.pool is not None
+        mode = 'threadless' if is_threadless(
+            self.flags.threadless, self.flags.threaded,
+        ) else 'threaded'
+        if self.flags.unix_socket_path:
+            logger.info(
+                'Listening on %s (%s)' %
+                (self.flags.unix_socket_path, mode),
+            )
+        else:
+            logger.info(
+                'Listening on %s:%s (%s)' %
+                (self.pool.flags.hostname, self.pool.flags.port, mode),
+            )
         return self
 
     def __exit__(
@@ -141,18 +156,7 @@ def main(
         **opts: Any,
 ) -> None:
     try:
-        with Proxy(input_args=input_args, **opts) as proxy:
-            assert proxy.pool is not None
-            if proxy.flags.unix_socket_path:
-                logger.info(
-                    'Listening on %s' %
-                    (proxy.flags.unix_socket_path),
-                )
-            else:
-                logger.info(
-                    'Listening on %s:%s' %
-                    (proxy.pool.flags.hostname, proxy.pool.flags.port),
-                )
+        with Proxy(input_args=input_args, **opts):
             # TODO: Introduce cron feature
             # https://github.com/abhinavsingh/proxy.py/issues/392
             #

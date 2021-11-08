@@ -42,7 +42,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self._conn = mock_fromfd.return_value
 
         self.http_server_port = 65535
-        self.flags = FlagParser.initialize()
+        self.flags = FlagParser.initialize(threaded=True)
         self.flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
@@ -215,6 +215,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         self.mock_selector_for_client_read(mock_selector)
         flags = FlagParser.initialize(
             auth_code=base64.b64encode(b'user:pass'),
+            threaded=True,
         )
         flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
@@ -253,6 +254,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         flags = FlagParser.initialize(
             auth_code=base64.b64encode(b'user:pass'),
+            threaded=True,
         )
         flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
@@ -308,6 +310,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         flags = FlagParser.initialize(
             auth_code=base64.b64encode(b'user:pass'),
+            threaded=True,
         )
         flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),

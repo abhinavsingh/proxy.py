@@ -20,7 +20,7 @@ import contextlib
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
-from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
+from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT, DEFAULT_THREADLESS
 
 if os.name != 'nt':
     import resource
@@ -28,9 +28,18 @@ if os.name != 'nt':
 logger = logging.getLogger(__name__)
 
 
+def is_threadless(threadless: bool, threaded: bool) -> bool:
+    # if default is threadless then return true unless
+    # user has overridden mode using threaded flag.
+    #
+    # if default is not threadless then return true
+    # only if user has overridden using --threadless flag
+    return (DEFAULT_THREADLESS and not threaded) or (not DEFAULT_THREADLESS and threadless)
+
+
 def is_py2() -> bool:
     """Exists only to avoid mocking sys.version_info in tests."""
-    return sys.version_info[0] == 2
+    return sys.version_info.major == 2
 
 
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:

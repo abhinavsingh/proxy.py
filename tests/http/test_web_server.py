@@ -34,7 +34,7 @@ class TestWebServerPlugin(unittest.TestCase):
         self._addr = ('127.0.0.1', 54382)
         self._conn = mock_fromfd.return_value
         self.mock_selector = mock_selector
-        self.flags = FlagParser.initialize()
+        self.flags = FlagParser.initialize(threaded=True)
         self.flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
@@ -113,7 +113,7 @@ class TestWebServerPlugin(unittest.TestCase):
                 selectors.EVENT_READ,
             ),
         ]
-        flags = FlagParser.initialize()
+        flags = FlagParser.initialize(threaded=True)
         flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
@@ -183,6 +183,7 @@ class TestWebServerPlugin(unittest.TestCase):
         flags = FlagParser.initialize(
             enable_static_server=True,
             static_server_dir=static_server_dir,
+            threaded=True,
         )
         flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
@@ -247,7 +248,7 @@ class TestWebServerPlugin(unittest.TestCase):
             )],
         ]
 
-        flags = FlagParser.initialize(enable_static_server=True)
+        flags = FlagParser.initialize(enable_static_server=True, threaded=True)
         flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
@@ -273,7 +274,7 @@ class TestWebServerPlugin(unittest.TestCase):
     def test_on_client_connection_called_on_teardown(
             self, mock_fromfd: mock.Mock,
     ) -> None:
-        flags = FlagParser.initialize()
+        flags = FlagParser.initialize(threaded=True)
         plugin = mock.MagicMock()
         flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
         self._conn = mock_fromfd.return_value
@@ -290,7 +291,7 @@ class TestWebServerPlugin(unittest.TestCase):
         plugin.return_value.on_client_connection_close.assert_called()
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
-        flags = FlagParser.initialize(pac_file=pac_file)
+        flags = FlagParser.initialize(pac_file=pac_file, threaded=True)
         flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),

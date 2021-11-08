@@ -23,11 +23,17 @@ PUBLISHER_ID = threading.get_ident()
 
 class TestEventSubscriber(unittest.TestCase):
 
+    def setUp(self) -> None:
+        self.manager = multiprocessing.Manager()
+
+    def tearDown(self) -> None:
+        self.manager.shutdown()
+
     @mock.patch('time.time')
     def test_event_subscriber(self, mock_time: mock.Mock) -> None:
         mock_time.return_value = 1234567
         self.dispatcher_shutdown = threading.Event()
-        self.event_queue = EventQueue(multiprocessing.Manager().Queue())
+        self.event_queue = EventQueue(self.manager.Queue())
         self.dispatcher = EventDispatcher(
             shutdown=self.dispatcher_shutdown,
             event_queue=self.event_queue,

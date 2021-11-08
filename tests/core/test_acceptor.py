@@ -24,7 +24,7 @@ class TestAcceptor(unittest.TestCase):
         self.acceptor_id = 1
         self.mock_protocol_handler = mock.MagicMock()
         self.pipe = multiprocessing.Pipe()
-        self.flags = FlagParser.initialize()
+        self.flags = FlagParser.initialize(threaded=True)
         self.acceptor = Acceptor(
             idd=self.acceptor_id,
             work_queue=self.pipe[1],

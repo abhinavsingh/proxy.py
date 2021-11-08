@@ -62,7 +62,14 @@ class EventQueue:
             sub_id: str,
             channel: DictQueueType,
     ) -> None:
-        """Subscribe to global events."""
+        """Subscribe to global events.
+
+        sub_id is a subscription identifier which must be globally
+        unique.  channel MUST be a multiprocessing.Manager().Queue().
+        This is necessary because channel itself is dispatched
+        over the global queue for direct subscription.
+
+        """
         self.queue.put({
             'event_name': eventNames.SUBSCRIBE,
             'event_payload': {'sub_id': sub_id, 'channel': channel},

@@ -24,7 +24,8 @@ class TestEventDispatcher(unittest.TestCase):
 
     def setUp(self) -> None:
         self.dispatcher_shutdown = threading.Event()
-        self.event_queue = EventQueue(multiprocessing.Manager().Queue())
+        self.manager = multiprocessing.Manager()
+        self.event_queue = EventQueue(self.manager.Queue())
         self.dispatcher = EventDispatcher(
             shutdown=self.dispatcher_shutdown,
             event_queue=self.event_queue,
@@ -32,6 +33,7 @@ class TestEventDispatcher(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.dispatcher_shutdown.set()
+        self.manager.shutdown()
 
     def test_empties_queue(self) -> None:
         self.event_queue.publish(
@@ -47,6 +49,11 @@ class TestEventDispatcher(unittest.TestCase):
     @mock.patch('time.time')
     def subscribe(self, mock_time: mock.Mock) -> DictQueueType:
         mock_time.return_value = 1234567
+        # Do not use self.manager here, otherwise you may be
+        # TypeError: AutoProxy() got an unexpected keyword argument 'manager_owned'.
+        #
+        # Queue used for subscription must be acquired from a separate
+        # multiprocessing.Manager than the one used for event_queue.
         q = multiprocessing.Manager().Queue()
         self.event_queue.subscribe(sub_id='1234', channel=q)
         self.dispatcher.run_once()
