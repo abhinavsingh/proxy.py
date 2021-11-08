@@ -457,7 +457,10 @@ class EthereumModel:
             return eth_signature
 
         except solana.rpc.api.SendTransactionError as err:
+            logs = err.result.get("data", {}).pop("logs", [])
             logger.debug("eth_sendRawTransaction solana.rpc.api.SendTransactionError:%s", err.result)
+            logs_str = '\n\t'.join(logs)
+            logger.debug(f"Logs: {logs_str} ")
             raise
         except EthereumError as err:
             logger.debug("eth_sendRawTransaction EthereumError:%s", err)
