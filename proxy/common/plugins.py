@@ -14,7 +14,7 @@ import logging
 import inspect
 import importlib
 
-from typing import Any, List, Optional, Dict, Union
+from typing import Any, List, Dict, Union
 
 from .utils import bytes_, text_
 from .constants import DOT, DEFAULT_ABC_PLUGINS
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class Plugins:
+    """Common utilities for plugin discovery."""
 
     @staticmethod
     def discover(input_args: List[str]) -> None:
