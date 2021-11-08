@@ -27,6 +27,7 @@
 
 - [Features](#features)
 - [Install](#install)
+  - [Stable vs Develop](#stable-vs-develop)
   - [Using PIP](#using-pip)
     - [Stable version](#stable-version-with-pip)
     - [Development version](#development-version-with-pip)
@@ -146,13 +147,13 @@
   - Uses only `~5-20MB` RAM
   - No external dependency other than standard Python library
 - Programmable
-  - Customize proxy behavior using [Proxy Server Plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/proxy/plugin). Example:
+  - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
     - `--plugins proxy.plugin.ProxyPoolPlugin`
   - Optionally, enable builtin [Web Server Plugins](#http-web-server-plugins). Example:
     - `--plugins proxy.plugin.ReverseProxyPlugin`
   - Plugin API is currently in development phase, expect breaking changes
 - Realtime Dashboard
-  - Optionally enable bundled [dashboard](#run-dashboard).
+  - Optionally, enable [proxy.py dashboard](#run-dashboard).
     - Available at `http://localhost:8899/dashboard`.
   - [Inspect, Monitor, Control and Configure](#inspect-traffic) `proxy.py` at runtime
   - [Chrome DevTools Protocol](#chrome-devtools-protocol) support
@@ -183,10 +184,18 @@
   - See `--unix-socket-path` flag
 - Basic authentication support
   - See `--basic-auth` flag
-- [PAC (Proxy Auto-configuration)](https://en.wikipedia.org/wiki/Proxy_auto-config) support
+- PAC (Proxy Auto-configuration) support
   - See `--pac-file` and `--pac-file-url-path` flags
 
 # Install
+
+## Stable vs Develop
+
+`master` branch contains latest stable code and is available via `PyPi` repository
+
+`develop` branch contains cutting edge changes
+
+Development branch is kept stable *(most of the times)*. But if you want 100% reliability and serving users in production environment, always use stable version from `PyPi` or `Docker` container from `hub.docker.com`.
 
 ## Using PIP
 
@@ -212,18 +221,17 @@ or from GitHub `master` branch
 
 ## Using Docker
 
-#### Stable Version from Docker Hub
+### Stable Version from Docker Hub
 
 ```console
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
-#### Build Development Version Locally
+### Build Development Version Locally
 
 ```console
 ❯ git clone https://github.com/abhinavsingh/proxy.py.git
-❯ cd proxy.py
-❯ make container
+❯ cd proxy.py && make container
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
@@ -251,9 +259,9 @@ or from GitHub `master` branch
 When `proxy.py` is installed using `pip`,
 an executable named `proxy` is placed under your `$PATH`.
 
-#### Run it
+### Run it
 
-Simply type `proxy` on command line to start it with default configuration.
+Simply type `proxy` on command line to start with default configuration.
 
 ```console
 ❯ proxy
@@ -262,27 +270,29 @@ Simply type `proxy` on command line to start it with default configuration.
 ...[redacted]... - Started server on ::1:8899
 ```
 
-#### Understanding logs
+### Understanding logs
 
 Things to notice from above logs:
 
-- `Loaded plugin` - `proxy.py` will load `proxy.http.proxy.HttpProxyPlugin` by default.
-  As name suggests, this core plugin adds `http(s)` proxy server capabilities to `proxy.py`
+- `Loaded plugin`
+  - `proxy.py` will load `proxy.http.proxy.HttpProxyPlugin` by default.
+  - As name suggests, this core plugin adds `http(s)` proxy server capabilities to `proxy.py` instance
 
-- `Started N workers` - Use `--num-workers` flag to customize number of worker processes.
-  By default, `proxy.py` will start as many workers as there are CPU cores on the machine.
+- `Started N workers`
+  - Use `--num-workers` flag to customize number of worker processes.
+  - By default, `proxy.py` will start as many workers as there are CPU cores on the machine.
 
-- `Started server on ::1:8899` - By default, `proxy.py` listens on IPv6 `::1`,
-  which is equivalent of IPv4 `127.0.0.1`. If you want to access `proxy.py` externally,
-  use `--hostname ::` or `--hostname 0.0.0.0` or bind to any other interface available
-  on your machine.  See [CustomNetworkInterface](#customnetworkinterface) for how to customize
-  your system public IP as seen by the upstream servers.
+- `Started server on ::1:8899`
+  - By default, `proxy.py` listens on IPv6 `::1`, which is equivalent of IPv4 `127.0.0.1`
+  - If you want to access `proxy.py` from external host, use `--hostname ::` or `--hostname 0.0.0.0` or bind to any other interface available on your machine.
+  - See [CustomNetworkInterface](#customnetworkinterface) for how to customize `proxy.py` *public IP seen by upstream servers*.
 
-- `Port 8899` - Use `--port` flag to customize default TCP port.
+- `Port 8899`
+  - Use `--port` flag to customize default TCP port.
 
-#### Enable DEBUG logging
+### Enable DEBUG logging
 
-All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`.
+All the logs above are `INFO` level logs, default `--log-level` for `proxy.py`
 
 Lets start `proxy.py` with `DEBUG` level logging:
 
@@ -294,11 +304,18 @@ Lets start `proxy.py` with `DEBUG` level logging:
 ...[redacted]... - Started server on ::1:8899
 ```
 
-As we can see, before starting up:
+You can use single letter to customize log level.  Example:
+- `d = DEBUG`
+- `i = INFO`
+- `w = WARNING`
+- `e = ERROR`
+- `c = CRITICAL`
 
-- `proxy.py` also tried to set open file limit `ulimit` on the system.
-- Default value for `--open-file-limit` used is `1024`.
-- `--open-file-limit` flag is a no-op on `Windows` operating systems.
+As we can see from the above logs, before starting up:
+
+- `proxy.py` tried to set open file limit `ulimit` on the system
+- Default value for `--open-file-limit` used is `1024`
+- `--open-file-limit` flag is a no-op on `Windows` operating systems
 
 See [flags](#flags) for full list of available configuration options.
 
@@ -335,25 +352,24 @@ To start `proxy.py` from source code follow these instructions:
   ❯ make
   ```
 
-- Run proxy.py
+- Run `proxy.py`
 
   ```console
   ❯ python -m proxy
   ```
 
-Also see [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
+See [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
 if you plan to work with `proxy.py` source code.
 
 ## Docker image
 
-#### Customize startup flags
+### Customize startup flags
 
 By default `docker` binary is started with IPv4 networking flags:
 
     --hostname 0.0.0.0 --port 8899
 
-To override input flags, start docker image as follows.
-For example, to check `proxy.py` version within Docker image:
+You can override flag from command line when starting the docker container. For example, to check `proxy.py` version within the docker container, run:
 
     ❯ docker run -it \
         -p 8899:8899 \
@@ -1392,32 +1408,30 @@ As a decorator:
 
 ### build_http_request
 
-#### Generate HTTP GET request
+- Generate HTTP GET request
 
-```python
->>> build_http_request(b'GET', b'/')
-b'GET / HTTP/1.1\r\n\r\n'
->>>
-```
+  ```python
+  >>> build_http_request(b'GET', b'/')
+  b'GET / HTTP/1.1\r\n\r\n'
+  ```
 
-#### Generate HTTP GET request with headers
+- Generate HTTP GET request with headers
 
-```python
->>> build_http_request(b'GET', b'/',
-        headers={b'Connection': b'close'})
-b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
->>>
-```
+  ```python
+  >>> build_http_request(b'GET', b'/',
+          headers={b'Connection': b'close'})
+  b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
+  ```
 
-#### Generate HTTP POST request with headers and body
+- Generate HTTP POST request with headers and body
 
-```python
->>> import json
->>> build_http_request(b'POST', b'/form',
-        headers={b'Content-type': b'application/json'},
-        body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
-    b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
-```
+  ```python
+  >>> import json
+  >>> build_http_request(b'POST', b'/form',
+          headers={b'Content-type': b'application/json'},
+          body=proxy.bytes_(json.dumps({'email': 'hello@world.com'})))
+      b'POST /form HTTP/1.1\r\nContent-type: application/json\r\n\r\n{"email": "hello@world.com"}'
+  ```
 
 ### build_http_response
 
@@ -1434,66 +1448,66 @@ build_http_response(
 
 ### API Usage
 
-#### gen_private_key
+- gen_private_key
 
-```python
-gen_private_key(
-    key_path: str,
-    password: str,
-    bits: int = 2048,
-    timeout: int = 10) -> bool
-```
+  ```python
+  gen_private_key(
+      key_path: str,
+      password: str,
+      bits: int = 2048,
+      timeout: int = 10) -> bool
+  ```
 
-#### gen_public_key
+- gen_public_key
 
-```python
-gen_public_key(
-    public_key_path: str,
-    private_key_path: str,
-    private_key_password: str,
-    subject: str,
-    alt_subj_names: Optional[List[str]] = None,
-    extended_key_usage: Optional[str] = None,
-    validity_in_days: int = 365,
-    timeout: int = 10) -> bool
-```
+  ```python
+  gen_public_key(
+      public_key_path: str,
+      private_key_path: str,
+      private_key_password: str,
+      subject: str,
+      alt_subj_names: Optional[List[str]] = None,
+      extended_key_usage: Optional[str] = None,
+      validity_in_days: int = 365,
+      timeout: int = 10) -> bool
+  ```
 
-#### remove_passphrase
+- remove_passphrase
 
-```python
-remove_passphrase(
-    key_in_path: str,
-    password: str,
-    key_out_path: str,
-    timeout: int = 10) -> bool
-```
+  ```python
+  remove_passphrase(
+      key_in_path: str,
+      password: str,
+      key_out_path: str,
+      timeout: int = 10) -> bool
+  ```
 
-#### gen_csr
+- gen_csr
 
-```python
-gen_csr(
-    csr_path: str,
-    key_path: str,
-    password: str,
-    crt_path: str,
-    timeout: int = 10) -> bool
-```
+  ```python
+  gen_csr(
+      csr_path: str,
+      key_path: str,
+      password: str,
+      crt_path: str,
+      timeout: int = 10) -> bool
+  ```
 
-#### sign_csr
+- sign_csr
 
-```python
-sign_csr(
-    csr_path: str,
-    crt_path: str,
-    ca_key_path: str,
-    ca_key_password: str,
-    ca_crt_path: str,
-    serial: str,
-    alt_subj_names: Optional[List[str]] = None,
-    extended_key_usage: Optional[str] = None,
-    validity_in_days: int = 365,
-    timeout: int = 10) -> bool
-```
+  ```python
+  sign_csr(
+      csr_path: str,
+      crt_path: str,
+      ca_key_path: str,
+      ca_key_password: str,
+      ca_crt_path: str,
+      serial: str,
+      alt_subj_names: Optional[List[str]] = None,
+      extended_key_usage: Optional[str] = None,
+      validity_in_days: int = 365,
+      timeout: int = 10) -> bool
+  ```
 
 See [pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/common/pki.py) and
 [test_pki.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/common/test_pki.py)
@@ -1532,8 +1546,7 @@ optional arguments:
 
 ## Internal Documentation
 
-Browse through internal class hierarchy and documentation using `pydoc3`.
-Example:
+Code is well documented. Browse through internal class hierarchy and documentation using `pydoc3`
 
 ```console
 ❯ pydoc3 proxy
@@ -1550,8 +1563,6 @@ FILE
 ```
 
 # Run Dashboard
-
-**This is a WIP and may not work as documented**
 
 Dashboard is currently under development and not yet bundled with `pip` packages.
 To run dashboard, you must checkout the source.
@@ -1590,6 +1601,8 @@ Visit dashboard:
 ```
 
 ## Inspect Traffic
+
+***This is a WIP and may not work as documented***
 
 Wait for embedded `Chrome Dev Console` to load.  Currently, detail about all traffic flowing
 through `proxy.py` is pushed to the `Inspect Traffic` tab.  However, received payloads are not
