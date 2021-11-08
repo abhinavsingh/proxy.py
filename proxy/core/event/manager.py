@@ -75,8 +75,7 @@ class EventManager:
         logger.debug('Thread ID: %d', self.dispatcher_thread.ident)
 
     def shutdown(self) -> None:
-        assert self.dispatcher_shutdown
-        assert self.dispatcher_thread
+        assert self.dispatcher_shutdown and self.dispatcher_thread and self.manager
         self.dispatcher_shutdown.set()
         self.dispatcher_thread.join()
         self.manager.shutdown()

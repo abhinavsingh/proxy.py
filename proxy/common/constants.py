@@ -26,7 +26,7 @@ def _env_threadless_compliant() -> bool:
     except Windows."""
     if os.name == 'nt':
         return False
-    return sys.version_info.major >= 3 and sys.version_info.minor >= 8
+    return sys.version_info >= (3, 8)
 
 
 PROXY_PY_START_TIME = time.time()
