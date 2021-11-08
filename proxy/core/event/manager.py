@@ -12,7 +12,7 @@ import logging
 import threading
 import multiprocessing
 
-from typing import Optional, List, Optional, Type
+from typing import Optional, Type
 from types import TracebackType
 
 from .queue import EventQueue
