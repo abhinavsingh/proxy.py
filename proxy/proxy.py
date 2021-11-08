@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
 import sys
 import time
 import logging
@@ -18,7 +17,6 @@ from typing import List, Optional, Any, Type
 
 from proxy.core.acceptor.work import Work
 
-from .common.utils import bytes_
 from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 from .core.event import EventManager
