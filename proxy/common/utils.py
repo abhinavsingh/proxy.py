@@ -185,6 +185,7 @@ def wrap_socket(
     conn: socket.socket, keyfile: str,
     certfile: str,
 ) -> ssl.SSLSocket:
+    """Use this to upgrade server_side socket to TLS."""
     ctx = ssl.create_default_context(
         ssl.Purpose.CLIENT_AUTH,
     )
@@ -201,7 +202,9 @@ def wrap_socket(
 
 
 def new_socket_connection(
-        addr: Tuple[str, int], timeout: float = DEFAULT_TIMEOUT, source_address: Optional[Tuple[str, int]] = None,
+        addr: Tuple[str, int],
+        timeout: float = DEFAULT_TIMEOUT,
+        source_address: Optional[Tuple[str, int]] = None,
 ) -> socket.socket:
     conn = None
     try:

@@ -19,7 +19,7 @@ from proxy.common.plugins import Plugins
 from proxy.common.flag import FlagParser
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
-from proxy.http.parser import httpParserStates
+from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
 from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
 from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
 from proxy.http.server import HttpWebServerPlugin
@@ -137,10 +137,6 @@ class TestWebServerPlugin(unittest.TestCase):
             HttpWebServerPlugin.DEFAULT_404_RESPONSE,
         )
 
-    @unittest.skipIf(
-        os.environ.get('GITHUB_ACTIONS', 'false') == 'true',
-        'Disabled on GitHub actions because this test is flaky on GitHub infrastructure.',
-    )
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
     def test_static_web_server_serves(
@@ -202,18 +198,21 @@ class TestWebServerPlugin(unittest.TestCase):
         self.assertEqual(mock_selector.return_value.select.call_count, 2)
         self.assertEqual(self._conn.send.call_count, 1)
         encoded_html_file_content = gzip.compress(html_file_content)
+
+        # parse response and verify
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        response.parse(self._conn.send.call_args[0][0])
+        self.assertEqual(response.code, b'200')
+        self.assertEqual(response.header(b'content-type'), b'text/html')
+        self.assertEqual(response.header(b'cache-control'), b'max-age=86400')
+        self.assertEqual(response.header(b'content-encoding'), b'gzip')
+        self.assertEqual(response.header(b'connection'), b'close')
         self.assertEqual(
-            self._conn.send.call_args[0][0], build_http_response(
-                200, reason=b'OK', headers={
-                    b'Content-Type': b'text/html',
-                    b'Cache-Control': b'max-age=86400',
-                    b'Content-Encoding': b'gzip',
-                    b'Connection': b'close',
-                    b'Content-Length': bytes_(len(encoded_html_file_content)),
-                },
-                body=encoded_html_file_content,
-            ),
+            response.header(b'content-length'),
+            bytes_(len(encoded_html_file_content)),
         )
+        assert response.body
+        self.assertEqual(gzip.decompress(response.body), html_file_content)
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
