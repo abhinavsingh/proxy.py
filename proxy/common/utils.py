@@ -9,13 +9,10 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import abc
 import sys
 import ssl
 import socket
 import logging
-import inspect
-import importlib
 import functools
 import ipaddress
 import contextlib
@@ -24,7 +21,6 @@ from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable, Union
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
-from .constants import DOT, DEFAULT_ABC_PLUGINS
 
 if os.name != 'nt':
     import resource
@@ -260,63 +256,6 @@ def get_available_port() -> int:
         sock.bind(('', 0))
         _, port = sock.getsockname()
     return int(port)
-
-
-def discover_plugins(input_args: Optional[List[str]]) -> None:
-    for i, f in enumerate(input_args):
-        if f in ('--plugin', '--plugins'):
-            v = input_args[i + 1]
-            if type(v) == str:
-                parts = v.split(',')
-                for part in parts:
-                    import_plugin(bytes_(part))
-            else:
-                import_plugin(bytes_(v))
-
-
-def load_plugins(
-    plugins: List[Union[bytes, type]],
-    abc_plugins: List[bytes] = DEFAULT_ABC_PLUGINS,
-) -> Dict[bytes, List[type]]:
-    """Accepts a list Python modules, scans them to identify
-    if they are an implementation of abstract plugin classes and
-    returns a dictionary of matching plugins for each abstract class.
-    """
-    p: Dict[bytes, List[type]] = {}
-    for abc_plugin in abc_plugins:
-        p[bytes_(abc_plugin)] = []
-    for plugin_ in plugins:
-        klass, module_name = import_plugin(plugin_)
-        assert klass and module_name
-        mro = list(inspect.getmro(klass))
-        mro.reverse()
-        iterator = iter(mro)
-        while next(iterator) is not abc.ABC:
-            pass
-        base_klass = next(iterator)
-        if klass not in p[bytes_(base_klass.__name__)]:
-            p[bytes_(base_klass.__name__)].append(klass)
-        logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
-    return p
-
-
-def import_plugin(plugin: Union[bytes, type]) -> Any:
-    if isinstance(plugin, type):
-        module_name = '__main__'
-        klass = plugin
-    else:
-        plugin_ = text_(plugin.strip())
-        assert plugin_ != ''
-        module_name, klass_name = plugin_.rsplit(text_(DOT), 1)
-        klass = getattr(
-            importlib.import_module(
-                module_name.replace(
-                    os.path.sep, text_(DOT),
-                ),
-            ),
-            klass_name,
-        )
-    return (klass, module_name)
 
 
 def set_open_file_limit(soft_limit: int) -> None:

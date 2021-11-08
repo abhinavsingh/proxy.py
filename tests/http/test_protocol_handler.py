@@ -15,9 +15,10 @@ import base64
 from typing import cast
 from unittest import mock
 
+from proxy.common.plugins import Plugins
 from proxy.common.flag import FlagParser
 from proxy.common.version import __version__
-from proxy.common.utils import bytes_, load_plugins
+from proxy.common.utils import bytes_
 from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER
 from proxy.core.connection import TcpClientConnection
 from proxy.http.parser import HttpParser
@@ -42,7 +43,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
 
         self.http_server_port = 65535
         self.flags = FlagParser.initialize()
-        self.flags.plugins = load_plugins([
+        self.flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -215,7 +216,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = FlagParser.initialize(
             auth_code=base64.b64encode(b'user:pass'),
         )
-        flags.plugins = load_plugins([
+        flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
             bytes_(PLUGIN_PROXY_AUTH),
@@ -253,7 +254,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = FlagParser.initialize(
             auth_code=base64.b64encode(b'user:pass'),
         )
-        flags.plugins = load_plugins([
+        flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -308,7 +309,7 @@ class TestHttpProtocolHandler(unittest.TestCase):
         flags = FlagParser.initialize(
             auth_code=base64.b64encode(b'user:pass'),
         )
-        flags.plugins = load_plugins([
+        flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])

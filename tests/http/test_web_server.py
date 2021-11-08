@@ -15,11 +15,12 @@ import unittest
 import selectors
 from unittest import mock
 
+from proxy.common.plugins import Plugins
 from proxy.common.flag import FlagParser
 from proxy.core.connection import TcpClientConnection
 from proxy.http.handler import HttpProtocolHandler
 from proxy.http.parser import httpParserStates
-from proxy.common.utils import build_http_response, build_http_request, bytes_, text_, load_plugins
+from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
 from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
 from proxy.http.server import HttpWebServerPlugin
 
@@ -34,7 +35,7 @@ class TestWebServerPlugin(unittest.TestCase):
         self._conn = mock_fromfd.return_value
         self.mock_selector = mock_selector
         self.flags = FlagParser.initialize()
-        self.flags.plugins = load_plugins([
+        self.flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -113,7 +114,7 @@ class TestWebServerPlugin(unittest.TestCase):
             ),
         ]
         flags = FlagParser.initialize()
-        flags.plugins = load_plugins([
+        flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -183,7 +184,7 @@ class TestWebServerPlugin(unittest.TestCase):
             enable_static_server=True,
             static_server_dir=static_server_dir,
         )
-        flags.plugins = load_plugins([
+        flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -247,7 +248,7 @@ class TestWebServerPlugin(unittest.TestCase):
         ]
 
         flags = FlagParser.initialize(enable_static_server=True)
-        flags.plugins = load_plugins([
+        flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
         ])
@@ -290,7 +291,7 @@ class TestWebServerPlugin(unittest.TestCase):
 
     def init_and_make_pac_file_request(self, pac_file: str) -> None:
         flags = FlagParser.initialize(pac_file=pac_file)
-        flags.plugins = load_plugins([
+        flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
             bytes_(PLUGIN_PAC_FILE),

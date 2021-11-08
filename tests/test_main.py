@@ -145,7 +145,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.common.flag.load_plugins')
+    @mock.patch('proxy.common.plugins.Plugins.load')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
@@ -181,7 +181,7 @@ class TestMain(unittest.TestCase):
         mock_event_manager.return_value.stop_event_dispatcher.assert_called_once()
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.common.flag.load_plugins')
+    @mock.patch('proxy.common.plugins.Plugins.load')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')

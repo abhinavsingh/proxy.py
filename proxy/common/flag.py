@@ -19,9 +19,9 @@ import multiprocessing
 
 from typing import Optional, List, Any, cast
 
+from .plugins import Plugins
 from .types import IpAddress
 from .utils import text_, bytes_, is_py2, set_open_file_limit
-from .utils import discover_plugins, load_plugins
 from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
@@ -97,7 +97,7 @@ class FlagParser:
         # Discover flags from requested plugin.
         # This will also surface external plugin flags
         # under --help.
-        discover_plugins(input_args)
+        Plugins.discover(input_args)
 
         # Parse flags
         args = flags.parse_args(input_args)
@@ -125,7 +125,7 @@ class FlagParser:
         ]
 
         # Load default plugins along with user provided --plugins
-        plugins = load_plugins(default_plugins + extra_plugins)
+        plugins = Plugins.load(default_plugins + extra_plugins)
 
         # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
