@@ -1603,16 +1603,13 @@ Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 ## Threads vs Threadless
 
-Pre v2.x, `proxy.py` used to spawn new threads for handling
-client requests.
+Pre v2.x, `proxy.py` used to spawn new threads for handling client requests.
 
-Starting v2.x, `proxy.py` added support for threadless execution of
-client requests using `asyncio`.
+Starting v2.x, `proxy.py` added support for threadless execution of client requests using `asyncio`.
 
-In future, threadless execution will be the default mode.
+Starting v2.4.0, threadless execution was made as default mode on `Python 3.8+` for `mac` and `linux` environments.  `proxy.py` threadless execution has been reported safe on these environments by our users.  If you are running into trouble, fallback to threaded mode using `--threaded` flag.
 
-Till then if you are interested in trying it out,
-start `proxy.py` with `--threadless` flag.
+For `windows` and `Python < 3.8`, you can still try out threadless mode by starting `proxy.py` with `--threadless` flag.  If threadless works for you, consider sending a PR by editing `_env_threadless_compliant` method in the `proxy/common/constants.py` file.
 
 ## SyntaxError: invalid syntax
 

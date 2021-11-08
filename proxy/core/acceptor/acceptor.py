@@ -27,6 +27,7 @@ from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 from ...common.constants import DEFAULT_THREADLESS
 from ...common.flag import flags
+from ...common.utils import is_threadless
 from ...common.logger import Logger
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,16 @@ flags.add_argument(
     help='Default: ' + ('True' if DEFAULT_THREADLESS else 'False') + '.  ' +
     'Enabled by default on Python 3.8+ (mac, linux).  ' +
     'When disabled a new thread is spawned '
+    'to handle each client connection.',
+)
+
+flags.add_argument(
+    '--threaded',
+    action='store_true',
+    default=not DEFAULT_THREADLESS,
+    help='Default: ' + ('True' if not DEFAULT_THREADLESS else 'False') + '.  ' +
+    'Disabled by default on Python < 3.8 and windows.  ' +
+    'When enabled a new thread is spawned '
     'to handle each client connection.',
 )
 
@@ -152,7 +163,7 @@ class Acceptor(multiprocessing.Process):
             conn, addr = self.sock.accept()
         addr = None if addr == '' else addr
         if (
-                self.flags.threadless and
+                is_threadless(self.flags.threadless, self.flags.threaded) and
                 self.threadless_client_queue and
                 self.threadless_process
         ):
@@ -175,7 +186,7 @@ class Acceptor(multiprocessing.Process):
         )
         try:
             self.selector.register(self.sock, selectors.EVENT_READ)
-            if self.flags.threadless:
+            if is_threadless(self.flags.threadless, self.flags.threaded):
                 self.start_threadless_process()
             while not self.running.is_set():
                 self.run_once()
@@ -183,7 +194,7 @@ class Acceptor(multiprocessing.Process):
             pass
         finally:
             self.selector.unregister(self.sock)
-            if self.flags.threadless:
+            if is_threadless(self.flags.threadless, self.flags.threaded):
                 self.shutdown_threadless_process()
             self.sock.close()
             logger.debug('Acceptor#%d shutdown', self.idd)

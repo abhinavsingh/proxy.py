@@ -23,7 +23,7 @@ from .parser import HttpParser, httpParserStates, httpParserTypes
 from .exception import HttpProtocolException
 
 from ..common.types import Readables, Writables
-from ..common.utils import wrap_socket
+from ..common.utils import wrap_socket, is_threadless
 from ..core.base import BaseTcpServerHandler
 from ..core.connection import TcpClientConnection
 from ..common.flag import flags
@@ -78,7 +78,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         self.request: HttpParser = HttpParser(httpParserTypes.REQUEST_PARSER)
         self.response: HttpParser = HttpParser(httpParserTypes.RESPONSE_PARSER)
         self.selector: Optional[selectors.DefaultSelector] = None
-        if not self.flags.threadless:
+        if not is_threadless(self.flags.threadless, self.flags.threaded):
             self.selector = selectors.DefaultSelector()
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 

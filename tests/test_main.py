@@ -58,6 +58,7 @@ class TestMain(unittest.TestCase):
         mock_args.devtools_ws_path = DEFAULT_DEVTOOLS_WS_PATH
         mock_args.timeout = DEFAULT_TIMEOUT
         mock_args.threadless = DEFAULT_THREADLESS
+        mock_args.threaded = not DEFAULT_THREADLESS
         mock_args.enable_web_server = DEFAULT_ENABLE_WEB_SERVER
         mock_args.enable_static_server = DEFAULT_ENABLE_STATIC_SERVER
         mock_args.enable_devtools = DEFAULT_ENABLE_DEVTOOLS

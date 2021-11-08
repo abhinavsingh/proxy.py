@@ -13,6 +13,7 @@ import sys
 import ssl
 import socket
 import logging
+import argparse
 import functools
 import ipaddress
 import contextlib
@@ -20,12 +21,21 @@ import contextlib
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
-from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
+from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT, DEFAULT_THREADLESS
 
 if os.name != 'nt':
     import resource
 
 logger = logging.getLogger(__name__)
+
+
+def is_threadless(threadless: bool, threaded: bool) -> bool:
+    # if default is threadless then return true unless
+    # user has overridden mode using threaded flag.
+    #
+    # if default is not threadless then return true
+    # only if user has overridden using --threadless flag
+    return (DEFAULT_THREADLESS and not threaded) and threadless
 
 
 def is_py2() -> bool:
