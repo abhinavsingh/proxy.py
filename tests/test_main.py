@@ -32,10 +32,6 @@ from proxy.common.constants import PLUGIN_HTTP_PROXY
 from proxy.common.version import __version__
 
 
-def get_temp_file(name: str) -> str:
-    return os.path.join(tempfile.gettempdir(), name)
-
-
 class TestMain(unittest.TestCase):
 
     @staticmethod
@@ -229,7 +225,7 @@ class TestMain(unittest.TestCase):
             mock_remove: mock.Mock,
             mock_sleep: mock.Mock,
     ) -> None:
-        pid_file = get_temp_file('pid')
+        pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)

@@ -14,7 +14,7 @@ import logging
 import inspect
 import importlib
 
-from typing import Any, List, Dict, Union
+from typing import Any, List, Dict, Optional, Union
 
 from .utils import bytes_, text_
 from .constants import DOT, DEFAULT_ABC_PLUGINS
@@ -40,14 +40,14 @@ class Plugins:
     @staticmethod
     def load(
         plugins: List[Union[bytes, type]],
-        abc_plugins: List[str] = DEFAULT_ABC_PLUGINS,
+        abc_plugins: Optional[List[str]] = None,
     ) -> Dict[bytes, List[type]]:
         """Accepts a list Python modules, scans them to identify
         if they are an implementation of abstract plugin classes and
         returns a dictionary of matching plugins for each abstract class.
         """
         p: Dict[bytes, List[type]] = {}
-        for abc_plugin in abc_plugins:
+        for abc_plugin in (abc_plugins or DEFAULT_ABC_PLUGINS):
             p[bytes_(abc_plugin)] = []
         for plugin_ in plugins:
             klass, module_name = Plugins.importer(plugin_)
