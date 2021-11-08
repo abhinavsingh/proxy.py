@@ -9,8 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import unittest
-import tempfile
-import os
 
 from unittest import mock
 
@@ -207,40 +205,6 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called()
         # Currently --enable-devtools alone doesn't enable eventing core
         mock_event_manager.assert_not_called()
-
-    @mock.patch('time.sleep')
-    @mock.patch('os.remove')
-    @mock.patch('os.path.exists')
-    @mock.patch('builtins.open')
-    @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.common.flag.FlagParser.parse_args')
-    def test_pid_file_is_written_and_removed(
-            self,
-            mock_parse_args: mock.Mock,
-            mock_acceptor_pool: mock.Mock,
-            mock_event_manager: mock.Mock,
-            mock_open: mock.Mock,
-            mock_exists: mock.Mock,
-            mock_remove: mock.Mock,
-            mock_sleep: mock.Mock,
-    ) -> None:
-        pid_file = os.path.join(tempfile.gettempdir(), 'pid')
-        mock_sleep.side_effect = KeyboardInterrupt()
-        mock_args = mock_parse_args.return_value
-        self.mock_default_args(mock_args)
-        mock_args.pid_file = pid_file
-        main(['--pid-file', pid_file])
-        mock_parse_args.assert_called_once()
-        mock_acceptor_pool.assert_called()
-        mock_acceptor_pool.return_value.setup.assert_called()
-        mock_event_manager.assert_not_called()
-        mock_open.assert_called_with(pid_file, 'wb')
-        mock_open.return_value.__enter__.return_value.write.assert_called_with(
-            bytes_(os.getpid()),
-        )
-        mock_exists.assert_called_with(pid_file)
-        mock_remove.assert_called_with(pid_file)
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.EventManager')

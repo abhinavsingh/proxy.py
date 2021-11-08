@@ -93,15 +93,14 @@ flags.add_argument(
 
 
 class Proxy:
-    """Context manager to control core AcceptorPool server lifecycle.
+    """Context manager to control AcceptorPool & Eventing core lifecycle.
 
-    By default, AcceptorPool is started with HttpProtocolHandler worker class
-    i.e. we are only expecting HTTP traffic to flow between clients and server.
+    By default, AcceptorPool is started with `HttpProtocolHandler` work class.
+    By definition, it expects HTTP traffic to flow between clients and server.
 
-    Optionally, also initialize a global event queue.
-    It is a multiprocess safe queue which can be used to
-    build pubsub patterns for message sharing or signaling
-    within the running proxy environment.
+    Optionally, it also initializes the eventing core, a multiprocess safe
+    pubsub system queue which can be used to build various patterns
+    for message sharing and/or signaling.
     """
 
     def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
@@ -112,17 +111,6 @@ class Proxy:
         # of default HttpProtocolHandler.
         self.work_klass: Type[Work] = HttpProtocolHandler
         self.event_manager: Optional[EventManager] = None
-
-    def write_pid_file(self) -> None:
-        if self.flags.pid_file is not None:
-            # TODO(abhinavsingh): Multiple instances of proxy.py running on
-            # same host machine will currently result in overwriting the PID file
-            with open(self.flags.pid_file, 'wb') as pid_file:
-                pid_file.write(bytes_(os.getpid()))
-
-    def delete_pid_file(self) -> None:
-        if self.flags.pid_file and os.path.exists(self.flags.pid_file):
-            os.remove(self.flags.pid_file)
 
     def __enter__(self) -> 'Proxy':
         if self.flags.enable_events:
@@ -135,7 +123,6 @@ class Proxy:
             event_queue=self.event_manager.event_queue if self.event_manager is not None else None,
         )
         self.pool.setup()
-        self.write_pid_file()
         return self
 
     def __exit__(
@@ -149,7 +136,6 @@ class Proxy:
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.stop_event_dispatcher()
-        self.delete_pid_file()
 
 
 def main(

@@ -8,16 +8,23 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
+import os
 import socket
+import tempfile
+import unittest
+
 from unittest import mock
 
+from proxy.common.utils import bytes_
 from proxy.common.flag import FlagParser
 from proxy.core.acceptor import AcceptorPool
 
 
 class TestAcceptorPool(unittest.TestCase):
 
+    @mock.patch('os.remove')
+    @mock.patch('os.path.exists')
+    @mock.patch('builtins.open')
     @mock.patch('proxy.core.acceptor.pool.send_handle')
     @mock.patch('multiprocessing.Pipe')
     @mock.patch('socket.socket')
@@ -28,15 +35,19 @@ class TestAcceptorPool(unittest.TestCase):
             mock_socket: mock.Mock,
             mock_pipe: mock.Mock,
             mock_send_handle: mock.Mock,
+            mock_open: mock.Mock,
+            mock_exists: mock.Mock,
+            mock_remove: mock.Mock,
     ) -> None:
         acceptor1 = mock.MagicMock()
         acceptor2 = mock.MagicMock()
         mock_acceptor.side_effect = [acceptor1, acceptor2]
 
         num_workers = 2
+        pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         sock = mock_socket.return_value
         work_klass = mock.MagicMock()
-        flags = FlagParser.initialize(num_workers=2)
+        flags = FlagParser.initialize(num_workers=2, pid_file=pid_file)
 
         pool = AcceptorPool(flags=flags, work_klass=work_klass)
         pool.setup()
@@ -66,5 +77,13 @@ class TestAcceptorPool(unittest.TestCase):
         sock.close.assert_called()
 
         pool.shutdown()
+
+        mock_open.assert_called_with(pid_file, 'wb')
+        mock_open.return_value.__enter__.return_value.write.assert_called_with(
+            bytes_(os.getpid()),
+        )
+        mock_exists.assert_called_with(pid_file)
+        mock_remove.assert_called_with(pid_file)
+
         acceptor1.join.assert_called()
         acceptor2.join.assert_called()
