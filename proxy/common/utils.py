@@ -262,6 +262,18 @@ def get_available_port() -> int:
     return int(port)
 
 
+def discover_plugins(input_args: Optional[List[str]]) -> None:
+    for i, f in enumerate(input_args):
+        if f in ('--plugin', '--plugins'):
+            v = input_args[i + 1]
+            if type(v) == str:
+                parts = v.split(',')
+                for part in parts:
+                    import_plugin(bytes_(part))
+            else:
+                import_plugin(bytes_(v))
+
+
 def load_plugins(
     plugins: List[Union[bytes, type]],
     abc_plugins: List[bytes] = DEFAULT_ABC_PLUGINS,

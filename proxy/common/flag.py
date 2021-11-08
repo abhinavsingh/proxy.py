@@ -21,7 +21,7 @@ from typing import Optional, List, Any, cast
 
 from .types import IpAddress
 from .utils import text_, bytes_, is_py2, set_open_file_limit
-from .utils import import_plugin, load_plugins
+from .utils import discover_plugins, load_plugins
 from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
@@ -97,12 +97,7 @@ class FlagParser:
         # Discover flags from requested plugin.
         # This will also surface external plugin flags
         # under --help.
-        #
-        # TODO: --plugin(s) can either be a comma separated
-        # list of plugins or could be a list of plugins.
-        for i, f in enumerate(input_args):
-            if f in ('--plugin', '--plugins'):
-                import_plugin(bytes_(input_args[i + 1]))
+        discover_plugins(input_args)
 
         # Parse flags
         args = flags.parse_args(input_args)
