@@ -34,7 +34,7 @@ def is_threadless(threadless: bool, threaded: bool) -> bool:
     #
     # if default is not threadless then return true
     # only if user has overridden using --threadless flag
-    return (DEFAULT_THREADLESS and not threaded) and threadless
+    return (DEFAULT_THREADLESS and not threaded) or (not DEFAULT_THREADLESS and threadless)
 
 
 def is_py2() -> bool:

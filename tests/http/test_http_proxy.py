@@ -35,7 +35,7 @@ class TestHttpProxyPlugin(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = FlagParser.initialize()
+        self.flags = FlagParser.initialize(threaded=True)
         self.plugin = mock.MagicMock()
         self.flags.plugins = {
             b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],

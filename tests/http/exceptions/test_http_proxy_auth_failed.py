@@ -33,7 +33,9 @@ class TestHttpProxyAuthFailed(unittest.TestCase):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self.flags = FlagParser.initialize(["--basic-auth", "user:pass"])
+        self.flags = FlagParser.initialize(
+            ["--basic-auth", "user:pass"], threaded=True,
+        )
         self._conn = mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),

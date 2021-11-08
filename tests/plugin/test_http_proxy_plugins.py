@@ -49,6 +49,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 "--filtered-url-regex-config",
                 str(adblock_json_path),
             ],
+            threaded=True,
         )
         self.plugin = mock.MagicMock()
 

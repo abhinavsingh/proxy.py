@@ -47,7 +47,9 @@ class TestAcceptorPool(unittest.TestCase):
         pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         sock = mock_socket.return_value
         work_klass = mock.MagicMock()
-        flags = FlagParser.initialize(num_workers=2, pid_file=pid_file)
+        flags = FlagParser.initialize(
+            num_workers=2, pid_file=pid_file, threaded=True,
+        )
 
         pool = AcceptorPool(flags=flags, work_klass=work_klass)
         pool.setup()
