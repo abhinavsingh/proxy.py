@@ -27,7 +27,7 @@ from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 from ...common.constants import DEFAULT_THREADLESS
 from ...common.flag import flags
-from ...common.utils import setup_logger
+from ...common.logger import Logger
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ class Acceptor(multiprocessing.Process):
             self._start_threaded_work(conn, addr)
 
     def run(self) -> None:
-        setup_logger(
+        Logger.setup_logger(
             self.flags.log_file, self.flags.log_level,
             self.flags.log_format,
         )

@@ -25,6 +25,7 @@ from .core.event import EventManager
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
+from .common.constants import DEFAULT_ENABLE_DASHBOARD
 
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,20 @@ flags.add_argument(
     type=str,
     default=DEFAULT_PLUGINS,
     help='Comma separated plugins',
+)
+
+# TODO: Ideally all `--enable-*` flags must be at the top-level.
+# --enable-dashboard is specially needed here because
+# ProxyDashboard class is not imported by anyone.
+#
+# If we move this flag definition within dashboard.py,
+# users will also have to explicitly enable dashboard plugin
+# to also use flags provided by it.
+flags.add_argument(
+    '--enable-dashboard',
+    action='store_true',
+    default=DEFAULT_ENABLE_DASHBOARD,
+    help='Default: False.  Enables proxy.py dashboard.',
 )
 
 

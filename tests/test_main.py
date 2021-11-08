@@ -27,11 +27,9 @@ from proxy.common.constants import DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DE
 from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT, DEFAULT_BASIC_AUTH
 from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, PY2_DEPRECATION_MESSAGE
+from proxy.common.constants import PLUGIN_INSPECT_TRAFFIC, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEB_SERVER
+from proxy.common.constants import PLUGIN_HTTP_PROXY
 from proxy.common.version import __version__
-
-
-def get_temp_file(name: str) -> str:
-    return os.path.join(tempfile.gettempdir(), name)
 
 
 class TestMain(unittest.TestCase):
@@ -143,7 +141,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.common.flag.load_plugins')
+    @mock.patch('proxy.common.plugins.Plugins.load')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
@@ -163,11 +161,11 @@ class TestMain(unittest.TestCase):
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
-                b'proxy.http.server.HttpWebServerPlugin',
-                b'proxy.dashboard.dashboard.ProxyDashboard',
-                b'proxy.dashboard.inspect_traffic.InspectTrafficPlugin',
-                b'proxy.http.inspector.DevtoolsProtocolPlugin',
-                b'proxy.http.proxy.HttpProxyPlugin',
+                bytes_(PLUGIN_WEB_SERVER),
+                bytes_(PLUGIN_DASHBOARD),
+                bytes_(PLUGIN_INSPECT_TRAFFIC),
+                bytes_(PLUGIN_DEVTOOLS_PROTOCOL),
+                bytes_(PLUGIN_HTTP_PROXY),
             ],
         )
         mock_parse_args.assert_called_once()
@@ -179,7 +177,7 @@ class TestMain(unittest.TestCase):
         mock_event_manager.return_value.stop_event_dispatcher.assert_called_once()
 
     @mock.patch('time.sleep')
-    @mock.patch('proxy.common.flag.load_plugins')
+    @mock.patch('proxy.common.plugins.Plugins.load')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
@@ -199,9 +197,9 @@ class TestMain(unittest.TestCase):
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
-                b'proxy.http.inspector.DevtoolsProtocolPlugin',
-                b'proxy.http.server.HttpWebServerPlugin',
-                b'proxy.http.proxy.HttpProxyPlugin',
+                bytes_(PLUGIN_DEVTOOLS_PROTOCOL),
+                bytes_(PLUGIN_WEB_SERVER),
+                bytes_(PLUGIN_HTTP_PROXY),
             ],
         )
         mock_parse_args.assert_called_once()
@@ -227,7 +225,7 @@ class TestMain(unittest.TestCase):
             mock_remove: mock.Mock,
             mock_sleep: mock.Mock,
     ) -> None:
-        pid_file = get_temp_file('pid')
+        pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)

@@ -19,14 +19,15 @@ import multiprocessing
 
 from typing import Optional, List, Any, cast
 
+from .plugins import Plugins
 from .types import IpAddress
-from .utils import text_, bytes_, setup_logger, is_py2, set_open_file_limit
-from .utils import import_plugin, load_plugins
+from .utils import text_, bytes_, is_py2, set_open_file_limit
 from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
 from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
 from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
+from .logger import Logger
 
 from .version import __version__
 
@@ -94,10 +95,9 @@ class FlagParser:
             sys.exit(1)
 
         # Discover flags from requested plugin.
-        # This also surface external plugin flags under --help
-        for i, f in enumerate(input_args):
-            if f == '--plugin':
-                import_plugin(bytes_(input_args[i + 1]))
+        # This will also surface external plugin flags
+        # under --help.
+        Plugins.discover(input_args)
 
         # Parse flags
         args = flags.parse_args(input_args)
@@ -108,7 +108,7 @@ class FlagParser:
             sys.exit(0)
 
         # Setup logging module
-        setup_logger(args.log_file, args.log_level, args.log_format)
+        Logger.setup_logger(args.log_file, args.log_level, args.log_format)
 
         # Setup limits
         set_open_file_limit(args.open_file_limit)
@@ -125,7 +125,7 @@ class FlagParser:
         ]
 
         # Load default plugins along with user provided --plugins
-        plugins = load_plugins(default_plugins + extra_plugins)
+        plugins = Plugins.load(default_plugins + extra_plugins)
 
         # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature

@@ -9,23 +9,18 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import abc
 import sys
 import ssl
 import socket
 import logging
-import inspect
-import importlib
 import functools
 import ipaddress
 import contextlib
 
 from types import TracebackType
-from typing import Optional, Dict, Any, List, Tuple, Type, Callable, Union
+from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
-from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
-from .constants import DOT
 
 if os.name != 'nt':
     import resource
@@ -261,77 +256,6 @@ def get_available_port() -> int:
         sock.bind(('', 0))
         _, port = sock.getsockname()
     return int(port)
-
-
-def setup_logger(
-        log_file: Optional[str] = DEFAULT_LOG_FILE,
-        log_level: str = DEFAULT_LOG_LEVEL,
-        log_format: str = DEFAULT_LOG_FORMAT,
-) -> None:
-    ll = getattr(
-        logging,
-        {
-            'D': 'DEBUG',
-            'I': 'INFO',
-            'W': 'WARNING',
-            'E': 'ERROR',
-            'C': 'CRITICAL',
-        }[log_level.upper()[0]],
-    )
-    if log_file:
-        logging.basicConfig(
-            filename=log_file,
-            filemode='a',
-            level=ll,
-            format=log_format,
-        )
-    else:
-        logging.basicConfig(level=ll, format=log_format)
-
-
-def load_plugins(
-    plugins: List[Union[bytes, type]],
-) -> Dict[bytes, List[type]]:
-    """Accepts a comma separated list of Python modules and returns
-    a list of respective Python classes."""
-    p: Dict[bytes, List[type]] = {
-        b'HttpProtocolHandlerPlugin': [],
-        b'HttpProxyBasePlugin': [],
-        b'HttpWebServerBasePlugin': [],
-        b'ProxyDashboardWebsocketPlugin': [],
-    }
-    for plugin_ in plugins:
-        klass, module_name = import_plugin(plugin_)
-        assert klass and module_name
-        mro = list(inspect.getmro(klass))
-        mro.reverse()
-        iterator = iter(mro)
-        while next(iterator) is not abc.ABC:
-            pass
-        base_klass = next(iterator)
-        if klass not in p[bytes_(base_klass.__name__)]:
-            p[bytes_(base_klass.__name__)].append(klass)
-        logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
-    return p
-
-
-def import_plugin(plugin: Union[bytes, type]) -> Any:
-    if isinstance(plugin, type):
-        module_name = '__main__'
-        klass = plugin
-    else:
-        plugin_ = text_(plugin.strip())
-        assert plugin_ != ''
-        module_name, klass_name = plugin_.rsplit(text_(DOT), 1)
-        klass = getattr(
-            importlib.import_module(
-                module_name.replace(
-                    os.path.sep, text_(DOT),
-                ),
-            ),
-            klass_name,
-        )
-    return (klass, module_name)
 
 
 def set_open_file_limit(soft_limit: int) -> None:

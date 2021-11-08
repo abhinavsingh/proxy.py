@@ -26,7 +26,7 @@ from .work import Work
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 
-from ...common.utils import setup_logger
+from ...common.logger import Logger
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_TIMEOUT
 
@@ -204,7 +204,7 @@ class Threadless(multiprocessing.Process):
         self.cleanup_inactive()
 
     def run(self) -> None:
-        setup_logger(
+        Logger.setup_logger(
             self.flags.log_file, self.flags.log_level,
             self.flags.log_format,
         )
