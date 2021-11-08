@@ -13,7 +13,6 @@ import sys
 import ssl
 import socket
 import logging
-import argparse
 import functools
 import ipaddress
 import contextlib
