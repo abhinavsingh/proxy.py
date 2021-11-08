@@ -100,6 +100,12 @@ DEFAULT_DEVTOOLS_LOADER_ID = secrets.token_hex(8)
 DEFAULT_DATA_DIRECTORY_PATH = os.path.join(str(pathlib.Path.home()), '.proxy')
 
 # Cor plugins enabled by default or via flags
+DEFAULT_ABC_PLUGINS = [
+    'HttpProtocolHandlerPlugin',
+    'HttpProxyBasePlugin',
+    'HttpWebServerBasePlugin',
+    'ProxyDashboardWebsocketPlugin',
+]
 PLUGIN_HTTP_PROXY = 'proxy.http.proxy.HttpProxyPlugin'
 PLUGIN_WEB_SERVER = 'proxy.http.server.HttpWebServerPlugin'
 PLUGIN_PAC_FILE = 'proxy.http.server.HttpWebServerPacFilePlugin'

@@ -25,7 +25,7 @@ from typing import Optional, Dict, Any, List, Tuple, Type, Callable, Union
 
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
 from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
-from .constants import DOT
+from .constants import DOT, DEFAULT_ABC_PLUGINS
 
 if os.name != 'nt':
     import resource
@@ -291,15 +291,15 @@ def setup_logger(
 
 def load_plugins(
     plugins: List[Union[bytes, type]],
+    abc_plugins: List[bytes] = DEFAULT_ABC_PLUGINS,
 ) -> Dict[bytes, List[type]]:
-    """Accepts a comma separated list of Python modules and returns
-    a list of respective Python classes."""
-    p: Dict[bytes, List[type]] = {
-        b'HttpProtocolHandlerPlugin': [],
-        b'HttpProxyBasePlugin': [],
-        b'HttpWebServerBasePlugin': [],
-        b'ProxyDashboardWebsocketPlugin': [],
-    }
+    """Accepts a list Python modules, scans them to identify
+    if they are an implementation of abstract plugin classes and
+    returns a dictionary of matching plugins for each abstract class.
+    """
+    p: Dict[bytes, List[type]] = {}
+    for abc_plugin in abc_plugins:
+        p[bytes_(abc_plugin)] = []
     for plugin_ in plugins:
         klass, module_name = import_plugin(plugin_)
         assert klass and module_name
