@@ -200,7 +200,7 @@ class TestWebServerPlugin(unittest.TestCase):
         encoded_html_file_content = gzip.compress(html_file_content)
 
         # parse response and verify
-        response = HttpParser(httpParserTypes)
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         response.parse(self._conn.send.call_args[0][0])
         self.assertEqual(response.code, b'200')
         self.assertEqual(response.header(b'content-type'), b'text/html')
@@ -211,6 +211,7 @@ class TestWebServerPlugin(unittest.TestCase):
             response.header(b'content-length'),
             bytes_(len(encoded_html_file_content)),
         )
+        assert response.body
         self.assertEqual(gzip.decompress(response.body), html_file_content)
 
     @mock.patch('selectors.DefaultSelector')
