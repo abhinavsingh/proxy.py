@@ -126,7 +126,7 @@ class FlagParser:
 
         # Load work_klass
         work_klass = opts.get('work_klass', args.work_klass)
-        work_klass = Plugins.importer(work_klass)[0] \
+        work_klass = Plugins.importer(bytes_(work_klass))[0] \
             if isinstance(work_klass, str) \
             else work_klass
 

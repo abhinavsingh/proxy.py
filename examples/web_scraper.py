@@ -14,7 +14,6 @@ import socket
 from typing import Dict
 
 from proxy import Proxy
-from proxy.common.flag import FlagParser
 from proxy.core.acceptor import Work
 from proxy.common.types import Readables, Writables
 

@@ -12,7 +12,6 @@ import time
 from typing import Optional
 
 from proxy import Proxy
-from proxy.common.flag import FlagParser
 from proxy.core.base import BaseTcpServerHandler
 
 

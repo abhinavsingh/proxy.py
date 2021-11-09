@@ -20,7 +20,6 @@ from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
 from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS
-from .common.context_managers import SetupShutdownContextManager
 
 
 logger = logging.getLogger(__name__)
@@ -95,7 +94,7 @@ flags.add_argument(
 )
 
 
-class Proxy(SetupShutdownContextManager):
+class Proxy:
     """Context manager to control AcceptorPool, ExecutorPool & EventingCore lifecycle.
 
     By default, AcceptorPool is started with `HttpProtocolHandler` work class.
@@ -111,6 +110,13 @@ class Proxy(SetupShutdownContextManager):
         self.acceptors: Optional[AcceptorPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.event_manager: Optional[EventManager] = None
+
+    def __enter__(self) -> 'Proxy':
+        self.setup()
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.shutdown()
 
     def setup(self) -> None:
         # TODO: Introduce cron feature
