@@ -1,6 +1,9 @@
 FROM python:3.10-alpine as base
+RUN apk add git
+
 FROM base as builder
 
+COPY .git /app/.git
 COPY requirements.txt /app/
 COPY pyproject.toml /app/
 COPY setup.cfg /app/
