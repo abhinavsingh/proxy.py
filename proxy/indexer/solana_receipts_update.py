@@ -6,15 +6,16 @@ import time
 import logging
 from solana.rpc.api import Client
 from multiprocessing.dummy import Pool as ThreadPool
-from sqlitedict import SqliteDict
 from typing import Dict, Union
 from proxy.environment import solana_url, evm_loader_id
 
 
 try:
     from utils import check_error, get_trx_results, get_trx_receipts, LogDB, Canceller
+    from sql_dict import SQLDict
 except ImportError:
     from .utils import check_error, get_trx_results, get_trx_receipts, LogDB, Canceller
+    from .sql_dict import SQLDict
 
 
 PARALLEL_REQUESTS = int(os.environ.get("PARALLEL_REQUESTS", "2"))
@@ -60,13 +61,13 @@ class Indexer:
     def __init__(self):
         self.client = Client(solana_url)
         self.canceller = Canceller()
-        self.logs_db = LogDB(filename="local.db")
-        self.blocks_by_hash = SqliteDict(filename="local.db", tablename="solana_blocks_by_hash", autocommit=True)
-        self.transaction_receipts = SqliteDict(filename="local.db", tablename="known_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
-        self.ethereum_trx = SqliteDict(filename="local.db", tablename="ethereum_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
-        self.eth_sol_trx = SqliteDict(filename="local.db", tablename="ethereum_solana_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
-        self.sol_eth_trx = SqliteDict(filename="local.db", tablename="solana_ethereum_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
-        self.constants = SqliteDict(filename="local.db", tablename="constants", autocommit=True)
+        self.logs_db = LogDB()
+        self.blocks_by_hash = SQLDict(tablename="solana_blocks_by_hash")
+        self.transaction_receipts = SQLDict(tablename="known_transactions")
+        self.ethereum_trx = SQLDict(tablename="ethereum_transactions")
+        self.eth_sol_trx = SQLDict(tablename="ethereum_solana_transactions")
+        self.sol_eth_trx = SQLDict(tablename="solana_ethereum_transactions")
+        self.constants = SQLDict(tablename="constants")
         self.last_slot = 0
         self.current_slot = 0
         self.transaction_order = []
@@ -429,7 +430,6 @@ class Indexer:
                             else:
                                 continue_table[storage_account] =  ContinueStruct(signature, None, blocked_accounts)
                                 holder_table[holder_account] = HolderStruct(storage_account)
-                                # self.add_hunged_storage(trx, storage_account)
 
 
                         elif instruction_data[0] == 0x0c or instruction_data[0] == 0x15: # Cancel

@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import rlp
-import sqlite3
+import psycopg2
 import subprocess
 from construct import Struct, Bytes, Int64ul
 from eth_utils import big_endian_to_int
@@ -169,10 +169,22 @@ def get_account_list(client, storage_account):
         return None
 
 
+
+
 class LogDB:
-    def __init__(self, filename="local.db"):
-        self.conn = sqlite3.connect(filename, check_same_thread=False) # multithread mode
-        # self.conn.isolation_level = None # autocommit mode
+    def __init__(self):
+        POSTGRES_DB = os.environ.get("POSTGRES_DB", "neon-db")
+        POSTGRES_USER = os.environ.get("POSTGRES_USER", "neon-proxy")
+        POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "neon-proxy")
+        POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+
+        self.conn = psycopg2.connect(
+            dbname=POSTGRES_DB,
+            user=POSTGRES_USER,
+            password=POSTGRES_PASSWORD,
+            host=POSTGRES_HOST
+        )
+
         cur = self.conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS
         logs (
@@ -185,7 +197,7 @@ class LogDB:
             transactionLogIndex INT,
 
             json TEXT,
-            UNIQUE(transactionLogIndex, transactionHash, topic) ON CONFLICT IGNORE
+            UNIQUE(transactionLogIndex, transactionHash, topic)
         );""")
         self.conn.commit()
 
@@ -208,7 +220,7 @@ class LogDB:
         if len(rows):
             # logger.debug(rows)
             cur = self.conn.cursor()
-            cur.executemany('INSERT INTO logs VALUES (?, ?, ?, ?,  ?, ?,  ?)', rows)
+            cur.executemany('INSERT INTO logs VALUES (%s, %s, %s, %s,  %s, %s,  %s) ON CONFLICT DO NOTHING', rows)
             self.conn.commit()
         else:
             logger.debug("NO LOGS")
@@ -219,21 +231,21 @@ class LogDB:
         params = []
 
         if fromBlock is not None:
-            queries.append("blockNumber >= ?")
+            queries.append("blockNumber >= %s")
             params.append(fromBlock)
 
         if toBlock is not None:
-            queries.append("blockNumber <= ?")
+            queries.append("blockNumber <= %s")
             params.append(toBlock)
 
         if blockHash is not None:
             blockHash = blockHash.lower()
-            queries.append("blockHash = ?")
+            queries.append("blockHash = %s")
             params.append(blockHash)
 
         if topics is not None:
             topics = [item.lower() for item in topics]
-            query_placeholder = ", ".join("?" * len(topics))
+            query_placeholder = ", ".join(["%s" for _ in range(len(topics))])
             topics_query = f"topic IN ({query_placeholder})"
 
             queries.append(topics_query)
@@ -242,11 +254,11 @@ class LogDB:
         if address is not None:
             if isinstance(address, str):
                 address = address.lower()
-                queries.append("address = ?")
+                queries.append("address = %s")
                 params.append(address)
             elif isinstance(address, list):
                 address = [item.lower() for item in address]
-                query_placeholder = ", ".join("?" * len(address))
+                query_placeholder = ", ".join(["%s" for _ in range(len(address))])
                 address_query = f"address IN ({query_placeholder})"
 
                 queries.append(address_query)
