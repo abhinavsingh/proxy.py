@@ -67,7 +67,7 @@ class ThreadlessPool(SetupShutdownContextManager):
 
     Example usage:
 
-        with ThreadlessPool(flags=..., work_klass=...) as pool:
+        with ThreadlessPool(flags=...) as pool:
             while True:
                 time.sleep(1)
 

@@ -90,11 +90,11 @@ class AcceptorPool(SetupShutdownContextManager):
 
     Example usage:
 
-        with AcceptorPool(flags=..., work_klass=...) as pool:
+        with AcceptorPool(flags=...) as pool:
             while True:
                 time.sleep(1)
 
-    `work_klass` must implement `work.Work` class.
+    `flags.work_klass` must implement `work.Work` class.
     """
 
     def __init__(
