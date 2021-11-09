@@ -24,6 +24,7 @@ class TestCase(unittest.TestCase):
 
     DEFAULT_PROXY_PY_STARTUP_FLAGS = [
         '--num-workers', '1',
+        '--num-acceptors', '1',
         '--threadless',
     ]
 
