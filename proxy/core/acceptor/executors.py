@@ -163,13 +163,13 @@ class ThreadlessPool:
 
     @staticmethod
     def start_threaded_work(
-            flags: argparse.ArgumentParser,
+            flags: argparse.Namespace,
             work_klass: Type[Work],
             conn: socket.socket,
             addr: Optional[Tuple[str, int]],
             event_queue: Optional[EventQueue] = None,
             publisher_id: Optional[str] = None,
-    ) -> threading.Thread:
+    ) -> Tuple[Work, threading.Thread]:
         work = work_klass(
             TcpClientConnection(conn, addr),
             flags=flags,
@@ -184,6 +184,7 @@ class ThreadlessPool:
             event_name=eventNames.WORK_STARTED,
             event_payload={'fileno': conn.fileno(), 'addr': addr},
             publisher_id=publisher_id or 'thread#{0}'.format(
-                thread.ident),
+                thread.ident,
+            ),
         )
         return (work, thread)
