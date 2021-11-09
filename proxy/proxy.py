@@ -109,7 +109,7 @@ class Proxy:
     ) -> None:
         self.work_klass: Type[Work] = work_klass
         self.flags = FlagParser.initialize(input_args, **opts)
-        self.pool: Optional[AcceptorPool] = None
+        self.acceptors: Optional[AcceptorPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.event_manager: Optional[EventManager] = None
 
@@ -127,15 +127,15 @@ class Proxy:
             event_queue=event_queue,
         )
         self.executors.setup()
-        self.pool = AcceptorPool(
+        self.acceptors = AcceptorPool(
             flags=self.flags,
             work_klass=self.work_klass,
             event_queue=event_queue,
             executor_queues=self.executors.work_queues,
             executor_pids=self.executors.work_pids,
         )
-        self.pool.setup()
-        assert self.pool is not None
+        self.acceptors.setup()
+        assert self.acceptors is not None
         if self.flags.unix_socket_path:
             logger.info(
                 'Listening on %s' %
@@ -144,7 +144,7 @@ class Proxy:
         else:
             logger.info(
                 'Listening on %s:%s' %
-                (self.pool.flags.hostname, self.pool.flags.port),
+                (self.acceptors.flags.hostname, self.acceptors.flags.port),
             )
         return self
 
@@ -154,8 +154,8 @@ class Proxy:
             exc_val: Optional[BaseException],
             exc_tb: Optional[TracebackType],
     ) -> None:
-        assert self.pool
-        self.pool.shutdown()
+        assert self.acceptors
+        self.acceptors.shutdown()
         assert self.executors
         self.executors.shutdown()
         if self.flags.enable_events:

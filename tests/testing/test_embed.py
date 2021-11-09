@@ -34,13 +34,13 @@ class TestProxyPyEmbedded(TestCase):
 
     def test_with_proxy(self) -> None:
         """Makes a HTTP request to in-build web server via proxy server."""
-        assert self.PROXY and self.PROXY.pool
-        with socket_connection(('localhost', self.PROXY.pool.flags.port)) as conn:
+        assert self.PROXY and self.PROXY.acceptors
+        with socket_connection(('localhost', self.PROXY.acceptors.flags.port)) as conn:
             conn.send(
                 build_http_request(
-                    httpMethods.GET, b'http://localhost:%d/' % self.PROXY.pool.flags.port,
+                    httpMethods.GET, b'http://localhost:%d/' % self.PROXY.acceptors.flags.port,
                     headers={
-                        b'Host': b'localhost:%d' % self.PROXY.pool.flags.port,
+                        b'Host': b'localhost:%d' % self.PROXY.acceptors.flags.port,
                     },
                 ),
             )
@@ -73,15 +73,15 @@ class TestProxyPyEmbedded(TestCase):
         self.make_http_request_using_proxy()
 
     def make_http_request_using_proxy(self) -> None:
-        assert self.PROXY and self.PROXY.pool
+        assert self.PROXY and self.PROXY.acceptors
         proxy_handler = urllib.request.ProxyHandler({
-            'http': 'http://localhost:%d' % self.PROXY.pool.flags.port,
+            'http': 'http://localhost:%d' % self.PROXY.acceptors.flags.port,
         })
         opener = urllib.request.build_opener(proxy_handler)
         with self.assertRaises(urllib.error.HTTPError):
             r: http.client.HTTPResponse = opener.open(
                 'http://localhost:%d/' %
-                self.PROXY.pool.flags.port, timeout=10,
+                self.PROXY.acceptors.flags.port, timeout=10,
             )
             self.assertEqual(r.status, 404)
             self.assertEqual(r.headers.get('server'), PROXY_AGENT_HEADER_VALUE)

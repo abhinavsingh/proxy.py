@@ -1261,10 +1261,10 @@ import proxy
 
 if __name__ == '__main__':
   with proxy.Proxy([]) as p:
-    print(p.pool.flags.port)
+    print(p.acceptors.flags.port)
 ```
 
-`pool.flags.port` will give you access to the random port allocated by the kernel.
+`acceptors.flags.port` will give you access to the random port allocated by the kernel.
 
 ## Loading Plugins
 
@@ -1323,7 +1323,7 @@ Note that:
 
 1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and teardown `proxy.py`.
 2. `proxy.py` server will listen on a random available port on the system.
-   This random port is available as `self.PROXY.pool.flags.port` within your test cases.
+   This random port is available as `self.PROXY.acceptors.flags.port` within your test cases.
 3. Only a single acceptor and worker is started by default (`--num-workers 1 --num-acceptors 1`) for faster setup and teardown.
 4. Most importantly, `proxy.TestCase` also ensures `proxy.py` server
    is up and running before proceeding with execution of tests. By default,

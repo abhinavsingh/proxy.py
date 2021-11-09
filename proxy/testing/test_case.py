@@ -47,8 +47,8 @@ class TestCase(unittest.TestCase):
         )
 
         cls.PROXY.__enter__()
-        assert cls.PROXY.pool
-        cls.wait_for_server(cls.PROXY.pool.flags.port)
+        assert cls.PROXY.acceptors
+        cls.wait_for_server(cls.PROXY.acceptors.flags.port)
 
     @staticmethod
     def wait_for_server(
