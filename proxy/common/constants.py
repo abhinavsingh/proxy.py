@@ -87,6 +87,7 @@ DEFAULT_HTTP_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
 DEFAULT_HTTPS_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port} - ' + \
     '{response_bytes} bytes - {connection_time_ms} ms'
+DEFAULT_NUM_ACCEPTORS = 0
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None

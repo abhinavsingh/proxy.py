@@ -25,10 +25,10 @@ from .work import Work
 
 from ..event import EventQueue
 
-from ...common.utils import bytes_, is_threadless
+from ...common.utils import bytes_
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME
-from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_PORT
+from ...common.constants import DEFAULT_NUM_ACCEPTORS, DEFAULT_PORT
 from ...common.constants import DEFAULT_PID_FILE
 
 logger = logging.getLogger(__name__)
@@ -65,9 +65,9 @@ flags.add_argument(
 )
 
 flags.add_argument(
-    '--num-workers',
+    '--num-acceptors',
     type=int,
-    default=DEFAULT_NUM_WORKERS,
+    default=DEFAULT_NUM_ACCEPTORS,
     help='Defaults to number of CPU cores.',
 )
 
@@ -100,6 +100,8 @@ class AcceptorPool:
     def __init__(
         self, flags: argparse.Namespace,
         work_klass: Type[Work],
+        executor_queues: List[connection.Connection] = [],
+        executor_pids: List[int] = [],
         event_queue: Optional[EventQueue] = None,
     ) -> None:
         self.flags = flags
@@ -112,7 +114,9 @@ class AcceptorPool:
         # Work queue used to share file descriptor with acceptor processes
         self.work_queues: List[connection.Connection] = []
         # Work class implementation
-        self.work_klass = work_klass
+        self.work_klass: Type[Work] = work_klass
+        self.executor_queues: List[connection.Connection] = executor_queues
+        self.executor_pids: List[int] = executor_pids
 
     def __enter__(self) -> 'AcceptorPool':
         self.setup()
@@ -141,7 +145,7 @@ class AcceptorPool:
         self._start_acceptors()
         # Send file descriptor to all acceptor processes.
         assert self.socket is not None
-        for index in range(self.flags.num_workers):
+        for index in range(self.flags.num_acceptors):
             send_handle(
                 self.work_queues[index],
                 self.socket.fileno(),
@@ -151,7 +155,7 @@ class AcceptorPool:
         self.socket.close()
 
     def shutdown(self) -> None:
-        logger.info('Shutting down %d workers' % self.flags.num_workers)
+        logger.info('Shutting down %d acceptors' % self.flags.num_acceptors)
         for acceptor in self.acceptors:
             acceptor.running.set()
         for acceptor in self.acceptors:
@@ -177,7 +181,7 @@ class AcceptorPool:
 
     def _start_acceptors(self) -> None:
         """Start acceptor processes."""
-        for acceptor_id in range(self.flags.num_workers):
+        for acceptor_id in range(self.flags.num_acceptors):
             work_queue = multiprocessing.Pipe()
             acceptor = Acceptor(
                 idd=acceptor_id,
@@ -186,6 +190,8 @@ class AcceptorPool:
                 work_klass=self.work_klass,
                 lock=LOCK,
                 event_queue=self.event_queue,
+                executor_queues=self.executor_queues,
+                executor_pids=self.executor_pids,
             )
             acceptor.start()
             logger.debug(
@@ -195,10 +201,7 @@ class AcceptorPool:
             )
             self.acceptors.append(acceptor)
             self.work_queues.append(work_queue[0])
-        mode = 'threadless' if is_threadless(
-            self.flags.threadless, self.flags.threaded,
-        ) else 'threaded'
-        logger.info('Started %d %s workers' % (self.flags.num_workers, mode))
+        logger.info('Started %d acceptors' % self.flags.num_acceptors)
 
     def _write_pid_file(self) -> None:
         if self.flags.pid_file is not None:

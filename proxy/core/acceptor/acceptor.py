@@ -8,50 +8,29 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
+import socket
 import logging
+import argparse
+import selectors
+import threading
 import multiprocessing
 import multiprocessing.synchronize
-import selectors
-import socket
-import threading
-
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle, recv_handle
-from typing import Optional, Type, Tuple
+
+from typing import List, Optional, Tuple, Type
 
 from .work import Work
-from .threadless import Threadless
+from .executors import ThreadlessPool
 
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
-from ...common.constants import DEFAULT_THREADLESS
-from ...common.flag import flags
+
+from ..event import EventQueue
 from ...common.utils import is_threadless
 from ...common.logger import Logger
 
 logger = logging.getLogger(__name__)
-
-
-flags.add_argument(
-    '--threadless',
-    action='store_true',
-    default=DEFAULT_THREADLESS,
-    help='Default: ' + ('True' if DEFAULT_THREADLESS else 'False') + '.  ' +
-    'Enabled by default on Python 3.8+ (mac, linux).  ' +
-    'When disabled a new thread is spawned '
-    'to handle each client connection.',
-)
-
-flags.add_argument(
-    '--threaded',
-    action='store_true',
-    default=not DEFAULT_THREADLESS,
-    help='Default: ' + ('True' if not DEFAULT_THREADLESS else 'False') + '.  ' +
-    'Disabled by default on Python < 3.8 and windows.  ' +
-    'When enabled a new thread is spawned '
-    'to handle each client connection.',
-)
 
 
 class Acceptor(multiprocessing.Process):
@@ -83,6 +62,8 @@ class Acceptor(multiprocessing.Process):
             flags: argparse.Namespace,
             work_klass: Type[Work],
             lock: multiprocessing.synchronize.Lock,
+            executor_queues: List[connection.Connection] = [],
+            executor_pids: List[int] = [],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
@@ -98,61 +79,16 @@ class Acceptor(multiprocessing.Process):
         self.work_queue: connection.Connection = work_queue
         # Worker class
         self.work_klass = work_klass
-        # Selector & threadless states
+        self.executor_queues = executor_queues
+        self.executor_pids = executor_pids
+        # Selector
         self.running = multiprocessing.Event()
         self.selector: Optional[selectors.DefaultSelector] = None
-        self.threadless_process: Optional[Threadless] = None
-        self.threadless_client_queue: Optional[connection.Connection] = None
         # File descriptor used to accept new work
         # Currently, a socket fd is assumed.
         self.sock: Optional[socket.socket] = None
-
-    def start_threadless_process(self) -> None:
-        pipe = multiprocessing.Pipe()
-        self.threadless_client_queue = pipe[0]
-        self.threadless_process = Threadless(
-            client_queue=pipe[1],
-            flags=self.flags,
-            work_klass=self.work_klass,
-            event_queue=self.event_queue,
-        )
-        self.threadless_process.start()
-        logger.debug('Started process %d', self.threadless_process.pid)
-
-    def shutdown_threadless_process(self) -> None:
-        assert self.threadless_process and self.threadless_client_queue
-        logger.debug('Stopped process %d', self.threadless_process.pid)
-        self.threadless_process.running.set()
-        self.threadless_process.join()
-        self.threadless_client_queue.close()
-
-    def _start_threadless_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
-        assert self.threadless_process and self.threadless_client_queue
-        # Accepted client address is empty string for
-        # unix socket domain, avoid sending empty string
-        if not self.flags.unix_socket_path:
-            self.threadless_client_queue.send(addr)
-        send_handle(
-            self.threadless_client_queue,
-            conn.fileno(),
-            self.threadless_process.pid,
-        )
-        conn.close()
-
-    def _start_threaded_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
-        work = self.work_klass(
-            TcpClientConnection(conn, addr),
-            flags=self.flags,
-            event_queue=self.event_queue,
-        )
-        work_thread = threading.Thread(target=work.run)
-        work_thread.daemon = True
-        work.publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'fileno': conn.fileno(), 'addr': addr},
-            publisher_id=self.__class__.__name__,
-        )
-        work_thread.start()
+        # Incremented every time work() is called
+        self._total: int = 0
 
     def run_once(self) -> None:
         with self.lock:
@@ -162,14 +98,7 @@ class Acceptor(multiprocessing.Process):
                 return
             conn, addr = self.sock.accept()
         addr = None if addr == '' else addr
-        if (
-                is_threadless(self.flags.threadless, self.flags.threaded) and
-                self.threadless_client_queue and
-                self.threadless_process
-        ):
-            self._start_threadless_work(conn, addr)
-        else:
-            self._start_threaded_work(conn, addr)
+        self._work(conn, addr)
 
     def run(self) -> None:
         Logger.setup_logger(
@@ -186,15 +115,54 @@ class Acceptor(multiprocessing.Process):
         )
         try:
             self.selector.register(self.sock, selectors.EVENT_READ)
-            if is_threadless(self.flags.threadless, self.flags.threaded):
-                self.start_threadless_process()
             while not self.running.is_set():
                 self.run_once()
         except KeyboardInterrupt:
             pass
         finally:
             self.selector.unregister(self.sock)
-            if is_threadless(self.flags.threadless, self.flags.threaded):
-                self.shutdown_threadless_process()
             self.sock.close()
             logger.debug('Acceptor#%d shutdown', self.idd)
+
+    def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
+        if is_threadless(self.flags.threadless, self.flags.threaded):
+            self._start_threadless_work(conn, addr)
+        else:
+            self._start_threaded_work(conn, addr)
+        self._total += 1
+
+    def _start_threadless_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
+        # Index of worker to which this work should be dispatched
+        # Use round-robin strategy by default
+        index = self._total % self.flags.num_workers
+        # Accepted client address is empty string for
+        # unix socket domain, avoid sending empty string
+        if not self.flags.unix_socket_path:
+            self.executor_queues[index].send(addr)
+        send_handle(
+            self.executor_queues[index],
+            conn.fileno(),
+            self.executor_pids[index],
+        )
+        conn.close()
+        logger.debug('Dispatched work#{0} from acceptor#{1} to worker#{1}'.format(
+            self._total, self.idd, index))
+
+    def _start_threaded_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
+        work = self.work_klass(
+            TcpClientConnection(conn, addr),
+            flags=self.flags,
+            event_queue=self.event_queue,
+        )
+        # TODO: Keep reference to threads and join during shutdown.
+        # This will ensure connections are not abruptly closed on shutdown.
+        work_thread = threading.Thread(target=work.run)
+        work_thread.daemon = True
+        work_thread.start()
+        work.publish_event(
+            event_name=eventNames.WORK_STARTED,
+            event_payload={'fileno': conn.fileno(), 'addr': addr},
+            publisher_id=self.__class__.__name__,
+        )
+        logger.debug('Started work#{0} in a new thread#{1}'.format(
+            self._total, work_thread.ident))

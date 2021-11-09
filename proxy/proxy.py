@@ -17,7 +17,7 @@ from typing import List, Optional, Any, Type
 
 from proxy.core.acceptor.work import Work
 
-from .core.acceptor import AcceptorPool
+from .core.acceptor import AcceptorPool, ThreadlessPool
 from .http.handler import HttpProtocolHandler
 from .core.event import EventManager
 from .common.flag import FlagParser, flags
@@ -110,6 +110,7 @@ class Proxy:
         self.work_klass: Type[Work] = work_klass
         self.flags = FlagParser.initialize(input_args, **opts)
         self.pool: Optional[AcceptorPool] = None
+        self.executors: Optional[ThreadlessPool] = None
         self.event_manager: Optional[EventManager] = None
 
     def __enter__(self) -> 'Proxy':
@@ -117,10 +118,21 @@ class Proxy:
             logger.info('Core Event enabled')
             self.event_manager = EventManager()
             self.event_manager.setup()
+        event_queue = self.event_manager.queue \
+            if self.event_manager is not None \
+            else None
+        self.executors = ThreadlessPool(
+            flags=self.flags,
+            work_klass=self.work_klass,
+            event_queue=event_queue,
+        )
+        self.executors.setup()
         self.pool = AcceptorPool(
             flags=self.flags,
             work_klass=self.work_klass,
-            event_queue=self.event_manager.queue if self.event_manager is not None else None,
+            event_queue=event_queue,
+            executor_queues=self.executors.work_queues,
+            executor_pids=self.executors.work_pids,
         )
         self.pool.setup()
         assert self.pool is not None
@@ -144,6 +156,8 @@ class Proxy:
     ) -> None:
         assert self.pool
         self.pool.shutdown()
+        assert self.executors
+        self.executors.shutdown()
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.shutdown()
