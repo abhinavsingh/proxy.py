@@ -70,6 +70,15 @@ class ThreadlessPool(SetupShutdownContextManager):
         with ThreadlessPool(flags=..., work_klass=...) as pool:
             while True:
                 time.sleep(1)
+
+    If necessary, start multiple threadless pool with different
+    work classes.
+
+    TODO: We could optimize multiple-work-type scenario
+    by making Threadless class constructor independent of work_klass.
+    We could then relay the work_klass during work delegation.
+    This will also make ThreadlessPool constructor agnostic
+    of work_klass.
     """
 
     def __init__(
@@ -80,9 +89,62 @@ class ThreadlessPool(SetupShutdownContextManager):
         self.flags = flags
         self.work_klass = work_klass
         self.event_queue = event_queue
-        self._workers: List[Threadless] = []
+        # Threadless worker communication states
         self.work_queues: List[connection.Connection] = []
         self.work_pids: List[int] = []
+        # List of threadless workers
+        self._workers: List[Threadless] = []
+
+    @staticmethod
+    def delegate(
+            worker_pid: int,
+            work_queue: connection.Connection,
+            conn: socket.socket,
+            addr: Optional[Tuple[str, int]],
+            unix_socket_path: Optional[str] = None,
+    ) -> None:
+        """Utility method to delegate a work to threadless executor pool."""
+        # Accepted client address is empty string for
+        # unix socket domain, avoid sending empty string
+        # for optimization.
+        if not unix_socket_path:
+            work_queue.send(addr)
+        send_handle(
+            work_queue,
+            conn.fileno(),
+            worker_pid,
+        )
+        conn.close()
+
+    @staticmethod
+    def start_threaded_work(
+            flags: argparse.Namespace,
+            work_klass: Type[Work],
+            conn: socket.socket,
+            addr: Optional[Tuple[str, int]],
+            event_queue: Optional[EventQueue] = None,
+            publisher_id: Optional[str] = None,
+    ) -> Tuple[Work, threading.Thread]:
+        """Utility method to start a work in a new thread."""
+        work = work_klass(
+            TcpClientConnection(conn, addr),
+            flags=flags,
+            event_queue=event_queue,
+        )
+        # TODO: Keep reference to threads and join during shutdown.
+        # This will ensure connections are not abruptly closed on shutdown
+        # for threaded execution mode.
+        thread = threading.Thread(target=work.run)
+        thread.daemon = True
+        thread.start()
+        work.publish_event(
+            event_name=eventNames.WORK_STARTED,
+            event_payload={'fileno': conn.fileno(), 'addr': addr},
+            publisher_id=publisher_id or 'thread#{0}'.format(
+                thread.ident,
+            ),
+        )
+        return (work, thread)
 
     def setup(self) -> None:
         """Setup threadless processes."""
@@ -107,6 +169,7 @@ class ThreadlessPool(SetupShutdownContextManager):
             )
 
     def _start_worker(self, index: int) -> None:
+        """Starts a threadless worker."""
         pipe = multiprocessing.Pipe()
         self.work_queues.append(pipe[0])
         w = Threadless(
@@ -122,6 +185,7 @@ class ThreadlessPool(SetupShutdownContextManager):
         logger.debug('Started threadless#%d process#%d', index, w.pid)
 
     def _shutdown_worker(self) -> None:
+        """Pop a running threadless worker and clean it up."""
         w = self._workers.pop()
         pid = w.pid
         w.running.set()
@@ -129,50 +193,3 @@ class ThreadlessPool(SetupShutdownContextManager):
         self.work_pids.pop()
         self.work_queues.pop().close()
         logger.debug('Stopped threadless process#%d', pid)
-
-    @staticmethod
-    def start_threadless_work(
-            worker_pid: int,
-            work_queue: connection.Connection,
-            conn: socket.socket,
-            addr: Optional[Tuple[str, int]],
-            unix_socket_path: Optional[str] = None,
-    ) -> None:
-        # Accepted client address is empty string for
-        # unix socket domain, avoid sending empty string
-        if not unix_socket_path:
-            work_queue.send(addr)
-        send_handle(
-            work_queue,
-            conn.fileno(),
-            worker_pid,
-        )
-        conn.close()
-
-    @staticmethod
-    def start_threaded_work(
-            flags: argparse.Namespace,
-            work_klass: Type[Work],
-            conn: socket.socket,
-            addr: Optional[Tuple[str, int]],
-            event_queue: Optional[EventQueue] = None,
-            publisher_id: Optional[str] = None,
-    ) -> Tuple[Work, threading.Thread]:
-        work = work_klass(
-            TcpClientConnection(conn, addr),
-            flags=flags,
-            event_queue=event_queue,
-        )
-        # TODO: Keep reference to threads and join during shutdown.
-        # This will ensure connections are not abruptly closed on shutdown.
-        thread = threading.Thread(target=work.run)
-        thread.daemon = True
-        thread.start()
-        work.publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'fileno': conn.fileno(), 'addr': addr},
-            publisher_id=publisher_id or 'thread#{0}'.format(
-                thread.ident,
-            ),
-        )
-        return (work, thread)

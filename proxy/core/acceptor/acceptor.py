@@ -131,7 +131,7 @@ class Acceptor(multiprocessing.Process):
             # By default all acceptors will start sending work to
             # 1st workers.  To randomize, we offset index by idd.
             index = (self._total + self.idd) % self.flags.num_workers
-            ThreadlessPool.start_threadless_work(
+            ThreadlessPool.delegate(
                 self.executor_pids[index],
                 self.executor_queues[index],
                 conn,
