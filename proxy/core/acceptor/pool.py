@@ -18,13 +18,13 @@ from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 
 from typing import List, Optional, Type
-from types import TracebackType
 
 from .acceptor import Acceptor
 from .work import Work
 
 from ..event import EventQueue
 
+from ...common.context_managers import SetupShutdownContextManager
 from ...common.utils import bytes_
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME
@@ -80,7 +80,7 @@ flags.add_argument(
 )
 
 
-class AcceptorPool:
+class AcceptorPool(SetupShutdownContextManager):
     """AcceptorPool is a helper class which pre-spawns `Acceptor` processes
     to utilize all available CPU cores for accepting new work.
 
@@ -117,18 +117,6 @@ class AcceptorPool:
         self.work_klass: Type[Work] = work_klass
         self.executor_queues: List[connection.Connection] = executor_queues
         self.executor_pids: List[int] = executor_pids
-
-    def __enter__(self) -> 'AcceptorPool':
-        self.setup()
-        return self
-
-    def __exit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType],
-    ) -> None:
-        self.shutdown()
 
     def setup(self) -> None:
         """Setup socket and acceptors."""

@@ -18,7 +18,6 @@ from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 
 from typing import Optional, List, Tuple, Type
-from types import TracebackType
 
 from .work import Work
 from .threadless import Threadless
@@ -26,6 +25,7 @@ from .threadless import Threadless
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 
+from ...common.context_managers import SetupShutdownContextManager
 from ...common.flag import flags
 from ...common.utils import is_threadless
 from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
@@ -61,7 +61,7 @@ flags.add_argument(
 )
 
 
-class ThreadlessPool:
+class ThreadlessPool(SetupShutdownContextManager):
     """Manages lifecycle of threadless pool and delegates work to them
     using a round-robin strategy.
 
@@ -83,18 +83,6 @@ class ThreadlessPool:
         self._workers: List[Threadless] = []
         self.work_queues: List[connection.Connection] = []
         self.work_pids: List[int] = []
-
-    def __enter__(self) -> 'ThreadlessPool':
-        self.setup()
-        return self
-
-    def __exit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType],
-    ) -> None:
-        self.shutdown()
 
     def setup(self) -> None:
         """Setup threadless processes."""

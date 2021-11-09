@@ -12,12 +12,12 @@ import logging
 import threading
 import multiprocessing
 
-from typing import Optional, Type
-from types import TracebackType
+from typing import Optional
 
 from .queue import EventQueue
 from .dispatcher import EventDispatcher
 
+from ...common.context_managers import SetupShutdownContextManager
 from ...common.flag import flags
 from ...common.constants import DEFAULT_ENABLE_EVENTS
 
@@ -33,7 +33,7 @@ flags.add_argument(
 )
 
 
-class EventManager:
+class EventManager(SetupShutdownContextManager):
     """Event manager is a context manager which provides
     encapsulation around various setup and shutdown steps
     to start the eventing core.
@@ -45,18 +45,6 @@ class EventManager:
         self.dispatcher_thread: Optional[threading.Thread] = None
         self.dispatcher_shutdown: Optional[threading.Event] = None
         self.manager: Optional[multiprocessing.managers.SyncManager] = None
-
-    def __enter__(self) -> 'EventManager':
-        self.setup()
-        return self
-
-    def __exit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType],
-    ) -> None:
-        self.shutdown()
 
     def setup(self) -> None:
         self.manager = multiprocessing.Manager()
