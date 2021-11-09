@@ -235,23 +235,33 @@ class FlagParser:
                 socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
             )
         else:
-            # FIXME: Not true for tests, as this value will be mock
+            # FIXME: Not true for tests, as this value will be a mock.
+            #
             # It's a problem only on Windows.  Instead of a proper
-            # test level fix, simply commenting this for now.
+            # fix in the tests, simply commenting this line of assertion
+            # for now.
+            #
             # assert args.unix_socket_path is None
             args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)
-        num_workers = num_workers if num_workers is not None else DEFAULT_NUM_WORKERS
         args.num_workers = cast(
             int, num_workers if num_workers > 0 else multiprocessing.cpu_count(),
         )
         num_acceptors = opts.get('num_acceptors', args.num_acceptors)
-        num_acceptors = num_acceptors if num_acceptors is not None else DEFAULT_NUM_ACCEPTORS
-        args.num_acceptors = cast(
-            int, num_acceptors if num_acceptors > 0 else multiprocessing.cpu_count(),
-        )
+        # See https://github.com/abhinavsingh/proxy.py/pull/714 description
+        # to understand rationale behind the following logic.
+        #
+        # --num-workers flag or option was found. We will use
+        # the same value for num_acceptors when --num-acceptors flag
+        # is absent.
+        if num_workers != DEFAULT_NUM_WORKERS and num_acceptors == DEFAULT_NUM_ACCEPTORS:
+            args.num_acceptors = args.num_workers
+        else:
+            args.num_acceptors = cast(
+                int, num_acceptors if num_acceptors > 0 else multiprocessing.cpu_count(),
+            )
         args.static_server_dir = cast(
             str,
             opts.get(
