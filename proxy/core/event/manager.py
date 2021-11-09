@@ -12,8 +12,7 @@ import logging
 import threading
 import multiprocessing
 
-from typing import Optional, Type
-from types import TracebackType
+from typing import Any, Optional
 
 from .queue import EventQueue
 from .dispatcher import EventDispatcher
@@ -50,12 +49,7 @@ class EventManager:
         self.setup()
         return self
 
-    def __exit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType],
-    ) -> None:
+    def __exit__(self, *args: Any) -> None:
         self.shutdown()
 
     def setup(self) -> None:

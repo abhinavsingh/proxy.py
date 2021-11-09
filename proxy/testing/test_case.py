@@ -24,6 +24,7 @@ class TestCase(unittest.TestCase):
 
     DEFAULT_PROXY_PY_STARTUP_FLAGS = [
         '--num-workers', '1',
+        '--num-acceptors', '1',
         '--threadless',
     ]
 
@@ -40,14 +41,14 @@ class TestCase(unittest.TestCase):
         cls.INPUT_ARGS.append('--port')
         cls.INPUT_ARGS.append('0')
 
-        cls.PROXY = Proxy(input_args=cls.INPUT_ARGS)
+        cls.PROXY = Proxy(cls.INPUT_ARGS)
         cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(
             CacheResponsesPlugin,
         )
 
         cls.PROXY.__enter__()
-        assert cls.PROXY.pool
-        cls.wait_for_server(cls.PROXY.pool.flags.port)
+        assert cls.PROXY.acceptors
+        cls.wait_for_server(cls.PROXY.acceptors.flags.port)
 
     @staticmethod
     def wait_for_server(

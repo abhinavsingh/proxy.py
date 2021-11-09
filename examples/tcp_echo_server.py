@@ -11,8 +11,7 @@
 import time
 from typing import Optional
 
-from proxy.common.flag import FlagParser
-from proxy.core.acceptor import AcceptorPool
+from proxy import Proxy
 from proxy.core.base import BaseTcpServerHandler
 
 
@@ -30,11 +29,11 @@ class EchoServerHandler(BaseTcpServerHandler):
 
 def main() -> None:
     # This example requires `threadless=True`
-    with AcceptorPool(
-        flags=FlagParser.initialize(
-            port=12345, num_workers=1, threadless=True,
-        ),
+    with Proxy(
         work_klass=EchoServerHandler,
+        threadless=True,
+        num_workers=1,
+        port=12345,
     ):
         try:
             while True:

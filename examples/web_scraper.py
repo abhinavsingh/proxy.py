@@ -13,8 +13,8 @@ import socket
 
 from typing import Dict
 
-from proxy.common.flag import FlagParser
-from proxy.core.acceptor import Work, AcceptorPool
+from proxy import Proxy
+from proxy.core.acceptor import Work
 from proxy.common.types import Readables, Writables
 
 
@@ -56,15 +56,11 @@ class WebScraper(Work):
 
 
 if __name__ == '__main__':
-    with AcceptorPool(
-        flags=FlagParser.initialize(
-            port=12345,
-            num_workers=1,
-            threadless=True,
-            keyfile='https-key.pem',
-            certfile='https-signed-cert.pem',
-        ),
+    with Proxy(
         work_klass=WebScraper,
+        threadless=True,
+        num_workers=1,
+        port=12345,
     ) as pool:
         while True:
             time.sleep(1)

@@ -14,7 +14,7 @@ from unittest import mock
 
 from proxy.common.flag import FlagParser
 from proxy.http.exception.proxy_auth_failed import ProxyAuthenticationFailed
-from proxy.http.handler import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler
 from proxy.core.connection import TcpClientConnection
 from proxy.common.utils import build_http_request
 

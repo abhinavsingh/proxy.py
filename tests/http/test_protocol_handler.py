@@ -25,7 +25,7 @@ from proxy.http.parser import HttpParser
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
-from proxy.http.handler import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler
 
 
 class TestHttpProtocolHandler(unittest.TestCase):

@@ -12,12 +12,11 @@ import time
 
 from typing import Any, Optional
 
-from proxy.common.flag import FlagParser
+from proxy import Proxy
 from proxy.common.utils import build_http_response
 from proxy.http.codes import httpStatusCodes
 from proxy.http.parser import httpParserStates
 from proxy.http.methods import httpMethods
-from proxy.core.acceptor import AcceptorPool
 from proxy.core.base import BaseTcpTunnelHandler
 
 
@@ -75,11 +74,11 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
 
 def main() -> None:
     # This example requires `threadless=True`
-    with AcceptorPool(
-            flags=FlagParser.initialize(
-                port=12345, num_workers=1, threadless=True,
-            ),
-            work_klass=HttpsConnectTunnelHandler,
+    with Proxy(
+        work_klass=HttpsConnectTunnelHandler,
+        threadless=True,
+        num_workers=1,
+        port=12345,
     ):
         try:
             while True:

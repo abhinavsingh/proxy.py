@@ -87,6 +87,7 @@ DEFAULT_HTTP_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
 DEFAULT_HTTPS_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port} - ' + \
     '{response_bytes} bytes - {connection_time_ms} ms'
+DEFAULT_NUM_ACCEPTORS = 0
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
@@ -102,6 +103,7 @@ DEFAULT_VERSION = False
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 DEFAULT_MAX_SEND_SIZE = 16 * 1024
+DEFAULT_WORK_KLASS = 'proxy.http.HttpProtocolHandler'
 
 DEFAULT_DEVTOOLS_DOC_URL = 'http://proxy'
 DEFAULT_DEVTOOLS_FRAME_ID = secrets.token_hex(8)

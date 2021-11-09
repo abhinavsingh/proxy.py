@@ -11,9 +11,8 @@
 import time
 from typing import Optional
 
-from proxy.common.flag import FlagParser
+from proxy import Proxy
 from proxy.common.utils import wrap_socket
-from proxy.core.acceptor import AcceptorPool
 from proxy.core.connection import TcpClientConnection
 
 from proxy.core.base import BaseTcpServerHandler
@@ -45,15 +44,13 @@ class EchoSSLServerHandler(BaseTcpServerHandler):
 
 def main() -> None:
     # This example requires `threadless=True`
-    with AcceptorPool(
-        flags=FlagParser.initialize(
-            port=12345,
-            num_workers=1,
-            threadless=True,
-            keyfile='https-key.pem',
-            certfile='https-signed-cert.pem',
-        ),
+    with Proxy(
         work_klass=EchoSSLServerHandler,
+        threadless=True,
+        num_workers=1,
+        port=12345,
+        keyfile='https-key.pem',
+        certfile='https-signed-cert.pem',
     ):
         try:
             while True:

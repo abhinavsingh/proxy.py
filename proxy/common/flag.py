@@ -22,7 +22,7 @@ from typing import Optional, List, Any, cast
 from .plugins import Plugins
 from .types import IpAddress
 from .utils import text_, bytes_, is_py2, set_open_file_limit
-from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_WORKERS
+from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
 from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
@@ -84,8 +84,8 @@ class FlagParser:
 
     @staticmethod
     def initialize(
-        input_args: Optional[List[str]]
-        = None, **opts: Any,
+        input_args: Optional[List[str]] = None,
+        **opts: Any,
     ) -> argparse.Namespace:
         if input_args is None:
             input_args = []
@@ -107,26 +107,6 @@ class FlagParser:
             print(__version__)
             sys.exit(0)
 
-        # Setup logging module
-        Logger.setup_logger(args.log_file, args.log_level, args.log_format)
-
-        # Setup limits
-        set_open_file_limit(args.open_file_limit)
-
-        # Load plugins
-        default_plugins = [
-            bytes_(p)
-            for p in FlagParser.get_default_plugins(args)
-        ]
-        extra_plugins = [
-            p if isinstance(p, type) else bytes_(p)
-            for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
-            if not (isinstance(p, str) and len(p) == 0)
-        ]
-
-        # Load default plugins along with user provided --plugins
-        plugins = Plugins.load(default_plugins + extra_plugins)
-
         # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
         # at the same time.
@@ -138,16 +118,41 @@ class FlagParser:
             )
             sys.exit(1)
 
+        # Setup logging module
+        Logger.setup_logger(args.log_file, args.log_level, args.log_format)
+
+        # Setup limits
+        set_open_file_limit(args.open_file_limit)
+
+        # Load work_klass
+        work_klass = opts.get('work_klass', args.work_klass)
+        work_klass = Plugins.importer(bytes_(work_klass))[0] \
+            if isinstance(work_klass, str) \
+            else work_klass
+
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
         if args.basic_auth:
             auth_code = base64.b64encode(bytes_(args.basic_auth))
+
+        # Load default plugins along with user provided --plugins
+        default_plugins = [
+            bytes_(p)
+            for p in FlagParser.get_default_plugins(args)
+        ]
+        extra_plugins = [
+            p if isinstance(p, type) else bytes_(p)
+            for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
+            if not (isinstance(p, str) and len(p) == 0)
+        ]
+        plugins = Plugins.load(default_plugins + extra_plugins)
 
         # https://github.com/python/mypy/issues/5865
         #
         # def option(t: object, key: str, default: Any) -> Any:
         #     return cast(t, opts.get(key, default))
 
+        args.work_klass = work_klass
         args.plugins = plugins
         args.auth_code = cast(
             Optional[bytes],
@@ -235,18 +240,33 @@ class FlagParser:
                 socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
             )
         else:
-            # FIXME: Not true for tests, as this value will be mock
+            # FIXME: Not true for tests, as this value will be a mock.
+            #
             # It's a problem only on Windows.  Instead of a proper
-            # test level fix, simply commenting this for now.
+            # fix in the tests, simply commenting this line of assertion
+            # for now.
+            #
             # assert args.unix_socket_path is None
             args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)
-        num_workers = num_workers if num_workers is not None else DEFAULT_NUM_WORKERS
         args.num_workers = cast(
             int, num_workers if num_workers > 0 else multiprocessing.cpu_count(),
         )
+        num_acceptors = opts.get('num_acceptors', args.num_acceptors)
+        # See https://github.com/abhinavsingh/proxy.py/pull/714 description
+        # to understand rationale behind the following logic.
+        #
+        # --num-workers flag or option was found. We will use
+        # the same value for num_acceptors when --num-acceptors flag
+        # is absent.
+        if num_workers != DEFAULT_NUM_WORKERS and num_acceptors == DEFAULT_NUM_ACCEPTORS:
+            args.num_acceptors = args.num_workers
+        else:
+            args.num_acceptors = cast(
+                int, num_acceptors if num_acceptors > 0 else multiprocessing.cpu_count(),
+            )
         args.static_server_dir = cast(
             str,
             opts.get(

@@ -12,18 +12,14 @@ import sys
 import time
 import logging
 
-from types import TracebackType
-from typing import List, Optional, Any, Type
+from typing import List, Optional, Any
 
-from proxy.core.acceptor.work import Work
-
-from .core.acceptor import AcceptorPool
-from .http.handler import HttpProtocolHandler
+from .core.acceptor import AcceptorPool, ThreadlessPool
 from .core.event import EventManager
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
-from .common.constants import DEFAULT_ENABLE_DASHBOARD
+from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS
 
 
 logger = logging.getLogger(__name__)
@@ -77,10 +73,10 @@ flags.add_argument(
 
 # TODO: Ideally all `--enable-*` flags must be at the top-level.
 # --enable-dashboard is specially needed here because
-# ProxyDashboard class is not imported by anyone.
+# ProxyDashboard class is not imported anywhere.
 #
-# If we move this flag definition within dashboard.py,
-# users will also have to explicitly enable dashboard plugin
+# Due to which, if we move this flag definition within dashboard
+# plugin, users will have to explicitly enable dashboard plugin
 # to also use flags provided by it.
 flags.add_argument(
     '--enable-dashboard',
@@ -89,39 +85,73 @@ flags.add_argument(
     help='Default: False.  Enables proxy.py dashboard.',
 )
 
+flags.add_argument(
+    '--work-klass',
+    type=str,
+    default=DEFAULT_WORK_KLASS,
+    help='Default: ' + DEFAULT_WORK_KLASS +
+    '.  Work klass to use for work execution.',
+)
+
 
 class Proxy:
-    """Context manager to control AcceptorPool & Eventing core lifecycle.
+    """Context manager to control AcceptorPool, ExecutorPool & EventingCore lifecycle.
 
     By default, AcceptorPool is started with `HttpProtocolHandler` work class.
     By definition, it expects HTTP traffic to flow between clients and server.
 
-    Optionally, it also initializes the eventing core, a multiprocess safe
+    Optionally, it also initializes the eventing core, a multi-process safe
     pubsub system queue which can be used to build various patterns
     for message sharing and/or signaling.
     """
 
-    def __init__(self, input_args: Optional[List[str]], **opts: Any) -> None:
+    def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
         self.flags = FlagParser.initialize(input_args, **opts)
-        self.pool: Optional[AcceptorPool] = None
-        # TODO(abhinavsingh): Allow users to override the worker class itself
-        # e.g. A clear text protocol. Or imagine a TelnetProtocolHandler instead
-        # of default HttpProtocolHandler.
-        self.work_klass: Type[Work] = HttpProtocolHandler
+        self.acceptors: Optional[AcceptorPool] = None
+        self.executors: Optional[ThreadlessPool] = None
         self.event_manager: Optional[EventManager] = None
 
     def __enter__(self) -> 'Proxy':
+        self.setup()
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.shutdown()
+
+    def setup(self) -> None:
+        # TODO: Introduce cron feature
+        # https://github.com/abhinavsingh/proxy.py/issues/392
+        #
+        # TODO: Introduce ability to publish
+        # adhoc events which can modify behaviour of server
+        # at runtime.  Example, updating flags, plugin
+        # configuration etc.
+        #
+        # TODO: Python shell within running proxy.py environment?
+        #
+        # TODO: Pid watcher which watches for processes started
+        # by proxy.py core.  May be alert or restart those processes
+        # on failure.
         if self.flags.enable_events:
             logger.info('Core Event enabled')
             self.event_manager = EventManager()
             self.event_manager.setup()
-        self.pool = AcceptorPool(
+        event_queue = self.event_manager.queue \
+            if self.event_manager is not None \
+            else None
+        self.executors = ThreadlessPool(
             flags=self.flags,
-            work_klass=self.work_klass,
-            event_queue=self.event_manager.queue if self.event_manager is not None else None,
+            event_queue=event_queue,
         )
-        self.pool.setup()
-        assert self.pool is not None
+        self.executors.setup()
+        self.acceptors = AcceptorPool(
+            flags=self.flags,
+            event_queue=event_queue,
+            executor_queues=self.executors.work_queues,
+            executor_pids=self.executors.work_pids,
+        )
+        self.acceptors.setup()
+        assert self.acceptors is not None
         if self.flags.unix_socket_path:
             logger.info(
                 'Listening on %s' %
@@ -130,42 +160,22 @@ class Proxy:
         else:
             logger.info(
                 'Listening on %s:%s' %
-                (self.pool.flags.hostname, self.pool.flags.port),
+                (self.acceptors.flags.hostname, self.acceptors.flags.port),
             )
-        return self
 
-    def __exit__(
-            self,
-            exc_type: Optional[Type[BaseException]],
-            exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType],
-    ) -> None:
-        assert self.pool
-        self.pool.shutdown()
+    def shutdown(self) -> None:
+        assert self.acceptors
+        self.acceptors.shutdown()
+        assert self.executors
+        self.executors.shutdown()
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.shutdown()
 
 
-def main(
-        input_args: Optional[List[str]] = None,
-        **opts: Any,
-) -> None:
+def main(**opts: Any) -> None:
     try:
-        with Proxy(input_args=input_args, **opts):
-            # TODO: Introduce cron feature
-            # https://github.com/abhinavsingh/proxy.py/issues/392
-            #
-            # TODO: Introduce ability to publish
-            # adhoc events which can modify behaviour of server
-            # at runtime.  Example, updating flags, plugin
-            # configuration etc.
-            #
-            # TODO: Python shell within running proxy.py environment?
-            #
-            # TODO: Pid watcher which watches for processes started
-            # by proxy.py core.  May be alert or restart those processes
-            # on failure.
+        with Proxy(sys.argv[1:], **opts):
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:
@@ -173,4 +183,4 @@ def main(
 
 
 def entry_point() -> None:
-    main(input_args=sys.argv[1:])
+    main()

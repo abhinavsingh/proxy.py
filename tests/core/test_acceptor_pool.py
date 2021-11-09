@@ -46,16 +46,14 @@ class TestAcceptorPool(unittest.TestCase):
         num_workers = 2
         pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         sock = mock_socket.return_value
-        work_klass = mock.MagicMock()
         flags = FlagParser.initialize(
             num_workers=2, pid_file=pid_file, threaded=True,
         )
 
-        pool = AcceptorPool(flags=flags, work_klass=work_klass)
+        pool = AcceptorPool(flags=flags, executor_queues=[], executor_pids=[])
         pool.setup()
         mock_send_handle.assert_called()
 
-        work_klass.assert_not_called()
         mock_socket.assert_called_with(
             socket.AF_INET6 if pool.flags.hostname.version == 6 else socket.AF_INET,
             socket.SOCK_STREAM,

@@ -19,7 +19,7 @@ import multiprocessing
 
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
-from typing import Dict, Optional, Tuple, List, Generator, Any, Type
+from typing import Dict, Optional, Tuple, List, Generator, Any
 
 from .work import Work
 
@@ -56,13 +56,11 @@ class Threadless(multiprocessing.Process):
             self,
             client_queue: connection.Connection,
             flags: argparse.Namespace,
-            work_klass: Type[Work],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
         self.client_queue = client_queue
         self.flags = flags
-        self.work_klass = work_klass
         self.event_queue = event_queue
 
         self.running = multiprocessing.Event()
@@ -139,7 +137,7 @@ class Threadless(multiprocessing.Process):
         if not self.flags.unix_socket_path:
             addr = self.client_queue.recv()
         fileno = recv_handle(self.client_queue)
-        self.works[fileno] = self.work_klass(
+        self.works[fileno] = self.flags.work_klass(
             TcpClientConnection(conn=self.fromfd(fileno), addr=addr),
             flags=self.flags,
             event_queue=self.event_queue,
