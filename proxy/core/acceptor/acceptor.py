@@ -59,7 +59,6 @@ class Acceptor(multiprocessing.Process):
             idd: int,
             work_queue: connection.Connection,
             flags: argparse.Namespace,
-            work_klass: Type[Work],
             lock: multiprocessing.synchronize.Lock,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
@@ -76,8 +75,7 @@ class Acceptor(multiprocessing.Process):
         self.lock = lock
         # Queue over which server socket fd is received on start-up
         self.work_queue: connection.Connection = work_queue
-        # Worker class
-        self.work_klass = work_klass
+        # Available executors
         self.executor_queues = executor_queues
         self.executor_pids = executor_pids
         # Selector
@@ -145,7 +143,7 @@ class Acceptor(multiprocessing.Process):
             )
         else:
             work, thread = ThreadlessPool.start_threaded_work(
-                self.flags, self.work_klass,
+                self.flags,
                 conn, addr,
                 event_queue=self.event_queue,
                 publisher_id=self.__class__.__name__,

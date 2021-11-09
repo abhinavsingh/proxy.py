@@ -105,8 +105,8 @@ class Proxy(SetupShutdownContextManager):
         work_klass: Type[Work] = HttpProtocolHandler,
         **opts: Any,
     ) -> None:
-        self.work_klass: Type[Work] = work_klass
         self.flags = FlagParser.initialize(input_args, **opts)
+        self.flags.work_klass = work_klass
         self.acceptors: Optional[AcceptorPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.event_manager: Optional[EventManager] = None
@@ -134,13 +134,11 @@ class Proxy(SetupShutdownContextManager):
             else None
         self.executors = ThreadlessPool(
             flags=self.flags,
-            work_klass=self.work_klass,
             event_queue=event_queue,
         )
         self.executors.setup()
         self.acceptors = AcceptorPool(
             flags=self.flags,
-            work_klass=self.work_klass,
             event_queue=event_queue,
             executor_queues=self.executors.work_queues,
             executor_pids=self.executors.work_pids,

@@ -82,12 +82,11 @@ class ThreadlessPool(SetupShutdownContextManager):
     """
 
     def __init__(
-        self, flags: argparse.Namespace,
-        work_klass: Type[Work],
+        self,
+        flags: argparse.Namespace,
         event_queue: Optional[EventQueue] = None,
     ) -> None:
         self.flags = flags
-        self.work_klass = work_klass
         self.event_queue = event_queue
         # Threadless worker communication states
         self.work_queues: List[connection.Connection] = []
@@ -119,14 +118,13 @@ class ThreadlessPool(SetupShutdownContextManager):
     @staticmethod
     def start_threaded_work(
             flags: argparse.Namespace,
-            work_klass: Type[Work],
             conn: socket.socket,
             addr: Optional[Tuple[str, int]],
             event_queue: Optional[EventQueue] = None,
             publisher_id: Optional[str] = None,
     ) -> Tuple[Work, threading.Thread]:
         """Utility method to start a work in a new thread."""
-        work = work_klass(
+        work = flags.work_klass(
             TcpClientConnection(conn, addr),
             flags=flags,
             event_queue=event_queue,
@@ -175,7 +173,6 @@ class ThreadlessPool(SetupShutdownContextManager):
         w = Threadless(
             client_queue=pipe[1],
             flags=self.flags,
-            work_klass=self.work_klass,
             event_queue=self.event_queue,
         )
         self._workers.append(w)

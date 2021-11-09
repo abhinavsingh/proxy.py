@@ -99,7 +99,6 @@ class AcceptorPool(SetupShutdownContextManager):
 
     def __init__(
         self, flags: argparse.Namespace,
-        work_klass: Type[Work],
         executor_queues: List[connection.Connection],
         executor_pids: List[int],
         event_queue: Optional[EventQueue] = None,
@@ -113,8 +112,7 @@ class AcceptorPool(SetupShutdownContextManager):
         self.acceptors: List[Acceptor] = []
         # Work queue used to share file descriptor with acceptor processes
         self.work_queues: List[connection.Connection] = []
-        # Work class implementation
-        self.work_klass: Type[Work] = work_klass
+        # Available executors
         self.executor_queues: List[connection.Connection] = executor_queues
         self.executor_pids: List[int] = executor_pids
 
@@ -175,7 +173,6 @@ class AcceptorPool(SetupShutdownContextManager):
                 idd=acceptor_id,
                 work_queue=work_queue[1],
                 flags=self.flags,
-                work_klass=self.work_klass,
                 lock=LOCK,
                 event_queue=self.event_queue,
                 executor_queues=self.executor_queues,
