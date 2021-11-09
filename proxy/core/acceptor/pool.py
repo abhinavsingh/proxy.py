@@ -100,8 +100,8 @@ class AcceptorPool:
     def __init__(
         self, flags: argparse.Namespace,
         work_klass: Type[Work],
-        executor_queues: List[connection.Connection] = [],
-        executor_pids: List[int] = [],
+        executor_queues: List[connection.Connection],
+        executor_pids: List[int],
         event_queue: Optional[EventQueue] = None,
     ) -> None:
         self.flags = flags
