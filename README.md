@@ -1927,19 +1927,25 @@ for list of tests.
 
 ```console
 ❯ proxy -h
-usage: proxy [-h] [--enable-events] [--enable-conn-pool] [--threadless] [--threaded]
-          [--num-workers NUM_WORKERS] [--pid-file PID_FILE] [--backlog BACKLOG] [--hostname HOSTNAME]
-          [--port PORT] [--num-acceptors NUM_ACCEPTORS] [--unix-socket-path UNIX_SOCKET_PATH]
-          [--client-recvbuf-size CLIENT_RECVBUF_SIZE] [--key-file KEY_FILE] [--timeout TIMEOUT]
-          [--version] [--log-level LOG_LEVEL] [--log-file LOG_FILE] [--log-format LOG_FORMAT]
-          [--open-file-limit OPEN_FILE_LIMIT] [--plugins PLUGINS] [--enable-dashboard]
-          [--disable-http-proxy] [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
-          [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE]
-          [--cert-file CERT_FILE] [--disable-headers DISABLE_HEADERS]
-          [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--basic-auth BASIC_AUTH] [--cache-dir CACHE_DIR]
+usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless] [--threaded]
+          [--num-workers NUM_WORKERS] [--pid-file PID_FILE] [--backlog BACKLOG]
+          [--hostname HOSTNAME] [--port PORT] [--num-acceptors NUM_ACCEPTORS]
+          [--unix-socket-path UNIX_SOCKET_PATH]
+          [--client-recvbuf-size CLIENT_RECVBUF_SIZE] [--key-file KEY_FILE]
+          [--timeout TIMEOUT] [--version] [--log-level LOG_LEVEL]
+          [--log-file LOG_FILE] [--log-format LOG_FORMAT]
+          [--open-file-limit OPEN_FILE_LIMIT] [--plugins PLUGINS]
+          [--enable-dashboard] [--work-klass WORK_KLASS] [--disable-http-proxy]
+          [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
+          [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
+          [--ca-signing-key-file CA_SIGNING_KEY_FILE] [--cert-file CERT_FILE]
+          [--disable-headers DISABLE_HEADERS]
+          [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--basic-auth BASIC_AUTH]
+          [--cache-dir CACHE_DIR]
           [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS] [--enable-web-server]
-          [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR] [--pac-file PAC_FILE]
-          [--pac-file-url-path PAC_FILE_URL_PATH] [--filtered-client-ips FILTERED_CLIENT_IPS]
+          [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
+          [--pac-file PAC_FILE] [--pac-file-url-path PAC_FILE_URL_PATH]
+          [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
@@ -1947,101 +1953,124 @@ proxy.py v2.4.0
 
 options:
   -h, --help            show this help message and exit
-  --enable-events       Default: False. Enables core to dispatch lifecycle events. Plugins can be used
-                        to subscribe for core events.
+  --enable-events       Default: False. Enables core to dispatch lifecycle events.
+                        Plugins can be used to subscribe for core events.
   --enable-conn-pool    Default: False. (WIP) Enable upstream connection pooling.
-  --threadless          Default: True. Enabled by default on Python 3.8+ (mac, linux). When disabled a
-                        new thread is spawned to handle each client connection.
-  --threaded            Default: False. Disabled by default on Python < 3.8 and windows. When enabled a
-                        new thread is spawned to handle each client connection.
+  --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
+                        linux). When disabled a new thread is spawned to handle
+                        each client connection.
+  --threaded            Default: False. Disabled by default on Python < 3.8 and
+                        windows. When enabled a new thread is spawned to handle
+                        each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
   --pid-file PID_FILE   Default: None. Save parent process ID to a file.
-  --backlog BACKLOG     Default: 100. Maximum number of pending connections to proxy server
+  --backlog BACKLOG     Default: 100. Maximum number of pending connections to
+                        proxy server
   --hostname HOSTNAME   Default: ::1. Server IP address.
   --port PORT           Default: 8899. Server port.
   --num-acceptors NUM_ACCEPTORS
                         Defaults to number of CPU cores.
   --unix-socket-path UNIX_SOCKET_PATH
-                        Default: None. Unix socket path to use. When provided --host and --port flags
-                        are ignored
+                        Default: None. Unix socket path to use. When provided
+                        --host and --port flags are ignored
   --client-recvbuf-size CLIENT_RECVBUF_SIZE
-                        Default: 1 MB. Maximum amount of data received from the client in a single
-                        recv() operation. Bump this value for faster uploads at the expense of increased
-                        RAM.
-  --key-file KEY_FILE   Default: None. Server key file to enable end-to-end TLS encryption with clients.
-                        If used, must also pass --cert-file.
-  --timeout TIMEOUT     Default: 10.0. Number of seconds after which an inactive connection must be
-                        dropped. Inactivity is defined by no data sent or received by the client.
+                        Default: 1 MB. Maximum amount of data received from the
+                        client in a single recv() operation. Bump this value for
+                        faster uploads at the expense of increased RAM.
+  --key-file KEY_FILE   Default: None. Server key file to enable end-to-end TLS
+                        encryption with clients. If used, must also pass --cert-
+                        file.
+  --timeout TIMEOUT     Default: 10.0. Number of seconds after which an inactive
+                        connection must be dropped. Inactivity is defined by no
+                        data sent or received by the client.
   --version, -v         Prints proxy.py version.
   --log-level LOG_LEVEL
-                        Valid options: DEBUG, INFO (default), WARNING, ERROR, CRITICAL. Both upper and
-                        lowercase values are allowed. You may also simply use the leading character e.g.
-                        --log-level d
+                        Valid options: DEBUG, INFO (default), WARNING, ERROR,
+                        CRITICAL. Both upper and lowercase values are allowed. You
+                        may also simply use the leading character e.g. --log-level
+                        d
   --log-file LOG_FILE   Default: sys.stdout. Log file destination.
   --log-format LOG_FORMAT
                         Log format for Python logger.
   --open-file-limit OPEN_FILE_LIMIT
-                        Default: 1024. Maximum number of files (TCP connections) that proxy.py can open
-                        concurrently.
+                        Default: 1024. Maximum number of files (TCP connections)
+                        that proxy.py can open concurrently.
   --plugins PLUGINS     Comma separated plugins
   --enable-dashboard    Default: False. Enables proxy.py dashboard.
+  --work-klass WORK_KLASS
+                        Default: proxy.http.handler.HttpProtocolHandler. Work klass
+                        to use for work execution.
   --disable-http-proxy  Default: False. Whether to disable proxy.HttpProxyPlugin.
   --ca-key-file CA_KEY_FILE
-                        Default: None. CA key to use for signing dynamically generated HTTPS
-                        certificates. If used, must also pass --ca-cert-file and --ca-signing-key-file
+                        Default: None. CA key to use for signing dynamically
+                        generated HTTPS certificates. If used, must also pass --ca-
+                        cert-file and --ca-signing-key-file
   --ca-cert-dir CA_CERT_DIR
-                        Default: ~/.proxy.py. Directory to store dynamically generated certificates.
-                        Also see --ca-key-file, --ca-cert-file and --ca-signing-key-file
+                        Default: ~/.proxy.py. Directory to store dynamically
+                        generated certificates. Also see --ca-key-file, --ca-cert-
+                        file and --ca-signing-key-file
   --ca-cert-file CA_CERT_FILE
-                        Default: None. Signing certificate to use for signing dynamically generated
-                        HTTPS certificates. If used, must also pass --ca-key-file and --ca-signing-key-
-                        file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv310/lib/python3.10/site-
-                        packages/certifi/cacert.pem. Provide path to custom CA bundle for peer
-                        certificate verification
+                        Default: None. Signing certificate to use for signing
+                        dynamically generated HTTPS certificates. If used, must
+                        also pass --ca-key-file and --ca-signing-key-file
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv310/lib/pytho
+                        n3.10/site-packages/certifi/cacert.pem. Provide path to
+                        custom CA bundle for peer certificate verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
-                        Default: None. CA signing key to use for dynamic generation of HTTPS
-                        certificates. If used, must also pass --ca-key-file and --ca-cert-file
+                        Default: None. CA signing key to use for dynamic generation
+                        of HTTPS certificates. If used, must also pass --ca-key-
+                        file and --ca-cert-file
   --cert-file CERT_FILE
-                        Default: None. Server certificate to enable end-to-end TLS encryption with
-                        clients. If used, must also pass --key-file.
+                        Default: None. Server certificate to enable end-to-end TLS
+                        encryption with clients. If used, must also pass --key-
+                        file.
   --disable-headers DISABLE_HEADERS
-                        Default: None. Comma separated list of headers to remove before dispatching
-                        client request to upstream server.
+                        Default: None. Comma separated list of headers to remove
+                        before dispatching client request to upstream server.
   --server-recvbuf-size SERVER_RECVBUF_SIZE
-                        Default: 1 MB. Maximum amount of data received from the server in a single
-                        recv() operation. Bump this value for faster downloads at the expense of
-                        increased RAM.
+                        Default: 1 MB. Maximum amount of data received from the
+                        server in a single recv() operation. Bump this value for
+                        faster downloads at the expense of increased RAM.
   --basic-auth BASIC_AUTH
-                        Default: No authentication. Specify colon separated user:password to enable
-                        basic authentication.
+                        Default: No authentication. Specify colon separated
+                        user:password to enable basic authentication.
   --cache-dir CACHE_DIR
-                        Default: A temporary directory. Flag only applicable when cache plugin is used
-                        with on-disk storage.
+                        Default: A temporary directory. Flag only applicable when
+                        cache plugin is used with on-disk storage.
   --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
-                        Default: Blocks Facebook. Comma separated list of IPv4 and IPv6 addresses.
-  --enable-web-server   Default: False. Whether to enable proxy.HttpWebServerPlugin.
+                        Default: Blocks Facebook. Comma separated list of IPv4 and
+                        IPv6 addresses.
+  --enable-web-server   Default: False. Whether to enable
+                        proxy.HttpWebServerPlugin.
   --enable-static-server
-                        Default: False. Enable inbuilt static file server. Optionally, also use
-                        --static-server-dir to serve static content from custom directory. By default,
-                        static file server serves out of installed proxy.py python module folder.
+                        Default: False. Enable inbuilt static file server.
+                        Optionally, also use --static-server-dir to serve static
+                        content from custom directory. By default, static file
+                        server serves out of installed proxy.py python module
+                        folder.
   --static-server-dir STATIC_SERVER_DIR
-                        Default: "public" folder in directory where proxy.py is placed. This option is
-                        only applicable when static server is also enabled. See --enable-static-server.
-  --pac-file PAC_FILE   A file (Proxy Auto Configuration) or string to serve when the server receives a
-                        direct file request. Using this option enables proxy.HttpWebServerPlugin.
+                        Default: "public" folder in directory where proxy.py is
+                        placed. This option is only applicable when static server
+                        is also enabled. See --enable-static-server.
+  --pac-file PAC_FILE   A file (Proxy Auto Configuration) or string to serve when
+                        the server receives a direct file request. Using this
+                        option enables proxy.HttpWebServerPlugin.
   --pac-file-url-path PAC_FILE_URL_PATH
                         Default: /. Web server path to serve the PAC file.
   --filtered-client-ips FILTERED_CLIENT_IPS
-                        Default: 127.0.0.1,::1. Comma separated list of IPv4 and IPv6 addresses.
+                        Default: 127.0.0.1,::1. Comma separated list of IPv4 and
+                        IPv6 addresses.
   --filtered-url-regex-config FILTERED_URL_REGEX_CONFIG
-                        Default: No config. Comma separated list of IPv4 and IPv6 addresses.
+                        Default: No config. Comma separated list of IPv4 and IPv6
+                        addresses.
   --cloudflare-dns-mode CLOUDFLARE_DNS_MODE
-                        Default: security. Either "security" (for malware protection) or "family" (for
-                        malware and adult content protection)
+                        Default: security. Either "security" (for malware
+                        protection) or "family" (for malware and adult content
+                        protection)
 
-Proxy.py not working? Report at: https://github.com/abhinavsingh/proxy.py/issues/new
+Proxy.py not working? Report at:
+https://github.com/abhinavsingh/proxy.py/issues/new
 ```
 
 # Changelog

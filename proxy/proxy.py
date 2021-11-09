@@ -91,7 +91,8 @@ flags.add_argument(
     '--work-klass',
     type=str,
     default=DEFAULT_WORK_KLASS,
-    help='Work klass to use by default for work execution.',
+    help='Default: ' + DEFAULT_WORK_KLASS +
+    '.  Work klass to use for work execution.',
 )
 
 
