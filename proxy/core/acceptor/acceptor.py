@@ -25,7 +25,6 @@ from .work import Work
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 
-from ..event import EventQueue
 from ...common.utils import is_threadless
 from ...common.logger import Logger
 
@@ -61,8 +60,8 @@ class Acceptor(multiprocessing.Process):
             flags: argparse.Namespace,
             work_klass: Type[Work],
             lock: multiprocessing.synchronize.Lock,
-            executor_queues: List[connection.Connection] = [],
-            executor_pids: List[int] = [],
+            executor_queues: List[connection.Connection],
+            executor_pids: List[int],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
@@ -148,7 +147,7 @@ class Acceptor(multiprocessing.Process):
         )
         conn.close()
         logger.debug(
-            'Dispatched work#{0} from acceptor#{1} to worker#{1}'.format(
+            'Dispatched work#{0} from acceptor#{1} to worker#{2}'.format(
                 self._total, self.idd, index,
             ),
         )
@@ -170,7 +169,7 @@ class Acceptor(multiprocessing.Process):
             publisher_id=self.__class__.__name__,
         )
         logger.debug(
-            'Started work#{0} in a new thread#{1}'.format(
+            'Started work#{0} in thread#{1}'.format(
                 self._total, work_thread.ident,
             ),
         )

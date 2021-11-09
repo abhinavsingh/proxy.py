@@ -21,7 +21,6 @@ from .work import Work
 from .threadless import Threadless
 
 from ..event import EventQueue
-from ..event import EventQueue
 
 from ...common.flag import flags
 from ...common.utils import is_threadless
@@ -120,6 +119,7 @@ class ThreadlessPool:
         )
         self._workers.append(w)
         w.start()
+        assert w.pid
         self.work_pids.append(w.pid)
         logger.debug('Started threadless#%d process#%d', index, w.pid)
 
