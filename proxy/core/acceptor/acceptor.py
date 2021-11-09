@@ -135,7 +135,7 @@ class Acceptor(multiprocessing.Process):
                 self.flags.unix_socket_path,
             )
             logger.debug(
-                'Dispatched work#{0}.{0} to worker#{2}'.format(
+                'Dispatched work#{0}.{1} to worker#{2}'.format(
                     self.idd, self._total, index,
                 ),
             )
@@ -147,7 +147,7 @@ class Acceptor(multiprocessing.Process):
                 publisher_id=self.__class__.__name__,
             )
             logger.debug(
-                'Started work#{0}.{0} in thread#{1}'.format(
+                'Started work#{0}.{1} in thread#{1}'.format(
                     self.idd, self._total, thread.ident,
                 ),
             )
