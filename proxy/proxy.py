@@ -20,7 +20,7 @@ from .http.handler import HttpProtocolHandler
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
-from .common.constants import DEFAULT_ENABLE_DASHBOARD
+from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS
 from .common.context_managers import SetupShutdownContextManager
 
 
@@ -87,6 +87,13 @@ flags.add_argument(
     help='Default: False.  Enables proxy.py dashboard.',
 )
 
+flags.add_argument(
+    '--work-klass',
+    type=str,
+    default=DEFAULT_WORK_KLASS,
+    help='Work klass to use by default for work execution.',
+)
+
 
 class Proxy(SetupShutdownContextManager):
     """Context manager to control AcceptorPool, ExecutorPool & EventingCore lifecycle.
@@ -99,14 +106,8 @@ class Proxy(SetupShutdownContextManager):
     for message sharing and/or signaling.
     """
 
-    def __init__(
-        self,
-        input_args: Optional[List[str]] = None,
-        work_klass: Type[Work] = HttpProtocolHandler,
-        **opts: Any,
-    ) -> None:
-        self.flags = FlagParser.initialize(input_args, **opts)
-        self.flags.work_klass = work_klass
+    def __init__(self, **opts: Any) -> None:
+        self.flags = FlagParser.initialize(sys.argv[1:], **opts)
         self.acceptors: Optional[AcceptorPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.event_manager: Optional[EventManager] = None
@@ -166,12 +167,9 @@ class Proxy(SetupShutdownContextManager):
             self.event_manager.shutdown()
 
 
-def main(
-        input_args: Optional[List[str]] = None,
-        **opts: Any,
-) -> None:
+def main(**opts: Any) -> None:
     try:
-        with Proxy(input_args=input_args, **opts):
+        with Proxy(**opts):
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:
@@ -179,4 +177,4 @@ def main(
 
 
 def entry_point() -> None:
-    main(input_args=sys.argv[1:])
+    main()

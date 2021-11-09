@@ -58,14 +58,10 @@ class WebScraper(Work):
 
 if __name__ == '__main__':
     with Proxy(
-        flags=FlagParser.initialize(
-            port=12345,
-            num_workers=1,
-            threadless=True,
-            keyfile='https-key.pem',
-            certfile='https-signed-cert.pem',
-        ),
         work_klass=WebScraper,
+        threadless=True,
+        num_workers=1,
+        port=12345,
     ) as pool:
         while True:
             time.sleep(1)

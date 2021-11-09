@@ -107,26 +107,6 @@ class FlagParser:
             print(__version__)
             sys.exit(0)
 
-        # Setup logging module
-        Logger.setup_logger(args.log_file, args.log_level, args.log_format)
-
-        # Setup limits
-        set_open_file_limit(args.open_file_limit)
-
-        # Load plugins
-        default_plugins = [
-            bytes_(p)
-            for p in FlagParser.get_default_plugins(args)
-        ]
-        extra_plugins = [
-            p if isinstance(p, type) else bytes_(p)
-            for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
-            if not (isinstance(p, str) and len(p) == 0)
-        ]
-
-        # Load default plugins along with user provided --plugins
-        plugins = Plugins.load(default_plugins + extra_plugins)
-
         # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
         # at the same time.
@@ -138,16 +118,42 @@ class FlagParser:
             )
             sys.exit(1)
 
+        # Setup logging module
+        Logger.setup_logger(args.log_file, args.log_level, args.log_format)
+
+        # Setup limits
+        set_open_file_limit(args.open_file_limit)
+
+        # Load work_klass
+        work_klass = opts.get('work_klass', args.work_klass)
+        work_klass = work_klass \
+            if isinstance(work_klass, type) \
+            else Plugins.importer(work_klass)[0]
+        print(work_klass)
+
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
         if args.basic_auth:
             auth_code = base64.b64encode(bytes_(args.basic_auth))
+
+        # Load default plugins along with user provided --plugins
+        default_plugins = [
+            bytes_(p)
+            for p in FlagParser.get_default_plugins(args)
+        ]
+        extra_plugins = [
+            p if isinstance(p, type) else bytes_(p)
+            for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
+            if not (isinstance(p, str) and len(p) == 0)
+        ]
+        plugins = Plugins.load(default_plugins + extra_plugins)
 
         # https://github.com/python/mypy/issues/5865
         #
         # def option(t: object, key: str, default: Any) -> Any:
         #     return cast(t, opts.get(key, default))
 
+        args.work_klass = work_klass
         args.plugins = plugins
         args.auth_code = cast(
             Optional[bytes],

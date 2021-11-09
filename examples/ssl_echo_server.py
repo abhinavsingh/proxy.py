@@ -46,14 +46,12 @@ class EchoSSLServerHandler(BaseTcpServerHandler):
 def main() -> None:
     # This example requires `threadless=True`
     with Proxy(
-        flags=FlagParser.initialize(
-            port=12345,
-            num_workers=1,
-            threadless=True,
-            keyfile='https-key.pem',
-            certfile='https-signed-cert.pem',
-        ),
         work_klass=EchoSSLServerHandler,
+        threadless=True,
+        num_workers=1,
+        port=12345,
+        keyfile='https-key.pem',
+        certfile='https-signed-cert.pem',
     ):
         try:
             while True:
