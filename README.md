@@ -1,27 +1,31 @@
 [![Proxy.Py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
-[![License](https://img.shields.io/github/license/abhinavsingh/proxy.py.svg)](https://opensource.org/licenses/BSD-3-Clause)
-[![PyPi Monthly](https://img.shields.io/pypi/dm/proxy.py.svg?color=green)](https://pypi.org/project/proxy.py/)
-[![Docker Pulls](https://img.shields.io/docker/pulls/abhinavsingh/proxy.py?color=green)](https://hub.docker.com/r/abhinavsingh/proxy.py)
-[![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=none&color=green)](https://github.com/abhinavsingh/proxy.py)
+[![PyPi Monthly](https://img.shields.io/pypi/dm/proxy.py?style=for-the-badge&color=darkgreen)](https://pypi.org/project/proxy.py/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/abhinavsingh/proxy.py?style=for-the-badge&color=darkgreen)](https://hub.docker.com/r/abhinavsingh/proxy.py)
+[![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=0&style=for-the-badge&color=darkgreen)](https://github.com/abhinavsingh/proxy.py)
+[![Gitter](https://img.shields.io/gitter/room/abhinavsingh/proxy.py?style=for-the-badge&color=darkgreen)](https://gitter.im/proxy-py/community)
+[![License](https://img.shields.io/github/license/abhinavsingh/proxy.py?style=for-the-badge&color=darkgreen)](https://opensource.org/licenses/BSD-3-Clause)
 
-[![Proxy.py Library Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Library/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
-[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Docker/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
-[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Dashboard/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
-[![Proxy.py Docker Build Status](https://github.com/abhinavsingh/proxy.py/workflows/Proxy.py%20Brew/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions)
-[![Coverage](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![Tested With MacOS, Ubuntu, Windows, Android, Android Emulator, iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB%20%7C%20Ubuntu%20%F0%9F%96%A5%20%7C%20Windows%20%F0%9F%92%BB&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
+[![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
+[![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
-[![Tested With MacOS, Ubuntu, Windows, Android, Android Emulator, iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB%20%7C%20Ubuntu%20%F0%9F%96%A5%20%7C%20Windows%20%F0%9F%92%BB&color=brightgreen)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
-[![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=brightgreen)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
-[![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=brightgreen)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
+<!--
+[![Maintenance](https://img.shields.io/static/v1?label=maintained%3F&message=yes&color=darkgreen)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
+[![Ask Me Anything](https://img.shields.io/static/v1?label=need%20help%3F&message=ask&color=darkgreen)](https://twitter.com/imoracle)
+[![Contributions Welcome](https://img.shields.io/static/v1?label=contributions&message=welcome%20%F0%9F%91%8D&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/issues)
+-->
 
-[![Maintenance](https://img.shields.io/static/v1?label=maintained%3F&message=yes&color=green)](https://gitHub.com/abhinavsingh/proxy.py/graphs/commit-activity)
-[![Ask Me Anything](https://img.shields.io/static/v1?label=need%20help%3F&message=ask&color=green)](https://twitter.com/imoracle)
-[![Contributions Welcome](https://img.shields.io/static/v1?label=contributions&message=welcome%20%F0%9F%91%8D&color=green)](https://github.com/abhinavsingh/proxy.py/issues)
-[![Gitter](https://badges.gitter.im/proxy-py/community.svg)](https://gitter.im/proxy-py/community)
+[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
+[![docker](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-docker.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-docker.yml)
+[![dashboard](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-dashboard.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-dashboard.yml)
+[![brew](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-brew.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-brew.yml)
+[![CodeQL](https://github.com/abhinavsingh/proxy.py/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/codeql-analysis.yml)
 
+[![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
 [![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
+[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
 
 # Table of Contents
 
