@@ -148,8 +148,11 @@ class Acceptor(multiprocessing.Process):
             self.executor_pids[index],
         )
         conn.close()
-        logger.debug('Dispatched work#{0} from acceptor#{1} to worker#{2}'.format(
-            self._total, self.idd, index))
+        logger.debug(
+            'Dispatched work#{0} from acceptor#{1} to worker#{1}'.format(
+                self._total, self.idd, index,
+            ),
+        )
 
     def _start_threaded_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
         work = self.work_klass(
@@ -167,5 +170,8 @@ class Acceptor(multiprocessing.Process):
             event_payload={'fileno': conn.fileno(), 'addr': addr},
             publisher_id=self.__class__.__name__,
         )
-        logger.debug('Started work#{0} in a new thread#{1}'.format(
-            self._total, work_thread.ident))
+        logger.debug(
+            'Started work#{0} in a new thread#{1}'.format(
+                self._total, work_thread.ident,
+            ),
+        )
