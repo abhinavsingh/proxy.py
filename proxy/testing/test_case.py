@@ -41,7 +41,7 @@ class TestCase(unittest.TestCase):
         cls.INPUT_ARGS.append('--port')
         cls.INPUT_ARGS.append('0')
 
-        cls.PROXY = Proxy(input_args=cls.INPUT_ARGS)
+        cls.PROXY = Proxy(cls.INPUT_ARGS)
         cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(
             CacheResponsesPlugin,
         )

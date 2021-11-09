@@ -14,8 +14,6 @@ from unittest import mock
 
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
-from proxy.http import HttpProtocolHandler
-from proxy.common.flag import FlagParser
 
 from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_NUM_ACCEPTORS, DEFAULT_WORK_KLASS
 from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
@@ -239,82 +237,6 @@ class TestMain(unittest.TestCase):
         mock_executor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called_once()
-
-    @mock.patch('time.sleep')
-    @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    def test_basic_auth_flag_is_base64_encoded(
-            self,
-            mock_acceptor_pool: mock.Mock,
-            mock_event_manager: mock.Mock,
-            mock_sleep: mock.Mock,
-    ) -> None:
-        mock_sleep.side_effect = KeyboardInterrupt()
-
-        input_args = ['--basic-auth', 'user:pass']
-        flgs = FlagParser.initialize(input_args)
-
-        main(input_args=input_args)
-        mock_event_manager.assert_not_called()
-        mock_acceptor_pool.assert_called_once()
-        self.assertEqual(
-            flgs.auth_code,
-            b'dXNlcjpwYXNz',
-        )
-
-    @mock.patch('time.sleep')
-    @mock.patch('builtins.print')
-    @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.common.flag.is_py2')
-    def test_main_py3_runs(
-            self,
-            mock_is_py2: mock.Mock,
-            mock_acceptor_pool: mock.Mock,
-            mock_event_manager: mock.Mock,
-            mock_print: mock.Mock,
-            mock_sleep: mock.Mock,
-    ) -> None:
-        mock_sleep.side_effect = KeyboardInterrupt()
-
-        input_args = ['--basic-auth', 'user:pass']
-        mock_is_py2.return_value = False
-
-        main(input_args, num_workers=1)
-
-        mock_is_py2.assert_called()
-        mock_print.assert_not_called()
-
-        mock_event_manager.assert_not_called()
-        mock_acceptor_pool.assert_called_once()
-        mock_acceptor_pool.return_value.setup.assert_called()
-
-    @mock.patch('builtins.print')
-    @mock.patch('proxy.common.flag.is_py2')
-    def test_main_py2_exit(
-            self,
-            mock_is_py2: mock.Mock,
-            mock_print: mock.Mock,
-    ) -> None:
-        mock_is_py2.return_value = True
-        with self.assertRaises(SystemExit) as e:
-            main(num_workers=1)
-        mock_print.assert_called_with(PY2_DEPRECATION_MESSAGE)
-        self.assertEqual(e.exception.code, 1)
-        mock_is_py2.assert_called()
-
-    @mock.patch('builtins.print')
-    @mock.patch('sys.argv')
-    def test_main_version(
-            self,
-            mock_sys_argv: mock.Mock,
-            mock_print: mock.Mock,
-    ) -> None:
-        mock_sys_argv.return_value = ['proxy', '--version']
-        with self.assertRaises(SystemExit) as e:
-            main()
-            mock_print.assert_called_with(__version__)
-        self.assertEqual(e.exception.code, 0)
 
     # def test_pac_file(self) -> None:
     #     pass

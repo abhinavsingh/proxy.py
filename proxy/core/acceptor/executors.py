@@ -17,7 +17,7 @@ import multiprocessing
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 
-from typing import Optional, List, Tuple, Type
+from typing import Optional, List, Tuple
 
 from .work import Work
 from .threadless import Threadless

@@ -12,11 +12,10 @@ import sys
 import time
 import logging
 
-from typing import List, Optional, Any, Type
+from typing import List, Optional, Any
 
-from .core.acceptor import AcceptorPool, ThreadlessPool, Work
+from .core.acceptor import AcceptorPool, ThreadlessPool
 from .core.event import EventManager
-from .http import HttpProtocolHandler
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
@@ -107,12 +106,8 @@ class Proxy(SetupShutdownContextManager):
     for message sharing and/or signaling.
     """
 
-    def __init__(self, **opts: Any) -> None:
-        input_args = sys.argv[1:]
-        print(input_args)
-        print('*'*20)
+    def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
         self.flags = FlagParser.initialize(input_args, **opts)
-        print(self.flags)
         self.acceptors: Optional[AcceptorPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.event_manager: Optional[EventManager] = None
@@ -174,7 +169,7 @@ class Proxy(SetupShutdownContextManager):
 
 def main(**opts: Any) -> None:
     try:
-        with Proxy(**opts):
+        with Proxy(sys.argv[1:], **opts):
             while True:
                 time.sleep(1)
     except KeyboardInterrupt:

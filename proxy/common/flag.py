@@ -84,8 +84,8 @@ class FlagParser:
 
     @staticmethod
     def initialize(
-        input_args: Optional[List[str]]
-        = None, **opts: Any,
+        input_args: Optional[List[str]] = None,
+        **opts: Any,
     ) -> argparse.Namespace:
         if input_args is None:
             input_args = []
@@ -126,9 +126,9 @@ class FlagParser:
 
         # Load work_klass
         work_klass = opts.get('work_klass', args.work_klass)
-        work_klass = work_klass \
-            if isinstance(work_klass, type) \
-            else Plugins.importer(work_klass)[0]
+        work_klass = Plugins.importer(work_klass)[0] \
+            if isinstance(work_klass, str) \
+            else work_klass
 
         # Generate auth_code required for basic authentication if enabled
         auth_code = None

@@ -18,11 +18,9 @@ import multiprocessing.synchronize
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from typing import List, Optional, Tuple, Type
+from typing import List, Optional, Tuple
 
 from proxy.core.acceptor.executors import ThreadlessPool
-
-from .work import Work
 
 from ..event import EventQueue
 

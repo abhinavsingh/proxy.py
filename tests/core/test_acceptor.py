@@ -16,21 +16,23 @@ from unittest import mock
 
 from proxy.core.acceptor import Acceptor
 from proxy.common.flag import FlagParser
+from proxy.http import HttpProtocolHandler
 
 
 class TestAcceptor(unittest.TestCase):
 
     def setUp(self) -> None:
         self.acceptor_id = 1
-        self.mock_protocol_handler = mock.MagicMock()
         self.pipe = multiprocessing.Pipe()
-        self.flags = FlagParser.initialize(threaded=True)
+        self.flags = FlagParser.initialize(
+            threaded=True, work_klass=mock.MagicMock())
         self.acceptor = Acceptor(
             idd=self.acceptor_id,
             work_queue=self.pipe[1],
             flags=self.flags,
             lock=multiprocessing.Lock(),
-            work_klass=self.mock_protocol_handler,
+            executor_queues=[],
+            executor_pids=[],
         )
 
     @mock.patch('selectors.DefaultSelector')
@@ -55,9 +57,9 @@ class TestAcceptor(unittest.TestCase):
         self.acceptor.run()
 
         sock.accept.assert_not_called()
-        self.mock_protocol_handler.assert_not_called()
+        self.flags.work_klass.assert_not_called()
 
-    @mock.patch('proxy.core.acceptor.acceptor.TcpClientConnection')
+    @mock.patch('proxy.core.acceptor.executors.TcpClientConnection')
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -92,13 +94,13 @@ class TestAcceptor(unittest.TestCase):
             family=socket.AF_INET6,
             type=socket.SOCK_STREAM,
         )
-        self.mock_protocol_handler.assert_called_with(
+        self.flags.work_klass.assert_called_with(
             mock_client.return_value,
             flags=self.flags,
             event_queue=None,
         )
         mock_thread.assert_called_with(
-            target=self.mock_protocol_handler.return_value.run,
+            target=self.flags.work_klass.return_value.run,
         )
         mock_thread.return_value.start.assert_called()
         sock.close.assert_called()
