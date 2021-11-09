@@ -142,7 +142,7 @@ class AcceptorPool:
         # the server port when `--port=0` is used.
         assert self.socket
         self.flags.port = self.socket.getsockname()[1]
-        self._start_acceptors()
+        self._start()
         # Send file descriptor to all acceptor processes.
         assert self.socket is not None
         for index in range(self.flags.num_acceptors):
@@ -179,7 +179,7 @@ class AcceptorPool:
         self.socket.listen(self.flags.backlog)
         self.socket.setblocking(False)
 
-    def _start_acceptors(self) -> None:
+    def _start(self) -> None:
         """Start acceptor processes."""
         for acceptor_id in range(self.flags.num_acceptors):
             work_queue = multiprocessing.Pipe()

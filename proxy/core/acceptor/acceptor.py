@@ -133,8 +133,11 @@ class Acceptor(multiprocessing.Process):
 
     def _start_threadless_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
         # Index of worker to which this work should be dispatched
-        # Use round-robin strategy by default
-        index = self._total % self.flags.num_workers
+        # Use round-robin strategy by default.
+        #
+        # By default all acceptors will start sending work to
+        # 1st workers.  To randomize, we offset index by idd.
+        index = (self._total + self.idd) % self.flags.num_workers
         # Accepted client address is empty string for
         # unix socket domain, avoid sending empty string
         if not self.flags.unix_socket_path:
@@ -145,7 +148,7 @@ class Acceptor(multiprocessing.Process):
             self.executor_pids[index],
         )
         conn.close()
-        logger.debug('Dispatched work#{0} from acceptor#{1} to worker#{1}'.format(
+        logger.debug('Dispatched work#{0} from acceptor#{1} to worker#{2}'.format(
             self._total, self.idd, index))
 
     def _start_threaded_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:

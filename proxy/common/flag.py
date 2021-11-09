@@ -22,7 +22,7 @@ from typing import Optional, List, Any, cast
 from .plugins import Plugins
 from .types import IpAddress
 from .utils import text_, bytes_, is_py2, set_open_file_limit
-from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_WORKERS
+from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
 from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
@@ -246,6 +246,11 @@ class FlagParser:
         num_workers = num_workers if num_workers is not None else DEFAULT_NUM_WORKERS
         args.num_workers = cast(
             int, num_workers if num_workers > 0 else multiprocessing.cpu_count(),
+        )
+        num_acceptors = opts.get('num_acceptors', args.num_acceptors)
+        num_acceptors = num_acceptors if num_acceptors is not None else DEFAULT_NUM_ACCEPTORS
+        args.num_acceptors = cast(
+            int, num_acceptors if num_acceptors > 0 else multiprocessing.cpu_count(),
         )
         args.static_server_dir = cast(
             str,

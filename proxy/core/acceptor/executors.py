@@ -15,6 +15,7 @@ import multiprocessing
 from multiprocessing import connection
 
 from typing import Optional, List, Type
+from types import TracebackType
 
 from .work import Work
 from .threadless import Threadless
@@ -74,12 +75,24 @@ class ThreadlessPool:
         self.work_queues: List[connection.Connection] = []
         self.work_pids: List[int] = []
 
+    def __enter__(self) -> 'ThreadlessPool':
+        self.setup()
+        return self
+
+    def __exit__(
+            self,
+            exc_type: Optional[Type[BaseException]],
+            exc_val: Optional[BaseException],
+            exc_tb: Optional[TracebackType],
+    ) -> None:
+        self.shutdown()
+
     def setup(self) -> None:
         """Setup threadless processes."""
         if is_threadless(self.flags.threadless, self.flags.threaded):
             for index in range(self.flags.num_workers):
                 self._start_worker(index)
-            logger.debug('Started {0} threadless workers'.format(
+            logger.info('Started {0} threadless workers'.format(
                 self.flags.num_workers))
 
     def shutdown(self) -> None:
@@ -87,7 +100,7 @@ class ThreadlessPool:
         if is_threadless(self.flags.threadless, self.flags.threaded):
             for _ in range(self.flags.num_workers):
                 self._shutdown_worker()
-            logger.debug('Stopped {0} threadless workers'.format(
+            logger.info('Stopped {0} threadless workers'.format(
                 self.flags.num_workers))
 
     def _start_worker(self, index: int) -> None:
