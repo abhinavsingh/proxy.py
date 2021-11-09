@@ -21,7 +21,6 @@ from multiprocessing.reduction import send_handle, recv_handle
 from typing import List, Optional, Tuple, Type
 
 from .work import Work
-from .executors import ThreadlessPool
 
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
