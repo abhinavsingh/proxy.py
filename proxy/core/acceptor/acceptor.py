@@ -12,18 +12,19 @@ import socket
 import logging
 import argparse
 import selectors
-import threading
 import multiprocessing
 import multiprocessing.synchronize
+
 from multiprocessing import connection
-from multiprocessing.reduction import send_handle, recv_handle
+from multiprocessing.reduction import recv_handle
 
 from typing import List, Optional, Tuple, Type
 
+from proxy.core.acceptor.executors import ThreadlessPool
+
 from .work import Work
 
-from ..connection import TcpClientConnection
-from ..event import EventQueue, eventNames
+from ..event import EventQueue
 
 from ...common.utils import is_threadless
 from ...common.logger import Logger
@@ -124,52 +125,34 @@ class Acceptor(multiprocessing.Process):
 
     def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
         if is_threadless(self.flags.threadless, self.flags.threaded):
-            self._start_threadless_work(conn, addr)
+            # Index of worker to which this work should be dispatched
+            # Use round-robin strategy by default.
+            #
+            # By default all acceptors will start sending work to
+            # 1st workers.  To randomize, we offset index by idd.
+            index = (self._total + self.idd) % self.flags.num_workers
+            ThreadlessPool.start_threadless_work(
+                self.executor_pids[index],
+                self.executor_queues[index],
+                conn,
+                addr,
+                self.flags.unix_socket_path,
+            )
+            logger.debug(
+                'Dispatched work#{0} from acceptor#{1} to worker#{2}'.format(
+                    self._total, self.idd, index,
+                ),
+            )
         else:
-            self._start_threaded_work(conn, addr)
+            work, thread = ThreadlessPool.start_threaded_work(
+                self.flags, self.work_klass,
+                conn, addr,
+                event_queue=self.event_queue,
+                publisher_id=self.__class__.__name__,
+            )
+            logger.debug(
+                'Started work#{0} in thread#{1}'.format(
+                    self._total, thread.ident,
+                ),
+            )
         self._total += 1
-
-    def _start_threadless_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
-        # Index of worker to which this work should be dispatched
-        # Use round-robin strategy by default.
-        #
-        # By default all acceptors will start sending work to
-        # 1st workers.  To randomize, we offset index by idd.
-        index = (self._total + self.idd) % self.flags.num_workers
-        # Accepted client address is empty string for
-        # unix socket domain, avoid sending empty string
-        if not self.flags.unix_socket_path:
-            self.executor_queues[index].send(addr)
-        send_handle(
-            self.executor_queues[index],
-            conn.fileno(),
-            self.executor_pids[index],
-        )
-        conn.close()
-        logger.debug(
-            'Dispatched work#{0} from acceptor#{1} to worker#{2}'.format(
-                self._total, self.idd, index,
-            ),
-        )
-
-    def _start_threaded_work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
-        work = self.work_klass(
-            TcpClientConnection(conn, addr),
-            flags=self.flags,
-            event_queue=self.event_queue,
-        )
-        # TODO: Keep reference to threads and join during shutdown.
-        # This will ensure connections are not abruptly closed on shutdown.
-        work_thread = threading.Thread(target=work.run)
-        work_thread.daemon = True
-        work_thread.start()
-        work.publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'fileno': conn.fileno(), 'addr': addr},
-            publisher_id=self.__class__.__name__,
-        )
-        logger.debug(
-            'Started work#{0} in thread#{1}'.format(
-                self._total, work_thread.ident,
-            ),
-        )

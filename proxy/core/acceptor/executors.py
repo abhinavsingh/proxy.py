@@ -8,19 +8,23 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import socket
 import logging
 import argparse
+import threading
 import multiprocessing
 
 from multiprocessing import connection
+from multiprocessing.reduction import send_handle
 
-from typing import Optional, List, Type
+from typing import Optional, List, Tuple, Type
 from types import TracebackType
 
 from .work import Work
 from .threadless import Threadless
 
-from ..event import EventQueue
+from ..connection import TcpClientConnection
+from ..event import EventQueue, eventNames
 
 from ...common.flag import flags
 from ...common.utils import is_threadless
@@ -60,6 +64,12 @@ flags.add_argument(
 class ThreadlessPool:
     """Manages lifecycle of threadless pool and delegates work to them
     using a round-robin strategy.
+
+    Example usage:
+
+        with ThreadlessPool(flags=..., work_klass=...) as pool:
+            while True:
+                time.sleep(1)
     """
 
     def __init__(
@@ -131,3 +141,49 @@ class ThreadlessPool:
         self.work_pids.pop()
         self.work_queues.pop().close()
         logger.debug('Stopped threadless process#%d', pid)
+
+    @staticmethod
+    def start_threadless_work(
+            worker_pid: int,
+            work_queue: connection.Connection,
+            conn: socket.socket,
+            addr: Optional[Tuple[str, int]],
+            unix_socket_path: Optional[str] = None,
+    ) -> None:
+        # Accepted client address is empty string for
+        # unix socket domain, avoid sending empty string
+        if not unix_socket_path:
+            work_queue.send(addr)
+        send_handle(
+            work_queue,
+            conn.fileno(),
+            worker_pid,
+        )
+        conn.close()
+
+    @staticmethod
+    def start_threaded_work(
+            flags: argparse.ArgumentParser,
+            work_klass: Type[Work],
+            conn: socket.socket,
+            addr: Optional[Tuple[str, int]],
+            event_queue: Optional[EventQueue] = None,
+            publisher_id: Optional[str] = None,
+    ) -> threading.Thread:
+        work = work_klass(
+            TcpClientConnection(conn, addr),
+            flags=flags,
+            event_queue=event_queue,
+        )
+        # TODO: Keep reference to threads and join during shutdown.
+        # This will ensure connections are not abruptly closed on shutdown.
+        thread = threading.Thread(target=work.run)
+        thread.daemon = True
+        thread.start()
+        work.publish_event(
+            event_name=eventNames.WORK_STARTED,
+            event_payload={'fileno': conn.fileno(), 'addr': addr},
+            publisher_id=publisher_id or 'thread#{0}'.format(
+                thread.ident),
+        )
+        return (work, thread)
