@@ -14,7 +14,7 @@ from unittest import mock
 
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
-from proxy.http.handler import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler
 from proxy.common.flag import FlagParser
 
 from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT

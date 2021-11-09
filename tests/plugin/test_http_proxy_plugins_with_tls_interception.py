@@ -21,7 +21,7 @@ from proxy.common.utils import bytes_, build_http_request, build_http_response
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.http.codes import httpStatusCodes
 from proxy.http.methods import httpMethods
-from proxy.http.handler import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 
 from .utils import get_plugin_by_test_name

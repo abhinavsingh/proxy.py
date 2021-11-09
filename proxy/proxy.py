@@ -16,7 +16,7 @@ from typing import List, Optional, Any, Type
 
 from .core.acceptor import AcceptorPool, ThreadlessPool, Work
 from .core.event import EventManager
-from .http.handler import HttpProtocolHandler
+from .http import HttpProtocolHandler
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION

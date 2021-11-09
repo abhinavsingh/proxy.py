@@ -103,7 +103,7 @@ DEFAULT_VERSION = False
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 DEFAULT_MAX_SEND_SIZE = 16 * 1024
-DEFAULT_WORK_KLASS = 'proxy.http.handler.HttpProtocolHandler'
+DEFAULT_WORK_KLASS = 'proxy.http.HttpProtocolHandler'
 
 DEFAULT_DEVTOOLS_DOC_URL = 'http://proxy'
 DEFAULT_DEVTOOLS_FRAME_ID = secrets.token_hex(8)

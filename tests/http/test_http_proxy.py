@@ -16,7 +16,7 @@ from proxy.common.constants import DEFAULT_HTTP_PORT
 from proxy.common.flag import FlagParser
 from proxy.core.connection import TcpClientConnection
 from proxy.http.proxy import HttpProxyPlugin
-from proxy.http.handler import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler
 from proxy.http.exception import HttpProtocolException
 from proxy.common.utils import build_http_request
 

@@ -18,7 +18,7 @@ from unittest import mock
 from proxy.common.plugins import Plugins
 from proxy.common.flag import FlagParser
 from proxy.core.connection import TcpClientConnection
-from proxy.http.handler import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler
 from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
 from proxy.common.utils import build_http_response, build_http_request, bytes_, text_
 from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
