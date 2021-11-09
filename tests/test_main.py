@@ -17,7 +17,7 @@ from proxy.common.utils import bytes_
 from proxy.http import HttpProtocolHandler
 from proxy.common.flag import FlagParser
 
-from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT
+from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_NUM_ACCEPTORS, DEFAULT_WORK_KLASS
 from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
 from proxy.common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
 from proxy.common.constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
@@ -34,6 +34,7 @@ class TestMain(unittest.TestCase):
 
     @staticmethod
     def mock_default_args(mock_args: mock.Mock) -> None:
+        """Use when trying to mock parse_args"""
         mock_args.version = False
         mock_args.cert_file = DEFAULT_CERT_FILE
         mock_args.key_file = DEFAULT_KEY_FILE
@@ -47,6 +48,7 @@ class TestMain(unittest.TestCase):
         mock_args.basic_auth = DEFAULT_BASIC_AUTH
         mock_args.hostname = DEFAULT_IPV6_HOSTNAME
         mock_args.port = DEFAULT_PORT
+        mock_args.num_acceptors = DEFAULT_NUM_ACCEPTORS
         mock_args.num_workers = DEFAULT_NUM_WORKERS
         mock_args.disable_http_proxy = DEFAULT_DISABLE_HTTP_PROXY
         mock_args.pac_file = DEFAULT_PAC_FILE
@@ -64,13 +66,16 @@ class TestMain(unittest.TestCase):
         mock_args.enable_devtools = DEFAULT_ENABLE_DEVTOOLS
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
         mock_args.enable_dashboard = DEFAULT_ENABLE_DASHBOARD
+        mock_args.work_klass = DEFAULT_WORK_KLASS
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.ThreadlessPool')
     def test_entry_point(
             self,
+            mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
             mock_initialize: mock.Mock,
@@ -80,10 +85,15 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.enable_events = False
         entry_point()
         mock_event_manager.assert_not_called()
-        mock_acceptor_pool.assert_called_with(
+        mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
-            work_klass=HttpProtocolHandler,
             event_queue=None,
+        )
+        mock_acceptor_pool.assert_called_once_with(
+            flags=mock_initialize.return_value,
+            event_queue=None,
+            executor_queues=mock_executor_pool.return_value.work_queues,
+            executor_pids=mock_executor_pool.return_value.work_pids,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()
@@ -93,8 +103,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
-    def test_main_with_no_arguments(
+    @mock.patch('proxy.proxy.ThreadlessPool')
+    def test_main_with_no_flags(
             self,
+            mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
             mock_initialize: mock.Mock,
@@ -102,12 +114,17 @@ class TestMain(unittest.TestCase):
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_initialize.return_value.enable_events = False
-        main([])
+        main()
         mock_event_manager.assert_not_called()
-        mock_acceptor_pool.assert_called_with(
+        mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
-            work_klass=HttpProtocolHandler,
             event_queue=None,
+        )
+        mock_acceptor_pool.assert_called_once_with(
+            flags=mock_initialize.return_value,
+            event_queue=None,
+            executor_queues=mock_executor_pool.return_value.work_queues,
+            executor_pids=mock_executor_pool.return_value.work_pids,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()
@@ -117,23 +134,30 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.ThreadlessPool')
     def test_enable_events(
-        self,
-        mock_acceptor_pool: mock.Mock,
-        mock_event_manager: mock.Mock,
-        mock_initialize: mock.Mock,
-        mock_sleep: mock.Mock,
+            self,
+            mock_executor_pool: mock.Mock,
+            mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
+            mock_initialize: mock.Mock,
+            mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_initialize.return_value.enable_events = True
-        main([])
+        main()
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()
         mock_event_manager.return_value.shutdown.assert_called_once()
-        mock_acceptor_pool.assert_called_with(
+        mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
-            work_klass=HttpProtocolHandler,
             event_queue=mock_event_manager.return_value.queue,
+        )
+        mock_acceptor_pool.assert_called_once_with(
+            flags=mock_initialize.return_value,
+            event_queue=mock_event_manager.return_value.queue,
+            executor_queues=mock_executor_pool.return_value.work_queues,
+            executor_pids=mock_executor_pool.return_value.work_pids,
         )
         mock_acceptor_pool.return_value.setup.assert_called()
         mock_acceptor_pool.return_value.shutdown.assert_called()
@@ -144,19 +168,21 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.ThreadlessPool')
     def test_enable_dashboard(
-        self,
-        mock_acceptor_pool: mock.Mock,
-        mock_event_manager: mock.Mock,
-        mock_parse_args: mock.Mock,
-        mock_load_plugins: mock.Mock,
-        mock_sleep: mock.Mock,
+            self,
+            mock_executor_pool: mock.Mock,
+            mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
+            mock_parse_args: mock.Mock,
+            mock_load_plugins: mock.Mock,
+            mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.enable_dashboard = True
-        main(['--enable-dashboard'])
+        main(enable_dashboard=True)
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -167,32 +193,37 @@ class TestMain(unittest.TestCase):
                 bytes_(PLUGIN_HTTP_PROXY),
             ],
         )
+        # TODO: Assert arguments passed to parse_arg
         mock_parse_args.assert_called_once()
-        mock_acceptor_pool.assert_called()
-        mock_acceptor_pool.return_value.setup.assert_called()
         # dashboard will also enable eventing
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()
         mock_event_manager.return_value.shutdown.assert_called_once()
+        mock_executor_pool.assert_called_once()
+        mock_executor_pool.return_value.setup.assert_called_once()
+        mock_acceptor_pool.assert_called_once()
+        mock_acceptor_pool.return_value.setup.assert_called_once()
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.common.plugins.Plugins.load')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.ThreadlessPool')
     def test_enable_devtools(
-        self,
-        mock_acceptor_pool: mock.Mock,
-        mock_event_manager: mock.Mock,
-        mock_parse_args: mock.Mock,
-        mock_load_plugins: mock.Mock,
-        mock_sleep: mock.Mock,
+            self,
+            mock_executor_pool: mock.Mock,
+            mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
+            mock_parse_args: mock.Mock,
+            mock_load_plugins: mock.Mock,
+            mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.enable_devtools = True
-        main(['--enable-devtools'])
+        main(enable_devtools=True)
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -202,10 +233,12 @@ class TestMain(unittest.TestCase):
             ],
         )
         mock_parse_args.assert_called_once()
-        mock_acceptor_pool.assert_called()
-        mock_acceptor_pool.return_value.setup.assert_called()
-        # Currently --enable-devtools alone doesn't enable eventing core
+        # Currently --enable-devtools flag alone doesn't enable eventing core
         mock_event_manager.assert_not_called()
+        mock_executor_pool.assert_called_once()
+        mock_executor_pool.return_value.setup.assert_called_once()
+        mock_acceptor_pool.assert_called_once()
+        mock_acceptor_pool.return_value.setup.assert_called_once()
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.EventManager')
@@ -271,12 +304,15 @@ class TestMain(unittest.TestCase):
         mock_is_py2.assert_called()
 
     @mock.patch('builtins.print')
+    @mock.patch('sys.argv')
     def test_main_version(
             self,
+            mock_sys_argv: mock.Mock,
             mock_print: mock.Mock,
     ) -> None:
+        mock_sys_argv.return_value = ['proxy', '--version']
         with self.assertRaises(SystemExit) as e:
-            main(['--version'])
+            main()
             mock_print.assert_called_with(__version__)
         self.assertEqual(e.exception.code, 0)
 

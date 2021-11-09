@@ -108,7 +108,11 @@ class Proxy(SetupShutdownContextManager):
     """
 
     def __init__(self, **opts: Any) -> None:
-        self.flags = FlagParser.initialize(sys.argv[1:], **opts)
+        input_args = sys.argv[1:]
+        print(input_args)
+        print('*'*20)
+        self.flags = FlagParser.initialize(input_args, **opts)
+        print(self.flags)
         self.acceptors: Optional[AcceptorPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.event_manager: Optional[EventManager] = None

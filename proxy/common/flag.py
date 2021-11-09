@@ -129,7 +129,6 @@ class FlagParser:
         work_klass = work_klass \
             if isinstance(work_klass, type) \
             else Plugins.importer(work_klass)[0]
-        print(work_klass)
 
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
