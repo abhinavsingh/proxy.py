@@ -135,20 +135,20 @@ class Acceptor(multiprocessing.Process):
                 self.flags.unix_socket_path,
             )
             logger.debug(
-                'Dispatched work#{0} from acceptor#{1} to worker#{2}'.format(
-                    self._total, self.idd, index,
+                'Dispatched work#{0}.{0} to worker#{2}'.format(
+                    self.idd, self._total, index,
                 ),
             )
         else:
-            work, thread = ThreadlessPool.start_threaded_work(
+            _, thread = ThreadlessPool.start_threaded_work(
                 self.flags,
                 conn, addr,
                 event_queue=self.event_queue,
                 publisher_id=self.__class__.__name__,
             )
             logger.debug(
-                'Started work#{0} in thread#{1}'.format(
-                    self._total, thread.ident,
+                'Started work#{0}.{0} in thread#{1}'.format(
+                    self.idd, self._total, thread.ident,
                 ),
             )
         self._total += 1
