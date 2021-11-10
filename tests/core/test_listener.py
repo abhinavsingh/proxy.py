@@ -43,6 +43,7 @@ class TestListener(unittest.TestCase):
         listener.shutdown()
         sock.close.assert_called_once()
 
+    @unittest.skipIf(os.name == 'nt', 'AF_UNIX not available on windows')
     @mock.patch('os.remove')
     @mock.patch('socket.socket')
     def test_unix_path_listener(self, mock_socket: mock.Mock, mock_remove: mock.Mock) -> None:

@@ -18,10 +18,7 @@ if os.name != 'nt':
     import resource
 
 
-@unittest.skipIf(
-    os.name == 'nt',
-    'Open file limit tests disabled for Windows',
-)
+@unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
 class TestSetOpenFileLimit(unittest.TestCase):
 
     @mock.patch('resource.getrlimit', return_value=(128, 1024))
