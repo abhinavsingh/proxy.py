@@ -13,6 +13,7 @@ from .pool import AcceptorPool
 from .work import Work
 from .threadless import Threadless
 from .executors import ThreadlessPool
+from .listener import Listener
 
 __all__ = [
     'Acceptor',
@@ -20,4 +21,5 @@ __all__ = [
     'Work',
     'Threadless',
     'ThreadlessPool',
+    'Listener',
 ]

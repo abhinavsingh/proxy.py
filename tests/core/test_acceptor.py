@@ -28,7 +28,7 @@ class TestAcceptor(unittest.TestCase):
         )
         self.acceptor = Acceptor(
             idd=self.acceptor_id,
-            work_queue=self.pipe[1],
+            fd_queue=self.pipe[1],
             flags=self.flags,
             lock=multiprocessing.Lock(),
             executor_queues=[],
