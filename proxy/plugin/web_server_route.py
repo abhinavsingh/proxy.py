@@ -55,4 +55,4 @@ class WebServerPlugin(HttpWebServerBasePlugin):
         logger.info(frame.data)
 
     def on_client_connection_close(self) -> None:
-        logger.info('Websocket close')
+        logger.debug('Client connection close')

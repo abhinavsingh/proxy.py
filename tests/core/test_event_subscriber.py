@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
+import queue
 import threading
 import unittest
 import multiprocessing
@@ -25,6 +26,7 @@ class TestEventSubscriber(unittest.TestCase):
 
     def setUp(self) -> None:
         self.manager = multiprocessing.Manager()
+        self.event_queue = EventQueue(self.manager.Queue())
 
     def tearDown(self) -> None:
         self.manager.shutdown()
@@ -33,14 +35,12 @@ class TestEventSubscriber(unittest.TestCase):
     def test_event_subscriber(self, mock_time: mock.Mock) -> None:
         mock_time.return_value = 1234567
         self.dispatcher_shutdown = threading.Event()
-        self.event_queue = EventQueue(self.manager.Queue())
         self.dispatcher = EventDispatcher(
             shutdown=self.dispatcher_shutdown,
             event_queue=self.event_queue,
         )
-        self.subscriber = EventSubscriber(self.event_queue)
-
-        self.subscriber.subscribe(self.callback)
+        self.subscriber = EventSubscriber(self.event_queue, self.callback)
+        self.subscriber.setup()
         self.dispatcher.run_once()
 
         self.event_queue.publish(
@@ -50,9 +50,11 @@ class TestEventSubscriber(unittest.TestCase):
             publisher_id=self.__class__.__name__,
         )
         self.dispatcher.run_once()
-
         self.subscriber.unsubscribe()
         self.dispatcher.run_once()
+        self.subscriber.shutdown(do_unsubscribe=False)
+        with self.assertRaises(queue.Empty):
+            self.dispatcher.run_once()
         self.dispatcher_shutdown.set()
 
     def callback(self, ev: Dict[str, Any]) -> None:

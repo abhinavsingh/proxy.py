@@ -34,7 +34,7 @@ class Acceptor(multiprocessing.Process):
     """Work acceptor process.
 
     On start-up, `Acceptor` accepts a file descriptor which will be used to
-    accept new work.  File descriptor is accepted over a `work_queue` which is
+    accept new work.  File descriptor is accepted over a `fd_queue` which is
     closed immediately after receiving the descriptor.
 
     `Acceptor` goes on to listen for new work over the received server socket.
@@ -55,7 +55,7 @@ class Acceptor(multiprocessing.Process):
     def __init__(
             self,
             idd: int,
-            work_queue: connection.Connection,
+            fd_queue: connection.Connection,
             flags: argparse.Namespace,
             lock: multiprocessing.synchronize.Lock,
             executor_queues: List[connection.Connection],
@@ -72,7 +72,7 @@ class Acceptor(multiprocessing.Process):
         # to avoid concurrent accept over server socket
         self.lock = lock
         # Queue over which server socket fd is received on start-up
-        self.work_queue: connection.Connection = work_queue
+        self.fd_queue: connection.Connection = fd_queue
         # Available executors
         self.executor_queues = executor_queues
         self.executor_pids = executor_pids
@@ -101,8 +101,11 @@ class Acceptor(multiprocessing.Process):
             self.flags.log_format,
         )
         self.selector = selectors.DefaultSelector()
-        fileno = recv_handle(self.work_queue)
-        self.work_queue.close()
+        # TODO: Use selector on fd_queue so that we can
+        # dynamically accept from new fds.
+        fileno = recv_handle(self.fd_queue)
+        self.fd_queue.close()
+        # TODO: Convert to socks i.e. list of fds
         self.sock = socket.fromfd(
             fileno,
             family=self.flags.family,

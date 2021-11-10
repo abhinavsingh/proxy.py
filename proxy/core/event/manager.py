@@ -43,7 +43,6 @@ class EventManager:
         self.dispatcher: Optional[EventDispatcher] = None
         self.dispatcher_thread: Optional[threading.Thread] = None
         self.dispatcher_shutdown: Optional[threading.Event] = None
-        self.manager: Optional[multiprocessing.managers.SyncManager] = None
 
     def __enter__(self) -> 'EventManager':
         self.setup()
@@ -53,8 +52,7 @@ class EventManager:
         self.shutdown()
 
     def setup(self) -> None:
-        self.manager = multiprocessing.Manager()
-        self.queue = EventQueue(self.manager.Queue())
+        self.queue = EventQueue(multiprocessing.Queue())
         self.dispatcher_shutdown = threading.Event()
         assert self.dispatcher_shutdown
         assert self.queue
@@ -66,14 +64,13 @@ class EventManager:
             target=self.dispatcher.run,
         )
         self.dispatcher_thread.start()
-        logger.debug('Thread ID: %d', self.dispatcher_thread.ident)
+        logger.debug('Dispatcher#%d started', self.dispatcher_thread.ident)
 
     def shutdown(self) -> None:
-        assert self.dispatcher_shutdown and self.dispatcher_thread and self.manager
+        assert self.dispatcher_shutdown and self.dispatcher_thread
         self.dispatcher_shutdown.set()
         self.dispatcher_thread.join()
-        self.manager.shutdown()
         logger.debug(
-            'Shutdown of global event dispatcher thread %d successful',
+            'Dispatcher#%d shutdown',
             self.dispatcher_thread.ident,
         )

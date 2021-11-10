@@ -8,82 +8,74 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
-import socket
-import tempfile
 import unittest
 
 from unittest import mock
 
-from proxy.common.utils import bytes_
 from proxy.common.flag import FlagParser
 from proxy.core.acceptor import AcceptorPool
 
 
 class TestAcceptorPool(unittest.TestCase):
 
-    @mock.patch('os.remove')
-    @mock.patch('os.path.exists')
-    @mock.patch('builtins.open')
     @mock.patch('proxy.core.acceptor.pool.send_handle')
     @mock.patch('multiprocessing.Pipe')
-    @mock.patch('socket.socket')
     @mock.patch('proxy.core.acceptor.pool.Acceptor')
+    @mock.patch('proxy.core.acceptor.Listener')
     def test_setup_and_shutdown(
             self,
+            mock_listener: mock.Mock,
             mock_acceptor: mock.Mock,
-            mock_socket: mock.Mock,
             mock_pipe: mock.Mock,
             mock_send_handle: mock.Mock,
-            mock_open: mock.Mock,
-            mock_exists: mock.Mock,
-            mock_remove: mock.Mock,
     ) -> None:
         acceptor1 = mock.MagicMock()
         acceptor2 = mock.MagicMock()
         mock_acceptor.side_effect = [acceptor1, acceptor2]
 
-        num_workers = 2
-        pid_file = os.path.join(tempfile.gettempdir(), 'pid')
-        sock = mock_socket.return_value
+        num_acceptors = 2
         flags = FlagParser.initialize(
-            num_workers=2, pid_file=pid_file, threaded=True,
+            num_acceptors=num_acceptors,
+            threaded=True,
         )
+        self.assertEqual(flags.num_acceptors, num_acceptors)
 
-        pool = AcceptorPool(flags=flags, executor_queues=[], executor_pids=[])
+        pool = AcceptorPool(
+            flags=flags, listener=mock_listener.return_value,
+            executor_queues=[], executor_pids=[],
+        )
         pool.setup()
+
+        self.assertEqual(mock_pipe.call_count, num_acceptors)
+        self.assertEqual(mock_acceptor.call_count, num_acceptors)
         mock_send_handle.assert_called()
+        self.assertEqual(mock_send_handle.call_count, num_acceptors)
 
-        mock_socket.assert_called_with(
-            socket.AF_INET6 if pool.flags.hostname.version == 6 else socket.AF_INET,
-            socket.SOCK_STREAM,
+        self.assertEqual(
+            mock_acceptor.call_args_list[0][1]['idd'], 0,
         )
-        sock.setsockopt.assert_called_with(
-            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1,
+        self.assertEqual(
+            mock_acceptor.call_args_list[0][1]['fd_queue'], mock_pipe.return_value[1],
         )
-        sock.bind.assert_called_with(
-            (str(pool.flags.hostname), 8899),
+        self.assertEqual(
+            mock_acceptor.call_args_list[0][1]['flags'], flags,
         )
-        sock.listen.assert_called_with(pool.flags.backlog)
-        sock.setblocking.assert_called_with(False)
+        self.assertEqual(
+            mock_acceptor.call_args_list[0][1]['event_queue'], None,
+        )
+        # executor_queues=[],
+        # executor_pids=[]
+        self.assertEqual(
+            mock_acceptor.call_args_list[1][1]['idd'], 1,
+        )
 
-        self.assertTrue(mock_pipe.call_count, num_workers)
-        self.assertTrue(mock_acceptor.call_count, num_workers)
-        acceptor1.start.assert_called()
-        acceptor2.start.assert_called()
+        acceptor1.start.assert_called_once()
+        acceptor2.start.assert_called_once()
+        mock_listener.return_value.fileno.assert_called_once()
+
         acceptor1.join.assert_not_called()
         acceptor2.join.assert_not_called()
 
-        sock.close.assert_called()
-
         pool.shutdown()
-
-        mock_open.assert_called_with(pid_file, 'wb')
-        mock_open.return_value.__enter__.return_value.write.assert_called_with(
-            bytes_(os.getpid()),
-        )
-        mock_exists.assert_called_with(pid_file)
-        mock_remove.assert_called_with(pid_file)
-
-        acceptor1.join.assert_called()
-        acceptor2.join.assert_called()
+        acceptor1.join.assert_called_once()
+        acceptor2.join.assert_called_once()

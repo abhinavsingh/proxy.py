@@ -24,7 +24,12 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.subscriber = EventSubscriber(self.event_queue)
+        self.subscriber = EventSubscriber(
+            self.event_queue,
+            callback=lambda event: InspectTrafficPlugin.callback(
+                self.client, event,
+            ),
+        )
 
     def methods(self) -> List[str]:
         return [
@@ -41,23 +46,22 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
                         WebsocketFrame.text(
                             bytes_(
                                 json.dumps(
-                                    {'id': message['id'], 'response': 'not enabled'},
+                                    {
+                                        'id': message['id'],
+                                        'response': 'not enabled',
+                                    },
                                 ),
                             ),
                         ),
                     ),
                 )
             else:
-                self.subscriber.subscribe(
-                    lambda event: InspectTrafficPlugin.callback(
-                        self.client, event,
-                    ),
-                )
+                self.subscriber.setup()
                 self.reply(
                     {'id': message['id'], 'response': 'inspection_enabled'},
                 )
         elif message['method'] == 'disable_inspection':
-            self.subscriber.unsubscribe()
+            self.subscriber.shutdown()
             self.reply({
                 'id': message['id'],
                 'response': 'inspection_disabled',

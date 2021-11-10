@@ -8,18 +8,20 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
 import sys
 import time
 import logging
 
 from typing import List, Optional, Any
 
-from .core.acceptor import AcceptorPool, ThreadlessPool
+from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
 from .core.event import EventManager
+from .common.utils import bytes_
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
-from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS
+from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
 
 
 logger = logging.getLogger(__name__)
@@ -93,6 +95,13 @@ flags.add_argument(
     '.  Work klass to use for work execution.',
 )
 
+flags.add_argument(
+    '--pid-file',
+    type=str,
+    default=DEFAULT_PID_FILE,
+    help='Default: None. Save "parent" process ID to a file.',
+)
+
 
 class Proxy:
     """Context manager to control AcceptorPool, ExecutorPool & EventingCore lifecycle.
@@ -107,8 +116,9 @@ class Proxy:
 
     def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
         self.flags = FlagParser.initialize(input_args, **opts)
-        self.acceptors: Optional[AcceptorPool] = None
+        self.listener: Optional[Listener] = None
         self.executors: Optional[ThreadlessPool] = None
+        self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
 
     def __enter__(self) -> 'Proxy':
@@ -132,6 +142,15 @@ class Proxy:
         # TODO: Pid watcher which watches for processes started
         # by proxy.py core.  May be alert or restart those processes
         # on failure.
+        self._write_pid_file()
+        # We setup listeners first because of flags.port override
+        # in case of ephemeral port being used
+        self.listener = Listener(flags=self.flags)
+        self.listener.setup()
+        # Override flags.port to match the actual port
+        # we are listening upon.  This is necessary to preserve
+        # the server port when `--port=0` is used.
+        self.flags.port = self.listener._port
         if self.flags.enable_events:
             logger.info('Core Event enabled')
             self.event_manager = EventManager()
@@ -146,22 +165,13 @@ class Proxy:
         self.executors.setup()
         self.acceptors = AcceptorPool(
             flags=self.flags,
-            event_queue=event_queue,
+            listener=self.listener,
             executor_queues=self.executors.work_queues,
             executor_pids=self.executors.work_pids,
+            event_queue=event_queue,
         )
         self.acceptors.setup()
-        assert self.acceptors is not None
-        if self.flags.unix_socket_path:
-            logger.info(
-                'Listening on %s' %
-                self.flags.unix_socket_path,
-            )
-        else:
-            logger.info(
-                'Listening on %s:%s' %
-                (self.acceptors.flags.hostname, self.acceptors.flags.port),
-            )
+        # TODO: May be close listener fd as we don't need it now
 
     def shutdown(self) -> None:
         assert self.acceptors
@@ -171,6 +181,20 @@ class Proxy:
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.shutdown()
+        assert self.listener
+        self.listener.shutdown()
+        self._delete_pid_file()
+
+    def _write_pid_file(self) -> None:
+        if self.flags.pid_file is not None:
+            # NOTE: Multiple instances of proxy.py running on
+            # same host machine will currently result in overwriting the PID file
+            with open(self.flags.pid_file, 'wb') as pid_file:
+                pid_file.write(bytes_(os.getpid()))
+
+    def _delete_pid_file(self) -> None:
+        if self.flags.pid_file and os.path.exists(self.flags.pid_file):
+            os.remove(self.flags.pid_file)
 
 
 def main(**opts: Any) -> None:

@@ -8,15 +8,16 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import multiprocessing
 import os
 import threading
 import unittest
 import queue
+import multiprocessing
+
+from multiprocessing import connection
 
 from unittest import mock
 
-from proxy.common.types import DictQueueType
 from proxy.core.event import EventDispatcher, EventQueue, eventNames
 
 
@@ -47,25 +48,32 @@ class TestEventDispatcher(unittest.TestCase):
             self.dispatcher.run_once()
 
     @mock.patch('time.time')
-    def subscribe(self, mock_time: mock.Mock) -> DictQueueType:
+    def subscribe(self, mock_time: mock.Mock) -> connection.Connection:
         mock_time.return_value = 1234567
-        # Do not use self.manager here, otherwise you may be
-        # TypeError: AutoProxy() got an unexpected keyword argument 'manager_owned'.
-        #
-        # Queue used for subscription must be acquired from a separate
-        # multiprocessing.Manager than the one used for event_queue.
-        q = multiprocessing.Manager().Queue()
-        self.event_queue.subscribe(sub_id='1234', channel=q)
+        relay_recv, relay_send = multiprocessing.Pipe()
+        self.event_queue.subscribe(sub_id='1234', channel=relay_send)
+        # consume the subscribe event
         self.dispatcher.run_once()
+        # assert subscribed ack
+        self.assertEqual(
+            relay_recv.recv(), {
+                'event_name': eventNames.SUBSCRIBED,
+            },
+        )
+        # publish event
         self.event_queue.publish(
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
             publisher_id=self.__class__.__name__,
         )
+        # consume
         self.dispatcher.run_once()
+        # assert recv
+        r = relay_recv.recv()
+        print(r)
         self.assertEqual(
-            q.get(), {
+            r, {
                 'request_id': '1234',
                 'process_id': os.getpid(),
                 'thread_id': threading.get_ident(),
@@ -75,15 +83,21 @@ class TestEventDispatcher(unittest.TestCase):
                 'publisher_id': self.__class__.__name__,
             },
         )
-        return q
+        return relay_recv
 
     def test_subscribe(self) -> None:
         self.subscribe()
 
     def test_unsubscribe(self) -> None:
-        q = self.subscribe()
+        relay_recv = self.subscribe()
         self.event_queue.unsubscribe('1234')
         self.dispatcher.run_once()
+        # assert unsubscribe ack
+        self.assertEqual(
+            relay_recv.recv(), {
+                'event_name': eventNames.UNSUBSCRIBED,
+            },
+        )
         self.event_queue.publish(
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
@@ -91,11 +105,11 @@ class TestEventDispatcher(unittest.TestCase):
             publisher_id=self.__class__.__name__,
         )
         self.dispatcher.run_once()
-        with self.assertRaises(queue.Empty):
-            q.get(timeout=0.1)
+        with self.assertRaises(EOFError):
+            relay_recv.recv()
 
-    def test_unsubscribe_on_broken_pipe_error(self) -> None:
-        pass
+    # def test_unsubscribe_on_broken_pipe_error(self) -> None:
+    #     pass
 
-    def test_run(self) -> None:
-        pass
+    # def test_run(self) -> None:
+    #     pass

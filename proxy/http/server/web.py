@@ -207,6 +207,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if match:
                 self.route = self.routes[protocol][route]
                 self.route.handle_request(self.request)
+                if self.request.has_header(b'connection') \
+                        and self.request.header(b'connection').lower() == b'close':
+                    return True
                 return False
 
         # No-route found, try static serving if enabled

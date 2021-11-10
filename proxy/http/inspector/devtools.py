@@ -54,7 +54,12 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.subscriber = EventSubscriber(self.event_queue)
+        self.subscriber = EventSubscriber(
+            self.event_queue,
+            callback=lambda event: CoreEventsToDevtoolsProtocol.transformer(
+                self.client, event,
+            ),
+        )
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
@@ -65,11 +70,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         raise NotImplementedError('This should have never been called')
 
     def on_websocket_open(self) -> None:
-        self.subscriber.subscribe(
-            lambda event: CoreEventsToDevtoolsProtocol.transformer(
-                self.client, event,
-            ),
-        )
+        self.subscriber.setup()
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         try:
@@ -82,7 +83,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         self.handle_devtools_message(message)
 
     def on_client_connection_close(self) -> None:
-        self.subscriber.unsubscribe()
+        self.subscriber.shutdown()
 
     def handle_devtools_message(self, message: Dict[str, Any]) -> None:
         frame = WebsocketFrame()
