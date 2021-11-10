@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import json
 import unittest
 import rlp
@@ -25,7 +25,7 @@ from sha3 import keccak_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, get_token_balance, \
+from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, get_token_balance_or_airdrop, \
     getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
     Trx,  EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load
 from solana.rpc.commitment import Commitment, Confirmed
@@ -69,22 +69,8 @@ class PermanentAccounts:
 class EthereumModel:
     def __init__(self):
         # Initialize user account
-        res = solana_cli().call('config', 'get')
-        substr = "Keypair Path: "
-        path = ""
-        for line in res.splitlines():
-            if line.startswith(substr):
-                path = line[len(substr):].strip()
-        if path == "":
-            raise Exception("cannot get keypair path")
 
-        with open(path.strip(), mode='r') as file:
-            pk = (file.read())
-            nums = list(map(int, pk.strip("[] \n").split(',')))
-            nums = nums[0:32]
-            values = bytes(nums)
-            self.signer = sol_Account(values)
-
+        self.signer = self.get_solana_account()
         self.client = SolanaClient(solana_url)
 
         self.logs_db = LogDB(filename="local.db")
@@ -101,6 +87,26 @@ class EthereumModel:
         self.perm_accs = PermanentAccounts(self.client, self.signer, self.proxy_id)
         neon_config_load(self)
         pass
+
+    @staticmethod
+    def get_solana_account() -> Optional[sol_Account]:
+        solana_account = None
+        res = solana_cli().call('config', 'get')
+        substr = "Keypair Path: "
+        path = ""
+        for line in res.splitlines():
+            if line.startswith(substr):
+                path = line[len(substr):].strip()
+        if path == "":
+            raise Exception("cannot get keypair path")
+
+        with open(path.strip(), mode='r') as file:
+            pk = (file.read())
+            nums = list(map(int, pk.strip("[] \n").split(',')))
+            nums = nums[0:32]
+            values = bytes(nums)
+            solana_account = sol_Account(values)
+        return solana_account
 
     def web3_clientVersion(self):
         neon_config_load(self)
@@ -150,7 +156,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
-        balance = get_token_balance(self.client, self.signer, evm_loader_id, eth_acc, self.signer.public_key())
+        balance = get_token_balance_or_airdrop(self.client, self.signer, evm_loader_id, eth_acc)
 
         return hex(balance*10**9)
 
@@ -478,12 +484,11 @@ class JsonEncoder(json.JSONEncoder):
 
 
 class SolanaContractTests(unittest.TestCase):
+
     def setUp(self):
         self.model = EthereumModel()
         self.owner = '0xc1566af4699928fdf9be097ca3dc47ece39f8f8e'
         self.token1 = '0x49a449cd7fd8fbcf34d103d98f2c05245020e35b'
-#        self.assertEqual(self.getBalance(self.owner), 1000*10**18)
-#        self.assertEqual(self.getBalance(self.token1), 0)
 
     def getBalance(self, account):
         return int(self.model.eth_getBalance(account, 'latest'), 16)

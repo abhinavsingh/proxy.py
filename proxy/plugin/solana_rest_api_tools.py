@@ -1238,8 +1238,9 @@ def create_and_mint_tkn_acc(client: SolanaClient, signer: SolanaAccount, eth_acc
         raise Exception("Create account error")
 
 
-def get_token_balance_impl(client: SolanaClient, account: str, eth_acc: EthereumAddress) -> [Optional[int], Optional[Union[Dict, str]]]:
-    token_account = get_associated_token_address(PublicKey(account), ETH_TOKEN_MINT_ID)
+def get_token_balance_gwei(client: SolanaClient, token_owner_acc: str, eth_acc: EthereumAddress) \
+                          -> [Optional[int], Optional[Union[Dict, str]]]:
+    token_account = get_associated_token_address(PublicKey(token_owner_acc), ETH_TOKEN_MINT_ID)
     rpc_response = client.get_token_account_balance(token_account, commitment=Confirmed)
     error = rpc_response.get('error')
     if error is None:
@@ -1247,23 +1248,23 @@ def get_token_balance_impl(client: SolanaClient, account: str, eth_acc: Ethereum
         if balance is None:
             return None, f"Failed to get token balance from: {rpc_response}, by eth account:" \
                          f" {eth_acc} aka: {token_account} at token: {ETH_TOKEN_MINT_ID}"
-        return balance, None
+        return int(balance), None
     return None, error
 
 
-def get_token_balance(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_acc: EthereumAddress, base_account: PublicKey) -> int:
+def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_acc: EthereumAddress) -> int:
 
-    account, nonce = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
+    account, nonce = ether2program(bytes(eth_acc).hex(), evm_loader, signer.public_key())
     logger.debug(f"Get balance for eth account: {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
 
-    balance, error = get_token_balance_impl(client, account, eth_acc)
+    balance, error = get_token_balance_gwei(client, account, eth_acc)
     if error is None:
         return int(balance)
 
     if error.get("message") == SolanaErrors.AccountNotFound.value and NEW_USER_AIRDROP_AMOUNT > 0:
         logger.debug(f"Account not found:  {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
         create_and_mint_tkn_acc(client, signer, eth_acc)
-        balance, error = get_token_balance_impl(client, account, eth_acc)
+        balance, error = get_token_balance_gwei(client, account, eth_acc)
         if error is None:
             return int(balance)
 
