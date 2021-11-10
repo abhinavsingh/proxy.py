@@ -33,7 +33,10 @@ class TestEventManager(unittest.TestCase):
         with EventManager() as _:
             mock_queue.assert_called_once()
             mock_event.assert_called_once()
-            mock_thread.assert_called_once()
+            mock_thread.assert_called_once_with(
+                target=mock_dispatcher.return_value.run,
+            )
+            mock_thread.return_value.start.assert_called_once()
             mock_event_queue.assert_called_once_with(mock_queue.return_value)
             mock_dispatcher.assert_called_once_with(
                 shutdown=mock_event.return_value,
