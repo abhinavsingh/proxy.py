@@ -8,15 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import uuid
 import queue
+import logging
 import threading
 import multiprocessing
-import logging
-import uuid
+
+from multiprocessing import connection
 
 from typing import Dict, Optional, Any, Callable
-
-from ...common.types import DictQueueType
 
 from .queue import EventQueue
 
@@ -48,17 +48,16 @@ class EventSubscriber:
     """
 
     def __init__(self, event_queue: EventQueue) -> None:
-        self.manager: multiprocessing.managers.SyncManager = multiprocessing.Manager()
         self.event_queue = event_queue
         self.relay_thread: Optional[threading.Thread] = None
         self.relay_shutdown: Optional[threading.Event] = None
-        self.relay_channel: Optional[DictQueueType] = None
+        self.relay_parent: Optional[connection.Connection] = None
         self.relay_sub_id: Optional[str] = None
 
     def subscribe(self, callback: Callable[[Dict[str, Any]], None]) -> None:
-        self._start_relay_thread(callback)
-        assert self.relay_sub_id and self.relay_channel
-        self.event_queue.subscribe(self.relay_sub_id, self.relay_channel)
+        child = self._start_relay_thread(callback)
+        assert self.relay_sub_id and self.relay_parent
+        self.event_queue.subscribe(self.relay_sub_id, child)
         logger.debug(
             'Subscribed relay sub id %s from core events',
             self.relay_sub_id,
@@ -81,16 +80,19 @@ class EventSubscriber:
             'Un-subscribed relay sub id %s from core events',
             self.relay_sub_id,
         )
+        self.relay_sub_id = None
+        self.relay_parent.close()
+        self.relay_parent = None
 
     @staticmethod
     def relay(
             shutdown: threading.Event,
-            channel: DictQueueType,
+            channel: connection.Connection,
             callback: Callable[[Dict[str, Any]], None],
     ) -> None:
         while not shutdown.is_set():
             try:
-                ev = channel.get(timeout=1)
+                ev = channel.recv()
                 callback(ev)
             except queue.Empty:
                 pass
@@ -98,23 +100,23 @@ class EventSubscriber:
                 break
             except KeyboardInterrupt:
                 break
+        logger.info('relay thread shutdown')
 
-    def _start_relay_thread(self, callback: Callable[[Dict[str, Any]], None]) -> None:
+    def _start_relay_thread(self, callback: Callable[[Dict[str, Any]], None]) -> connection.Connection:
         self.relay_sub_id = uuid.uuid4().hex
         self.relay_shutdown = threading.Event()
-        self.relay_channel = self.manager.Queue()
+        relay_parent, relay_child = multiprocessing.Pipe()
+        self.relay_parent = relay_parent
         self.relay_thread = threading.Thread(
             target=EventSubscriber.relay,
-            args=(self.relay_shutdown, self.relay_channel, callback),
+            args=(self.relay_shutdown, self.relay_parent, callback),
         )
         self.relay_thread.start()
+        return relay_child
 
     def _stop_relay_thread(self) -> None:
-        assert self.relay_thread and self.relay_shutdown and self.relay_channel and self.relay_sub_id
+        assert self.relay_thread and self.relay_shutdown and self.relay_parent and self.relay_sub_id
         self.relay_shutdown.set()
         self.relay_thread.join()
-        self.manager.shutdown()
         self.relay_thread = None
         self.relay_shutdown = None
-        self.relay_channel = None
-        self.relay_sub_id = None

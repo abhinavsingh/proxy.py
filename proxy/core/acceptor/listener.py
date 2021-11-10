@@ -87,6 +87,7 @@ class Listener:
             )
 
     def shutdown(self) -> None:
+        assert self._socket
         self._socket.close()
         if self.flags.unix_socket_path:
             os.remove(self.flags.unix_socket_path)

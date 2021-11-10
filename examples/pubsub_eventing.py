@@ -14,27 +14,37 @@ import logging
 
 from typing import Dict, Any
 
+from proxy.common.logger import Logger
+from proxy.common.constants import DEFAULT_LOG_FORMAT
 from proxy.core.event import EventManager, EventQueue, EventSubscriber, eventNames
 
-# Enable debug logging to view core event logs
-logging.basicConfig(level=logging.DEBUG)
-
-main_publisher_request_id = '1234'
-process_publisher_request_id = '12345'
-num_events_received = [0, 0]
+logging.basicConfig(level=logging.DEBUG, format=DEFAULT_LOG_FORMAT)
 
 logger = logging.getLogger(__name__)
+
+
+num_events_received = [0, 0]
+
+
+# Execute within a separate thread context
+def on_event(payload: Dict[str, Any]) -> None:
+    '''Subscriber callback.'''
+    global num_events_received
+    if payload['request_id'] == '1234':
+        num_events_received[0] += 1
+    else:
+        num_events_received[1] += 1
 
 
 def publisher_process(
     shutdown_event: multiprocessing.synchronize.Event,
     dispatcher_queue: EventQueue,
 ) -> None:
-    logger.info('publisher starting')
+    logger.info('publisher started')
     try:
         while not shutdown_event.is_set():
             dispatcher_queue.publish(
-                request_id=process_publisher_request_id,
+                request_id='12345',
                 event_name=eventNames.WORK_STARTED,
                 event_payload={'time': time.time()},
                 publisher_id='eventing_pubsub_process',
@@ -42,16 +52,6 @@ def publisher_process(
     except KeyboardInterrupt:
         pass
     logger.info('publisher shutdown')
-
-
-# Execute within a separate thread context
-def on_event(payload: Dict[str, Any]) -> None:
-    '''Subscriber callback.'''
-    global num_events_received
-    if payload['request_id'] == main_publisher_request_id:
-        num_events_received[0] += 1
-    else:
-        num_events_received[1] += 1
 
 
 if __name__ == '__main__':
@@ -81,7 +81,7 @@ if __name__ == '__main__':
         try:
             while True:
                 event_manager.queue.publish(
-                    request_id=main_publisher_request_id,
+                    request_id='1234',
                     event_name=eventNames.WORK_STARTED,
                     event_payload={'time': time.time()},
                     publisher_id='eventing_pubsub_main',
@@ -100,3 +100,4 @@ if __name__ == '__main__':
                 ) - start_time,
             ),
         )
+    logger.info('Done!!!')

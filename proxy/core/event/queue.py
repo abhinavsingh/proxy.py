@@ -9,8 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import threading
 import time
+import threading
+
+from multiprocessing import connection
+
 from typing import Dict, Optional, Any
 
 from ...common.types import DictQueueType
@@ -19,8 +22,9 @@ from .names import eventNames
 
 
 class EventQueue:
-    """Global event queue.  Ideally the queue must come from multiprocessing.Manager,
-    specially if you intent to publish/subscribe from multiple processes.
+    """Global event queue.  Must be a multiprocessing.Manager queue because
+    subscribers need to dispatch their subscription queue over this global
+    queue.
 
     Each published event contains following schema:
     {
@@ -48,10 +52,10 @@ class EventQueue:
         publisher_id: Optional[str] = None,
     ) -> None:
         self.queue.put({
+            # 'process_id': os.getpid(),
+            # 'thread_id': threading.get_ident(),
+            # 'event_timestamp': time.time(),
             'request_id': request_id,
-            'process_id': os.getpid(),
-            'thread_id': threading.get_ident(),
-            'event_timestamp': time.time(),
             'event_name': event_name,
             'event_payload': event_payload,
             'publisher_id': publisher_id,
@@ -60,19 +64,16 @@ class EventQueue:
     def subscribe(
             self,
             sub_id: str,
-            channel: DictQueueType,
+            channel: connection.Connection,
     ) -> None:
         """Subscribe to global events.
 
         sub_id is a subscription identifier which must be globally
-        unique.  channel MUST be a multiprocessing.Manager().Queue().
-        This is necessary because channel itself is dispatched
-        over the global queue for direct subscription.
-
+        unique.  channel MUST be a multiprocessing connection.
         """
         self.queue.put({
             'event_name': eventNames.SUBSCRIBE,
-            'event_payload': {'sub_id': sub_id, 'channel': channel},
+            'event_payload': {'sub_id': sub_id, 'conn': channel},
         })
 
     def unsubscribe(
