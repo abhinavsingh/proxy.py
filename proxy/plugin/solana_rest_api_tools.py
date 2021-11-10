@@ -931,7 +931,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_size, PublicKey(evm_loader_id)))
                 code_account_writable = acc_desc["writable"]
 
-            create_and_mint_token_trx(client, signer, EthereumAddress(address), trx, code_account)
+            create_token_and_airdrop_trx(client, signer, EthereumAddress(address), trx, code_account)
 
         if address == to_address:
             contract_sol = PublicKey(acc_desc["account"])
@@ -1221,16 +1221,18 @@ def add_airdrop_transfer_to_trx(owner_account: SolanaAccount, dest_account: str,
     trx.add(transfer_instruction)
 
 
-def create_and_mint_token_trx(client: SolanaClient, signer: SolanaAccount, eth_acc: str, trx: Transaction, code_acc=None):
+def create_token_and_airdrop_trx(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress,
+                                 trx: Transaction, code_acc=None):
     create_trx, solana_address, token_address = create_eth_account_trx(client, signer, eth_acc, evm_loader_id, code_acc)
-    logger.debug(f"Create token related to eth_acc: {eth_acc}, aka: {solana_address}, token_address: {token_address}, at token: {ETH_TOKEN_MINT_ID}")
+    logger.debug(f"Create token related to eth_acc: {eth_acc}, aka: {solana_address}, token_address: {token_address},"
+                 f" at token: {ETH_TOKEN_MINT_ID}")
     trx.add(create_trx)
     add_airdrop_transfer_to_trx(signer, solana_address, trx)
 
 
-def create_and_mint_tkn_acc(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
+def create_token_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
     trx = Transaction()
-    create_and_mint_token_trx(client, signer, eth_acc, trx)
+    create_token_and_airdrop_trx(client, signer, eth_acc, trx)
     result = send_transaction(client, trx, signer)
     error = result.get("error")
     if error is not None:
@@ -1263,7 +1265,7 @@ def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, ev
 
     if error.get("message") == SolanaErrors.AccountNotFound.value and NEW_USER_AIRDROP_AMOUNT > 0:
         logger.debug(f"Account not found:  {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
-        create_and_mint_tkn_acc(client, signer, eth_acc)
+        create_token_and_airdrop(client, signer, eth_acc)
         balance, error = get_token_balance_gwei(client, account, eth_acc)
         if error is None:
             return int(balance)
