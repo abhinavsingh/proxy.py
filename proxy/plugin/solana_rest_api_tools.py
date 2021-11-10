@@ -905,7 +905,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
         elif address == sender_ether:
             sender_sol = PublicKey(acc_desc["account"])
         else:
-            add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=(True if acc_desc["contract"] else acc_desc["writable"])))
+            add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=True))
             token_account = get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID)
             add_keys_05.append(AccountMeta(pubkey=token_account, is_signer=False, is_writable=True))
             if acc_desc["new"]:
