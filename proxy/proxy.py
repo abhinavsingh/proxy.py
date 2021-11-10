@@ -171,7 +171,7 @@ class Proxy:
             event_queue=event_queue,
         )
         self.acceptors.setup()
-        assert self.acceptors is not None
+        # TODO: May be close listener fd as we don't need it now
 
     def shutdown(self) -> None:
         assert self.acceptors

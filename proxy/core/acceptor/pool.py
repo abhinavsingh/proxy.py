@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
 import logging
 import argparse
 import multiprocessing
@@ -23,15 +22,14 @@ from .acceptor import Acceptor
 
 from ..event import EventQueue
 
-from ...common.utils import bytes_
 from ...common.flag import flags
-from ...common.constants import DEFAULT_NUM_ACCEPTORS, DEFAULT_PID_FILE
-
-logger = logging.getLogger(__name__)
+from ...common.constants import DEFAULT_NUM_ACCEPTORS
 
 # Lock shared by acceptors for
 # sequential acceptance of work.
 LOCK = multiprocessing.Lock()
+
+logger = logging.getLogger(__name__)
 
 
 flags.add_argument(
