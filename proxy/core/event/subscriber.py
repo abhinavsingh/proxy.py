@@ -125,18 +125,21 @@ class EventSubscriber:
                     if ev['event_name'] == eventNames.SUBSCRIBED:
                         logger.info(
                             'Subscriber#{0} subscribe ack received'.format(
-                                sub_id),
+                                sub_id,
+                            ),
                         )
                     elif ev['event_name'] == eventNames.UNSUBSCRIBED:
                         logger.info(
                             'Subscriber#{0} unsubscribe ack received'.format(
-                                sub_id),
+                                sub_id,
+                            ),
                         )
                         break
                     elif ev['event_name'] == eventNames.DISPATCHER_SHUTDOWN:
                         logger.info(
                             'Subscriber#{0} received dispatcher shutdown event'.format(
-                                sub_id),
+                                sub_id,
+                            ),
                         )
                         break
                     else:
