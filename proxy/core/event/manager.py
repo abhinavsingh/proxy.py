@@ -64,13 +64,13 @@ class EventManager:
             target=self.dispatcher.run,
         )
         self.dispatcher_thread.start()
-        logger.debug('Thread ID: %d', self.dispatcher_thread.ident)
+        logger.debug('Dispatcher#%d started', self.dispatcher_thread.ident)
 
     def shutdown(self) -> None:
         assert self.dispatcher_shutdown and self.dispatcher_thread
         self.dispatcher_shutdown.set()
         self.dispatcher_thread.join()
         logger.debug(
-            'Shutdown of global event dispatcher thread %d successful',
+            'Dispatcher#%d shutdown',
             self.dispatcher_thread.ident,
         )

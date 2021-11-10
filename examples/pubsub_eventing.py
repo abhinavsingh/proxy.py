@@ -89,7 +89,7 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             logger.info('bye!!!')
         finally:
-            # Stop publisher
+            # Stop publisher process
             publisher_shutdown_event.set()
             publisher.join()
             # Stop subscriber thread

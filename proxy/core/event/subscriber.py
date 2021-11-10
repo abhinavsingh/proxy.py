@@ -19,6 +19,7 @@ from multiprocessing import connection
 from typing import Dict, Optional, Any, Callable
 
 from .queue import EventQueue
+from .names import eventNames
 
 logger = logging.getLogger(__name__)
 
@@ -51,72 +52,89 @@ class EventSubscriber:
         self.event_queue = event_queue
         self.relay_thread: Optional[threading.Thread] = None
         self.relay_shutdown: Optional[threading.Event] = None
-        self.relay_parent: Optional[connection.Connection] = None
+        self.relay_recv: Optional[connection.Connection] = None
+        self.relay_send: Optional[connection.Connection] = None
         self.relay_sub_id: Optional[str] = None
 
     def subscribe(self, callback: Callable[[Dict[str, Any]], None]) -> None:
-        child = self._start_relay_thread(callback)
-        assert self.relay_sub_id and self.relay_parent
-        self.event_queue.subscribe(self.relay_sub_id, child)
+        self._start_relay_thread(callback)
+        assert self.relay_sub_id and self.relay_recv
         logger.debug(
-            'Subscribed relay sub id %s from core events',
+            'Subscriber#%s subscribing',
             self.relay_sub_id,
         )
+        self.event_queue.subscribe(self.relay_sub_id, self.relay_send)
 
     def unsubscribe(self) -> None:
         if self.relay_sub_id is None:
-            logger.warning('Unsubscribe called without existing subscription')
+            logger.warning(
+                'Relay called unsubscribe without an active subscription')
             return
-
+        logger.debug(
+            'Subscriber#%s unsubscribing',
+            self.relay_sub_id,
+        )
         try:
             self.event_queue.unsubscribe(self.relay_sub_id)
         except BrokenPipeError:
+            logger.info('bpe')
             pass
         except EOFError:
+            logger.info('eof')
             pass
-
-        self._stop_relay_thread()
-        logger.debug(
-            'Un-subscribed relay sub id %s from core events',
-            self.relay_sub_id,
-        )
-        self.relay_sub_id = None
-        self.relay_parent.close()
-        self.relay_parent = None
+        finally:
+            self._stop_relay_thread()
+            # close recv end
+            self.relay_recv.close()
+            # close send too?
+            # dispatcher may also close?
+            self.relay_send.close()
+            self.relay_recv = None
+            self.relay_send = None
+            self.relay_sub_id = None
 
     @staticmethod
     def relay(
+            sub_id: str,
             shutdown: threading.Event,
             channel: connection.Connection,
             callback: Callable[[Dict[str, Any]], None],
     ) -> None:
         while not shutdown.is_set():
             try:
-                ev = channel.recv()
-                callback(ev)
+                if channel.poll(timeout=1):
+                    ev = channel.recv()
+                    if ev['event_name'] == eventNames.SUBSCRIBED:
+                        logger.info('Subscriber#{0} subscribed'.format(sub_id))
+                    elif ev['event_name'] == eventNames.UNSUBSCRIBED:
+                        logger.info(
+                            'Subscriber#{0} unsubscribed'.format(sub_id))
+                        break
+                    else:
+                        callback(ev)
             except queue.Empty:
                 pass
             except EOFError:
                 break
             except KeyboardInterrupt:
+                print('relay got kbe')
                 break
-        logger.info('relay thread shutdown')
 
-    def _start_relay_thread(self, callback: Callable[[Dict[str, Any]], None]) -> connection.Connection:
+    def _start_relay_thread(self, callback: Callable[[Dict[str, Any]], None]) -> None:
         self.relay_sub_id = uuid.uuid4().hex
         self.relay_shutdown = threading.Event()
-        relay_parent, relay_child = multiprocessing.Pipe()
-        self.relay_parent = relay_parent
+        self.relay_recv, self.relay_send = multiprocessing.Pipe()
         self.relay_thread = threading.Thread(
             target=EventSubscriber.relay,
-            args=(self.relay_shutdown, self.relay_parent, callback),
+            args=(self.relay_sub_id, self.relay_shutdown,
+                  self.relay_recv, callback),
         )
         self.relay_thread.start()
-        return relay_child
 
     def _stop_relay_thread(self) -> None:
-        assert self.relay_thread and self.relay_shutdown and self.relay_parent and self.relay_sub_id
+        assert self.relay_thread and self.relay_shutdown and self.relay_recv and self.relay_sub_id
         self.relay_shutdown.set()
         self.relay_thread.join()
+        logger.info('Relay thread joined')
         self.relay_thread = None
         self.relay_shutdown = None

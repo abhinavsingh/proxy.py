@@ -55,16 +55,18 @@ class EventDispatcher:
         if ev['event_name'] == eventNames.SUBSCRIBE:
             self.subscribers[ev['event_payload']['sub_id']] = \
                 ev['event_payload']['conn']
-            logger.info('Subscription %s complete',
-                        ev['event_payload']['sub_id'])
+            # send ack
+            ev['event_payload']['conn'].send({
+                'event_name': eventNames.SUBSCRIBED,
+            })
         elif ev['event_name'] == eventNames.UNSUBSCRIBE:
+            # send ack
+            self.subscribers[ev['event_payload']['sub_id']].send({
+                'event_name': eventNames.UNSUBSCRIBED,
+            })
             # close conn and delete subscriber
-            logger.info('Unsubscription %s complete',
-                        ev['event_payload']['sub_id'])
             self.subscribers[ev['event_payload']['sub_id']].close()
             del self.subscribers[ev['event_payload']['sub_id']]
-            logger.info('Unsubscription %s complete',
-                        ev['event_payload']['sub_id'])
         else:
             # logger.info(ev)
             broken_pipes: List[str] = []
@@ -73,7 +75,7 @@ class EventDispatcher:
                     self.subscribers[sub_id].send(ev)
                 except BrokenPipeError:
                     logger.warning(
-                        'found broken pipe for subscriber %s', sub_id)
+                        'Subscriber#%s broken pipe', sub_id)
                     self.subscribers[sub_id].close()
                     broken_pipes.append(sub_id)
             for sub_id in broken_pipes:
@@ -97,6 +99,4 @@ class EventDispatcher:
         except KeyboardInterrupt:
             pass
         except Exception as e:
-            logger.exception('Event dispatcher exception', exc_info=e)
-        finally:
-            logger.info('dispatcher shutdown')
+            logger.exception('Dispatcher exception', exc_info=e)

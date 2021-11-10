@@ -10,13 +10,16 @@
 """
 from typing import NamedTuple
 
-# Name of the events that eventing framework will support
+# Name of the events that eventing framework supports.
+#
 # Ideally this must be configurable via command line or
 # at-least extendable via plugins.
 EventNames = NamedTuple(
     'EventNames', [
         ('SUBSCRIBE', int),
+        ('SUBSCRIBED', int),
         ('UNSUBSCRIBE', int),
+        ('UNSUBSCRIBED', int),
         ('WORK_STARTED', int),
         ('WORK_FINISHED', int),
         ('REQUEST_COMPLETE', int),
@@ -25,4 +28,4 @@ EventNames = NamedTuple(
         ('RESPONSE_COMPLETE', int),
     ],
 )
-eventNames = EventNames(1, 2, 3, 4, 5, 6, 7, 8)
+eventNames = EventNames(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
