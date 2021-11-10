@@ -45,7 +45,7 @@ class BaseTcpServerHandler(Work):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.must_flush_before_shutdown = False
-        if self.flags.unix_socket_path:
+        if self.flags.unix_socket_path:     # pragma: no cover
             logger.debug(
                 'Connection accepted from {0}'.format(self.work.address),
             )
