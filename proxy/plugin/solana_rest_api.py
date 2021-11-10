@@ -90,7 +90,7 @@ class EthereumModel:
 
     @staticmethod
     def get_solana_account() -> Optional[sol_Account]:
-        solana_account = None
+        solana_account: Optional[sol_Account] = None
         res = solana_cli().call('config', 'get')
         substr = "Keypair Path: "
         path = ""
