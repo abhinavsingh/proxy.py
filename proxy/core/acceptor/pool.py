@@ -90,10 +90,11 @@ class AcceptorPool:
         self._start()
         logger.info('Started %d acceptors' % self.flags.num_acceptors)
         # Send file descriptor to all acceptor processes.
+        fd = self.listener.fileno()
         for index in range(self.flags.num_acceptors):
             send_handle(
                 self.fd_queues[index],
-                self.listener.fileno(),
+                fd,
                 self.acceptors[index].pid,
             )
             self.fd_queues[index].close()

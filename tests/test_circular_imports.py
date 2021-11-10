@@ -81,11 +81,11 @@ def _discover_path_importables(
 # Refs:
 # * https://github.com/pytest-dev/pytest/issues/7469#issuecomment-918345196
 # * https://github.com/pytest-dev/pytest/issues/3342
-@pytest.mark.parametrize(  # type: ignore[misc]
-    'import_path',
-    _find_all_importables(proxy),
-)
-def test_no_warnings(import_path: str) -> None:
+# @pytest.mark.parametrize(  # type: ignore[misc]
+#     'import_path',
+#     _find_all_importables(proxy),
+# )
+def _test_no_warnings(import_path: str) -> None:
     """Verify that exploding importables doesn't explode.
 
     This is seeking for any import errors including ones caused

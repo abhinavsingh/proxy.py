@@ -52,9 +52,9 @@ class EventQueue:
         publisher_id: Optional[str] = None,
     ) -> None:
         self.queue.put({
-            # 'process_id': os.getpid(),
-            # 'thread_id': threading.get_ident(),
-            # 'event_timestamp': time.time(),
+            'process_id': os.getpid(),
+            'thread_id': threading.get_ident(),
+            'event_timestamp': time.time(),
             'request_id': request_id,
             'event_name': event_name,
             'event_payload': event_payload,

@@ -14,7 +14,7 @@ import selectors
 import multiprocessing
 from unittest import mock
 
-from proxy.core.acceptor import Acceptor
+from proxy.core.acceptor import Acceptor, Listener
 from proxy.common.flag import FlagParser
 
 
@@ -24,7 +24,8 @@ class TestAcceptor(unittest.TestCase):
         self.acceptor_id = 1
         self.pipe = multiprocessing.Pipe()
         self.flags = FlagParser.initialize(
-            threaded=True, work_klass=mock.MagicMock(),
+            threaded=True,
+            work_klass=mock.MagicMock(),
         )
         self.acceptor = Acceptor(
             idd=self.acceptor_id,

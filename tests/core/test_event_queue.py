@@ -50,11 +50,18 @@ class TestCoreEvent(unittest.TestCase):
 
     def test_subscribe(self) -> None:
         evq = EventQueue(self.manager.Queue())
-        q = multiprocessing.Manager().Queue()
-        evq.subscribe('1234', q)
+        _, relay_send = multiprocessing.Pipe()
+        print(relay_send)
+        evq.subscribe('1234', relay_send)
         ev = evq.queue.get()
         self.assertEqual(ev['event_name'], eventNames.SUBSCRIBE)
         self.assertEqual(ev['event_payload']['sub_id'], '1234')
+        # Not the same as the one sent over multiprocessing.Queue
+        # will be another descriptor.  We must ideally use
+        # send_handle during subscription too.
+        #
+        # self.assertEqual(ev['event_payload']
+        #                  ['conn'].fileno(), relay_send.fileno())
 
     def test_unsubscribe(self) -> None:
         evq = EventQueue(self.manager.Queue())

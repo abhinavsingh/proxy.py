@@ -56,13 +56,42 @@ class EventSubscriber:
         self.relay_send: Optional[connection.Connection] = None
         self.relay_sub_id: Optional[str] = None
 
-    def subscribe(self, callback: Callable[[Dict[str, Any]], None]) -> None:
+    def __enter__(self, callback: Callable[[Dict[str, Any]], None]) -> 'EventSubscriber':
+        self.setup(callback)
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.shutdown()
+
+    def setup(self, callback: Callable[[Dict[str, Any]], None], do_subscribe: bool = True) -> None:
+        """Setup subscription thread.
+
+        Call subscribe() to actually start subscription.
+        """
         self._start_relay_thread(callback)
         assert self.relay_sub_id and self.relay_recv
         logger.debug(
-            'Subscriber#%s subscribing',
+            'Subscriber#%s relay setup done',
             self.relay_sub_id,
         )
+        if do_subscribe:
+            self.subscribe()
+
+    def shutdown(self, do_unsubscribe: bool = True) -> None:
+        """Teardown subscription thread.
+
+        Call unsubscribe() to actually stop subscription.
+        """
+        self._stop_relay_thread()
+        logger.debug(
+            'Subscriber#%s relay shutdown done',
+            self.relay_sub_id,
+        )
+        if do_unsubscribe:
+            self.unsubscribe()
+
+    def subscribe(self) -> None:
+        assert self.relay_sub_id and self.relay_send
         self.event_queue.subscribe(self.relay_sub_id, self.relay_send)
 
     def unsubscribe(self) -> None:
@@ -70,28 +99,15 @@ class EventSubscriber:
             logger.warning(
                 'Relay called unsubscribe without an active subscription')
             return
-        logger.debug(
-            'Subscriber#%s unsubscribing',
-            self.relay_sub_id,
-        )
         try:
             self.event_queue.unsubscribe(self.relay_sub_id)
         except BrokenPipeError:
-            logger.info('bpe')
             pass
         except EOFError:
-            logger.info('eof')
             pass
         finally:
-            self._stop_relay_thread()
-            # close recv end
-            self.relay_recv.close()
-            # close send too?
-            # dispatcher may also close?
-            self.relay_send.close()
-            self.relay_recv = None
-            self.relay_send = None
-            self.relay_sub_id = None
+            # self.relay_sub_id = None
+            pass
 
     @staticmethod
     def relay(
@@ -105,10 +121,15 @@ class EventSubscriber:
                 if channel.poll(timeout=1):
                     ev = channel.recv()
                     if ev['event_name'] == eventNames.SUBSCRIBED:
-                        logger.info('Subscriber#{0} subscribed'.format(sub_id))
+                        logger.info(
+                            'Subscriber#{0} subscribe ack received'.format(sub_id))
                     elif ev['event_name'] == eventNames.UNSUBSCRIBED:
                         logger.info(
-                            'Subscriber#{0} unsubscribed'.format(sub_id))
+                            'Subscriber#{0} unsubscribe ack received'.format(sub_id))
+                        break
+                    elif ev['event_name'] == eventNames.DISPATCHER_SHUTDOWN:
+                        logger.info(
+                            'Subscriber#{0} received dispatcher shutdown event'.format(sub_id))
                         break
                     else:
                         callback(ev)
@@ -117,7 +138,6 @@ class EventSubscriber:
             except EOFError:
                 break
             except KeyboardInterrupt:
-                print('relay got kbe')
                 break
 
     def _start_relay_thread(self, callback: Callable[[Dict[str, Any]], None]) -> None:
@@ -129,12 +149,21 @@ class EventSubscriber:
             args=(self.relay_sub_id, self.relay_shutdown,
                   self.relay_recv, callback),
         )
+        self.relay_thread.isDaemon = True
         self.relay_thread.start()
 
     def _stop_relay_thread(self) -> None:
-        assert self.relay_thread and self.relay_shutdown and self.relay_recv and self.relay_sub_id
+        assert self.relay_thread and self.relay_shutdown and self.relay_recv and self.relay_send
         self.relay_shutdown.set()
         self.relay_thread.join()
-        logger.info('Relay thread joined')
+        self.relay_recv.close()
+        # Currently relay_send instance here in
+        # subscriber is not the same as one received
+        # by dispatcher.  This may cause file
+        # descriptor leakage.  So we make a close
+        # here explicit on our side of relay_send too.
+        self.relay_send.close()
         self.relay_thread = None
         self.relay_shutdown = None
+        self.relay_recv = None
+        self.relay_send = None

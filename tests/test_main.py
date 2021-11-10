@@ -8,6 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
+import tempfile
 import unittest
 
 from unittest import mock
@@ -65,44 +67,67 @@ class TestMain(unittest.TestCase):
         mock_args.enable_dashboard = DEFAULT_ENABLE_DASHBOARD
         mock_args.work_klass = DEFAULT_WORK_KLASS
 
+    @mock.patch('os.remove')
+    @mock.patch('os.path.exists')
+    @mock.patch('builtins.open')
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
+    @mock.patch('proxy.proxy.Listener')
     def test_entry_point(
             self,
+            mock_listener: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
             mock_initialize: mock.Mock,
             mock_sleep: mock.Mock,
+            mock_open: mock.Mock,
+            mock_exists: mock.Mock,
+            mock_remove: mock.Mock,
     ) -> None:
+        pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_initialize.return_value.enable_events = False
+        mock_initialize.return_value.pid_file = pid_file
         entry_point()
         mock_event_manager.assert_not_called()
+        mock_listener.assert_called_once_with(
+            flags=mock_initialize.return_value)
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=None,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
-            event_queue=None,
+            listener=mock_listener.return_value,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
+            event_queue=None,
         )
-        mock_acceptor_pool.return_value.setup.assert_called()
-        mock_acceptor_pool.return_value.shutdown.assert_called()
+        mock_acceptor_pool.return_value.setup.assert_called_once()
+        mock_acceptor_pool.return_value.shutdown.assert_called_once()
+        mock_listener.return_value.shutdown.assert_called_once()
         mock_sleep.assert_called()
+
+        mock_open.assert_called_with(pid_file, 'wb')
+        mock_open.return_value.__enter__.return_value.write.assert_called_with(
+            bytes_(os.getpid()),
+        )
+        mock_exists.assert_called_with(pid_file)
+        mock_remove.assert_called_with(pid_file)
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
+    @mock.patch('proxy.proxy.Listener')
     def test_main_with_no_flags(
             self,
+            mock_listener: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -113,18 +138,22 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.enable_events = False
         main()
         mock_event_manager.assert_not_called()
+        mock_listener.assert_called_once_with(
+            flags=mock_initialize.return_value)
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=None,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
-            event_queue=None,
+            listener=mock_listener.return_value,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
+            event_queue=None,
         )
-        mock_acceptor_pool.return_value.setup.assert_called()
-        mock_acceptor_pool.return_value.shutdown.assert_called()
+        mock_acceptor_pool.return_value.setup.assert_called_once()
+        mock_acceptor_pool.return_value.shutdown.assert_called_once()
+        mock_listener.return_value.shutdown.assert_called_once()
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
@@ -132,8 +161,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
+    @mock.patch('proxy.proxy.Listener')
     def test_enable_events(
             self,
+            mock_listener: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -146,18 +177,22 @@ class TestMain(unittest.TestCase):
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()
         mock_event_manager.return_value.shutdown.assert_called_once()
+        mock_listener.assert_called_once_with(
+            flags=mock_initialize.return_value)
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=mock_event_manager.return_value.queue,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
+            listener=mock_listener.return_value,
             event_queue=mock_event_manager.return_value.queue,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
         )
-        mock_acceptor_pool.return_value.setup.assert_called()
-        mock_acceptor_pool.return_value.shutdown.assert_called()
+        mock_acceptor_pool.return_value.setup.assert_called_once()
+        mock_acceptor_pool.return_value.shutdown.assert_called_once()
+        mock_listener.return_value.shutdown.assert_called_once()
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
@@ -166,8 +201,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
+    @mock.patch('proxy.proxy.Listener')
     def test_enable_dashboard(
             self,
+            mock_listener: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -200,6 +237,7 @@ class TestMain(unittest.TestCase):
         mock_executor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called_once()
+        mock_listener.return_value.setup.assert_called_once()
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.common.plugins.Plugins.load')
@@ -207,8 +245,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
+    @mock.patch('proxy.proxy.Listener')
     def test_enable_devtools(
             self,
+            mock_listener: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -236,6 +276,7 @@ class TestMain(unittest.TestCase):
         mock_executor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called_once()
+        mock_listener.return_value.setup.assert_called_once()
 
     # def test_pac_file(self) -> None:
     #     pass

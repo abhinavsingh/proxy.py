@@ -20,6 +20,7 @@ EventNames = NamedTuple(
         ('SUBSCRIBED', int),
         ('UNSUBSCRIBE', int),
         ('UNSUBSCRIBED', int),
+        ('DISPATCHER_SHUTDOWN', int),
         ('WORK_STARTED', int),
         ('WORK_FINISHED', int),
         ('REQUEST_COMPLETE', int),
@@ -28,4 +29,4 @@ EventNames = NamedTuple(
         ('RESPONSE_COMPLETE', int),
     ],
 )
-eventNames = EventNames(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+eventNames = EventNames(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)

@@ -61,6 +61,7 @@ class EventDispatcher:
             })
         elif ev['event_name'] == eventNames.UNSUBSCRIBE:
             # send ack
+            print('unsubscription request ack sent')
             self.subscribers[ev['event_payload']['sub_id']].send({
                 'event_name': eventNames.UNSUBSCRIBED,
             })
@@ -69,17 +70,7 @@ class EventDispatcher:
             del self.subscribers[ev['event_payload']['sub_id']]
         else:
             # logger.info(ev)
-            broken_pipes: List[str] = []
-            for sub_id in self.subscribers:
-                try:
-                    self.subscribers[sub_id].send(ev)
-                except BrokenPipeError:
-                    logger.warning(
-                        'Subscriber#%s broken pipe', sub_id)
-                    self.subscribers[sub_id].close()
-                    broken_pipes.append(sub_id)
-            for sub_id in broken_pipes:
-                del self.subscribers[sub_id]
+            self._broadcast(ev)
 
     def run_once(self) -> None:
         ev: Dict[str, Any] = self.event_queue.queue.get(timeout=1)
@@ -100,3 +91,21 @@ class EventDispatcher:
             pass
         except Exception as e:
             logger.exception('Dispatcher exception', exc_info=e)
+        finally:
+            # Send shutdown message to all active subscribers
+            self._broadcast({
+                'event_name': eventNames.DISPATCHER_SHUTDOWN,
+            })
+
+    def _broadcast(self, ev: Dict[str, Any]) -> None:
+        broken_pipes: List[str] = []
+        for sub_id in self.subscribers:
+            try:
+                self.subscribers[sub_id].send(ev)
+            except BrokenPipeError:
+                logger.warning(
+                    'Subscriber#%s broken pipe', sub_id)
+                self.subscribers[sub_id].close()
+                broken_pipes.append(sub_id)
+        for sub_id in broken_pipes:
+            del self.subscribers[sub_id]

@@ -12,7 +12,7 @@ import time
 import multiprocessing
 import logging
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from proxy.common.logger import Logger
 from proxy.common.constants import DEFAULT_LOG_FORMAT
@@ -56,7 +56,9 @@ def publisher_process(
 
 if __name__ == '__main__':
     start_time = time.time()
+
     # Start eventing core
+    subscriber: Optional[EventSubscriber] = None
     with EventManager() as event_manager:
         assert event_manager.queue
 
@@ -64,7 +66,7 @@ if __name__ == '__main__':
         # Internally, subscribe will start a separate thread
         # to receive incoming published messages.
         subscriber = EventSubscriber(event_manager.queue)
-        subscriber.subscribe(on_event)
+        subscriber.setup(on_event)
 
         # Start a publisher process to demonstrate safe exchange
         # of messages between processes.
@@ -94,10 +96,11 @@ if __name__ == '__main__':
             publisher.join()
             # Stop subscriber thread
             subscriber.unsubscribe()
-        logger.info(
-            'Received {0} events from main thread, {1} events from another process, in {2} seconds'.format(
-                num_events_received[0], num_events_received[1], time.time(
-                ) - start_time,
-            ),
-        )
-    logger.info('Done!!!')
+            logger.info(
+                'Received {0} events from main thread, {1} events from another process, in {2} seconds'.format(
+                    num_events_received[0], num_events_received[1], time.time(
+                    ) - start_time,
+                ),
+            )
+    if subscriber:
+        subscriber.shutdown(do_unsubscribe=False)
