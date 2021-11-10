@@ -139,20 +139,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             ),
         )
 
-    def serve_file_or_404(self, path: str) -> bool:
-        """Read and serves a file from disk.
-
-        Queues 404 Not Found for IOError.
-        Shouldn't this be server error?
-        """
-        try:
-            self.client.queue(
-                self.read_and_build_static_file_response(path),
-            )
-        except IOError:
-            self.client.queue(self.DEFAULT_404_RESPONSE)
-        return True
-
     def try_upgrade(self) -> bool:
         if self.request.has_header(b'connection') and \
                 self.request.header(b'connection').lower() == b'upgrade':
@@ -216,9 +202,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if self.flags.enable_static_server:
             path = text_(self.request.path).split('?')[0]
             if os.path.isfile(self.flags.static_server_dir + path):
-                return self.serve_file_or_404(
-                    self.flags.static_server_dir + path,
+                self.client.queue(
+                    self.read_and_build_static_file_response(
+                        self.flags.static_server_dir + path),
                 )
+                return True
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
