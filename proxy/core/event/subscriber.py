@@ -97,7 +97,8 @@ class EventSubscriber:
     def unsubscribe(self) -> None:
         if self.relay_sub_id is None:
             logger.warning(
-                'Relay called unsubscribe without an active subscription')
+                'Relay called unsubscribe without an active subscription',
+            )
             return
         try:
             self.event_queue.unsubscribe(self.relay_sub_id)
@@ -122,14 +123,17 @@ class EventSubscriber:
                     ev = channel.recv()
                     if ev['event_name'] == eventNames.SUBSCRIBED:
                         logger.info(
-                            'Subscriber#{0} subscribe ack received'.format(sub_id))
+                            'Subscriber#{0} subscribe ack received'.format(sub_id),
+                        )
                     elif ev['event_name'] == eventNames.UNSUBSCRIBED:
                         logger.info(
-                            'Subscriber#{0} unsubscribe ack received'.format(sub_id))
+                            'Subscriber#{0} unsubscribe ack received'.format(sub_id),
+                        )
                         break
                     elif ev['event_name'] == eventNames.DISPATCHER_SHUTDOWN:
                         logger.info(
-                            'Subscriber#{0} received dispatcher shutdown event'.format(sub_id))
+                            'Subscriber#{0} received dispatcher shutdown event'.format(sub_id),
+                        )
                         break
                     else:
                         callback(ev)
@@ -146,8 +150,10 @@ class EventSubscriber:
         self.relay_recv, self.relay_send = multiprocessing.Pipe()
         self.relay_thread = threading.Thread(
             target=EventSubscriber.relay,
-            args=(self.relay_sub_id, self.relay_shutdown,
-                  self.relay_recv, callback),
+            args=(
+                self.relay_sub_id, self.relay_shutdown,
+                self.relay_recv, callback,
+            ),
         )
         self.relay_thread.daemon = True
         self.relay_thread.start()

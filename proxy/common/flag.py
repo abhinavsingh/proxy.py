@@ -234,7 +234,8 @@ class FlagParser:
             opts.get('hostname', ipaddress.ip_address(args.hostname)),
         )
         args.unix_socket_path = opts.get(
-            'unix_socket_path', args.unix_socket_path)
+            'unix_socket_path', args.unix_socket_path,
+        )
         # AF_UNIX is not available on Windows
         # See https://bugs.python.org/issue33408
         if os.name != 'nt':

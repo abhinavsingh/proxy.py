@@ -95,7 +95,8 @@ class TestMain(unittest.TestCase):
         entry_point()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
-            flags=mock_initialize.return_value)
+            flags=mock_initialize.return_value,
+        )
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=None,
@@ -139,7 +140,8 @@ class TestMain(unittest.TestCase):
         main()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
-            flags=mock_initialize.return_value)
+            flags=mock_initialize.return_value,
+        )
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=None,
@@ -178,7 +180,8 @@ class TestMain(unittest.TestCase):
         mock_event_manager.return_value.setup.assert_called_once()
         mock_event_manager.return_value.shutdown.assert_called_once()
         mock_listener.assert_called_once_with(
-            flags=mock_initialize.return_value)
+            flags=mock_initialize.return_value,
+        )
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=mock_event_manager.return_value.queue,

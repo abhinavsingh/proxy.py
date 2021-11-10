@@ -41,8 +41,10 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
                         WebsocketFrame.text(
                             bytes_(
                                 json.dumps(
-                                    {'id': message['id'],
-                                        'response': 'not enabled'},
+                                    {
+                                        'id': message['id'],
+                                        'response': 'not enabled',
+                                    },
                                 ),
                             ),
                         ),

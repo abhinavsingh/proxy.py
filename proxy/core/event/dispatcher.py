@@ -104,7 +104,8 @@ class EventDispatcher:
                 self.subscribers[sub_id].send(ev)
             except BrokenPipeError:
                 logger.warning(
-                    'Subscriber#%s broken pipe', sub_id)
+                    'Subscriber#%s broken pipe', sub_id,
+                )
                 self.subscribers[sub_id].close()
                 broken_pipes.append(sub_id)
         for sub_id in broken_pipes:

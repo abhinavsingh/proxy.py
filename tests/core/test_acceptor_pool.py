@@ -52,17 +52,22 @@ class TestAcceptorPool(unittest.TestCase):
         self.assertEqual(mock_send_handle.call_count, num_acceptors)
 
         self.assertEqual(
-            mock_acceptor.call_args_list[0][1]['idd'], 0)
+            mock_acceptor.call_args_list[0][1]['idd'], 0,
+        )
         self.assertEqual(
-            mock_acceptor.call_args_list[0][1]['fd_queue'], mock_pipe.return_value[1])
+            mock_acceptor.call_args_list[0][1]['fd_queue'], mock_pipe.return_value[1],
+        )
         self.assertEqual(
-            mock_acceptor.call_args_list[0][1]['flags'], flags)
+            mock_acceptor.call_args_list[0][1]['flags'], flags,
+        )
         self.assertEqual(
-            mock_acceptor.call_args_list[0][1]['event_queue'], None)
+            mock_acceptor.call_args_list[0][1]['event_queue'], None,
+        )
         # executor_queues=[],
         # executor_pids=[]
         self.assertEqual(
-            mock_acceptor.call_args_list[1][1]['idd'], 1)
+            mock_acceptor.call_args_list[1][1]['idd'], 1,
+        )
 
         acceptor1.start.assert_called_once()
         acceptor2.start.assert_called_once()
