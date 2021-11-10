@@ -14,7 +14,6 @@ import logging
 
 from typing import Dict, Any, Optional
 
-from proxy.common.logger import Logger
 from proxy.common.constants import DEFAULT_LOG_FORMAT
 from proxy.core.event import EventManager, EventQueue, EventSubscriber, eventNames
 

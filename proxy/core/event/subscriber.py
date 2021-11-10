@@ -149,7 +149,7 @@ class EventSubscriber:
             args=(self.relay_sub_id, self.relay_shutdown,
                   self.relay_recv, callback),
         )
-        self.relay_thread.isDaemon = True
+        self.relay_thread.daemon = True
         self.relay_thread.start()
 
     def _stop_relay_thread(self) -> None:

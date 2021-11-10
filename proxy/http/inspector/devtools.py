@@ -65,7 +65,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         raise NotImplementedError('This should have never been called')
 
     def on_websocket_open(self) -> None:
-        self.subscriber.subscribe(
+        self.subscriber.setup(
             lambda event: CoreEventsToDevtoolsProtocol.transformer(
                 self.client, event,
             ),
@@ -82,7 +82,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
         self.handle_devtools_message(message)
 
     def on_client_connection_close(self) -> None:
-        self.subscriber.unsubscribe()
+        self.subscriber.shutdown()
 
     def handle_devtools_message(self, message: Dict[str, Any]) -> None:
         frame = WebsocketFrame()

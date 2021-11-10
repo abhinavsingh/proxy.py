@@ -8,15 +8,16 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import multiprocessing
 import os
 import threading
 import unittest
 import queue
+import multiprocessing
+
+from multiprocessing import connection
 
 from unittest import mock
 
-from proxy.common.types import DictQueueType
 from proxy.core.event import EventDispatcher, EventQueue, eventNames
 
 
@@ -47,7 +48,7 @@ class TestEventDispatcher(unittest.TestCase):
             self.dispatcher.run_once()
 
     @mock.patch('time.time')
-    def subscribe(self, mock_time: mock.Mock) -> DictQueueType:
+    def subscribe(self, mock_time: mock.Mock) -> connection.Connection:
         mock_time.return_value = 1234567
         relay_recv, relay_send = multiprocessing.Pipe()
         self.event_queue.subscribe(sub_id='1234', channel=relay_send)

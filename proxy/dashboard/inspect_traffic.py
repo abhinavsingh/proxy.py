@@ -41,14 +41,15 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
                         WebsocketFrame.text(
                             bytes_(
                                 json.dumps(
-                                    {'id': message['id'], 'response': 'not enabled'},
+                                    {'id': message['id'],
+                                        'response': 'not enabled'},
                                 ),
                             ),
                         ),
                     ),
                 )
             else:
-                self.subscriber.subscribe(
+                self.subscriber.setup(
                     lambda event: InspectTrafficPlugin.callback(
                         self.client, event,
                     ),
@@ -57,7 +58,7 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
                     {'id': message['id'], 'response': 'inspection_enabled'},
                 )
         elif message['method'] == 'disable_inspection':
-            self.subscriber.unsubscribe()
+            self.subscriber.shutdown()
             self.reply({
                 'id': message['id'],
                 'response': 'inspection_disabled',

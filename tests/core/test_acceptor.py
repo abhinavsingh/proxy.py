@@ -14,7 +14,7 @@ import selectors
 import multiprocessing
 from unittest import mock
 
-from proxy.core.acceptor import Acceptor, Listener
+from proxy.core.acceptor import Acceptor
 from proxy.common.flag import FlagParser
 
 
