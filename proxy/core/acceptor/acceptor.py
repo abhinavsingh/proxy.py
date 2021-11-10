@@ -105,7 +105,7 @@ class Acceptor(multiprocessing.Process):
         # dynamically accept from new fds.
         fileno = recv_handle(self.fd_queue)
         self.fd_queue.close()
-        # TODO: Covert to socks i.e. list of fds
+        # TODO: Convert to socks i.e. list of fds
         self.sock = socket.fromfd(
             fileno,
             family=self.flags.family,
