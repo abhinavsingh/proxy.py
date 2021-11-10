@@ -1,14 +1,13 @@
 import os
 import sys
 
-from proxy.plugin.solana_rest_api_tools import sysinstruct, ETH_TOKEN_MINT_ID, system, send_transaction
+from proxy.plugin.solana_rest_api_tools import sysinstruct, ETH_TOKEN_MINT_ID, system, send_transaction, MINIMAL_GAS_PRICE
 
 sys.path.append("/spl/bin/")
 os.environ['SOLANA_URL'] = "http://solana:8899"
 os.environ['EVM_LOADER'] = "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io"
 os.environ['ETH_TOKEN_MINT'] = "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU"
 os.environ['COLLATERAL_POOL_BASE'] = "4sW3SZDJB7qXUyCYKA7pFL8eCTfm3REr8oSiKkww7MaT"
-os.environ['NEON_CHAIN_ID'] = "0x6f"
 
 import base64
 import unittest
@@ -149,7 +148,7 @@ class CancelTest(unittest.TestCase):
     def create_hanged_transaction(self):
         print("\ncommit_two_event_trx")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
-        trx_store = self.storage_contract.functions.addReturnEventTwice(1, 1).buildTransaction({'nonce': right_nonce})
+        trx_store = self.storage_contract.functions.addReturnEventTwice(1, 1).buildTransaction({'nonce': right_nonce, 'gasPrice': MINIMAL_GAS_PRICE})
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
 
         (from_addr, sign, msg) = make_instruction_data_from_tx(trx_store_signed.rawTransaction.hex())

@@ -6,7 +6,6 @@ import os
 import random
 import re
 import struct
-import subprocess
 import time
 from datetime import datetime
 from hashlib import sha256
@@ -36,22 +35,21 @@ from solana._layouts.system_instructions import InstructionType as SystemInstruc
 from spl.token.constants import ACCOUNT_LEN, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address, create_associated_token_account, transfer2, Transfer2Params
 
+from ..environment import neon_cli, evm_loader_id, ETH_TOKEN_MINT_ID, COLLATERAL_POOL_BASE, read_elf_params
 from ..common.utils import get_from_dict
 from .eth_proto import Trx
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
-evm_loader_id = os.environ.get("EVM_LOADER")
-COLLATERAL_POOL_BASE = os.environ.get("COLLATERAL_POOL_BASE")
+
 NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 location_bin = ".deploy_contract.bin"
 confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "0.1"))
-neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
 USE_COMBINED_START_CONTINUE = os.environ.get("USE_COMBINED_START_CONTINUE", "YES") == "YES"
 CONTINUE_COUNT_FACTOR = int(os.environ.get("CONTINUE_COUNT_FACTOR", "3"))
 TIMEOUT_TO_RELOAD_NEON_CONFIG = int(os.environ.get("TIMEOUT_TO_RELOAD_NEON_CONFIG", "3600"))
+MINIMAL_GAS_PRICE=int(os.environ.get("MINIMAL_GAS_PRICE", 1))*10**9
 
 ACCOUNT_SEED_VERSION=b'\1'
 
@@ -61,10 +59,6 @@ keccakprog = "KeccakSecp256k11111111111111111111111111111"
 rentid = "SysvarRent111111111111111111111111111111111"
 incinerator = "1nc1nerator11111111111111111111111111111111"
 system = "11111111111111111111111111111111"
-
-ETH_TOKEN_MINT_ID: PublicKey = PublicKey(
-    os.environ.get("ETH_TOKEN_MINT", "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU")
-)
 
 STORAGE_SIZE = 128 * 1024
 
@@ -259,36 +253,6 @@ def emulator(contract, sender, data, value):
     return neon_cli().call("emulate", sender, contract, data, value)
 
 
-class solana_cli:
-    def call(self, *args):
-        try:
-            cmd = ["solana",
-                   "--url", solana_url,
-                   ] + list(args)
-            print(cmd)
-            return subprocess.check_output(cmd, universal_newlines=True)
-        except subprocess.CalledProcessError as err:
-            import sys
-            logger.debug("ERR: solana error {}".format(err))
-            raise
-
-
-class neon_cli:
-    def call(self, *args):
-        try:
-            cmd = ["neon-cli",
-                   "--commitment=recent",
-                   "--url", solana_url,
-                   "--evm_loader={}".format(evm_loader_id),
-                   ] + list(args)
-            logger.debug(f"Calling: \"{' '.join(cmd)}\"")
-            return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True)
-        except subprocess.CalledProcessError as err:
-            import sys
-            logger.debug("ERR: neon-cli error {}".format(err))
-            raise
-
-
 def confirm_transaction(client, tx_sig, confirmations=0):
     """Confirm a transaction."""
     TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
@@ -346,19 +310,7 @@ def neon_config_load(ethereum_model):
         if elapsed_time < TIMEOUT_TO_RELOAD_NEON_CONFIG:
             return
 
-    logger.debug('load for solana_url={} and evm_loader_id={}'.format(solana_url, evm_loader_id))
-    res = solana_cli().call('program', 'dump', evm_loader_id, './evm_loader.dump')
-    substr = "Wrote program to "
-    path = ""
-    for line in res.splitlines():
-        if line.startswith(substr):
-            path = line[len(substr):].strip()
-    if path == "":
-        raise Exception("cannot program dump for ", evm_loader_id)
-    for param in neon_cli().call("neon-elf-params", path).splitlines():
-        if param.startswith('NEON_') and '=' in param:
-            v = param.split('=')
-            ethereum_model.neon_config_dict[v[0]] = v[1]
+    read_elf_params(ethereum_model.neon_config_dict)
     ethereum_model.neon_config_dict['load_time'] = datetime.now().timestamp()
     # 'Neon/v0.3.0-rc0-d1e4ff618457ea9cbc82b38d2d927e8a62168bec
     ethereum_model.neon_config_dict['web3_clientVersion'] = 'Neon/v' + \
@@ -869,7 +821,7 @@ def create_account_list_by_emulate(signer, client, ethTrx):
     for acc_desc in output_json["accounts"]:
         if acc_desc["new"] == False:
 
-            if acc_desc["code_size_current"] and acc_desc["code_size"]:
+            if acc_desc.get("code_size_current") is not None and acc_desc.get("code_size") is not None:
                 if acc_desc["code_size"] > acc_desc["code_size_current"]:
                     code_size = acc_desc["code_size"] + 2048
                     seed = b58encode(ACCOUNT_SEED_VERSION + os.urandom(20))
@@ -882,7 +834,11 @@ def create_account_list_by_emulate(signer, client, ethTrx):
                     resize_instr.append(TransactionInstruction(
                         keys=[
                             AccountMeta(pubkey=PublicKey(acc_desc["account"]), is_signer=False, is_writable=True),
-                            AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=True),
+                            (
+                                AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=True)
+                                if acc_desc["contract"] else
+                                AccountMeta(pubkey=PublicKey("11111111111111111111111111111111"), is_signer=False, is_writable=False)
+                            ),
                             AccountMeta(pubkey=code_account_new, is_signer=False, is_writable=True),
                             AccountMeta(pubkey=signer.public_key(), is_signer=True, is_writable=False)
                         ],
@@ -1100,11 +1056,10 @@ def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: E
 
     base = signer.public_key()
 
-    data = bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
-            lamports=0,
-            space=0,
-            ether=bytes(ether),
-            nonce=nonce))
+    data = bytes.fromhex('02000000') + CREATE_ACCOUNT_LAYOUT.build(dict(lamports=0,
+                                                                        space=0,
+                                                                        ether=bytes(ether),
+                                                                        nonce=nonce))
     trx = Transaction()
     if code_acc is None:
         trx.add(TransactionInstruction(
@@ -1205,6 +1160,7 @@ def getLamports(client, evm_loader, eth_acc, base_account):
     (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
+
 def add_airdrop_transfer_to_trx(owner_account: SolanaAccount, dest_account: str, trx: Transaction):
     dest_token_account = getTokenAddr(dest_account)
     owner_sol_addr = owner_account.public_key()
@@ -1280,7 +1236,7 @@ def getTokenAddr(account):
 
 def make_instruction_data_from_tx(instruction, private_key=None):
     if isinstance(instruction, dict):
-        if instruction['chainId'] is None:
+        if instruction.get('chainId') is None:
             raise Exception("chainId value is needed in input dict")
         if private_key is None:
             raise Exception("Needed private key for transaction creation from fields")
