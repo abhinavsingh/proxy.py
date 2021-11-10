@@ -39,8 +39,8 @@ class TestEventSubscriber(unittest.TestCase):
             shutdown=self.dispatcher_shutdown,
             event_queue=self.event_queue,
         )
-        self.subscriber = EventSubscriber(self.event_queue)
-        self.subscriber.setup(self.callback)
+        self.subscriber = EventSubscriber(self.event_queue, self.callback)
+        self.subscriber.setup()
         self.dispatcher.run_once()
 
         self.event_queue.publish(

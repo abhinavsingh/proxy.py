@@ -24,7 +24,12 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.subscriber = EventSubscriber(self.event_queue)
+        self.subscriber = EventSubscriber(
+            self.event_queue,
+            callback=lambda event: InspectTrafficPlugin.callback(
+                self.client, event,
+            ),
+        )
 
     def methods(self) -> List[str]:
         return [
@@ -51,11 +56,7 @@ class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
                     ),
                 )
             else:
-                self.subscriber.setup(
-                    lambda event: InspectTrafficPlugin.callback(
-                        self.client, event,
-                    ),
-                )
+                self.subscriber.setup()
                 self.reply(
                     {'id': message['id'], 'response': 'inspection_enabled'},
                 )

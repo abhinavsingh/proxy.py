@@ -48,27 +48,28 @@ class EventSubscriber:
     safe queue passed to the relay thread.
     """
 
-    def __init__(self, event_queue: EventQueue) -> None:
+    def __init__(self, event_queue: EventQueue, callback: Callable[[Dict[str, Any]], None]) -> None:
         self.event_queue = event_queue
+        self.callback = callback
         self.relay_thread: Optional[threading.Thread] = None
         self.relay_shutdown: Optional[threading.Event] = None
         self.relay_recv: Optional[connection.Connection] = None
         self.relay_send: Optional[connection.Connection] = None
         self.relay_sub_id: Optional[str] = None
 
-    def __enter__(self, callback: Callable[[Dict[str, Any]], None]) -> 'EventSubscriber':
-        self.setup(callback)
+    def __enter__(self) -> 'EventSubscriber':
+        self.setup()
         return self
 
     def __exit__(self, *args: Any) -> None:
         self.shutdown()
 
-    def setup(self, callback: Callable[[Dict[str, Any]], None], do_subscribe: bool = True) -> None:
+    def setup(self, do_subscribe: bool = True) -> None:
         """Setup subscription thread.
 
         Call subscribe() to actually start subscription.
         """
-        self._start_relay_thread(callback)
+        self._start_relay_thread()
         assert self.relay_sub_id and self.relay_recv
         logger.debug(
             'Subscriber#%s relay setup done',
@@ -123,16 +124,19 @@ class EventSubscriber:
                     ev = channel.recv()
                     if ev['event_name'] == eventNames.SUBSCRIBED:
                         logger.info(
-                            'Subscriber#{0} subscribe ack received'.format(sub_id),
+                            'Subscriber#{0} subscribe ack received'.format(
+                                sub_id),
                         )
                     elif ev['event_name'] == eventNames.UNSUBSCRIBED:
                         logger.info(
-                            'Subscriber#{0} unsubscribe ack received'.format(sub_id),
+                            'Subscriber#{0} unsubscribe ack received'.format(
+                                sub_id),
                         )
                         break
                     elif ev['event_name'] == eventNames.DISPATCHER_SHUTDOWN:
                         logger.info(
-                            'Subscriber#{0} received dispatcher shutdown event'.format(sub_id),
+                            'Subscriber#{0} received dispatcher shutdown event'.format(
+                                sub_id),
                         )
                         break
                     else:
@@ -144,7 +148,7 @@ class EventSubscriber:
             except KeyboardInterrupt:
                 break
 
-    def _start_relay_thread(self, callback: Callable[[Dict[str, Any]], None]) -> None:
+    def _start_relay_thread(self) -> None:
         self.relay_sub_id = uuid.uuid4().hex
         self.relay_shutdown = threading.Event()
         self.relay_recv, self.relay_send = multiprocessing.Pipe()
@@ -152,7 +156,7 @@ class EventSubscriber:
             target=EventSubscriber.relay,
             args=(
                 self.relay_sub_id, self.relay_shutdown,
-                self.relay_recv, callback,
+                self.relay_recv, self.callback,
             ),
         )
         self.relay_thread.daemon = True

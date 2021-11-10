@@ -64,8 +64,8 @@ if __name__ == '__main__':
         # Create a subscriber.
         # Internally, subscribe will start a separate thread
         # to receive incoming published messages.
-        subscriber = EventSubscriber(event_manager.queue)
-        subscriber.setup(on_event)
+        subscriber = EventSubscriber(event_manager.queue, callback=on_event)
+        subscriber.setup()
 
         # Start a publisher process to demonstrate safe exchange
         # of messages between processes.
