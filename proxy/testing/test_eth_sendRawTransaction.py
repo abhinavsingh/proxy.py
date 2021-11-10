@@ -1,8 +1,9 @@
 import unittest
 import os
+
+import eth_utils
 from web3 import Web3
 from solcx import install_solc
-from ..common.constants import GWEI_PER_ETH_COUNT
 
 # install_solc(version='latest')
 install_solc(version='0.7.0')
@@ -253,7 +254,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 gas=987654321,
                 gasPrice=0,
                 to=eth_account_alice.address,
-                value=GWEI_PER_ETH_COUNT),
+                value=eth_utils.denoms.gwei),
                 eth_account.key
             )
 
@@ -270,7 +271,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 gas=987654321,
                 gasPrice=0,
                 to=eth_account_bob.address,
-                value=GWEI_PER_ETH_COUNT),
+                value=eth_utils.denoms.gwei),
                 eth_account.key
             )
 
@@ -284,7 +285,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         bob_balance_before_transfer = proxy.eth.get_balance(eth_account_bob.address)
         print('alice_balance_before_transfer:', alice_balance_before_transfer)
         print('bob_balance_before_transfer:', bob_balance_before_transfer)
-        print('one_gwei:', GWEI_PER_ETH_COUNT)
+        print('one_gwei:', eth_utils.denoms.gwei)
 
         trx_transfer = proxy.eth.account.sign_transaction(dict(
             nonce=proxy.eth.get_transaction_count(eth_account_alice.address),
@@ -292,7 +293,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             gas=987654321,
             gasPrice=0,
             to=eth_account_bob.address,
-            value=GWEI_PER_ETH_COUNT),
+            value=eth_utils.denoms.gwei),
             eth_account_alice.key
         )
 
@@ -306,8 +307,8 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         bob_balance_after_transfer = proxy.eth.get_balance(eth_account_bob.address)
         print('alice_balance_after_transfer:', alice_balance_after_transfer)
         print('bob_balance_after_transfer:', bob_balance_after_transfer)
-        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - GWEI_PER_ETH_COUNT)
-        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + GWEI_PER_ETH_COUNT)
+        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - eth_utils.denoms.gwei)
+        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + eth_utils.denoms.gwei)
 
     # @unittest.skip("a.i.")
     def test_06_transfer_one_and_a_half_gweis(self):
@@ -328,7 +329,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 gas=987654321,
                 gasPrice=0,
                 to=eth_account_alice.address,
-                value=GWEI_PER_ETH_COUNT),
+                value=eth_utils.denoms.gwei),
                 eth_account.key
             )
 
@@ -345,7 +346,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 gas=987654321,
                 gasPrice=0,
                 to=eth_account_bob.address,
-                value=GWEI_PER_ETH_COUNT),
+                value=eth_utils.denoms.gwei),
                 eth_account.key
             )
 
@@ -383,9 +384,9 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('alice_balance_after_transfer:', alice_balance_after_transfer)
         print('bob_balance_after_transfer:', bob_balance_after_transfer)
         print('check https://github.com/neonlabsorg/neon-evm/issues/210')
-        print('one_gwei:', GWEI_PER_ETH_COUNT)
-        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - GWEI_PER_ETH_COUNT)
-        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + GWEI_PER_ETH_COUNT)
+        print('one_gwei:', eth_utils.denoms.gwei)
+        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - eth_utils.denoms.gwei)
+        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + eth_utils.denoms.gwei)
 
     @unittest.skip("a.i.")
     def test_07_execute_long_transaction(self):
