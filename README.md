@@ -128,23 +128,35 @@
   - Made to handle `tens-of-thousands` connections / sec
 
     ```console
-    # On Macbook Pro 2015 / 2.8 GHz Intel Core i7
-    ❯ hey -n 10000 -c 100 http://localhost:8899/
+    # On Macbook Pro 2019 / 2.4 GHz 8-Core Intel Core i9 / 32 GB RAM
+    ❯ hey -n 10000 -c 100 http://localhost:8899/http-route-example
 
     Summary:
-      Total:	0.6157 secs
-      Slowest:	0.1049 secs
-      Fastest:	0.0007 secs
-      Average:	0.0055 secs
-      Requests/sec:	16240.5444
+      Total:	0.3248 secs
+      Slowest:	0.1007 secs
+      Fastest:	0.0002 secs
+      Average:	0.0028 secs
+      Requests/sec:	30784.7958
 
-      Total data:	800000 bytes
-      Size/request:	80 bytes
+      Total data:	190000 bytes
+      Size/request:	19 bytes
 
     Response time histogram:
-      0.001 [1]     |
-      0.011 [9565]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-      0.022 [332]	|■
+      0.000 [1]	    |
+      0.010 [9533]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+      0.020 [384]	|■■
+
+    Latency distribution:
+      10% in 0.0004 secs
+      25% in 0.0007 secs
+      50% in 0.0013 secs
+      75% in 0.0029 secs
+      90% in 0.0057 secs
+      95% in 0.0097 secs
+      99% in 0.0185 secs
+
+    Status code distribution:
+      [200]	100000 responses
     ```
 
 - Lightweight
