@@ -12,7 +12,7 @@ import logging
 
 try:
     import httpx
-except ImportError:
+except ImportError:     # pragma: no cover
     pass
 
 from typing import Optional, Tuple
@@ -75,7 +75,9 @@ class CloudflareDnsResolverPlugin(HttpProxyBasePlugin):
             return answers[0]['data'], None
         except Exception as e:
             logger.info(
-                'Unable to resolve DNS-over-HTTPS for host {0} : {1}'.format(host, str(e)),
+                'Unable to resolve DNS-over-HTTPS for host {0} : {1}'.format(
+                    host, str(e),
+                ),
             )
             return None, None
 

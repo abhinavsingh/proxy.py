@@ -74,10 +74,10 @@ class WebsocketClient(TcpConnection):
         assert WebsocketFrame.key_to_accept(key) == accept
 
     def ping(self, data: Optional[bytes] = None) -> None:
-        pass
+        pass    # pragma: no cover
 
     def pong(self, data: Optional[bytes] = None) -> None:
-        pass
+        pass    # pragma: no cover
 
     def shutdown(self, _data: Optional[bytes] = None) -> None:
         """Closes connection with the server."""
