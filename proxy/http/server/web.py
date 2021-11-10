@@ -125,17 +125,22 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         content_type = mimetypes.guess_type(path)[0]
         if content_type is None:
             content_type = 'text/plain'
+        headers = {
+            b'Content-Type': bytes_(content_type),
+            b'Cache-Control': b'max-age=86400',
+            b'Connection': b'close',
+        }
+        do_compress = len(content) > 300
+        if do_compress:
+            headers.update({
+                b'Content-Encoding': b'gzip',
+            })
         return memoryview(
             build_http_response(
                 httpStatusCodes.OK,
                 reason=b'OK',
-                headers={
-                    b'Content-Type': bytes_(content_type),
-                    b'Cache-Control': b'max-age=86400',
-                    b'Content-Encoding': b'gzip',
-                    b'Connection': b'close',
-                },
-                body=gzip.compress(content),
+                headers=headers,
+                body=gzip.compress(content) if do_compress else content,
             ),
         )
 
@@ -193,20 +198,22 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if match:
                 self.route = self.routes[protocol][route]
                 self.route.handle_request(self.request)
-                if self.request.has_header(b'connection') \
-                        and self.request.header(b'connection').lower() == b'close':
+                if self.request.has_header(b'connection') and \
+                        self.request.header(b'connection').lower() == b'close':
                     return True
                 return False
 
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
             path = text_(self.request.path).split('?')[0]
-            if os.path.isfile(self.flags.static_server_dir + path):
+            try:
                 self.client.queue(
                     self.read_and_build_static_file_response(
                         self.flags.static_server_dir + path),
                 )
                 return True
+            except FileNotFoundError:
+                pass
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
