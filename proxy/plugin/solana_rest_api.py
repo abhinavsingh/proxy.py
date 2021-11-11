@@ -70,8 +70,6 @@ class PermanentAccounts:
 
 class EthereumModel:
     def __init__(self):
-        # Initialize user account
-
         self.signer = self.get_solana_account()
         self.client = SolanaClient(solana_url)
 
@@ -88,7 +86,6 @@ class EthereumModel:
 
         self.perm_accs = PermanentAccounts(self.client, self.signer, self.proxy_id)
         neon_config_load(self)
-        pass
 
     @staticmethod
     def get_solana_account() -> Optional[sol_Account]:
