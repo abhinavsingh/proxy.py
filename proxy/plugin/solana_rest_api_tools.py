@@ -1105,12 +1105,10 @@ def call_signed_with_holder_acc(signer, client, eth_trx, perm_accs, trx_accs, st
     return call_continue(signer, client, perm_accs, trx_accs, steps, eth_trx)
 
 
-def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: EthereumAddress, evm_loader_id, code_acc=None) -> Tuple[Transaction, str, str]:
+def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: EthereumAddress, evm_loader_id, code_acc=None) -> Tuple[Transaction, PublicKey]:
 
     solana_address, nonce = ether2program(ether, evm_loader_id, signer.public_key())
-
     token_acc_address = get_associated_token_address(PublicKey(solana_address), ETH_TOKEN_MINT_ID)
-
     logger.debug(f'Create eth account: {ether}, sol account: {solana_address}, token_acc_address: {token_acc_address}, nonce: {nonce}')
 
     sender_sol_info = client.get_account_info(solana_address, commitment=Confirmed)
@@ -1155,7 +1153,7 @@ def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: E
                 AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
             ]))
-    return trx, solana_address, token_acc_address
+    return trx, token_acc_address
 
 
 def createERC20TokenAccountTrx(signer, token_info):
@@ -1228,8 +1226,7 @@ def getLamports(client, evm_loader, eth_acc, base_account):
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
 
-def add_airdrop_transfer_to_trx(owner_account: SolanaAccount, dest_account: str, trx: Transaction):
-    dest_token_account = getTokenAddr(dest_account)
+def add_airdrop_transfer_to_trx(owner_account: SolanaAccount, dest_token_account: PublicKey, trx: Transaction):
     owner_sol_addr = owner_account.public_key()
     owner_token_addr = getTokenAddr(owner_sol_addr)
     transfer_instruction = transfer2(Transfer2Params(source=owner_token_addr,
@@ -1240,17 +1237,15 @@ def add_airdrop_transfer_to_trx(owner_account: SolanaAccount, dest_account: str,
                                                      mint=ETH_TOKEN_MINT_ID,
                                                      program_id=TOKEN_PROGRAM_ID))
     logger.debug(f"Token transfer from token: {owner_token_addr}, owned by: {owner_sol_addr}, to token: "
-                 f"{dest_token_account}, owned by: {dest_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
+                 f"{dest_token_account}, owned by: {dest_token_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
     trx.add(transfer_instruction)
 
 
 def create_token_and_airdrop_trx(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress,
                                  trx: Transaction, code_acc=None):
-    create_trx, solana_address, token_address = create_eth_account_trx(client, signer, eth_acc, evm_loader_id, code_acc)
-    logger.debug(f"Create token related to eth_acc: {eth_acc}, aka: {solana_address}, token_address: {token_address},"
-                 f" at token: {ETH_TOKEN_MINT_ID}")
+    create_trx, token_address = create_eth_account_trx(client, signer, eth_acc, evm_loader_id, code_acc)
     trx.add(create_trx)
-    add_airdrop_transfer_to_trx(signer, solana_address, trx)
+    add_airdrop_transfer_to_trx(signer, token_address, trx)
 
 
 def create_token_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
