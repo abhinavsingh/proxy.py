@@ -8,3 +8,5 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import sys
+sys.path.append("/spl/bin/")
