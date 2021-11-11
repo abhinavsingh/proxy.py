@@ -209,7 +209,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             try:
                 self.client.queue(
                     self.read_and_build_static_file_response(
-                        self.flags.static_server_dir + path),
+                        self.flags.static_server_dir + path,
+                    ),
                 )
                 return True
             except FileNotFoundError:
