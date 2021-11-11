@@ -17,7 +17,6 @@ from typing import Dict, List, Optional, Any, Tuple
 from ..core.connection.server import TcpServerConnection
 from ..common.types import Readables, Writables
 from ..common.flag import flags
-from ..common.constants import COMMA
 from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
 from ..http.parser import HttpParser
@@ -39,7 +38,7 @@ DEFAULT_HTTPS_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
 # Run two separate instances of proxy.py
 # on port 9000 and 9001 BUT WITHOUT ProxyPool plugin
 # to avoid infinite loops.
-DEFAULT_PROXY_POOL = [
+DEFAULT_PROXY_POOL: List[str] = [
     # 'localhost:9000',
     # 'localhost:9001',
 ]
@@ -49,7 +48,7 @@ flags.add_argument(
     action='append',
     nargs=1,
     default=DEFAULT_PROXY_POOL,
-    help='List of upstream proxies to create a pool',
+    help='List of upstream proxies to use in the pool',
 )
 
 

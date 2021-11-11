@@ -2079,7 +2079,7 @@ options:
   --pac-file-url-path PAC_FILE_URL_PATH
                         Default: /. Web server path to serve the PAC file.
   --proxy-pool PROXY_POOL
-                        List of upstream proxies to create a pool
+                        List of upstream proxies to use in the pool
   --filtered-client-ips FILTERED_CLIENT_IPS
                         Default: 127.0.0.1,::1. Comma separated list of IPv4 and
                         IPv6 addresses.
