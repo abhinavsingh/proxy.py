@@ -51,7 +51,7 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
         self.request.parse(data)
 
         # Drop the request if not a CONNECT request
-        if self.request.method != httpMethods.CONNECT:
+        if not self.request.is_https_tunnel():
             self.work.queue(
                 HttpsConnectTunnelHandler.PROXY_TUNNEL_UNSUPPORTED_SCHEME,
             )
