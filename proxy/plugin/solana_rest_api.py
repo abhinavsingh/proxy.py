@@ -20,7 +20,7 @@ from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from .eth_proto import Trx as EthTrx
-from solana.rpc.api import Client as SolanaClient
+from solana.rpc.api import Client as SolanaClient, SendTransactionError as SolanaTrxError
 from sha3 import keccak_256
 import base58
 import traceback
@@ -37,6 +37,7 @@ from ..indexer.utils import get_trx_results, LogDB
 from ..indexer.sql_dict import SQLDict
 from proxy.environment import evm_loader_id, solana_cli, solana_url
 
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -44,6 +45,7 @@ modelInstanceLock = threading.Lock()
 modelInstance = None
 
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
+
 
 class PermanentAccounts:
     def __init__(self, client, signer, proxy_id):
@@ -469,9 +471,8 @@ class EthereumModel:
 
             return eth_signature
 
-        except solana.rpc.api.SendTransactionError as err:
-            logs = "\n\t".join(err.result.get("data", {}).pop("logs", []))
-            logger.debug(f"eth_sendRawTransaction solana.rpc.api.SendTransactionError: {err.result}, {logs}")
+        except SolanaTrxError as err:
+            self._log_transaction_error(err, logger)
             raise
         except EthereumError as err:
             logger.debug("eth_sendRawTransaction EthereumError:%s", err)
@@ -479,6 +480,13 @@ class EthereumModel:
         except Exception as err:
             logger.debug("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
             raise
+
+    def _log_transaction_error(self, error: SolanaTrxError, logger):
+        copy.deep_copy(error)
+        logs = error.result.get("data", {}).get("logs", [])
+        error.result.get("data", {}).update({"logs": ["\n\t" + log for log in logs]})
+        log_msg = str(error.result).replace("\\n\\t", "\n\t")
+        logger.debug(f"Got SendTransactionError: {log_msg}")
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -585,7 +593,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         try:
             method = getattr(self.model, request['method'])
             response['result'] = method(*request['params'])
-        except solana.rpc.api.SendTransactionError as err:
+        except SolanaTrxError as err:
             traceback.print_exc()
             response['error'] = err.result
         except EthereumError as err:
