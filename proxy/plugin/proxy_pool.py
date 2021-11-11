@@ -116,12 +116,14 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             # check.
             logger.info(
                 'Connection refused by upstream proxy {0}:{1}'.format(
-                    *endpoint),
+                    *endpoint,
+                ),
             )
             raise HttpProtocolException()
         logger.debug(
             'Established connection to upstream proxy {0}:{1}'.format(
-                *endpoint),
+                *endpoint,
+            ),
         )
         return None
 

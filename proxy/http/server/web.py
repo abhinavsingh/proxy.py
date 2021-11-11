@@ -67,7 +67,7 @@ flags.add_argument(
     type=int,
     default=DEFAULT_MIN_COMPRESSION_LIMIT,
     help='Default: ' + str(DEFAULT_MIN_COMPRESSION_LIMIT) + ' bytes.  ' +
-    'Sets the minimum length of a response that will be compressed (gzipped).'
+    'Sets the minimum length of a response that will be compressed (gzipped).',
 )
 
 

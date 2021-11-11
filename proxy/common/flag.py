@@ -289,9 +289,11 @@ class FlagParser:
             bool,
             opts.get(
                 'min_compression_limit',
-                getattr(args, 'min_compression_limit',
-                        DEFAULT_MIN_COMPRESSION_LIMIT),
-            )
+                getattr(
+                    args, 'min_compression_limit',
+                    DEFAULT_MIN_COMPRESSION_LIMIT,
+                ),
+            ),
         )
         args.devtools_ws_path = cast(
             bytes,
