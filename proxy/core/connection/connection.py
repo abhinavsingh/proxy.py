@@ -56,6 +56,7 @@ class TcpConnection(ABC):
 
     def send(self, data: bytes) -> int:
         """Users must handle BrokenPipeError exceptions"""
+        # logger.info(data)
         return self.connection.send(data)
 
     def recv(

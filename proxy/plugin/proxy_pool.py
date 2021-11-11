@@ -115,11 +115,15 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             # using a datastructure without having to spawn separate thread/process for health
             # check.
             logger.info(
-                'Connection refused by upstream proxy {0}:{1}'.format(*endpoint),
+                'Connection refused by upstream proxy {0}:{1}'.format(
+                    *endpoint,
+                ),
             )
             raise HttpProtocolException()
         logger.debug(
-            'Established connection to upstream proxy {0}:{1}'.format(*endpoint),
+            'Established connection to upstream proxy {0}:{1}'.format(
+                *endpoint,
+            ),
         )
         return None
 
@@ -140,7 +144,7 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             else:
                 assert len(parts) == 1
                 host = parts[0]
-                port = '443' if request.method == httpMethods.CONNECT else '80'
+                port = '443' if request.is_https_tunnel() else '80'
         path = None if not request.path else request.path.decode()
         self.request_host_port_path_method = [
             host, port, path, request.method,

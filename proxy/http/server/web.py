@@ -8,28 +8,30 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import gzip
 import re
+import gzip
 import time
-import logging
-import os
-import mimetypes
 import socket
+import logging
+import mimetypes
+
 from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 
-from .plugin import HttpWebServerBasePlugin
-from .protocols import httpProtocolTypes
+from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
+from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
+from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT
+from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
+from ...common.types import Readables, Writables
+from ...common.flag import flags
+
 from ..exception import HttpProtocolException
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..plugin import HttpProtocolHandlerPlugin
 
-from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
-from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
-from ...common.types import Readables, Writables
-from ...common.flag import flags
+from .plugin import HttpWebServerBasePlugin
+from .protocols import httpProtocolTypes
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,14 @@ flags.add_argument(
     help='Default: "public" folder in directory where proxy.py is placed. '
     'This option is only applicable when static server is also enabled. '
     'See --enable-static-server.',
+)
+
+flags.add_argument(
+    '--min-compression-length',
+    type=int,
+    default=DEFAULT_MIN_COMPRESSION_LIMIT,
+    help='Default: ' + str(DEFAULT_MIN_COMPRESSION_LIMIT) + ' bytes.  ' +
+    'Sets the minimum length of a response that will be compressed (gzipped).',
 )
 
 
@@ -119,39 +129,30 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.flags.certfile is not None
 
     @staticmethod
-    def read_and_build_static_file_response(path: str) -> memoryview:
+    def read_and_build_static_file_response(path: str, min_compression_limit: int) -> memoryview:
         with open(path, 'rb') as f:
             content = f.read()
         content_type = mimetypes.guess_type(path)[0]
         if content_type is None:
             content_type = 'text/plain'
+        headers = {
+            b'Content-Type': bytes_(content_type),
+            b'Cache-Control': b'max-age=86400',
+            b'Connection': b'close',
+        }
+        do_compress = len(content) > min_compression_limit
+        if do_compress:
+            headers.update({
+                b'Content-Encoding': b'gzip',
+            })
         return memoryview(
             build_http_response(
                 httpStatusCodes.OK,
                 reason=b'OK',
-                headers={
-                    b'Content-Type': bytes_(content_type),
-                    b'Cache-Control': b'max-age=86400',
-                    b'Content-Encoding': b'gzip',
-                    b'Connection': b'close',
-                },
-                body=gzip.compress(content),
+                headers=headers,
+                body=gzip.compress(content) if do_compress else content,
             ),
         )
-
-    def serve_file_or_404(self, path: str) -> bool:
-        """Read and serves a file from disk.
-
-        Queues 404 Not Found for IOError.
-        Shouldn't this be server error?
-        """
-        try:
-            self.client.queue(
-                self.read_and_build_static_file_response(path),
-            )
-        except IOError:
-            self.client.queue(self.DEFAULT_404_RESPONSE)
-        return True
 
     def try_upgrade(self) -> bool:
         if self.request.has_header(b'connection') and \
@@ -207,18 +208,24 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if match:
                 self.route = self.routes[protocol][route]
                 self.route.handle_request(self.request)
-                if self.request.has_header(b'connection') \
-                        and self.request.header(b'connection').lower() == b'close':
+                if self.request.has_header(b'connection') and \
+                        self.request.header(b'connection').lower() == b'close':
                     return True
                 return False
 
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
             path = text_(self.request.path).split('?')[0]
-            if os.path.isfile(self.flags.static_server_dir + path):
-                return self.serve_file_or_404(
-                    self.flags.static_server_dir + path,
+            try:
+                self.client.queue(
+                    self.read_and_build_static_file_response(
+                        self.flags.static_server_dir + path,
+                        self.flags.min_compression_limit,
+                    ),
                 )
+                return True
+            except FileNotFoundError:
+                pass
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)

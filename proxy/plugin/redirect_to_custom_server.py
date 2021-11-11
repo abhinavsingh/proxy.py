@@ -13,7 +13,6 @@ from typing import Optional
 
 from ..http.proxy import HttpProxyBasePlugin
 from ..http.parser import HttpParser
-from ..http.methods import httpMethods
 
 
 class RedirectToCustomServerPlugin(HttpProxyBasePlugin):
@@ -25,7 +24,7 @@ class RedirectToCustomServerPlugin(HttpProxyBasePlugin):
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
         # Redirect all non-https requests to inbuilt WebServer.
-        if request.method != httpMethods.CONNECT:
+        if not request.is_https_tunnel():
             request.set_url(self.UPSTREAM_SERVER)
             # Update Host header too, otherwise upstream can reject our request
             if request.has_header(b'Host'):

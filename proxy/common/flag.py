@@ -21,10 +21,10 @@ from typing import Optional, List, Any, cast
 
 from .plugins import Plugins
 from .types import IpAddress
-from .utils import text_, bytes_, is_py2, set_open_file_limit
+from .utils import bytes_, is_py2, set_open_file_limit
 from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
-from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL
+from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, DEFAULT_MIN_COMPRESSION_LIMIT
 from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
 from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
 from .logger import Logger
@@ -110,6 +110,9 @@ class FlagParser:
         # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
         # at the same time.
+        #
+        # TODO: Use parser.add_mutually_exclusive_group()
+        # and remove this logic from here.
         if (args.cert_file and args.key_file) and \
                 (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
             print(
@@ -140,18 +143,16 @@ class FlagParser:
             bytes_(p)
             for p in FlagParser.get_default_plugins(args)
         ]
-        extra_plugins = [
-            p if isinstance(p, type) else bytes_(p)
-            for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
-            if not (isinstance(p, str) and len(p) == 0)
-        ]
-        plugins = Plugins.load(default_plugins + extra_plugins)
+        plugins = Plugins.load(
+            default_plugins + Plugins.resolve_plugin_flag(
+                args.plugins, opts.get('plugins', None),
+            ),
+        )
 
         # https://github.com/python/mypy/issues/5865
         #
         # def option(t: object, key: str, default: Any) -> Any:
         #     return cast(t, opts.get(key, default))
-
         args.work_klass = work_klass
         args.plugins = plugins
         args.auth_code = cast(
@@ -282,6 +283,16 @@ class FlagParser:
             opts.get(
                 'enable_static_server',
                 args.enable_static_server,
+            ),
+        )
+        args.min_compression_limit = cast(
+            bool,
+            opts.get(
+                'min_compression_limit',
+                getattr(
+                    args, 'min_compression_limit',
+                    DEFAULT_MIN_COMPRESSION_LIMIT,
+                ),
             ),
         )
         args.devtools_ws_path = cast(

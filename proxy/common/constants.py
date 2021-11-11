@@ -16,7 +16,7 @@ import pathlib
 import sysconfig
 import ipaddress
 
-from typing import List
+from typing import Any, List
 
 from .version import __version__
 
@@ -93,10 +93,11 @@ DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
 DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_PID_FILE = None
-DEFAULT_PLUGINS = ''
+DEFAULT_PLUGINS: List[Any] = []
 DEFAULT_PORT = 8899
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, "public")
+DEFAULT_MIN_COMPRESSION_LIMIT = 20  # In bytes
 DEFAULT_THREADLESS = _env_threadless_compliant()
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_VERSION = False

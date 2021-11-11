@@ -138,10 +138,13 @@ class HttpParser:
         # For CONNECT requests, request line contains
         # upstream_host:upstream_port which is not complaint
         # with urlsplit, which expects a fully qualified url.
-        if self.method == httpMethods.CONNECT:
+        if self.is_https_tunnel():
             url = b'https://' + url
         self._url = urlparse.urlsplit(url)
         self._set_line_attributes()
+
+    def is_https_tunnel(self) -> bool:
+        return self.method == httpMethods.CONNECT
 
     def is_chunked_encoded(self) -> bool:
         return b'transfer-encoding' in self.headers and \
@@ -184,7 +187,7 @@ class HttpParser:
                 COLON +
                 str(self.port).encode() +
                 self.path
-            ) if self.method != httpMethods.CONNECT else (self.host + COLON + str(self.port).encode())
+            ) if not self.is_https_tunnel() else (self.host + COLON + str(self.port).encode())
         return build_http_request(
             self.method, path, self.version,
             headers={} if not self.headers else {
@@ -305,7 +308,7 @@ class HttpParser:
 
     def _set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
-            if self.method == httpMethods.CONNECT and self._url:
+            if self.is_https_tunnel() and self._url:
                 self.host = self._url.hostname
                 self.port = 443 if self._url.port is None else self._url.port
             elif self._url:

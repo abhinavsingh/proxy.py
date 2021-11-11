@@ -12,18 +12,37 @@ import os
 import abc
 import logging
 import inspect
+import itertools
 import importlib
 
 from typing import Any, List, Dict, Optional, Union
 
 from .utils import bytes_, text_
-from .constants import DOT, DEFAULT_ABC_PLUGINS
+from .constants import DOT, DEFAULT_ABC_PLUGINS, COMMA
 
 logger = logging.getLogger(__name__)
 
 
 class Plugins:
     """Common utilities for plugin discovery."""
+
+    @staticmethod
+    def resolve_plugin_flag(flag_plugins: Any, opt_plugins: Optional[Any] = None) -> List[Union[bytes, type]]:
+        if isinstance(flag_plugins, list):
+            requested_plugins = list(
+                itertools.chain.from_iterable([
+                    p.split(text_(COMMA)) for p in list(
+                        itertools.chain.from_iterable(flag_plugins),
+                    )
+                ]),
+            )
+        else:
+            requested_plugins = flag_plugins.split(text_(COMMA))
+        return [
+            p if isinstance(p, type) else bytes_(p)
+            for p in (opt_plugins if opt_plugins is not None else requested_plugins)
+            if not (isinstance(p, str) and len(p) == 0)
+        ]
 
     @staticmethod
     def discover(input_args: List[str]) -> None:
