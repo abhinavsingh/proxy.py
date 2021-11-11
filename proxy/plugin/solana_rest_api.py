@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 from typing import List, Tuple, Optional
+import copy
 import json
 import unittest
 import rlp

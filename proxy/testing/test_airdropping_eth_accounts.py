@@ -21,6 +21,7 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
         cls._EVM_LOADER_ID = os.environ.get("EVM_LOADER")
         new_user_airdrop_amount = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
         cls._EXPECTED_BALANCE_WEI = eth_utils.to_wei(new_user_airdrop_amount, 'ether')
+        cls._MINIMAL_GAS_PRICE = int(os.environ.get("MINIMAL_GAS_PRICE", 1)) * eth_utils.denoms.gwei
 
         proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
         cls._web3 = Web3(Web3.HTTPProvider(proxy_url))
@@ -56,7 +57,7 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
         nonce = self._web3.eth.get_transaction_count(contract_owner.address)
         chain_id = self._web3.eth.chain_id
         trx_signed = self._web3.eth.account.sign_transaction(
-            dict(nonce=nonce, chainId=chain_id, gas=987654321, gasPrice=0, to='', value=0, data=contract.bytecode),
+            dict(nonce=nonce, chainId=chain_id, gas=987654321, gasPrice=self._MINIMAL_GAS_PRICE, to='', value=0, data=contract.bytecode),
             contract_owner.key
         )
         trx_hash = self._web3.eth.send_raw_transaction(trx_signed.rawTransaction)
