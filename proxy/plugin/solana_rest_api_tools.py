@@ -1042,7 +1042,6 @@ def call_signed_with_holder_acc(signer, client, ethTrx, perm_accs, trx_accs, ste
 
 def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: EthereumAddress, evm_loader_id, code_acc=None) -> Tuple[Transaction, str, str]:
 
-    logger.debug(f"Signer: {signer}")
     sol, nonce = ether2program(ether, evm_loader_id, signer.public_key())
     associated_token = get_associated_token_address(PublicKey(sol), ETH_TOKEN_MINT_ID)
     logger.debug('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
