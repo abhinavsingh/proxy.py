@@ -1042,15 +1042,16 @@ def call_signed_with_holder_acc(signer, client, ethTrx, perm_accs, trx_accs, ste
 
 def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: EthereumAddress, evm_loader_id, code_acc=None) -> Tuple[Transaction, str, str]:
 
-    sol, nonce = ether2program(ether, evm_loader_id, signer.public_key())
-    associated_token = get_associated_token_address(PublicKey(sol), ETH_TOKEN_MINT_ID)
-    logger.debug('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
-    logger.debug('associatedTokenAccount: {}'.format(associated_token))
+    solana_address, nonce = ether2program(ether, evm_loader_id, signer.public_key())
 
-    sender_sol_info = client.get_account_info(sol, commitment=Confirmed)
+    token_acc_address = get_associated_token_address(PublicKey(solana_address), ETH_TOKEN_MINT_ID)
+
+    logger.debug(f'Create eth account: {ether}, sol account: {solana_address}, token_acc_address: {token_acc_address}, nonce: {nonce}')
+
+    sender_sol_info = client.get_account_info(solana_address, commitment=Confirmed)
     value = get_from_dict(sender_sol_info, "result", "value")
     if value is not None:
-        logger.error(f"Failed to create eth account: {ether}, associated: {associated_token}, already exists")
+        logger.error(f"Failed to create eth account: {ether}, associated: {token_acc_address}, already exists")
         raise Exception("Account already exists")
 
     base = signer.public_key()
@@ -1066,8 +1067,8 @@ def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: E
             data=data,
             keys=[
                 AccountMeta(pubkey=base, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
-                AccountMeta(pubkey=associated_token, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=PublicKey(solana_address), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=token_acc_address, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=system, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
@@ -1080,8 +1081,8 @@ def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: E
             data=data,
             keys=[
                 AccountMeta(pubkey=base, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
-                AccountMeta(pubkey=associated_token, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=PublicKey(solana_address), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=token_acc_address, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=PublicKey(code_acc), is_signer=False, is_writable=True),
                 AccountMeta(pubkey=system, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
@@ -1089,7 +1090,7 @@ def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: E
                 AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
             ]))
-    return trx, sol, associated_token
+    return trx, solana_address, token_acc_address
 
 
 def createERC20TokenAccountTrx(signer, token_info):
