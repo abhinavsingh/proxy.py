@@ -480,10 +480,10 @@ class EthereumModel:
             raise
 
     def _log_transaction_error(self, error: SolanaTrxError, logger):
-        copy.deep_copy(error)
-        logs = error.result.get("data", {}).get("logs", [])
-        error.result.get("data", {}).update({"logs": ["\n\t" + log for log in logs]})
-        log_msg = str(error.result).replace("\\n\\t", "\n\t")
+        result = copy.deepcopy(error.result)
+        logs = result.get("data", {}).get("logs", [])
+        result.get("data", {}).update({"logs": ["\n\t" + log for log in logs]})
+        log_msg = str(result).replace("\\n\\t", "\n\t")
         logger.debug(f"Got SendTransactionError: {log_msg}")
 
 
