@@ -15,7 +15,7 @@ from solana.rpc.api import Client as SolanaClient
 from solana.account import Account as SolanaAccount
 from solana.publickey import PublicKey
 
-from proxy.plugin.solana_rest_api_tools import createERC20TokenAccountTrx, create_eth_account_trx
+from proxy.plugin.solana_rest_api_tools import createERC20TokenAccountTrx
 
 # install_solc(version='latest')
 install_solc(version='0.7.6')
