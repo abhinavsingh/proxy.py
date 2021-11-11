@@ -12,7 +12,6 @@ import os
 import abc
 import logging
 import inspect
-import argparse
 import itertools
 import importlib
 
@@ -29,7 +28,7 @@ class Plugins:
 
     @staticmethod
     def resolve_plugin_flag(flag_plugins: Any, opt_plugins: Optional[Any] = None) -> List[bytes | type]:
-        if type(flag_plugins) == list:
+        if isinstance(flag_plugins, list):
             requested_plugins = list(
                 itertools.chain.from_iterable([
                     p.split(text_(COMMA)) for p in list(
@@ -39,12 +38,11 @@ class Plugins:
             )
         else:
             requested_plugins = flag_plugins.split(text_(COMMA))
-        extra_plugins = [
+        return [
             p if isinstance(p, type) else bytes_(p)
             for p in (opt_plugins if opt_plugins is not None else requested_plugins)
             if not (isinstance(p, str) and len(p) == 0)
         ]
-        return extra_plugins
 
     @staticmethod
     def discover(input_args: List[str]) -> None:

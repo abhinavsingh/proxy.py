@@ -14,7 +14,6 @@ import base64
 import socket
 import argparse
 import ipaddress
-import itertools
 import collections
 import multiprocessing
 
@@ -22,7 +21,7 @@ from typing import Optional, List, Any, cast
 
 from .plugins import Plugins
 from .types import IpAddress
-from .utils import text_, bytes_, is_py2, set_open_file_limit
+from .utils import bytes_, is_py2, set_open_file_limit
 from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL

@@ -8,28 +8,29 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import gzip
 import re
+import gzip
 import time
-import logging
-import os
-import mimetypes
 import socket
+import logging
+import mimetypes
+
 from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 
-from .plugin import HttpWebServerBasePlugin
-from .protocols import httpProtocolTypes
+from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
+from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
+from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
+from ...common.types import Readables, Writables
+from ...common.flag import flags
+
 from ..exception import HttpProtocolException
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..codes import httpStatusCodes
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..plugin import HttpProtocolHandlerPlugin
 
-from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
-from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
-from ...common.types import Readables, Writables
-from ...common.flag import flags
+from .plugin import HttpWebServerBasePlugin
+from .protocols import httpProtocolTypes
 
 logger = logging.getLogger(__name__)
 
