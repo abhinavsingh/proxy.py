@@ -67,6 +67,7 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                         self.flags.static_server_dir,
                         'dashboard', 'proxy.html',
                     ),
+                    self.flags.min_compression_limit,
                 ),
             )
         elif request.path in (
