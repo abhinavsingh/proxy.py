@@ -28,7 +28,7 @@ class Plugins:
     """Common utilities for plugin discovery."""
 
     @staticmethod
-    def resolve_plugin_flag(flag_plugins, opt_plugins: Optional[Any] = None) -> None:
+    def resolve_plugin_flag(flag_plugins: Any, opt_plugins: Optional[Any] = None) -> List[bytes | type]:
         if type(flag_plugins) == list:
             requested_plugins = list(
                 itertools.chain.from_iterable([
