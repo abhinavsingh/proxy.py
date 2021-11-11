@@ -35,7 +35,7 @@ flags.add_argument(
     help='Prints proxy.py version.',
 )
 
-# TODO: Covert me into 1-letter choices
+# TODO: Convert me into 1-letter choices
 # TODO: Add --verbose option which also
 # starts to log traffic flowing between
 # clients and upstream servers.
