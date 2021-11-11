@@ -262,10 +262,10 @@ class EthereumModel:
         """
         if not obj['data']: raise Exception("Missing data")
         try:
-            caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
-            contract_id = obj['to']
-            data = obj['data'] if 'data' in obj else "None"
-            value = obj['value'] if 'value' in obj else ""
+            caller_id = obj.get('from', "0x0000000000000000000000000000000000000000")
+            contract_id = obj.get('to', 'deploy')
+            data = obj.get('data', "None")
+            value = obj.get('value', '')
             return "0x"+call_emulated(contract_id, caller_id, data, value)['result']
         except Exception as err:
             logger.debug("eth_call %s", err)
