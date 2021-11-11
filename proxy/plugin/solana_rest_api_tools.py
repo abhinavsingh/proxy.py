@@ -868,7 +868,7 @@ def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
 
 def create_account_list_by_emulate(signer, client, eth_trx):
 
-    sender_ether = bytes.fromhex(>eth_trx.sender())
+    sender_ether = bytes.fromhex(eth_trx.sender())
     add_keys_05 = []
     trx = Transaction()
 
