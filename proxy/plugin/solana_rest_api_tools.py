@@ -1105,23 +1105,23 @@ def call_signed_with_holder_acc(signer, client, eth_trx, perm_accs, trx_accs, st
     return call_continue(signer, client, perm_accs, trx_accs, steps, eth_trx)
 
 
-def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, ether: EthereumAddress, evm_loader_id, code_acc=None) -> Tuple[Transaction, PublicKey]:
+def create_eth_account_trx(client: SolanaClient, signer: SolanaAccount, eth_address: EthereumAddress, evm_loader_id, code_acc=None) -> Tuple[Transaction, PublicKey]:
 
-    solana_address, nonce = ether2program(ether, evm_loader_id, signer.public_key())
+    solana_address, nonce = ether2program(eth_address, evm_loader_id, signer.public_key())
     token_acc_address = get_associated_token_address(PublicKey(solana_address), ETH_TOKEN_MINT_ID)
-    logger.debug(f'Create eth account: {ether}, sol account: {solana_address}, token_acc_address: {token_acc_address}, nonce: {nonce}')
+    logger.debug(f'Create eth account: {eth_address}, sol account: {solana_address}, token_acc_address: {token_acc_address}, nonce: {nonce}')
 
     sender_sol_info = client.get_account_info(solana_address, commitment=Confirmed)
     value = get_from_dict(sender_sol_info, "result", "value")
     if value is not None:
-        logger.error(f"Failed to create eth account: {ether}, associated: {token_acc_address}, already exists")
+        logger.error(f"Failed to create eth account: {eth_address}, associated: {token_acc_address}, already exists")
         raise Exception("Account already exists")
 
     base = signer.public_key()
 
     data = bytes.fromhex('02000000') + CREATE_ACCOUNT_LAYOUT.build(dict(lamports=0,
                                                                         space=0,
-                                                                        ether=bytes(ether),
+                                                                        ether=bytes(eth_address),
                                                                         nonce=nonce))
     trx = Transaction()
     if code_acc is None:
