@@ -109,9 +109,6 @@ class HttpParser:
         parser.parse(raw)
         return parser
 
-    def is_https_tunnel(self) -> bool:
-        self.method == httpMethods.CONNECT
-
     def header(self, key: bytes) -> bytes:
         if key.lower() not in self.headers:
             raise KeyError('%s not found in headers', text_(key))
@@ -145,6 +142,9 @@ class HttpParser:
             url = b'https://' + url
         self._url = urlparse.urlsplit(url)
         self._set_line_attributes()
+
+    def is_https_tunnel(self) -> bool:
+        return self.method == httpMethods.CONNECT
 
     def is_chunked_encoded(self) -> bool:
         return b'transfer-encoding' in self.headers and \

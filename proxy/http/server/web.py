@@ -19,6 +19,7 @@ from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 
 from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
+from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
 from ...common.types import Readables, Writables
 from ...common.flag import flags
@@ -59,6 +60,14 @@ flags.add_argument(
     help='Default: "public" folder in directory where proxy.py is placed. '
     'This option is only applicable when static server is also enabled. '
     'See --enable-static-server.',
+)
+
+flags.add_argument(
+    '--min-compression-length',
+    type=int,
+    default=DEFAULT_MIN_COMPRESSION_LIMIT,
+    help='Default: ' + str(DEFAULT_MIN_COMPRESSION_LIMIT) + ' bytes.  ' +
+    'Sets the minimum length of a response that will be compressed (gzipped).'
 )
 
 
@@ -120,7 +129,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.flags.certfile is not None
 
     @staticmethod
-    def read_and_build_static_file_response(path: str) -> memoryview:
+    def read_and_build_static_file_response(path: str, min_compression_limit: int) -> memoryview:
         with open(path, 'rb') as f:
             content = f.read()
         content_type = mimetypes.guess_type(path)[0]
@@ -131,7 +140,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             b'Cache-Control': b'max-age=86400',
             b'Connection': b'close',
         }
-        do_compress = len(content) > 300
+        do_compress = len(content) > min_compression_limit
         if do_compress:
             headers.update({
                 b'Content-Encoding': b'gzip',
@@ -211,6 +220,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.client.queue(
                     self.read_and_build_static_file_response(
                         self.flags.static_server_dir + path,
+                        self.flags.min_compression_limit,
                     ),
                 )
                 return True
