@@ -35,6 +35,10 @@ flags.add_argument(
     help='Prints proxy.py version.',
 )
 
+# TODO: Covert me into 1-letter choices
+# TODO: Add --verbose option which also
+# starts to log traffic flowing between
+# clients and upstream servers.
 flags.add_argument(
     '--log-level',
     type=str,
@@ -68,9 +72,11 @@ flags.add_argument(
 
 flags.add_argument(
     '--plugins',
-    type=str,
+    action='append',
+    nargs='+',
     default=DEFAULT_PLUGINS,
-    help='Comma separated plugins',
+    help='Comma separated plugins.  ' +
+    'You may use --plugins flag multiple times.',
 )
 
 # TODO: Ideally all `--enable-*` flags must be at the top-level.

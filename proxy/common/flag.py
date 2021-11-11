@@ -14,6 +14,7 @@ import base64
 import socket
 import argparse
 import ipaddress
+import itertools
 import collections
 import multiprocessing
 
@@ -110,6 +111,9 @@ class FlagParser:
         # proxy.py currently cannot serve over HTTPS and also perform TLS interception
         # at the same time.  Check if user is trying to enable both feature
         # at the same time.
+        #
+        # TODO: Use parser.add_mutually_exclusive_group()
+        # and remove this logic from here.
         if (args.cert_file and args.key_file) and \
                 (args.ca_key_file and args.ca_cert_file and args.ca_signing_key_file):
             print(
@@ -140,18 +144,14 @@ class FlagParser:
             bytes_(p)
             for p in FlagParser.get_default_plugins(args)
         ]
-        extra_plugins = [
-            p if isinstance(p, type) else bytes_(p)
-            for p in opts.get('plugins', args.plugins.split(text_(COMMA)))
-            if not (isinstance(p, str) and len(p) == 0)
-        ]
-        plugins = Plugins.load(default_plugins + extra_plugins)
+        plugins = Plugins.load(
+            default_plugins + Plugins.resolve_plugin_flag(
+                args.plugins, opts.get('plugins', None)))
 
         # https://github.com/python/mypy/issues/5865
         #
         # def option(t: object, key: str, default: Any) -> Any:
         #     return cast(t, opts.get(key, default))
-
         args.work_klass = work_klass
         args.plugins = plugins
         args.auth_code = cast(
