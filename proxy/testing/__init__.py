@@ -9,4 +9,4 @@
     :license: BSD, see LICENSE for more details.
 """
 import sys
-sys.path.append("/spl/bin/")
+sys.path.append("/spl/bin/") # TODO: get rid off this workaround all related py should be linked from submodule
