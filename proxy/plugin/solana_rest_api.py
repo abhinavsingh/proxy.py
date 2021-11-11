@@ -36,7 +36,7 @@ from ..core.acceptor.pool import proxy_id_glob
 import os
 from ..indexer.utils import get_trx_results, LogDB
 from ..indexer.sql_dict import SQLDict
-from proxy.environment import evm_loader_id, solana_cli, solana_url
+from ..environment import evm_loader_id, solana_cli, solana_url
 
 
 logger = logging.getLogger(__name__)
