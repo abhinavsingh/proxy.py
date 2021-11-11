@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Any, Tuple
 
 from ..core.connection.server import TcpServerConnection
 from ..common.types import Readables, Writables
+from ..common.flag import flags
 from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
 from ..http.parser import HttpParser
@@ -34,20 +35,28 @@ DEFAULT_HTTPS_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{upstream_proxy_host}:{upstream_proxy_port} - ' + \
     '{response_bytes} bytes - {connection_time_ms} ms'
 
+# Run two separate instances of proxy.py
+# on port 9000 and 9001 BUT WITHOUT ProxyPool plugin
+# to avoid infinite loops.
+DEFAULT_PROXY_POOL: List[str] = [
+    # 'localhost:9000',
+    # 'localhost:9001',
+]
+
+flags.add_argument(
+    '--proxy-pool',
+    action='append',
+    nargs=1,
+    default=DEFAULT_PROXY_POOL,
+    help='List of upstream proxies to use in the pool',
+)
+
 
 class ProxyPoolPlugin(HttpProxyBasePlugin):
     """Proxy pool plugin simply acts as a proxy adapter for proxy.py itself.
 
     Imagine this plugin as setting up proxy settings for proxy.py instance itself.
     All incoming client requests are proxied to configured upstream proxies."""
-
-    # Run two separate instances of proxy.py
-    # on port 9000 and 9001 BUT WITHOUT ProxyPool plugin
-    # to avoid infinite loops.
-    UPSTREAM_PROXY_POOL = [
-        ('localhost', 9000),
-        ('localhost', 9001),
-    ]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -99,10 +108,10 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         # a fresh upstream proxy connection for each client request.
         #
         # Implement your own logic here e.g. round-robin, least connection etc.
-        endpoint = random.choice(self.UPSTREAM_PROXY_POOL)
+        endpoint = random.choice(self.flags.proxy_pool)[0].split(':')
         logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
         self.upstream = TcpServerConnection(
-            endpoint[0], endpoint[1],
+            endpoint[0], int(endpoint[1]),
         )
         try:
             self.upstream.connect()
