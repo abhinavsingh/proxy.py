@@ -30,6 +30,7 @@ from spl.token.instructions import get_associated_token_address, create_associat
 from web3.auto import w3
 from proxy.environment import neon_cli, evm_loader_id, ETH_TOKEN_MINT_ID, COLLATERAL_POOL_BASE, read_elf_params
 from .eth_proto import Trx
+from ..indexer.sql_dict import SQLDict
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -806,6 +807,14 @@ def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
     return (continue_count, step_count)
 
 
+class CostSingleton(object):
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(CostSingleton, cls).__new__(cls)
+            cls.instance.operator_cost = SQLDict(tablename="operator_cost")
+        return cls.instance
+
+
 def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
     cost = receipt['result']['meta']['preBalances'][0] - receipt['result']['meta']['postBalances'][0]
     if eth_trx:
@@ -835,17 +844,16 @@ def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
                     used_gas = base58.b58decode(event['data'])[2:10]
                     used_gas = int().from_bytes(used_gas, "little")
 
-    logger.debug("COST %s %d %d %s %s %s %s %s",
-                 hash,
-                 cost,
-                 used_gas if used_gas else 0,
-                 sender,
-                 to_address,
-                 sig,
-                 "extra" if extra_sol_trx else "ok",
-                 reason if reason else "None",
-                 )
-
+    table = CostSingleton()
+    table.operator_cost[hash] = {
+        'cost': cost,
+        'used_gas': used_gas if used_gas else 0,
+        'sender': sender,
+        'to_address': to_address,
+        'sig': sig,
+        'status': 'extra' if extra_sol_trx else 'ok',
+        'reason':  reason if reason else ''
+    }
 
 def create_account_list_by_emulate(signer, client, eth_trx):
 
