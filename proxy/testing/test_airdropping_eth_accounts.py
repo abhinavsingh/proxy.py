@@ -58,14 +58,10 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
         chain_id = self._web3.eth.chain_id
         trx_signed = self._web3.eth.account.sign_transaction(
             dict(nonce=nonce, chainId=chain_id, gas=987654321, gasPrice=self._MINIMAL_GAS_PRICE, to='', value=0, data=contract.bytecode),
-            contract_owner.key
-        )
+            contract_owner.key)
         trx_hash = self._web3.eth.send_raw_transaction(trx_signed.rawTransaction)
         trx_receipt = self._web3.eth.wait_for_transaction_receipt(trx_hash)
-        contract = self._web3.eth.contract(
-            address=trx_receipt.contractAddress,
-            abi=contract.abi
-        )
+        contract = self._web3.eth.contract(address=trx_receipt.contractAddress, abi=contract.abi)
         return contract
 
     def _get_balance_wei(self, eth_acc: str) -> int:
