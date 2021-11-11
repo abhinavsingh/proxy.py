@@ -77,7 +77,9 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
         self.assertIsInstance(balance, int)
         return balance * eth_utils.denoms.gwei
 
-    _CONTRACT_STORAGE_SOURCE = '''pragma solidity >=0.7.0 <0.9.0;
+    _CONTRACT_STORAGE_SOURCE = '''
+        // SPDX-License-Identifier: GPL-3.0
+        pragma solidity >=0.7.0 <0.9.0;
         contract Storage {
             uint256 number;
             function store(uint256 num) public {
