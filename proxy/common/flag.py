@@ -145,7 +145,9 @@ class FlagParser:
         ]
         plugins = Plugins.load(
             default_plugins + Plugins.resolve_plugin_flag(
-                args.plugins, opts.get('plugins', None)))
+                args.plugins, opts.get('plugins', None),
+            ),
+        )
 
         # https://github.com/python/mypy/issues/5865
         #
