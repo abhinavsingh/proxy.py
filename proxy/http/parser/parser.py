@@ -162,26 +162,20 @@ class HttpParser:
         """Returns true if content or chunked response is expected."""
         return self.content_expected() or self.is_chunked_encoded()
 
-    def parse(self, oraw: bytes) -> None:
+    def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
 
         Check for `HttpParser.state` after `parse` has successfully returned.
         """
-        try:
-            self.total_size += len(oraw)
-            raw = self.buffer + oraw
-            self.buffer, more = b'', len(raw) > 0
-            while more and self.state != httpParserStates.COMPLETE:
-                # gte with HEADERS_COMPLETE also encapsulated RCVING_BODY state
-                more, raw = self._process_body(raw) \
-                    if self.state >= httpParserStates.HEADERS_COMPLETE else \
-                    self._process_line_and_headers(raw)
-            self.buffer = raw
-        except Exception as e:
-            print(self.buffer)
-            print(oraw)
-            print(self.headers)
-            raise e
+        self.total_size += len(raw)
+        raw = self.buffer + raw
+        self.buffer, more = b'', len(raw) > 0
+        while more and self.state != httpParserStates.COMPLETE:
+            # gte with HEADERS_COMPLETE also encapsulated RCVING_BODY state
+            more, raw = self._process_body(raw) \
+                if self.state >= httpParserStates.HEADERS_COMPLETE else \
+                self._process_line_and_headers(raw)
+        self.buffer = raw
 
     def build(self, disable_headers: Optional[List[bytes]] = None, for_proxy: bool = False) -> bytes:
         """Rebuild the request object."""
