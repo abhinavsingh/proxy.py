@@ -57,7 +57,8 @@ class TestHttpParser(unittest.TestCase):
     def test_valid_ipv6_in_request_line(self) -> None:
         self.parser.parse(
             bytes_(
-                'CONNECT [2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]:443 HTTP/1.1\r\n'),
+                'CONNECT [2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]:443 HTTP/1.1\r\n',
+            ),
         )
         self.assertTrue(self.parser.is_https_tunnel())
         self.assertEqual(
