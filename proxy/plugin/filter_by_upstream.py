@@ -13,8 +13,7 @@ from typing import Optional
 from ..common.utils import text_
 from ..common.flag import flags
 from ..http.exception import HttpRequestRejected
-from ..http.parser import HttpParser
-from ..http.codes import httpStatusCodes
+from ..http.parser import HttpParser, httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
 
 

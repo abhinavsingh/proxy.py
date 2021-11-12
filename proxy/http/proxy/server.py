@@ -22,9 +22,7 @@ from typing import Optional, List, Union, Dict, cast, Any, Tuple
 from .plugin import HttpProxyBasePlugin
 from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed
-from ..codes import httpStatusCodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes
-from ..methods import httpMethods
+from ..parser import HttpParser, httpParserStates, httpParserTypes, httpStatusCodes, httpMethods
 
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
@@ -861,7 +859,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if not self.flags.enable_events:
             return
 
-        assert self.request.path
         assert self.request.port
         self.event_queue.publish(
             request_id=self.uid.hex,

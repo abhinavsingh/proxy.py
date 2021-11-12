@@ -14,13 +14,12 @@ import logging
 
 from typing import Dict, List, Optional, Any, Tuple
 
-from ..core.connection.server import TcpServerConnection
 from ..common.types import Readables, Writables
 from ..common.flag import flags
 from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser
-from ..http.methods import httpMethods
+from ..http.parser import HttpParser, Url, httpMethods
+from ..core.connection.server import TcpServerConnection
 
 logger = logging.getLogger(__name__)
 
@@ -144,16 +143,17 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         # For log sanity (i.e. to avoid None:None), expose upstream host:port from headers
         host, port = None, None
         # Browser or applications may sometime send
-        # CONNECT / HTTP/1.0\r\n\r\n
-        # for proxy keep alive check
+        #
+        # "CONNECT / HTTP/1.0\r\n\r\n"
+        #
+        # for proxy keep alive checks.
         if request.has_header(b'host'):
-            parts = request.header(b'host').decode().split(':')
-            if len(parts) == 2:
-                host, port = parts[0], parts[1]
-            else:
-                assert len(parts) == 1
-                host = parts[0]
-                port = '443' if request.is_https_tunnel() else '80'
+            url = Url.from_bytes(request.header(b'host'))
+            assert url.hostname
+            host, port = url.hostname.decode('utf-8'), url.port
+            port = port if port else (
+                443 if request.is_https_tunnel() else 80
+            )
         path = None if not request.path else request.path.decode()
         self.request_host_port_path_method = [
             host, port, path, request.method,

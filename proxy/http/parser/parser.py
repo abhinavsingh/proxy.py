@@ -8,15 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from urllib import parse as urlparse
 from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
+from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, HTTP_1_0, SLASH, CRLF
+from ...common.constants import WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
+from ...common.utils import build_http_request, build_http_response, find_http_line, text_
+
+from .url import Url
 from .methods import httpMethods
-from .chunk_parser import ChunkParser, chunkParserStates
-
-from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, SLASH, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
-from ..common.utils import build_http_request, build_http_response, find_http_line, text_
-
+from .chunk import ChunkParser, chunkParserStates
 
 HttpParserStates = NamedTuple(
     'HttpParserStates', [
@@ -58,7 +58,6 @@ class HttpParser:
     def __init__(self, parser_type: int) -> None:
         self.type: int = parser_type
         self.state: int = httpParserStates.INITIALIZED
-
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
         self.path: Optional[bytes] = None
@@ -66,36 +65,19 @@ class HttpParser:
         self.code: Optional[bytes] = None
         self.reason: Optional[bytes] = None
         self.version: Optional[bytes] = None
-
         # Total size of raw bytes passed for parsing
         self.total_size: int = 0
-
         # Buffer to hold unprocessed bytes
         self.buffer: bytes = b''
-
-        # Keys are lower case header names
-        # Values are 2-tuple containing original
-        # header and it's value as received.
+        # Internal headers datastructure:
+        # - Keys are lower case header names.
+        # - Values are 2-tuple containing original
+        #   header and it's value as received.
         self.headers: Dict[bytes, Tuple[bytes, bytes]] = {}
         self.body: Optional[bytes] = None
-
-        self.chunk_parser: Optional[ChunkParser] = None
-
-        # TODO: Deprecate me, we don't need this in core.
-        #
-        # Deprecated since v2.4.0
-        #
-        # This is mostly for developers so that they can directly
-        # utilize a url object, but is unnecessary as parser
-        # provides all the necessary parsed information.
-        #
-        # But developers can utilize urlsplit or whatever
-        # library they are using when necessary. This will certainly
-        # give some performance boost as url parsing won't be needed
-        # for every request/response object.
-        #
-        # (except query string and fragments)
-        self._url: Optional[urlparse.SplitResultBytes] = None
+        self.chunk: Optional[ChunkParser] = None
+        # Internal request line as a url structure
+        self._url: Optional[Url] = None
 
     @classmethod
     def request(cls: Type[T], raw: bytes) -> T:
@@ -110,50 +92,74 @@ class HttpParser:
         return parser
 
     def header(self, key: bytes) -> bytes:
+        """Convenient method to return original header value from internal datastructure."""
         if key.lower() not in self.headers:
             raise KeyError('%s not found in headers', text_(key))
         return self.headers[key.lower()][1]
 
     def has_header(self, key: bytes) -> bool:
+        """Returns true if header key was found in payload."""
         return key.lower() in self.headers
 
     def add_header(self, key: bytes, value: bytes) -> None:
+        """Add/Update a header to internal data structure."""
         self.headers[key.lower()] = (key, value)
 
     def add_headers(self, headers: List[Tuple[bytes, bytes]]) -> None:
+        """Add/Update multiple headers to internal data structure"""
         for (key, value) in headers:
             self.add_header(key, value)
 
     def del_header(self, header: bytes) -> None:
+        """Delete a header from internal data structure."""
         if header.lower() in self.headers:
             del self.headers[header.lower()]
 
     def del_headers(self, headers: List[bytes]) -> None:
+        """Delete headers from internal datastructure."""
         for key in headers:
             self.del_header(key.lower())
 
     def set_url(self, url: bytes) -> None:
-        # Work around with urlsplit semantics.
-        #
-        # For CONNECT requests, request line contains
-        # upstream_host:upstream_port which is not complaint
-        # with urlsplit, which expects a fully qualified url.
-        if self.is_https_tunnel():
-            url = b'https://' + url
-        self._url = urlparse.urlsplit(url)
+        """Given a request line, parses it and sets line attributes a.k.a. host, port, path."""
+        self._url = Url.from_bytes(url)
         self._set_line_attributes()
 
+    def has_host(self) -> bool:
+        """Returns whether host line attribute was parsed or set.
+
+        NOTE: Host field WILL be None for incoming local WebServer requests."""
+        return self.host is not None
+
+    def is_http_1_1_keep_alive(self) -> bool:
+        """Returns true for HTTP/1.1 keep-alive connections."""
+        return self.version == HTTP_1_1 and \
+            (
+                not self.has_header(b'Connection') or
+                self.header(b'Connection').lower() == b'keep-alive'
+            )
+
+    def is_connection_upgrade(self) -> bool:
+        """Returns true for websocket upgrade requests."""
+        return self.version == HTTP_1_1 and \
+            self.has_header(b'Connection') and \
+            self.has_header(b'Upgrade')
+
     def is_https_tunnel(self) -> bool:
+        """Returns true for HTTPS CONNECT tunnel request."""
         return self.method == httpMethods.CONNECT
 
     def is_chunked_encoded(self) -> bool:
+        """Returns true if transfer-encoding chunked is used."""
         return b'transfer-encoding' in self.headers and \
                self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def content_expected(self) -> bool:
+        """Returns true if content-length is present and not 0."""
         return b'content-length' in self.headers and int(self.header(b'content-length')) > 0
 
     def body_expected(self) -> bool:
+        """Returns true if content or chunked response is expected."""
         return self.content_expected() or self.is_chunked_encoded()
 
     def parse(self, raw: bytes) -> None:
@@ -173,20 +179,20 @@ class HttpParser:
 
     def build(self, disable_headers: Optional[List[bytes]] = None, for_proxy: bool = False) -> bytes:
         """Rebuild the request object."""
-        assert self.method and self.version and self.path and self.type == httpParserTypes.REQUEST_PARSER
+        assert self.method and self.version and self.type == httpParserTypes.REQUEST_PARSER
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
         body: Optional[bytes] = self._get_body_or_chunks()
-        path = self.path
+        path = self.path or b'/'
         if for_proxy:
-            assert self._url and self.host and self.port and self.path
+            assert self.host and self.port and self._url
             path = (
-                self._url.scheme +
+                b'http' if not self._url.scheme else self._url.scheme +
                 COLON + SLASH + SLASH +
                 self.host +
                 COLON +
                 str(self.port).encode() +
-                self.path
+                path
             ) if not self.is_https_tunnel() else (self.host + COLON + str(self.port).encode())
         return build_http_request(
             self.method, path, self.version,
@@ -210,24 +216,26 @@ class HttpParser:
             body=self._get_body_or_chunks(),
         )
 
-    def has_host(self) -> bool:
-        """Host field SHOULD be None for incoming local WebServer requests."""
-        return self.host is not None
-
-    def is_http_1_1_keep_alive(self) -> bool:
-        return self.version == HTTP_1_1 and \
-            (
-                not self.has_header(b'Connection') or
-                self.header(b'Connection').lower() == b'keep-alive'
-            )
-
-    def is_connection_upgrade(self) -> bool:
-        return self.version == HTTP_1_1 and \
-            self.has_header(b'Connection') and \
-            self.has_header(b'Upgrade')
-
     def _process_body(self, raw: bytes) -> Tuple[bool, bytes]:
-        if b'content-length' in self.headers:
+        # Ref: http://www.ietf.org/rfc/rfc2616.txt
+        # 3.If a Content-Length header field (section 14.13) is present, its
+        #   decimal value in OCTETs represents both the entity-length and the
+        #   transfer-length. The Content-Length header field MUST NOT be sent
+        #   if these two lengths are different (i.e., if a Transfer-Encoding
+        #   header field is present). If a message is received with both a
+        #   Transfer-Encoding header field and a Content-Length header field,
+        #   the latter MUST be ignored.
+        #
+        # TL;DR -- Give transfer-encoding header preference over content-length.
+        if self.is_chunked_encoded():
+            if not self.chunk:
+                self.chunk = ChunkParser()
+            raw = self.chunk.parse(raw)
+            if self.chunk.state == chunkParserStates.COMPLETE:
+                self.body = self.chunk.body
+                self.state = httpParserStates.COMPLETE
+            more = False
+        elif b'content-length' in self.headers:
             self.state = httpParserStates.RCVING_BODY
             if self.body is None:
                 self.body = b''
@@ -238,19 +246,17 @@ class HttpParser:
                     len(self.body) == int(self.header(b'content-length')):
                 self.state = httpParserStates.COMPLETE
             more, raw = len(raw) > 0, raw[total_size - received_size:]
-        elif self.is_chunked_encoded():
-            if not self.chunk_parser:
-                self.chunk_parser = ChunkParser()
-            raw = self.chunk_parser.parse(raw)
-            if self.chunk_parser.state == chunkParserStates.COMPLETE:
-                self.body = self.chunk_parser.body
-                self.state = httpParserStates.COMPLETE
-            more = False
         else:
-            raise NotImplementedError(
-                'Parser shouldn\'t have reached here. ' +
-                'This can happen when content length header is missing but their is a body in the payload',
-            )
+            # HTTP/1.0 scenario only
+            assert self.version == HTTP_1_0
+            self.state = httpParserStates.RCVING_BODY
+            # Received a packet without content-length header
+            # and no transfer-encoding specified.
+            #
+            # Ref https://github.com/abhinavsingh/proxy.py/issues/398
+            # See TestHttpParser.test_issue_398 scenario
+            self.body = raw
+            more, raw = False, b''
         return more, raw
 
     def _process_line_and_headers(self, raw: bytes) -> Tuple[bool, bytes]:
@@ -319,16 +325,4 @@ class HttpParser:
                     'Invalid request. Method: %r, Url: %r' %
                     (self.method, self._url),
                 )
-            self.path = self._build_path()
-
-    def _build_path(self) -> bytes:
-        if not self._url:
-            return b'/None'
-        url = self._url.path
-        if url == b'':
-            url = b'/'
-        if not self._url.query == b'':
-            url += b'?' + self._url.query
-        if not self._url.fragment == b'':
-            url += b'#' + self._url.fragment
-        return url
+            self.path = self._url.remainder

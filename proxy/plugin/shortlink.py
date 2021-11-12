@@ -12,8 +12,7 @@ from typing import Optional
 
 from ..common.constants import DOT, SLASH
 from ..common.utils import build_http_response
-from ..http.parser import HttpParser
-from ..http.codes import httpStatusCodes
+from ..http.parser import HttpParser, httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
 
 

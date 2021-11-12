@@ -16,9 +16,8 @@ from .plugin import ProxyDashboardWebsocketPlugin
 
 from ..common.utils import build_http_response, bytes_
 from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
-from ..http.parser import HttpParser
+from ..http.parser import HttpParser, httpStatusCodes
 from ..http.websocket import WebsocketFrame
-from ..http.codes import httpStatusCodes
 
 logger = logging.getLogger(__name__)
 

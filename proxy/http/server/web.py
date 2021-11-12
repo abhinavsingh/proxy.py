@@ -26,8 +26,7 @@ from ...common.flag import flags
 
 from ..exception import HttpProtocolException
 from ..websocket import WebsocketFrame, websocketOpcodes
-from ..codes import httpStatusCodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..parser import HttpParser, httpParserStates, httpParserTypes, httpStatusCodes
 from ..plugin import HttpProtocolHandlerPlugin
 
 from .plugin import HttpWebServerBasePlugin
@@ -178,11 +177,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if self.request.has_host():
             return False
 
-        assert self.request.path
+        path = self.request.path or b'/'
 
         # If a websocket route exists for the path, try upgrade
         for route in self.routes[httpProtocolTypes.WEBSOCKET]:
-            match = route.match(text_(self.request.path))
+            match = route.match(text_(path))
             if match:
                 self.route = self.routes[httpProtocolTypes.WEBSOCKET][route]
 
@@ -204,7 +203,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if self.encryption_enabled() else \
             httpProtocolTypes.HTTP
         for route in self.routes[protocol]:
-            match = route.match(text_(self.request.path))
+            match = route.match(text_(path))
             if match:
                 self.route = self.routes[protocol][route]
                 self.route.handle_request(self.request)
@@ -215,7 +214,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
-            path = text_(self.request.path).split('?')[0]
+            path = text_(path).split('?')[0]
             try:
                 self.client.queue(
                     self.read_and_build_static_file_response(

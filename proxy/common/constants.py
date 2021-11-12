@@ -44,6 +44,7 @@ WHITESPACE = b' '
 COMMA = b','
 DOT = b'.'
 SLASH = b'/'
+HTTP_1_0 = b'HTTP/1.0'
 HTTP_1_1 = b'HTTP/1.1'
 
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'

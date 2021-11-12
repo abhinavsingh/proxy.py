@@ -10,11 +10,10 @@
 """
 import unittest
 
-from proxy.common.constants import CRLF
-from proxy.common.utils import build_http_request, find_http_line, build_http_response, build_http_header, bytes_
-from proxy.http.methods import httpMethods
-from proxy.http.codes import httpStatusCodes
-from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.common.constants import CRLF, HTTP_1_0
+from proxy.common.utils import build_http_request, build_http_response, build_http_header
+from proxy.common.utils import find_http_line, bytes_
+from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates, httpStatusCodes, httpMethods
 
 
 class TestHttpParser(unittest.TestCase):
@@ -22,10 +21,72 @@ class TestHttpParser(unittest.TestCase):
     def setUp(self) -> None:
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
+    def test_issue_398(self) -> None:
+        p = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        p.parse(HTTP_1_0 + b' 200 OK' + CRLF)
+        self.assertEqual(p.version, HTTP_1_0)
+        self.assertEqual(p.code, b'200')
+        self.assertEqual(p.reason, b'OK')
+        self.assertEqual(p.state, httpParserStates.LINE_RCVD)
+        p.parse(
+            b'CP=CAO PSA OUR' + CRLF +
+            b'Cache-Control:private,max-age=0;' + CRLF +
+            b'X-Frame-Options:SAMEORIGIN' + CRLF +
+            b'X-Content-Type-Options:nosniff' + CRLF +
+            b'X-XSS-Protection:1; mode=block' + CRLF +
+            b'Content-Security-Policy:default-src \'self\' \'unsafe-inline\' \'unsafe-eval\'' + CRLF +
+            b'Strict-Transport-Security:max-age=2592000; includeSubdomains' + CRLF +
+            b'Set-Cookie: lang=eng; path=/;HttpOnly;' + CRLF +
+            b'Content-type:text/html;charset=UTF-8;' + CRLF + CRLF +
+            b'<!-- HTML RESPONSE HERE -->',
+        )
+        self.assertEqual(p.body, b'<!-- HTML RESPONSE HERE -->')
+        self.assertEqual(p.state, httpParserStates.RCVING_BODY)
+
     def test_urlparse(self) -> None:
         self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
         self.assertTrue(self.parser.is_https_tunnel())
         self.assertEqual(self.parser.host, b'httpbin.org')
+        self.assertEqual(self.parser.port, 443)
+        self.assertNotEqual(self.parser.state, httpParserStates.COMPLETE)
+
+    def test_urlparse_on_invalid_connect_request(self) -> None:
+        self.parser.parse(b'CONNECT / HTTP/1.0\r\n\r\n')
+        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertEqual(self.parser.host, None)
+        self.assertEqual(self.parser.port, 443)
+        self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
+
+    def test_unicode_character_domain_connect(self) -> None:
+        self.parser.parse(bytes_('CONNECT ççç.org:443 HTTP/1.1\r\n'))
+        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertEqual(self.parser.host, bytes_('ççç.org'))
+        self.assertEqual(self.parser.port, 443)
+
+    def test_invalid_ipv6_in_request_line(self) -> None:
+        self.parser.parse(
+            bytes_('CONNECT 2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF:443 HTTP/1.1\r\n'),
+        )
+        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertEqual(
+            self.parser.host, bytes_(
+                '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]',
+            ),
+        )
+        self.assertEqual(self.parser.port, 443)
+
+    def test_valid_ipv6_in_request_line(self) -> None:
+        self.parser.parse(
+            bytes_(
+                'CONNECT [2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]:443 HTTP/1.1\r\n',
+            ),
+        )
+        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertEqual(
+            self.parser.host, bytes_(
+                '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]',
+            ),
+        )
         self.assertEqual(self.parser.port, 443)
 
     def test_build_request(self) -> None:
@@ -160,9 +221,9 @@ class TestHttpParser(unittest.TestCase):
         )
         self.parser.parse(pkt)
         self.assertEqual(self.parser.total_size, len(pkt))
-        self.assertEqual(self.parser._build_path(), b'/path/dir/?a=b&c=d#p=q')
+        assert self.parser._url and self.parser._url.remainder
+        self.assertEqual(self.parser._url.remainder, b'/path/dir/?a=b&c=d#p=q')
         self.assertEqual(self.parser.method, b'GET')
-        assert self.parser._url
         self.assertEqual(self.parser._url.hostname, b'example.com')
         self.assertEqual(self.parser._url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
@@ -180,9 +241,6 @@ class TestHttpParser(unittest.TestCase):
             ),
             self.parser.build(),
         )
-
-    def test_build_url_none(self) -> None:
-        self.assertEqual(self.parser._build_path(), b'/None')
 
     def test_line_rcvd_to_rcving_headers_state_change(self) -> None:
         pkt = b'GET http://localhost HTTP/1.1'
@@ -646,7 +704,7 @@ class TestHttpParser(unittest.TestCase):
         )
         self.assertEqual(r.host, b'localhost')
         self.assertEqual(r.port, 12345)
-        self.assertEqual(r.path, b'/')
+        self.assertEqual(r.path, None)
         self.assertEqual(r.header(b'key'), b'value')
         self.assertEqual(r.header(b'KEY'), b'value')
         self.assertEqual(r.header(b'content-length'), b'13')
@@ -659,10 +717,3 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(r.code, b'200')
         self.assertEqual(r.reason, b'OK')
         self.assertEqual(r.header(b'key'), b'value')
-
-    def test_parser_shouldnt_have_reached_here(self) -> None:
-        with self.assertRaises(NotImplementedError):
-            HttpParser.request(
-                b'POST http://localhost:12345 HTTP/1.1' + CRLF +
-                b'key: value' + CRLF + CRLF + b'Hello from py',
-            )
