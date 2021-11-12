@@ -11,12 +11,12 @@
 from urllib import parse as urlparse
 from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
-from .methods import httpMethods
-from .chunk_parser import ChunkParser, chunkParserStates
-
 from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, SLASH, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
 from ..common.utils import build_http_request, build_http_response, find_http_line, text_
 
+from .methods import httpMethods
+from .chunk_parser import ChunkParser, chunkParserStates
+from .url import Url
 
 HttpParserStates = NamedTuple(
     'HttpParserStates', [
@@ -58,7 +58,6 @@ class HttpParser:
     def __init__(self, parser_type: int) -> None:
         self.type: int = parser_type
         self.state: int = httpParserStates.INITIALIZED
-
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
         self.path: Optional[bytes] = None
@@ -66,36 +65,17 @@ class HttpParser:
         self.code: Optional[bytes] = None
         self.reason: Optional[bytes] = None
         self.version: Optional[bytes] = None
-
         # Total size of raw bytes passed for parsing
         self.total_size: int = 0
-
         # Buffer to hold unprocessed bytes
         self.buffer: bytes = b''
-
         # Keys are lower case header names
         # Values are 2-tuple containing original
         # header and it's value as received.
         self.headers: Dict[bytes, Tuple[bytes, bytes]] = {}
         self.body: Optional[bytes] = None
-
         self.chunk_parser: Optional[ChunkParser] = None
-
-        # TODO: Deprecate me, we don't need this in core.
-        #
-        # Deprecated since v2.4.0
-        #
-        # This is mostly for developers so that they can directly
-        # utilize a url object, but is unnecessary as parser
-        # provides all the necessary parsed information.
-        #
-        # But developers can utilize urlsplit or whatever
-        # library they are using when necessary. This will certainly
-        # give some performance boost as url parsing won't be needed
-        # for every request/response object.
-        #
-        # (except query string and fragments)
-        self._url: Optional[urlparse.SplitResultBytes] = None
+        self._url: Optional[Url] = None
 
     @classmethod
     def request(cls: Type[T], raw: bytes) -> T:
@@ -133,14 +113,13 @@ class HttpParser:
             self.del_header(key.lower())
 
     def set_url(self, url: bytes) -> None:
-        # Work around with urlsplit semantics.
-        #
-        # For CONNECT requests, request line contains
-        # upstream_host:upstream_port which is not complaint
-        # with urlsplit, which expects a fully qualified url.
-        if self.is_https_tunnel():
-            url = b'https://' + url
-        self._url = urlparse.urlsplit(url)
+        """TODO: url may contain invalid IPv6 format
+        e.g. IPv6:Port instead of [IPv6]:Port.
+        See https://github.com/abhinavsingh/proxy.py/issues/500
+
+        TODO: There can be unicode characters in the url
+        """
+        self._url = Url.from_bytes(url)
         self._set_line_attributes()
 
     def is_https_tunnel(self) -> bool:
@@ -173,20 +152,20 @@ class HttpParser:
 
     def build(self, disable_headers: Optional[List[bytes]] = None, for_proxy: bool = False) -> bytes:
         """Rebuild the request object."""
-        assert self.method and self.version and self.path and self.type == httpParserTypes.REQUEST_PARSER
+        assert self.method and self.version and self.type == httpParserTypes.REQUEST_PARSER
         if disable_headers is None:
             disable_headers = DEFAULT_DISABLE_HEADERS
         body: Optional[bytes] = self._get_body_or_chunks()
-        path = self.path
+        path = self.path or b'/'
         if for_proxy:
-            assert self._url and self.host and self.port and self.path
+            assert self._url and self.host and self.port
             path = (
                 self._url.scheme +
                 COLON + SLASH + SLASH +
                 self.host +
                 COLON +
                 str(self.port).encode() +
-                self.path
+                self.path or b'/'
             ) if not self.is_https_tunnel() else (self.host + COLON + str(self.port).encode())
         return build_http_request(
             self.method, path, self.version,
@@ -319,16 +298,4 @@ class HttpParser:
                     'Invalid request. Method: %r, Url: %r' %
                     (self.method, self._url),
                 )
-            self.path = self._build_path()
-
-    def _build_path(self) -> bytes:
-        if not self._url:
-            return b'/None'
-        url = self._url.path
-        if url == b'':
-            url = b'/'
-        if not self._url.query == b'':
-            url += b'?' + self._url.query
-        if not self._url.fragment == b'':
-            url += b'#' + self._url.fragment
-        return url
+            self.path = self._url.remainder

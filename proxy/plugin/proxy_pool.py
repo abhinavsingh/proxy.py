@@ -144,8 +144,10 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
         # For log sanity (i.e. to avoid None:None), expose upstream host:port from headers
         host, port = None, None
         # Browser or applications may sometime send
-        # CONNECT / HTTP/1.0\r\n\r\n
-        # for proxy keep alive check
+        #
+        # "CONNECT / HTTP/1.0\r\n\r\n"
+        #
+        # for proxy keep alive checks.
         if request.has_header(b'host'):
             parts = request.header(b'host').decode().split(':')
             if len(parts) == 2:
