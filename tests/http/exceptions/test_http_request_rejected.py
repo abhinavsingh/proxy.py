@@ -41,6 +41,8 @@ class TestHttpRequestRejected(unittest.TestCase):
         )
         self.assertEqual(
             e.response(self.request),
-            build_http_response(httpStatusCodes.NOT_FOUND,
-                                reason=b'NOT FOUND', body=b'Nothing here'),
+            build_http_response(
+                httpStatusCodes.NOT_FOUND,
+                reason=b'NOT FOUND', body=b'Nothing here',
+            ),
         )
