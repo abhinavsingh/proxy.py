@@ -10,8 +10,6 @@
 """
 import unittest
 
-from urllib import parse as urlparse
-
 from proxy.common.constants import CRLF
 from proxy.common.utils import build_http_request, find_http_line, build_http_response, build_http_header, bytes_
 from proxy.http.methods import httpMethods
@@ -46,18 +44,27 @@ class TestHttpParser(unittest.TestCase):
 
     def test_invalid_ipv6_in_request_line(self) -> None:
         self.parser.parse(
-            bytes_('CONNECT 2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF:443 HTTP/1.1\r\n'))
+            bytes_('CONNECT 2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF:443 HTTP/1.1\r\n'),
+        )
         self.assertTrue(self.parser.is_https_tunnel())
-        self.assertEqual(self.parser.host, bytes_(
-            '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]'))
+        self.assertEqual(
+            self.parser.host, bytes_(
+                '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]',
+            ),
+        )
         self.assertEqual(self.parser.port, 443)
 
     def test_valid_ipv6_in_request_line(self) -> None:
         self.parser.parse(
-            bytes_('CONNECT [2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]:443 HTTP/1.1\r\n'))
+            bytes_(
+                'CONNECT [2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]:443 HTTP/1.1\r\n'),
+        )
         self.assertTrue(self.parser.is_https_tunnel())
-        self.assertEqual(self.parser.host, bytes_(
-            '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]'))
+        self.assertEqual(
+            self.parser.host, bytes_(
+                '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]',
+            ),
+        )
         self.assertEqual(self.parser.port, 443)
 
     def test_build_request(self) -> None:
@@ -192,9 +199,9 @@ class TestHttpParser(unittest.TestCase):
         )
         self.parser.parse(pkt)
         self.assertEqual(self.parser.total_size, len(pkt))
+        assert self.parser._url and self.parser._url.remainder
         self.assertEqual(self.parser._url.remainder, b'/path/dir/?a=b&c=d#p=q')
         self.assertEqual(self.parser.method, b'GET')
-        assert self.parser._url
         self.assertEqual(self.parser._url.hostname, b'example.com')
         self.assertEqual(self.parser._url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')

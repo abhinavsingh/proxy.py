@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from urllib import parse as urlparse
 from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
 from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, SLASH, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
@@ -158,14 +157,14 @@ class HttpParser:
         body: Optional[bytes] = self._get_body_or_chunks()
         path = self.path or b'/'
         if for_proxy:
-            assert self._url and self.host and self.port
+            assert self._url and self.host and self.port and self._url and self._url.scheme
             path = (
                 self._url.scheme +
                 COLON + SLASH + SLASH +
                 self.host +
                 COLON +
                 str(self.port).encode() +
-                self.path or b'/'
+                path
             ) if not self.is_https_tunnel() else (self.host + COLON + str(self.port).encode())
         return build_http_request(
             self.method, path, self.version,

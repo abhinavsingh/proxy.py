@@ -50,7 +50,7 @@ class Url:
         sraw = raw.decode('utf-8')
         if sraw[0] == SLASH.decode('utf-8'):
             return cls(remainder=raw)
-        elif sraw.startswith('https://') or sraw.startswith('http://'):
+        if sraw.startswith('https://') or sraw.startswith('http://'):
             is_https = sraw.startswith('https://')
             rest = raw[len(b'https://'):] if is_https else raw[len(b'http://'):]
             parts = rest.split(SLASH)
@@ -60,11 +60,11 @@ class Url:
                 host=host,
                 port=port,
                 remainder=None if len(parts) == 1 else (
-                    SLASH + SLASH.join(parts[1:])),
+                    SLASH + SLASH.join(parts[1:])
+                ),
             )
-        else:
-            host, port = Url.parse_host_and_port(raw)
-            return cls(host=host, port=port)
+        host, port = Url.parse_host_and_port(raw)
+        return cls(host=host, port=port)
 
     @staticmethod
     def parse_host_and_port(raw: bytes) -> Tuple[bytes, Optional[int]]:
