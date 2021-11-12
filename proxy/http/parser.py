@@ -157,9 +157,9 @@ class HttpParser:
         body: Optional[bytes] = self._get_body_or_chunks()
         path = self.path or b'/'
         if for_proxy:
-            assert self._url and self.host and self.port and self._url and self._url.scheme
+            assert self.host and self.port and self._url
             path = (
-                self._url.scheme +
+                b'http' if not self._url.scheme else self._url.scheme +
                 COLON + SLASH + SLASH +
                 self.host +
                 COLON +
