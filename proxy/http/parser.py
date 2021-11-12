@@ -68,12 +68,14 @@ class HttpParser:
         self.total_size: int = 0
         # Buffer to hold unprocessed bytes
         self.buffer: bytes = b''
-        # Keys are lower case header names
-        # Values are 2-tuple containing original
-        # header and it's value as received.
+        # Internal headers datastructure:
+        # - Keys are lower case header names.
+        # - Values are 2-tuple containing original
+        #   header and it's value as received.
         self.headers: Dict[bytes, Tuple[bytes, bytes]] = {}
         self.body: Optional[bytes] = None
         self.chunk_parser: Optional[ChunkParser] = None
+        # Internal request line as a url structure
         self._url: Optional[Url] = None
 
     @classmethod
@@ -89,49 +91,74 @@ class HttpParser:
         return parser
 
     def header(self, key: bytes) -> bytes:
+        """Convenient method to return original header value from internal datastructure."""
         if key.lower() not in self.headers:
             raise KeyError('%s not found in headers', text_(key))
         return self.headers[key.lower()][1]
 
     def has_header(self, key: bytes) -> bool:
+        """Returns true if header key was found in payload."""
         return key.lower() in self.headers
 
     def add_header(self, key: bytes, value: bytes) -> None:
+        """Add/Update a header to internal data structure."""
         self.headers[key.lower()] = (key, value)
 
     def add_headers(self, headers: List[Tuple[bytes, bytes]]) -> None:
+        """Add/Update multiple headers to internal data structure"""
         for (key, value) in headers:
             self.add_header(key, value)
 
     def del_header(self, header: bytes) -> None:
+        """Delete a header from internal data structure."""
         if header.lower() in self.headers:
             del self.headers[header.lower()]
 
     def del_headers(self, headers: List[bytes]) -> None:
+        """Delete headers from internal datastructure."""
         for key in headers:
             self.del_header(key.lower())
 
     def set_url(self, url: bytes) -> None:
-        """TODO: url may contain invalid IPv6 format
-        e.g. IPv6:Port instead of [IPv6]:Port.
-        See https://github.com/abhinavsingh/proxy.py/issues/500
-
-        TODO: There can be unicode characters in the url
-        """
+        """Given a request line, parses it and sets line attributes a.k.a. host, port, path."""
         self._url = Url.from_bytes(url)
         self._set_line_attributes()
 
+    def has_host(self) -> bool:
+        """Returns whether host line attribute was parsed or set.
+
+        NOTE: Host field WILL be None for incoming local WebServer requests."""
+        return self.host is not None
+
+    def is_http_1_1_keep_alive(self) -> bool:
+        """Returns true for HTTP/1.1 keep-alive connections."""
+        return self.version == HTTP_1_1 and \
+            (
+                not self.has_header(b'Connection') or
+                self.header(b'Connection').lower() == b'keep-alive'
+            )
+
+    def is_connection_upgrade(self) -> bool:
+        """Returns true for websocket upgrade requests."""
+        return self.version == HTTP_1_1 and \
+            self.has_header(b'Connection') and \
+            self.has_header(b'Upgrade')
+
     def is_https_tunnel(self) -> bool:
+        """Returns true for HTTPS CONNECT tunnel request."""
         return self.method == httpMethods.CONNECT
 
     def is_chunked_encoded(self) -> bool:
+        """Returns true if transfer-encoding chunked is used."""
         return b'transfer-encoding' in self.headers and \
                self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
     def content_expected(self) -> bool:
+        """Returns true if content-length is present and not 0."""
         return b'content-length' in self.headers and int(self.header(b'content-length')) > 0
 
     def body_expected(self) -> bool:
+        """Returns true if content or chunked response is expected."""
         return self.content_expected() or self.is_chunked_encoded()
 
     def parse(self, raw: bytes) -> None:
@@ -187,22 +214,6 @@ class HttpParser:
             },
             body=self._get_body_or_chunks(),
         )
-
-    def has_host(self) -> bool:
-        """Host field SHOULD be None for incoming local WebServer requests."""
-        return self.host is not None
-
-    def is_http_1_1_keep_alive(self) -> bool:
-        return self.version == HTTP_1_1 and \
-            (
-                not self.has_header(b'Connection') or
-                self.header(b'Connection').lower() == b'keep-alive'
-            )
-
-    def is_connection_upgrade(self) -> bool:
-        return self.version == HTTP_1_1 and \
-            self.has_header(b'Connection') and \
-            self.has_header(b'Upgrade')
 
     def _process_body(self, raw: bytes) -> Tuple[bool, bytes]:
         if b'content-length' in self.headers:
