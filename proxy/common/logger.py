@@ -10,7 +10,7 @@
 """
 import logging
 
-from typing import Optional, Union
+from typing import Optional, Any
 
 from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 
@@ -23,7 +23,7 @@ SINGLE_CHAR_TO_LEVEL = {
 }
 
 
-def single_char_to_level(char: str) -> str:
+def single_char_to_level(char: str) -> Any:
     return getattr(logging, SINGLE_CHAR_TO_LEVEL[char.upper()[0]])
 
 
