@@ -313,7 +313,7 @@ def call_emulated(contract_id, caller_id, data=None, value=None):
     exit_status = result['exit_status']
     if exit_status == 'revert':
         result_value = result['result']
-        if len(result_value) == 0:
+        if len(result_value) < 8 or result_value[:8] != '08c379a0':
             raise EthereumError(code=3, message='execution reverted')
 
         offset = int(result_value[8:8+64], 16)
