@@ -22,12 +22,12 @@ class Url:
     def __init__(
             self,
             scheme: Optional[bytes] = None,
-            host: Optional[bytes] = None,
+            hostname: Optional[bytes] = None,
             port: Optional[int] = None,
             remainder: Optional[bytes] = None,
     ) -> None:
         self.scheme: Optional[bytes] = scheme
-        self.hostname: Optional[bytes] = host
+        self.hostname: Optional[bytes] = hostname
         self.port: Optional[int] = port
         self.remainder: Optional[bytes] = remainder
 
@@ -57,18 +57,19 @@ class Url:
             host, port = Url.parse_host_and_port(parts[0])
             return cls(
                 scheme=b'https' if is_https else b'http',
-                host=host,
+                hostname=host,
                 port=port,
                 remainder=None if len(parts) == 1 else (
                     SLASH + SLASH.join(parts[1:])
                 ),
             )
         host, port = Url.parse_host_and_port(raw)
-        return cls(host=host, port=port)
+        return cls(hostname=host, port=port)
 
     @staticmethod
     def parse_host_and_port(raw: bytes) -> Tuple[bytes, Optional[int]]:
         parts = raw.split(COLON)
+        port: Optional[int] = None
         if len(parts) == 1:
             return parts[0], None
         if len(parts) == 2:

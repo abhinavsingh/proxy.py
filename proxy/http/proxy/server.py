@@ -861,7 +861,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if not self.flags.enable_events:
             return
 
-        assert self.request.path
         assert self.request.port
         self.event_queue.publish(
             request_id=self.uid.hex,

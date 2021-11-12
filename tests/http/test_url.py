@@ -15,6 +15,13 @@ from proxy.http.url import Url
 
 class TestUrl(unittest.TestCase):
 
+    def test_just_domain_name_url(self) -> None:
+        url = Url.from_bytes(b'localhost')
+        self.assertEqual(url.scheme, None)
+        self.assertEqual(url.hostname, b'localhost')
+        self.assertEqual(url.port, None)
+        self.assertEqual(url.remainder, None)
+
     def test_web_server_url(self) -> None:
         url = Url.from_bytes(b'/')
         self.assertEqual(url.scheme, None)
