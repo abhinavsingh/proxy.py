@@ -122,7 +122,7 @@ class FlagParser:
             sys.exit(1)
 
         # Setup logging module
-        Logger.setup_logger(args.log_file, args.log_level, args.log_format)
+        Logger.setup(args.log_file, args.log_level, args.log_format)
 
         # Setup limits
         set_open_file_limit(args.open_file_limit)

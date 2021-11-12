@@ -322,12 +322,21 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         context = {
             'client_ip': None if not self.client.addr else self.client.addr[0],
             'client_port': None if not self.client.addr else self.client.addr[1],
-            'request_method': text_(self.request.method),
-            'request_path': text_(self.request.path),
             'server_host': text_(self.upstream.addr[0] if self.upstream else None),
             'server_port': text_(self.upstream.addr[1] if self.upstream else None),
-            'response_bytes': self.response.total_size,
             'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            # Request
+            'request_method': text_(self.request.method),
+            'request_path': text_(self.request.path),
+            'request_bytes': self.request.total_size,
+            'request_code': self.request.code,
+            'request_ua': self.request.header(b'user-agent')
+            if self.request.has_header(b'user-agent')
+            else None,
+            'request_reason': self.request.reason,
+            'request_version': self.request.version,
+            # Response
+            'response_bytes': self.response.total_size,
             'response_code': text_(self.response.code),
             'response_reason': text_(self.response.reason),
         }
