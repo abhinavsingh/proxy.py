@@ -71,7 +71,17 @@ class Url:
         parts = raw.split(COLON)
         if len(parts) == 1:
             return parts[0], None
-        host, port = COLON.join(parts[:-1]), int(parts[-1])
+        if len(parts) == 2:
+            host, port = COLON.join(parts[:-1]), int(parts[-1])
+        if len(parts) > 2:
+            try:
+                port = int(parts[-1])
+                host = COLON.join(parts[:-1])
+            except ValueError:
+                # If unable to convert last part into port,
+                # this is the IPv6 scenario.  Treat entire
+                # data as host
+                host, port = raw, None
         # patch up invalid ipv6 scenario
         rhost = host.decode('utf-8')
         if COLON.decode('utf-8') in rhost and rhost[0] != '[' and rhost[-1] != ']':

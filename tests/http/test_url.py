@@ -50,6 +50,20 @@ class TestUrl(unittest.TestCase):
         self.assertEqual(url.port, 443)
         self.assertEqual(url.remainder, None)
 
+    def test_http_ipv6_url(self) -> None:
+        url = Url.from_bytes(b'http://[::]')
+        self.assertEqual(url.scheme, b'http')
+        self.assertEqual(url.hostname, b'[::]')
+        self.assertEqual(url.port, None)
+        self.assertEqual(url.remainder, None)
+
+    def test_http_ipv6_with_port_url(self) -> None:
+        url = Url.from_bytes(b'http://[::]:443')
+        self.assertEqual(url.scheme, b'http')
+        self.assertEqual(url.hostname, b'[::]')
+        self.assertEqual(url.port, 443)
+        self.assertEqual(url.remainder, None)
+
     def test_unicode_url(self) -> None:
         url = Url.from_bytes('å∫ç.com'.encode('utf-8'))
         self.assertEqual(url.scheme, None)
