@@ -10,7 +10,7 @@
 """
 import unittest
 
-from proxy.common.constants import CRLF
+from proxy.common.constants import CRLF, HTTP_1_0
 from proxy.common.utils import build_http_request, build_http_response, build_http_header
 from proxy.common.utils import find_http_line, bytes_
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates, httpStatusCodes, httpMethods
@@ -20,6 +20,28 @@ class TestHttpParser(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
+
+    def test_issue_398(self) -> None:
+        p = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        p.parse(HTTP_1_0 + b' 200 OK' + CRLF)
+        self.assertEqual(p.version, HTTP_1_0)
+        self.assertEqual(p.code, b'200')
+        self.assertEqual(p.reason, b'OK')
+        self.assertEqual(p.state, httpParserStates.LINE_RCVD)
+        p.parse(
+            b'CP=CAO PSA OUR' + CRLF +
+            b'Cache-Control:private,max-age=0;' + CRLF +
+            b'X-Frame-Options:SAMEORIGIN' + CRLF +
+            b'X-Content-Type-Options:nosniff' + CRLF +
+            b'X-XSS-Protection:1; mode=block' + CRLF +
+            b'Content-Security-Policy:default-src \'self\' \'unsafe-inline\' \'unsafe-eval\'' + CRLF +
+            b'Strict-Transport-Security:max-age=2592000; includeSubdomains' + CRLF +
+            b'Set-Cookie: lang=eng; path=/;HttpOnly;' + CRLF +
+            b'Content-type:text/html;charset=UTF-8;' + CRLF + CRLF +
+            b'<!-- HTML RESPONSE HERE -->',
+        )
+        self.assertEqual(p.body, b'<!-- HTML RESPONSE HERE -->')
+        self.assertEqual(p.state, httpParserStates.RCVING_BODY)
 
     def test_urlparse(self) -> None:
         self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
@@ -695,10 +717,3 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(r.code, b'200')
         self.assertEqual(r.reason, b'OK')
         self.assertEqual(r.header(b'key'), b'value')
-
-    def test_parser_shouldnt_have_reached_here(self) -> None:
-        with self.assertRaises(NotImplementedError):
-            HttpParser.request(
-                b'POST http://localhost:12345 HTTP/1.1' + CRLF +
-                b'key: value' + CRLF + CRLF + b'Hello from py',
-            )

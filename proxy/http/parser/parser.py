@@ -10,7 +10,7 @@
 """
 from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
-from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, SLASH, CRLF
+from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, HTTP_1_0, SLASH, CRLF
 from ...common.constants import WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
 from ...common.utils import build_http_request, build_http_response, find_http_line, text_
 
@@ -162,20 +162,26 @@ class HttpParser:
         """Returns true if content or chunked response is expected."""
         return self.content_expected() or self.is_chunked_encoded()
 
-    def parse(self, raw: bytes) -> None:
+    def parse(self, oraw: bytes) -> None:
         """Parses Http request out of raw bytes.
 
         Check for `HttpParser.state` after `parse` has successfully returned.
         """
-        self.total_size += len(raw)
-        raw = self.buffer + raw
-        self.buffer, more = b'', len(raw) > 0
-        while more and self.state != httpParserStates.COMPLETE:
-            # gte with HEADERS_COMPLETE also encapsulated RCVING_BODY state
-            more, raw = self._process_body(raw) \
-                if self.state >= httpParserStates.HEADERS_COMPLETE else \
-                self._process_line_and_headers(raw)
-        self.buffer = raw
+        try:
+            self.total_size += len(oraw)
+            raw = self.buffer + oraw
+            self.buffer, more = b'', len(raw) > 0
+            while more and self.state != httpParserStates.COMPLETE:
+                # gte with HEADERS_COMPLETE also encapsulated RCVING_BODY state
+                more, raw = self._process_body(raw) \
+                    if self.state >= httpParserStates.HEADERS_COMPLETE else \
+                    self._process_line_and_headers(raw)
+            self.buffer = raw
+        except Exception as e:
+            print(self.buffer)
+            print(oraw)
+            print(self.headers)
+            raise e
 
     def build(self, disable_headers: Optional[List[bytes]] = None, for_proxy: bool = False) -> bytes:
         """Rebuild the request object."""
@@ -217,7 +223,25 @@ class HttpParser:
         )
 
     def _process_body(self, raw: bytes) -> Tuple[bool, bytes]:
-        if b'content-length' in self.headers:
+        # Ref: http://www.ietf.org/rfc/rfc2616.txt
+        # 3.If a Content-Length header field (section 14.13) is present, its
+        #   decimal value in OCTETs represents both the entity-length and the
+        #   transfer-length. The Content-Length header field MUST NOT be sent
+        #   if these two lengths are different (i.e., if a Transfer-Encoding
+        #   header field is present). If a message is received with both a
+        #   Transfer-Encoding header field and a Content-Length header field,
+        #   the latter MUST be ignored.
+        #
+        # TL;DR -- Give transfer-encoding header preference over content-length.
+        if self.is_chunked_encoded():
+            if not self.chunk:
+                self.chunk = ChunkParser()
+            raw = self.chunk.parse(raw)
+            if self.chunk.state == chunkParserStates.COMPLETE:
+                self.body = self.chunk.body
+                self.state = httpParserStates.COMPLETE
+            more = False
+        elif b'content-length' in self.headers:
             self.state = httpParserStates.RCVING_BODY
             if self.body is None:
                 self.body = b''
@@ -228,19 +252,17 @@ class HttpParser:
                     len(self.body) == int(self.header(b'content-length')):
                 self.state = httpParserStates.COMPLETE
             more, raw = len(raw) > 0, raw[total_size - received_size:]
-        elif self.is_chunked_encoded():
-            if not self.chunk:
-                self.chunk = ChunkParser()
-            raw = self.chunk.parse(raw)
-            if self.chunk.state == chunkParserStates.COMPLETE:
-                self.body = self.chunk.body
-                self.state = httpParserStates.COMPLETE
-            more = False
         else:
-            raise NotImplementedError(
-                'Parser shouldn\'t have reached here. ' +
-                'This can happen when content length header is missing but their is a body in the payload',
-            )
+            # HTTP/1.0 scenario only
+            assert self.version == HTTP_1_0
+            self.state = httpParserStates.RCVING_BODY
+            # Received a packet without content-length header
+            # and no transfer-encoding specified.
+            #
+            # Ref https://github.com/abhinavsingh/proxy.py/issues/398
+            # See TestHttpParser.test_issue_398 scenario
+            self.body = raw
+            more, raw = False, b''
         return more, raw
 
     def _process_line_and_headers(self, raw: bytes) -> Tuple[bool, bytes]:
