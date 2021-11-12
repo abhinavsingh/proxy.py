@@ -19,7 +19,7 @@ from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 
 from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
-from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT
+from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
 from ...common.types import Readables, Writables
 from ...common.flag import flags
@@ -79,6 +79,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             reason=b'NOT FOUND',
             headers={
                 b'Server': PROXY_AGENT_HEADER_VALUE,
+                b'Content-Length': b'0',
                 b'Connection': b'close',
             },
         ),
@@ -90,6 +91,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             reason=b'NOT IMPLEMENTED',
             headers={
                 b'Server': PROXY_AGENT_HEADER_VALUE,
+                b'Content-Length': b'0',
                 b'Connection': b'close',
             },
         ),
@@ -129,29 +131,32 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
     @staticmethod
     def read_and_build_static_file_response(path: str, min_compression_limit: int) -> memoryview:
-        with open(path, 'rb') as f:
-            content = f.read()
-        content_type = mimetypes.guess_type(path)[0]
-        if content_type is None:
-            content_type = 'text/plain'
-        headers = {
-            b'Content-Type': bytes_(content_type),
-            b'Cache-Control': b'max-age=86400',
-            b'Connection': b'close',
-        }
-        do_compress = len(content) > min_compression_limit
-        if do_compress:
-            headers.update({
-                b'Content-Encoding': b'gzip',
-            })
-        return memoryview(
-            build_http_response(
-                httpStatusCodes.OK,
-                reason=b'OK',
-                headers=headers,
-                body=gzip.compress(content) if do_compress else content,
-            ),
-        )
+        try:
+            with open(path, 'rb') as f:
+                content = f.read()
+            content_type = mimetypes.guess_type(path)[0]
+            if content_type is None:
+                content_type = 'text/plain'
+            headers = {
+                b'Content-Type': bytes_(content_type),
+                b'Cache-Control': b'max-age=86400',
+                b'Connection': b'close',
+            }
+            do_compress = len(content) > min_compression_limit
+            if do_compress:
+                headers.update({
+                    b'Content-Encoding': b'gzip',
+                })
+            return memoryview(
+                build_http_response(
+                    httpStatusCodes.OK,
+                    reason=b'OK',
+                    headers=headers,
+                    body=gzip.compress(content) if do_compress else content,
+                ),
+            )
+        except FileNotFoundError:
+            return HttpWebServerPlugin.DEFAULT_404_RESPONSE
 
     def try_upgrade(self) -> bool:
         if self.request.has_header(b'connection') and \
@@ -215,16 +220,13 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
             path = text_(path).split('?')[0]
-            try:
-                self.client.queue(
-                    self.read_and_build_static_file_response(
-                        self.flags.static_server_dir + path,
-                        self.flags.min_compression_limit,
-                    ),
-                )
-                return True
-            except FileNotFoundError:
-                pass
+            self.client.queue(
+                self.read_and_build_static_file_response(
+                    self.flags.static_server_dir + path,
+                    self.flags.min_compression_limit,
+                ),
+            )
+            return True
 
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
@@ -301,19 +303,26 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def on_client_connection_close(self) -> None:
         if self.request.has_host():
             return
+        context = {
+            'client_addr': self.client.address,
+            'request_method': text_(self.request.method),
+            'request_path': text_(self.request.path),
+            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+        }
+        log_handled = False
         if self.route:
+            # May be merge on_client_connection_close and on_access_log???
+            # probably by simply deprecating on_client_connection_close in future.
             self.route.on_client_connection_close()
-        self.access_log()
+            ctx = self.route.on_access_log(context)
+            if ctx is None:
+                log_handled = True
+            else:
+                context = ctx
+        if not log_handled:
+            self.access_log(context)
 
     # TODO: Allow plugins to customize access_log, similar
     # to how proxy server plugins are able to do it.
-    def access_log(self) -> None:
-        logger.info(
-            '%s - %s %s - %.2f ms' %
-            (
-                self.client.address,
-                text_(self.request.method),
-                text_(self.request.path),
-                (time.time() - self.start_time) * 1000,
-            ),
-        )
+    def access_log(self, context: Dict[str, Any]) -> None:
+        logger.info(DEFAULT_WEB_ACCESS_LOG_FORMAT.format_map(context))

@@ -12,7 +12,7 @@ import socket
 import argparse
 
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 from ..websocket import WebsocketFrame
@@ -111,3 +111,13 @@ class HttpWebServerBasePlugin(ABC):
     # def on_websocket_close(self) -> None:
     #     """Called when websocket connection has been closed."""
     #     raise NotImplementedError()     # pragma: no cover
+
+    def on_access_log(self, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Use this method to override default access log format (see
+        DEFAULT_WEB_ACCESS_LOG_FORMAT) or to add/update/modify passed context
+        for usage by default access logger.
+
+        Return updated log context to use for default logging format, OR
+        Return None if plugin has logged the request.
+        """
+        return context
