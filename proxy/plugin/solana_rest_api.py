@@ -443,13 +443,12 @@ class EthereumModel:
                         'from_address': '0x'+sender,
                     }
                 else:
-                    slot = got_result['slot']
                     self.ethereum_trx[eth_signature] = {
                         'eth_trx': rawTrx[2:],
                         'slot': slot,
-                        'logs': None,
+                        'logs': [],
                         'status': 0,
-                        'gas_used': None,
+                        'gas_used': 0,
                         'return_value': None,
                         'from_address': '0x'+sender,
                     }
