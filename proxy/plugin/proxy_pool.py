@@ -152,7 +152,8 @@ class ProxyPoolPlugin(HttpProxyBasePlugin):
             assert url.hostname
             host, port = url.hostname.decode('utf-8'), url.port
             port = port if port else (
-                443 if request.is_https_tunnel() else 80)
+                443 if request.is_https_tunnel() else 80
+            )
         path = None if not request.path else request.path.decode()
         self.request_host_port_path_method = [
             host, port, path, request.method,
