@@ -472,123 +472,14 @@ def check_if_continue_returned(result):
     return (False, ())
 
 
-def call_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg, eth_trx):
-    try:
-        return call_continue_bucked_0x0d(signer, client, perm_accs, trx_accs, steps, msg, eth_trx)
-    except Exception as err:
-        logger.debug("call_continue_bucked_0x0D exception:")
-        logger.debug(str(err))
-
-    try:
-        # return call_continue_iterative_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
-        return call_continue_iterative(signer, client, perm_accs, trx_accs, steps, eth_trx)
-    except Exception as err:
-        logger.debug("call_continue_iterative exception:")
-        logger.debug(str(err))
-
-    return sol_instr_21_cancel(signer, client, perm_accs, trx_accs, eth_trx)
-
-
 def call_continue(signer, client, perm_accs, trx_accs, steps, eth_trx):
     try:
-        return call_continue_bucked(signer, client, perm_accs, trx_accs, steps, eth_trx)
-    except Exception as err:
-        logger.debug("call_continue_bucked exception:")
-        logger.debug(str(err))
-
-    try:
         return call_continue_iterative(signer, client, perm_accs, trx_accs, steps, eth_trx)
     except Exception as err:
         logger.debug("call_continue_iterative exception:")
         logger.debug(str(err))
 
     return sol_instr_21_cancel(signer, client, perm_accs, trx_accs, eth_trx)
-
-
-def call_continue_bucked(signer, client, perm_accs, trx_accs, steps, eth_trx):
-    while True:
-        logger.debug("Continue bucked step:")
-        (continue_count, instruction_count) = simulate_continue(signer, client, perm_accs, trx_accs, steps)
-        logger.debug("Send bucked:")
-        result_list = []
-        try:
-            for index in range(continue_count):
-                trx = Transaction().add(make_continue_instruction(perm_accs, trx_accs, instruction_count, index))
-                result = client.send_transaction(
-                        trx,
-                        signer,
-                        opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
-                    )["result"]
-                result_list.append(result)
-        except Exception as err:
-            if str(err).startswith("Transaction simulation failed: Error processing Instruction 0: custom program error: 0x1"):
-                pass
-            else:
-                raise
-
-        logger.debug("Collect bucked results: {}".format(result_list))
-        signature = None
-        for trx in result_list:
-            confirm_transaction(client, trx)
-            result = client.get_confirmed_transaction(trx)
-
-            extra_sol_trx = False
-            if result['result']['meta']['err']:
-                instruction_error =  result['result']['meta']['err']['InstructionError']
-                err = instruction_error[1]
-                if isinstance(err, dict)  and err.get('Custom', 0) == 1:
-                    extra_sol_trx = True
-            update_transaction_cost(result, eth_trx, extra_sol_trx=extra_sol_trx, reason='ContinueV02')
-            get_measurements(result)
-            (founded, signature_) = check_if_continue_returned(result)
-            if founded:
-                signature = signature_
-        if signature:
-            return signature
-
-def call_continue_bucked_0x0d(signer, client, perm_accs, trx_accs, steps, msg, eth_trx):
-    while True:
-        logger.debug("Continue bucked step:")
-        (continue_count, instruction_count) = simulate_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg)
-        logger.debug("Send bucked:")
-        result_list = []
-        try:
-            for index in range(continue_count*CONTINUE_COUNT_FACTOR):
-                trx = Transaction().add(make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, instruction_count, msg, index))
-                result = client.send_transaction(
-                    trx,
-                    signer,
-                    opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed)
-                )["result"]
-                result_list.append(result)
-        except Exception as err:
-            if str(err).startswith("Transaction simulation failed: Error processing Instruction 0: custom program error: 0x1"):
-                pass
-            else:
-                raise
-
-        logger.debug("Collect bucked results:")
-        signature=None
-
-
-        for trx in result_list:
-            confirm_transaction(client, trx)
-            result = client.get_confirmed_transaction(trx)
-
-            extra_sol_trx = False
-            if result['result']['meta']['err']:
-                instruction_error =  result['result']['meta']['err']['InstructionError']
-                err = instruction_error[1]
-                if isinstance(err, dict) and err.get('Custom', 0) == 1:
-                    extra_sol_trx = True
-
-            update_transaction_cost(result, eth_trx, extra_sol_trx=extra_sol_trx, reason='PartialCallOrContinueFromRawEthereumTX')
-            get_measurements(result)
-            (founded, signature_) = check_if_continue_returned(result)
-            if founded:
-                signature = signature_
-        if signature:
-            return signature
 
 def call_continue_iterative(signer, client, perm_accs, trx_accs, step_count, eth_trx):
     while True:
@@ -597,15 +488,6 @@ def call_continue_iterative(signer, client, perm_accs, trx_accs, step_count, eth
         (succeed, signature) = check_if_continue_returned(result)
         if succeed:
             return signature
-
-
-# def call_continue_iterative_0x0d(signer, client, perm_accs, trx_accs, step_count, msg):
-#     while True:
-#         logger.debug("Continue iterative step:")
-#         result = make_partial_call_or_continue_instruction_0x0d(signer, client, perm_accs, trx_accs, step_count, msg)
-#         (succeed, signature) = check_if_continue_returned(result)
-#         if succeed:
-#             return signature
 
 
 def sol_instr_10_continue(signer, client, perm_accs, trx_accs, initial_step_count, eth_trx):
@@ -671,30 +553,6 @@ def make_partial_call_instruction(perm_accs, trx_accs, step_count, call_data):
         )
 
 
-def make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, step_count, call_data, index=None):
-    data = bytearray.fromhex("0D") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little") + call_data
-    if index:
-        data = data + index.to_bytes(8, byteorder="little")
-    return TransactionInstruction(
-        program_id = evm_loader_id,
-        data = data,
-        keys = [
-                   AccountMeta(pubkey=perm_accs.storage, is_signer=False, is_writable=True),
-
-                   AccountMeta(pubkey=sysinstruct, is_signer=False, is_writable=False),
-                   AccountMeta(pubkey=perm_accs.operator, is_signer=True, is_writable=True),
-                   AccountMeta(pubkey=perm_accs.collateral_pool_address, is_signer=False, is_writable=True),
-                   AccountMeta(pubkey=perm_accs.operator_token, is_signer=False, is_writable=True),
-                   AccountMeta(pubkey=trx_accs.caller_token, is_signer=False, is_writable=True),
-                   AccountMeta(pubkey=system, is_signer=False, is_writable=False),
-
-               ] + trx_accs.eth_accounts + [
-
-                   AccountMeta(pubkey=sysinstruct, is_signer=False, is_writable=False),
-               ] + obligatory_accounts
-    )
-
-
 def make_continue_instruction(perm_accs, trx_accs, step_count, index=None):
     data = bytearray.fromhex("14") + perm_accs.collateral_pool_index_buf + step_count.to_bytes(8, byteorder="little")
     if index:
@@ -756,102 +614,6 @@ def make_05_call_instruction(perm_accs, trx_accs, call_data):
     )
 
 
-def simulate_continue_0x0d(signer, client, perm_accs, trx_accs, step_count, msg):
-    logger.debug("simulate_continue:")
-    continue_count = 9
-    while True:
-        logger.debug(continue_count)
-        blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
-        trx = Transaction(recent_blockhash = blockhash)
-        for _ in range(continue_count):
-            trx.add(make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, step_count, msg))
-        trx.sign(signer)
-
-        try:
-            trx.serialize()
-        except Exception as err:
-            logger.debug("trx.serialize() exception")
-            if str(err).startswith("transaction too large:"):
-                if continue_count == 0:
-                    raise Exception("transaction too large")
-                continue_count = continue_count // 2
-                continue
-            raise
-
-        response = client.simulate_transaction(trx, commitment=Confirmed)
-
-        if response["result"]["value"]["err"]:
-            instruction_error = response["result"]["value"]["err"]["InstructionError"]
-            err = instruction_error[1]
-            if isinstance(err, str) and (err == "ProgramFailedToComplete" or err == "ComputationalBudgetExceeded"):
-                step_count = step_count // 2
-                if step_count == 0:
-                    raise Exception("cant run even one instruction")
-            elif isinstance(err, dict) and "Custom" in err:
-                if continue_count == 0:
-                    raise Exception("uninitialized storage account")
-                continue_count = instruction_error[0]
-                break
-            else:
-                logger.debug("Result:\n%s"%json.dumps(response, indent=3))
-                raise Exception("unspecified error")
-        else:
-            # In case of long Ethereum transaction we speculative send more iterations then need
-            continue_count = continue_count*CONTINUE_COUNT_FACTOR
-            break
-
-    logger.debug("tx_count = {}, step_count = {}".format(continue_count, step_count))
-    return (continue_count, step_count)
-
-
-def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
-    logger.debug("simulate_continue:")
-    continue_count = 9
-    while True:
-        logger.debug(continue_count)
-        blockhash = Blockhash(client.get_recent_blockhash(Confirmed)["result"]["value"]["blockhash"])
-        trx = Transaction(recent_blockhash = blockhash)
-        for _ in range(continue_count):
-            trx.add(make_continue_instruction(perm_accs, trx_accs, step_count))
-        trx.sign(signer)
-
-        try:
-            trx.serialize()
-        except Exception as err:
-            logger.debug("trx.serialize() exception")
-            if str(err).startswith("transaction too large:"):
-                if continue_count == 0:
-                    raise Exception("transaction too large")
-                continue_count = continue_count // 2
-                continue
-            raise
-
-        response = client.simulate_transaction(trx, commitment=Confirmed)
-
-        if response["result"]["value"]["err"]:
-            instruction_error = response["result"]["value"]["err"]["InstructionError"]
-            err = instruction_error[1]
-            if isinstance(err, str) and (err == "ProgramFailedToComplete" or err == "ComputationalBudgetExceeded"):
-                step_count = step_count // 2
-                if step_count == 0:
-                    raise Exception("cant run even one instruction")
-            elif isinstance(err, dict) and "Custom" in err:
-                if continue_count == 0:
-                    raise Exception("uninitialized storage account")
-                continue_count = instruction_error[0]
-                break
-            else:
-                logger.debug("Result:\n%s"%json.dumps(response, indent=3))
-                raise Exception("unspecified error")
-        else:
-            # In case of long Ethereum transaction we speculative send more iterations then need
-            continue_count = continue_count*CONTINUE_COUNT_FACTOR
-            break
-
-    logger.debug("tx_count = {}, step_count = {}".format(continue_count, step_count))
-    return (continue_count, step_count)
-
-
 def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
     cost = receipt['result']['meta']['preBalances'][0] - receipt['result']['meta']['postBalances'][0]
     if eth_trx:
@@ -894,7 +656,6 @@ def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
     )
 
 def create_account_list_by_emulate(signer, client, eth_trx):
-
     sender_ether = bytes.fromhex(eth_trx.sender())
     add_keys_05 = []
     trx = Transaction()
@@ -1056,11 +817,12 @@ def call_signed(signer, client, eth_trx, perm_accs, steps):
 
     (trx_accs, sender_ether, create_acc_trx) = create_account_list_by_emulate(signer, client, eth_trx)
 
+    call_iterative = False
+    call_from_holder = False
+
     if not eth_trx.toAddress:
         call_from_holder = True
     else:
-        call_from_holder = False
-        call_iterative = False
         msg = sender_ether + eth_trx.signature() + eth_trx.unsigned_msg()
 
         try:
@@ -1068,7 +830,8 @@ def call_signed(signer, client, eth_trx, perm_accs, steps):
             return call_signed_noniterative(signer, client, eth_trx, perm_accs, trx_accs, msg, create_acc_trx)
         except Exception as err:
             logger.debug(str(err))
-            if str(err).find("Program failed to complete") >= 0:
+            errStr = str(err)
+            if "Program failed to complete" in errStr or "Computational budget exceeded" in errStr:
                 logger.debug("Program exceeded instructions")
                 call_iterative = True
             elif str(err).startswith("transaction too large:"):
@@ -1077,18 +840,27 @@ def call_signed(signer, client, eth_trx, perm_accs, steps):
             else:
                 raise
 
+    if call_iterative:
+        try:
+            return call_signed_iterative(signer, client, eth_trx, perm_accs, trx_accs, steps, msg, create_acc_trx)
+        except Exception as err:
+            logger.debug(str(err))
+            if str(err).startswith("transaction too large:"):
+                logger.debug("Transaction too large, call call_signed_with_holder_acc():")
+                call_from_holder = True
+            else:
+                raise
+
     if call_from_holder:
         return call_signed_with_holder_acc(signer, client, eth_trx, perm_accs, trx_accs, steps, create_acc_trx)
-    if call_iterative:
-        if USE_COMBINED_START_CONTINUE:
-            return call_signed_iterative_0x0d(signer, client, eth_trx, perm_accs, trx_accs, steps, msg, create_acc_trx)
-        else:
-            return call_signed_iterative(signer, client, eth_trx, perm_accs, trx_accs, steps, msg, create_acc_trx)
-
 
 def call_signed_iterative(signer, client, eth_trx, perm_accs, trx_accs, steps, msg, create_acc_trx):
+    if len(create_acc_trx.instructions):
+        precall_txs = Transaction()
+        precall_txs.add(create_acc_trx)
+        send_measured_transaction(client, precall_txs, signer, eth_trx, 'CreateAccountsForTrx')
+
     precall_txs = Transaction()
-    precall_txs.add(create_acc_trx)
     precall_txs.add(TransactionInstruction(
         program_id=keccakprog,
         data=make_keccak_instruction_data(len(precall_txs.instructions)+1, len(eth_trx.unsigned_msg()), data_start=13),
@@ -1101,23 +873,6 @@ def call_signed_iterative(signer, client, eth_trx, perm_accs, trx_accs, steps, m
     send_measured_transaction(client, precall_txs, signer, eth_trx, 'PartialCallFromRawEthereumTXv02')
 
     return call_continue(signer, client, perm_accs, trx_accs, steps, eth_trx)
-
-
-def call_signed_iterative_0x0d(signer, client, eth_trx, perm_accs, trx_accs, steps, msg, create_acc_trx):
-    precall_txs = Transaction()
-    precall_txs.add(create_acc_trx)
-    precall_txs.add(TransactionInstruction(
-        program_id=keccakprog,
-        data=make_keccak_instruction_data(len(precall_txs.instructions)+1, len(eth_trx.unsigned_msg()), data_start=13),
-        keys=[
-            AccountMeta(pubkey=keccakprog, is_signer=False, is_writable=False),
-        ]))
-    precall_txs.add(make_partial_call_or_continue_instruction_0x0d(perm_accs, trx_accs, steps, msg))
-
-    logger.debug("Partial call 0x0d")
-    send_measured_transaction(client, precall_txs, signer, eth_trx, 'PartialCallOrContinueFromRawEthereumTX')
-
-    return call_continue_0x0d(signer, client, perm_accs, trx_accs, steps, msg, eth_trx)
 
 
 def call_signed_noniterative(signer, client, eth_trx, perm_accs, trx_accs, msg, create_acc_trx):
