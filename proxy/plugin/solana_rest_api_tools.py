@@ -30,7 +30,8 @@ from spl.token.instructions import get_associated_token_address, create_associat
 from web3.auto import w3
 from proxy.environment import neon_cli, evm_loader_id, ETH_TOKEN_MINT_ID, COLLATERAL_POOL_BASE, read_elf_params
 from .eth_proto import Trx
-from ..indexer.sql_dict import SQLDict
+from ..indexer.sql_dict import POSTGRES_USER, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PASSWORD
+import psycopg2
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -87,6 +88,50 @@ obligatory_accounts = [
     AccountMeta(pubkey=sysvarclock, is_signer=False, is_writable=False),
 ]
 
+class SQLCost():
+    def __init__(self):
+
+        self.conn = psycopg2.connect(
+            dbname=POSTGRES_DB,
+            user=POSTGRES_USER,
+            password=POSTGRES_PASSWORD,
+            host=POSTGRES_HOST
+        )
+
+        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        cur = self.conn.cursor()
+        cur.execute('''
+                CREATE TABLE IF NOT EXISTS OPERATOR_COST
+                (
+                    hash char(64),
+                    cost bigint,
+                    used_gas bigint,
+                    sender char(40),
+                    to_address char(40) ,
+                    sig char(100),
+                    status varchar(100),
+                    reason varchar(100)
+                )'''
+                    )
+
+    def close(self):
+        self.conn.close()
+
+    def insert(self, hash, cost, used_gas, sender, to_address, sig, status, reason):
+        cur = self.conn.cursor()
+        cur.execute('''
+                INSERT INTO OPERATOR_COST (hash, cost, used_gas, sender, to_address, sig, status, reason)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            ''',
+            (hash, cost, used_gas, sender, to_address, sig, status, reason)
+        )
+
+class CostSingleton(object):
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(CostSingleton, cls).__new__(cls)
+            cls.instance.operator_cost = SQLCost()
+        return cls.instance
 
 class TransactionInfo:
     def __init__(self, caller_token, eth_accounts, nonce):
@@ -807,14 +852,6 @@ def simulate_continue(signer, client, perm_accs, trx_accs, step_count):
     return (continue_count, step_count)
 
 
-class CostSingleton(object):
-    def __new__(cls):
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(CostSingleton, cls).__new__(cls)
-            cls.instance.operator_cost = SQLDict(tablename="operator_cost")
-        return cls.instance
-
-
 def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
     cost = receipt['result']['meta']['preBalances'][0] - receipt['result']['meta']['postBalances'][0]
     if eth_trx:
@@ -844,16 +881,17 @@ def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
                     used_gas = base58.b58decode(event['data'])[2:10]
                     used_gas = int().from_bytes(used_gas, "little")
 
-    table = CostSingleton()
-    table.operator_cost[hash] = {
-        'cost': cost,
-        'used_gas': used_gas if used_gas else 0,
-        'sender': sender,
-        'to_address': to_address,
-        'sig': sig,
-        'status': 'extra' if extra_sol_trx else 'ok',
-        'reason':  reason if reason else ''
-    }
+    table = CostSingleton().operator_cost
+    table.insert(
+        hash,
+        cost,
+        used_gas if used_gas else 0,
+        sender,
+        to_address,
+        sig,
+        'extra' if extra_sol_trx else 'ok',
+        reason if reason else ''
+    )
 
 def create_account_list_by_emulate(signer, client, eth_trx):
 
