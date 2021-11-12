@@ -96,7 +96,7 @@ class Acceptor(multiprocessing.Process):
         self._work(conn, addr)
 
     def run(self) -> None:
-        Logger.setup_logger(
+        Logger.setup(
             self.flags.log_file, self.flags.log_level,
             self.flags.log_format,
         )
