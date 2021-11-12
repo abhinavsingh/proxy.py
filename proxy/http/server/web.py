@@ -307,7 +307,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             'client_addr': self.client.address,
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
-            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000)
+            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
         }
         log_handled = False
         if self.route:
