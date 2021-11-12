@@ -10,7 +10,7 @@
 """
 import unittest
 
-from proxy.http.url import Url
+from proxy.http.parser import Url
 
 
 class TestUrl(unittest.TestCase):

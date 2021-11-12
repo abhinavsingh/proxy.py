@@ -26,8 +26,7 @@ from ...common.flag import flags
 
 from ..exception import HttpProtocolException
 from ..websocket import WebsocketFrame, websocketOpcodes
-from ..codes import httpStatusCodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..parser import HttpParser, httpParserStates, httpParserTypes, httpStatusCodes
 from ..plugin import HttpProtocolHandlerPlugin
 
 from .plugin import HttpWebServerBasePlugin

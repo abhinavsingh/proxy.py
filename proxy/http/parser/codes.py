@@ -40,6 +40,7 @@ HttpStatusCodes = NamedTuple(
         ('NETWORK_CONNECT_TIMEOUT_ERROR', int),
     ],
 )
+
 httpStatusCodes = HttpStatusCodes(
     100, 101,
     200,

@@ -17,8 +17,7 @@ import urllib.error
 from proxy import TestCase
 from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
 from proxy.common.utils import socket_connection, build_http_request, build_http_response
-from proxy.http.codes import httpStatusCodes
-from proxy.http.methods import httpMethods
+from proxy.http.parser import httpStatusCodes, httpMethods
 
 
 @unittest.skipIf(os.name == 'nt', 'Disabled for Windows due to weird permission issues.')

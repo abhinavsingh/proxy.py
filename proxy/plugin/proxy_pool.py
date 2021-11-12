@@ -18,9 +18,7 @@ from ..common.types import Readables, Writables
 from ..common.flag import flags
 from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser
-from ..http.methods import httpMethods
-from ..http.url import Url
+from ..http.parser import HttpParser, Url, httpMethods
 from ..core.connection.server import TcpServerConnection
 
 logger = logging.getLogger(__name__)

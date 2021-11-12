@@ -12,9 +12,8 @@ import json
 from typing import Optional
 
 from ..common.utils import bytes_, build_http_response, text_
-from ..http.parser import HttpParser
+from ..http.parser import HttpParser, httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.codes import httpStatusCodes
 
 
 class ProposedRestApiPlugin(HttpProxyBasePlugin):

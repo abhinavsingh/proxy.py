@@ -10,11 +10,10 @@
 """
 import unittest
 
-from proxy.http.parser import HttpParser, httpParserTypes
+from proxy.http.parser import HttpParser, httpParserTypes, httpStatusCodes
 from proxy.http.exception import HttpRequestRejected
 from proxy.common.constants import CRLF
 from proxy.common.utils import build_http_response
-from proxy.http.codes import httpStatusCodes
 
 
 class TestHttpRequestRejected(unittest.TestCase):
@@ -42,5 +41,6 @@ class TestHttpRequestRejected(unittest.TestCase):
         )
         self.assertEqual(
             e.response(self.request),
-            build_http_response(httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND', body=b'Nothing here'),
+            build_http_response(httpStatusCodes.NOT_FOUND,
+                                reason=b'NOT FOUND', body=b'Nothing here'),
         )

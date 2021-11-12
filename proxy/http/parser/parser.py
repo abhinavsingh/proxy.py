@@ -10,12 +10,13 @@
 """
 from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
-from ..common.constants import DEFAULT_DISABLE_HEADERS, COLON, SLASH, CRLF, WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
-from ..common.utils import build_http_request, build_http_response, find_http_line, text_
+from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, SLASH, CRLF
+from ...common.constants import WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
+from ...common.utils import build_http_request, build_http_response, find_http_line, text_
 
-from .methods import httpMethods
-from .chunk_parser import ChunkParser, chunkParserStates
 from .url import Url
+from .methods import httpMethods
+from .chunk import ChunkParser, chunkParserStates
 
 HttpParserStates = NamedTuple(
     'HttpParserStates', [
@@ -74,7 +75,7 @@ class HttpParser:
         #   header and it's value as received.
         self.headers: Dict[bytes, Tuple[bytes, bytes]] = {}
         self.body: Optional[bytes] = None
-        self.chunk_parser: Optional[ChunkParser] = None
+        self.chunk: Optional[ChunkParser] = None
         # Internal request line as a url structure
         self._url: Optional[Url] = None
 
@@ -228,11 +229,11 @@ class HttpParser:
                 self.state = httpParserStates.COMPLETE
             more, raw = len(raw) > 0, raw[total_size - received_size:]
         elif self.is_chunked_encoded():
-            if not self.chunk_parser:
-                self.chunk_parser = ChunkParser()
-            raw = self.chunk_parser.parse(raw)
-            if self.chunk_parser.state == chunkParserStates.COMPLETE:
-                self.body = self.chunk_parser.body
+            if not self.chunk:
+                self.chunk = ChunkParser()
+            raw = self.chunk.parse(raw)
+            if self.chunk.state == chunkParserStates.COMPLETE:
+                self.body = self.chunk.body
                 self.state = httpParserStates.COMPLETE
             more = False
         else:

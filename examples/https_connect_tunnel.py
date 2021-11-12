@@ -14,8 +14,7 @@ from typing import Any, Optional
 
 from proxy import Proxy
 from proxy.common.utils import build_http_response
-from proxy.http.codes import httpStatusCodes
-from proxy.http.parser import httpParserStates
+from proxy.http.parser import httpParserStates, httpStatusCodes
 from proxy.core.base import BaseTcpTunnelHandler
 
 
