@@ -25,7 +25,7 @@ from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes, httpStatusCodes, httpMethods
 
 from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
+from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE, PLUGIN_PROXY_AUTH
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
@@ -43,10 +43,28 @@ logger = logging.getLogger(__name__)
 
 
 flags.add_argument(
+    '--server-recvbuf-size',
+    type=int,
+    default=DEFAULT_SERVER_RECVBUF_SIZE,
+    help='Default: 1 MB. Maximum amount of data received from the '
+    'server in a single recv() operation. Bump this '
+    'value for faster downloads at the expense of '
+    'increased RAM.',
+)
+
+flags.add_argument(
     '--disable-http-proxy',
     action='store_true',
     default=DEFAULT_DISABLE_HTTP_PROXY,
     help='Default: False.  Whether to disable proxy.HttpProxyPlugin.',
+)
+
+flags.add_argument(
+    '--disable-headers',
+    type=str,
+    default=COMMA.join(DEFAULT_DISABLE_HEADERS),
+    help='Default: None.  Comma separated list of headers to remove before '
+    'dispatching client request to upstream server.',
 )
 
 flags.add_argument(
@@ -98,21 +116,11 @@ flags.add_argument(
 )
 
 flags.add_argument(
-    '--disable-headers',
+    '--auth-plugin',
     type=str,
-    default=COMMA.join(DEFAULT_DISABLE_HEADERS),
-    help='Default: None.  Comma separated list of headers to remove before '
-    'dispatching client request to upstream server.',
-)
-
-flags.add_argument(
-    '--server-recvbuf-size',
-    type=int,
-    default=DEFAULT_SERVER_RECVBUF_SIZE,
-    help='Default: 1 MB. Maximum amount of data received from the '
-    'server in a single recv() operation. Bump this '
-    'value for faster downloads at the expense of '
-    'increased RAM.',
+    default=PLUGIN_PROXY_AUTH,
+    help='Default: ' + PLUGIN_PROXY_AUTH + '.  ' +
+    'Auth plugin to use instead of default basic auth plugin.',
 )
 
 
