@@ -15,7 +15,7 @@ import inspect
 import itertools
 import importlib
 
-from typing import Any, List, Dict, Optional, Union
+from typing import Any, List, Dict, Optional, Tuple, Union
 
 from .utils import bytes_, text_
 from .constants import DOT, DEFAULT_ABC_PLUGINS, COMMA
@@ -46,11 +46,11 @@ class Plugins:
 
     @staticmethod
     def discover(input_args: List[str]) -> None:
-        """Search for plugin and plugins flag in command line arguments,
-        then iterates over each value and discovers the plugin.
+        """Search for external plugin found in command line arguments,
+        then iterates over each value and discover/import the plugin.
         """
         for i, f in enumerate(input_args):
-            if f in ('--plugin', '--plugins'):
+            if f in ('--plugin', '--plugins', '--auth-plugin'):
                 v = input_args[i + 1]
                 parts = v.split(',')
                 for part in parts:
@@ -83,7 +83,7 @@ class Plugins:
         return p
 
     @staticmethod
-    def importer(plugin: Union[bytes, type]) -> Any:
+    def importer(plugin: Union[bytes, type]) -> Tuple[type, str]:
         """Import and returns the plugin."""
         if isinstance(plugin, type):
             return (plugin, '__main__')

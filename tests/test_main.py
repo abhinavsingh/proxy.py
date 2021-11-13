@@ -26,7 +26,7 @@ from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PI
 from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_WORK_KLASS
 from proxy.common.constants import PLUGIN_INSPECT_TRAFFIC, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEB_SERVER
-from proxy.common.constants import PLUGIN_HTTP_PROXY, DEFAULT_NUM_ACCEPTORS
+from proxy.common.constants import PLUGIN_HTTP_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_PROXY_AUTH
 
 
 class TestMain(unittest.TestCase):
@@ -52,6 +52,7 @@ class TestMain(unittest.TestCase):
         mock_args.disable_http_proxy = DEFAULT_DISABLE_HTTP_PROXY
         mock_args.pac_file = DEFAULT_PAC_FILE
         mock_args.plugins = DEFAULT_PLUGINS
+        mock_args.auth_plugin = PLUGIN_PROXY_AUTH
         mock_args.server_recvbuf_size = DEFAULT_SERVER_RECVBUF_SIZE
         mock_args.client_recvbuf_size = DEFAULT_CLIENT_RECVBUF_SIZE
         mock_args.open_file_limit = DEFAULT_OPEN_FILE_LIMIT
