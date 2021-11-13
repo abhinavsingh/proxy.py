@@ -2,7 +2,8 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-VERSION ?= v$(shell python -m proxy --version)
+#VERSION ?= v$(shell bash -c "python -m setuptools_scm --version \| awk '{print$3}'")
+VERSION ?= v$(shell python -m setuptools_scm --version | awk '{print $$3}' | sed 's/\+/--/')
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 

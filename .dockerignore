@@ -2,6 +2,7 @@
 **
 
 # Except proxy
+!.git
 !proxy
 !requirements.txt
 !pyproject.toml
