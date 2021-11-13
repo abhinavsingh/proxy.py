@@ -15,7 +15,7 @@ import inspect
 import itertools
 import importlib
 
-from typing import Any, List, Dict, Optional, Union
+from typing import Any, List, Dict, Optional, Tuple, Union
 
 from .utils import bytes_, text_
 from .constants import DOT, DEFAULT_ABC_PLUGINS, COMMA
@@ -83,7 +83,7 @@ class Plugins:
         return p
 
     @staticmethod
-    def importer(plugin: Union[bytes, type]) -> Any:
+    def importer(plugin: Union[bytes, type]) -> Tuple[type, str]:
         """Import and returns the plugin."""
         if isinstance(plugin, type):
             return (plugin, '__main__')

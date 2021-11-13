@@ -135,14 +135,23 @@ class FlagParser:
 
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
+        basic_auth = opts.get('basic_auth', args.basic_auth)
+        # Destroy passed credentials via flags or options
+        args.basic_auth = None
+        if 'basic_auth' in opts:
+            del opts['basic_auth']
+
+        # Resolve auth module.
         auth_plugins = []
-        if args.basic_auth:
-            auth_code = base64.b64encode(bytes_(args.basic_auth))
-            # Destroy passed credentials in flags, we don't need them any more
-            # args.basic_auth = None
-            auth_plugins = Plugins.resolve_plugin_flag(
-                args.auth_plugin, opts.get('auth_plugin'),
-            )
+        auth_plugin = opts.get('auth_plugin', args.auth_plugin)
+        if basic_auth:
+            auth_code = base64.b64encode(bytes_(basic_auth))
+        if basic_auth or auth_plugin != PLUGIN_PROXY_AUTH:
+            # No basic auth provided
+            # Here auth_plugin is set to default plugin
+            # We want to avoid loading the auth plugin (w/o basic auth)
+            # unless user overrides the default auth plugin.
+            auth_plugins.append(auth_plugin)
 
         # Load default plugins along with user provided --plugins
         default_plugins = [
