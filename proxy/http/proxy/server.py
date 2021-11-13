@@ -121,7 +121,7 @@ flags.add_argument(
     default=PLUGIN_PROXY_AUTH,
     help='Default: ' + PLUGIN_PROXY_AUTH + '.  ' +
     'Auth plugin to use when --basic-auth flag is used.  ' +
-    'Override this flag if you want to use a custom auth mechanism.'
+    'Override this flag if you want to use a custom auth mechanism.',
 )
 
 

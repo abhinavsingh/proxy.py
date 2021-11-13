@@ -162,7 +162,8 @@ class FlagParser:
             args.plugins, opts.get('plugins', None),
         )
         plugins = Plugins.load(
-            default_plugins + auth_plugins + requested_plugins)
+            default_plugins + auth_plugins + requested_plugins,
+        )
 
         # https://github.com/python/mypy/issues/5865
         #
