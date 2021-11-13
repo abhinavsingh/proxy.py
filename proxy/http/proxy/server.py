@@ -25,12 +25,12 @@ from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes, httpStatusCodes, httpMethods
 
 from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE, PLUGIN_PROXY_AUTH
+from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
 from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
-from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY
+from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_PROXY_AUTH
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
@@ -453,6 +453,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     return None
 
                 if self.pipeline_request is None:
+                    # For pipeline requests, we don't
+                    # want to use --haproxy-protocol flag
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER,
                     )

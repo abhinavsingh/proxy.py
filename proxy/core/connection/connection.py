@@ -70,7 +70,7 @@ class TcpConnection(ABC):
             'received %d bytes from %s' %
             (len(data), self.tag),
         )
-        # logger.info(data)
+        logger.info(data)
         return memoryview(data)
 
     def close(self) -> bool:

@@ -38,7 +38,10 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.request = HttpParser(httpParserTypes.REQUEST_PARSER)
+        self.request = HttpParser(
+            httpParserTypes.REQUEST_PARSER,
+            haproxy_protocol=self.flags.haproxy_protocol,
+        )
         self.upstream: Optional[TcpServerConnection] = None
 
     @abstractmethod

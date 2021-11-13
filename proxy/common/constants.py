@@ -107,6 +107,7 @@ DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 DEFAULT_MAX_SEND_SIZE = 16 * 1024
 DEFAULT_WORK_KLASS = 'proxy.http.HttpProtocolHandler'
+DEFAULT_HAPROXY_PROTOCOL = 0
 
 DEFAULT_DEVTOOLS_DOC_URL = 'http://proxy'
 DEFAULT_DEVTOOLS_FRAME_ID = secrets.token_hex(8)
@@ -132,3 +133,5 @@ PLUGIN_PROXY_AUTH = 'proxy.http.proxy.AuthPlugin'
 PY2_DEPRECATION_MESSAGE = '''DEPRECATION: proxy.py no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
                 'If for some reasons you cannot upgrade, use'
                 '"pip install proxy.py==0.3".'''
+
+HAPROXY_PROTOCOL_CHOICES = [1, 2]

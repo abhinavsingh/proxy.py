@@ -10,13 +10,24 @@
 """
 from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
 
-from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, HTTP_1_0, SLASH, CRLF
+from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_HAPROXY_PROTOCOL
+from ...common.constants import HAPROXY_PROTOCOL_CHOICES, HTTP_1_0, SLASH, CRLF
 from ...common.constants import WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
 from ...common.utils import build_http_request, build_http_response, find_http_line, text_
+from ...common.flag import flags
 
 from .url import Url
 from .methods import httpMethods
 from .chunk import ChunkParser, chunkParserStates
+
+flags.add_argument(
+    '--haproxy-protocol',
+    type=int,
+    default=DEFAULT_HAPROXY_PROTOCOL,
+    choices=HAPROXY_PROTOCOL_CHOICES,
+    help='Default: Disabled.  ' +
+    'To enable pass the haproxy protocol version to use.',
+)
 
 HttpParserStates = NamedTuple(
     'HttpParserStates', [
@@ -55,7 +66,7 @@ class HttpParser:
     update parser to work accordingly.
     """
 
-    def __init__(self, parser_type: int) -> None:
+    def __init__(self, parser_type: int, haproxy_protocol: int = 0) -> None:
         self.type: int = parser_type
         self.state: int = httpParserStates.INITIALIZED
         self.host: Optional[bytes] = None
