@@ -46,11 +46,11 @@ class Plugins:
 
     @staticmethod
     def discover(input_args: List[str]) -> None:
-        """Search for plugin and plugins flag in command line arguments,
-        then iterates over each value and discovers the plugin.
+        """Search for external plugin found in command line arguments,
+        then iterates over each value and discover/import the plugin.
         """
         for i, f in enumerate(input_args):
-            if f in ('--plugin', '--plugins'):
+            if f in ('--plugin', '--plugins', '--auth-plugin'):
                 v = input_args[i + 1]
                 parts = v.split(',')
                 for part in parts:

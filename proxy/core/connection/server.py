@@ -33,7 +33,11 @@ class TcpServerConnection(TcpConnection):
             raise TcpConnectionUninitializedException()
         return self._conn
 
-    def connect(self, addr: Optional[Tuple[str, int]] = None, source_address: Optional[Tuple[str, int]] = None) -> None:
+    def connect(
+            self,
+            addr: Optional[Tuple[str, int]] = None,
+            source_address: Optional[Tuple[str, int]] = None,
+    ) -> None:
         if self._conn is None:
             self._conn = new_socket_connection(
                 addr or self.addr, source_address=source_address,

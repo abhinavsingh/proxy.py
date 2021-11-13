@@ -135,19 +135,25 @@ class FlagParser:
 
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
+        auth_plugins = []
         if args.basic_auth:
             auth_code = base64.b64encode(bytes_(args.basic_auth))
+            # Destroy passed credentials in flags, we don't need them any more
+            # args.basic_auth = None
+            auth_plugins = Plugins.resolve_plugin_flag(
+                args.auth_plugin, opts.get('auth_plugin'),
+            )
 
         # Load default plugins along with user provided --plugins
         default_plugins = [
             bytes_(p)
             for p in FlagParser.get_default_plugins(args)
         ]
-        plugins = Plugins.load(
-            default_plugins + Plugins.resolve_plugin_flag(
-                args.plugins, opts.get('plugins', None),
-            ),
+        requested_plugins = Plugins.resolve_plugin_flag(
+            args.plugins, opts.get('plugins', None),
         )
+        plugins = Plugins.load(
+            default_plugins + auth_plugins + requested_plugins)
 
         # https://github.com/python/mypy/issues/5865
         #
@@ -339,8 +345,6 @@ class FlagParser:
         --enable-*, --disable-* and --basic-auth flags.
         """
         default_plugins: List[str] = []
-        if args.basic_auth is not None:
-            default_plugins.append(PLUGIN_PROXY_AUTH)
         if hasattr(args, 'enable_dashboard') and args.enable_dashboard:
             default_plugins.append(PLUGIN_WEB_SERVER)
             args.enable_static_server = True
