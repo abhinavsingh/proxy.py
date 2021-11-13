@@ -17,7 +17,7 @@ from unittest import mock
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
 
-from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT
+from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, PLUGIN_PROXY_AUTH
 from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
 from proxy.common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
 from proxy.common.constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
@@ -52,6 +52,7 @@ class TestMain(unittest.TestCase):
         mock_args.disable_http_proxy = DEFAULT_DISABLE_HTTP_PROXY
         mock_args.pac_file = DEFAULT_PAC_FILE
         mock_args.plugins = DEFAULT_PLUGINS
+        mock_args.auth_plugin = PLUGIN_PROXY_AUTH
         mock_args.server_recvbuf_size = DEFAULT_SERVER_RECVBUF_SIZE
         mock_args.client_recvbuf_size = DEFAULT_CLIENT_RECVBUF_SIZE
         mock_args.open_file_limit = DEFAULT_OPEN_FILE_LIMIT
