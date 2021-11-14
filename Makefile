@@ -2,8 +2,7 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-#VERSION ?= v$(shell bash -c "python -m setuptools_scm --version \| awk '{print$3}'")
-VERSION ?= v$(shell python -m setuptools_scm --version | awk '{print $$3}' | sed 's/\+/--/')
+VERSION ?= v$(shell ./scm-version.sh)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
@@ -17,9 +16,9 @@ CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 .PHONY: all https-certificates sign-https-certificates ca-certificates
-.PHONY: lib-version lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
+.PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile
-.PHONY: lib-dep, lib-flake8, lib-mypy
+.PHONY: lib-dep, lib-flake8, lib-mypy, lib-scm-version
 .PHONY: container container-run container-release
 .PHONY: devtools dashboard dashboard-clean
 
@@ -67,8 +66,8 @@ ca-certificates:
 	python -m proxy.common.pki remove_passphrase \
 		--private-key-path $(CA_SIGNING_KEY_FILE_PATH)
 
-lib-version:
-	python version-check.py
+lib-check:
+	python check.py
 
 lib-clean:
 	find . -name '*.pyc' -exec rm -f {} +
@@ -89,6 +88,9 @@ lib-dep:
 		-r requirements-release.txt \
 		-r requirements-tunnel.txt
 
+lib-scm-version:
+	@echo "version = '$(VERSION)'" > proxy/common/_scm_version.py
+
 lib-lint:
 	python -m tox -e lint
 
@@ -101,9 +103,9 @@ lib-mypy:
 lib-pytest:
 	python -m tox -e python -- -v
 
-lib-test: lib-clean lib-version lib-lint lib-pytest
+lib-test: lib-clean lib-check lib-lint lib-pytest
 
-lib-package: lib-clean lib-version
+lib-package: lib-clean lib-check
 	python -m tox -e cleanup-dists,build-dists,metadata-validation
 
 lib-release-test: lib-package

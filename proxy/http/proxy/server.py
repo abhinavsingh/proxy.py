@@ -25,12 +25,12 @@ from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes, httpStatusCodes, httpMethods
 
 from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE, PLUGIN_PROXY_AUTH
+from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
 from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
-from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY
+from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_PROXY_AUTH
 from ...common.utils import build_http_response, text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
@@ -348,6 +348,28 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             'response_code': text_(self.response.code),
             'response_reason': text_(self.response.reason),
         }
+        if self.flags.enable_proxy_protocol:
+            assert self.request.protocol and self.request.protocol.family
+            context.update({
+                'protocol': {
+                    'family': text_(self.request.protocol.family),
+                },
+            })
+            if self.request.protocol.source:
+                context.update({
+                    'protocol': {
+                        'source_ip': text_(self.request.protocol.source[0]),
+                        'source_port': self.request.protocol.source[1],
+                    },
+                })
+            if self.request.protocol.destination:
+                context.update({
+                    'protocol': {
+                        'destination_ip': text_(self.request.protocol.destination[0]),
+                        'destination_port': self.request.protocol.destination[1],
+                    },
+                })
+
         log_handled = False
         for plugin in self.plugins.values():
             ctx = plugin.on_access_log(context)
@@ -453,6 +475,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     return None
 
                 if self.pipeline_request is None:
+                    # For pipeline requests, we never
+                    # want to use --enable-proxy-protocol flag
+                    # as proxy protocol header will not be present
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER,
                     )

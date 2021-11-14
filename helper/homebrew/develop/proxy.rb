@@ -7,7 +7,7 @@ class Proxy < Formula
   url "https://github.com/abhinavsingh/proxy.py/archive/develop.zip"
   version "develop"
 
-  depends_on "python"
+  depends_on "python@3.10"
 
   def install
     virtualenv_install_with_resources
