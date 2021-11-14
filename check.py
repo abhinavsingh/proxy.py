@@ -2,8 +2,8 @@
 """
     proxy.py
     ~~~~~~~~
-    ⚡⚡⚡ Fast, Lightweight, Programmable, TLS interception capable
-    proxy server for Application debugging, testing and development.
+    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
+    Network monitoring, controls & Application development, testing, debugging.
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
@@ -24,20 +24,23 @@ PY_FILE_PREFIX = b'# -*- coding: utf-8 -*-\n' + \
     b'"""\n' + \
     b'    proxy.py\n' + \
     b'    ~~~~~~~~\n' + \
-    b'    \xe2\x9a\xa1\xe2\x9a\xa1\xe2\x9a\xa1 Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on\n' + \
+    b'    \xe2\x9a\xa1\xe2\x9a\xa1\xe2\x9a\xa1 Fast, Lightweight, Pluggable, TLS interception capable' + \
+    b' proxy server focused on\n' + \
     b'    Network monitoring, controls & Application development, testing, debugging.\n' + \
     b'\n' + \
     b'    :copyright: (c) 2013-present by Abhinav Singh and contributors.\n' + \
     b'    :license: BSD, see LICENSE for more details.\n'
 
 REPO_ROOT = Path(__file__).parent
+ALL_PY_FILES = (
+    list(REPO_ROOT.glob('*.py')) +
+    list((REPO_ROOT / 'proxy').rglob('*.py')) +
+    list((REPO_ROOT / 'examples').rglob('*.py')) +
+    list((REPO_ROOT / 'tests').rglob('*.py'))
+)
 
 # Ensure all python files start with licensing information
-for py_file in (
-        list((REPO_ROOT / 'proxy').rglob('*.py')) +
-        list((REPO_ROOT / 'examples').rglob('*.py')) +
-        list((REPO_ROOT / 'tests').rglob('*.py'))
-):
+for py_file in ALL_PY_FILES:
     if py_file.is_file() and py_file.name != '_scm_version.py':
         with open(py_file, 'rb') as f:
             code = f.read(len(PY_FILE_PREFIX))
@@ -64,3 +67,15 @@ if readme_version != lib_version[1:].split('-')[0]:
         ),
     )
     sys.exit(1)
+
+# Update README.md flags section to match current library --help output
+# lib_help = subprocess.check_output(
+#     ['python', '-m', 'proxy', '-h']
+# )
+# with open('README.md', 'rb+') as f:
+#     c = f.read()
+#     pre_flags, post_flags = c.split(b'# Flags')
+#     help_text, post_changelog = post_flags.split(b'# Changelog')
+#     f.seek(0)
+#     f.write(pre_flags + b'# Flags\n\n' + lib_help +
+#             b'\n# Changelog' + post_changelog)
