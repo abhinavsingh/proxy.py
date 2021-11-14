@@ -16,7 +16,7 @@ CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 .PHONY: all https-certificates sign-https-certificates ca-certificates
-.PHONY: lib-version lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
+.PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile
 .PHONY: lib-dep, lib-flake8, lib-mypy, lib-scm-version
 .PHONY: container container-run container-release
@@ -66,8 +66,8 @@ ca-certificates:
 	python -m proxy.common.pki remove_passphrase \
 		--private-key-path $(CA_SIGNING_KEY_FILE_PATH)
 
-lib-version:
-	python version-check.py
+lib-check:
+	python check.py
 
 lib-clean:
 	find . -name '*.pyc' -exec rm -f {} +
@@ -103,9 +103,9 @@ lib-mypy:
 lib-pytest:
 	python -m tox -e python -- -v
 
-lib-test: lib-clean lib-version lib-lint lib-pytest
+lib-test: lib-clean lib-check lib-lint lib-pytest
 
-lib-package: lib-clean lib-version
+lib-package: lib-clean lib-check
 	python -m tox -e cleanup-dists,build-dists,metadata-validation
 
 lib-release-test: lib-package
