@@ -24,6 +24,7 @@ HttpMethods = NamedTuple(
         ('PATCH', bytes),
     ],
 )
+
 httpMethods = HttpMethods(
     b'GET',
     b'HEAD',

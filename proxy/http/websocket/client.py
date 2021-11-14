@@ -8,11 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import ssl
 import base64
-import selectors
 import socket
 import secrets
-import ssl
+import selectors
 
 from typing import Optional, Union, Callable
 

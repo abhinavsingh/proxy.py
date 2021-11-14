@@ -13,7 +13,9 @@ import unittest
 from proxy.common.constants import CRLF, HTTP_1_0
 from proxy.common.utils import build_http_request, build_http_response, build_http_header
 from proxy.common.utils import find_http_line, bytes_
-from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates, httpStatusCodes, httpMethods
+
+from proxy.http import httpStatusCodes, httpMethods
+from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
 
 
 class TestHttpParser(unittest.TestCase):

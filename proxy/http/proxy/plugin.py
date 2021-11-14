@@ -11,9 +11,9 @@
 import socket
 import argparse
 
+from abc import ABC
 from uuid import UUID
 from typing import Any, Dict, List, Optional, Tuple
-from abc import ABC, abstractmethod
 
 from ..parser import HttpParser
 

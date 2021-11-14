@@ -9,7 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 from .base import HttpProtocolException
-from ..parser import HttpParser, httpStatusCodes
+
+from ..codes import httpStatusCodes
+from ..parser import HttpParser
 
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, PROXY_AGENT_HEADER_KEY
 from ...common.utils import build_http_response

@@ -16,9 +16,12 @@ from typing import Dict, List, Optional, Any, Tuple
 
 from ..common.flag import flags
 from ..common.types import Readables, Writables
+
+from ..http import Url, httpMethods
+from ..http.parser import HttpParser
 from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser, Url, httpMethods
+
 from ..core.connection.server import TcpServerConnection
 
 logger = logging.getLogger(__name__)

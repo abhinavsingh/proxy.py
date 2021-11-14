@@ -17,4 +17,5 @@ HttpProtocolTypes = NamedTuple(
         ('WEBSOCKET', int),
     ],
 )
+
 httpProtocolTypes = HttpProtocolTypes(1, 2, 3)

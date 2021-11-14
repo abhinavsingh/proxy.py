@@ -16,8 +16,9 @@ from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
 from ...common.utils import build_http_request, build_http_response, find_http_line, text_
 from ...common.flag import flags
 
-from .url import Url
-from .methods import httpMethods
+from ..url import Url
+from ..methods import httpMethods
+
 from .protocol import ProxyProtocol
 from .chunk import ChunkParser, chunkParserStates
 from .types import httpParserTypes, httpParserStates

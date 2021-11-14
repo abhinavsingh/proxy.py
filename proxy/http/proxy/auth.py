@@ -11,6 +11,7 @@
 from typing import Optional
 
 from ..exception import ProxyAuthenticationFailed
+
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BASIC_AUTH
 from ...http.parser import HttpParser

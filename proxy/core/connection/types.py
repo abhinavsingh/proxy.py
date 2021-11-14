@@ -17,4 +17,5 @@ TcpConnectionTypes = NamedTuple(
         ('CLIENT', int),
     ],
 )
+
 tcpConnectionTypes = TcpConnectionTypes(1, 2)
