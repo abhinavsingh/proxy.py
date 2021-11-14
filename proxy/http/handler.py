@@ -77,7 +77,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         self.last_activity: float = self.start_time
         self.request: HttpParser = HttpParser(
             httpParserTypes.REQUEST_PARSER,
-            haproxy_protocol=self.flags.haproxy_protocol,
+            enable_proxy_protocol=self.flags.enable_proxy_protocol,
         )
         self.selector: Optional[selectors.DefaultSelector] = None
         if not is_threadless(self.flags.threadless, self.flags.threaded):

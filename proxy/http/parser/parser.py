@@ -8,46 +8,29 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import TypeVar, NamedTuple, Optional, Dict, Type, Tuple, List
+from typing import TypeVar, Optional, Dict, Type, Tuple, List
 
-from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_HAPROXY_PROTOCOL
-from ...common.constants import HAPROXY_PROTOCOL_CHOICES, HTTP_1_0, SLASH, CRLF
-from ...common.constants import WHITESPACE, HTTP_1_1, DEFAULT_HTTP_PORT
+from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_ENABLE_PROXY_PROTOCOL
+from ...common.constants import HTTP_1_1, HTTP_1_0, SLASH, CRLF
+from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
 from ...common.utils import build_http_request, build_http_response, find_http_line, text_
 from ...common.flag import flags
 
 from .url import Url
 from .methods import httpMethods
+from .protocol import ProxyProtocol
 from .chunk import ChunkParser, chunkParserStates
+from .types import httpParserTypes, httpParserStates
+
 
 flags.add_argument(
-    '--haproxy-protocol',
-    type=int,
-    default=DEFAULT_HAPROXY_PROTOCOL,
-    choices=HAPROXY_PROTOCOL_CHOICES,
-    help='Default: Disabled.  ' +
-    'To enable pass the haproxy protocol version to use.',
+    '--enable-proxy-protocol',
+    action='store_true',
+    default=DEFAULT_ENABLE_PROXY_PROTOCOL,
+    help='Default: ' + str(DEFAULT_ENABLE_PROXY_PROTOCOL) + '.  ' +
+    'If used, will enable proxy protocol.  ' +
+    'Only version 1 is currently supported.',
 )
-
-HttpParserStates = NamedTuple(
-    'HttpParserStates', [
-        ('INITIALIZED', int),
-        ('LINE_RCVD', int),
-        ('RCVING_HEADERS', int),
-        ('HEADERS_COMPLETE', int),
-        ('RCVING_BODY', int),
-        ('COMPLETE', int),
-    ],
-)
-httpParserStates = HttpParserStates(1, 2, 3, 4, 5, 6)
-
-HttpParserTypes = NamedTuple(
-    'HttpParserTypes', [
-        ('REQUEST_PARSER', int),
-        ('RESPONSE_PARSER', int),
-    ],
-)
-httpParserTypes = HttpParserTypes(1, 2)
 
 
 T = TypeVar('T', bound='HttpParser')
@@ -66,9 +49,16 @@ class HttpParser:
     update parser to work accordingly.
     """
 
-    def __init__(self, parser_type: int, haproxy_protocol: int = 0) -> None:
-        self.type: int = parser_type
+    def __init__(
+            self, parser_type: int,
+            enable_proxy_protocol: int = DEFAULT_ENABLE_PROXY_PROTOCOL,
+    ) -> None:
         self.state: int = httpParserStates.INITIALIZED
+        self.type: int = parser_type
+        self.protocol: Optional[ProxyProtocol] = None
+        if enable_proxy_protocol:
+            assert self.type == httpParserTypes.REQUEST_PARSER
+            self.protocol = ProxyProtocol()
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
         self.path: Optional[bytes] = None
@@ -91,8 +81,15 @@ class HttpParser:
         self._url: Optional[Url] = None
 
     @classmethod
-    def request(cls: Type[T], raw: bytes) -> T:
-        parser = cls(httpParserTypes.REQUEST_PARSER)
+    def request(
+            cls: Type[T],
+            raw: bytes,
+            enable_proxy_protocol: int = DEFAULT_ENABLE_PROXY_PROTOCOL,
+    ) -> T:
+        parser = cls(
+            httpParserTypes.REQUEST_PARSER,
+            enable_proxy_protocol=enable_proxy_protocol,
+        )
         parser.parse(raw)
         return parser
 
@@ -176,8 +173,7 @@ class HttpParser:
     def parse(self, raw: bytes) -> None:
         """Parses Http request out of raw bytes.
 
-        Check for `HttpParser.state` after `parse` has successfully returned.
-        """
+        Check for `HttpParser.state` after `parse` has successfully returned."""
         self.total_size += len(raw)
         raw = self.buffer + raw
         self.buffer, more = b'', len(raw) > 0
@@ -278,7 +274,8 @@ class HttpParser:
 
         if self.state == httpParserStates.INITIALIZED:
             self._process_line(line)
-            self.state = httpParserStates.LINE_RCVD
+            if self.state == httpParserStates.INITIALIZED:
+                return len(raw) > 0, raw
         elif self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
             if self.state == httpParserStates.LINE_RCVD:
                 # LINE_RCVD state is equivalent to RCVING_HEADERS
@@ -302,15 +299,23 @@ class HttpParser:
         return len(raw) > 0, raw
 
     def _process_line(self, raw: bytes) -> None:
-        line = raw.split(WHITESPACE)
         if self.type == httpParserTypes.REQUEST_PARSER:
-            self.method = line[0].upper()
-            self.set_url(line[1])
-            self.version = line[2]
+            if self.protocol is not None and self.protocol.version is None:
+                # We expect to receive entire proxy protocol v1 line
+                # in one network read and don't expect partial packets
+                self.protocol.parse(raw)
+            else:
+                line = raw.split(WHITESPACE)
+                self.method = line[0].upper()
+                self.set_url(line[1])
+                self.version = line[2]
+                self.state = httpParserStates.LINE_RCVD
         else:
+            line = raw.split(WHITESPACE)
             self.version = line[0]
             self.code = line[1]
             self.reason = WHITESPACE.join(line[2:])
+            self.state = httpParserStates.LINE_RCVD
 
     def _process_header(self, raw: bytes) -> None:
         parts = raw.split(COLON)

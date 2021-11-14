@@ -348,6 +348,18 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             'response_code': text_(self.response.code),
             'response_reason': text_(self.response.reason),
         }
+        if self.flags.enable_proxy_protocol:
+            context.update({
+                'protocol': {
+                    'family': text_(self.request.protocol.family),
+                    'source_ip': text_(self.request.protocol.source[0]),
+                    'source_port': self.request.protocol.source[1],
+                    'destination_ip': text_(self.request.protocol.destination[0]),
+                    'destination_port': self.request.protocol.destination[1],
+                }
+            })
+        if self.flags.enable_proxy_protocol:
+            pass
         log_handled = False
         for plugin in self.plugins.values():
             ctx = plugin.on_access_log(context)
@@ -453,8 +465,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     return None
 
                 if self.pipeline_request is None:
-                    # For pipeline requests, we don't
-                    # want to use --haproxy-protocol flag
+                    # For pipeline requests, we never
+                    # want to use --enable-proxy-protocol flag
+                    # as proxy protocol header will not be present
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER,
                     )

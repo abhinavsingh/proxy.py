@@ -352,7 +352,7 @@ class FlagParser:
             args: argparse.Namespace,
     ) -> List[str]:
         """Prepare list of plugins to load based upon
-        --enable-*, --disable-* and --basic-auth flags.
+        --enable-* and --disable-* flags.
         """
         default_plugins: List[str] = []
         if hasattr(args, 'enable_dashboard') and args.enable_dashboard:

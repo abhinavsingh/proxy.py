@@ -40,7 +40,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
         super().__init__(*args, **kwargs)
         self.request = HttpParser(
             httpParserTypes.REQUEST_PARSER,
-            haproxy_protocol=self.flags.haproxy_protocol,
+            enable_proxy_protocol=self.flags.enable_proxy_protocol,
         )
         self.upstream: Optional[TcpServerConnection] = None
 
