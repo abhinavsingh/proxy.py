@@ -192,6 +192,8 @@
     - `http1.1` with pipeline
   - `http2`
   - `websockets`
+- Support for `HAProxy Protocol`
+  - See `--enable-proxy-protocol` flag
 - Static file server support
   - See `--enable-static-server` and `--static-server-dir` flags
 - Optimized for large file uploads and downloads
