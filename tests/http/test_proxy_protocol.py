@@ -34,30 +34,39 @@ class TestProxyProtocol(unittest.TestCase):
 
     def test_v1_worst_case_ipv4_from_spec(self) -> None:
         self.protocol.parse(
-            b'PROXY TCP4 255.255.255.255 255.255.255.255 65535 65535')
+            b'PROXY TCP4 255.255.255.255 255.255.255.255 65535 65535',
+        )
         self.assertEqual(self.protocol.version, 1)
         self.assertEqual(self.protocol.family, b'TCP4')
         self.assertEqual(self.protocol.source, (b'255.255.255.255', 65535))
-        self.assertEqual(self.protocol.destination,
-                         (b'255.255.255.255', 65535))
+        self.assertEqual(
+            self.protocol.destination,
+            (b'255.255.255.255', 65535),
+        )
 
     def test_v1_worst_case_ipv6_from_spec(self) -> None:
         self.protocol.parse(
-            b'PROXY TCP6 ffff:f...f:ffff ffff:f...f:ffff 65535 65535')
+            b'PROXY TCP6 ffff:f...f:ffff ffff:f...f:ffff 65535 65535',
+        )
         self.assertEqual(self.protocol.version, 1)
         self.assertEqual(self.protocol.family, b'TCP6')
         self.assertEqual(self.protocol.source, (b'ffff:f...f:ffff', 65535))
-        self.assertEqual(self.protocol.destination,
-                         (b'ffff:f...f:ffff', 65535))
+        self.assertEqual(
+            self.protocol.destination,
+            (b'ffff:f...f:ffff', 65535),
+        )
 
     def test_v1_worst_case_unknown_from_spec(self) -> None:
         self.protocol.parse(
-            b'PROXY UNKNOWN ffff:f...f:ffff ffff:f...f:ffff 65535 65535')
+            b'PROXY UNKNOWN ffff:f...f:ffff ffff:f...f:ffff 65535 65535',
+        )
         self.assertEqual(self.protocol.version, 1)
         self.assertEqual(self.protocol.family, b'UNKNOWN')
         self.assertEqual(self.protocol.source, (b'ffff:f...f:ffff', 65535))
-        self.assertEqual(self.protocol.destination,
-                         (b'ffff:f...f:ffff', 65535))
+        self.assertEqual(
+            self.protocol.destination,
+            (b'ffff:f...f:ffff', 65535),
+        )
 
     def test_v1_unknown_with_no_src_dst(self) -> None:
         self.protocol.parse(b'PROXY UNKNOWN')

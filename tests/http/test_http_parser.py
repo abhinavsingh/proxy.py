@@ -726,6 +726,10 @@ class TestHttpParser(unittest.TestCase):
             enable_proxy_protocol=True,
         )
         self.assertTrue(r.protocol is not None)
+        assert r.protocol and r.protocol.version and \
+            r.protocol.family and \
+            r.protocol.source and \
+            r.protocol.destination
         self.assertEqual(r.protocol.version, 1)
         self.assertEqual(r.protocol.family, b'TCP4')
         self.assertEqual(r.protocol.source, (b'192.168.0.1', 56324))
@@ -733,5 +737,7 @@ class TestHttpParser(unittest.TestCase):
 
     def test_proxy_protocol_not_for_response_parser(self) -> None:
         with self.assertRaises(AssertionError):
-            HttpParser(httpParserTypes.RESPONSE_PARSER,
-                       enable_proxy_protocol=True)
+            HttpParser(
+                httpParserTypes.RESPONSE_PARSER,
+                enable_proxy_protocol=True,
+            )

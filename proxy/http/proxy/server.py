@@ -349,17 +349,27 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             'response_reason': text_(self.response.reason),
         }
         if self.flags.enable_proxy_protocol:
+            assert self.request.protocol and self.request.protocol.family
             context.update({
                 'protocol': {
                     'family': text_(self.request.protocol.family),
-                    'source_ip': text_(self.request.protocol.source[0]),
-                    'source_port': self.request.protocol.source[1],
-                    'destination_ip': text_(self.request.protocol.destination[0]),
-                    'destination_port': self.request.protocol.destination[1],
-                }
+                },
             })
-        if self.flags.enable_proxy_protocol:
-            pass
+            if self.request.protocol.source:
+                context.update({
+                    'protocol': {
+                        'source_ip': text_(self.request.protocol.source[0]),
+                        'source_port': self.request.protocol.source[1],
+                    },
+                })
+            if self.request.protocol.destination:
+                context.update({
+                    'protocol': {
+                        'destination_ip': text_(self.request.protocol.destination[0]),
+                        'destination_port': self.request.protocol.destination[1],
+                    },
+                })
+
         log_handled = False
         for plugin in self.plugins.values():
             ctx = plugin.on_access_log(context)

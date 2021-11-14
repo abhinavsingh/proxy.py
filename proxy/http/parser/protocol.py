@@ -20,8 +20,8 @@ class ProxyProtocol:
     def __init__(self) -> None:
         self.version: Optional[int] = None
         self.family: Optional[bytes] = None
-        self.source: Optional[Tuple[str, int]] = None
-        self.destination: Optional[Tuple[str, int]] = None
+        self.source: Optional[Tuple[bytes, int]] = None
+        self.destination: Optional[Tuple[bytes, int]] = None
 
     def parse(self, raw: bytes) -> None:
         if raw.startswith(b'PROXY'):
