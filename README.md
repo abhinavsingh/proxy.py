@@ -370,7 +370,7 @@ To start `proxy.py` from source code follow these instructions:
 - Install deps
 
   ```console
-  ❯ make lib-dep
+  ❯ make lib-dep lib-scm-version
   ```
 
 - Optionally, run tests
@@ -1967,7 +1967,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless] [--threaded
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0
+proxy.py v2.3.2-dev146-gad54132-d20211114
 
 options:
   -h, --help            show this help message and exit

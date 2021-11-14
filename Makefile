@@ -2,8 +2,7 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-#VERSION ?= v$(shell bash -c "python -m setuptools_scm --version \| awk '{print$3}'")
-VERSION ?= v$(shell python -m setuptools_scm --version | awk '{print $$3}' | sed 's/\+/--/')
+VERSION ?= v$(shell ./scm-version.sh)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
@@ -19,7 +18,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-version lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile
-.PHONY: lib-dep, lib-flake8, lib-mypy
+.PHONY: lib-dep, lib-flake8, lib-mypy, lib-scm-version
 .PHONY: container container-run container-release
 .PHONY: devtools dashboard dashboard-clean
 
@@ -88,6 +87,9 @@ lib-dep:
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
 		-r requirements-tunnel.txt
+
+lib-scm-version:
+	@echo "version = '$(VERSION)'" > proxy/common/_scm_version.py
 
 lib-lint:
 	python -m tox -e lint
