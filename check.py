@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import sys
-import difflib
 import subprocess
 
 from pathlib import Path
@@ -21,18 +20,24 @@ from proxy.common.version import __version__ as lib_version
 #    installer file, but it only needs to match with lib
 #    versions if current git branch is master
 
-PY_FILE_PREFIX = b'# -*- coding: utf-8 -*-\n'
-b'"""\n'
-b'    proxy.py\n'
-b'    ~~~~~~~~\n'
-b'    \xe2\x9a\xa1\xe2\x9a\xa1\xe2\x9a\xa1 Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on\n'
-b'    Network monitoring, controls & Application development, testing, debugging.\n'
-b'\n'
-b'    :copyright: (c) 2013-present by Abhinav Singh and contributors.\n'
-b'    :license: BSD, see LICENSE for more details.'
+PY_FILE_PREFIX = b'# -*- coding: utf-8 -*-\n' + \
+    b'"""\n' + \
+    b'    proxy.py\n' + \
+    b'    ~~~~~~~~\n' + \
+    b'    \xe2\x9a\xa1\xe2\x9a\xa1\xe2\x9a\xa1 Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on\n' + \
+    b'    Network monitoring, controls & Application development, testing, debugging.\n' + \
+    b'\n' + \
+    b'    :copyright: (c) 2013-present by Abhinav Singh and contributors.\n' + \
+    b'    :license: BSD, see LICENSE for more details.\n'
+
+REPO_ROOT = Path(__file__).parent
 
 # Ensure all python files start with licensing information
-for py_file in list((Path(__file__).parent / 'proxy').rglob('*.py')):
+for py_file in (
+        list((REPO_ROOT / 'proxy').rglob('*.py')) +
+        list((REPO_ROOT / 'examples').rglob('*.py')) +
+        list((REPO_ROOT / 'tests').rglob('*.py'))
+):
     if py_file.is_file() and py_file.name != '_scm_version.py':
         with open(py_file, 'rb') as f:
             code = f.read(len(PY_FILE_PREFIX))
@@ -52,7 +57,7 @@ readme_version_output = subprocess.check_output(
 # Doesn't contain "v" prefix
 readme_version = readme_version_output.decode().strip()
 
-if readme_version != lib_version[1:]:
+if readme_version != lib_version[1:].split('-')[0]:
     print(
         'Version mismatch found. {0} (readme) vs {1} (lib).'.format(
             readme_version, lib_version,
