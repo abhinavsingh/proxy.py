@@ -8,7 +8,7 @@ class Proxy < Formula
   sha256 "715687cebd451285d266f29d6509a64becc93da21f61ba9b4414e7dc4ecaaeed"
   version "2.3.1"
 
-  depends_on "python"
+  depends_on "python@3.10"
 
   def install
     virtualenv_install_with_resources
