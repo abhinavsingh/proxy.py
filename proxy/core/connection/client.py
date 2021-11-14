@@ -12,11 +12,12 @@ import socket
 import ssl
 from typing import Union, Tuple, Optional
 
-from .connection import TcpConnection, tcpConnectionTypes, TcpConnectionUninitializedException
+from .connection import TcpConnection, TcpConnectionUninitializedException
+from .types import tcpConnectionTypes
 
 
 class TcpClientConnection(TcpConnection):
-    """An accepted client connection request."""
+    """A buffered client connection object."""
 
     def __init__(
         self,

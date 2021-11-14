@@ -14,8 +14,8 @@ import logging
 
 from typing import Dict, List, Optional, Any, Tuple
 
-from ..common.types import Readables, Writables
 from ..common.flag import flags
+from ..common.types import Readables, Writables
 from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
 from ..http.parser import HttpParser, Url, httpMethods

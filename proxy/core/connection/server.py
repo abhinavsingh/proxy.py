@@ -13,13 +13,14 @@ import socket
 
 from typing import Optional, Union, Tuple
 
-from .connection import TcpConnection, tcpConnectionTypes, TcpConnectionUninitializedException
-
 from ...common.utils import new_socket_connection
+
+from .connection import TcpConnection, TcpConnectionUninitializedException
+from .types import tcpConnectionTypes
 
 
 class TcpServerConnection(TcpConnection):
-    """Establishes connection to upstream server."""
+    """A buffered server connection object."""
 
     def __init__(self, host: str, port: int) -> None:
         super().__init__(tcpConnectionTypes.SERVER)

@@ -46,11 +46,6 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             with open(self.flags.filtered_url_regex_config, 'rb') as f:
                 self.filters = json.load(f)
 
-    def before_upstream_connection(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
-        return request
-
     def handle_client_request(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
@@ -96,9 +91,3 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             # increment rule number
             rule_number += 1
         return request
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
-
-    def on_upstream_connection_close(self) -> None:
-        pass
