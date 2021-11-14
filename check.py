@@ -61,7 +61,7 @@ for py_file in ALL_PY_FILES:
 #     pre_flags, post_flags = c.split(b'# Flags')
 #     help_text, post_changelog = post_flags.split(b'# Changelog')
 #     f.seek(0)
-#     f.write(pre_flags + b'# Flags\n\n```console\n\xe2\x9d\xaf proxy -h\n' + lib_help +
+#     f.write(pre_flags + b'# Flags\n\n```console\n\xe2\x9d\xaf proxy -h\n' + lib_help + b'```' +
 #             b'\n# Changelog' + post_changelog)
 
 # Version is also hardcoded in README.md flags section
