@@ -1945,7 +1945,9 @@ for list of tests.
 
 # Flags
 
-usage: proxy [-h] [--enable-events] [--enable-conn-pool] [--threadless]
+```console
+❯ proxy -h
+usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--threaded] [--num-workers NUM_WORKERS] [--backlog BACKLOG]
           [--hostname HOSTNAME] [--port PORT]
           [--unix-socket-path UNIX_SOCKET_PATH]
@@ -1973,7 +1975,7 @@ usage: proxy [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2-dev147
+proxy.py v2.3.2
 
 options:
   -h, --help            show this help message and exit
