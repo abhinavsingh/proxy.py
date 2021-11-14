@@ -9,12 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import gzip
+
 from typing import List, Tuple, Optional, Any
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
+
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
+
 from ...common.utils import bytes_, text_, build_http_response
 from ...common.flag import flags
 from ...common.constants import DEFAULT_PAC_FILE, DEFAULT_PAC_FILE_URL_PATH

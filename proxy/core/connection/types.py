@@ -10,12 +10,12 @@
 """
 from typing import NamedTuple
 
-HttpProtocolTypes = NamedTuple(
-    'HttpProtocolTypes', [
-        ('HTTP', int),
-        ('HTTPS', int),
-        ('WEBSOCKET', int),
+
+TcpConnectionTypes = NamedTuple(
+    'TcpConnectionTypes', [
+        ('SERVER', int),
+        ('CLIENT', int),
     ],
 )
 
-httpProtocolTypes = HttpProtocolTypes(1, 2, 3)
+tcpConnectionTypes = TcpConnectionTypes(1, 2)

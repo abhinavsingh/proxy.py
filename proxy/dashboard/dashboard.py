@@ -16,9 +16,11 @@ from typing import List, Tuple, Any, Dict
 from .plugin import ProxyDashboardWebsocketPlugin
 
 from ..common.utils import build_http_response, bytes_
-from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
-from ..http.parser import HttpParser, httpStatusCodes
+
+from ..http import httpStatusCodes
+from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
+from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
 
 logger = logging.getLogger(__name__)
 

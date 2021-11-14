@@ -20,7 +20,7 @@ from pathlib import Path
 from proxy.common.flag import FlagParser
 from proxy.core.connection import TcpClientConnection
 from proxy.http import HttpProtocolHandler
-from proxy.http.parser import httpStatusCodes
+from proxy.http import httpStatusCodes
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_, build_http_response
 from proxy.common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_HTTP_PORT

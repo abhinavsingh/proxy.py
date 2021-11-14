@@ -11,9 +11,9 @@
 import socket
 import argparse
 
+from abc import ABC
 from uuid import UUID
 from typing import Any, Dict, List, Optional, Tuple
-from abc import ABC, abstractmethod
 
 from ..parser import HttpParser
 
@@ -93,7 +93,9 @@ class HttpProxyBasePlugin(ABC):
         """
         return None, None
 
-    @abstractmethod
+    # No longer abstract since 2.4.0
+    #
+    # @abstractmethod
     def before_upstream_connection(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
@@ -122,7 +124,9 @@ class HttpProxyBasePlugin(ABC):
         """
         return raw  # pragma: no cover
 
-    @abstractmethod
+    # No longer abstract since 2.4.0
+    #
+    # @abstractmethod
     def handle_client_request(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
@@ -142,7 +146,9 @@ class HttpProxyBasePlugin(ABC):
         """
         return request  # pragma: no cover
 
-    @abstractmethod
+    # No longer abstract since 2.4.0
+    #
+    # @abstractmethod
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         """Handler called right after receiving raw response from upstream server.
 
@@ -150,7 +156,9 @@ class HttpProxyBasePlugin(ABC):
         TLS interception is also enabled."""
         return chunk  # pragma: no cover
 
-    @abstractmethod
+    # No longer abstract since 2.4.0
+    #
+    # @abstractmethod
     def on_upstream_connection_close(self) -> None:
         """Handler called right after upstream connection has been closed."""
         pass  # pragma: no cover

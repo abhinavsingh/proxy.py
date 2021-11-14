@@ -24,10 +24,11 @@ from ...common.utils import bytes_, text_, build_http_response, build_websocket_
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
+from ..codes import httpStatusCodes
 from ..exception import HttpProtocolException
-from ..websocket import WebsocketFrame, websocketOpcodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes, httpStatusCodes
 from ..plugin import HttpProtocolHandlerPlugin
+from ..websocket import WebsocketFrame, websocketOpcodes
+from ..parser import HttpParser, httpParserStates, httpParserTypes
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes

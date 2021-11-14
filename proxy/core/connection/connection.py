@@ -8,24 +8,18 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import socket
 import ssl
+import socket
 import logging
+
 from abc import ABC, abstractmethod
-from typing import NamedTuple, Optional, Union, List
+from typing import Optional, Union, List
 
 from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
 
+from .types import tcpConnectionTypes
+
 logger = logging.getLogger(__name__)
-
-
-TcpConnectionTypes = NamedTuple(
-    'TcpConnectionTypes', [
-        ('SERVER', int),
-        ('CLIENT', int),
-    ],
-)
-tcpConnectionTypes = TcpConnectionTypes(1, 2)
 
 
 class TcpConnectionUninitializedException(Exception):

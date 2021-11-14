@@ -12,7 +12,6 @@ import socket
 
 from typing import Optional, Tuple
 
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
 
 
@@ -34,19 +33,3 @@ class CustomDnsResolverPlugin(HttpProxyBasePlugin):
             # Ideally we can also thrown HttpRequestRejected or HttpProtocolException here
             # Returning None simply fallback to core generated exceptions.
             return None, None
-
-    def before_upstream_connection(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
-        return request
-
-    def handle_client_request(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
-        return request
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
-
-    def on_upstream_connection_close(self) -> None:
-        pass

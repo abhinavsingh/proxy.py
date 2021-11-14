@@ -8,15 +8,16 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import time
+import os
 import sys
+import uuid
+import time
+import logging
+import tempfile
 import argparse
 import contextlib
-import os
-import uuid
 import subprocess
-import tempfile
-import logging
+
 from typing import List, Generator, Optional, Tuple
 
 from .utils import bytes_
