@@ -9,7 +9,7 @@ on:   # yamllint disable-line rule:truthy
     - 'examples/**'
     - 'requirements*'
     - 'setup.cfg'
-    - 'version-check.py'
+    - 'check.py'
     - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
   pull_request:
@@ -19,7 +19,7 @@ on:   # yamllint disable-line rule:truthy
     - 'examples/**'
     - 'requirements*'
     - 'setup.cfg'
-    - 'version-check.py'
+    - 'check.py'
     - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
   workflow_dispatch:
@@ -596,8 +596,7 @@ jobs:
     needs:
     - check
     - pre-setup  # transitive, for accessing settings
-    if: >-  # FIXME: remove the line below once credentials are recovered
-      false &&
+    if: >-
       fromJSON(needs.pre-setup.outputs.is-untagged-devel)
     runs-on: Ubuntu-latest
 
