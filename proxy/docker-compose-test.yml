@@ -29,19 +29,12 @@ services:
     image: neonlabsorg/evm_loader:${EVM_LOADER_REVISION:-latest}
     environment:
       - SOLANA_URL=http://solana:8899
-      - CONFIG=ci
-    volumes:
-      - deployment_data:/var/deployment_data
     networks:
       - net
     depends_on:
       solana:
         condition: service_healthy
-    command: >
-       bash -c "create-test-accounts.sh 1
-       && deploy-evm.sh
-       && cp evm_loader_id /var/deployment_data/
-       && cp evm_loader-keypair.json /var/deployment_data/"
+    command: bash -c "create-test-accounts.sh 1 && deploy-evm.sh"
 
   postgres:
     container_name: postgres
@@ -85,14 +78,8 @@ services:
       - "9090"
     networks:
       - net
-    volumes:
-      - deployment_data:/var/deployment_data
     entrypoint: proxy/run-test-proxy.sh
 
 networks:
   net:
-
-volumes:
-  # provides data interchange between evm_loader and proxy
-  deployment_data:
 
