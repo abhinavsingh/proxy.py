@@ -313,8 +313,8 @@ class HttpParser:
                 self.protocol.parse(raw)
             else:
                 line = raw.split(WHITESPACE)
-                if len(line) == 3 and line[0] in httpMethods:
-                    self.method = line[0]
+                if len(line) == 3:
+                    self.method = line[0].upper()
                     self.set_url(line[1])
                     self.version = line[2]
                     self.state = httpParserStates.LINE_RCVD
