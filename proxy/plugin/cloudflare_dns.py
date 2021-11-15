@@ -18,7 +18,6 @@ except ImportError:     # pragma: no cover
 from typing import Optional, Tuple
 
 from ..common.flag import flags
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
 
 logger = logging.getLogger(__name__)
@@ -80,19 +79,3 @@ class CloudflareDnsResolverPlugin(HttpProxyBasePlugin):
                 ),
             )
             return None, None
-
-    def before_upstream_connection(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
-        return request
-
-    def handle_client_request(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
-        return request
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
-
-    def on_upstream_connection_close(self) -> None:
-        pass

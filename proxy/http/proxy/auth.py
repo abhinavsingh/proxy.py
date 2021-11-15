@@ -11,6 +11,7 @@
 from typing import Optional
 
 from ..exception import ProxyAuthenticationFailed
+
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BASIC_AUTH
 from ...http.parser import HttpParser
@@ -41,14 +42,3 @@ class AuthPlugin(HttpProxyBasePlugin):
                     or parts[1] != self.flags.auth_code:
                 raise ProxyAuthenticationFailed()
         return request
-
-    def handle_client_request(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
-        return request
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk    # pragma: no cover
-
-    def on_upstream_connection_close(self) -> None:
-        pass    # pragma: no cover

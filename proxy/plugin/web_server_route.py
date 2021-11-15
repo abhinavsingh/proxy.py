@@ -12,7 +12,9 @@ import logging
 from typing import List, Tuple
 
 from ..common.utils import build_http_response
-from ..http.parser import HttpParser, httpStatusCodes
+
+from ..http import httpStatusCodes
+from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 

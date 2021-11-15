@@ -20,9 +20,12 @@ import subprocess
 from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
+
+from ..methods import httpMethods
+from ..codes import httpStatusCodes
 from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed
-from ..parser import HttpParser, httpParserStates, httpParserTypes, httpStatusCodes, httpMethods
+from ..parser import HttpParser, httpParserStates, httpParserTypes
 
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
