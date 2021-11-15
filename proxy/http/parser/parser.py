@@ -320,7 +320,7 @@ class HttpParser:
                     self.state = httpParserStates.LINE_RCVD
                 else:
                     # raise exception
-                    raise HttpProtocolException('Invalid request line')
+                    raise HttpProtocolException("Invalid request line")
         else:
             line = raw.split(WHITESPACE)
             self.version = line[0]
