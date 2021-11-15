@@ -260,6 +260,11 @@ or from GitHub `master` branch
 
 ## Using HomeBrew
 
+Updated formulae for `HomeBrew` are maintained in `develop` branch under the `helper/homebrew` directory.
+
+- `stable` formulae installs the package from `master` branch.
+- `develop` formulae installs the package from `develop` branch.
+
 ### Stable Version with HomeBrew
 
 ```console

@@ -8,11 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
 import socket
+import argparse
 
-from abc import ABC, abstractmethod
 from uuid import UUID
+from abc import ABC, abstractmethod
 from typing import Tuple, List, Union, Optional
 
 from .parser import HttpParser

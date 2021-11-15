@@ -12,7 +12,9 @@ from typing import Optional
 
 from ..common.constants import DOT, SLASH
 from ..common.utils import build_http_response
-from ..http.parser import HttpParser, httpStatusCodes
+
+from ..http import httpStatusCodes
+from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
 
 
@@ -85,9 +87,3 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
                 )
             return None
         return request
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
-
-    def on_upstream_connection_close(self) -> None:
-        pass

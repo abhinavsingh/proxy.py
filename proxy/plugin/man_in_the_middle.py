@@ -8,25 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import Optional
-
 from ..common.utils import build_http_response
-from ..http.parser import HttpParser, httpStatusCodes
+from ..http import httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
 
 
 class ManInTheMiddlePlugin(HttpProxyBasePlugin):
     """Modifies upstream server responses."""
-
-    def before_upstream_connection(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
-        return request
-
-    def handle_client_request(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
-        return request
 
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         return memoryview(
@@ -36,6 +24,3 @@ class ManInTheMiddlePlugin(HttpProxyBasePlugin):
                 body=b'Hello from man in the middle',
             ),
         )
-
-    def on_upstream_connection_close(self) -> None:
-        pass

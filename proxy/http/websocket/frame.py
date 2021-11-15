@@ -8,12 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import io
 import hashlib
 import base64
 import struct
 import secrets
 import logging
-import io
 
 from typing import TypeVar, Type, Optional, NamedTuple
 

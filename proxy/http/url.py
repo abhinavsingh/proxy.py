@@ -10,7 +10,7 @@
 """
 from typing import Optional, Tuple
 
-from ...common.constants import COLON, SLASH
+from ..common.constants import COLON, SLASH
 
 
 class Url:

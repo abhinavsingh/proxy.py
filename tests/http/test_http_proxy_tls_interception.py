@@ -19,9 +19,8 @@ from unittest import mock
 from proxy.common.constants import DEFAULT_CA_FILE
 
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
-from proxy.http import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler, httpMethods
 from proxy.http.proxy import HttpProxyPlugin
-from proxy.http.parser import httpMethods
 from proxy.common.utils import build_http_request, bytes_
 from proxy.common.flag import FlagParser
 

@@ -8,13 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import socket
-import selectors
 import ssl
 import time
-import contextlib
 import errno
+import socket
 import logging
+import selectors
+import contextlib
 
 from typing import Tuple, List, Union, Optional, Generator, Dict, Any
 

@@ -10,10 +10,7 @@
 """
 from .parser import HttpParser
 from .chunk import ChunkParser, chunkParserStates
-from .codes import httpStatusCodes
-from .methods import httpMethods
 from .types import httpParserStates, httpParserTypes
-from .url import Url
 from .protocol import ProxyProtocol, PROXY_PROTOCOL_V2_SIGNATURE
 
 __all__ = [
@@ -22,9 +19,6 @@ __all__ = [
     'httpParserStates',
     'ChunkParser',
     'chunkParserStates',
-    'httpStatusCodes',
-    'httpMethods',
-    'Url',
     'ProxyProtocol',
     'PROXY_PROTOCOL_V2_SIGNATURE',
 ]

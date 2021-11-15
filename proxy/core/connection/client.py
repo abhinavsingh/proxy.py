@@ -8,15 +8,17 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import socket
 import ssl
+import socket
+
 from typing import Union, Tuple, Optional
 
-from .connection import TcpConnection, tcpConnectionTypes, TcpConnectionUninitializedException
+from .connection import TcpConnection, TcpConnectionUninitializedException
+from .types import tcpConnectionTypes
 
 
 class TcpClientConnection(TcpConnection):
-    """An accepted client connection request."""
+    """A buffered client connection object."""
 
     def __init__(
         self,
