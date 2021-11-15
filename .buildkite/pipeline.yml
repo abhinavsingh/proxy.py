@@ -13,6 +13,7 @@ steps:
       - "proxy.log"
       - "solana.log"
       - "measurements.log"
+      - "evm_loader.log"
 
   - wait
 
