@@ -1,5 +1,5 @@
 import unittest
-from ..common.utils import get_from_dict
+from ..common_neon.utils import get_from_dict
 
 
 class TestUtils(unittest.TestCase):

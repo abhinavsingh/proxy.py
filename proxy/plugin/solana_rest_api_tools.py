@@ -36,7 +36,7 @@ from spl.token.constants import ACCOUNT_LEN, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_
 from spl.token.instructions import get_associated_token_address, create_associated_token_account, transfer2, Transfer2Params
 
 from ..environment import neon_cli, evm_loader_id, ETH_TOKEN_MINT_ID, COLLATERAL_POOL_BASE, read_elf_params
-from ..common.utils import get_from_dict
+from ..common_neon.utils import get_from_dict
 from .eth_proto import Trx
 
 logger = logging.getLogger(__name__)
