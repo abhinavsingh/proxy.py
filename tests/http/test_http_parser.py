@@ -17,6 +17,8 @@ from proxy.common.utils import find_http_line, bytes_
 from proxy.http import httpStatusCodes, httpMethods
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
 
+from proxy.http.exception import HttpProtocolException
+
 
 class TestHttpParser(unittest.TestCase):
 
@@ -24,11 +26,13 @@ class TestHttpParser(unittest.TestCase):
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
     def test_issue_127(self) -> None:
-        self.parser.parse(CRLF)
-        self.assertEqual(self.parser.state, httpParserStates.INITIALIZED)
-        raw = b'qwqrqw!@!#@!#ad adfad\r\n'
-        self.parser.parse(raw)
-        self.assertEqual(self.parser.state, httpParserStates.INITIALIZED)
+        with self.assertRaises(HttpProtocolException):
+            self.parser.parse(CRLF)
+
+        with self.assertRaises(HttpProtocolException):    
+            raw = b'qwqrqw!@!#@!#ad adfad\r\n'
+            while True:
+                self.parser.parse(raw)
 
     def test_issue_398(self) -> None:
         p = HttpParser(httpParserTypes.RESPONSE_PARSER)

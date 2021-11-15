@@ -23,7 +23,6 @@ from .protocol import ProxyProtocol
 from .chunk import ChunkParser, chunkParserStates
 from .types import httpParserTypes, httpParserStates
 
-
 flags.add_argument(
     '--enable-proxy-protocol',
     action='store_true',
@@ -300,19 +299,28 @@ class HttpParser:
         return len(raw) > 0, raw
 
     def _process_line(self, raw: bytes) -> None:
+        # defer import to solve the circular import problem
+        from ..exception import HttpProtocolException
         if self.type == httpParserTypes.REQUEST_PARSER:
-            # parse request line according https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
+            # Ref:
+            # https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
+            # https://greenbytes.de/tech/webdav/rfc7230.html#request.line
+            # https://greenbytes.de/tech/webdav/rfc7231.html#methods
+            # http://www.iana.org/assignments/http-methods/http-methods.xhtml
             if self.protocol is not None and self.protocol.version is None:
                 # We expect to receive entire proxy protocol v1 line
                 # in one network read and don't expect partial packets
                 self.protocol.parse(raw)
             else:
                 line = raw.split(WHITESPACE)
-                if len(line) == 3:
-                    self.method = line[0].upper()
+                if len(line) == 3 and line[0] in httpMethods:
+                    self.method = line[0]
                     self.set_url(line[1])
                     self.version = line[2]
                     self.state = httpParserStates.LINE_RCVD
+                else:
+                    # raise exception
+                    raise HttpProtocolException("Invalid request line")
         else:
             line = raw.split(WHITESPACE)
             self.version = line[0]
