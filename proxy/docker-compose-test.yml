@@ -46,6 +46,8 @@ services:
       - "9090"
     networks:
       - net
+    depends_on:
+      - postgres
 
 networks:
   net:
