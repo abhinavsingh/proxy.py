@@ -357,7 +357,7 @@ class EthereumModel:
             "s": eth_trx[8],
         }
 
-        logger.debug ("eth_getTransactionByHash: %s", json.dumps(ret, indent=3))
+        logger.debug("eth_getTransactionByHash: %s", json.dumps(ret, indent=3))
         return ret
 
     def eth_getCode(self, param,  param1):
