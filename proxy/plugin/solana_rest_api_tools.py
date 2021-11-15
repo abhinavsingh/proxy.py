@@ -953,7 +953,7 @@ def create_account_list_by_emulate(signer, client, eth_trx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_size, PublicKey(evm_loader_id)))
                 code_account_writable = acc_desc["writable"]
 
-            create_token_and_airdrop_trx(client, signer, EthereumAddress(address), trx, code_account)
+            extend_trx_with_create_and_airdrop(client, signer, EthereumAddress(address), trx, code_account)
 
         if address == to_address:
             contract_sol = PublicKey(acc_desc["account"])
@@ -1226,7 +1226,7 @@ def getLamports(client, evm_loader, eth_acc, base_account):
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
 
-def add_airdrop_transfer_to_trx(owner_account: SolanaAccount, dest_token_account: PublicKey, trx: Transaction):
+def extend_trx_with_transfer(owner_account: SolanaAccount, dest_token_account: PublicKey, trx: Transaction):
     owner_sol_addr = owner_account.public_key()
     owner_token_addr = getTokenAddr(owner_sol_addr)
     transfer_instruction = transfer2(Transfer2Params(source=owner_token_addr,
@@ -1241,16 +1241,16 @@ def add_airdrop_transfer_to_trx(owner_account: SolanaAccount, dest_token_account
     trx.add(transfer_instruction)
 
 
-def create_token_and_airdrop_trx(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress,
-                                 trx: Transaction, code_acc=None):
+def extend_trx_with_create_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress,
+                                       trx: Transaction, code_acc=None):
     create_trx, token_address = create_eth_account_trx(client, signer, eth_acc, evm_loader_id, code_acc)
     trx.add(create_trx)
-    add_airdrop_transfer_to_trx(signer, token_address, trx)
+    extend_trx_with_transfer(signer, token_address, trx)
 
 
 def create_token_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
     trx = Transaction()
-    create_token_and_airdrop_trx(client, signer, eth_acc, trx)
+    extend_trx_with_create_and_airdrop(client, signer, eth_acc, trx)
     result = send_transaction(client, trx, signer)
     error = result.get("error")
     if error is not None:
