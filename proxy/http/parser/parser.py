@@ -301,16 +301,18 @@ class HttpParser:
 
     def _process_line(self, raw: bytes) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
+            # parse request line according https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
             if self.protocol is not None and self.protocol.version is None:
                 # We expect to receive entire proxy protocol v1 line
                 # in one network read and don't expect partial packets
                 self.protocol.parse(raw)
             else:
                 line = raw.split(WHITESPACE)
-                self.method = line[0].upper()
-                self.set_url(line[1])
-                self.version = line[2]
-                self.state = httpParserStates.LINE_RCVD
+                if len(line) == 3:
+                    self.method = line[0].upper()
+                    self.set_url(line[1])
+                    self.version = line[2]
+                    self.state = httpParserStates.LINE_RCVD
         else:
             line = raw.split(WHITESPACE)
             self.version = line[0]

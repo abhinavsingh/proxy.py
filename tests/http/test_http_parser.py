@@ -23,6 +23,13 @@ class TestHttpParser(unittest.TestCase):
     def setUp(self) -> None:
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
+    def test_issue_127(self) -> None:
+        self.parser.parse(CRLF)
+        self.assertEqual(self.parser.state, httpParserStates.INITIALIZED)
+        raw = b'qwqrqw!@!#@!#ad adfad\r\n'
+        self.parser.parse(raw)
+        self.assertEqual(self.parser.state, httpParserStates.INITIALIZED)
+
     def test_issue_398(self) -> None:
         p = HttpParser(httpParserTypes.RESPONSE_PARSER)
         p.parse(HTTP_1_0 + b' 200 OK' + CRLF)
