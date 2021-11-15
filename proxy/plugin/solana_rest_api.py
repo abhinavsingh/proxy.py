@@ -63,8 +63,8 @@ class EthereumModel:
             proxy_id_glob.value += 1
         logger.debug("worker id {}".format(self.proxy_id))
 
-        self.perm_accs = PermanentAccounts(self.client, self.signer, self.proxy_id)
         neon_config_load(self)
+
 
     @staticmethod
     def get_solana_account() -> Optional[sol_Account]:
