@@ -208,15 +208,3 @@ def get_available_port() -> int:
         sock.bind(('', 0))
         _, port = sock.getsockname()
     return int(port)
-
-
-def get_from_dict(src: Dict, *path) -> Optional[Any]:
-    """Provides smart getting values from python dictionary"""
-    val = src
-    for key in path:
-        if not isinstance(val, dict):
-            return None
-        val = val.get(key)
-        if val is None:
-            return None
-    return val
