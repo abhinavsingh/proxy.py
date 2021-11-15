@@ -29,7 +29,7 @@ class TestHttpParser(unittest.TestCase):
         with self.assertRaises(HttpProtocolException):
             self.parser.parse(CRLF)
 
-        with self.assertRaises(HttpProtocolException):    
+        with self.assertRaises(HttpProtocolException):
             raw = b'qwqrqw!@!#@!#ad adfad\r\n'
             while True:
                 self.parser.parse(raw)
