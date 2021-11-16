@@ -108,6 +108,9 @@ obligatory_accounts = [
     AccountMeta(pubkey=sysvarclock, is_signer=False, is_writable=False),
 ]
 
+EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
+
+
 class SQLCost():
     def __init__(self):
 
@@ -1277,3 +1280,11 @@ def make_instruction_data_from_tx(instruction, private_key=None):
         return (pub.to_canonical_address(), sig.to_bytes(), raw_msg)
     else:
         raise Exception("function gets ")
+
+
+def estimate_gas(client: SolanaClient, signer: SolanaAccount, contract_id: str, eth_caller_address: EthereumAddress,
+                 data: str = None, value: str = None):
+    if is_airdrop_allowed(client, signer, eth_caller_address):
+        create_token_and_airdrop(client, signer, eth_caller_address)
+    result = call_emulated(contract_id, str(eth_caller_address), data, value)
+    return result['used_gas'] + EXTRA_GAS
