@@ -21,20 +21,20 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from .eth_proto import Trx as EthTrx
 from solana.rpc.api import Client as SolanaClient
-from sha3 import keccak_256, shake_256
+from sha3 import keccak_256
 import base58
 import traceback
 import threading
-from .solana_rest_api_tools import EthereumAddress, create_account_with_seed, evm_loader_id, getTokens, \
-    getAccountInfo, solana_cli, call_signed, solana_url, call_emulated, \
-    Trx,  EthereumError, create_collateral_pool_address, getTokenAddr, STORAGE_SIZE, neon_config_load
+from .solana_rest_api_tools import EthereumAddress, getTokens, getAccountInfo, \
+    call_signed, call_emulated, EthereumError, neon_config_load, MINIMAL_GAS_PRICE
 from solana.rpc.commitment import Commitment, Confirmed
 from web3 import Web3
 import logging
 from ..core.acceptor.pool import proxy_id_glob
 import os
 from ..indexer.utils import get_trx_results, LogDB
-from sqlitedict import SqliteDict
+from ..indexer.sql_dict import SQLDict
+from proxy.environment import evm_loader_id, solana_cli, solana_url
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -42,29 +42,7 @@ logger.setLevel(logging.DEBUG)
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
-chainId = os.environ.get("NEON_CHAIN_ID", "0x6e")    # default value 110
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
-
-class PermanentAccounts:
-    def __init__(self, client, signer, proxy_id):
-        self.operator = signer.public_key()
-        self.operator_token = getTokenAddr(self.operator)
-
-        proxy_id_bytes = proxy_id.to_bytes((proxy_id.bit_length() + 7) // 8, 'big')
-        signer_public_key_bytes = bytes(signer.public_key())
-
-        storage_seed = shake_256(b"storage" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
-        storage_seed = bytes(storage_seed, 'utf8')
-        self.storage = create_account_with_seed(client, funding=signer, base=signer, seed=storage_seed, storage_size=STORAGE_SIZE)
-
-        holder_seed = shake_256(b"holder" + proxy_id_bytes + signer_public_key_bytes).hexdigest(16)
-        holder_seed = bytes(holder_seed, 'utf8')
-        self.holder = create_account_with_seed(client, funding=signer, base=signer, seed=holder_seed, storage_size=STORAGE_SIZE)
-
-        collateral_pool_index = proxy_id % 4
-        self.collateral_pool_index_buf = collateral_pool_index.to_bytes(4, 'little')
-        self.collateral_pool_address = create_collateral_pool_address(collateral_pool_index)
-
 
 class EthereumModel:
     def __init__(self):
@@ -87,18 +65,17 @@ class EthereumModel:
 
         self.client = SolanaClient(solana_url)
 
-        self.logs_db = LogDB(filename="local.db")
-        self.blocks_by_hash = SqliteDict(filename="local.db", tablename="solana_blocks_by_hash", autocommit=True)
-        self.ethereum_trx = SqliteDict(filename="local.db", tablename="ethereum_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
-        self.eth_sol_trx = SqliteDict(filename="local.db", tablename="ethereum_solana_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
-        self.sol_eth_trx = SqliteDict(filename="local.db", tablename="solana_ethereum_transactions", autocommit=True, encode=json.dumps, decode=json.loads)
+        self.logs_db = LogDB()
+        self.blocks_by_hash = SQLDict(tablename="solana_blocks_by_hash")
+        self.ethereum_trx = SQLDict(tablename="ethereum_transactions")
+        self.eth_sol_trx = SQLDict(tablename="ethereum_solana_transactions")
+        self.sol_eth_trx = SQLDict(tablename="solana_ethereum_transactions")
 
         with proxy_id_glob.get_lock():
             self.proxy_id = proxy_id_glob.value
             proxy_id_glob.value += 1
         logger.debug("worker id {}".format(self.proxy_id))
 
-        self.perm_accs = PermanentAccounts(self.client, self.signer, self.proxy_id)
         neon_config_load(self)
         pass
 
@@ -107,13 +84,17 @@ class EthereumModel:
         return self.neon_config_dict['web3_clientVersion']
 
     def eth_chainId(self):
-        return chainId
+        neon_config_load(self)
+        # NEON_CHAIN_ID is a string in decimal form
+        return hex(int(self.neon_config_dict['NEON_CHAIN_ID']))
 
     def net_version(self):
-        return str(int(chainId,base=16))
+        neon_config_load(self)
+        # NEON_CHAIN_ID is a string in decimal form
+        return self.neon_config_dict['NEON_CHAIN_ID']
 
     def eth_gasPrice(self):
-        return hex(1*10**9)
+        return hex(MINIMAL_GAS_PRICE)
 
     def eth_estimateGas(self, param):
         try:
@@ -258,10 +239,10 @@ class EthereumModel:
         """
         if not obj['data']: raise Exception("Missing data")
         try:
-            caller_id = obj['from'] if 'from' in obj else "0x0000000000000000000000000000000000000000"
-            contract_id = obj['to']
-            data = obj['data'] if 'data' in obj else "None"
-            value = obj['value'] if 'value' in obj else ""
+            caller_id = obj.get('from', "0x0000000000000000000000000000000000000000")
+            contract_id = obj.get('to', 'deploy')
+            data = obj.get('data', "None")
+            value = obj.get('value', '')
             return "0x"+call_emulated(contract_id, caller_id, data, value)['result']
         except Exception as err:
             logger.debug("eth_call %s", err)
@@ -387,6 +368,9 @@ class EthereumModel:
         logger.debug('eth_sendRawTransaction rawTrx=%s', rawTrx)
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
         logger.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
+        if trx.gasPrice < MINIMAL_GAS_PRICE:
+            raise Exception("The transaction gasPrice is less then the minimum allowable value ({}<{})".format(trx.gasPrice, MINIMAL_GAS_PRICE))
+
         eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
 
         sender = trx.sender()
@@ -408,7 +392,7 @@ class EthereumModel:
                                     ]
                                 })
         try:
-            signature = call_signed(self.signer, self.client, trx, self.perm_accs, steps=250)
+            signature = call_signed(self.signer, self.client, trx, steps=250)
 
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
 
@@ -436,13 +420,12 @@ class EthereumModel:
                         'from_address': '0x'+sender,
                     }
                 else:
-                    slot = got_result['slot']
                     self.ethereum_trx[eth_signature] = {
                         'eth_trx': rawTrx[2:],
                         'slot': slot,
-                        'logs': None,
+                        'logs': [],
                         'status': 0,
-                        'gas_used': None,
+                        'gas_used': 0,
                         'return_value': None,
                         'from_address': '0x'+sender,
                     }

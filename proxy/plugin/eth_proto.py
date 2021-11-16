@@ -62,6 +62,9 @@ class Trx(rlp.Serializable):
         pub = sig.recover_public_key_from_msg_hash(hash)
         return pub.to_canonical_address().hex()
 
+    def hash_signed(self):
+        return keccak_256(rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData,
+                                      self.v, self.r, self.s))).digest()
 
 #class JsonEncoder(json.JSONEncoder):
 #    def default(self, obj):

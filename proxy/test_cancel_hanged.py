@@ -1,12 +1,13 @@
 import os
 import sys
 
+from proxy.plugin.solana_rest_api_tools import sysinstruct, ETH_TOKEN_MINT_ID, system, send_transaction, MINIMAL_GAS_PRICE
+
 sys.path.append("/spl/bin/")
 os.environ['SOLANA_URL'] = "http://solana:8899"
 os.environ['EVM_LOADER'] = "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io"
 os.environ['ETH_TOKEN_MINT'] = "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU"
 os.environ['COLLATERAL_POOL_BASE'] = "4sW3SZDJB7qXUyCYKA7pFL8eCTfm3REr8oSiKkww7MaT"
-os.environ['NEON_CHAIN_ID'] = "0x6f"
 
 import base64
 import unittest
@@ -147,7 +148,7 @@ class CancelTest(unittest.TestCase):
     def create_hanged_transaction(self):
         print("\ncommit_two_event_trx")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
-        trx_store = self.storage_contract.functions.addReturnEventTwice(1, 1).buildTransaction({'nonce': right_nonce})
+        trx_store = self.storage_contract.functions.addReturnEventTwice(1, 1).buildTransaction({'nonce': right_nonce, 'gasPrice': MINIMAL_GAS_PRICE})
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
 
         (from_addr, sign, msg) = make_instruction_data_from_tx(trx_store_signed.rawTransaction.hex())
@@ -175,10 +176,10 @@ class CancelTest(unittest.TestCase):
         return (trx_raw.hex(), eth_signature, from_address)
 
 
-    def sol_instr_09_partial_call(self, storage_account, step_count, evm_instruction):
+    def sol_instr_19_partial_call(self, storage_account, step_count, evm_instruction):
         return TransactionInstruction(
             program_id=self.loader.loader_id,
-            data=bytearray.fromhex("09") + self.collateral_pool_index_buf + step_count.to_bytes(8, byteorder='little') + evm_instruction,
+            data=bytearray.fromhex("13") + self.collateral_pool_index_buf + step_count.to_bytes(8, byteorder='little') + evm_instruction,
             keys=[
                 AccountMeta(pubkey=storage_account, is_signer=False, is_writable=True),
 
@@ -188,6 +189,10 @@ class CancelTest(unittest.TestCase):
                 AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=True),
                 # Collateral pool address:
                 AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
+                # Operator's NEON token account:
+                AccountMeta(pubkey=get_associated_token_address(self.acc.public_key(), ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
+                # User's NEON token account:
+                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 # System program account:
                 AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
 
@@ -207,7 +212,7 @@ class CancelTest(unittest.TestCase):
         print("Begin")
         trx = Transaction()
         trx.add(self.sol_instr_keccak(self, make_keccak_instruction_data(1, len(msg), 13)))
-        trx.add(self.sol_instr_09_partial_call(self, storage, steps, instruction))
+        trx.add(self.sol_instr_19_partial_call(self, storage, steps, instruction))
         print(trx.__dict__)
         return send_transaction(client, trx, self.acc)
 
@@ -228,7 +233,7 @@ class CancelTest(unittest.TestCase):
 
         return storage
 
-
+    # @unittest.skip("a.i.")
     def test_canceled(self):
         print("\ntest_canceled")
         trx_receipt = proxy.eth.wait_for_transaction_receipt(self.tx_hash)
