@@ -7,6 +7,13 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       utils
+       websocket
+       Websocket
+       WebSocket
 """
 import sys
 import ssl
@@ -38,7 +45,7 @@ def is_threadless(threadless: bool, threaded: bool) -> bool:
 
 
 def is_py2() -> bool:
-    """Exists only to avoid mocking sys.version_info in tests."""
+    """Exists only to avoid mocking :data:`sys.version_info` in tests."""
     return sys.version_info.major == 2
 
 

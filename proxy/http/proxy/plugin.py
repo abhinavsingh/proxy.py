@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
 """
 import socket
 import argparse
@@ -67,8 +71,9 @@ class HttpProxyBasePlugin(ABC):
         """Implementations must now write/flush data over the socket.
 
         Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call `flush` here, to send any buffered data
-        over the socket.
+        Hence implementations MUST call
+        :meth:`~proxy.core.connection.connection.TcpConnection.flush`
+        here, to send any buffered data over the socket.
         """
         return False  # pragma: no cover
 
@@ -85,7 +90,7 @@ class HttpProxyBasePlugin(ABC):
 
         For upstream IP:
         Return None to use default resolver available to the system.
-        Return ip address as string to use your custom resolver.
+        Return IP address as string to use your custom resolver.
 
         For source address:
         Return None to use default source address
@@ -119,7 +124,7 @@ class HttpProxyBasePlugin(ABC):
         Essentially, if you return None from within before_upstream_connection,
         be prepared to handle_client_data and not handle_client_request.
 
-        Raise HttpRequestRejected to teardown the connection
+        Raise HttpRequestRejected to tear down the connection
         Return None to drop the connection
         """
         return raw  # pragma: no cover
@@ -142,7 +147,8 @@ class HttpProxyBasePlugin(ABC):
         Return optionally modified request object to dispatch to upstream.
         Return None to drop the request data, e.g. in case a response has already been queued.
         Raise HttpRequestRejected or HttpProtocolException directly to
-            teardown the connection with client.
+        tear down the connection with client.
+
         """
         return request  # pragma: no cover
 

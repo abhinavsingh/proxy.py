@@ -7,6 +7,12 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       Cloudflare
+       cloudflare
+       dns
 """
 import logging
 
@@ -34,17 +40,23 @@ flags.add_argument(
 
 class CloudflareDnsResolverPlugin(HttpProxyBasePlugin):
     """This plugin uses Cloudflare DNS resolver to provide protection
-    against malwares and adult content.  Implementation uses DoH specification.
+    against malware and adult content.  Implementation uses :term:`DoH`
+    specification.
 
     See https://developers.cloudflare.com/1.1.1.1/1.1.1.1-for-families
     See https://developers.cloudflare.com/1.1.1.1/encrypted-dns/dns-over-https/make-api-requests/dns-json
 
-    NOTE: For this plugin to work, make sure to bypass proxy for 1.1.1.1
+    .. note::
 
-    NOTE: This plugin requires additional dependency because DoH mandates
-    a HTTP2 complaint client.  Install `httpx` dependency as:
+       For this plugin to work, make sure to bypass proxy for 1.1.1.1
 
-    pip install "httpx[http2]"
+    .. note::
+
+       This plugin requires additional dependency because :term:`DoH`
+       mandates a HTTP2 complaint client.  Install `httpx` dependency
+       as::
+
+           pip install "httpx[http2]"
     """
 
     def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:

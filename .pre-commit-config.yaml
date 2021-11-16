@@ -74,7 +74,7 @@ repos:
       $
   - id: requirements-txt-fixer
     exclude: >-
-      ^requirements(|-(release|testing|tunnel))\.txt$
+      ^(docs/requirements|requirements(|-(release|testing|tunnel)))\.txt$
   # Non-modifying checks:
   - id: name-tests-test
     args:

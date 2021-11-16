@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Tunnel:
     """Establishes a tunnel between local (machine where Tunnel is running) and remote host.
     Once a tunnel has been established, remote host can route HTTP(s) traffic to
-    localhost over tunnel.
+    ``localhost`` over tunnel.
     """
 
     def __init__(

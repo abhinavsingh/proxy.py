@@ -7,6 +7,12 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       acceptor
+       acceptors
+       pre
 """
 import logging
 import argparse
@@ -41,12 +47,15 @@ flags.add_argument(
 
 
 class AcceptorPool:
-    """AcceptorPool is a helper class which pre-spawns `Acceptor` processes
-    to utilize all available CPU cores for accepting new work.
+    """AcceptorPool is a helper class which pre-spawns
+    :py:class:`~proxy.core.acceptor.acceptor.Acceptor` processes to
+    utilize all available CPU cores for accepting new work.
 
-    A file descriptor to consume work from is shared with `Acceptor` processes
-    over a pipe.  Each `Acceptor` process then concurrently accepts new work over
-    the shared file descriptor.
+    A file descriptor to consume work from is shared with
+    :py:class:`~proxy.core.acceptor.acceptor.Acceptor` processes over a
+    pipe.  Each :py:class:`~proxy.core.acceptor.acceptor.Acceptor`
+    process then concurrently accepts new work over the shared file
+    descriptor.
 
     Example usage:
 

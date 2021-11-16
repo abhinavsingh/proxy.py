@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       acceptor
 """
 import socket
 import logging
@@ -64,7 +68,7 @@ class ThreadlessPool:
     """Manages lifecycle of threadless pool and delegates work to them
     using a round-robin strategy.
 
-    Example usage:
+    Example usage::
 
         with ThreadlessPool(flags=...) as pool:
             while True:
@@ -74,10 +78,10 @@ class ThreadlessPool:
     work classes.
 
     TODO: We could optimize multiple-work-type scenario
-    by making Threadless class constructor independent of work_klass.
-    We could then relay the work_klass during work delegation.
+    by making Threadless class constructor independent of ``work_klass``.
+    We could then relay the ``work_klass`` during work delegation.
     This will also make ThreadlessPool constructor agnostic
-    of work_klass.
+    of ``work_klass``.
     """
 
     def __init__(

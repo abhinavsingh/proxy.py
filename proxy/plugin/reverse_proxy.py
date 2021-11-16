@@ -34,14 +34,17 @@ logger = logging.getLogger(__name__)
 class ReverseProxyPlugin(HttpWebServerBasePlugin):
     """Extend in-built Web Server to add Reverse Proxy capabilities.
 
-    This example plugin is equivalent to following Nginx configuration:
+    This example plugin is equivalent to following Nginx configuration::
 
+        ```text
         location /get {
             proxy_pass http://httpbin.org/get
         }
+        ```
 
-    Example:
+    Example::
 
+        ```console
         $ curl http://localhost:9000/get
         {
           "args": {},
@@ -53,6 +56,8 @@ class ReverseProxyPlugin(HttpWebServerBasePlugin):
           "origin": "1.2.3.4, 5.6.7.8",
           "url": "http://localhost/get"
         }
+        ```
+
     """
 
     # TODO: We must use nginx python parser and

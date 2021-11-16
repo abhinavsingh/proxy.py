@@ -7,6 +7,11 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       auth
+       http
 """
 from .base import HttpProtocolException
 
@@ -18,7 +23,7 @@ from ...common.utils import build_http_response
 
 
 class ProxyAuthenticationFailed(HttpProtocolException):
-    """Exception raised when Http Proxy auth is enabled and
+    """Exception raised when HTTP Proxy auth is enabled and
     incoming request doesn't present necessary credentials."""
 
     RESPONSE_PKT = memoryview(

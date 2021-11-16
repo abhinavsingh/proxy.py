@@ -1,4 +1,10 @@
-"""Compatibility code for using Proxy.py across various versions of Python."""
+"""Compatibility code for using Proxy.py across various versions of Python.
+
+.. spelling::
+
+   compat
+   py
+"""
 
 import platform
 
