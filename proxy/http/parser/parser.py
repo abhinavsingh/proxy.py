@@ -299,8 +299,6 @@ class HttpParser:
         return len(raw) > 0, raw
 
     def _process_line(self, raw: bytes) -> None:
-        # defer import to solve the circular import problem
-        from ..exception import HttpProtocolException
         if self.type == httpParserTypes.REQUEST_PARSER:
             # Ref:
             # https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
@@ -320,7 +318,9 @@ class HttpParser:
                     self.state = httpParserStates.LINE_RCVD
                 else:
                     # raise exception
-                    raise HttpProtocolException('Invalid request line')
+                    # TODO, it would be better to use raise HttpProtocolException,
+                    # but we should solve circular import problem first
+                    raise NotImplementedError('Invalid request line')
         else:
             line = raw.split(WHITESPACE)
             self.version = line[0]
