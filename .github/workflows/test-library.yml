@@ -9,7 +9,7 @@ on:   # yamllint disable-line rule:truthy
     - 'examples/**'
     - 'requirements*'
     - 'setup.cfg'
-    - 'version-check.py'
+    - 'check.py'
     - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
   pull_request:
@@ -19,7 +19,7 @@ on:   # yamllint disable-line rule:truthy
     - 'examples/**'
     - 'requirements*'
     - 'setup.cfg'
-    - 'version-check.py'
+    - 'check.py'
     - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
   workflow_dispatch:
@@ -319,6 +319,28 @@ jobs:
         --parallel-live
         --skip-missing-interpreters false
         --notest
+
+    - name: Setup git user as [bot]
+      if: >-
+        fromJSON(needs.pre-setup.outputs.is-untagged-devel)
+      run: >
+        git config --local user.email
+        'github-actions[bot]@users.noreply.github.com'
+
+        git config --local user.name 'github-actions[bot]'
+    - name: >-
+        Tag the release in the local Git repo
+        as ${{ needs.pre-setup.outputs.git-tag }}
+        for setuptools-scm to se the desired version
+      if: >-
+        fromJSON(needs.pre-setup.outputs.is-untagged-devel)
+      run: >-
+        git tag
+        -m '${{ needs.pre-setup.outputs.git-tag }}'
+        '${{ needs.pre-setup.outputs.git-tag }}'
+        --
+        ${{ github.event.inputs.release-commitish }}
+
     - name: Build dists
       run: >-
         python -m
@@ -326,6 +348,11 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+    - name: Verify that the artifacts with expected names got created
+      run: >-
+        ls -1
+        'dist/${{ needs.pre-setup.outputs.sdist-artifact-name }}'
+        'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
     - name: Store the distribution packages
       uses: actions/upload-artifact@v2
       with:
@@ -596,8 +623,7 @@ jobs:
     needs:
     - check
     - pre-setup  # transitive, for accessing settings
-    if: >-  # FIXME: remove the line below once credentials are recovered
-      false &&
+    if: >-
       fromJSON(needs.pre-setup.outputs.is-untagged-devel)
     runs-on: Ubuntu-latest
 
