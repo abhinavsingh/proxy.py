@@ -45,6 +45,14 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
+class SolanaErrors(Enum):
+    AccountNotFound = "Invalid param: could not find account"
+
+
+class SolanaAccountNotFound(Exception):
+    """Provides special error processing"""
+
+
 NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 location_bin = ".deploy_contract.bin"
 confirmation_check_delay = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "0.1"))
@@ -1194,18 +1202,22 @@ def create_token_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_ac
         raise Exception("Create account error")
 
 
-def get_token_balance_gwei(client: SolanaClient, token_owner_acc: str, eth_acc: EthereumAddress) \
-                          -> [Optional[int], Optional[Union[Dict, str]]]:
-    token_account = get_associated_token_address(PublicKey(token_owner_acc), ETH_TOKEN_MINT_ID)
-    rpc_response = client.get_token_account_balance(token_account, commitment=Confirmed)
+def get_token_balance_gwei(client: SolanaClient, token_owner_acc: str, eth_acc: EthereumAddress) -> int:
+    token_acc = get_associated_token_address(PublicKey(token_owner_acc), ETH_TOKEN_MINT_ID)
+    rpc_response = client.get_token_account_balance(token_acc, commitment=Confirmed)
     error = rpc_response.get('error')
-    if error is None:
-        balance = get_from_dict(rpc_response, "result", "value", "amount")
-        if balance is None:
-            return None, f"Failed to get token balance from: {rpc_response}, by eth account:" \
-                         f" {eth_acc} aka: {token_account} at token: {ETH_TOKEN_MINT_ID}"
-        return int(balance), None
-    return None, error
+    if error is not None:
+        message = error.get("message")
+        if message == SolanaErrors.AccountNotFound.value:
+            raise SolanaAccountNotFound(message)
+        logger.error(f"Failed to get_token_balance_gwei, got get_token_account_balance error: \"{message}\"")
+        raise Exception("Getting balance error")
+
+    balance = get_from_dict(rpc_response, "result", "value", "amount")
+    if balance is None:
+        logger.error(f"Failed to get_token_balance_gwei from: {rpc_response}, eth account: {eth_acc} aka: {token_acc}")
+        raise Exception("Unexpected token balance response")
+    return int(balance)
 
 
 def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_acc: EthereumAddress) -> int:
@@ -1213,15 +1225,12 @@ def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, ev
     account, nonce = ether2program(bytes(eth_acc).hex(), evm_loader, signer.public_key())
     logger.debug(f"Get balance for eth account: {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
 
-    if not is_account_exists(client, account):
+    try:
+        return get_token_balance_gwei(client, account, eth_acc)
+    except SolanaAccountNotFound:
+        logger.debug(f"Account not found:  {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
         create_token_and_airdrop(client, signer, eth_acc)
-
-    balance, error = get_token_balance_gwei(client, account, eth_acc)
-    if error is None:
-        return int(balance)
-
-    logger.error(f"Failed to get balance for account: {eth_acc}, error occurred: {error}")
-    raise Exception("Getting balance error")
+        return get_token_balance_gwei(client, account, eth_acc)
 
 
 def getTokenAddr(account):
