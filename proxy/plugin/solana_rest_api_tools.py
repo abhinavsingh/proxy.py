@@ -1194,8 +1194,6 @@ def extend_trx_with_create_and_airdrop(signer: SolanaAccount, eth_acc: EthereumA
 
 
 def create_token_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
-    if not is_airdrop_allowed(client, signer, eth_acc):
-        return
     trx = Transaction()
     extend_trx_with_create_and_airdrop(signer, eth_acc, trx=trx)
     result = send_transaction(client, trx, signer)
@@ -1231,9 +1229,11 @@ def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, ev
     try:
         return get_token_balance_gwei(client, account, eth_acc)
     except SolanaAccountNotFound:
-        logger.debug(f"Account not found:  {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
-        create_token_and_airdrop(client, signer, eth_acc)
-        return get_token_balance_gwei(client, account, eth_acc)
+        logger.debug(f"Account not found:  {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID} - create if allowed")
+        if is_airdrop_allowed(client, signer, eth_acc):
+            create_token_and_airdrop(client, signer, eth_acc)
+            return get_token_balance_gwei(client, account, eth_acc)
+        raise
 
 
 def getTokenAddr(account):
