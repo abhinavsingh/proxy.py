@@ -889,7 +889,8 @@ def create_account_list_by_emulate(signer, client, eth_trx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_size, PublicKey(evm_loader_id)))
                 code_account_writable = acc_desc["writable"]
 
-        extend_trx_with_create_and_airdrop(client, signer, EthereumAddress(address), code_account, trx=trx)
+        if is_airdrop_allowed(client, signer, EthereumAddress(address)):
+            extend_trx_with_create_and_airdrop(signer, EthereumAddress(address), code_account, trx=trx)
 
         if address == to_address:
             contract_sol = PublicKey(acc_desc["account"])
@@ -1175,26 +1176,28 @@ def make_transfer_instruction(owner_account: SolanaAccount, dest_token_account: 
     return transfer_instruction
 
 
-def extend_trx_with_create_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress,
-                                       code_acc=None, *, trx) -> bool:
+def is_airdrop_allowed(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
     if NEW_USER_AIRDROP_AMOUNT <= 0:
         return False
 
     solana_address, nonce = ether2program(eth_acc, evm_loader_id, signer.public_key())
     if is_account_exists(client, solana_address):
         return False
+    return True
 
+
+def extend_trx_with_create_and_airdrop(signer: SolanaAccount, eth_acc: EthereumAddress, code_acc=None, *, trx):
     create_trx, token_address = make_create_eth_account_trx(signer, eth_acc, evm_loader_id, code_acc)
     trx.add(create_trx)
     transfer_instruction = make_transfer_instruction(signer, token_address)
     trx.add(transfer_instruction)
-    return True
 
 
 def create_token_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
-    trx = Transaction()
-    if not extend_trx_with_create_and_airdrop(client, signer, eth_acc, trx=trx):
+    if not is_airdrop_allowed(client, signer, eth_acc):
         return
+    trx = Transaction()
+    extend_trx_with_create_and_airdrop(signer, eth_acc, trx=trx)
     result = send_transaction(client, trx, signer)
     error = result.get("error")
     if error is not None:
