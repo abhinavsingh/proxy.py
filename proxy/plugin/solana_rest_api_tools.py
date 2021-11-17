@@ -1175,7 +1175,7 @@ def make_transfer_instruction(owner_account: SolanaAccount, dest_token_account: 
     return transfer_instruction
 
 
-def extend_trx_with_create_eth_account_and_airdrop(signer: SolanaAccount, eth_account: EthereumAddress, code_acc=None, *, trx):
+def extend_trx_with_create_and_airdrop(signer: SolanaAccount, eth_account: EthereumAddress, code_acc=None, *, trx):
     create_trx, associated_token_account = make_create_eth_account_trx(signer, eth_account, evm_loader_id, code_acc)
     trx.add(create_trx)
     if NEW_USER_AIRDROP_AMOUNT <= 0:
@@ -1186,7 +1186,7 @@ def extend_trx_with_create_eth_account_and_airdrop(signer: SolanaAccount, eth_ac
 
 def create_eth_account_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress):
     trx = Transaction()
-    extend_trx_with_create_eth_account_and_airdrop(signer, eth_account, trx=trx)
+    extend_trx_with_create_and_airdrop(signer, eth_account, trx=trx)
     result = send_transaction(client, trx, signer)
     error = result.get("error")
     if error is not None:
