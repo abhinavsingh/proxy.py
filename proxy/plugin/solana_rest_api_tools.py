@@ -1160,18 +1160,18 @@ def make_create_eth_account_trx(signer: SolanaAccount, eth_address: EthereumAddr
     return trx, token_acc_address
 
 
-def make_transfer_instruction(owner_account: SolanaAccount, dest_token_account: PublicKey) -> TransactionInstruction:
-    owner_sol_addr = owner_account.public_key()
-    owner_token_addr = getTokenAddr(owner_sol_addr)
-    transfer_instruction = transfer2(Transfer2Params(source=owner_token_addr,
-                                                     owner=owner_sol_addr,
-                                                     dest=dest_token_account,
+def make_transfer_instruction(owner_pda_account: SolanaAccount, associated_token_account: PublicKey) -> TransactionInstruction:
+    owner_pda_address = owner_pda_account.public_key()
+    owner_associated_token_account = getTokenAddr(owner_pda_address)
+    transfer_instruction = transfer2(Transfer2Params(source=owner_associated_token_account,
+                                                     owner=owner_pda_address,
+                                                     dest=associated_token_account,
                                                      amount=NEW_USER_AIRDROP_AMOUNT * eth_utils.denoms.gwei,
                                                      decimals=9,
                                                      mint=ETH_TOKEN_MINT_ID,
                                                      program_id=TOKEN_PROGRAM_ID))
-    logger.debug(f"Token transfer from token: {owner_token_addr}, owned by: {owner_sol_addr}, to token: "
-                 f"{dest_token_account}, owned by: {dest_token_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
+    logger.debug(f"Token transfer from token: {owner_associated_token_account}, owned by: {owner_pda_address}, to token: "
+                 f"{associated_token_account}, owned by: {associated_token_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
     return transfer_instruction
 
 
