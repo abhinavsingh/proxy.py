@@ -1194,21 +1194,21 @@ def create_eth_account_and_airdrop(client: SolanaClient, signer: SolanaAccount, 
         raise Exception("Create eth_account error")
 
 
-def get_token_balance_gwei(client: SolanaClient, token_owner_acc: str) -> int:
-    token_acc = get_associated_token_address(PublicKey(token_owner_acc), ETH_TOKEN_MINT_ID)
-    rpc_response = client.get_token_account_balance(token_acc, commitment=Confirmed)
+def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
+    associated_token_account = get_associated_token_address(PublicKey(pda_account), ETH_TOKEN_MINT_ID)
+    rpc_response = client.get_token_account_balance(associated_token_account, commitment=Confirmed)
     error = rpc_response.get('error')
     if error is not None:
         message = error.get("message")
         if message == SolanaErrors.AccountNotFound.value:
             raise SolanaAccountNotFound(message)
-        logger.error(f"Failed to get_token_balance_gwei byassociated_token_account: {token_acc}, "
+        logger.error(f"Failed to get_token_balance_gwei by associated_token_account: {associated_token_account}, "
                      f"got get_token_account_balance error: \"{message}\"")
         raise Exception("Getting balance error")
 
     balance = get_from_dict(rpc_response, "result", "value", "amount")
     if balance is None:
-        logger.error(f"Failed to get_token_balance_gwei by associated_token_account: {token_acc}, response: {rpc_response}")
+        logger.error(f"Failed to get_token_balance_gwei by associated_token_account: {associated_token_account}, response: {rpc_response}")
         raise Exception("Unexpected get_balance response")
     return int(balance)
 
@@ -1216,7 +1216,7 @@ def get_token_balance_gwei(client: SolanaClient, token_owner_acc: str) -> int:
 def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_account: EthereumAddress) -> int:
 
     associated_token_account, nonce = ether2program(bytes(eth_account).hex(), evm_loader, signer.public_key())
-    logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account} at token: {ETH_TOKEN_MINT_ID}")
+    logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account}")
 
     try:
         return get_token_balance_gwei(client, associated_token_account)
