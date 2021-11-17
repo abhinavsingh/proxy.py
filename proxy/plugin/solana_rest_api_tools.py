@@ -889,7 +889,7 @@ def create_account_list_by_emulate(signer, client, eth_trx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_size, PublicKey(evm_loader_id)))
                 code_account_writable = acc_desc["writable"]
 
-            extend_trx_with_create_eth_account_and_airdrop(signer, EthereumAddress(address), code_account, trx=trx)
+            extend_trx_with_create_and_airdrop(signer, EthereumAddress(address), code_account, trx=trx)
 
         if address == to_address:
             contract_sol = PublicKey(acc_desc["account"])
@@ -1107,12 +1107,6 @@ def getAccountInfo(client, eth_acc, base_account):
 def getLamports(client, evm_loader, eth_acc, base_account):
     (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
-
-
-def is_account_exists(client: SolanaClient, solana_address: str) -> bool:
-    sender_sol_info = client.get_account_info(solana_address, commitment=Confirmed)
-    value = get_from_dict(sender_sol_info, "result", "value")
-    return value is not None
 
 
 def make_create_eth_account_trx(signer: SolanaAccount, eth_address: EthereumAddress, evm_loader_id, code_acc=None) \
