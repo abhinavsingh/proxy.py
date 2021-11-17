@@ -15,7 +15,10 @@ import unittest
 
 from unittest import mock
 
+import pytest
+
 from proxy.core.acceptor import Listener
+from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
 from proxy.common.flag import FlagParser
 
 
@@ -43,7 +46,15 @@ class TestListener(unittest.TestCase):
         listener.shutdown()
         sock.close.assert_called_once()
 
-    @unittest.skipIf(os.name == 'nt', 'AF_UNIX not available on windows')
+    # FIXME: Ignore is necessary for as long as pytest hasn't figured out
+    # FIXME: typing for their fixtures.
+    # Refs:
+    # * https://github.com/pytest-dev/pytest/issues/7469#issuecomment-918345196
+    # * https://github.com/pytest-dev/pytest/issues/3342
+    @pytest.mark.skipif(
+        IS_WINDOWS,
+        reason='AF_UNIX not available on Windows',
+    )  # type: ignore[misc]
     @mock.patch('os.remove')
     @mock.patch('socket.socket')
     def test_unix_path_listener(self, mock_socket: mock.Mock, mock_remove: mock.Mock) -> None:
