@@ -892,8 +892,7 @@ def create_account_list_by_emulate(signer, client, eth_trx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_size, PublicKey(evm_loader_id)))
                 code_account_writable = acc_desc["writable"]
 
-        if is_airdrop_allowed(client, signer, EthereumAddress(address)):
-            extend_trx_with_create_and_airdrop(signer, EthereumAddress(address), code_account, trx=trx)
+            extend_trx_with_create_eth_account_and_airdrop(signer, EthereumAddress(address), code_account, trx=trx)
 
         if address == to_address:
             contract_sol = PublicKey(acc_desc["account"])
@@ -1164,79 +1163,70 @@ def make_create_eth_account_trx(signer: SolanaAccount, eth_address: EthereumAddr
     return trx, token_acc_address
 
 
-def make_transfer_instruction(owner_account: SolanaAccount, dest_token_account: PublicKey) -> TransactionInstruction:
-    owner_sol_addr = owner_account.public_key()
-    owner_token_addr = getTokenAddr(owner_sol_addr)
-    transfer_instruction = transfer2(Transfer2Params(source=owner_token_addr,
-                                                     owner=owner_sol_addr,
-                                                     dest=dest_token_account,
+def make_transfer_instruction(owner_pda_account: SolanaAccount, associated_token_account: PublicKey) -> TransactionInstruction:
+    owner_pda_address = owner_pda_account.public_key()
+    owner_associated_token_account = getTokenAddr(owner_pda_address)
+    transfer_instruction = transfer2(Transfer2Params(source=owner_associated_token_account,
+                                                     owner=owner_pda_address,
+                                                     dest=associated_token_account,
                                                      amount=NEW_USER_AIRDROP_AMOUNT * eth_utils.denoms.gwei,
                                                      decimals=9,
                                                      mint=ETH_TOKEN_MINT_ID,
                                                      program_id=TOKEN_PROGRAM_ID))
-    logger.debug(f"Token transfer from token: {owner_token_addr}, owned by: {owner_sol_addr}, to token: "
-                 f"{dest_token_account}, owned by: {dest_token_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
+    logger.debug(f"Token transfer from token: {owner_associated_token_account}, owned by: {owner_pda_address}, to token: "
+                 f"{associated_token_account}, owned by: {associated_token_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
     return transfer_instruction
 
 
-def is_airdrop_allowed(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
-    if NEW_USER_AIRDROP_AMOUNT <= 0:
-        return False
-
-    solana_address, nonce = ether2program(eth_acc, evm_loader_id, signer.public_key())
-    if is_account_exists(client, solana_address):
-        return False
-    return True
-
-
-def extend_trx_with_create_and_airdrop(signer: SolanaAccount, eth_acc: EthereumAddress, code_acc=None, *, trx):
-    create_trx, token_address = make_create_eth_account_trx(signer, eth_acc, evm_loader_id, code_acc)
+def extend_trx_with_create_and_airdrop(signer: SolanaAccount, eth_account: EthereumAddress, code_acc=None, *, trx):
+    create_trx, associated_token_account = make_create_eth_account_trx(signer, eth_account, evm_loader_id, code_acc)
     trx.add(create_trx)
-    transfer_instruction = make_transfer_instruction(signer, token_address)
+    if NEW_USER_AIRDROP_AMOUNT <= 0:
+        return
+    transfer_instruction = make_transfer_instruction(signer, associated_token_account)
     trx.add(transfer_instruction)
 
 
-def create_token_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_acc: EthereumAddress):
+def create_eth_account_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress):
     trx = Transaction()
-    extend_trx_with_create_and_airdrop(signer, eth_acc, trx=trx)
+    extend_trx_with_create_and_airdrop(signer, eth_account, trx=trx)
     result = send_transaction(client, trx, signer)
     error = result.get("error")
     if error is not None:
-        logger.error(f"Failed to create and mint token account: {eth_acc}, error occurred: {error}")
-        raise Exception("Create account error")
+        logger.error(f"Failed to create eth_account and airdrop: {eth_account}, error occurred: {error}")
+        raise Exception("Create eth_account error")
 
 
-def get_token_balance_gwei(client: SolanaClient, token_owner_acc: str, eth_acc: EthereumAddress) -> int:
-    token_acc = get_associated_token_address(PublicKey(token_owner_acc), ETH_TOKEN_MINT_ID)
-    rpc_response = client.get_token_account_balance(token_acc, commitment=Confirmed)
+def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
+    associated_token_account = get_associated_token_address(PublicKey(pda_account), ETH_TOKEN_MINT_ID)
+    rpc_response = client.get_token_account_balance(associated_token_account, commitment=Confirmed)
     error = rpc_response.get('error')
     if error is not None:
         message = error.get("message")
         if message == SolanaErrors.AccountNotFound.value:
             raise SolanaAccountNotFound(message)
-        logger.error(f"Failed to get_token_balance_gwei, got get_token_account_balance error: \"{message}\"")
+        logger.error(f"Failed to get_token_balance_gwei by associated_token_account: {associated_token_account}, "
+                     f"got get_token_account_balance error: \"{message}\"")
         raise Exception("Getting balance error")
 
     balance = get_from_dict(rpc_response, "result", "value", "amount")
     if balance is None:
-        logger.error(f"Failed to get_token_balance_gwei from: {rpc_response}, eth account: {eth_acc} aka: {token_acc}")
-        raise Exception("Unexpected token balance response")
+        logger.error(f"Failed to get_token_balance_gwei by associated_token_account: {associated_token_account}, response: {rpc_response}")
+        raise Exception("Unexpected get_balance response")
     return int(balance)
 
 
-def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_acc: EthereumAddress) -> int:
+def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_account: EthereumAddress) -> int:
 
-    account, nonce = ether2program(bytes(eth_acc).hex(), evm_loader, signer.public_key())
-    logger.debug(f"Get balance for eth account: {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID}")
+    associated_token_account, nonce = ether2program(bytes(eth_account).hex(), evm_loader, signer.public_key())
+    logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account}")
 
     try:
-        return get_token_balance_gwei(client, account, eth_acc)
+        return get_token_balance_gwei(client, associated_token_account)
     except SolanaAccountNotFound:
-        logger.debug(f"Account not found:  {eth_acc} aka: {account} at token: {ETH_TOKEN_MINT_ID} - create if allowed")
-        if is_airdrop_allowed(client, signer, eth_acc):
-            create_token_and_airdrop(client, signer, eth_acc)
-            return get_token_balance_gwei(client, account, eth_acc)
-        raise
+        logger.debug(f"Account not found:  {eth_account} aka: {associated_token_account} - create")
+        create_eth_account_and_airdrop(client, signer, eth_account)
+        return get_token_balance_gwei(client, associated_token_account)
 
 
 def getTokenAddr(account):
