@@ -16,7 +16,7 @@ class solana_cli:
             cmd = ["solana",
                    "--url", solana_url,
                    ] + list(args)
-            print(cmd)
+            logger.debug("Calling: " + " ".join(cmd))
             return subprocess.check_output(cmd, universal_newlines=True)
         except subprocess.CalledProcessError as err:
             import sys
@@ -32,7 +32,7 @@ class neon_cli:
                    "--url", solana_url,
                    "--evm_loader={}".format(evm_loader_id),
                    ] + list(args)
-            print(cmd)
+            logger.debug("Calling: " + " ".join(cmd))
             return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True)
         except subprocess.CalledProcessError as err:
             import sys

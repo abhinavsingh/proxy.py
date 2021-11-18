@@ -1,5 +1,7 @@
 import unittest
 import os
+
+import eth_utils
 from web3 import Web3
 from solcx import install_solc
 
@@ -237,8 +239,6 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
     def test_05_transfer_one_gwei(self):
         print("\ntest_05_transfer_one_gwei")
 
-        one_gwei = 1_000_000_000
-
         eth_account_alice = proxy.eth.account.create('alice')
         eth_account_bob = proxy.eth.account.create('bob')
         print('eth_account_alice.address:', eth_account_alice.address)
@@ -254,7 +254,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 gas=987654321,
                 gasPrice=0,
                 to=eth_account_alice.address,
-                value=one_gwei),
+                value=eth_utils.denoms.gwei),
                 eth_account.key
             )
 
@@ -271,7 +271,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 gas=987654321,
                 gasPrice=0,
                 to=eth_account_bob.address,
-                value=one_gwei),
+                value=eth_utils.denoms.gwei),
                 eth_account.key
             )
 
@@ -285,7 +285,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         bob_balance_before_transfer = proxy.eth.get_balance(eth_account_bob.address)
         print('alice_balance_before_transfer:', alice_balance_before_transfer)
         print('bob_balance_before_transfer:', bob_balance_before_transfer)
-        print('one_gwei:', one_gwei)
+        print('one_gwei:', eth_utils.denoms.gwei)
 
         trx_transfer = proxy.eth.account.sign_transaction(dict(
             nonce=proxy.eth.get_transaction_count(eth_account_alice.address),
@@ -293,7 +293,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             gas=987654321,
             gasPrice=0,
             to=eth_account_bob.address,
-            value=one_gwei),
+            value=eth_utils.denoms.gwei),
             eth_account_alice.key
         )
 
@@ -307,8 +307,8 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         bob_balance_after_transfer = proxy.eth.get_balance(eth_account_bob.address)
         print('alice_balance_after_transfer:', alice_balance_after_transfer)
         print('bob_balance_after_transfer:', bob_balance_after_transfer)
-        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - one_gwei)
-        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + one_gwei)
+        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - eth_utils.denoms.gwei)
+        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + eth_utils.denoms.gwei)
 
     # @unittest.skip("a.i.")
     def test_06_transfer_one_and_a_half_gweis(self):
@@ -318,8 +318,6 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         eth_account_bob = proxy.eth.account.create('bob')
         print('eth_account_alice.address:', eth_account_alice.address)
         print('eth_account_bob.address:', eth_account_bob.address)
-
-        one_gwei = 1_000_000_000
 
         if True:
             print("add funds to alice and bob")
@@ -331,7 +329,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 gas=987654321,
                 gasPrice=0,
                 to=eth_account_alice.address,
-                value=one_gwei),
+                value=eth_utils.denoms.gwei),
                 eth_account.key
             )
 
@@ -348,7 +346,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 gas=987654321,
                 gasPrice=0,
                 to=eth_account_bob.address,
-                value=one_gwei),
+                value=eth_utils.denoms.gwei),
                 eth_account.key
             )
 
@@ -386,10 +384,9 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('alice_balance_after_transfer:', alice_balance_after_transfer)
         print('bob_balance_after_transfer:', bob_balance_after_transfer)
         print('check https://github.com/neonlabsorg/neon-evm/issues/210')
-        one_gwei = 1_000_000_000
-        print('one_gwei:', one_gwei)
-        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - one_gwei)
-        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + one_gwei)
+        print('one_gwei:', eth_utils.denoms.gwei)
+        self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - eth_utils.denoms.gwei)
+        self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + eth_utils.denoms.gwei)
 
     @unittest.skip("a.i.")
     def test_07_execute_long_transaction(self):

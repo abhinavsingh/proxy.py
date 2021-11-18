@@ -9,30 +9,37 @@ import struct
 import time
 from datetime import datetime
 from hashlib import sha256
-from typing import NamedTuple
+from typing import NamedTuple, Optional, Union, Dict, Tuple
+import psycopg2
 import rlp
 from base58 import b58decode, b58encode
 from construct import Bytes, Int8ul, Int32ul, Int64ul
 from construct import Struct as cStruct
 from eth_keys import keys as eth_keys
+import eth_utils
+
 from sha3 import keccak_256
-from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT
-from solana._layouts.system_instructions import InstructionType as SystemInstructionType
+from web3.auto import w3
+
+from solana.account import Account as SolanaAccount
 from solana.blockhash import Blockhash
-from solana.publickey import PublicKey
-from solana.rpc.api import Client, SendTransactionError
+from solana.rpc.api import Client as SolanaClient, SendTransactionError
 from solana.rpc.commitment import Commitment, Confirmed
 from solana.rpc.types import TxOpts
 from solana.sysvar import *
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
+from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT
+from solana._layouts.system_instructions import InstructionType as SystemInstructionType
+
 from spl.token.constants import ACCOUNT_LEN, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address, create_associated_token_account, transfer2, Transfer2Params
-from web3.auto import w3
-from proxy.environment import neon_cli, evm_loader_id, ETH_TOKEN_MINT_ID, COLLATERAL_POOL_BASE, read_elf_params
+
+from ..environment import neon_cli, evm_loader_id, ETH_TOKEN_MINT_ID, COLLATERAL_POOL_BASE, read_elf_params
+from ..common_neon.utils import get_from_dict
+from ..common_neon.errors import *
 from .eth_proto import Trx
 from ..core.acceptor.pool import new_acc_id_glob, acc_list_glob
 from ..indexer.sql_dict import POSTGRES_USER, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PASSWORD
-import psycopg2
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -59,7 +66,7 @@ rentid = "SysvarRent111111111111111111111111111111111"
 incinerator = "1nc1nerator11111111111111111111111111111111"
 system = "11111111111111111111111111111111"
 
-STORAGE_SIZE = 128*1024
+STORAGE_SIZE = 128 * 1024
 
 ACCOUNT_INFO_LAYOUT = cStruct(
     "type" / Int8ul,
@@ -193,6 +200,7 @@ class TransactionInfo:
         self.collateral_pool_index_buf = collateral_pool_index.to_bytes(4, 'little')
         self.collateral_pool_address = create_collateral_pool_address(collateral_pool_index)
 
+
 class AccountInfo(NamedTuple):
     ether: eth_keys.PublicKey
     trx_count: int
@@ -203,6 +211,7 @@ class AccountInfo(NamedTuple):
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
         return AccountInfo(cont.ether, cont.trx_count, PublicKey(cont.code_account))
 
+
 def create_account_layout(lamports, space, ether, nonce):
     return bytes.fromhex("02000000")+CREATE_ACCOUNT_LAYOUT.build(dict(
         lamports=lamports,
@@ -210,6 +219,7 @@ def create_account_layout(lamports, space, ether, nonce):
         ether=ether,
         nonce=nonce
     ))
+
 
 def write_holder_layout(nonce, offset, data):
     return (bytes.fromhex('12')+
@@ -246,10 +256,10 @@ def get_account_info(client, storage_account):
 
 
 def accountWithSeed(base, seed, program):
-    # logger.debug(type(base), str(base), type(seed), str(seed), type(program), str(program))
     result = PublicKey(sha256(bytes(base) + bytes(seed) + bytes(program)).digest())
     logger.debug('accountWithSeed %s', str(result))
     return result
+
 
 def createAccountWithSeedTrx(funding, base, seed, lamports, space, program):
     seed_str = str(seed, 'utf8')
@@ -393,8 +403,6 @@ def emulator(contract, sender, data, value):
     return neon_cli().call("emulate", sender, contract, data, value)
 
 
-
-
 def confirm_transaction(client, tx_sig, confirmations=0):
     """Confirm a transaction."""
     TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
@@ -407,27 +415,27 @@ def confirm_transaction(client, tx_sig, confirmations=0):
             status = resp['result']['value'][0]
             if status and (status['confirmationStatus'] == 'finalized' or \
                status['confirmationStatus'] == 'confirmed' and status['confirmations'] >= confirmations):
-#            logger.debug('Confirmed transaction:', resp)
                 return
         time.sleep(confirmation_check_delay)
         elapsed_time += confirmation_check_delay
-    #if not resp["result"]:
     raise RuntimeError("could not confirm transaction: ", tx_sig)
-    #return resp
+
 
 def solana2ether(public_key):
     from web3 import Web3
     return bytes(Web3.keccak(bytes.fromhex(public_key))[-20:])
 
+
 def ether2program(ether, program_id, base):
     if isinstance(ether, str):
-        if ether.startswith('0x'):
-            ether = ether[2:]
+        pass
+    elif isinstance(ether, EthereumAddress):
+        ether = str(ether)
     else:
         ether = ether.hex()
     output = neon_cli().call("create-program-address", ether)
     items = output.rstrip().split(' ')
-    return (items[0], int(items[1]))
+    return items[0], int(items[1])
 
 
 def ether2seed(ether, program_id, base):
@@ -437,7 +445,7 @@ def ether2seed(ether, program_id, base):
     seed = b58encode(bytes.fromhex(ether))
     acc = accountWithSeed(base, seed, PublicKey(program_id))
     logger.debug('ether2program: {} {} => {} (seed {})'.format(ether, 255, acc, seed))
-    return (acc, 255, seed)
+    return acc, 255, seed
 
 
 def neon_config_load(ethereum_model):
@@ -479,6 +487,7 @@ def call_emulated(contract_id, caller_id, data=None, value=None):
     if result["exit_status"] != "succeed":
         raise Exception("evm emulator error ", result)
     return result
+
 
 def extract_measurements_from_receipt(receipt):
     log_messages = receipt['result']['meta']['logMessages']
@@ -541,6 +550,7 @@ def get_measurements(result):
         logger.error("Can't get measurements %s"%err)
         logger.info("Failed result: %s"%json.dumps(result, indent=3))
 
+
 def send_transaction(client, trx, signer, eth_trx=None, reason=None):
     result = client.send_transaction(trx, signer, opts=TxOpts(skip_confirmation=True, preflight_commitment=Confirmed))
     confirm_transaction(client, result["result"])
@@ -548,10 +558,12 @@ def send_transaction(client, trx, signer, eth_trx=None, reason=None):
     update_transaction_cost(result, eth_trx, reason=reason)
     return result
 
+
 def send_measured_transaction(client, trx, signer, eth_trx, reason):
     result = send_transaction(client, trx, signer, eth_trx=eth_trx, reason=reason)
     get_measurements(result)
     return result
+
 
 def check_if_program_exceeded_instructions(err_result):
     err_instruction = "Program failed to complete: exceeded maximum number of instructions allowed"
@@ -591,6 +603,7 @@ def call_continue(signer, client, perm_accs, trx_info, steps):
         logger.debug(str(err))
 
     return sol_instr_21_cancel(signer, client, perm_accs, trx_info)
+
 
 def call_continue_iterative(signer, client, perm_accs, trx_info, step_count):
     while True:
@@ -781,6 +794,7 @@ def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
         reason if reason else ''
     )
 
+
 def create_account_list_by_emulate(signer, client, eth_trx):
     sender_ether = bytes.fromhex(eth_trx.sender())
     add_keys_05 = []
@@ -801,8 +815,7 @@ def create_account_list_by_emulate(signer, client, eth_trx):
     for acc_desc in output_json["accounts"]:
         if acc_desc["new"] == False:
 
-            address = bytes.fromhex(acc_desc["address"][2:])
-            if acc_desc["code_size_current"] is not None and acc_desc["code_size"] is not None:
+            if acc_desc.get("code_size_current") is not None and acc_desc.get("code_size") is not None:
                 if acc_desc["code_size"] > acc_desc["code_size_current"]:
                     code_size = acc_desc["code_size"] + 2048
                     seed = b58encode(ACCOUNT_SEED_VERSION + os.urandom(20))
@@ -846,7 +859,6 @@ def create_account_list_by_emulate(signer, client, eth_trx):
                 success = True
                 logger.debug("successful code and storage migration, %s", instr.keys[0].pubkey)
                 break
-            # wait for unlock account
             time.sleep(1)
             count = count+1
 
@@ -867,26 +879,9 @@ def create_account_list_by_emulate(signer, client, eth_trx):
                 code_size = acc_desc["code_size"] + 2048
                 code_account_balance = client.get_minimum_balance_for_rent_exemption(code_size)["result"]
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_size, PublicKey(evm_loader_id)))
-                # add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
                 code_account_writable = acc_desc["writable"]
 
-            (create_trx, solana_address, token_address) = createEtherAccountTrx(client, address, evm_loader_id, signer, code_account)
-            trx.add(create_trx)
-
-            if address == sender_ether and NEW_USER_AIRDROP_AMOUNT > 0:
-                trx.add(transfer2(Transfer2Params(
-                    amount=NEW_USER_AIRDROP_AMOUNT*1_000_000_000,
-                    decimals=9,
-                    dest=get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
-                    mint=ETH_TOKEN_MINT_ID,
-                    owner=signer.public_key(),
-                    program_id=TOKEN_PROGRAM_ID,
-                    source=getTokenAddr(signer.public_key()),
-                )))
-                logger.debug("Token transfer to %s as ethereum 0x%s amount %s",
-                             get_associated_token_address(PublicKey(acc_desc["account"]), ETH_TOKEN_MINT_ID),
-                             acc_desc["address"],
-                             str(NEW_USER_AIRDROP_AMOUNT))
+            extend_trx_with_create_and_airdrop(signer, EthereumAddress(address), code_account, trx=trx)
 
         if address == to_address:
             contract_sol = PublicKey(acc_desc["account"])
@@ -914,7 +909,6 @@ def create_account_list_by_emulate(signer, client, eth_trx):
                 if acc_desc["contract"]:
                     add_keys_05.append(AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=acc_desc["writable"]))
 
-
     for token_account in output_json["token_accounts"]:
         add_keys_05.append(AccountMeta(pubkey=PublicKey(token_account["key"]), is_signer=False, is_writable=True))
 
@@ -936,7 +930,7 @@ def create_account_list_by_emulate(signer, client, eth_trx):
 
     trx_info = TransactionInfo(caller_token, eth_accounts, eth_trx)
 
-    return (trx_info, sender_ether, trx)
+    return trx_info, sender_ether, trx
 
 
 def call_signed(signer, client, eth_trx, steps):
@@ -983,6 +977,7 @@ def call_signed(signer, client, eth_trx, steps):
             return call_signed_with_holder_acc(signer, client, eth_trx, perm_accs, trx_info, steps, create_acc_trx)
     finally:
         del perm_accs
+
 
 def call_signed_iterative(signer, client, eth_trx, perm_accs, trx_info, steps, msg, create_acc_trx):
     if len(create_acc_trx.instructions):
@@ -1037,52 +1032,6 @@ def call_signed_with_holder_acc(signer, client, eth_trx, perm_accs, trx_info, st
     return call_continue(signer, client, perm_accs, trx_info, steps)
 
 
-def createEtherAccountTrx(client, ether, evm_loader_id, signer, code_acc=None):
-    if isinstance(ether, str):
-        if ether.startswith('0x'): ether = ether[2:]
-    else: ether = ether.hex()
-    (sol, nonce) = ether2program(ether, evm_loader_id, signer.public_key())
-    associated_token = get_associated_token_address(PublicKey(sol), ETH_TOKEN_MINT_ID)
-    logger.debug('createEtherAccount: {} {} => {}'.format(ether, nonce, sol))
-    logger.debug('associatedTokenAccount: {}'.format(associated_token))
-    base = signer.public_key()
-    data=bytes.fromhex('02000000')+CREATE_ACCOUNT_LAYOUT.build(dict(
-            lamports=0,
-            space=0,
-            ether=bytes.fromhex(ether),
-            nonce=nonce))
-    trx = Transaction()
-    if code_acc is None:
-        trx.add(TransactionInstruction(
-            program_id=evm_loader_id,
-            data=data,
-            keys=[
-                AccountMeta(pubkey=base, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
-                AccountMeta(pubkey=associated_token, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=system, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
-            ]))
-    else:
-        trx.add(TransactionInstruction(
-            program_id=evm_loader_id,
-            data=data,
-            keys=[
-                AccountMeta(pubkey=base, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=PublicKey(sol), is_signer=False, is_writable=True),
-                AccountMeta(pubkey=associated_token, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=PublicKey(code_acc), is_signer=False, is_writable=True),
-                AccountMeta(pubkey=system, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
-            ]))
-    return (trx, sol, associated_token)
-
 def createERC20TokenAccountTrx(signer, token_info):
     trx = Transaction()
     trx.add(TransactionInstruction(
@@ -1100,7 +1049,6 @@ def createERC20TokenAccountTrx(signer, token_info):
     ]))
 
     return trx
-
 
 
 def write_trx_to_holder_account(signer, client, holder, acc_id, eth_trx):
@@ -1130,6 +1078,7 @@ def write_trx_to_holder_account(signer, client, holder, acc_id, eth_trx):
         update_transaction_cost(result, eth_trx, reason='WriteHolder')
         logger.debug("confirmed: %s", rcpt)
 
+
 def _getAccountData(client, account, expected_length, owner=None):
     info = client.get_account_info(account, commitment=Confirmed)['result']['value']
     if info is None:
@@ -1140,37 +1089,137 @@ def _getAccountData(client, account, expected_length, owner=None):
         raise Exception("Wrong data length for account data {}".format(account))
     return data
 
+
 def getAccountInfo(client, eth_acc, base_account):
     (account_sol, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader_id, base_account)
     info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     return AccountInfo.frombytes(info)
 
+
 def getLamports(client, evm_loader, eth_acc, base_account):
     (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
-def getTokens(client, signer, evm_loader, eth_acc, base_account):
-    (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
-    token_account = get_associated_token_address(PublicKey(account), ETH_TOKEN_MINT_ID)
 
-    balance = client.get_token_account_balance(token_account, commitment=Confirmed)
-    if 'error' in balance:
-        if NEW_USER_AIRDROP_AMOUNT > 0:
-            return NEW_USER_AIRDROP_AMOUNT * 1_000_000_000
-        else:
-            logger.debug("'error' in balance:")
-            return 0
+def make_create_eth_account_trx(signer: SolanaAccount, eth_address: EthereumAddress, evm_loader_id, code_acc=None) \
+                                -> Tuple[Transaction, PublicKey]:
 
-    return int(balance['result']['value']['amount'])
+    solana_address, nonce = ether2program(eth_address, evm_loader_id, signer.public_key())
+    token_acc_address = get_associated_token_address(PublicKey(solana_address), ETH_TOKEN_MINT_ID)
+    logger.debug(f'Create eth account: {eth_address}, sol account: {solana_address}, token_acc_address: {token_acc_address}, nonce: {nonce}')
+
+    base = signer.public_key()
+    data = bytes.fromhex('02000000') + CREATE_ACCOUNT_LAYOUT.build(dict(lamports=0,
+                                                                        space=0,
+                                                                        ether=bytes(eth_address),
+                                                                        nonce=nonce))
+    trx = Transaction()
+    if code_acc is None:
+        trx.add(TransactionInstruction(
+            program_id=evm_loader_id,
+            data=data,
+            keys=[
+                AccountMeta(pubkey=base, is_signer=True, is_writable=True),
+                AccountMeta(pubkey=PublicKey(solana_address), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=token_acc_address, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=system, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
+            ]))
+    else:
+        trx.add(TransactionInstruction(
+            program_id=evm_loader_id,
+            data=data,
+            keys=[
+                AccountMeta(pubkey=base, is_signer=True, is_writable=True),
+                AccountMeta(pubkey=PublicKey(solana_address), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=token_acc_address, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=PublicKey(code_acc), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=system, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=rentid, is_signer=False, is_writable=False),
+            ]))
+    return trx, token_acc_address
+
+
+def make_transfer_instruction(owner_pda_account: SolanaAccount, associated_token_account: PublicKey) -> TransactionInstruction:
+    owner_pda_address = owner_pda_account.public_key()
+    owner_associated_token_account = getTokenAddr(owner_pda_address)
+    transfer_instruction = transfer2(Transfer2Params(source=owner_associated_token_account,
+                                                     owner=owner_pda_address,
+                                                     dest=associated_token_account,
+                                                     amount=NEW_USER_AIRDROP_AMOUNT * eth_utils.denoms.gwei,
+                                                     decimals=9,
+                                                     mint=ETH_TOKEN_MINT_ID,
+                                                     program_id=TOKEN_PROGRAM_ID))
+    logger.debug(f"Token transfer from token: {owner_associated_token_account}, owned by: {owner_pda_address}, to token: "
+                 f"{associated_token_account}, owned by: {associated_token_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
+    return transfer_instruction
+
+
+def extend_trx_with_create_and_airdrop(signer: SolanaAccount, eth_account: EthereumAddress, code_acc=None, *, trx):
+    create_trx, associated_token_account = make_create_eth_account_trx(signer, eth_account, evm_loader_id, code_acc)
+    trx.add(create_trx)
+    if NEW_USER_AIRDROP_AMOUNT <= 0:
+        return
+    transfer_instruction = make_transfer_instruction(signer, associated_token_account)
+    trx.add(transfer_instruction)
+
+
+def create_eth_account_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress):
+    trx = Transaction()
+    extend_trx_with_create_and_airdrop(signer, eth_account, trx=trx)
+    result = send_transaction(client, trx, signer)
+    error = result.get("error")
+    if error is not None:
+        logger.error(f"Failed to create eth_account and airdrop: {eth_account}, error occurred: {error}")
+        raise Exception("Create eth_account error")
+
+
+def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
+    associated_token_account = get_associated_token_address(PublicKey(pda_account), ETH_TOKEN_MINT_ID)
+    rpc_response = client.get_token_account_balance(associated_token_account, commitment=Confirmed)
+    error = rpc_response.get('error')
+    if error is not None:
+        message = error.get("message")
+        if message == SolanaErrors.AccountNotFound.value:
+            raise SolanaAccountNotFoundError()
+        logger.error(f"Failed to get_token_balance_gwei by associated_token_account: {associated_token_account}, "
+                     f"got get_token_account_balance error: \"{message}\"")
+        raise Exception("Getting balance error")
+
+    balance = get_from_dict(rpc_response, "result", "value", "amount")
+    if balance is None:
+        logger.error(f"Failed to get_token_balance_gwei by associated_token_account: {associated_token_account}, response: {rpc_response}")
+        raise Exception("Unexpected get_balance response")
+    return int(balance)
+
+
+def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_account: EthereumAddress) -> int:
+    associated_token_account, nonce = ether2program(bytes(eth_account).hex(), evm_loader, signer.public_key())
+    logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account}")
+
+    try:
+        return get_token_balance_gwei(client, associated_token_account)
+    except SolanaAccountNotFoundError:
+        logger.debug(f"Account not found:  {eth_account} aka: {associated_token_account} - create")
+        create_eth_account_and_airdrop(client, signer, eth_account)
+        return get_token_balance_gwei(client, associated_token_account)
+
 
 def getTokenAddr(account):
     return get_associated_token_address(PublicKey(account), ETH_TOKEN_MINT_ID)
 
+
 def make_instruction_data_from_tx(instruction, private_key=None):
     if isinstance(instruction, dict):
-        if instruction['chainId'] == None:
+        if instruction.get('chainId') is None:
             raise Exception("chainId value is needed in input dict")
-        if private_key == None:
+        if private_key is None:
             raise Exception("Needed private key for transaction creation from fields")
 
         signed_tx = w3.eth.account.sign_transaction(instruction, private_key)
