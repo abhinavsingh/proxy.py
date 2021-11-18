@@ -7,6 +7,11 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
+       Submodules
 """
 from .parser import HttpParser
 from .chunk import ChunkParser, chunkParserStates

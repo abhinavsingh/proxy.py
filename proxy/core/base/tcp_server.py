@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       tcp
 """
 import socket
 import logging
@@ -36,10 +40,12 @@ class BaseTcpServerHandler(Work):
     Most importantly, BaseTcpServerHandler ensures that pending buffers
     to the client are flushed before connection is closed.
 
-    Implementations must provide:
-    a) handle_data(data: memoryview) implementation
-    b) Optionally, also implement other Work method
-       e.g. initialize, is_inactive, shutdown
+    Implementations must provide::
+
+       a. handle_data(data: memoryview) implementation
+       b. Optionally, also implement other Work method
+          e.g. initialize, is_inactive, shutdown
+
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

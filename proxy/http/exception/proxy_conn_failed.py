@@ -7,6 +7,11 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       conn
+       http
 """
 from .base import HttpProtocolException
 
@@ -18,7 +23,7 @@ from ...common.utils import build_http_response
 
 
 class ProxyConnectionFailed(HttpProtocolException):
-    """Exception raised when HttpProxyPlugin is unable to establish connection to upstream server."""
+    """Exception raised when ``HttpProxyPlugin`` is unable to establish connection to upstream server."""
 
     RESPONSE_PKT = memoryview(
         build_http_response(

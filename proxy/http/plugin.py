@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
 """
 import socket
 import argparse
@@ -41,7 +45,7 @@ class HttpProtocolHandlerPlugin(ABC):
     4. Server Response Chunk Received
        on_response_chunk is called for every chunk received from the server.
     5. Client Connection Closed
-       Add your logic within `on_client_connection_close` for any per connection teardown.
+       Add your logic within `on_client_connection_close` for any per connection tear-down.
     """
 
     def __init__(
@@ -79,8 +83,9 @@ class HttpProtocolHandlerPlugin(ABC):
         """Implementations must now write/flush data over the socket.
 
         Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call `flush` here, to send any buffered data
-        over the socket.
+        Hence implementations MUST call
+        :meth:`~proxy.core.connection.TcpConnection.flush` here, to send
+        any buffered data over the socket.
         """
         return False  # pragma: no cover
 

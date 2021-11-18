@@ -26,19 +26,21 @@ class EventQueue:
     subscribers need to dispatch their subscription queue over this global
     queue.
 
-    Each published event contains following schema:
-    {
-        'request_id': 'Globally unique request ID',
-        'process_id': 'Process ID of event publisher. '
-                      'This will be the process ID of acceptor workers.',
-        'thread_id': 'Thread ID of event publisher. '
-                     'When --threadless is enabled, this value will be '
-                     'same for all the requests.'
-        'event_timestamp': 'Time when this event occured',
-        'event_name': 'one of the pre-defined or custom event name',
-        'event_payload': 'Optional data associated with the event',
-        'publisher_id': 'Optional publisher entity unique name',
-    }
+    Each published event contains following schema::
+
+        {
+            'request_id': 'Globally unique request ID',
+            'process_id': 'Process ID of event publisher. This '
+                          'will be the process ID of acceptor workers.',
+            'thread_id': 'Thread ID of event publisher. '
+                         'When --threadless is enabled, this value '
+                         'will be same for all the requests.'
+            'event_timestamp': 'Time when this event occured',
+            'event_name': 'one of the pre-defined or custom event name',
+            'event_payload': 'Optional data associated with the event',
+            'publisher_id': 'Optional publisher entity unique name',
+        }
+
     """
 
     def __init__(self, queue: DictQueueType) -> None:

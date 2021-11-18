@@ -305,6 +305,7 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+        --skip-pkg-install
     - name: Verify that the artifacts with expected names got created
       run: >-
         ls -1
@@ -335,6 +336,10 @@ jobs:
         toxenv:
         - lint
         - metadata-validation
+        - build-docs
+        - doctest-docs
+        - linkcheck-docs
+        - spellcheck-docs
       fail-fast: false
 
     env:
@@ -417,6 +422,7 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+        --skip-pkg-install
 
   test:
     name: 🐍${{ matrix.python }} @ ${{ matrix.os }}

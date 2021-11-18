@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       dns
 """
 import socket
 
@@ -21,11 +25,12 @@ class CustomDnsResolverPlugin(HttpProxyBasePlugin):
     def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:
         """Here we are using in-built python resolver for demonstration.
 
-        Ideally you would like to query your custom DNS server or even use DoH to make
-        real sense out of this plugin.
+        Ideally you would like to query your custom DNS server or even
+        use :term:`DoH` to make real sense out of this plugin.
 
-        2nd parameter returned is None.  Return a 2-tuple to configure underlying interface
-        to use for connection to the upstream server.
+        The second parameter returned is None.  Return a 2-tuple to
+        configure underlying interface to use for connection to the
+        upstream server.
         """
         try:
             return socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)[0][4][0], None

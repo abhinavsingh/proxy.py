@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       Submodules
 """
 from .tcp_server import BaseTcpServerHandler
 from .tcp_tunnel import BaseTcpTunnelHandler

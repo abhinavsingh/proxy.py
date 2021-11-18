@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
 """
 import socket
 import argparse
@@ -66,8 +70,9 @@ class HttpWebServerBasePlugin(ABC):
         """Implementations must now write/flush data over the socket.
 
         Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call `flush` here, to send any buffered data
-        over the socket.
+        Hence implementations MUST call
+        :meth:`~proxy.core.connection.connection.TcpConnection.flush`
+        here, to send any buffered data over the socket.
         """
         return False  # pragma: no cover
 
