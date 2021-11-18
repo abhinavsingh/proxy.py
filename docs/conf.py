@@ -171,8 +171,7 @@ todo_include_todos = True
 # -- Options for sphinxcontrib.apidoc extension ------------------------------
 
 apidoc_excluded_paths = [
-    'plugin/cache/*',
-    'testing/*.py',
+    'plugin/cache/*.py',
 ]
 apidoc_extra_args = [
     '--implicit-namespaces',
