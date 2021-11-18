@@ -304,16 +304,12 @@ class HttpParser:
 
     def _process_line(self, raw: bytes) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
-            # Ref:
-            # https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
-            # https://greenbytes.de/tech/webdav/rfc7230.html#request.line
-            # https://greenbytes.de/tech/webdav/rfc7231.html#methods
-            # http://www.iana.org/assignments/http-methods/http-methods.xhtml
             if self.protocol is not None and self.protocol.version is None:
                 # We expect to receive entire proxy protocol v1 line
                 # in one network read and don't expect partial packets
                 self.protocol.parse(raw)
             else:
+                # Ref: https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
                 line = raw.split(WHITESPACE)
                 if len(line) == 3:
                     self.method = line[0].upper()
@@ -321,10 +317,12 @@ class HttpParser:
                     self.version = line[2]
                     self.state = httpParserStates.LINE_RCVD
                 else:
-                    # raise exception
-                    # TODO, it would be better to use raise HttpProtocolException,
-                    # but we should solve circular import problem first
-                    raise NotImplementedError('Invalid request line')
+                    # To avoid a possible attack vector, we raise exception
+                    # if parser receives an invalid request line.
+                    #
+                    # TODO: Better to use raise HttpProtocolException,
+                    # but we should solve circular import problem first.
+                    raise ValueError('Invalid request line')
         else:
             line = raw.split(WHITESPACE)
             self.version = line[0]
