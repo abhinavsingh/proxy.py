@@ -1,8 +1,4 @@
-[![Proxy.Py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
-
-<p style="text-align: center;">
-⚡ Fast • 🪶 Lightweight • 0️⃣ Dependency • 🔌 Pluggable • 😈 TLS interception • 🔒 DNS-over-HTTPS • 🔥 Poor Man's VPN • ⏪ Reverse & ⏩ Forward • 👮🏿 "Proxy Server" framework • 🌐 "Web Server" framework • ➵ ➶ ➷ ➠ "PubSub" framework • 👷 "Work" acceptor & executor framework
-</p>
+[![Proxy.Py](https://user-images.githubusercontent.com/126065/142456918-cc646b79-422e-4cf5-b00b-b073e98ce4bf.png)](https://github.com/abhinavsingh/proxy.py)
 
 [//]: # (DO-NOT-REMOVE-docs-badges-START)
 
@@ -2018,7 +2014,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2
+proxy.py v2.3.2.dev161+gab515a3.d20211118
 
 options:
   -h, --help            show this help message and exit
