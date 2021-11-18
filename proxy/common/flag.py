@@ -19,6 +19,7 @@ import multiprocessing
 
 from typing import Optional, List, Any, cast
 
+from ._compat import IS_WINDOWS  # noqa: WPS436
 from .plugins import Plugins
 from .types import IpAddress
 from .utils import bytes_, is_py2, set_open_file_limit
@@ -255,7 +256,7 @@ class FlagParser:
         )
         # AF_UNIX is not available on Windows
         # See https://bugs.python.org/issue33408
-        if os.name != 'nt':
+        if not IS_WINDOWS:
             args.family = socket.AF_UNIX if args.unix_socket_path else (
                 socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
             )
