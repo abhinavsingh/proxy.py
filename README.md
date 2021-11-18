@@ -1982,7 +1982,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2.dev161+gab515a3.d20211118
+proxy.py v2.3.2.dev168+g009975b.d20211118
 
 options:
   -h, --help            show this help message and exit
