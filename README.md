@@ -379,7 +379,7 @@ To start `proxy.py` from source code follow these instructions:
 - Install deps
 
   ```console
-  ❯ make lib-dep lib-scm-version
+  ❯ make lib-dep
   ```
 
 - Optionally, run tests

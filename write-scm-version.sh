@@ -1,4 +1,17 @@
 #!/bin/bash
+#
+# write-scm-version.sh exists because `proxy.py``
+# auto-detects it's next version from git.  Hence,
+# for `proxy.py` to work `proxy/common/_scm_version.py`
+# file must be auto-generated with necessary information.
+#
+# For CI/CD, this file is generated via `tox` integration.
+# For local development (without editable install), you
+# must run this script to pre-populate `_scm_version.py`.
+#
+# This file is integrated by default within `Makefile`.
+# For every make target invocation, `_scm_version.py` file
+# will be re-written.
 
 # Guessed Version 2.3.2.dev146+gad54132.d20211114
 VERSION=$(python -m setuptools_scm --version | \
@@ -30,4 +43,4 @@ version = '${VERSION}'
 version_tuple = (${MAJOR}, ${MINOR}, ${PATCH}, '${DISTANCE}', '${DATE_AND_HASH}')" > \
     proxy/common/_scm_version.py
 
-echo $VERSION
+echo $MAJOR.$MINOR.$PATCH.$DISTANCE
