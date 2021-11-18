@@ -14,6 +14,12 @@ CA_KEY_FILE_PATH := ca-key.pem
 CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
+OPEN=$(shell which open)
+UNAME := $(shell uname)
+ifeq ($(UNAME), Linux)
+OPEN=$(shell which xdg-open)
+endif
+
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-profile lib-doc lib-dep lib-flake8 lib-mypy
@@ -107,11 +113,12 @@ lib-package: lib-clean lib-check
 	python -m tox -e cleanup-dists,build-dists,metadata-validation
 
 lib-doc:
-	python -m tox -e build-docs && open .tox/build-docs/docs_out/index.html
+	python -m tox -e build-docs && \
+	$(OPEN) .tox/build-docs/docs_out/index.html
 
 lib-coverage:
-	pytest --cov=proxy --cov=tests --cov-report=html tests/
-	open htmlcov/index.html
+	pytest --cov=proxy --cov=tests --cov-report=html tests/ && \
+	$(OPEN) htmlcov/index.html
 
 lib-profile:
 	sudo py-spy record -o profile.svg -t -F -s -- python -m proxy
