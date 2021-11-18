@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
-"""
-    proxy.py
-    ~~~~~~~~
-    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
-    Network monitoring, controls & Application development, testing, debugging.
-
-    :copyright: (c) 2013-present by Abhinav Singh and contributors.
-    :license: BSD, see LICENSE for more details.
-"""
+#
+# proxy.py
+# ~~~~~~~~
+# ⚡ Fast • 🪶 Lightweight • 0️⃣ Dependency • 🔌 Pluggable •
+# 😈 TLS interception • 🔒 DNS-over-HTTPS • 🔥 Poor Man's VPN •
+# ⏪ Reverse & ⏩ Forward • 👮🏿 "Proxy Server" framework •
+# 🌐 "Web Server" framework • ➵ ➶ ➷ ➠ "PubSub" framework •
+# 👷 "Work" acceptor & executor framework.
+#
+# :copyright: (c) 2013-present by Abhinav Singh and contributors.
+# :license: BSD, see LICENSE for more details.
+#
+"""Performs various checks and optionally fixes them in-place."""
 import sys
 import subprocess
 
@@ -20,16 +24,39 @@ from proxy.common.version import __version__ as lib_version
 #    installer file, but it only needs to match with lib
 #    versions if current git branch is master
 
-PY_FILE_PREFIX = b'# -*- coding: utf-8 -*-\n' + \
-    b'"""\n' + \
-    b'    proxy.py\n' + \
-    b'    ~~~~~~~~\n' + \
-    b'    \xe2\x9a\xa1\xe2\x9a\xa1\xe2\x9a\xa1 Fast, Lightweight, Pluggable, TLS interception capable' + \
-    b' proxy server focused on\n' + \
-    b'    Network monitoring, controls & Application development, testing, debugging.\n' + \
-    b'\n' + \
-    b'    :copyright: (c) 2013-present by Abhinav Singh and contributors.\n' + \
-    b'    :license: BSD, see LICENSE for more details.\n'
+PROXY_PY_PREFIX = ' •'.join([
+    ' • '.join([
+        '# ⚡ Fast',
+        '🪶 Lightweight',
+        '0️⃣ Dependency',
+        '🔌 Pluggable',
+    ]),
+    ' • '.join([
+        '\n# 😈 TLS interception',
+        '🔒 DNS-over-HTTPS',
+        '🔥 Poor Man\'s VPN',
+    ]),
+    ' • '.join([
+        '\n# ⏪ Reverse & ⏩ Forward',
+        '👮🏿 "Proxy Server" framework',
+    ]),
+    ' • '.join([
+        '\n# 🌐 "Web Server" framework',
+        '➵ ➶ ➷ ➠ "PubSub" framework',
+    ]),
+    '\n# 👷 "Work" acceptor & executor framework.',
+])
+
+PY_FILE_LICENSE_PREFIX = '\n'.join([
+    '# -*- coding: utf-8 -*-',
+    '#',
+    '# proxy.py',
+    '# ~~~~~~~~',
+    PROXY_PY_PREFIX,
+    '#',
+    '# :copyright: (c) 2013-present by Abhinav Singh and contributors.',
+    '# :license: BSD, see LICENSE for more details.',
+]).encode('utf-8')
 
 REPO_ROOT = Path(__file__).parent
 ALL_PY_FILES = (
@@ -43,8 +70,8 @@ ALL_PY_FILES = (
 for py_file in ALL_PY_FILES:
     if py_file.is_file() and py_file.name != '_scm_version.py':
         with open(py_file, 'rb') as f:
-            code = f.read(len(PY_FILE_PREFIX))
-            if code != PY_FILE_PREFIX:
+            code = f.read(len(PY_FILE_LICENSE_PREFIX))
+            if code != PY_FILE_LICENSE_PREFIX:
                 print(
                     'Expected license not found in {0}'.format(
                         str(py_file),
@@ -72,7 +99,7 @@ readme_version_output = subprocess.check_output(
 # Doesn't contain "v" prefix
 readme_version = readme_version_output.decode().strip()
 
-if readme_version != lib_version[1:].split('-')[0]:
+if readme_version != lib_version:
     print(
         'Version mismatch found. {0} (readme) vs {1} (lib).'.format(
             readme_version, lib_version,
