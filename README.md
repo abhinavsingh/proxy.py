@@ -1,4 +1,4 @@
-[![Proxy.Py](https://user-images.githubusercontent.com/126065/142456918-cc646b79-422e-4cf5-b00b-b073e98ce4bf.png)](https://github.com/abhinavsingh/proxy.py)
+[![Proxy.Py](https://user-images.githubusercontent.com/126065/142461654-cc4eb9fe-3a82-4a5a-b1bf-24b4e8d0f811.png)](https://github.com/abhinavsingh/proxy.py)
 
 [//]: # (DO-NOT-REMOVE-docs-badges-START)
 
