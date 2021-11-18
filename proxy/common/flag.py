@@ -54,12 +54,14 @@ class FlagParser:
     Import `flag.flags` and use `add_argument` API
     to define custom flags within respective Python files.
 
-    Best Practice:
-    1. Define flags at the top of your class files.
-    2. DO NOT add flags within your class `__init__` method OR
-       within class methods.  It MAY result into runtime exception,
-       especially if your class is initialized multiple times or if
-       class method registering the flag gets invoked multiple times.
+    Best Practice::
+
+       1. Define flags at the top of your class files.
+       2. DO NOT add flags within your class `__init__` method OR
+          within class methods.  It MAY result into runtime exception,
+          especially if your class is initialized multiple times or if
+          class method registering the flag gets invoked multiple times.
+
     """
 
     def __init__(self) -> None:

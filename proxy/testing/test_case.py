@@ -20,7 +20,7 @@ from ..plugin import CacheResponsesPlugin
 
 
 class TestCase(unittest.TestCase):
-    """Base TestCase class that automatically setup and teardown proxy.py."""
+    """Base TestCase class that automatically setup and tear down proxy.py."""
 
     DEFAULT_PROXY_PY_STARTUP_FLAGS = [
         '--num-workers', '1',

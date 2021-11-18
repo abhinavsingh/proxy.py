@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       tcp
 """
 import socket
 import logging
@@ -26,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseTcpTunnelHandler(BaseTcpServerHandler):
-    """BaseTcpTunnelHandler build on-top of BaseTcpServerHandler work klass.
+    """BaseTcpTunnelHandler build on-top of BaseTcpServerHandler work class.
 
     On-top of BaseTcpServerHandler implementation,
     BaseTcpTunnelHandler introduces an upstream TcpServerConnection

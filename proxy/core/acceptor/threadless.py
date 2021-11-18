@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       acceptor
 """
 import argparse
 import os
@@ -37,19 +41,23 @@ class Threadless(multiprocessing.Process):
     """Work executor process.
 
     Threadless process provides an event loop, which is shared across
-    multiple `Work` instances to handle work.
+    multiple :class:`~proxy.core.acceptor.work.Work` instances to handle
+    work.
 
     Threadless takes input a `work_klass` and an `event_queue`.  `work_klass`
-    must conform to the `Work` protocol.  Work is received over the
-    `event_queue`.
+    must conform to the :class:`~proxy.core.acceptor.work.Work`
+    protocol.  Work is received over the `event_queue`.
 
     When a work is accepted, threadless creates a new instance of `work_klass`.
-    Threadless will then invoke necessary lifecycle of the `Work` protocol,
+    Threadless will then invoke necessary lifecycle of the
+    :class:`~proxy.core.acceptor.work.Work` protocol,
     allowing `work_klass` implementation to handle the assigned work.
 
-    Example, `BaseTcpServerHandler` implements `Work` protocol. It expects
-    a client connection as work payload and hooks into the threadless
-    event loop to handle the client connection.
+    Example, :class:`~proxy.core.base.tcp_server.BaseTcpServerHandler`
+    implements :class:`~proxy.core.acceptor.work.Work` protocol. It
+    expects a client connection as work payload and hooks into the
+    threadless event loop to handle the client connection.
+
     """
 
     def __init__(

@@ -79,7 +79,7 @@ class EventSubscriber:
             self.subscribe()
 
     def shutdown(self, do_unsubscribe: bool = True) -> None:
-        """Teardown subscription thread.
+        """Tear down subscription thread.
 
         Call unsubscribe() to actually stop subscription.
         """

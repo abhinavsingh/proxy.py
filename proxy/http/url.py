@@ -7,6 +7,11 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
+       url
 """
 from typing import Optional, Tuple
 
@@ -14,9 +19,9 @@ from ..common.constants import COLON, SLASH
 
 
 class Url:
-    """urllib.urlparse doesn't work for proxy.py, so we wrote a simple Url.
+    """``urllib.urlparse`` doesn't work for proxy.py, so we wrote a simple URL.
 
-    Currently, Url only implements what is necessary for HttpParser to work.
+    Currently, URL only implements what is necessary for HttpParser to work.
     """
 
     def __init__(
@@ -33,19 +38,19 @@ class Url:
 
     @classmethod
     def from_bytes(cls, raw: bytes) -> 'Url':
-        """A Url within proxy.py core can have several styles,
+        """A URL within proxy.py core can have several styles,
         because proxy.py supports both proxy and web server use cases.
 
         Example:
-        For a Web server, url is like "/" or "/get" or "/get?key=value"
-        For a HTTPS connect tunnel, url is like "httpbin.org:443"
-        For a HTTP proxy request, url is like "http://httpbin.org/get"
+        For a Web server, url is like ``/`` or ``/get`` or ``/get?key=value``
+        For a HTTPS connect tunnel, url is like ``httpbin.org:443``
+        For a HTTP proxy request, url is like ``http://httpbin.org/get``
 
         Further:
-        1) Url may contain unicode characters
-        2) Url may contain IPv4 and IPv6 format addresses instead of domain names
+        1) URL may contain unicode characters
+        2) URL may contain IPv4 and IPv6 format addresses instead of domain names
 
-        We use heuristics based approach for our Url parser.
+        We use heuristics based approach for our URL parser.
         """
         sraw = raw.decode('utf-8')
         if sraw[0] == SLASH.decode('utf-8'):
