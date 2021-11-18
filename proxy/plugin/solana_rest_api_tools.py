@@ -429,7 +429,7 @@ def solana2ether(public_key):
     return bytes(Web3.keccak(bytes.fromhex(public_key))[-20:])
 
 
-def ether2program(ether, program_id, base):
+def ether2program(ether):
     if isinstance(ether, str):
         pass
     elif isinstance(ether, EthereumAddress):
@@ -1094,20 +1094,20 @@ def _getAccountData(client, account, expected_length, owner=None):
 
 
 def getAccountInfo(client, eth_acc, base_account):
-    (account_sol, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader_id, base_account)
+    (account_sol, nonce) = ether2program(bytes(eth_acc).hex())
     info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     return AccountInfo.frombytes(info)
 
 
 def getLamports(client, evm_loader, eth_acc, base_account):
-    (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
+    (account, nonce) = ether2program(bytes(eth_acc).hex())
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
 
 def make_create_eth_account_trx(signer: SolanaAccount, eth_address: EthereumAddress, evm_loader_id, code_acc=None) \
                                 -> Tuple[Transaction, PublicKey]:
 
-    solana_address, nonce = ether2program(eth_address, evm_loader_id, signer.public_key())
+    solana_address, nonce = ether2program(eth_address)
     token_acc_address = get_associated_token_address(PublicKey(solana_address), ETH_TOKEN_MINT_ID)
     logger.debug(f'Create eth account: {eth_address}, sol account: {solana_address}, token_acc_address: {token_acc_address}, nonce: {nonce}')
 
@@ -1203,7 +1203,7 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
 
 
 def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_account: EthereumAddress) -> int:
-    associated_token_account, nonce = ether2program(bytes(eth_account).hex(), evm_loader, signer.public_key())
+    associated_token_account, nonce = ether2program(bytes(eth_account).hex())
     logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account}")
 
     try:
@@ -1257,15 +1257,16 @@ def make_instruction_data_from_tx(instruction, private_key=None):
         raise Exception("function gets ")
 
 
-def is_account_exists(client: SolanaClient, pda_account: str) -> bool:
-    info = client.get_account_info(pda_account, commitment=Confirmed)
+def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> bool:
+    pda_caller_account, nonce = ether2program(eth_account)
+    info = client.get_account_info(pda_caller_account, commitment=Confirmed)
     value = get_from_dict(info, "result", "value")
     return value is not None
 
 
-def estimate_gas(client: SolanaClient, signer: SolanaAccount, contract_id: str, eth_caller_address: EthereumAddress,
+def estimate_gas(client: SolanaClient, signer: SolanaAccount, contract_id: str, eth_caller_account: EthereumAddress,
                  data: str = None, value: str = None):
-    if is_account_exists(client, signer, eth_caller_address):
-        create_eth_account_and_airdrop(client, signer, eth_caller_address)
-    result = call_emulated(contract_id, str(eth_caller_address), data, value)
+    if not is_account_exists(client, eth_caller_account):
+        create_eth_account_and_airdrop(client, signer, eth_caller_account)
+    result = call_emulated(contract_id, str(eth_caller_account), data, value)
     return result['used_gas'] + EXTRA_GAS
