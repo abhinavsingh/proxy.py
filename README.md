@@ -1950,38 +1950,6 @@ Within `proxy.py` everything is a plugin.
   Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
   http(s) server.
 
-## Development Guide
-
-### Setup Local Environment
-
-Contributors must start `proxy.py` from source to verify and develop new features / fixes.
-
-See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
-
-
-[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
-you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends
-to be problematic.  See linked thread for more details.
-
-### Setup Git Hooks
-
-Pre-commit hook ensures tests are passing.
-
-1. `cd /path/to/proxy.py`
-2. `ln -s $(PWD)/git-pre-commit .git/hooks/pre-commit`
-
-Pre-push hook ensures lint and tests are passing.
-
-1. `cd /path/to/proxy.py`
-2. `ln -s $(PWD)/git-pre-push .git/hooks/pre-push`
-
-### Sending a Pull Request
-
-Every pull request is tested using GitHub actions.
-
-See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
-for list of tests.
-
 # Flags
 
 ```console
