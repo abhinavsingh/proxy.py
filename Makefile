@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-VERSION ?= v$(shell ./scm-version.sh)
+VERSION ?= $(shell ./scm-version.sh)
 LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
 IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(VERSION)
 
@@ -17,7 +17,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
-.PHONY: lib-release-test lib-release lib-profile
+.PHONY: lib-release-test lib-release lib-profile lib-doc
 .PHONY: lib-dep, lib-flake8, lib-mypy, lib-scm-version
 .PHONY: container container-run container-release
 .PHONY: devtools dashboard dashboard-clean
@@ -82,11 +82,13 @@ lib-clean:
 	rm -rf .hypothesis
 
 lib-dep:
+	pip install --upgrade pip && \
 	pip install \
 		-r requirements.txt \
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
-		-r requirements-tunnel.txt
+		-r requirements-tunnel.txt \
+		-r docs/requirements.txt
 
 lib-scm-version:
 	@echo "version = '$(VERSION)'" > proxy/common/_scm_version.py
@@ -113,6 +115,16 @@ lib-release-test: lib-package
 
 lib-release: lib-package
 	twine upload dist/*
+
+lib-doc:
+	pushd docs && \
+	python -m sphinx \
+		--keep-going \
+		-b dirhtml \
+		-d _build/doctrees \
+		-D language=en . _build/html && \
+	popd && \
+	open docs/_build/html/index.html
 
 lib-coverage:
 	pytest --cov=proxy --cov=tests --cov-report=html tests/
