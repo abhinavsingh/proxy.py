@@ -210,49 +210,6 @@ jobs:
             || steps.scm-version.outputs.dist-version
         }}-py3-none-any.whl')
 
-  integration:
-    runs-on: ${{ matrix.os }}-latest
-    name: >-
-      e2e: 🐍${{ matrix.python }} @ ${{ matrix.os }}
-    needs:
-    - build
-    - pre-setup  # transitive, for accessing settings
-    strategy:
-      matrix:
-        os: [Ubuntu, macOS]
-        python: ['3.6', '3.7', '3.8', '3.9', '3.10']
-      max-parallel: 4
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        ref: ${{ github.event.inputs.release-commitish }}
-    - name: Make the env clean of non-test files
-      run: |
-        shopt -s extglob
-        mv -v tests/integration/main.sh integration-test.sh
-        rm -rf !integration-test.sh
-      shell: bash
-    - name: Setup Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python }}
-    - name: Download all the dists
-      uses: actions/download-artifact@v2
-      with:
-        name: python-package-distributions
-        path: dist/
-    - name: Integration testing
-      run: |
-        pip install 'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
-        proxy \
-          --hostname 127.0.0.1 \
-          --enable-web-server \
-          --pid-file proxy.pid \
-          --log-file proxy.log \
-          &
-        ./integration-test.sh
-
   build:
     name: build dists ${{ needs.pre-setup.outputs.git-tag }}
     needs:
@@ -577,7 +534,6 @@ jobs:
 
   check:  # This job does nothing and is only used for the branch protection
     needs:
-    - integration
     - lint
     - test
 

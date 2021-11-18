@@ -8,20 +8,24 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
-import unittest
 import http.client
 import urllib.request
 import urllib.error
 
+import pytest
+
 from proxy import TestCase
+from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
 from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
 from proxy.common.utils import socket_connection, build_http_request
 from proxy.http import httpMethods
 from proxy.http.server import HttpWebServerPlugin
 
 
-@unittest.skipIf(os.name == 'nt', 'Disabled for Windows due to weird permission issues.')
+@pytest.mark.skipif(
+    IS_WINDOWS,
+    reason='Disabled for Windows due to weird permission issues.',
+)
 class TestProxyPyEmbedded(TestCase):
     """This test case is a demonstration of proxy.TestCase and also serves as
     integration test suite for proxy.py."""

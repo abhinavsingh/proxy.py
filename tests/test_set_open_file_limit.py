@@ -8,17 +8,22 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
 import unittest
 from unittest import mock
 
+import pytest
+
+from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
 from proxy.common.utils import set_open_file_limit
 
-if os.name != 'nt':
+if not IS_WINDOWS:
     import resource
 
 
-@unittest.skipIf(os.name == 'nt', 'Open file limit tests disabled for Windows')
+@pytest.mark.skipif(
+    IS_WINDOWS,
+    reason='Open file limit tests disabled for Windows',
+)
 class TestSetOpenFileLimit(unittest.TestCase):
 
     @mock.patch('resource.getrlimit', return_value=(128, 1024))
