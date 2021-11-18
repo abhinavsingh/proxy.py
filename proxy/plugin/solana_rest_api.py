@@ -12,6 +12,7 @@ from typing import List, Tuple, Optional
 import copy
 import json
 import unittest
+import eth_utils
 import rlp
 import solana
 from solana.account import Account as sol_Account
@@ -140,7 +141,7 @@ class EthereumModel:
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
         balance = get_token_balance_or_airdrop(self.client, self.signer, evm_loader_id, eth_acc)
 
-        return hex(balance*10**9)
+        return hex(balance * eth_utils.denoms.gwei)
 
     def eth_getLogs(self, obj):
         fromBlock = None
