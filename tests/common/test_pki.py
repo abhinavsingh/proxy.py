@@ -116,8 +116,8 @@ class TestPki(unittest.TestCase):
         os.remove(key_path)
         os.remove(nopass_key_path)
 
-    def test_sign_csr(self) -> None:
-        pass
+    # def test_sign_csr(self) -> None:
+    #     pass
 
     def _gen_public_private_key(self) -> Tuple[str, str, str]:
         key_path, nopass_key_path = self._gen_private_key()

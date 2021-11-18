@@ -9,9 +9,16 @@
 # to clean up any background process including
 # proxy.py
 
+PROXY_PY_PORT=$1
+if [[ -z "$PROXY_PY_PORT" ]]; then
+  echo "PROXY_PY_PORT required as argument."
+  exit 1
+fi
+
 # Wait for server to come up
+WAIT_FOR_PORT="lsof -i TCP:$(PROXY_PY_PORT) | wc -l | tr -d ' '"
 while true; do
-    if [[ $(lsof -i TCP:8899 | wc -l | tr -d ' ') == 0 ]]; then
+    if [[ $(WAIT_FOR_PORT) == 0 ]]; then
         echo "Waiting for proxy..."
         sleep 1
     else
@@ -24,8 +31,8 @@ while true; do
     curl -v \
         --max-time 1 \
         --connect-timeout 1 \
-        -x localhost:8899 \
-        http://localhost:8899/ 2>/dev/null
+        -x localhost:$(PROXY_PY_PORT) \
+        http://localhost:$(PROXY_PY_PORT)/ 2>/dev/null
     if [[ $? == 0 ]]; then
         break
     fi
@@ -41,7 +48,7 @@ done
 # detect if we have internet access.  If we do,
 # then use httpbin.org for integration testing.
 curl -v \
-    -x localhost:8899 \
+    -x localhost:$(PROXY_PY_PORT) \
     http://httpbin.org/get
 if [[ $? != 0 ]]; then
     echo "http request failed"
@@ -49,7 +56,7 @@ if [[ $? != 0 ]]; then
 fi
 
 curl -v \
-    -x localhost:8899 \
+    -x localhost:$(PROXY_PY_PORT) \
     https://httpbin.org/get
 if [[ $? != 0 ]]; then
     echo "https request failed"
@@ -57,8 +64,8 @@ if [[ $? != 0 ]]; then
 fi
 
 curl -v \
-    -x localhost:8899 \
-    http://localhost:8899/
+    -x localhost:$(PROXY_PY_PORT) \
+    http://localhost:$(PROXY_PY_PORT)/
 if [[ $? != 0 ]]; then
     echo "http request to built in webserver failed"
     exit 1

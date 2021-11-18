@@ -24,6 +24,7 @@ from proxy.http import httpStatusCodes
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_, build_http_response
 from proxy.common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_HTTP_PORT
+from proxy.common.constants import DEFAULT_PORT
 
 from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
 
@@ -179,7 +180,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         upstream = urlparse.urlsplit(
             RedirectToCustomServerPlugin.UPSTREAM_SERVER,
         )
-        mock_server_conn.assert_called_with('localhost', 8899)
+        mock_server_conn.assert_called_with('localhost', DEFAULT_PORT)
         mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(
                 b'GET', upstream.path,
