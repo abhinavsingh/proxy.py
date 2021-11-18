@@ -88,8 +88,7 @@ lib-dep:
 		-r requirements.txt \
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
-		-r requirements-tunnel.txt \
-		-r docs/requirements.txt
+		-r requirements-tunnel.txt
 
 lib-lint:
 	python -m tox -e lint
@@ -115,14 +114,7 @@ lib-release: lib-package
 	twine upload dist/*
 
 lib-doc:
-	pushd docs && \
-	python -m sphinx \
-		--keep-going \
-		-b dirhtml \
-		-d _build/doctrees \
-		-D language=en . _build/html && \
-	popd && \
-	open docs/_build/html/index.html
+	tox -e build-docs && open .tox/build-docs/docs_out/index.html
 
 lib-coverage:
 	pytest --cov=proxy --cov=tests --cov-report=html tests/
