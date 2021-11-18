@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
 """
 import ssl
 import time
@@ -90,7 +94,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     ##
 
     def initialize(self) -> None:
-        """Optionally upgrades connection to HTTPS, set conn in non-blocking mode and initializes plugins."""
+        """Optionally upgrades connection to HTTPS, set ``conn`` in non-blocking mode and initializes plugins."""
         conn = self._optionally_wrap_socket(self.work.connection)
         conn.setblocking(False)
         # Update client connection reference if connection was wrapped
@@ -170,7 +174,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             readables: Readables,
             writables: Writables,
     ) -> bool:
-        """Returns True if proxy must teardown."""
+        """Returns True if proxy must tear down."""
         # Flush buffer for ready to write sockets
         teardown = self.handle_writables(writables)
         if teardown:

@@ -7,6 +7,11 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       acceptor
+       pre
 """
 import socket
 import logging
@@ -40,16 +45,28 @@ class Acceptor(multiprocessing.Process):
     `Acceptor` goes on to listen for new work over the received server socket.
     By default, `Acceptor` will spawn a new thread to handle each work.
 
-    However, when `--threadless` option is enabled, `Acceptor` process will also pre-spawns a
-    `Threadless` process during start-up.  Accepted work is passed to these `Threadless` processes.
-    `Acceptor` process shares accepted work with a `Threadless` process over it's dedicated pipe.
+    However, when `--threadless` option is enabled, `Acceptor` process
+    will also pre-spawns a
+    :class:`~proxy.core.acceptor.threadless.Threadless` process during
+    start-up.  Accepted work is passed to these
+    :class:`~proxy.core.acceptor.threadless.Threadless` processes.
+    `Acceptor` process shares accepted work with a
+    :class:`~proxy.core.acceptor.threadless.Threadless` process over
+    it's dedicated pipe.
 
-    TODO(abhinavsingh): Open questions:
-    1) Instead of starting `Threadless` process, can we work with a `Threadless` thread?
-    2) What are the performance implications of sharing fds between threads vs processes?
-    3) How much performance degradation happens when acceptor and threadless processes are
-       running on separate CPU cores?
-    4) Can we ensure both acceptor and threadless process are pinned to the same CPU core?
+    TODO(abhinavsingh): Open questions::
+
+       1. Instead of starting
+          :class:`~proxy.core.acceptor.threadless.Threadless` process,
+          can we work with a
+          :class:`~proxy.core.acceptor.threadless.Threadless` thread?
+       2. What are the performance implications of sharing fds between
+          threads vs processes?
+       3. How much performance degradation happens when acceptor and
+          threadless processes are running on separate CPU cores?
+       4. Can we ensure both acceptor and threadless process are pinned to
+          the same CPU core?
+
     """
 
     def __init__(

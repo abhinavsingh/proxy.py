@@ -18,7 +18,7 @@ from ..connection import TcpClientConnection
 class SshClient(TcpClientConnection):
     """Overrides TcpClientConnection.
 
-    This is necessary because paramiko fileno() can be used for polling
+    This is necessary because paramiko ``fileno()`` can be used for polling
     but not for send / recv.
     """
 

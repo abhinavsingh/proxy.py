@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
 """
 from typing import TypeVar, Optional, Dict, Type, Tuple, List
 
@@ -40,13 +44,13 @@ T = TypeVar('T', bound='HttpParser')
 class HttpParser:
     """HTTP request/response parser.
 
-    TODO: Make me zero-copy by using memoryview.
+    TODO: Make me zero-copy by using :class:`memoryview`.
     Currently due to chunk/buffer handling we
-    are not able to utilize memoryview
+    are not able to utilize :class:`memoryview`
     efficiently.
 
-    For this to happen we must store `buffer`
-    as List[memoryview] instead of raw bytes and
+    For this to happen we must store ``buffer``
+    as ``List[memoryview]`` instead of raw bytes and
     update parser to work accordingly.
     """
 
@@ -101,7 +105,7 @@ class HttpParser:
         return parser
 
     def header(self, key: bytes) -> bytes:
-        """Convenient method to return original header value from internal datastructure."""
+        """Convenient method to return original header value from internal data structure."""
         if key.lower() not in self.headers:
             raise KeyError('%s not found in headers', text_(key))
         return self.headers[key.lower()][1]
@@ -125,7 +129,7 @@ class HttpParser:
             del self.headers[header.lower()]
 
     def del_headers(self, headers: List[bytes]) -> None:
-        """Delete headers from internal datastructure."""
+        """Delete headers from internal data structure."""
         for key in headers:
             self.del_header(key.lower())
 
@@ -172,7 +176,7 @@ class HttpParser:
         return self.content_expected() or self.is_chunked_encoded()
 
     def parse(self, raw: bytes) -> None:
-        """Parses Http request out of raw bytes.
+        """Parses HTTP request out of raw bytes.
 
         Check for `HttpParser.state` after `parse` has successfully returned."""
         self.total_size += len(raw)

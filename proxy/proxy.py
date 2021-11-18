@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       eventing
 """
 import os
 import sys
@@ -112,7 +116,8 @@ flags.add_argument(
 class Proxy:
     """Context manager to control AcceptorPool, ExecutorPool & EventingCore lifecycle.
 
-    By default, AcceptorPool is started with `HttpProtocolHandler` work class.
+    By default, AcceptorPool is started with
+    :class:`~proxy.http.handler.HttpProtocolHandler` work class.
     By definition, it expects HTTP traffic to flow between clients and server.
 
     Optionally, it also initializes the eventing core, a multi-process safe

@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       api
 """
 import json
 from typing import Optional
@@ -28,7 +32,7 @@ class ProposedRestApiPlugin(HttpProxyBasePlugin):
     without establishing upstream connection.
 
     Note: This plugin won't work if your client is making
-    HTTPS connection to api.example.com.
+    HTTPS connection to ``api.example.com``.
     """
 
     API_SERVER = b'api.example.com'
