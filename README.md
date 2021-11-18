@@ -1722,6 +1722,37 @@ OR, simply pass fully-qualified path as parameter, e.g.
 
 `proxy --plugins /path/to/my/app/my_app.proxyPlugin`
 
+Here is a quick working example:
+
+- Contents of `/tmp/plug` folder
+
+```console
+╰─ ls -1 /tmp/plug                                                                                                                       ─╯
+my_plugin.py
+```
+
+- Custom `MyPlugin` class
+
+```console
+╰─ cat /tmp/plug/my_plugin.py                                                                                                            ─╯
+from proxy.http.proxy import HttpProxyBasePlugin
+
+
+class MyPlugin(HttpProxyBasePlugin):
+  pass
+```
+
+This is an empty plugin for demonstrating external plugin usage. You must implement necessary methods to make your plugins work for real traffic
+
+- Start `proxy.py` with `MyPlugin`
+
+```console
+╰─ PYTHONPATH=/tmp/plug proxy --plugin my_plugin.MyPlugin                                                                      ─╯
+...[redacted]... - Loaded plugin proxy.http.proxy.HttpProxyPlugin
+...[redacted]... - Loaded plugin my_plugin.MyPlugin
+...[redacted]... - Listening on ::1:8899
+```
+
 ## Unable to connect with proxy.py from remote host
 
 Make sure `proxy.py` is listening on correct network interface.
