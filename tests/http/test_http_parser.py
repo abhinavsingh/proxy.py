@@ -16,7 +16,6 @@ from proxy.common.utils import find_http_line, bytes_
 
 from proxy.http import httpStatusCodes, httpMethods
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
-from proxy.http.exception import HttpProtocolException
 
 
 class TestHttpParser(unittest.TestCase):
