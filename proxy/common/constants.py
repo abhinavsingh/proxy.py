@@ -47,7 +47,7 @@ HTTP_1_0 = b'HTTP/1.0'
 HTTP_1_1 = b'HTTP/1.1'
 
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
-PROXY_AGENT_HEADER_VALUE = b'proxy.py ' + \
+PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + \
     __version__.encode('utf-8', 'strict')
 PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
     COLON + WHITESPACE + PROXY_AGENT_HEADER_VALUE

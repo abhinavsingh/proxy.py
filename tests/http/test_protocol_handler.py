@@ -397,7 +397,8 @@ class TestHttpProtocolHandler(unittest.TestCase):
             b'Via: 1.1 proxy.py v%s' % bytes_(__version__),
             CRLF,
         ])
-        server.queue.assert_called_once_with(pkt)
+        server.queue.assert_called_once()
+        self.assertEqual(server.queue.call_args_list[0][0][0].tobytes(), pkt)
         server.buffer_size.return_value = len(pkt)
 
     def assert_data_queued_to_server(self, server: mock.Mock) -> None:
