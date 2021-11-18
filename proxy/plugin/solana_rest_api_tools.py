@@ -1272,9 +1272,15 @@ def make_instruction_data_from_tx(instruction, private_key=None):
         raise Exception("function gets ")
 
 
+def is_account_exists(client: SolanaClient, pda_account: str) -> bool:
+    info = client.get_account_info(pda_account, commitment=Confirmed)
+    value = get_from_dict(info, "result", "value")
+    return value is not None
+
+
 def estimate_gas(client: SolanaClient, signer: SolanaAccount, contract_id: str, eth_caller_address: EthereumAddress,
                  data: str = None, value: str = None):
-    if is_airdrop_allowed(client, signer, eth_caller_address):
-        create_token_and_airdrop(client, signer, eth_caller_address)
+    if is_account_exists(client, signer, eth_caller_address):
+        create_eth_account_and_airdrop(client, signer, eth_caller_address)
     result = call_emulated(contract_id, str(eth_caller_address), data, value)
     return result['used_gas'] + EXTRA_GAS
