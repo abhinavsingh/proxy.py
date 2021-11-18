@@ -13,12 +13,14 @@ from typing import Optional
 
 from ..http.proxy import HttpProxyBasePlugin
 from ..http.parser import HttpParser
+from ..common.utils import bytes_
+from ..common.constants import DEFAULT_PORT
 
 
 class RedirectToCustomServerPlugin(HttpProxyBasePlugin):
     """Modifies client request to redirect all incoming requests to a fixed server address."""
 
-    UPSTREAM_SERVER = b'http://localhost:8899/'
+    UPSTREAM_SERVER = bytes_('http://localhost:{0}/'.format(DEFAULT_PORT))
 
     def before_upstream_connection(
             self, request: HttpParser,

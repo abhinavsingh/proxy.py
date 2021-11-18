@@ -39,7 +39,7 @@ flags.add_argument(
 
 flags.add_argument(
     '--port', type=int, default=DEFAULT_PORT,
-    help='Default: 8899. Server port.',
+    help='Default: ' + str(DEFAULT_PORT) + '. Server port.',
 )
 
 flags.add_argument(

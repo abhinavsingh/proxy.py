@@ -20,6 +20,8 @@ from ..common.utils import build_http_response
 from ..http import httpStatusCodes
 from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.utils import bytes_
+from ..common.constants import DEFAULT_PORT
 
 
 class ShortLinkPlugin(HttpProxyBasePlugin):
@@ -48,7 +50,7 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
         b't': b'twitter.com',
         b'w': b'web.whatsapp.com',
         b'y': b'youtube.com',
-        b'proxy': b'localhost:8899',
+        b'proxy': bytes_('localhost:{0}'.format(DEFAULT_PORT)),
     }
 
     def before_upstream_connection(
