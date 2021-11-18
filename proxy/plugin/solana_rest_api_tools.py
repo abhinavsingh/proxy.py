@@ -1200,7 +1200,6 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
 
 
 def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_account: EthereumAddress) -> int:
-
     associated_token_account, nonce = ether2program(bytes(eth_account).hex(), evm_loader, signer.public_key())
     logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account}")
 
