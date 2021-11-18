@@ -16,8 +16,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
-.PHONY: lib-release-test lib-release lib-profile lib-doc
-.PHONY: lib-dep lib-flake8 lib-mypy
+.PHONY: lib-profile lib-doc lib-dep lib-flake8 lib-mypy
 .PHONY: container container-run container-release
 .PHONY: devtools dashboard dashboard-clean
 
@@ -94,10 +93,10 @@ lib-lint:
 	python -m tox -e lint
 
 lib-flake8:
-	tox -e lint -- flake8 --all-files
+	python -m tox -e lint -- flake8 --all-files
 
 lib-mypy:
-	tox -e lint -- mypy --all-files
+	python -m tox -e lint -- mypy --all-files
 
 lib-pytest:
 	python -m tox -e python -- -v
@@ -107,14 +106,8 @@ lib-test: lib-clean lib-check lib-lint lib-pytest
 lib-package: lib-clean lib-check
 	python -m tox -e cleanup-dists,build-dists,metadata-validation
 
-lib-release-test: lib-package
-	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
-
-lib-release: lib-package
-	twine upload dist/*
-
 lib-doc:
-	tox -e build-docs && open .tox/build-docs/docs_out/index.html
+	python -m tox -e build-docs && open .tox/build-docs/docs_out/index.html
 
 lib-coverage:
 	pytest --cov=proxy --cov=tests --cov-report=html tests/
