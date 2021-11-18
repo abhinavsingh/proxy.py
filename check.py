@@ -81,15 +81,17 @@ for py_file in ALL_PY_FILES:
 
 # Update README.md flags section to match current library --help output
 lib_help = subprocess.check_output(
-    ['python', '-m', 'proxy', '-h']
+    ['python', '-m', 'proxy', '-h'],
 )
 with open('README.md', 'rb+') as f:
     c = f.read()
     pre_flags, post_flags = c.split(b'# Flags')
     help_text, post_changelog = post_flags.split(b'# Changelog')
     f.seek(0)
-    f.write(pre_flags + b'# Flags\n\n```console\n\xe2\x9d\xaf proxy -h\n' + lib_help + b'```' +
-            b'\n\n# Changelog' + post_changelog)
+    f.write(
+        pre_flags + b'# Flags\n\n```console\n\xe2\x9d\xaf proxy -h\n' + lib_help + b'```' +
+        b'\n\n# Changelog' + post_changelog,
+    )
 
 # Version is also hardcoded in README.md flags section
 readme_version_cmd = 'cat README.md | grep "proxy.py v" | tail -2 | head -1 | cut -d " " -f 2 | cut -c2-'
