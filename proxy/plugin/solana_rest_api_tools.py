@@ -10,7 +10,6 @@ import time
 from datetime import datetime
 from hashlib import sha256
 from typing import NamedTuple, Optional, Union, Dict, Tuple
-from enum import Enum
 import psycopg2
 import rlp
 from base58 import b58decode, b58encode
@@ -37,20 +36,13 @@ from spl.token.instructions import get_associated_token_address, create_associat
 
 from ..environment import neon_cli, evm_loader_id, ETH_TOKEN_MINT_ID, COLLATERAL_POOL_BASE, read_elf_params
 from ..common_neon.utils import get_from_dict
+from ..common_neon.errors import *
 from .eth_proto import Trx
 from ..core.acceptor.pool import new_acc_id_glob, acc_list_glob
 from ..indexer.sql_dict import POSTGRES_USER, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PASSWORD
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-
-class SolanaErrors(Enum):
-    AccountNotFound = "Invalid param: could not find account"
-
-
-class SolanaAccountNotFound(Exception):
-    """Provides special error processing"""
 
 
 NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
@@ -892,7 +884,7 @@ def create_account_list_by_emulate(signer, client, eth_trx):
                 trx.add(createAccountWithSeedTrx(signer.public_key(), signer.public_key(), seed, code_account_balance, code_size, PublicKey(evm_loader_id)))
                 code_account_writable = acc_desc["writable"]
 
-            extend_trx_with_create_eth_account_and_airdrop(signer, EthereumAddress(address), code_account, trx=trx)
+            extend_trx_with_create_and_airdrop(signer, EthereumAddress(address), code_account, trx=trx)
 
         if address == to_address:
             contract_sol = PublicKey(acc_desc["account"])
@@ -1112,12 +1104,6 @@ def getLamports(client, evm_loader, eth_acc, base_account):
     return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
 
 
-def is_account_exists(client: SolanaClient, solana_address: str) -> bool:
-    sender_sol_info = client.get_account_info(solana_address, commitment=Confirmed)
-    value = get_from_dict(sender_sol_info, "result", "value")
-    return value is not None
-
-
 def make_create_eth_account_trx(signer: SolanaAccount, eth_address: EthereumAddress, evm_loader_id, code_acc=None) \
                                 -> Tuple[Transaction, PublicKey]:
 
@@ -1204,7 +1190,7 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
     if error is not None:
         message = error.get("message")
         if message == SolanaErrors.AccountNotFound.value:
-            raise SolanaAccountNotFound(message)
+            raise SolanaAccountNotFoundError()
         logger.error(f"Failed to get_token_balance_gwei by associated_token_account: {associated_token_account}, "
                      f"got get_token_account_balance error: \"{message}\"")
         raise Exception("Getting balance error")
@@ -1217,13 +1203,12 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
 
 
 def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_account: EthereumAddress) -> int:
-
     associated_token_account, nonce = ether2program(bytes(eth_account).hex(), evm_loader, signer.public_key())
     logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account}")
 
     try:
         return get_token_balance_gwei(client, associated_token_account)
-    except SolanaAccountNotFound:
+    except SolanaAccountNotFoundError:
         logger.debug(f"Account not found:  {eth_account} aka: {associated_token_account} - create")
         create_eth_account_and_airdrop(client, signer, eth_account)
         return get_token_balance_gwei(client, associated_token_account)

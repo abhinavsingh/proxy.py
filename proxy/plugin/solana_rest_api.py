@@ -12,6 +12,7 @@ from typing import List, Tuple, Optional
 import copy
 import json
 import unittest
+import eth_utils
 import rlp
 import solana
 from solana.account import Account as sol_Account
@@ -35,8 +36,7 @@ import logging
 from ..core.acceptor.pool import proxy_id_glob
 from ..indexer.utils import get_trx_results, LogDB
 from ..indexer.sql_dict import SQLDict
-from ..environment import evm_loader_id, solana_cli, solana_url
-
+from ..environment import evm_loader_id, solana_cli, solana_url, neon_cli
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -137,7 +137,7 @@ class EthereumModel:
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
         balance = get_token_balance_or_airdrop(self.client, self.signer, evm_loader_id, eth_acc)
 
-        return hex(balance*10**9)
+        return hex(balance * eth_utils.denoms.gwei)
 
     def eth_getLogs(self, obj):
         fromBlock = None
@@ -197,6 +197,21 @@ class EthereumModel:
             "gasLimit": '0x6691b7',
         }
         return ret
+
+    def eth_getStorageAt(self, account, position, block_identifier):
+        '''Retrieves storage data by given position
+        Currently supports only 'latest' block
+        '''
+        if block_identifier != "latest":
+            logger.debug(f"Block type '{block_identifier}' is not supported yet")
+            raise RuntimeError(f"Not supported block identifier: {block_identifier}")
+
+        try:
+            value = neon_cli().call('get-storage-at', account, position)
+            return value
+        except Exception as err:
+            logger.debug(f"Neon-cli failed to execute: {err}")
+            return '0x00'
 
     def eth_getBlockByHash(self, trx_hash, full):
         """Returns information about a block by hash.

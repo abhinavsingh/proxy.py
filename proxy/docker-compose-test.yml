@@ -1,4 +1,4 @@
-version: "2.1"
+version: "3"
 
 services:
   solana:
@@ -16,6 +16,25 @@ services:
       - "8001-8009/udp"
     networks:
       - net
+    healthcheck:
+      # Must be available from outside (calling without -u causes premature result)
+      test: [ CMD-SHELL, "solana cluster-version -u http://solana:8899" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+
+  evm_loader:
+    container_name: evm_loader
+    image: neonlabsorg/evm_loader:${EVM_LOADER_REVISION:-latest}
+    environment:
+      - SOLANA_URL=http://solana:8899
+    networks:
+      - net
+    depends_on:
+      solana:
+        condition: service_healthy
+    command: bash -c "create-test-accounts.sh 1 && deploy-evm.sh"
 
   postgres:
     container_name: postgres
@@ -26,6 +45,12 @@ services:
       POSTGRES_USER: neon-proxy
       POSTGRES_PASSWORD: neon-proxy-pass
     hostname: postgres
+    healthcheck:
+      test: [ CMD-SHELL, "pg_isready" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 5s
     expose:
       - "5432"
     networks:
@@ -35,19 +60,26 @@ services:
     container_name: proxy
     image: neonlabsorg/proxy:${REVISION}
     environment:
+      SOLANA_URL: http://solana:8899
       POSTGRES_DB: neon-db
       POSTGRES_USER: neon-proxy
       POSTGRES_PASSWORD: neon-proxy-pass
+      NEW_USER_AIRDROP_AMOUNT: 100
       CONFIG: ci
     hostname: proxy
+    depends_on:
+      postgres:
+        condition: service_healthy
+      evm_loader:
+        condition: service_completed_successfully
     ports:
       - 127.0.0.1:9090:9090
     expose:
       - "9090"
     networks:
       - net
-    depends_on:
-      - postgres
+    entrypoint: proxy/run-test-proxy.sh
 
 networks:
   net:
+
