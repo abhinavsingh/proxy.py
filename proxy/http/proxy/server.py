@@ -298,8 +298,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 return self._close_and_release()
 
             if raw is None:
-                logger.debug('Server closed connection, tearing down...')
-                return self._close_and_release()
+                if self.upstream.closed:
+                    logger.debug('Server closed connection, tearing down...')
+                    return self._close_and_release()
+                else:
+                    return False
 
             for plugin in self.plugins.values():
                 raw = plugin.handle_upstream_chunk(raw)
