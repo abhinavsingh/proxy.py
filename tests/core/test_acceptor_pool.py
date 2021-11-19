@@ -42,7 +42,7 @@ class TestAcceptorPool(unittest.TestCase):
 
         pool = AcceptorPool(
             flags=flags, listener=mock_listener.return_value,
-            executor_queues=[], executor_pids=[],
+            executor_queues=[], executor_pids=[], executor_locks=[],
         )
         pool.setup()
 

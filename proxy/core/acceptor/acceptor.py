@@ -78,6 +78,7 @@ class Acceptor(multiprocessing.Process):
             lock: multiprocessing.synchronize.Lock,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
+            executor_locks: List[multiprocessing.synchronize.Lock],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
@@ -94,6 +95,7 @@ class Acceptor(multiprocessing.Process):
         # Available executors
         self.executor_queues = executor_queues
         self.executor_pids = executor_pids
+        self.executor_locks = executor_locks
         # Selector
         self.running = multiprocessing.Event()
         self.selector: Optional[selectors.DefaultSelector] = None
@@ -152,6 +154,7 @@ class Acceptor(multiprocessing.Process):
             ThreadlessPool.delegate(
                 self.executor_pids[index],
                 self.executor_queues[index],
+                self.executor_locks[index],
                 conn,
                 addr,
                 self.flags.unix_socket_path,

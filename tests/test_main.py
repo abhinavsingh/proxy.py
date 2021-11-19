@@ -111,6 +111,7 @@ class TestMain(unittest.TestCase):
             listener=mock_listener.return_value,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
+            executor_locks=mock_executor_pool.return_value.work_locks,
             event_queue=None,
         )
         mock_acceptor_pool.return_value.setup.assert_called_once()
@@ -156,6 +157,7 @@ class TestMain(unittest.TestCase):
             listener=mock_listener.return_value,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
+            executor_locks=mock_executor_pool.return_value.work_locks,
             event_queue=None,
         )
         mock_acceptor_pool.return_value.setup.assert_called_once()
@@ -197,6 +199,7 @@ class TestMain(unittest.TestCase):
             event_queue=mock_event_manager.return_value.queue,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
+            executor_locks=mock_executor_pool.return_value.work_locks,
         )
         mock_acceptor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.return_value.shutdown.assert_called_once()

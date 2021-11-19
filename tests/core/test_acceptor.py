@@ -34,6 +34,7 @@ class TestAcceptor(unittest.TestCase):
             lock=multiprocessing.Lock(),
             executor_queues=[],
             executor_pids=[],
+            executor_locks=[],
         )
 
     @mock.patch('selectors.DefaultSelector')

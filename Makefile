@@ -128,7 +128,16 @@ lib-coverage:
 	$(OPEN) htmlcov/index.html
 
 lib-profile:
-	sudo py-spy record -o profile.svg -t -F -s -- python -m proxy
+	sudo py-spy record \
+		-o profile.svg \
+		-t -F -s -- \
+		python -m proxy \
+			--num-acceptors 1 \
+			--num-workers 1 \
+			--disable-http-proxy \
+			--enable-web-server \
+			--plugin proxy.plugin.WebServerPlugin \
+			--log-file /tmp/proxy.log
 
 devtools:
 	pushd dashboard && npm run devtools && popd
