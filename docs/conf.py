@@ -256,6 +256,7 @@ nitpick_ignore = [
     (_any_role, 'HttpProtocolHandler'),
     (_any_role, 'multiprocessing.Manager'),
     (_any_role, 'work_klass'),
+    (_any_role, 'proxy.core.base.tcp_upstream.TcpUpstreamConnectionHandler'),
     (_py_class_role, 'CacheStore'),
     (_py_class_role, 'HttpParser'),
     (_py_class_role, 'HttpProtocolHandlerPlugin'),
