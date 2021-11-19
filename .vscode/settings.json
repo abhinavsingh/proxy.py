@@ -1,11 +1,27 @@
 {
+  "editor.rulers": [100],
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "modifications",
+  "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.fixAll": true
   },
-  "editor.rulers": [100],
+  "[yaml]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2,
+    "editor.autoIndent": "advanced",
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+  },
+  "[typescript]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
+  },
+  "typescript.format.semicolons": "remove",
+  "typescript.preferences.quoteStyle": "single",
+  "[python]": {
+    "editor.wordBasedSuggestions": true,
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+  },
   "python.testing.unittestEnabled": false,
   "python.testing.autoTestDiscoverOnSaveEnabled": true,
   "python.testing.pytestEnabled": true,
@@ -26,7 +42,5 @@
   "python.linting.flake8Enabled": true,
   "python.linting.mypyEnabled": true,
   "python.formatting.provider": "autopep8",
-  "typescript.format.semicolons": "remove",
-  "typescript.preferences.quoteStyle": "single",
-  "autoDocstring.docstringFormat": "sphinx"
+  "autoDocstring.docstringFormat": "sphinx",
 }
