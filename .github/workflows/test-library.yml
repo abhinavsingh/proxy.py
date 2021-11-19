@@ -584,24 +584,7 @@ jobs:
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
 
-  check:  # This job does nothing and is only used for the branch protection
-    needs:
-    - analyze
-    - test
-    - lint
-
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Report success of the test matrix
-      run: >-
-        print("All's good")
-      shell: python
-
   brew:
-    # Wait for lib checks to pass before installing via brew
-    needs:
-    - check
     runs-on: ${{ matrix.os }}-latest
     name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
@@ -624,9 +607,6 @@ jobs:
         proxy -h
 
   dashboard:
-    # Dashboard plugin depends upon library, wait for lib check to pass
-    needs:
-    - check
     runs-on: ${{ matrix.os }}-latest
     name: Node ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
@@ -658,8 +638,8 @@ jobs:
     #
     # TL;DR -- Docker must be packaged with package from
     # test.pypi.org or from pypi.org.
-    needs:
-    - check
+    # needs:
+    # - publish-pypi
     runs-on: ${{ matrix.os }}-latest
     name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
@@ -685,16 +665,19 @@ jobs:
       run: |
         make container
 
-  other-checks:  # This job is used for the branch protection
+  check:  # This job does nothing and is only used for the branch protection
     needs:
-    - brew
+    - analyze
+    - test
+    - lint
     - docker
     - dashboard
+    - brew
 
     runs-on: ubuntu-latest
 
     steps:
-    - name: Report success of the analyze, brew, dashboard & docker matrix
+    - name: Report success of the test matrix
       run: >-
         print("All's good")
       shell: python
