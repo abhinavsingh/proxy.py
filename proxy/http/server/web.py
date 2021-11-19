@@ -327,7 +327,5 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if not log_handled:
             self.access_log(context)
 
-    # TODO: Allow plugins to customize access_log, similar
-    # to how proxy server plugins are able to do it.
     def access_log(self, context: Dict[str, Any]) -> None:
         logger.info(DEFAULT_WEB_ACCESS_LOG_FORMAT.format_map(context))
