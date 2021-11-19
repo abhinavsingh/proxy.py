@@ -7,16 +7,6 @@ on:   # yamllint disable-line rule:truthy
     - master
     - develop
   pull_request:
-    paths:
-    - 'proxy/**'
-    - 'tests/**'
-    - 'examples/**'
-    - 'requirements*'
-    - 'setup.cfg'
-    - 'check.py'
-    - 'MANIFEST.in'
-    - '.github/workflows/test-library.yml'
-    - '.*'
   workflow_dispatch:
     inputs:
       release-version:
@@ -53,7 +43,7 @@ concurrency:
 
 jobs:
   pre-setup:
-    name: Pre-set global build settings
+    name: ⚙️ Pre-set global build settings
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -206,7 +196,7 @@ jobs:
         }}-py3-none-any.whl')
 
   build:
-    name: build dists ${{ needs.pre-setup.outputs.git-tag }}
+    name: 👷 dists ${{ needs.pre-setup.outputs.git-tag }}
     needs:
     - pre-setup  # transitive, for accessing settings
 
@@ -320,7 +310,7 @@ jobs:
         retention-days: 30  # Defaults to 90
 
   lint:
-    name: ${{ matrix.toxenv }}
+    name: 🧹 ${{ matrix.toxenv }}
     needs:
     - build
     - pre-setup  # transitive, for accessing settings
@@ -420,7 +410,7 @@ jobs:
         --skip-pkg-install
 
   test:
-    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    name: 🧪 🐍${{ matrix.python }} @ ${{ matrix.os }}
     needs:
     - build
     - pre-setup  # transitive, for accessing settings
@@ -428,6 +418,7 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       fail-fast: false
+      # max-parallel: 4
       matrix:
         os:
         - macOS
@@ -442,7 +433,6 @@ jobs:
         - 3.9
         - 3.8
         - 3.7
-      max-parallel: 4
 
     continue-on-error: >-
       ${{
@@ -533,10 +523,156 @@ jobs:
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
 
+  analyze:
+    runs-on: ubuntu-latest
+    name: 🛡️ Analyze
+    # schedule:
+    # - cron: '0 14 * * 1'
+    strategy:
+      fail-fast: false
+      matrix:
+        # Override automatic language detection by changing the below list
+        # Supported options are
+        # ['csharp', 'cpp', 'go', 'java', 'javascript', 'python']
+        language: ['python', 'javascript']
+        # Learn more...
+        # https://docs.github.com/en/github
+        # /finding-security-vulnerabilities-and-errors-in-your-code
+        # /configuring-code-scanning#overriding-automatic-language-detection
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        # We must fetch at least the immediate parents so that if this is
+        # a pull request then we can checkout the head.
+        fetch-depth: 2
+
+    # If this run was triggered by a pull request event, then checkout
+    # the head of the pull request instead of the merge commit.
+    - run: git checkout HEAD^2
+      if: ${{ github.event_name == 'pull_request' }}
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v1
+      with:
+        languages: ${{ matrix.language }}
+        # If you wish to specify custom queries, you can do so here or in a
+        # config file. By default, queries listed here will override any
+        # specified in a config file. Prefix the list here with "+" to use
+        # these queries and those in the config file.
+        # queries: ./path/to/local/query, your-org/your-repo/queries@main
+
+    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
+    # If this step fails, then you should remove it and run the build manually
+    # (see below)
+    # - name: Autobuild
+    #   uses: github/codeql-action/autobuild@v1
+
+    # ℹ️ Command-line programs to run using the OS shell.
+    # 📚 https://git.io/JvXDl
+
+    # ✏️ If the Autobuild fails above, remove it and uncomment the following
+    #    three lines and modify them (or add more) to build your code if your
+    #    project uses a compiled language
+
+    # - run: |
+    #    make bootstrap
+    #    make release
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v1
+
+  brew:
+    runs-on: ${{ matrix.os }}-latest
+    name: 🍺 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macOS]
+        python: ['3.10']
+      # max-parallel: 1
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Brew
+      run: |
+        brew install ./helper/homebrew/develop/proxy.rb
+    - name: Verify
+      run: |
+        proxy -h
+
+  dashboard:
+    runs-on: ${{ matrix.os }}-latest
+    name: 📊 Node ${{ matrix.node }} @ ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu, windows, macOS]
+        node: ['10.x', '11.x', '12.x']
+      max-parallel: 4
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Node
+      uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node }}
+    - name: Install Dependencies
+      run: |
+        cd dashboard
+        npm install
+        cd ..
+    - name: Build Dashboard
+      run: |
+        cd dashboard
+        npm run build
+        cd ..
+
+  docker:
+    # To build our docker container, we must wait for check,
+    # so that we can use the same distribution available.
+    #
+    # TL;DR -- Docker must be packaged with package from
+    # test.pypi.org or from pypi.org.
+    # needs:
+    # - publish-pypi
+    runs-on: ${{ matrix.os }}-latest
+    name: 🐳 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu]
+        python: ['3.10']
+      max-parallel: 1
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-release.txt
+        pip install -r requirements-testing.txt
+        pip install -r requirements-tunnel.txt
+    - name: Build
+      run: |
+        make container
+
   check:  # This job does nothing and is only used for the branch protection
     needs:
-    - lint
+    - analyze
     - test
+    - lint
+    - docker
+    - dashboard
+    - brew
 
     runs-on: ubuntu-latest
 
@@ -574,7 +710,6 @@ jobs:
       with:
         password: ${{ secrets.PYPI_TOKEN }}
 
-
   publish-testpypi:
     name: Publish 🐍📦 to TestPyPI
     needs:
@@ -598,12 +733,11 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: >-
-        Publish 🐍📦  v${{ needs.pre-setup.outputs.git-tag }}to TestPyPI
+        Publish 🐍📦  v${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.TESTPYPI_API_TOKEN }}
         repository_url: https://test.pypi.org/legacy/
-
 
   post-release-repo-update:
     name: >-
