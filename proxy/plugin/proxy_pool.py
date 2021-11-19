@@ -65,6 +65,9 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             None, None, None, None,
         ]
 
+    def handle_upstream_data(self, raw: bytes) -> None:
+        self.client.queue(raw)
+
     def before_upstream_connection(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
@@ -82,6 +85,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         endpoint = random.choice(self.flags.proxy_pool)[0].split(':')
         logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
         self.initialize_upstream(endpoint[0], int(endpoint[1]))
+        assert self.upstream
         try:
             self.upstream.connect()
         except ConnectionRefusedError:

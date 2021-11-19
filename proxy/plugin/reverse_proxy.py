@@ -72,6 +72,9 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
         # Chosen upstream proxy_pass url
         self.choice: Optional[Url] = None
 
+    def handle_upstream_data(self, raw: bytes) -> None:
+        self.client.queue(raw)
+
     def routes(self) -> List[Tuple[int, str]]:
         return [
             (httpProtocolTypes.HTTP, ReverseProxyPlugin.REVERSE_PROXY_LOCATION),
@@ -90,6 +93,7 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             b'http' else DEFAULT_HTTPS_PORT
         )
         self.initialize_upstream(text_(self.choice.hostname), port)
+        assert self.upstream
         try:
             self.upstream.connect()
             if self.choice.scheme == b'https':
@@ -119,3 +123,4 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             'upstream_proxy_pass': str(self.choice) if self.choice else None,
         })
         logger.info(log_format.format_map(context))
+        return None

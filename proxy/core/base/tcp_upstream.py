@@ -8,11 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from abc import ABC, abstractmethod
+
 import ssl
 import socket
 import logging
 
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Any
 
 from ...common.types import Readables, Writables
 from ...core.connection import TcpServerConnection
@@ -20,23 +22,35 @@ from ...core.connection import TcpServerConnection
 logger = logging.getLogger(__name__)
 
 
-class TcpUpstreamConnectionHandler:
+class TcpUpstreamConnectionHandler(ABC):
     """TcpUpstreamConnectionHandler can be used to insert an upstream server
     connection lifecycle within asynchronous proxy.py lifecycle.
-
-    TcpUpstreamConnectionHandler can be used as a mixin or as standalone instances,
-    e.g. when your class wants to maintain multiple upstream connections,
-    don't use in mixin mode.  Within mixin mode, your class will get a
-    `self.upstream` object for use.
 
     Call `initialize_upstream` to initialize the upstream connection object.
     Then, directly use `self.upstream` object within your class.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any,  **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.upstream: Optional[TcpServerConnection] = None
+        # TODO: Currently TcpUpstreamConnectionHandler is used within
+        # ReverseProxyPlugin and ProxyPoolPlugin.  For both of which
+        # we expect a 4-tuple as arguments containing
+        # (uuid, flags, client, event_queue).  We really don't
+        # need the rest here.  May be uuid?  May be event_queue
+        # in the future.  But certainly we don't not client here.
+        # A separate tunnel class must be created which handles
+        # client connection too.
+        #
+        # Both ReverseProxyPlugin and ProxyPoolPlugin are currently
+        # doing self.client.queue(raw) within `handle_upstream_data`.
+        # This can be abstracted out too.
+        self.server_recvbuf_size = args[1].server_recvbuf_size
         self.total_size = 0
+
+    @abstractmethod
+    def handle_upstream_data(self, raw: bytes) -> None:
+        pass
 
     def initialize_upstream(self, addr: str, port: int) -> None:
         self.upstream = TcpServerConnection(addr, port)
@@ -49,10 +63,10 @@ class TcpUpstreamConnectionHandler:
     def read_from_descriptors(self, r: Readables) -> bool:
         if self.upstream and self.upstream.connection in r:
             try:
-                raw = self.upstream.recv(self.flags.server_recvbuf_size)
+                raw = self.upstream.recv(self.server_recvbuf_size)
                 if raw is not None:
                     self.total_size += len(raw)
-                    self.client.queue(raw)
+                    self.handle_upstream_data(raw)
                 else:
                     return True     # Teardown because upstream proxy closed the connection
             except ssl.SSLWantReadError:
