@@ -3,16 +3,9 @@ name: brew
 
 on:   # yamllint disable-line rule:truthy
   push:
-    paths:
-    - 'proxy/**'
-    - 'tests/**'
-    - 'examples/**'
-    - 'requirements*'
-    - 'setup.cfg'
-    - 'check.py'
-    - 'MANIFEST.in'
-    - '.github/workflows/test-brew.yml'
-    - 'helper/homebrew/**'
+    branches:
+    - master
+    - develop
   pull_request:
     paths:
     - 'proxy/**'

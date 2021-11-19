@@ -3,15 +3,9 @@ name: lib
 
 on:   # yamllint disable-line rule:truthy
   push:
-    paths:
-    - 'proxy/**'
-    - 'tests/**'
-    - 'examples/**'
-    - 'requirements*'
-    - 'setup.cfg'
-    - 'check.py'
-    - 'MANIFEST.in'
-    - '.github/workflows/test-library.yml'
+    branches:
+    - master
+    - develop
   pull_request:
     paths:
     - 'proxy/**'
@@ -22,6 +16,7 @@ on:   # yamllint disable-line rule:truthy
     - 'check.py'
     - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
+    - '.*'
   workflow_dispatch:
     inputs:
       release-version:
