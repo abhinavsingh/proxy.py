@@ -4,6 +4,8 @@
 ⚡ Fast • 🪶 Lightweight • 0️⃣ Dependency • 🔌 Pluggable • 😈 TLS interception • 🔒 DNS-over-HTTPS • 🔥 Poor Man's VPN • ⏪ Reverse & ⏩ Forward • 👮🏿 "Proxy Server" framework • 🌐 "Web Server" framework • ➵ ➶ ➷ ➠ "PubSub" framework • 👷 "Work" acceptor & executor framework
 </p>
 
+[//]: # (DO-NOT-REMOVE-docs-badges-START)
+
 [![PyPi Monthly](https://img.shields.io/pypi/dm/proxy.py?style=for-the-badge&color=darkgreen)](https://pypi.org/project/proxy.py/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/abhinavsingh/proxy.py?style=for-the-badge&color=darkgreen)](https://hub.docker.com/r/abhinavsingh/proxy.py)
 [![No Dependencies](https://img.shields.io/static/v1?label=dependencies&message=0&style=for-the-badge&color=darkgreen)](https://github.com/abhinavsingh/proxy.py)
@@ -82,9 +84,9 @@
   - [Ephemeral Port](#ephemeral-port)
   - [Loading Plugins](#loading-plugins)
 - [Unit testing with proxy.py](#unit-testing-with-proxypy)
-  - [proxy.TestCase](#proxytestcase)
+  - [`proxy.TestCase`](#proxytestcase)
   - [Override Startup Flags](#override-startup-flags)
-  - [With unittest.TestCase](#with-unittesttestcase)
+  - [With `unittest.TestCase`](#with-unittesttestcase)
 - [Utilities](#utilities)
   - [TCP](#tcp-sockets)
     - [new_socket_connection](#new_socket_connection)
@@ -105,7 +107,7 @@
   - [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
   - [Basic auth not working with a browser](#basic-auth-not-working-with-a-browser)
   - [Docker image not working on MacOS](#docker-image-not-working-on-macos)
-  - [ValueError: filedescriptor out of range in select](#valueerror-filedescriptor-out-of-range-in-select)
+  - [`ValueError: filedescriptor out of range in select`](#valueerror-filedescriptor-out-of-range-in-select)
   - [None:None in access logs](#nonenone-in-access-logs)
   - [OSError when wrapping client for TLS Interception](#oserror-when-wrapping-client-for-tls-interception)
 - [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
@@ -121,6 +123,8 @@
   - [v2.x](#v2x)
   - [v1.x](#v1x)
   - [v0.x](#v0x)
+
+[//]: # (DO-NOT-REMOVE-docs-badges-END)
 
 # Features
 - Fast & Scalable
@@ -170,7 +174,7 @@
   - Optionally, enable builtin [Web Server Plugins](#http-web-server-plugins). Example:
     - `--plugins proxy.plugin.ReverseProxyPlugin`
   - Plugin API is currently in development phase, expect breaking changes
-- Realtime Dashboard
+- Real-time Dashboard
   - Optionally, enable [proxy.py dashboard](#run-dashboard).
     - Available at `http://localhost:8899/dashboard`.
   - [Inspect, Monitor, Control and Configure](#inspect-traffic) `proxy.py` at runtime
@@ -259,6 +263,11 @@ or from GitHub `master` branch
 `docker` image is currently broken on `macOS` due to incompatibility with [vpnkit](https://github.com/moby/vpnkit/issues/469).
 
 ## Using HomeBrew
+
+Updated formulae for `HomeBrew` are maintained in `develop` branch under the `helper/homebrew` directory.
+
+- `stable` formulae installs the package from `master` branch.
+- `develop` formulae installs the package from `develop` branch.
 
 ### Stable Version with HomeBrew
 
@@ -370,7 +379,7 @@ To start `proxy.py` from source code follow these instructions:
 - Install deps
 
   ```console
-  ❯ make lib-dep lib-scm-version
+  ❯ make lib-dep
   ```
 
 - Optionally, run tests
@@ -418,7 +427,7 @@ You can override flag from command line when starting the docker container. For 
 
 Add support for short links in your favorite browsers / applications.
 
-[![Shortlink Plugin](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/shortlink.gif)](https://github.com/abhinavsingh/proxy.py#shortlinkplugin)
+[![Shortlink Plugin](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/shortlink.gif)](https://github.com/abhinavsingh/proxy.py#user-content-shortlinkplugin)
 
 Start `proxy.py` as:
 
@@ -433,17 +442,17 @@ across all browsers.
 
 Following short links are enabled by default:
 
-| Short Link | Destination URL  |
-| :--------: | :--------------: |
-|     a/     |    amazon.com    |
-|     i/     |  instagram.com   |
-|     l/     |   linkedin.com   |
-|     f/     |   facebook.com   |
-|     g/     |    google.com    |
-|     t/     |   twitter.com    |
-|     w/     | web.whatsapp.com |
-|     y/     |   youtube.com    |
-|   proxy/   |  localhost:8899  |
+| Short Link |  Destination URL   |
+| :--------: |  :--------------:  |
+|     a/     |    `amazon.com`    |
+|     i/     |  `instagram.com`   |
+|     l/     |   `linkedin.com`   |
+|     f/     |   `facebook.com`   |
+|     g/     |    `google.com`    |
+|     t/     |   `twitter.com`    |
+|     w/     | `web.whatsapp.com` |
+|     y/     |   `youtube.com`    |
+|   proxy/   |  `localhost:8899`  |
 
 ### ModifyPostDataPlugin
 
@@ -456,7 +465,7 @@ Start `proxy.py` as:
     --plugins proxy.plugin.ModifyPostDataPlugin
 ```
 
-By default plugin replaces POST body content with hardcoded `b'{"key": "modified"}'`
+By default plugin replaces POST body content with hard-coded `b'{"key": "modified"}'`
 and enforced `Content-Type: application/json`.
 
 Verify the same using `curl -x localhost:8899 -d '{"key": "value"}' http://httpbin.org/post`
@@ -758,7 +767,7 @@ Modify plugin to your taste e.g. Allow specific IP addresses only.
 
 ### ModifyChunkResponsePlugin
 
-This plugin demonstrate how to modify chunked encoded responses. In able to do so, this plugin uses `proxy.py` core to parse the chunked encoded response. Then we reconstruct the response using custom hardcoded chunks, ignoring original chunks received from upstream server.
+This plugin demonstrate how to modify chunked encoded responses. In able to do so, this plugin uses `proxy.py` core to parse the chunked encoded response. Then we reconstruct the response using custom hard-coded chunks, ignoring original chunks received from upstream server.
 
 Start `proxy.py` as:
 
@@ -779,14 +788,14 @@ plugin
 * Closing connection 0
 ```
 
-Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending hardcoded chunks, parse and modify the original `JSON` chunks received from the upstream server.
+Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending hard-coded chunks, parse and modify the original `JSON` chunks received from the upstream server.
 
 ### CloudflareDnsResolverPlugin
 
 This plugin uses `Cloudflare` hosted `DNS-over-HTTPS` [API](https://developers.cloudflare.com/1.1.1.1/encrypted-dns/dns-over-https/make-api-requests/dns-json) (json).
 
 `DoH` mandates a HTTP2 compliant client. Unfortunately `proxy.py`
-doesn't provide that yet, so we use a dependency. Install it:
+does not provide that yet, so we use a dependency. Install it:
 
 ```console
 ❯ pip install "httpx[http2]"
@@ -806,7 +815,7 @@ Use `--cloudflare-dns-mode family` to also enable adult content protection too.
 
 This plugin demonstrate how to use a custom DNS resolution implementation with `proxy.py`.
 This example plugin currently uses Python's in-built resolution mechanism.  Customize code
-to your taste.  Example, query your custom DNS server, implement DoH or other mechanisms.
+to your taste.  Example, query your custom DNS server, implement `DoH` or other mechanisms.
 
 Start `proxy.py` as:
 
@@ -964,7 +973,7 @@ response from the server. Start `proxy.py` as:
     --ca-signing-key-file ca-signing-key.pem
 ```
 
-[![NOTE](https://img.shields.io/static/v1?label=MacOS&message=note&color=yellow)](https://github.com/abhinavsingh/proxy.py#flags) Also provide explicit CA bundle path needed for validation of peer certificates. See `--ca-file` flag.
+[![NOTE](https://img.shields.io/static/v1?label=MacOS&message=note&color=yellow)](https://github.com/abhinavsingh/proxy.py#user-content-flags) Also provide explicit CA bundle path needed for validation of peer certificates. See `--ca-file` flag.
 
 Verify TLS interception using `curl`
 
@@ -1037,7 +1046,8 @@ Important notes about TLS Interception with Docker container:
 - Since `v2.2.0`, `proxy.py` docker container also ships with `openssl`. This allows `proxy.py`
   to generate certificates on the fly for TLS Interception.
 
-- For security reasons, `proxy.py` docker container doesn't ship with CA certificates.
+- For security reasons, `proxy.py` docker container does not ship with
+  CA certificates.
 
 Here is how to start a `proxy.py` docker container
 with TLS Interception:
@@ -1324,9 +1334,9 @@ if __name__ == '__main__':
 
 # Unit testing with proxy.py
 
-## proxy.TestCase
+## `proxy.TestCase`
 
-To setup and teardown `proxy.py` for your Python `unittest` classes,
+To setup and tear down `proxy.py` for your Python `unittest` classes,
 simply use `proxy.TestCase` instead of `unittest.TestCase`.
 Example:
 
@@ -1341,10 +1351,10 @@ class TestProxyPyEmbedded(proxy.TestCase):
 
 Note that:
 
-1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and teardown `proxy.py`.
+1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and tear down `proxy.py`.
 2. `proxy.py` server will listen on a random available port on the system.
    This random port is available as `self.PROXY.acceptors.flags.port` within your test cases.
-3. Only a single acceptor and worker is started by default (`--num-workers 1 --num-acceptors 1`) for faster setup and teardown.
+3. Only a single acceptor and worker is started by default (`--num-workers 1 --num-acceptors 1`) for faster setup and tear down.
 4. Most importantly, `proxy.TestCase` also ensures `proxy.py` server
    is up and running before proceeding with execution of tests. By default,
    `proxy.TestCase` will wait for `10 seconds` for `proxy.py` server to start,
@@ -1368,13 +1378,15 @@ class TestProxyPyEmbedded(TestCase):
         self.assertTrue(True)
 ```
 
-See [test_embed.py](https://github.com/abhinavsingh/proxy.py/blob/develop/tests/test_embed.py)
-for full working example.
+See [test_embed.py] for full working example.
 
-## With unittest.TestCase
+[test_embed.py]:
+https://github.com/abhinavsingh/proxy.py/blob/develop/tests/testing/test_embed.py
+
+## With `unittest.TestCase`
 
 If for some reasons you are unable to directly use `proxy.TestCase`,
-then simply override `unittest.TestCase.run` yourself to setup and teardown `proxy.py`.
+then simply override `unittest.TestCase.run` yourself to setup and tear down `proxy.py`.
 Example:
 
 ```python
@@ -1395,7 +1407,7 @@ class TestProxyPyEmbedded(unittest.TestCase):
             super().run(result)
 ```
 
-or simply setup / teardown `proxy.py` within
+or simply setup / tear down `proxy.py` within
 `setUpClass` and `teardownClass` class methods.
 
 # Utilities
@@ -1433,7 +1445,7 @@ As a decorator:
 >>>   ... [ use connection ] ...
 ```
 
-## Http Client
+## HTTP Client
 
 ### build_http_request
 
@@ -1477,7 +1489,7 @@ build_http_response(
 
 ### API Usage
 
-- gen_private_key
+- `gen_private_key`
 
   ```python
   gen_private_key(
@@ -1487,7 +1499,7 @@ build_http_response(
       timeout: int = 10) -> bool
   ```
 
-- gen_public_key
+- `gen_public_key`
 
   ```python
   gen_public_key(
@@ -1501,7 +1513,7 @@ build_http_response(
       timeout: int = 10) -> bool
   ```
 
-- remove_passphrase
+- `remove_passphrase`
 
   ```python
   remove_passphrase(
@@ -1511,7 +1523,7 @@ build_http_response(
       timeout: int = 10) -> bool
   ```
 
-- gen_csr
+- `gen_csr`
 
   ```python
   gen_csr(
@@ -1522,7 +1534,7 @@ build_http_response(
       timeout: int = 10) -> bool
   ```
 
-- sign_csr
+- `sign_csr`
 
   ```python
   sign_csr(
@@ -1635,7 +1647,7 @@ Visit dashboard:
 
 Wait for embedded `Chrome Dev Console` to load.  Currently, detail about all traffic flowing
 through `proxy.py` is pushed to the `Inspect Traffic` tab.  However, received payloads are not
-yet integrated with the embedded dev console.
+yet integrated with the embedded developer console.
 
 Current functionality can be verified by opening the `Dev Console` of dashboard and inspecting
 the websocket connection that dashboard established with the `proxy.py` server.
@@ -1717,6 +1729,37 @@ OR, simply pass fully-qualified path as parameter, e.g.
 
 `proxy --plugins /path/to/my/app/my_app.proxyPlugin`
 
+Here is a quick working example:
+
+- Contents of `/tmp/plug` folder
+
+```console
+╰─ ls -1 /tmp/plug                                                                                                                       ─╯
+my_plugin.py
+```
+
+- Custom `MyPlugin` class
+
+```console
+╰─ cat /tmp/plug/my_plugin.py                                                                                                            ─╯
+from proxy.http.proxy import HttpProxyBasePlugin
+
+
+class MyPlugin(HttpProxyBasePlugin):
+  pass
+```
+
+This is an empty plugin for demonstrating external plugin usage. You must implement necessary methods to make your plugins work for real traffic
+
+- Start `proxy.py` with `MyPlugin`
+
+```console
+╰─ PYTHONPATH=/tmp/plug proxy --plugin my_plugin.MyPlugin                                                                      ─╯
+...[redacted]... - Loaded plugin proxy.http.proxy.HttpProxyPlugin
+...[redacted]... - Loaded plugin my_plugin.MyPlugin
+...[redacted]... - Listening on ::1:8899
+```
+
 ## Unable to connect with proxy.py from remote host
 
 Make sure `proxy.py` is listening on correct network interface.
@@ -1746,7 +1789,7 @@ for some background.
 
 ## GCE log viewer integration for proxy.py
 
-A starter [fluentd.conf](https://github.com/abhinavsingh/proxy.py/blob/develop/fluentd.conf)
+A starter [fluentd.conf](https://github.com/abhinavsingh/proxy.py/blob/develop/helper/fluentd.conf)
 template is available.
 
 1. Copy this configuration file as `proxy.py.conf` under
@@ -1762,7 +1805,7 @@ template is available.
 Now `proxy.py` logs can be browsed using
 [GCE log viewer](https://console.cloud.google.com/logs/viewer).
 
-## ValueError: filedescriptor out of range in select
+## `ValueError: filedescriptor out of range in select`
 
 `proxy.py` is made to handle thousands of connections per second
 without any socket leaks.
@@ -1879,7 +1922,7 @@ the incoming client connections.
 
 Each `Acceptor` process delegates the accepted client connection
 to a threadless process via `Work` class.  Currently, `HttpProtocolHandler`
-is the default work klass.
+is the default work class.
 
 `HttpProtocolHandler` simply assumes that incoming clients will follow
 HTTP specification.  Specific HTTP proxy and HTTP server implementations

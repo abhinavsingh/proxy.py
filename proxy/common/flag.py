@@ -19,6 +19,7 @@ import multiprocessing
 
 from typing import Optional, List, Any, cast
 
+from ._compat import IS_WINDOWS  # noqa: WPS436
 from .plugins import Plugins
 from .types import IpAddress
 from .utils import bytes_, is_py2, set_open_file_limit
@@ -53,12 +54,14 @@ class FlagParser:
     Import `flag.flags` and use `add_argument` API
     to define custom flags within respective Python files.
 
-    Best Practice:
-    1. Define flags at the top of your class files.
-    2. DO NOT add flags within your class `__init__` method OR
-       within class methods.  It MAY result into runtime exception,
-       especially if your class is initialized multiple times or if
-       class method registering the flag gets invoked multiple times.
+    Best Practice::
+
+       1. Define flags at the top of your class files.
+       2. DO NOT add flags within your class `__init__` method OR
+          within class methods.  It MAY result into runtime exception,
+          especially if your class is initialized multiple times or if
+          class method registering the flag gets invoked multiple times.
+
     """
 
     def __init__(self) -> None:
@@ -255,7 +258,7 @@ class FlagParser:
         )
         # AF_UNIX is not available on Windows
         # See https://bugs.python.org/issue33408
-        if os.name != 'nt':
+        if not IS_WINDOWS:
             args.family = socket.AF_UNIX if args.unix_socket_path else (
                 socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
             )

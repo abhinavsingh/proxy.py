@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
 """
 import json
 import time
@@ -23,7 +27,7 @@ from ...core.event import eventNames
 class CoreEventsToDevtoolsProtocol:
     """Open in Chrome
 
-    devtools://devtools/bundled/inspector.html?ws=localhost:8899/devtools
+    ``devtools://devtools/bundled/inspector.html?ws=localhost:8899/devtools``
     """
 
     RESPONSES: Dict[str, bytes] = {}

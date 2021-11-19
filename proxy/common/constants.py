@@ -18,15 +18,14 @@ import ipaddress
 
 from typing import Any, List
 
+from ._compat import IS_WINDOWS  # noqa: WPS436
 from .version import __version__
 
 
 def _env_threadless_compliant() -> bool:
     """Returns true for Python 3.8+ across all platforms
     except Windows."""
-    if os.name == 'nt':
-        return False
-    return sys.version_info >= (3, 8)
+    return not IS_WINDOWS and sys.version_info >= (3, 8)
 
 
 PROXY_PY_START_TIME = time.time()

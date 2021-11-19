@@ -9,7 +9,7 @@ on:   # yamllint disable-line rule:truthy
     - 'examples/**'
     - 'requirements*'
     - 'setup.cfg'
-    - 'version-check.py'
+    - 'check.py'
     - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
   pull_request:
@@ -19,9 +19,33 @@ on:   # yamllint disable-line rule:truthy
     - 'examples/**'
     - 'requirements*'
     - 'setup.cfg'
-    - 'version-check.py'
+    - 'check.py'
     - 'MANIFEST.in'
     - '.github/workflows/test-library.yml'
+  workflow_dispatch:
+    inputs:
+      release-version:
+        # github.event_name == 'workflow_dispatch'
+        # && github.event.inputs.release-version
+        description: >-
+          Target PEP440-compliant version to release.
+          Please, don't prepend `v`.
+        required: true
+      release-commitish:
+        # github.event_name == 'workflow_dispatch'
+        # && github.event.inputs.release-commitish
+        default: ''
+        description: >-
+          The commit to be released to PyPI and tagged
+          in Git as `release-version`. Normally, you
+          should keep this empty.
+      YOLO:
+        default: false
+        description: >-
+          Flag whether test results should block the
+          release (true/false). Only use this under
+          extraordinary circumstances to ignore the
+          test failures and cut the release regardless.
 
 concurrency:
   group: >-
@@ -33,48 +57,163 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integration:
-    runs-on: ${{ matrix.os }}-latest
-    name: >-
-      e2e: 🐍${{ matrix.python }} @ ${{ matrix.os }}
-    needs:
-    - build
-    strategy:
-      matrix:
-        os: [Ubuntu, macOS]
-        python: ['3.6', '3.7', '3.8', '3.9', '3.10']
-      max-parallel: 4
-      fail-fast: false
+  pre-setup:
+    name: Pre-set global build settings
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: python
+    outputs:
+      dist-version: >-
+        ${{
+            steps.request-check.outputs.release-requested == 'true'
+            && github.event.inputs.release-version
+            || steps.scm-version.outputs.dist-version
+        }}
+      is-untagged-devel: >-
+        ${{ steps.untagged-check.outputs.is-untagged-devel || false }}
+      release-requested: >-
+        ${{
+            steps.request-check.outputs.release-requested || false
+        }}
+      cache-key-files: >-
+        ${{ steps.calc-cache-key-files.outputs.files-hash-key }}
+      git-tag: ${{ steps.git-tag.outputs.tag }}
+      sdist-artifact-name: ${{ steps.artifact-name.outputs.sdist }}
+      wheel-artifact-name: ${{ steps.artifact-name.outputs.wheel }}
     steps:
-    - uses: actions/checkout@v2
-    - name: Make the env clean of non-test files
-      run: |
-        shopt -s extglob
-        mv -v tests/integration/main.sh integration-test.sh
-        rm -rf !integration-test.sh
-      shell: bash
-    - name: Setup Python
+    - name: Switch to using Python 3.9 by default
       uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python }}
-    - name: Download all the dists
-      uses: actions/download-artifact@v2
+        python-version: 3.9
+    - name: >-
+        Mark the build as untagged '${{
+            github.event.repository.default_branch
+        }}' branch build
+      id: untagged-check
+      if: >-
+        github.event_name == 'push' &&
+        github.ref == format(
+          'refs/heads/{0}', github.event.repository.default_branch
+        )
+      run: >-
+        print('::set-output name=is-untagged-devel::true')
+    - name: Mark the build as "release request"
+      id: request-check
+      if: github.event_name == 'workflow_dispatch'
+      run: >-
+        print('::set-output name=release-requested::true')
+    - name: Check out src from Git
+      if: >-
+        steps.request-check.outputs.release-requested != 'true'
+      uses: actions/checkout@v2
       with:
-        name: python-package-distributions
-        path: dist/
-    - name: Integration testing
+        fetch-depth: 0
+        ref: ${{ github.event.inputs.release-commitish }}
+    - name: >-
+        Calculate Python interpreter version hash value
+        for use in the cache key
+      if: >-
+        steps.request-check.outputs.release-requested != 'true'
+      id: calc-cache-key-py
       run: |
-        pip install dist/proxy.py-*-py3-none-any.whl
-        proxy \
-          --hostname 127.0.0.1 \
-          --enable-web-server \
-          --pid-file proxy.pid \
-          --log-file proxy.log \
-          &
-        ./integration-test.sh
+        from hashlib import sha512
+        from sys import version
+        hash = sha512(version.encode()).hexdigest()
+        print(f'::set-output name=py-hash-key::{hash}')
+    - name: >-
+        Calculate dependency files' combined hash value
+        for use in the cache key
+      if: >-
+        steps.request-check.outputs.release-requested != 'true'
+      id: calc-cache-key-files
+      run: |
+        print(
+          "::set-output name=files-hash-key::${{
+              hashFiles(
+                'setup.cfg', 'tox.ini', 'pyproject.toml',
+                '.pre-commit-config.yaml', 'pytest.ini'
+              )
+          }}",
+        )
+    - name: Get pip cache dir
+      id: pip-cache-dir
+      if: >-
+        steps.request-check.outputs.release-requested != 'true'
+      run: >-
+        echo "::set-output name=dir::$(python -m pip cache dir)"
+      shell: bash
+    - name: Set up pip cache
+      if: >-
+        steps.request-check.outputs.release-requested != 'true'
+      uses: actions/cache@v2.1.5
+      with:
+        path: ${{ steps.pip-cache-dir.outputs.dir }}
+        key: >-
+          ${{ runner.os }}-pip-${{
+          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
+          steps.calc-cache-key-files.outputs.files-hash-key }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{
+              steps.calc-cache-key-py.outputs.py-hash-key
+          }}-
+          ${{ runner.os }}-pip-
+          ${{ runner.os }}-
+    - name: Drop Git tags from HEAD for non-release requests
+      if: >-
+        steps.request-check.outputs.release-requested != 'true'
+      run: >-
+        git tag --points-at HEAD
+        |
+        xargs git tag --delete
+      shell: bash
+    - name: Set up versioning prerequisites
+      if: >-
+        steps.request-check.outputs.release-requested != 'true'
+      run: >-
+        python -m
+        pip install
+        --user
+        setuptools-scm
+      shell: bash
+    - name: Set the current dist version from Git
+      if: steps.request-check.outputs.release-requested != 'true'
+      id: scm-version
+      run: |
+        import setuptools_scm
+        ver = setuptools_scm.get_version(
+          ${{
+              steps.untagged-check.outputs.is-untagged-devel == 'true'
+              && 'local_scheme="no-local-version"' || ''
+          }}
+        )
+        print('::set-output name=dist-version::{ver}'.format(ver=ver))
+    - name: Set the target Git tag
+      id: git-tag
+      run: >-
+        print('::set-output name=tag::v${{
+            steps.request-check.outputs.release-requested == 'true'
+            && github.event.inputs.release-version
+            || steps.scm-version.outputs.dist-version
+        }}')
+    - name: Set the expected dist artifact names
+      id: artifact-name
+      run: |
+        print('::set-output name=sdist::proxy.py-${{
+            steps.request-check.outputs.release-requested == 'true'
+            && github.event.inputs.release-version
+            || steps.scm-version.outputs.dist-version
+        }}.tar.gz')
+        print('::set-output name=wheel::proxy.py-${{
+            steps.request-check.outputs.release-requested == 'true'
+            && github.event.inputs.release-version
+            || steps.scm-version.outputs.dist-version
+        }}-py3-none-any.whl')
 
   build:
-    name: build-dists
+    name: build dists ${{ needs.pre-setup.outputs.git-tag }}
+    needs:
+    - pre-setup  # transitive, for accessing settings
 
     runs-on: Ubuntu-latest
 
@@ -125,6 +264,9 @@ jobs:
 
     - name: Grab the source from Git
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        ref: ${{ github.event.inputs.release-commitish }}
 
     - name: Pre-populate the tox env
       run: >-
@@ -134,6 +276,28 @@ jobs:
         --parallel-live
         --skip-missing-interpreters false
         --notest
+
+    - name: Setup git user as [bot]
+      if: >-
+        fromJSON(needs.pre-setup.outputs.is-untagged-devel)
+      run: >
+        git config --local user.email
+        'github-actions[bot]@users.noreply.github.com'
+
+        git config --local user.name 'github-actions[bot]'
+    - name: >-
+        Tag the release in the local Git repo
+        as ${{ needs.pre-setup.outputs.git-tag }}
+        for setuptools-scm to se the desired version
+      if: >-
+        fromJSON(needs.pre-setup.outputs.is-untagged-devel)
+      run: >-
+        git tag
+        -m '${{ needs.pre-setup.outputs.git-tag }}'
+        '${{ needs.pre-setup.outputs.git-tag }}'
+        --
+        ${{ github.event.inputs.release-commitish }}
+
     - name: Build dists
       run: >-
         python -m
@@ -141,17 +305,30 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+        --skip-pkg-install
+    - name: Verify that the artifacts with expected names got created
+      run: >-
+        ls -1
+        'dist/${{ needs.pre-setup.outputs.sdist-artifact-name }}'
+        'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
     - name: Store the distribution packages
       uses: actions/upload-artifact@v2
       with:
         name: python-package-distributions
-        path: dist
+        # NOTE: Exact expected file names are specified here
+        # NOTE: as a safety measure — if anything weird ends
+        # NOTE: up being in this dir or not all dists will be
+        # NOTE: produced, this will fail the workflow.
+        path: |
+          dist/${{ needs.pre-setup.outputs.sdist-artifact-name }}
+          dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}
         retention-days: 30  # Defaults to 90
 
   lint:
     name: ${{ matrix.toxenv }}
     needs:
     - build
+    - pre-setup  # transitive, for accessing settings
 
     runs-on: Ubuntu-latest
     strategy:
@@ -159,6 +336,10 @@ jobs:
         toxenv:
         - lint
         - metadata-validation
+        - build-docs
+        - doctest-docs
+        - linkcheck-docs
+        - spellcheck-docs
       fail-fast: false
 
     env:
@@ -208,6 +389,8 @@ jobs:
 
     - name: Grab the source from Git
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
 
     - name: Make the env clean of non-test files
       if: matrix.toxenv == 'metadata-validation'
@@ -239,11 +422,13 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
+        --skip-pkg-install
 
   test:
     name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
     needs:
     - build
+    - pre-setup  # transitive, for accessing settings
 
     runs-on: ${{ matrix.os }}-latest
     strategy:
@@ -263,6 +448,14 @@ jobs:
         - 3.8
         - 3.7
       max-parallel: 4
+
+    continue-on-error: >-
+      ${{
+          (
+            needs.pre-setup.outputs.release-requested == 'true' &&
+            !toJSON(github.event.inputs.YOLO)
+          ) && true || false
+      }}
 
     env:
       PY_COLORS: 1
@@ -312,6 +505,8 @@ jobs:
 
     - name: Grab the source from Git
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
 
     - name: Download all the dists
       uses: actions/download-artifact@v2
@@ -326,7 +521,7 @@ jobs:
         --parallel auto
         --parallel-live
         --skip-missing-interpreters false
-        --installpkg dist/proxy.py-*-py3-none-any.whl
+        --installpkg 'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
         --notest
       shell: bash
     - name: Run the testing
@@ -345,7 +540,6 @@ jobs:
 
   check:  # This job does nothing and is only used for the branch protection
     needs:
-    - integration
     - lint
     - test
 
@@ -356,4 +550,97 @@ jobs:
       run: >-
         print("All's good")
       shell: python
+
+  publish-pypi:
+    name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI
+    needs:
+    - check
+    - pre-setup  # transitive, for accessing settings
+    if: >-
+      fromJSON(needs.pre-setup.outputs.release-requested)
+    runs-on: Ubuntu-latest
+
+    environment:
+      name: release
+      url: >-
+        https://pypi.org/project/proxy.py/${{
+          needs.pre-setup.outputs.dist-version
+        }}
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: >-
+        Publish 🐍📦 v${{ needs.pre-setup.outputs.git-tag }} to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_TOKEN }}
+
+
+  publish-testpypi:
+    name: Publish 🐍📦 to TestPyPI
+    needs:
+    - check
+    - pre-setup  # transitive, for accessing settings
+    if: >-
+      fromJSON(needs.pre-setup.outputs.is-untagged-devel)
+    runs-on: Ubuntu-latest
+
+    environment:
+      name: release-testpypi
+      url: >-
+        https://test.pypi.org/project/proxy.py/${{
+          needs.pre-setup.outputs.dist-version
+        }}
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: >-
+        Publish 🐍📦  v${{ needs.pre-setup.outputs.git-tag }}to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.TESTPYPI_API_TOKEN }}
+        repository_url: https://test.pypi.org/legacy/
+
+
+  post-release-repo-update:
+    name: >-
+      Publish post-release Git tag
+      for ${{ needs.pre-setup.outputs.git-tag }}
+    needs:
+    - publish-pypi
+    - pre-setup  # transitive, for accessing settings
+    runs-on: Ubuntu-latest
+
+    steps:
+    - name: Fetch the src snapshot
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+        ref: ${{ github.event.inputs.release-commitish }}
+    - name: Setup git user as [bot]
+      run: >
+        git config --local user.email
+        'github-actions[bot]@users.noreply.github.com'
+
+        git config --local user.name 'github-actions[bot]'
+
+    - name: >-
+        Tag the release in the local Git repo
+        as v${{ needs.pre-setup.outputs.git-tag }}
+      run: >-
+        git tag '${{ needs.pre-setup.outputs.git-tag }}'
+        ${{ github.event.inputs.release-commitish }}
+    - name: >-
+        Push ${{ needs.pre-setup.outputs.git-tag }} tag corresponding
+        to the just published release back to GitHub
+      run: >-
+        git push --atomic origin '${{ needs.pre-setup.outputs.git-tag }}'
 ...

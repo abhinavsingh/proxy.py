@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       shortlink
 """
 from typing import Optional
 
@@ -23,15 +27,15 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
 
     Enable ShortLinkPlugin and speed up your daily browsing experience.
 
-    Example:
-    * f/ for facebook.com
-    * g/ for google.com
-    * t/ for twitter.com
-    * y/ for youtube.com
-    * proxy/ for py internal web servers.
+    Example::
+    * ``f/`` for ``facebook.com``
+    * ``g/`` for ``google.com`
+    * ``t/`` for ``twitter.com``
+    * ``y/`` for ``youtube.com``
+    * ``proxy/`` for ``py`` internal web servers.
     Customize map below for your taste and need.
 
-    Paths are also preserved. E.g. t/imoracle will
+    Paths are also preserved. E.g. ``t/imoracle`` will
     resolve to http://twitter.com/imoracle.
     """
 

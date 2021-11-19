@@ -26,4 +26,6 @@ cover
 htmlcov
 dist
 build
+
 proxy/public
+docs/_build

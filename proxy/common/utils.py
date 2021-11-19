@@ -7,8 +7,14 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       utils
+       websocket
+       Websocket
+       WebSocket
 """
-import os
 import sys
 import ssl
 import socket
@@ -20,9 +26,10 @@ import contextlib
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
+from ._compat import IS_WINDOWS  # noqa: WPS436
 from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT, DEFAULT_THREADLESS
 
-if os.name != 'nt':
+if not IS_WINDOWS:
     import resource
 
 logger = logging.getLogger(__name__)
@@ -38,7 +45,7 @@ def is_threadless(threadless: bool, threaded: bool) -> bool:
 
 
 def is_py2() -> bool:
-    """Exists only to avoid mocking sys.version_info in tests."""
+    """Exists only to avoid mocking :data:`sys.version_info` in tests."""
     return sys.version_info.major == 2
 
 
@@ -272,14 +279,16 @@ def get_available_port() -> int:
 
 def set_open_file_limit(soft_limit: int) -> None:
     """Configure open file description soft limit on supported OS."""
-    if os.name != 'nt':  # resource module not available on Windows OS
-        curr_soft_limit, curr_hard_limit = resource.getrlimit(
-            resource.RLIMIT_NOFILE,
+    if IS_WINDOWS:  # resource module not available on Windows OS
+        return
+
+    curr_soft_limit, curr_hard_limit = resource.getrlimit(
+        resource.RLIMIT_NOFILE,
+    )
+    if curr_soft_limit < soft_limit < curr_hard_limit:
+        resource.setrlimit(
+            resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit),
         )
-        if curr_soft_limit < soft_limit < curr_hard_limit:
-            resource.setrlimit(
-                resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit),
-            )
-            logger.debug(
-                'Open file soft limit set to %d', soft_limit,
-            )
+        logger.debug(
+            'Open file soft limit set to %d', soft_limit,
+        )
