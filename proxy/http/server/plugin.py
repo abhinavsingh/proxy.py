@@ -95,15 +95,19 @@ class HttpWebServerBasePlugin(ABC):
         """Client has closed the connection, do any clean up task now."""
         pass
 
-    @abstractmethod
+    # No longer abstract since v2.4.0
+    #
+    # @abstractmethod
     def on_websocket_open(self) -> None:
         """Called when websocket handshake has finished."""
-        raise NotImplementedError()     # pragma: no cover
+        pass        # pragma: no cover
 
-    @abstractmethod
+    # No longer abstract since v2.4.0
+    #
+    # @abstractmethod
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         """Handle websocket frame."""
-        raise NotImplementedError()     # pragma: no cover
+        return None     # pragma: no cover
 
     # Deprecated since v2.4.0
     #

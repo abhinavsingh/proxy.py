@@ -20,7 +20,6 @@ from typing import List, Tuple, Optional, Any
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
 
-from ..websocket import WebsocketFrame
 from ..parser import HttpParser
 
 from ...common.utils import bytes_, text_, build_http_response
@@ -63,15 +62,6 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
     def handle_request(self, request: HttpParser) -> None:
         if self.flags.pac_file and self.pac_file_response:
             self.client.queue(self.pac_file_response)
-
-    def on_websocket_open(self) -> None:
-        pass    # pragma: no cover
-
-    def on_websocket_message(self, frame: WebsocketFrame) -> None:
-        pass    # pragma: no cover
-
-    def on_client_connection_close(self) -> None:
-        pass    # pragma: no cover
 
     def cache_pac_file_response(self) -> None:
         if self.flags.pac_file:

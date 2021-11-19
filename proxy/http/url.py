@@ -16,6 +16,7 @@
 from typing import Optional, Tuple
 
 from ..common.constants import COLON, SLASH
+from ..common.utils import text_
 
 
 class Url:
@@ -35,6 +36,18 @@ class Url:
         self.hostname: Optional[bytes] = hostname
         self.port: Optional[int] = port
         self.remainder: Optional[bytes] = remainder
+
+    def __str__(self) -> str:
+        url = ''
+        if self.scheme:
+            url += '{0}://'.format(text_(self.scheme))
+        if self.hostname:
+            url += text_(self.hostname)
+        if self.port:
+            url += ':{0}'.format(self.port)
+        if self.remainder:
+            url += text_(self.remainder)
+        return url
 
     @classmethod
     def from_bytes(cls, raw: bytes) -> 'Url':
@@ -57,7 +70,9 @@ class Url:
             return cls(remainder=raw)
         if sraw.startswith('https://') or sraw.startswith('http://'):
             is_https = sraw.startswith('https://')
-            rest = raw[len(b'https://'):] if is_https else raw[len(b'http://'):]
+            rest = raw[len(b'https://'):] \
+                if is_https \
+                else raw[len(b'http://'):]
             parts = rest.split(SLASH)
             host, port = Url.parse_host_and_port(parts[0])
             return cls(

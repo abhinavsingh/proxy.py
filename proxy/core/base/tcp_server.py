@@ -45,7 +45,6 @@ class BaseTcpServerHandler(Work):
        a. handle_data(data: memoryview) implementation
        b. Optionally, also implement other Work method
           e.g. initialize, is_inactive, shutdown
-
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
