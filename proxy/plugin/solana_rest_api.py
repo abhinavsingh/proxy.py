@@ -138,7 +138,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
-        balance = get_token_balance_or_airdrop(self.client, self.signer, evm_loader_id, eth_acc)
+        balance = get_token_balance_or_airdrop(self.client, self.signer, eth_acc)
 
         return hex(balance * eth_utils.denoms.gwei)
 
@@ -272,7 +272,7 @@ class EthereumModel:
     def eth_getTransactionCount(self, account, tag):
         logger.debug('eth_getTransactionCount: %s', account)
         try:
-            acc_info = getAccountInfo(self.client, EthereumAddress(account), self.signer.public_key())
+            acc_info = getAccountInfo(self.client, EthereumAddress(account))
             return hex(int.from_bytes(acc_info.trx_count, 'little'))
         except Exception as err:
             print("Can't get account info: %s"%err)

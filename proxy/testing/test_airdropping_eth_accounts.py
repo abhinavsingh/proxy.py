@@ -65,8 +65,7 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
         return contract
 
     def _get_balance_wei(self, eth_acc: str) -> int:
-        pub_key = self._host_solana_account.public_key()
-        token_owner_account, nonce = ether2program(eth_acc, self._EVM_LOADER_ID, pub_key)
+        token_owner_account, nonce = ether2program(eth_acc)
         balance = get_token_balance_gwei(self._solana_client, token_owner_account)
         self.assertIsNotNone(balance)
         self.assertIsInstance(balance, int)
