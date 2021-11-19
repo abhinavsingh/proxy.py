@@ -70,8 +70,10 @@ class Url:
             return cls(remainder=raw)
         if sraw.startswith('https://') or sraw.startswith('http://'):
             is_https = sraw.startswith('https://')
-            rest = raw[len(b'https://')
-                           :] if is_https else raw[len(b'http://'):]
+            rest = raw[
+                len(b'https://')
+                :
+            ] if is_https else raw[len(b'http://'):]
             parts = rest.split(SLASH)
             host, port = Url.parse_host_and_port(parts[0])
             return cls(
