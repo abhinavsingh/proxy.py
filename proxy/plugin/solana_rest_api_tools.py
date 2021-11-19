@@ -1091,13 +1091,13 @@ def _getAccountData(client, account, expected_length, owner=None):
 
 
 def getAccountInfo(client, eth_acc):
-    account_sol, nonce = ether2program(bytes(eth_acc).hex())
+    account_sol, nonce = ether2program(str(eth_acc))
     info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     return AccountInfo.frombytes(info)
 
 
 def getLamports(client, eth_acc):
-    pda_account, nonce = ether2program(bytes(eth_acc).hex())
+    pda_account, nonce = ether2program(str(eth_acc))
     return int(client.get_balance(pda_account, commitment=Confirmed)['result']['value'])
 
 
@@ -1200,7 +1200,7 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
 
 
 def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress) -> int:
-    associated_token_account, nonce = ether2program(bytes(eth_account).hex())
+    associated_token_account, nonce = ether2program(str(eth_account))
     logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account}")
 
     try:
