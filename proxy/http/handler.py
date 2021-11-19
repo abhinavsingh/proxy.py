@@ -31,7 +31,8 @@ from ..common.utils import wrap_socket, is_threadless
 from ..core.base import BaseTcpServerHandler
 from ..core.connection import TcpClientConnection
 from ..common.flag import flags
-from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
+from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE
+from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT, DEFAULT_TIMEOUT
 
 
 logger = logging.getLogger(__name__)
@@ -365,7 +366,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         events = self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
-        ev = self.selector.select(timeout=1)
+        ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
         readables = []
         writables = []
         for key, mask in ev:
@@ -396,7 +397,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             while self.work.has_buffer():
                 ev: List[
                     Tuple[selectors.SelectorKey, int]
-                ] = self.selector.select(timeout=1)
+                ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
                 if len(ev) == 0:
                     continue
                 self.work.flush()
