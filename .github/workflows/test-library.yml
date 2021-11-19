@@ -523,80 +523,6 @@ jobs:
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
 
-  docker:
-    runs-on: ${{ matrix.os }}-latest
-    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu]
-        python: ['3.10']
-      max-parallel: 1
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v2
-    - name: Setup Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r requirements-release.txt
-        pip install -r requirements-testing.txt
-        pip install -r requirements-tunnel.txt
-    - name: Build
-      run: |
-        make container
-
-  brew:
-    runs-on: ${{ matrix.os }}-latest
-    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macOS]
-        python: ['3.10']
-      max-parallel: 1
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v2
-    - name: Setup Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python }}
-    - name: Brew
-      run: |
-        brew install ./helper/homebrew/develop/proxy.rb
-    - name: Verify
-      run: |
-        proxy -h
-
-  dashboard:
-    runs-on: ${{ matrix.os }}-latest
-    name: Node ${{ matrix.node }} @ ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu, windows, macOS]
-        node: ['10.x', '11.x', '12.x']
-      max-parallel: 4
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v2
-    - name: Setup Node
-      uses: actions/setup-node@v2
-      with:
-        node-version: ${{ matrix.node }}
-    - name: Install Dependencies
-      run: |
-        cd dashboard
-        npm install
-        cd ..
-    - name: Build Dashboard
-      run: |
-        cd dashboard
-        npm run build
-        cd ..
-
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
@@ -660,6 +586,7 @@ jobs:
 
   check:  # This job does nothing and is only used for the branch protection
     needs:
+    - analyze
     - test
     - lint
 
@@ -671,9 +598,95 @@ jobs:
         print("All's good")
       shell: python
 
-  other-checks:  # This job does nothing and is only used for the branch protection
+  brew:
+    # Wait for lib checks to pass before installing via brew
     needs:
-    - analyze
+    - check
+    runs-on: ${{ matrix.os }}-latest
+    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macOS]
+        python: ['3.10']
+      max-parallel: 1
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Brew
+      run: |
+        brew install ./helper/homebrew/develop/proxy.rb
+    - name: Verify
+      run: |
+        proxy -h
+
+  dashboard:
+    # Dashboard plugin depends upon library, wait for lib check to pass
+    needs:
+    - check
+    runs-on: ${{ matrix.os }}-latest
+    name: Node ${{ matrix.node }} @ ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu, windows, macOS]
+        node: ['10.x', '11.x', '12.x']
+      max-parallel: 4
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Node
+      uses: actions/setup-node@v2
+      with:
+        node-version: ${{ matrix.node }}
+    - name: Install Dependencies
+      run: |
+        cd dashboard
+        npm install
+        cd ..
+    - name: Build Dashboard
+      run: |
+        cd dashboard
+        npm run build
+        cd ..
+
+  docker:
+    # To build our docker container, we must wait for check,
+    # so that we can use the same distribution available.
+    #
+    # TL;DR -- Docker must be packaged with package from
+    # test.pypi.org or from pypi.org.
+    needs:
+    - check
+    runs-on: ${{ matrix.os }}-latest
+    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu]
+        python: ['3.10']
+      max-parallel: 1
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-release.txt
+        pip install -r requirements-testing.txt
+        pip install -r requirements-tunnel.txt
+    - name: Build
+      run: |
+        make container
+
+  other-checks:  # This job is used for the branch protection
+    needs:
     - brew
     - docker
     - dashboard
