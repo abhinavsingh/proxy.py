@@ -426,7 +426,7 @@ def solana2ether(public_key):
     return bytes(Web3.keccak(bytes.fromhex(public_key))[-20:])
 
 
-def ether2program(ether, program_id, base):
+def ether2program(ether):
     if isinstance(ether, str):
         pass
     elif isinstance(ether, EthereumAddress):
@@ -1090,21 +1090,21 @@ def _getAccountData(client, account, expected_length, owner=None):
     return data
 
 
-def getAccountInfo(client, eth_acc, base_account):
-    (account_sol, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader_id, base_account)
+def getAccountInfo(client, eth_acc):
+    (account_sol, nonce) = ether2program(bytes(eth_acc).hex())
     info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     return AccountInfo.frombytes(info)
 
 
-def getLamports(client, evm_loader, eth_acc, base_account):
-    (account, nonce) = ether2program(bytes(eth_acc).hex(), evm_loader, base_account)
-    return int(client.get_balance(account, commitment=Confirmed)['result']['value'])
+def getLamports(client, eth_acc):
+    pda_account, nonce = ether2program(bytes(eth_acc).hex())
+    return int(client.get_balance(pda_account, commitment=Confirmed)['result']['value'])
 
 
 def make_create_eth_account_trx(signer: SolanaAccount, eth_address: EthereumAddress, evm_loader_id, code_acc=None) \
                                 -> Tuple[Transaction, PublicKey]:
 
-    solana_address, nonce = ether2program(eth_address, evm_loader_id, signer.public_key())
+    solana_address, nonce = ether2program(eth_address)
     token_acc_address = get_associated_token_address(PublicKey(solana_address), ETH_TOKEN_MINT_ID)
     logger.debug(f'Create eth account: {eth_address}, sol account: {solana_address}, token_acc_address: {token_acc_address}, nonce: {nonce}')
 
@@ -1199,8 +1199,8 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
     return int(balance)
 
 
-def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, evm_loader: str, eth_account: EthereumAddress) -> int:
-    associated_token_account, nonce = ether2program(bytes(eth_account).hex(), evm_loader, signer.public_key())
+def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress) -> int:
+    associated_token_account, nonce = ether2program(bytes(eth_account).hex())
     logger.debug(f"Get balance for eth account: {eth_account} aka: {associated_token_account}")
 
     try:
