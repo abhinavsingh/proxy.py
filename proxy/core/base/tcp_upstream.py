@@ -62,7 +62,7 @@ class TcpUpstreamConnectionHandler(ABC):
 
     @abstractmethod
     def handle_upstream_data(self, raw: memoryview) -> None:
-        pass
+        raise NotImplementedError()     # pragma: no cover
 
     def initialize_upstream(self, addr: str, port: int) -> None:
         self.upstream = TcpServerConnection(addr, port)
