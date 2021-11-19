@@ -1091,7 +1091,7 @@ def _getAccountData(client, account, expected_length, owner=None):
 
 
 def getAccountInfo(client, eth_acc):
-    (account_sol, nonce) = ether2program(bytes(eth_acc).hex())
+    account_sol, nonce = ether2program(bytes(eth_acc).hex())
     info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     return AccountInfo.frombytes(info)
 
