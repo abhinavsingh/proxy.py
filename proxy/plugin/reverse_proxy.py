@@ -86,11 +86,11 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS),
         )
         assert self.choice.hostname
-        port = self.choice.port or (
+        port = self.choice.port or \
             DEFAULT_HTTP_PORT \
-                if self.choice.scheme == b'http' \
-                    else DEFAULT_HTTPS_PORT
-        )
+            if self.choice.scheme == b'http' \
+            else DEFAULT_HTTPS_PORT
+
         self.initialize_upstream(text_(self.choice.hostname), port)
         assert self.upstream
         try:
