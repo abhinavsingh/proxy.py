@@ -7,16 +7,6 @@ on:   # yamllint disable-line rule:truthy
     - master
     - develop
   pull_request:
-    paths:
-    - 'proxy/**'
-    - 'tests/**'
-    - 'examples/**'
-    - 'requirements*'
-    - 'setup.cfg'
-    - 'check.py'
-    - 'MANIFEST.in'
-    - '.github/workflows/test-library.yml'
-    - '.*'
   workflow_dispatch:
     inputs:
       release-version:
@@ -670,17 +660,28 @@ jobs:
 
   check:  # This job does nothing and is only used for the branch protection
     needs:
-    - analyze
     - test
     - lint
-    - brew
-    - dashboard
-    - docker
 
     runs-on: ubuntu-latest
 
     steps:
     - name: Report success of the test matrix
+      run: >-
+        print("All's good")
+      shell: python
+
+  other-checks:  # This job does nothing and is only used for the branch protection
+    needs:
+    - analyze
+    - brew
+    - docker
+    - dashboard
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Report success of the analyze, brew, dashboard & docker matrix
       run: >-
         print("All's good")
       shell: python

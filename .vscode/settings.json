@@ -14,7 +14,7 @@
   },
   "[typescript]": {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
   },
   "typescript.format.semicolons": "remove",
   "typescript.preferences.quoteStyle": "single",
@@ -42,5 +42,5 @@
   "python.linting.flake8Enabled": true,
   "python.linting.mypyEnabled": true,
   "python.formatting.provider": "autopep8",
-  "autoDocstring.docstringFormat": "sphinx",
+  "autoDocstring.docstringFormat": "sphinx"
 }
