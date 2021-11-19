@@ -5,7 +5,11 @@ from typing import Generator
 
 import pytest
 
+from proxy.common.utils import get_available_port
 from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
+
+
+PROXY_PY_PORT = get_available_port()
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
@@ -22,6 +26,7 @@ def _proxy_py_instance() -> Generator[None, None, None]:
     proxy_cmd = (
         'proxy',
         '--hostname', '127.0.0.1',
+        '--port', str(PROXY_PY_PORT),
         '--enable-web-server',
     )
     proxy_proc = Popen(proxy_cmd)
@@ -49,4 +54,4 @@ def test_curl() -> None:
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
 
-    check_output(str(shell_script_test))
+    check_output([str(shell_script_test), str(PROXY_PY_PORT)])
