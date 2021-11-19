@@ -228,6 +228,7 @@ def write_holder_layout(nonce, offset, data):
             len(data).to_bytes(8, byteorder='little')+
             data)
 
+
 def get_account_info(client, storage_account):
     opts = {
         "encoding": "base64",
@@ -1079,25 +1080,8 @@ def write_trx_to_holder_account(signer, client, holder, acc_id, eth_trx):
         logger.debug("confirmed: %s", rcpt)
 
 
-def _getAccountData(client, account, expected_length, owner=None):
-    info = client.get_account_info(account, commitment=Confirmed)['result']['value']
-    if info is None:
-        raise Exception("Can't get information about {}".format(account))
-
-    data = base64.b64decode(info['data'][0])
-    if len(data) < expected_length:
-        raise Exception("Wrong data length for account data {}".format(account))
-    return data
-
-
-def getAccountInfo(client, eth_acc):
-    account_sol, nonce = ether2program(eth_acc)
-    info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
-    return AccountInfo.frombytes(info)
-
-
-def getLamports(client, eth_acc):
-    pda_account, nonce = ether2program(eth_acc)
+def getLamports(client, eth_account):
+    pda_account, nonce = ether2program(eth_account)
     return int(client.get_balance(pda_account, commitment=Confirmed)['result']['value'])
 
 
