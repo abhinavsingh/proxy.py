@@ -524,8 +524,8 @@ jobs:
         verbose: true
 
   analyze:
-    name: Analyze
     runs-on: ubuntu-latest
+    name: 🛡️ Analyze
     # schedule:
     # - cron: '0 14 * * 1'
     strategy:
@@ -586,7 +586,7 @@ jobs:
 
   brew:
     runs-on: ${{ matrix.os }}-latest
-    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    name: 🍺 🐍${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [macOS]
@@ -608,7 +608,7 @@ jobs:
 
   dashboard:
     runs-on: ${{ matrix.os }}-latest
-    name: Node ${{ matrix.node }} @ ${{ matrix.os }}
+    name: 📊 Node ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu, windows, macOS]
@@ -641,7 +641,7 @@ jobs:
     # needs:
     # - publish-pypi
     runs-on: ${{ matrix.os }}-latest
-    name: 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    name: 🚢 🐍${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu]
@@ -710,7 +710,6 @@ jobs:
       with:
         password: ${{ secrets.PYPI_TOKEN }}
 
-
   publish-testpypi:
     name: Publish 🐍📦 to TestPyPI
     needs:
@@ -739,7 +738,6 @@ jobs:
       with:
         password: ${{ secrets.TESTPYPI_API_TOKEN }}
         repository_url: https://test.pypi.org/legacy/
-
 
   post-release-repo-update:
     name: >-
