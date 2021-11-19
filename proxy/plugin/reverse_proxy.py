@@ -52,7 +52,6 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
           "url": "http://localhost/get"
         }
         ```
-
     """
 
     # TODO: We must use nginx python parser and
@@ -69,7 +68,6 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        # Chosen upstream proxy_pass url
         self.choice: Optional[Url] = None
 
     def handle_upstream_data(self, raw: memoryview) -> None:

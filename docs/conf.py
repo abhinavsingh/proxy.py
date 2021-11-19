@@ -273,4 +273,5 @@ nitpick_ignore = [
     (_py_class_role, 'unittest.result.TestResult'),
     (_py_class_role, 'UUID'),
     (_py_class_role, 'WebsocketFrame'),
+    (_py_class_role, 'Url'),
 ]
