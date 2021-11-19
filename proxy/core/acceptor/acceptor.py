@@ -29,6 +29,7 @@ from proxy.core.acceptor.executors import ThreadlessPool
 
 from ..event import EventQueue
 
+from ...common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.utils import is_threadless
 from ...common.logger import Logger
 
@@ -107,7 +108,7 @@ class Acceptor(multiprocessing.Process):
     def run_once(self) -> None:
         with self.lock:
             assert self.selector and self.sock
-            events = self.selector.select(timeout=1)
+            events = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
             if len(events) == 0:
                 return
             conn, addr = self.sock.accept()
@@ -133,6 +134,7 @@ class Acceptor(multiprocessing.Process):
         try:
             self.selector.register(self.sock, selectors.EVENT_READ)
             while not self.running.is_set():
+                # logger.debug('Looking for new work')
                 self.run_once()
         except KeyboardInterrupt:
             pass

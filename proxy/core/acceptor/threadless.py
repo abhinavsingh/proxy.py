@@ -32,7 +32,7 @@ from ..event import EventQueue, eventNames
 
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_TIMEOUT
+from ...common.constants import DEFAULT_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class Threadless(multiprocessing.Process):
                 # ValueError exceptions raised by selector.register
                 # for invalid fd.
                 self.selector.register(fd, worker_events[fd])
-        ev = self.selector.select(timeout=1)
+        ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
         readables = []
         writables = []
         for key, mask in ev:
@@ -219,6 +219,7 @@ class Threadless(multiprocessing.Process):
             self.selector.register(self.client_queue, selectors.EVENT_READ)
             self.loop = asyncio.get_event_loop_policy().get_event_loop()
             while not self.running.is_set():
+                # logger.debug('Working on {0} works'.format(len(self.works)))
                 self.run_once()
         except KeyboardInterrupt:
             pass
