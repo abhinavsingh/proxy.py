@@ -2,7 +2,6 @@
 .coverage
 .coverage.*
 .idea
-.vscode
 .project
 .pydevproject
 .settings
@@ -13,6 +12,9 @@
 
 coverage.xml
 proxy.py.iml
+
+.vscode/*
+!.vscode/settings.json
 
 *.pyc
 *.egg-info
