@@ -23,11 +23,16 @@ logger = logging.getLogger(__name__)
 
 
 class TcpUpstreamConnectionHandler(ABC):
-    """TcpUpstreamConnectionHandler can be used to insert an upstream server
-    connection lifecycle within asynchronous proxy.py lifecycle.
+    """:class:`~proxy.core.base.TcpUpstreamConnectionHandler` can
+    be used to insert an upstream server connection lifecycle within
+    asynchronous proxy.py lifecycle.
 
     Call `initialize_upstream` to initialize the upstream connection object.
-    Then, directly use `self.upstream` object within your class.
+    Then, directly use ``self.upstream`` object within your class.
+
+    .. spelling::
+
+        tcp
     """
 
     def __init__(self, *args: Any,  **kwargs: Any) -> None:
@@ -35,17 +40,22 @@ class TcpUpstreamConnectionHandler(ABC):
         # will be fixed later.
         super().__init__(*args, **kwargs)   # type: ignore
         self.upstream: Optional[TcpServerConnection] = None
-        # TODO: Currently TcpUpstreamConnectionHandler is used within
-        # ReverseProxyPlugin and ProxyPoolPlugin.  For both of which
-        # we expect a 4-tuple as arguments containing
-        # (uuid, flags, client, event_queue).  We really don't
-        # need the rest here.  May be uuid?  May be event_queue
-        # in the future.  But certainly we don't not client here.
+        # TODO: Currently, :class:`~proxy.core.base.TcpUpstreamConnectionHandler`
+        # is used within :class:`~proxy.plugin.ReverseProxyPlugin` and
+        # :class:`~proxy.plugin.ProxyPoolPlugin`.
+        #
+        # For both of which we expect a 4-tuple as arguments
+        # containing (uuid, flags, client, event_queue).
+        # We really don't need the rest of the args here.
+        # May be uuid?  May be event_queue in the future.
+        # But certainly we don't not client here.
         # A separate tunnel class must be created which handles
         # client connection too.
         #
-        # Both ReverseProxyPlugin and ProxyPoolPlugin are currently
-        # doing self.client.queue(raw) within `handle_upstream_data`.
+        # Both :class:`~proxy.plugin.ReverseProxyPlugin` and
+        # :class:`~proxy.plugin.ProxyPoolPlugin` are currently
+        # calling client queue within `handle_upstream_data` callback.
+        #
         # This can be abstracted out too.
         self.server_recvbuf_size = args[1].server_recvbuf_size
         self.total_size = 0
