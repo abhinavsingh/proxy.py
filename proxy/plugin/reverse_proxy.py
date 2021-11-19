@@ -72,7 +72,7 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
         # Chosen upstream proxy_pass url
         self.choice: Optional[Url] = None
 
-    def handle_upstream_data(self, raw: bytes) -> None:
+    def handle_upstream_data(self, raw: memoryview) -> None:
         self.client.queue(raw)
 
     def routes(self) -> List[Tuple[int, str]]:

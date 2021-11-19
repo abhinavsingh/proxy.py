@@ -65,7 +65,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             None, None, None, None,
         ]
 
-    def handle_upstream_data(self, raw: bytes) -> None:
+    def handle_upstream_data(self, raw: memoryview) -> None:
         self.client.queue(raw)
 
     def before_upstream_connection(
