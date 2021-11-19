@@ -94,6 +94,7 @@ class ThreadlessPool:
         # Threadless worker communication states
         self.work_queues: List[connection.Connection] = []
         self.work_pids: List[int] = []
+        self.work_locks: List[multiprocessing.synchronize.Lock] = []
         # List of threadless workers
         self._workers: List[Threadless] = []
 
@@ -108,22 +109,24 @@ class ThreadlessPool:
     def delegate(
             worker_pid: int,
             work_queue: connection.Connection,
+            work_lock: multiprocessing.synchronize.Lock,
             conn: socket.socket,
             addr: Optional[Tuple[str, int]],
             unix_socket_path: Optional[str] = None,
     ) -> None:
         """Utility method to delegate a work to threadless executor pool."""
-        # Accepted client address is empty string for
-        # unix socket domain, avoid sending empty string
-        # for optimization.
-        if not unix_socket_path:
-            work_queue.send(addr)
-        send_handle(
-            work_queue,
-            conn.fileno(),
-            worker_pid,
-        )
-        conn.close()
+        with work_lock:
+            # Accepted client address is empty string for
+            # unix socket domain, avoid sending empty string
+            # for optimization.
+            if not unix_socket_path:
+                work_queue.send(addr)
+            send_handle(
+                work_queue,
+                conn.fileno(),
+                worker_pid,
+            )
+            conn.close()
 
     @staticmethod
     def start_threaded_work(
@@ -168,8 +171,7 @@ class ThreadlessPool:
     def shutdown(self) -> None:
         """Shutdown threadless processes."""
         if is_threadless(self.flags.threadless, self.flags.threaded):
-            for _ in range(self.flags.num_workers):
-                self._shutdown_worker()
+            self._shutdown_workers()
             logger.info(
                 'Stopped {0} threadless workers'.format(
                     self.flags.num_workers,
@@ -178,6 +180,7 @@ class ThreadlessPool:
 
     def _start_worker(self, index: int) -> None:
         """Starts a threadless worker."""
+        self.work_locks.append(multiprocessing.Lock())
         pipe = multiprocessing.Pipe()
         self.work_queues.append(pipe[0])
         w = Threadless(
@@ -191,12 +194,14 @@ class ThreadlessPool:
         self.work_pids.append(w.pid)
         logger.debug('Started threadless#%d process#%d', index, w.pid)
 
-    def _shutdown_worker(self) -> None:
+    def _shutdown_workers(self) -> None:
         """Pop a running threadless worker and clean it up."""
-        w = self._workers.pop()
-        pid = w.pid
-        w.running.set()
-        w.join()
-        self.work_pids.pop()
-        self.work_queues.pop().close()
-        logger.debug('Stopped threadless process#%d', pid)
+        for index in range(self.flags.num_workers):
+            self._workers[index].running.set()
+        for index in range(self.flags.num_workers):
+            pid = self._workers[index].pid
+            self._workers[index].join()
+            self.work_pids.pop()
+            self.work_queues.pop().close()
+            logger.debug('Stopped threadless process#%d', pid)
+        self.work_locks = []

@@ -179,6 +179,7 @@ class Proxy:
             listener=self.listener,
             executor_queues=self.executors.work_queues,
             executor_pids=self.executors.work_pids,
+            executor_locks=self.executors.work_locks,
             event_queue=event_queue,
         )
         self.acceptors.setup()
