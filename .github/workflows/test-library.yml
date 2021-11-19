@@ -418,6 +418,7 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       fail-fast: false
+      # max-parallel: 4
       matrix:
         os:
         - macOS
@@ -432,7 +433,6 @@ jobs:
         - 3.9
         - 3.8
         - 3.7
-      # max-parallel: 4
 
     continue-on-error: >-
       ${{
