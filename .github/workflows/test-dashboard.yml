@@ -3,9 +3,9 @@ name: dashboard
 
 on:   # yamllint disable-line rule:truthy
   push:
-    paths:
-    - 'dashboard/**'
-    - '.github/workflows/test-dashboard.yml'
+    branches:
+    - master
+    - develop
   pull_request:
     paths:
     - 'dashboard/**'
