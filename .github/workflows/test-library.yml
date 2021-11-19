@@ -737,7 +737,7 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: >-
-        Publish 🐍📦  v${{ needs.pre-setup.outputs.git-tag }}to TestPyPI
+        Publish 🐍📦  v${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.TESTPYPI_API_TOKEN }}
