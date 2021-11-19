@@ -641,7 +641,7 @@ jobs:
     # needs:
     # - publish-pypi
     runs-on: ${{ matrix.os }}-latest
-    name: 🚢 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    name: 🐳 🐍${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu]
