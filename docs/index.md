@@ -35,5 +35,7 @@ Glossary <glossary>
 :caption: Contributing
 :hidden:
 
+Code Of Conduct <contributing/code_of_conduct>
+contributing/security
 Private unsupported (dev) API autodoc <pkg/modules>
 ```
