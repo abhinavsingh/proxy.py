@@ -83,14 +83,13 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
 
     def handle_request(self, request: HttpParser) -> None:
         self.choice = Url.from_bytes(
-            random.choice(
-                ReverseProxyPlugin.REVERSE_PROXY_PASS,
-            ),
+            random.choice(ReverseProxyPlugin.REVERSE_PROXY_PASS),
         )
         assert self.choice.hostname
         port = self.choice.port or (
-            DEFAULT_HTTP_PORT if self.choice.scheme ==
-            b'http' else DEFAULT_HTTPS_PORT
+            DEFAULT_HTTP_PORT \
+                if self.choice.scheme == b'http' \
+                    else DEFAULT_HTTPS_PORT
         )
         self.initialize_upstream(text_(self.choice.hostname), port)
         assert self.upstream

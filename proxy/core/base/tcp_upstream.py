@@ -31,6 +31,9 @@ class TcpUpstreamConnectionHandler(ABC):
     """
 
     def __init__(self, *args: Any,  **kwargs: Any) -> None:
+        # This is currently a hack, see comments below for rationale,
+        # will be fixed later.
+        super().__init__(*args, **kwargs)   # type: ignore
         self.upstream: Optional[TcpServerConnection] = None
         # TODO: Currently TcpUpstreamConnectionHandler is used within
         # ReverseProxyPlugin and ProxyPoolPlugin.  For both of which
