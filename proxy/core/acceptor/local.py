@@ -19,7 +19,7 @@ import contextlib
 import multiprocessing.synchronize
 
 from multiprocessing import connection
-from typing import Optional, Tuple, List, Dict, Generator
+from typing import Optional, Tuple, List, Dict, Generator, Any
 
 from ...common.utils import is_threadless
 from ...common.types import Readables, Writables
@@ -42,7 +42,7 @@ class LocalExecutor(threading.Thread):
             idd: int,
             flags: argparse.Namespace,
             sock: socket.socket,
-            evq: queue.Queue,
+            evq: queue.Queue[Any],
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
             executor_locks: List[multiprocessing.synchronize.Lock],

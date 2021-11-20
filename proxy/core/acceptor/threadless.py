@@ -75,7 +75,7 @@ class Threadless(multiprocessing.Process):
         self.works: Dict[int, Work] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
-        self.unfinished: Set[asyncio.Task] = set()
+        self.unfinished: Set[asyncio.Task[bool]] = set()
 
     @contextlib.contextmanager
     def selected_events(self) -> Generator[
@@ -113,7 +113,7 @@ class Threadless(multiprocessing.Process):
     # TODO: Use correct future typing annotations
     async def wait_for_tasks(
             self,
-            tasks: Set[asyncio.Task],
+            tasks: Set[asyncio.Task[bool]],
     ) -> None:
         assert len(tasks) > 0
         finished, self.unfinished = await asyncio.wait(
@@ -174,8 +174,8 @@ class Threadless(multiprocessing.Process):
     def _prepare_tasks(
             self,
             work_by_ids: Dict[int, Tuple[Readables, Writables]],
-    ) -> Set[asyncio.Task]:
-        tasks: Set[asyncio.Task] = set()
+    ) -> Set[asyncio.Task[bool]]:
+        tasks: Set[asyncio.Task[bool]] = set()
         assert self.loop
         for work_id in work_by_ids:
             readables, writables = work_by_ids[work_id]
