@@ -293,14 +293,14 @@ def set_open_file_limit(soft_limit: int) -> None:
         )
 
 
-class cached_property(object):
+class cached_property:
     """Decorator for read-only properties evaluated only once within TTL period.
     It can be used to create a cached property like this::
 
         import random
 
         # the class containing the property must be a new-style class
-        class MyClass(object):
+        class MyClass:
             # create property whose value is cached for ten minutes
             @cached_property(ttl=600)
             def randint(self):
