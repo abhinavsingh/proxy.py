@@ -25,6 +25,7 @@ from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VA
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
+from ...common.utils import cached_property
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
@@ -110,11 +111,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.start_time: float = time.time()
         self.pipeline_request: Optional[HttpParser] = None
         self.switched_protocol: Optional[int] = None
-        self.routes: Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]] = {
-            httpProtocolTypes.HTTP: {},
-            httpProtocolTypes.HTTPS: {},
-            httpProtocolTypes.WEBSOCKET: {},
-        }
         self.route: Optional[HttpWebServerBasePlugin] = None
 
         self.plugins: Dict[str, HttpWebServerBasePlugin] = {}
@@ -127,8 +123,18 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     self.event_queue,
                 )
                 self.plugins[instance.name()] = instance
-                for (protocol, route) in instance.routes():
-                    self.routes[protocol][re.compile(route)] = instance
+
+    @cached_property(ttl=0)
+    def routes(self) -> Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]]:
+        r: Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]] = {
+            httpProtocolTypes.HTTP: {},
+            httpProtocolTypes.HTTPS: {},
+            httpProtocolTypes.WEBSOCKET: {},
+        }
+        for name in self.plugins:
+            for (protocol, route) in self.plugins[name].routes():
+                r[protocol][re.compile(route)] = self.plugins[name]
+        return r
 
     def encryption_enabled(self) -> bool:
         return self.flags.keyfile is not None and \
@@ -186,42 +192,35 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if self.request.has_host():
             return False
-
         path = self.request.path or b'/'
-
-        # If a websocket route exists for the path, try upgrade
-        for route in self.routes[httpProtocolTypes.WEBSOCKET]:
-            match = route.match(text_(path))
-            if match:
-                self.route = self.routes[httpProtocolTypes.WEBSOCKET][route]
-
-                # Connection upgrade
-                teardown = self.try_upgrade()
-                if teardown:
-                    return True
-
-                # For upgraded connections, nothing more to do
-                if self.switched_protocol:
-                    # Invoke plugin.on_websocket_open
-                    self.route.on_websocket_open()
-                    return False
-
-                break
-
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
             if self.encryption_enabled() else \
             httpProtocolTypes.HTTP
         for route in self.routes[protocol]:
-            match = route.match(text_(path))
-            if match:
+            if route.match(text_(path)):
                 self.route = self.routes[protocol][route]
+                assert self.route
                 self.route.handle_request(self.request)
                 if self.request.has_header(b'connection') and \
                         self.request.header(b'connection').lower() == b'close':
                     return True
                 return False
-
+        # If a websocket route exists for the path, try upgrade
+        for route in self.routes[httpProtocolTypes.WEBSOCKET]:
+            if route.match(text_(path)):
+                self.route = self.routes[httpProtocolTypes.WEBSOCKET][route]
+                # Connection upgrade
+                teardown = self.try_upgrade()
+                if teardown:
+                    return True
+                # For upgraded connections, nothing more to do
+                if self.switched_protocol:
+                    # Invoke plugin.on_websocket_open
+                    assert self.route
+                    self.route.on_websocket_open()
+                    return False
+                break
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
             path = text_(path).split('?')[0]
@@ -232,7 +231,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 ),
             )
             return True
-
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True

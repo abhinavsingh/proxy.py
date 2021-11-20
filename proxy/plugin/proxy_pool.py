@@ -39,6 +39,11 @@ DEFAULT_HTTPS_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
 # on port 9000 and 9001 BUT WITHOUT ProxyPool plugin
 # to avoid infinite loops.
 DEFAULT_PROXY_POOL: List[str] = [
+    # Yes you may use the instance running with ProxyPoolPlugin itself.
+    # ProxyPool plugin will act as a no-op.
+    # 'localhost:8899',
+    #
+    # Remote proxies
     # 'localhost:9000',
     # 'localhost:9001',
 ]
@@ -83,11 +88,20 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         #
         # Implement your own logic here e.g. round-robin, least connection etc.
         endpoint = random.choice(self.flags.proxy_pool)[0].split(':')
+        if endpoint[0] == 'localhost' and endpoint[1] == '8899':
+            return request
         logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
         self.initialize_upstream(endpoint[0], int(endpoint[1]))
         assert self.upstream
         try:
             self.upstream.connect()
+        except TimeoutError:
+            logger.info(
+                'Timed out connecting to upstream proxy {0}:{1}'.format(
+                    *endpoint,
+                ),
+            )
+            raise HttpProtocolException()
         except ConnectionRefusedError:
             # TODO(abhinavsingh): Try another choice, when all (or max configured) choices have
             # exhausted, retry for configured number of times before giving up.
@@ -113,6 +127,8 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
         """Only invoked once after client original proxy request has been received completely."""
+        if not self.upstream:
+            return request
         assert self.upstream
         # For log sanity (i.e. to avoid None:None), expose upstream host:port from headers
         host, port = None, None
@@ -143,6 +159,12 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         self.upstream.queue(raw)
         return raw
 
+    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+        """Will never be called since we didn't establish an upstream connection."""
+        if not self.upstream:
+            return chunk
+        raise Exception("This should have never been called")
+
     def on_upstream_connection_close(self) -> None:
         """Called when client connection has been closed."""
         if self.upstream and not self.upstream.closed:
@@ -151,9 +173,10 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             self.upstream = None
 
     def on_access_log(self, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        addr, port = (
-            self.upstream.addr[0], self.upstream.addr[1],
-        ) if self.upstream else (None, None)
+        if not self.upstream:
+            return context
+        addr, port = (self.upstream.addr[0], self.upstream.addr[1]) \
+            if self.upstream else (None, None)
         context.update({
             'upstream_proxy_host': addr,
             'upstream_proxy_port': port,
@@ -171,7 +194,3 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         if request_method and request_method != httpMethods.CONNECT:
             access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
         logger.info(access_log_format.format_map(log_attrs))
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        """Will never be called since we didn't establish an upstream connection."""
-        raise Exception("This should have never been called")

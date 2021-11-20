@@ -124,7 +124,7 @@ lib-doc:
 	$(OPEN) .tox/build-docs/docs_out/index.html
 
 lib-coverage:
-	pytest --cov=proxy --cov=tests --cov-report=html tests/
+	pytest --cov=proxy --cov=tests --cov-report=html tests/ && \
 	$(OPEN) htmlcov/index.html
 
 lib-profile:
@@ -137,7 +137,7 @@ lib-profile:
 			--disable-http-proxy \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
-			--log-file /tmp/proxy.log
+			--log-file /dev/null
 
 devtools:
 	pushd dashboard && npm run devtools && popd

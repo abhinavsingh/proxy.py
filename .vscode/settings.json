@@ -1,6 +1,5 @@
 {
   "editor.rulers": [100],
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSaveMode": "modifications",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
@@ -20,7 +19,7 @@
   "typescript.preferences.quoteStyle": "single",
   "[python]": {
     "editor.wordBasedSuggestions": true,
-    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+    "editor.defaultFormatter": null
   },
   "python.testing.unittestEnabled": false,
   "python.testing.autoTestDiscoverOnSaveEnabled": true,
