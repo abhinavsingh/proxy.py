@@ -106,7 +106,7 @@ class Acceptor(multiprocessing.Process):
 
     def run_once(self) -> None:
         if self.selector is not None:
-            events = self.selector.select(timeout=None)
+            events = self.selector.select(timeout=1)
             if len(events) == 0:
                 return
             locked = False

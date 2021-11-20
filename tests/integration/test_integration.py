@@ -24,7 +24,7 @@ def _proxy_py_instance() -> Generator[None, None, None]:
     After the testing is over, tear it down.
     """
     proxy_cmd = (
-        'proxy',
+        'python', '-m', 'proxy',
         '--hostname', '127.0.0.1',
         '--port', str(PROXY_PY_PORT),
         '--enable-web-server',
