@@ -48,7 +48,7 @@ class Work(ABC):
         return {}   # pragma: no cover
 
     @abstractmethod
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
             writables: Writables,

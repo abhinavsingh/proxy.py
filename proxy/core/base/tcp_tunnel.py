@@ -80,13 +80,13 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
                 ev[self.upstream.connection] = selectors.EVENT_WRITE
         return ev
 
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
             writables: Writables,
     ) -> bool:
         # Handle client events
-        do_shutdown: bool = super().handle_events(readables, writables)
+        do_shutdown: bool = await super().handle_events(readables, writables)
         if do_shutdown:
             return do_shutdown
         # Handle server events

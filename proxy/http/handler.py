@@ -170,7 +170,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return events
 
     # We override super().handle_events and never call it
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
             writables: Writables,

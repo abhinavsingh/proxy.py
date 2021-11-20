@@ -12,11 +12,11 @@
 
        acceptor
 """
-import argparse
 import os
 import socket
 import logging
 import asyncio
+import argparse
 import selectors
 import contextlib
 import multiprocessing
@@ -78,12 +78,13 @@ class Threadless(multiprocessing.Process):
 
     @contextlib.contextmanager
     def selected_events(self) -> Generator[
-        Tuple[Readables, Writables],
+        Dict[int, Tuple[Readables, Writables]],
         None, None,
     ]:
         assert self.selector is not None
         events: Dict[socket.socket, int] = {}
-        for work in self.works.values():
+        for work_id in self.works:
+            work = self.works[work_id]
             worker_events = work.get_events()
             events.update(worker_events)
             for fd in worker_events:
@@ -93,25 +94,20 @@ class Threadless(multiprocessing.Process):
                 # asynchronous nature.  Hence, threadless will handle
                 # ValueError exceptions raised by selector.register
                 # for invalid fd.
-                self.selector.register(fd, worker_events[fd])
+                self.selector.register(fd, worker_events[fd], data=work_id)
         ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
-        readables = []
-        writables = []
+        # Keys are work_id and values are 2-tuple indicating readables & writables
+        work_by_ids: Dict[int, Tuple[Readables, Writables]] = {}
         for key, mask in ev:
+            if key.data not in work_by_ids:
+                work_by_ids[key.data] = ([], [])
             if mask & selectors.EVENT_READ:
-                readables.append(key.fileobj)
+                work_by_ids[key.data][0].append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
-                writables.append(key.fileobj)
-        yield (readables, writables)
+                work_by_ids[key.data][1].append(key.fileobj)
+        yield work_by_ids
         for fd in events:
             self.selector.unregister(fd)
-
-    async def handle_events(
-            self, fileno: int,
-            readables: Readables,
-            writables: Writables
-    ) -> bool:
-        return self.works[fileno].handle_events(readables, writables)
 
     # TODO: Use correct future typing annotations
     async def wait_for_tasks(
@@ -178,10 +174,23 @@ class Threadless(multiprocessing.Process):
         del self.works[work_id]
         os.close(work_id)
 
+    def _prepare_tasks(self, work_by_ids: Dict[int, Tuple[Readables, Writables]]) -> Dict[int, Any]:
+        tasks = {}
+        assert self.loop
+        for work_id in work_by_ids:
+            readables, writables = work_by_ids[work_id]
+            tasks[work_id] = self.loop.create_task(
+                self.works[work_id].handle_events(
+                    readables,
+                    writables,
+                ),
+            )
+        return tasks
+
     def run_once(self) -> None:
         assert self.loop is not None
-        with self.selected_events() as (readables, writables):
-            if len(readables) == 0 and len(writables) == 0:
+        with self.selected_events() as work_by_ids:
+            if len(work_by_ids) == 0:
                 # Remove and shutdown inactive connections
                 self.cleanup_inactive()
                 return
@@ -196,16 +205,15 @@ class Threadless(multiprocessing.Process):
         #
         # TODO: Only send readable / writables that client originally
         # registered.
-        tasks = {}
-        for fileno in self.works:
-            tasks[fileno] = self.loop.create_task(
-                self.handle_events(fileno, readables, writables),
-            )
-        # Accepted client connection from Acceptor
-        if self.client_queue in readables:
-            self.accept_client()
         # Wait for Threadless.handle_events to complete
-        self.loop.run_until_complete(self.wait_for_tasks(tasks))
+        if self.client_queue.fileno() in work_by_ids:
+            self.accept_client()
+            del work_by_ids[self.client_queue.fileno()]
+        self.loop.run_until_complete(
+            self.wait_for_tasks(
+                self._prepare_tasks(work_by_ids),
+            ),
+        )
         # Remove and shutdown inactive workers
         self.cleanup_inactive()
 
@@ -216,7 +224,11 @@ class Threadless(multiprocessing.Process):
         )
         try:
             self.selector = selectors.DefaultSelector()
-            self.selector.register(self.client_queue, selectors.EVENT_READ)
+            self.selector.register(
+                self.client_queue.fileno(),
+                selectors.EVENT_READ,
+                data=self.client_queue.fileno(),
+            )
             self.loop = asyncio.get_event_loop_policy().get_event_loop()
             while not self.running.is_set():
                 # logger.debug('Working on {0} works'.format(len(self.works)))
@@ -225,7 +237,7 @@ class Threadless(multiprocessing.Process):
             pass
         finally:
             assert self.selector is not None
-            self.selector.unregister(self.client_queue)
+            self.selector.unregister(self.client_queue.fileno())
             self.client_queue.close()
             assert self.loop is not None
             self.loop.close()

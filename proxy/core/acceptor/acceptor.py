@@ -13,10 +13,10 @@
        acceptor
        pre
 """
+import queue
 import socket
 import logging
 import argparse
-import threading
 import selectors
 import multiprocessing
 import multiprocessing.synchronize
@@ -24,14 +24,13 @@ import multiprocessing.synchronize
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
-from proxy.core.acceptor.executors import ThreadlessPool
+from ...common.logger import Logger
 
 from ..event import EventQueue
 
-from ...common.utils import is_threadless
-from ...common.logger import Logger
+from .local import LocalExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +100,7 @@ class Acceptor(multiprocessing.Process):
         # File descriptor used to accept new work
         # Currently, a socket fd is assumed.
         self.sock: Optional[socket.socket] = None
-        # Incremented every time work() is called
-        self._total: int = 0
+        self._local: Optional[LocalExecutor] = None
 
     def run_once(self) -> None:
         if self.selector is not None:
@@ -115,10 +113,9 @@ class Acceptor(multiprocessing.Process):
                     locked = True
                     for _, mask in events:
                         if mask & selectors.EVENT_READ:
-                            if self.sock is not None:
+                            if self.sock is not None and self._local is not None:
                                 conn, addr = self.sock.accept()
-                                addr = None if addr == '' else addr
-                                self._work(conn, addr)
+                                self._local.evq.put((conn, addr))
             except BlockingIOError:
                 pass
             finally:
@@ -142,6 +139,7 @@ class Acceptor(multiprocessing.Process):
             type=socket.SOCK_STREAM,
         )
         try:
+            self._start_local()
             self.selector.register(self.sock, selectors.EVENT_READ)
             while not self.running.is_set():
                 self.run_once()
@@ -149,44 +147,26 @@ class Acceptor(multiprocessing.Process):
             pass
         finally:
             self.selector.unregister(self.sock)
+            self._stop_local()
             self.sock.close()
             logger.debug('Acceptor#%d shutdown', self.idd)
 
-    def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
-        if is_threadless(self.flags.threadless, self.flags.threaded):
-            # Index of worker to which this work should be dispatched
-            # Use round-robin strategy by default.
-            #
-            # By default all acceptors will start sending work to
-            # 1st workers.  To randomize, we offset index by idd.
-            index = (self._total + self.idd) % self.flags.num_workers
-            thread = threading.Thread(
-                target=ThreadlessPool.delegate,
-                args=(
-                    self.executor_pids[index],
-                    self.executor_queues[index],
-                    self.executor_locks[index],
-                    conn,
-                    addr,
-                    self.flags.unix_socket_path,
-                ),
-            )
-            thread.start()
-            logger.debug(
-                'Dispatched work#{0}.{1} to worker#{2}'.format(
-                    self.idd, self._total, index,
-                ),
-            )
-        else:
-            _, thread = ThreadlessPool.start_threaded_work(
-                self.flags,
-                conn, addr,
-                event_queue=self.event_queue,
-                publisher_id=self.__class__.__name__,
-            )
-            logger.debug(
-                'Started work#{0}.{1} in thread#{2}'.format(
-                    self.idd, self._total, thread.ident,
-                ),
-            )
-        self._total += 1
+    def _start_local(self) -> None:
+        assert self.sock
+        self._local = LocalExecutor(
+            self.idd,
+            self.flags,
+            self.sock,
+            queue.Queue(),
+            self.executor_queues,
+            self.executor_pids,
+            self.executor_locks,
+            self.event_queue,
+        )
+        self._local.setDaemon(True)
+        self._local.start()
+
+    def _stop_local(self) -> None:
+        if self._local is not None:
+            self._local.evq.put(False)
+            self._local.join()

@@ -44,7 +44,7 @@ class WebScraper(Work):
         """Return sockets and events (read or write) that we are interested in."""
         return {}
 
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
             writables: Writables,

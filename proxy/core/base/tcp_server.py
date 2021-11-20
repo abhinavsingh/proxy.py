@@ -79,7 +79,7 @@ class BaseTcpServerHandler(Work):
                 events[self.work.connection] = selectors.EVENT_WRITE
         return events
 
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
             writables: Writables,
