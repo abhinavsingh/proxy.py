@@ -194,18 +194,15 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             match = route.match(text_(path))
             if match:
                 self.route = self.routes[httpProtocolTypes.WEBSOCKET][route]
-
                 # Connection upgrade
                 teardown = self.try_upgrade()
                 if teardown:
                     return True
-
                 # For upgraded connections, nothing more to do
                 if self.switched_protocol:
                     # Invoke plugin.on_websocket_open
                     self.route.on_websocket_open()
                     return False
-
                 break
 
         # Routing for Http(s) requests

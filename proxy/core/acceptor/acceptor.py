@@ -16,6 +16,7 @@
 import socket
 import logging
 import argparse
+import threading
 import selectors
 import multiprocessing
 import multiprocessing.synchronize
@@ -29,7 +30,6 @@ from proxy.core.acceptor.executors import ThreadlessPool
 
 from ..event import EventQueue
 
-from ...common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.utils import is_threadless
 from ...common.logger import Logger
 
@@ -87,8 +87,7 @@ class Acceptor(multiprocessing.Process):
         self.event_queue = event_queue
         # Index assigned by `AcceptorPool`
         self.idd = idd
-        # Lock shared by all acceptor processes
-        # to avoid concurrent accept over server socket
+        # Mutex used for synchronization with acceptors
         self.lock = lock
         # Queue over which server socket fd is received on start-up
         self.fd_queue: connection.Connection = fd_queue
@@ -106,14 +105,25 @@ class Acceptor(multiprocessing.Process):
         self._total: int = 0
 
     def run_once(self) -> None:
-        with self.lock:
-            assert self.selector and self.sock
-            events = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
+        if self.selector is not None:
+            events = self.selector.select(timeout=None)
             if len(events) == 0:
                 return
-            conn, addr = self.sock.accept()
-        addr = None if addr == '' else addr
-        self._work(conn, addr)
+            locked = False
+            try:
+                if self.lock.acquire(block=False):
+                    locked = True
+                    for _, mask in events:
+                        if mask & selectors.EVENT_READ:
+                            if self.sock is not None:
+                                conn, addr = self.sock.accept()
+                                addr = None if addr == '' else addr
+                                self._work(conn, addr)
+            except BlockingIOError:
+                pass
+            finally:
+                if locked:
+                    self.lock.release()
 
     def run(self) -> None:
         Logger.setup(
@@ -134,7 +144,6 @@ class Acceptor(multiprocessing.Process):
         try:
             self.selector.register(self.sock, selectors.EVENT_READ)
             while not self.running.is_set():
-                # logger.debug('Looking for new work')
                 self.run_once()
         except KeyboardInterrupt:
             pass
@@ -151,14 +160,18 @@ class Acceptor(multiprocessing.Process):
             # By default all acceptors will start sending work to
             # 1st workers.  To randomize, we offset index by idd.
             index = (self._total + self.idd) % self.flags.num_workers
-            ThreadlessPool.delegate(
-                self.executor_pids[index],
-                self.executor_queues[index],
-                self.executor_locks[index],
-                conn,
-                addr,
-                self.flags.unix_socket_path,
+            thread = threading.Thread(
+                target=ThreadlessPool.delegate,
+                args=(
+                    self.executor_pids[index],
+                    self.executor_queues[index],
+                    self.executor_locks[index],
+                    conn,
+                    addr,
+                    self.flags.unix_socket_path,
+                ),
             )
+            thread.start()
             logger.debug(
                 'Dispatched work#{0}.{1} to worker#{2}'.format(
                     self.idd, self._total, index,
