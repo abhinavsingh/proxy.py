@@ -16,6 +16,7 @@ import ssl
 import time
 import errno
 import socket
+import asyncio
 import logging
 import selectors
 import contextlib
@@ -324,7 +325,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                         'between client and server connection, tearing down...',
                     )
                     break
-                teardown = self._run_once()
+                teardown = asyncio.run(self._run_once())
                 if teardown:
                     break
         except KeyboardInterrupt:  # pragma: no cover
@@ -378,9 +379,9 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         for fd in events:
             self.selector.unregister(fd)
 
-    def _run_once(self) -> bool:
+    async def _run_once(self) -> bool:
         with self._selected_events() as (readables, writables):
-            teardown = self.handle_events(readables, writables)
+            teardown = await self.handle_events(readables, writables)
             if teardown:
                 return True
             return False

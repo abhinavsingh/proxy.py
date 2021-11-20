@@ -109,7 +109,7 @@ class LocalExecutor(threading.Thread):
     def run(self) -> None:
         self._selector = selectors.DefaultSelector()
         try:
-            while 1:
+            while True:
                 if self.run_once():
                     break
         except KeyboardInterrupt:

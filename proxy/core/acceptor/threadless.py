@@ -118,7 +118,8 @@ class Threadless(multiprocessing.Process):
         assert len(tasks) > 0
         finished, self.unfinished = await asyncio.wait(
             tasks,
-            timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT,
+            timeout=(self.flags.num_workers / 2) *
+            DEFAULT_SELECTOR_SELECT_TIMEOUT,
             return_when=asyncio.FIRST_COMPLETED,
         )
         for f in finished:
