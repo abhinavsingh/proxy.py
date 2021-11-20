@@ -23,7 +23,7 @@ import multiprocessing
 
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
-from typing import Dict, Optional, Tuple, List, Generator, Any
+from typing import Dict, Optional, Tuple, List, Generator, Set
 
 from .work import Work
 
@@ -32,7 +32,7 @@ from ..event import EventQueue, eventNames
 
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
+from ...common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,7 @@ class Threadless(multiprocessing.Process):
         self.works: Dict[int, Work] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self.unfinished: Set[asyncio.Task] = set()
 
     @contextlib.contextmanager
     def selected_events(self) -> Generator[
@@ -111,22 +112,18 @@ class Threadless(multiprocessing.Process):
 
     # TODO: Use correct future typing annotations
     async def wait_for_tasks(
-            self, tasks: Dict[int, Any]
+            self,
+            tasks: Set[asyncio.Task],
     ) -> None:
-        for work_id in tasks:
-            # TODO: Resolving one handle_events here can block
-            # resolution of other tasks.  This can happen when handle_events
-            # is slow.
-            #
-            # Instead of sequential await, a better option would be to await on
-            # list of async handle_events.  This will allow all handlers to run
-            # concurrently without blocking each other.
-            try:
-                teardown = await asyncio.wait_for(tasks[work_id], DEFAULT_TIMEOUT)
-                if teardown:
-                    self.cleanup(work_id)
-            except asyncio.TimeoutError:
-                self.cleanup(work_id)
+        assert len(tasks) > 0
+        finished, self.unfinished = await asyncio.wait(
+            tasks,
+            timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for f in finished:
+            if f.result():
+                self.cleanup(int(f.get_name()))
 
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
@@ -174,17 +171,22 @@ class Threadless(multiprocessing.Process):
         del self.works[work_id]
         os.close(work_id)
 
-    def _prepare_tasks(self, work_by_ids: Dict[int, Tuple[Readables, Writables]]) -> Dict[int, Any]:
-        tasks = {}
+    def _prepare_tasks(
+            self,
+            work_by_ids: Dict[int, Tuple[Readables, Writables]],
+    ) -> Set[asyncio.Task]:
+        tasks: Set[asyncio.Task] = set()
         assert self.loop
         for work_id in work_by_ids:
             readables, writables = work_by_ids[work_id]
-            tasks[work_id] = self.loop.create_task(
+            task = self.loop.create_task(
                 self.works[work_id].handle_events(
                     readables,
                     writables,
                 ),
             )
+            task.set_name(work_id)
+            tasks.add(task)
         return tasks
 
     def run_once(self) -> None:
@@ -209,11 +211,14 @@ class Threadless(multiprocessing.Process):
         if self.client_queue.fileno() in work_by_ids:
             self.accept_client()
             del work_by_ids[self.client_queue.fileno()]
-        self.loop.run_until_complete(
-            self.wait_for_tasks(
-                self._prepare_tasks(work_by_ids),
-            ),
-        )
+        self.unfinished.update(self._prepare_tasks(work_by_ids))
+        num_works = len(self.unfinished)
+        if num_works > 0:
+            logger.debug('Executing {0} works'.format(num_works))
+            self.loop.run_until_complete(self.wait_for_tasks(self.unfinished))
+            logger.debug('Done executing works, {0} pending'.format(
+                len(self.unfinished),
+            ))
         # Remove and shutdown inactive workers
         self.cleanup_inactive()
 
