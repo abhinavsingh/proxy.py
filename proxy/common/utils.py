@@ -323,29 +323,39 @@ class cached_property(object):
 
     Adopted from https://wiki.python.org/moin/PythonDecoratorLibrary#Cached_Properties
     © 2011 Christopher Arndt, MIT License.
+
+    NOTE: We need this function only because Python in-built are only available
+    for 3.8+.  Hence, we must get rid of this function once proxy.py no longer
+    support version older than 3.8.
+
+    .. spelling::
+
+       getter
+       Arndt
     """
 
-    def __init__(self, ttl=300):
+    def __init__(self, ttl: float = 300.0):
         self.ttl = ttl
 
-    def __call__(self, fget, doc=None):
+    def __call__(self, fget: Any, doc: Any = None) -> 'cached_property':
         self.fget = fget
         self.__doc__ = doc or fget.__doc__
         self.__name__ = fget.__name__
         self.__module__ = fget.__module__
         return self
 
-    def __get__(self, inst, owner):
+    def __get__(self, inst: Any, owner: Any) -> Any:
         now = time.time()
         try:
             value, last_update = inst._cached_properties[self.__name__]
-            if self.ttl > 0 and now - last_update > self.ttl:
+            if self.ttl > 0 and now - last_update > self.ttl:   # noqa: WPS333
                 raise AttributeError
         except (KeyError, AttributeError):
             value = self.fget(inst)
             try:
                 cache = inst._cached_properties
             except AttributeError:
-                cache = inst._cached_properties = {}
-            cache[self.__name__] = (value, now)
+                cache, inst._cached_properties = {}, {}
+            finally:
+                cache[self.__name__] = (value, now)
         return value
