@@ -25,7 +25,7 @@ from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_
 from proxy.common.flag import FlagParser
 
-from ..assertions import Assertions
+from .._assertions import Assertions
 
 
 class TestHttpProxyTlsInterception(Assertions):

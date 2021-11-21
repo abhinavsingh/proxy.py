@@ -29,7 +29,7 @@ from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
 
 from .utils import get_plugin_by_test_name
 
-from ..assertions import Assertions
+from .._assertions import Assertions
 
 
 class TestHttpProxyPluginExamples(Assertions):

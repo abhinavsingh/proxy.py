@@ -19,7 +19,7 @@ from proxy.http import HttpProtocolHandler
 from proxy.core.connection import TcpClientConnection
 from proxy.common.utils import build_http_request
 
-from ...assertions import Assertions
+from ..._assertions import Assertions
 
 
 class TestHttpProxyAuthFailed(Assertions):

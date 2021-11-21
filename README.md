@@ -2038,7 +2038,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2.dev184+gc71f91f.d20211121
+proxy.py v2.3.2.dev185+g94f9ef8.d20211121
 
 options:
   -h, --help            show this help message and exit
@@ -2210,3 +2210,4 @@ https://github.com/abhinavsingh/proxy.py/issues/new
 - Single threaded server.
 
 For detailed changelog refer to release PRs or commit history.
+ history.

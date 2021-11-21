@@ -28,7 +28,7 @@ from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
 from proxy.http import HttpProtocolHandler
 
-from ..assertions import Assertions
+from .._assertions import Assertions
 
 
 def mock_selector_for_client_read(self: Any) -> None:
