@@ -78,15 +78,17 @@ class Threadless:
         #
         # Ref https://github.com/abhinavsingh/proxy.py/runs/4279055360?check_suite_focus=true
         self.unfinished: Set['asyncio.Task[bool]'] = set()
+        self.wait_timeout: float = (self.flags.num_workers / 2) * DEFAULT_SELECTOR_SELECT_TIMEOUT
 
     async def _selected_events(self) -> Tuple[
             List[socket.socket],
             Dict[int, Tuple[Readables, Writables]],
+            bool,
     ]:
         """For each work, collects events they are interested in.
         Calls select for events of interest.  """
         assert self.selector is not None
-        fds: List[socket.socket] = []
+        work_fds: List[socket.socket] = []
         for work_id in self.works:
             worker_events = await self.works[work_id].get_events()
             for fd in worker_events:
@@ -100,7 +102,7 @@ class Threadless:
                     fd, events=worker_events[fd],
                     data=work_id,
                 )
-                fds.append(fd)
+                work_fds.append(fd)
         selected = self.selector.select(
             timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT,
         )
@@ -108,25 +110,28 @@ class Threadless:
         # readables & writables that work_id is interested in
         # and are ready for IO.
         work_by_ids: Dict[int, Tuple[Readables, Writables]] = {}
+        client_queue_fileno = self.client_queue.fileno()
+        new_work_available = False
         for key, mask in selected:
+            if key.fileobj == client_queue_fileno:
+                assert mask & selectors.EVENT_READ
+                new_work_available = True
+                continue
             if key.data not in work_by_ids:
                 work_by_ids[key.data] = ([], [])
             if mask & selectors.EVENT_READ:
                 work_by_ids[key.data][0].append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 work_by_ids[key.data][1].append(key.fileobj)
-        return (fds, work_by_ids)
+        return (work_fds, work_by_ids, new_work_available)
 
-    # TODO: Use correct future typing annotations
     async def wait_for_tasks(
             self,
-            tasks: Set['asyncio.Task[bool]'],
+            pending: Set['asyncio.Task[bool]'],
     ) -> None:
-        assert len(tasks) > 0
         finished, self.unfinished = await asyncio.wait(
-            tasks,
-            timeout=(self.flags.num_workers / 2) *
-            DEFAULT_SELECTOR_SELECT_TIMEOUT,
+            pending,
+            timeout=self.wait_timeout,
             return_when=asyncio.FIRST_COMPLETED,
         )
         for task in finished:
@@ -166,6 +171,10 @@ class Threadless:
             )
             self.cleanup(fileno)
 
+    # TODO: Use cached property to avoid execution repeatedly
+    # within a second interval.  Note that our selector timeout
+    # is 0.1 second which can unnecessarily result in cleanup
+    # checks within a second boundary.
     def cleanup_inactive(self) -> None:
         inactive_works: List[int] = []
         for work_id in self.works:
@@ -174,25 +183,21 @@ class Threadless:
         for work_id in inactive_works:
             self.cleanup(work_id)
 
+    # TODO: HttpProtocolHandler.shutdown can call flush which may block
     def cleanup(self, work_id: int) -> None:
-        # TODO: HttpProtocolHandler.shutdown can call flush which may block
         self.works[work_id].shutdown()
         del self.works[work_id]
         os.close(work_id)
 
-    def _prepare_tasks(
+    def _create_tasks(
             self,
             work_by_ids: Dict[int, Tuple[Readables, Writables]],
     ) -> Set['asyncio.Task[bool]']:
-        tasks: Set['asyncio.Task[bool]'] = set()
         assert self.loop
+        tasks: Set['asyncio.Task[bool]'] = set()
         for work_id in work_by_ids:
-            readables, writables = work_by_ids[work_id]
             task = self.loop.create_task(
-                self.works[work_id].handle_events(
-                    readables,
-                    writables,
-                ),
+                self.works[work_id].handle_events(*work_by_ids[work_id]),
             )
             task._work_id = work_id     # type: ignore
             # task.set_name(work_id)
@@ -201,33 +206,31 @@ class Threadless:
 
     async def run_once(self) -> None:
         assert self.loop is not None
-        fds, work_by_ids = await self._selected_events()
+        work_fds, work_by_ids, new_work_available = await self._selected_events()
         try:
+            # Accept new work if available
+            #
+            # TODO: We must use a work klass to handle
+            # client_queue fd itself a.k.a. accept_client
+            # will become handle_readables.
+            if new_work_available:
+                self.accept_client()
             if len(work_by_ids) == 0:
-                # Remove and shutdown inactive connections
                 self.cleanup_inactive()
                 return
         finally:
             assert self.selector
-            for fd in fds:
-                self.selector.unregister(fd)
+            for wfd in work_fds:
+                self.selector.unregister(wfd)
         # Invoke Threadless.handle_events
-        #
-        # TODO: Only send readable / writables that client originally
-        # registered.
-        if self.client_queue.fileno() in work_by_ids:
-            self.accept_client()
-            del work_by_ids[self.client_queue.fileno()]
-        self.unfinished.update(self._prepare_tasks(work_by_ids))
-        num_works = len(self.unfinished)
-        if num_works > 0:
-            logger.debug('Executing {0} works'.format(num_works))
-            await self.wait_for_tasks(self.unfinished)
-            logger.debug(
-                'Done executing works, {0} pending'.format(
-                    len(self.unfinished),
-                ),
-            )
+        self.unfinished.update(self._create_tasks(work_by_ids))
+        logger.debug('Executing {0} works'.format(len(self.unfinished)))
+        await self.wait_for_tasks(self.unfinished)
+        logger.debug(
+            'Done executing works, {0} pending'.format(
+                len(self.unfinished),
+            ),
+        )
         # Remove and shutdown inactive workers
         self.cleanup_inactive()
 
