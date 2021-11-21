@@ -85,9 +85,9 @@ class BaseTcpServerHandler(Work):
             writables: Writables,
     ) -> bool:
         """Return True to shutdown work."""
-        teardown = self.handle_writables(
+        teardown = await self.handle_writables(
             writables,
-        ) or self.handle_readables(readables)
+        ) or await self.handle_readables(readables)
         if teardown:
             logger.debug(
                 'Shutting down client {0} connection'.format(
@@ -96,7 +96,7 @@ class BaseTcpServerHandler(Work):
             )
         return teardown
 
-    def handle_writables(self, writables: Writables) -> bool:
+    async def handle_writables(self, writables: Writables) -> bool:
         teardown = False
         if self.work.connection in writables and self.work.has_buffer():
             logger.debug(
@@ -109,7 +109,7 @@ class BaseTcpServerHandler(Work):
                     self.must_flush_before_shutdown = False
         return teardown
 
-    def handle_readables(self, readables: Readables) -> bool:
+    async def handle_readables(self, readables: Readables) -> bool:
         teardown = False
         if self.work.connection in readables:
             data = self.work.recv(self.flags.client_recvbuf_size)

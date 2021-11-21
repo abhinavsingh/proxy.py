@@ -79,7 +79,7 @@ class HttpProtocolHandlerPlugin(ABC):
         return [], []  # pragma: no cover
 
     @abstractmethod
-    def write_to_descriptors(self, w: Writables) -> bool:
+    async def write_to_descriptors(self, w: Writables) -> bool:
         """Implementations must now write/flush data over the socket.
 
         Note that buffer management is in-build into the connection classes.
@@ -90,7 +90,7 @@ class HttpProtocolHandlerPlugin(ABC):
         return False  # pragma: no cover
 
     @abstractmethod
-    def read_from_descriptors(self, r: Readables) -> bool:
+    async def read_from_descriptors(self, r: Readables) -> bool:
         """Implementations must now read data over the socket."""
         return False  # pragma: no cover
 

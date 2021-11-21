@@ -245,14 +245,14 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             w.extend(w1)
         return r, w
 
-    def write_to_descriptors(self, w: Writables) -> bool:
+    async def write_to_descriptors(self, w: Writables) -> bool:
         for plugin in self.plugins.values():
             teardown = plugin.write_to_descriptors(w)
             if teardown:
                 return True
         return False
 
-    def read_from_descriptors(self, r: Readables) -> bool:
+    async def read_from_descriptors(self, r: Readables) -> bool:
         for plugin in self.plugins.values():
             teardown = plugin.read_from_descriptors(r)
             if teardown:

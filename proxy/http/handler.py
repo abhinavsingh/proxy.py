@@ -178,24 +178,24 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     ) -> bool:
         """Returns True if proxy must tear down."""
         # Flush buffer for ready to write sockets
-        teardown = self.handle_writables(writables)
+        teardown = await self.handle_writables(writables)
         if teardown:
             return True
 
         # Invoke plugin.write_to_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.write_to_descriptors(writables)
+            teardown = await plugin.write_to_descriptors(writables)
             if teardown:
                 return True
 
         # Read from ready to read sockets
-        teardown = self.handle_readables(readables)
+        teardown = await self.handle_readables(readables)
         if teardown:
             return True
 
         # Invoke plugin.read_from_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.read_from_descriptors(readables)
+            teardown = await plugin.read_from_descriptors(readables)
             if teardown:
                 return True
 
@@ -249,7 +249,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             return True
         return False
 
-    def handle_writables(self, writables: Writables) -> bool:
+    async def handle_writables(self, writables: Writables) -> bool:
         if self.work.connection in writables and self.work.has_buffer():
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
@@ -266,7 +266,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
             try:
                 # Call super() for client flush
-                teardown = super().handle_writables(writables)
+                teardown = await super().handle_writables(writables)
                 if teardown:
                     return True
             except BrokenPipeError:
@@ -279,12 +279,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 return True
         return False
 
-    def handle_readables(self, readables: Readables) -> bool:
+    async def handle_readables(self, readables: Readables) -> bool:
         if self.work.connection in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
             try:
-                teardown = super().handle_readables(readables)
+                teardown = await super().handle_readables(readables)
                 if teardown:
                     return teardown
             except ssl.SSLWantReadError:    # Try again later
