@@ -52,11 +52,13 @@ class BaseTcpServerHandler(Work):
         self.must_flush_before_shutdown = False
         if self.flags.unix_socket_path:     # pragma: no cover
             logger.debug(
-                'Connection accepted from {0}'.format(self.work.address),
+                'Work#{0} accepted from {1}'.format(
+                    self.work.connection.fileno(), self.work.address),
             )
         else:
             logger.debug(
-                'Connection accepted from {0}'.format(self.work.address),
+                'Work#{0} accepted from {1}'.format(
+                    self.work.connection.fileno(), self.work.address),
             )
 
     @abstractmethod
@@ -64,7 +66,7 @@ class BaseTcpServerHandler(Work):
         """Optionally return True to close client connection."""
         pass    # pragma: no cover
 
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[socket.socket, int]:
         events = {}
         # We always want to read from client
         # Register for EVENT_READ events

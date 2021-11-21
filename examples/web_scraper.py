@@ -40,7 +40,7 @@ class WebScraper(Work):
     only PUBSUB protocol.
     """
 
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[socket.socket, int]:
         """Return sockets and events (read or write) that we are interested in."""
         return {}
 

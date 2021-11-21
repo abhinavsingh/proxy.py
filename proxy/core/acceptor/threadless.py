@@ -23,7 +23,7 @@ import multiprocessing
 
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
-from typing import Dict, Optional, Tuple, List, Generator, Set
+from typing import Dict, Optional, Tuple, List, AsyncGenerator, Set
 
 from .work import Work
 
@@ -77,16 +77,15 @@ class Threadless(multiprocessing.Process):
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.unfinished: Set[asyncio.Task[bool]] = set()
 
-    @contextlib.contextmanager
-    def selected_events(self) -> Generator[
-        Dict[int, Tuple[Readables, Writables]],
-        None, None,
+    @contextlib.asynccontextmanager
+    async def selected_events(self) -> AsyncGenerator[
+        Dict[int, Tuple[Readables, Writables]], None,
     ]:
         assert self.selector is not None
         events: Dict[socket.socket, int] = {}
         for work_id in self.works:
             work = self.works[work_id]
-            worker_events = work.get_events()
+            worker_events = await work.get_events()
             events.update(worker_events)
             for fd in worker_events:
                 # Can throw ValueError: Invalid file descriptor: -1
@@ -190,9 +189,9 @@ class Threadless(multiprocessing.Process):
             tasks.add(task)
         return tasks
 
-    def run_once(self) -> None:
+    async def run_once(self) -> None:
         assert self.loop is not None
-        with self.selected_events() as work_by_ids:
+        async with self.selected_events() as work_by_ids:
             if len(work_by_ids) == 0:
                 # Remove and shutdown inactive connections
                 self.cleanup_inactive()
@@ -216,7 +215,7 @@ class Threadless(multiprocessing.Process):
         num_works = len(self.unfinished)
         if num_works > 0:
             logger.debug('Executing {0} works'.format(num_works))
-            self.loop.run_until_complete(self.wait_for_tasks(self.unfinished))
+            await self.wait_for_tasks(self.unfinished)
             logger.debug('Done executing works, {0} pending'.format(
                 len(self.unfinished),
             ))
@@ -238,7 +237,7 @@ class Threadless(multiprocessing.Process):
             self.loop = asyncio.get_event_loop_policy().get_event_loop()
             while not self.running.is_set():
                 # logger.debug('Working on {0} works'.format(len(self.works)))
-                self.run_once()
+                self.loop.run_until_complete(self.run_once())
         except KeyboardInterrupt:
             pass
         finally:

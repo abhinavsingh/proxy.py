@@ -65,9 +65,9 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
             self.upstream.close()
         super().shutdown()
 
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[socket.socket, int]:
         # Get default client events
-        ev: Dict[socket.socket, int] = super().get_events()
+        ev: Dict[socket.socket, int] = await super().get_events()
         # Read from server if we are connected
         if self.upstream and self.upstream._conn is not None:
             ev[self.upstream.connection] = selectors.EVENT_READ

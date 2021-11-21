@@ -34,7 +34,7 @@ fi
 TIMEOUT=1
 QPS=8000
 CONCURRENCY=100
-TOTAL_REQUESTS=1000000
+TOTAL_REQUESTS=100000
 OPEN_FILE_LIMIT=65536
 BACKLOG=OPEN_FILE_LIMIT
 PID_FILE=/tmp/proxy.pid
@@ -73,3 +73,5 @@ echo $output
 
 echo "Open files diff:"
 diff <( echo "$PRE_RUN_OPEN_FILES" ) <( echo "$POST_RUN_OPEN_FILES" )
+
+# while true; do netstat -ant | grep .8899 | awk '{print $6}' | sort | uniq -c | sort -n; sleep 1; done

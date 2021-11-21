@@ -134,6 +134,8 @@ class Acceptor(multiprocessing.Process):
                         if mask & selectors.EVENT_READ:
                             if self.sock is not None:
                                 conn, addr = self.sock.accept()
+                                logging.debug(
+                                    'Accepting new work#{0}'.format(conn.fileno()))
                                 if self.flags.local_executor:
                                     assert self._local
                                     self._local.evq.put((conn, addr))
@@ -219,20 +221,21 @@ class Acceptor(multiprocessing.Process):
             )
             thread.start()
             logger.debug(
-                'Dispatched work#{0}.{1} to worker#{2}'.format(
-                    self.idd, self._total, index,
+                'Dispatched work#{0}.{1}.{2} to worker#{3}'.format(
+                    conn.fileno(), self.idd, self._total, index,
                 ),
             )
         else:
             _, thread = ThreadlessPool.start_threaded_work(
                 self.flags,
-                conn, addr,
+                conn,
+                addr,
                 event_queue=self.event_queue,
                 publisher_id=self.__class__.__name__,
             )
             logger.debug(
-                'Started work#{0}.{1} in thread#{2}'.format(
-                    self.idd, self._total, thread.ident,
+                'Started work#{0}.{1}.{2} in thread#{3}'.format(
+                    conn.fileno(), self.idd, self._total, thread.ident,
                 ),
             )
         self._total += 1

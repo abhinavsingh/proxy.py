@@ -15,18 +15,14 @@ import logging
 import argparse
 import selectors
 import threading
-import contextlib
 import multiprocessing.synchronize
 
 from multiprocessing import connection
-from typing import Optional, Tuple, List, Dict, Generator, Any
+from typing import Optional, Tuple, List, Dict, Any
 
 from ...common.utils import is_threadless
-from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
-from ..event import EventQueue, eventNames
-from ..connection import TcpClientConnection
+from ..event import EventQueue
 
 from .executors import ThreadlessPool
 from .work import Work
@@ -63,36 +59,6 @@ class LocalExecutor(threading.Thread):
         self._selector: Optional[selectors.DefaultSelector] = None
         self._works: Dict[int, Work] = {}
 
-    @contextlib.contextmanager
-    def selected_events(self) -> Generator[
-        Tuple[Readables, Writables],
-        None, None,
-    ]:
-        assert self._selector is not None
-        events: Dict[socket.socket, int] = {}
-        for work in self._works.values():
-            worker_events = work.get_events()
-            events.update(worker_events)
-            for fd in worker_events:
-                # Can throw ValueError: Invalid file descriptor: -1
-                #
-                # A guard within Work classes may not help here due to
-                # asynchronous nature.  Hence, threadless will handle
-                # ValueError exceptions raised by selector.register
-                # for invalid fd.
-                self._selector.register(fd, worker_events[fd])
-        ev = self._selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
-        readables = []
-        writables = []
-        for key, mask in ev:
-            if mask & selectors.EVENT_READ:
-                readables.append(key.fileobj)
-            if mask & selectors.EVENT_WRITE:
-                writables.append(key.fileobj)
-        yield (readables, writables)
-        for fd in events:
-            self._selector.unregister(fd)
-
     def run_once(self) -> bool:
         try:
             payload = self.evq.get(block=True, timeout=0.1)
@@ -115,29 +81,7 @@ class LocalExecutor(threading.Thread):
         except KeyboardInterrupt:
             pass
 
-    def work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
-        fileno = conn.fileno()
-        self._works[fileno] = self.flags.work_klass(
-            TcpClientConnection(conn=conn, addr=addr),
-            flags=self.flags,
-            event_queue=self.event_queue,
-        )
-        self._works[fileno].publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'fileno': fileno, 'addr': addr},
-            publisher_id=self.__class__.__name__,
-        )
-        try:
-            self._works[fileno].initialize()
-        except Exception as e:
-            logger.exception(
-                'Exception occurred during initialization',
-                exc_info=e,
-            )
-            self._cleanup(fileno)
-
     def _cleanup(self, work_id: int) -> None:
-        # TODO: HttpProtocolHandler.shutdown can call flush which may block
         self._works[work_id].shutdown()
         del self._works[work_id]
         os.close(work_id)

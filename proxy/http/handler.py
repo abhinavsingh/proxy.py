@@ -21,7 +21,7 @@ import logging
 import selectors
 import contextlib
 
-from typing import Tuple, List, Union, Optional, Generator, Dict, Any
+from typing import Tuple, List, Union, Optional, AsyncGenerator, Dict, Any
 
 from .plugin import HttpProtocolHandlerPlugin
 from .parser import HttpParser, httpParserStates, httpParserTypes
@@ -65,9 +65,9 @@ flags.add_argument(
     'data sent or received by the client.',
 )
 
-SelectedEventsGeneratorType = Generator[
+SelectedEventsGeneratorType = AsyncGenerator[
     Tuple[Readables, Writables],
-    None, None,
+    None,
 ]
 
 
@@ -125,19 +125,16 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # Flush pending buffer in threaded mode only.
             # For threadless mode, BaseTcpServerHandler implements
             # the must_flush_before_shutdown logic automagically.
-            if self.selector:
+            if self.selector and self.work.has_buffer():
                 self._flush()
-
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()
-
             logger.debug(
                 'Closing client connection %r '
                 'at address %s has buffer %s' %
                 (self.work.connection, self.work.address, self.work.has_buffer()),
             )
-
             conn = self.work.connection
             # Unwrap if wrapped before shutdown.
             if self._encryption_enabled() and \
@@ -152,9 +149,9 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             logger.debug('Client connection closed')
             super().shutdown()
 
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[socket.socket, int]:
         # Get default client events
-        events: Dict[socket.socket, int] = super().get_events()
+        events: Dict[socket.socket, int] = await super().get_events()
         # HttpProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
@@ -181,24 +178,20 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         teardown = await self.handle_writables(writables)
         if teardown:
             return True
-
         # Invoke plugin.write_to_descriptors
         for plugin in self.plugins.values():
             teardown = await plugin.write_to_descriptors(writables)
             if teardown:
                 return True
-
         # Read from ready to read sockets
         teardown = await self.handle_readables(readables)
         if teardown:
             return True
-
         # Invoke plugin.read_from_descriptors
         for plugin in self.plugins.values():
             teardown = await plugin.read_from_descriptors(readables)
             if teardown:
                 return True
-
         return False
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
@@ -361,10 +354,10 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn
 
-    @contextlib.contextmanager
-    def _selected_events(self) -> SelectedEventsGeneratorType:
+    @contextlib.asynccontextmanager
+    async def _selected_events(self) -> SelectedEventsGeneratorType:
         assert self.selector
-        events = self.get_events()
+        events = await self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
         ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
@@ -380,7 +373,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             self.selector.unregister(fd)
 
     async def _run_once(self) -> bool:
-        with self._selected_events() as (readables, writables):
+        async with self._selected_events() as (readables, writables):
             teardown = await self.handle_events(readables, writables)
             if teardown:
                 return True
@@ -388,14 +381,14 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     def _flush(self) -> None:
         assert self.selector
-        if not self.work.has_buffer():
-            return
+        logger.debug('Flushing pending data')
         try:
             self.selector.register(
                 self.work.connection,
                 selectors.EVENT_WRITE,
             )
             while self.work.has_buffer():
+                logging.debug('Waiting for client read ready')
                 ev: List[
                     Tuple[selectors.SelectorKey, int]
                 ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)

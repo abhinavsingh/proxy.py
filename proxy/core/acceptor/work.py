@@ -43,7 +43,7 @@ class Work(ABC):
         self.work = work
 
     @abstractmethod
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[socket.socket, int]:
         """Return sockets and events (read or write) that we are interested in."""
         return {}   # pragma: no cover
 
