@@ -19,6 +19,7 @@ import logging
 import argparse
 import selectors
 import threading
+import contextlib
 import multiprocessing.synchronize
 
 from multiprocessing import connection
@@ -65,16 +66,13 @@ class LocalExecutor(threading.Thread):
         self._works: Dict[int, Work] = {}
 
     def run_once(self) -> bool:
-        try:
+        with contextlib.suppress(queue.Empty):
             payload = self.evq.get(block=True, timeout=0.1)
             if isinstance(payload, bool) and payload is False:
                 return True
             assert isinstance(payload, tuple)
             conn, addr = payload
-            addr = None if addr == '' else addr
             self.dispatch(conn, addr)
-        except queue.Empty:
-            pass
         return False
 
     def run(self) -> None:

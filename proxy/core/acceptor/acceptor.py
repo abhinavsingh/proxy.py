@@ -137,6 +137,7 @@ class Acceptor(multiprocessing.Process):
                                 logging.debug(
                                     'Accepting new work#{0}'.format(conn.fileno()),
                                 )
+                                addr = None if addr == '' else addr
                                 if self.flags.local_executor:
                                     assert self._local
                                     self._local.evq.put((conn, addr))

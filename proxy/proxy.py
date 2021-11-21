@@ -114,15 +114,18 @@ flags.add_argument(
 
 
 class Proxy:
-    """Context manager to control AcceptorPool, ExecutorPool & EventingCore lifecycle.
+    """Proxy is a context manager to control proxy.py library core.
 
     By default, AcceptorPool is started with
     :class:`~proxy.http.handler.HttpProtocolHandler` work class.
     By definition, it expects HTTP traffic to flow between clients and server.
 
-    Optionally, it also initializes the eventing core, a multi-process safe
-    pubsub system queue which can be used to build various patterns
-    for message sharing and/or signaling.
+    In ``--threadless`` mode, ThreadlessPool is also started, which is
+    responsible for handling work accepted by :class:`~proxy.core.acceptor.Acceptor`.
+
+    Optionally, Proxy class also initializes the EventManager.
+    A multi-process safe pubsub system which can be used to build various
+    patterns for message sharing and/or signaling.
     """
 
     def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
