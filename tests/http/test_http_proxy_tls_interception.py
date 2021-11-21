@@ -8,13 +8,14 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import uuid
-import unittest
-import socket
 import ssl
+import uuid
+import socket
+import pytest
 import selectors
 
 from typing import Any
+from pytest_mock import MockerFixture
 from unittest import mock
 from proxy.common.constants import DEFAULT_CA_FILE
 
@@ -24,39 +25,26 @@ from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_
 from proxy.common.flag import FlagParser
 
+from ..assertions import Assertions
 
-class TestHttpProxyTlsInterception(unittest.TestCase):
 
-    @mock.patch('ssl.wrap_socket')
-    @mock.patch('ssl.create_default_context')
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    @mock.patch('proxy.http.proxy.server.gen_public_key')
-    @mock.patch('proxy.http.proxy.server.gen_csr')
-    @mock.patch('proxy.http.proxy.server.sign_csr')
-    @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
-    def test_e2e(
-            self,
-            mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock,
-            mock_sign_csr: mock.Mock,
-            mock_gen_csr: mock.Mock,
-            mock_gen_public_key: mock.Mock,
-            mock_server_conn: mock.Mock,
-            mock_ssl_context: mock.Mock,
-            mock_ssl_wrap: mock.Mock,
-    ) -> None:
+class TestHttpProxyTlsInterception(Assertions):
+
+    @pytest.mark.asyncio
+    async def test_e2e(self, mocker: MockerFixture) -> None:
         host, port = uuid.uuid4().hex, 443
         netloc = '{0}:{1}'.format(host, port)
 
-        self.mock_fromfd = mock_fromfd
-        self.mock_selector = mock_selector
-        self.mock_sign_csr = mock_sign_csr
-        self.mock_gen_csr = mock_gen_csr
-        self.mock_gen_public_key = mock_gen_public_key
-        self.mock_server_conn = mock_server_conn
-        self.mock_ssl_context = mock_ssl_context
-        self.mock_ssl_wrap = mock_ssl_wrap
+        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_selector = mocker.patch('selectors.DefaultSelector')
+        self.mock_sign_csr = mocker.patch('proxy.http.proxy.server.sign_csr')
+        self.mock_gen_csr = mocker.patch('proxy.http.proxy.server.gen_csr')
+        self.mock_gen_public_key = mocker.patch(
+            'proxy.http.proxy.server.gen_public_key')
+        self.mock_server_conn = mocker.patch(
+            'proxy.http.proxy.server.TcpServerConnection')
+        self.mock_ssl_context = mocker.patch('ssl.create_default_context')
+        self.mock_ssl_wrap = mocker.patch('ssl.wrap_socket')
 
         self.mock_sign_csr.return_value = True
         self.mock_gen_csr.return_value = True
@@ -95,7 +83,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             b'HttpProtocolHandlerPlugin': [self.plugin, HttpProxyPlugin],
             b'HttpProxyBasePlugin': [self.proxy_plugin],
         }
-        self._conn = mock_fromfd.return_value
+        self._conn = self.mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
             flags=self.flags,
@@ -121,9 +109,11 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
         self._conn.recv.return_value = connect_request
 
         # Prepare mocked HttpProtocolHandlerPlugin
+        async def asyncReturnBool(val: bool):
+            return val
         self.plugin.return_value.get_descriptors.return_value = ([], [])
-        self.plugin.return_value.write_to_descriptors.return_value = False
-        self.plugin.return_value.read_from_descriptors.return_value = False
+        self.plugin.return_value.write_to_descriptors.return_value = asyncReturnBool(False)
+        self.plugin.return_value.read_from_descriptors.return_value = asyncReturnBool(False)
         self.plugin.return_value.on_client_data.side_effect = lambda raw: raw
         self.plugin.return_value.on_request_complete.return_value = False
         self.plugin.return_value.on_response_chunk.side_effect = lambda chunk: chunk
@@ -148,7 +138,7 @@ class TestHttpProxyTlsInterception(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler._run_once()
+        await self.protocol_handler._run_once()
 
         # Assert our mocked plugins invocations
         self.plugin.return_value.get_descriptors.assert_called()

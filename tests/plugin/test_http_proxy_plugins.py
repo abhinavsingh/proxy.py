@@ -8,14 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import selectors
 import json
+import pytest
+import selectors
 
-from urllib import parse as urlparse
-from unittest import mock
-from typing import cast
 from pathlib import Path
+from unittest import mock
+from typing import cast, Any
+from urllib import parse as urlparse
+from pytest_mock import MockerFixture
 
 from proxy.common.flag import FlagParser
 from proxy.core.connection import TcpClientConnection
@@ -24,21 +25,22 @@ from proxy.http import httpStatusCodes
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_, build_http_response
 from proxy.common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_HTTP_PORT
-
 from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
 
 from .utils import get_plugin_by_test_name
 
+from ..assertions import Assertions
 
-class TestHttpProxyPluginExamples(unittest.TestCase):
 
-    @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
-    def setUp(
-        self,
-        mock_fromfd: mock.Mock,
-        mock_selector: mock.Mock,
-    ) -> None:
+class TestHttpProxyPluginExamples(Assertions):
+
+    @pytest.fixture(autouse=True)
+    def setUp(self, request: Any, mocker: MockerFixture) -> None:
+        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_selector = mocker.patch('selectors.DefaultSelector')
+        self.mock_server_conn = mocker.patch(
+            'proxy.http.proxy.server.TcpServerConnection')
+
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
         adblock_json_path = Path(
@@ -53,26 +55,22 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         )
         self.plugin = mock.MagicMock()
 
-        self.mock_fromfd = mock_fromfd
-        self.mock_selector = mock_selector
-
-        plugin = get_plugin_by_test_name(self._testMethodName)
+        plugin = get_plugin_by_test_name(request.param)
 
         self.flags.plugins = {
             b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],
             b'HttpProxyBasePlugin': [plugin],
         }
-        self._conn = mock_fromfd.return_value
+        self._conn = self.mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()
 
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_modify_post_data_plugin(
-            self, mock_server_conn: mock.Mock,
-    ) -> None:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("setUp", ['test_modify_post_data_plugin'], indirect=True)
+    async def test_modify_post_data_plugin(self) -> None:
         original = b'{"key": "value"}'
         modified = b'{"key": "modified"}'
 
@@ -97,9 +95,10 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler._run_once()
-        mock_server_conn.assert_called_with('httpbin.org', DEFAULT_HTTP_PORT)
-        mock_server_conn.return_value.queue.assert_called_with(
+        await self.protocol_handler._run_once()
+        self.mock_server_conn.assert_called_with(
+            'httpbin.org', DEFAULT_HTTP_PORT)
+        self.mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(
                 b'POST', b'/post',
                 headers={
@@ -112,10 +111,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             ),
         )
 
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_proposed_rest_api_plugin(
-            self, mock_server_conn: mock.Mock,
-    ) -> None:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("setUp", ['test_proposed_rest_api_plugin'], indirect=True)
+    async def test_proposed_rest_api_plugin(self) -> None:
         path = b'/v1/users/'
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://%s%s' % (
@@ -136,9 +134,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 selectors.EVENT_READ,
             )],
         ]
-        self.protocol_handler._run_once()
+        await self.protocol_handler._run_once()
 
-        mock_server_conn.assert_not_called()
+        self.mock_server_conn.assert_not_called()
         self.assertEqual(
             self.protocol_handler.work.buffer[0].tobytes(),
             build_http_response(
@@ -152,10 +150,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             ),
         )
 
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_redirect_to_custom_server_plugin(
-            self, mock_server_conn: mock.Mock,
-    ) -> None:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("setUp", ['test_redirect_to_custom_server_plugin'], indirect=True)
+    async def test_redirect_to_custom_server_plugin(self) -> None:
         request = build_http_request(
             b'GET', b'http://example.org/get',
             headers={
@@ -174,13 +171,13 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 selectors.EVENT_READ,
             )],
         ]
-        self.protocol_handler._run_once()
+        await self.protocol_handler._run_once()
 
         upstream = urlparse.urlsplit(
             RedirectToCustomServerPlugin.UPSTREAM_SERVER,
         )
-        mock_server_conn.assert_called_with('localhost', 8899)
-        mock_server_conn.return_value.queue.assert_called_with(
+        self.mock_server_conn.assert_called_with('localhost', 8899)
+        self.mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(
                 b'GET', upstream.path,
                 headers={
@@ -190,10 +187,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             ),
         )
 
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_filter_by_upstream_host_plugin(
-            self, mock_server_conn: mock.Mock,
-    ) -> None:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("setUp", ['test_filter_by_upstream_host_plugin'], indirect=True)
+    async def test_filter_by_upstream_host_plugin(self) -> None:
         request = build_http_request(
             b'GET', b'http://facebook.com/',
             headers={
@@ -212,9 +208,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 selectors.EVENT_READ,
             )],
         ]
-        self.protocol_handler._run_once()
+        await self.protocol_handler._run_once()
 
-        mock_server_conn.assert_not_called()
+        self.mock_server_conn.assert_not_called()
         self.assertEqual(
             self.protocol_handler.work.buffer[0].tobytes(),
             build_http_response(
@@ -226,10 +222,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             ),
         )
 
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_man_in_the_middle_plugin(
-            self, mock_server_conn: mock.Mock,
-    ) -> None:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("setUp", ['test_man_in_the_middle_plugin'], indirect=True)
+    async def test_man_in_the_middle_plugin(self) -> None:
         request = build_http_request(
             b'GET', b'http://super.secure/',
             headers={
@@ -238,7 +233,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         )
         self._conn.recv.return_value = request
 
-        server = mock_server_conn.return_value
+        server = self.mock_server_conn.return_value
         server.connect.return_value = True
 
         def has_buffer() -> bool:
@@ -281,8 +276,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         ]
 
         # Client read
-        self.protocol_handler._run_once()
-        mock_server_conn.assert_called_with('super.secure', DEFAULT_HTTP_PORT)
+        await self.protocol_handler._run_once()
+        self.mock_server_conn.assert_called_with(
+            'super.secure', DEFAULT_HTTP_PORT)
         server.connect.assert_called_once()
         queued_request = \
             build_http_request(
@@ -295,7 +291,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
         server.queue.assert_called_once_with(queued_request)
 
         # Server write
-        self.protocol_handler._run_once()
+        await self.protocol_handler._run_once()
         server.flush.assert_called_once()
 
         # Server read
@@ -304,7 +300,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Original Response From Upstream',
             )
-        self.protocol_handler._run_once()
+        await self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.work.buffer[0].tobytes(),
             build_http_response(
@@ -313,10 +309,9 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
             ),
         )
 
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_filter_by_url_regex_plugin(
-            self, mock_server_conn: mock.Mock,
-    ) -> None:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("setUp", ['test_filter_by_url_regex_plugin'], indirect=True)
+    async def test_filter_by_url_regex_plugin(self) -> None:
         request = build_http_request(
             b'GET', b'http://www.facebook.com/tr/',
             headers={
@@ -335,7 +330,7 @@ class TestHttpProxyPluginExamples(unittest.TestCase):
                 selectors.EVENT_READ,
             )],
         ]
-        self.protocol_handler._run_once()
+        await self.protocol_handler._run_once()
 
         self.assertEqual(
             self.protocol_handler.work.buffer[0].tobytes(),
