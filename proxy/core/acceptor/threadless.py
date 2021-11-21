@@ -80,15 +80,15 @@ class Threadless:
         self.unfinished: Set['asyncio.Task[bool]'] = set()
 
     async def _selected_events(self) -> Tuple[
-            Dict[socket.socket, int],
+            List[socket.socket],
             Dict[int, Tuple[Readables, Writables]],
     ]:
+        """For each work, collects events they are interested in.
+        Calls select for events of interest.  """
         assert self.selector is not None
-        events: Dict[socket.socket, int] = {}
+        fds: List[socket.socket] = []
         for work_id in self.works:
-            work = self.works[work_id]
-            worker_events = await work.get_events()
-            events.update(worker_events)
+            worker_events = await self.works[work_id].get_events()
             for fd in worker_events:
                 # Can throw ValueError: Invalid file descriptor: -1
                 #
@@ -96,18 +96,26 @@ class Threadless:
                 # asynchronous nature.  Hence, threadless will handle
                 # ValueError exceptions raised by selector.register
                 # for invalid fd.
-                self.selector.register(fd, worker_events[fd], data=work_id)
-        ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
-        # Keys are work_id and values are 2-tuple indicating readables & writables
+                self.selector.register(
+                    fd, events=worker_events[fd],
+                    data=work_id,
+                )
+                fds.append(fd)
+        selected = self.selector.select(
+            timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT,
+        )
+        # Keys are work_id and values are 2-tuple indicating
+        # readables & writables that work_id is interested in
+        # and are ready for IO.
         work_by_ids: Dict[int, Tuple[Readables, Writables]] = {}
-        for key, mask in ev:
+        for key, mask in selected:
             if key.data not in work_by_ids:
                 work_by_ids[key.data] = ([], [])
             if mask & selectors.EVENT_READ:
                 work_by_ids[key.data][0].append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 work_by_ids[key.data][1].append(key.fileobj)
-        return (events, work_by_ids)
+        return (fds, work_by_ids)
 
     # TODO: Use correct future typing annotations
     async def wait_for_tasks(
@@ -193,7 +201,7 @@ class Threadless:
 
     async def run_once(self) -> None:
         assert self.loop is not None
-        events, work_by_ids = await self._selected_events()
+        fds, work_by_ids = await self._selected_events()
         try:
             if len(work_by_ids) == 0:
                 # Remove and shutdown inactive connections
@@ -201,21 +209,12 @@ class Threadless:
                 return
         finally:
             assert self.selector
-            for fd in events:
+            for fd in fds:
                 self.selector.unregister(fd)
-
-        # Note that selector from now on is idle,
-        # until all the logic below completes.
-        #
-        # This is where one process per CPU architecture shines,
-        # as other threadless processes can continue process work
-        # within their context.
-        #
         # Invoke Threadless.handle_events
         #
         # TODO: Only send readable / writables that client originally
         # registered.
-        # Wait for Threadless.handle_events to complete
         if self.client_queue.fileno() in work_by_ids:
             self.accept_client()
             del work_by_ids[self.client_queue.fileno()]
