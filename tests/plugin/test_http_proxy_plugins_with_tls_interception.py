@@ -31,8 +31,8 @@ from ..assertions import Assertions
 
 class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
 
-    @pytest.fixture(autouse=True)
-    def setUp(self, request: Any, mocker: MockerFixture) -> None:
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, request: Any, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_sign_csr = mocker.patch('proxy.http.proxy.server.sign_csr')
@@ -149,8 +149,12 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             httpMethods.CONNECT, b'uni.corn:443',
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("setUp", ['test_modify_post_data_plugin'], indirect=True)
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        ('test_modify_post_data_plugin'),
+        indirect=True,
+    )   # type: ignore[misc]
     async def test_modify_post_data_plugin(self) -> None:
         await self.protocol_handler._run_once()
 
@@ -197,8 +201,12 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             self.server.queue.call_args_list[0][0][0].tobytes())
         self.assertEqual(response.body, modified)
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("setUp", ['test_man_in_the_middle_plugin'], indirect=True)
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        ('test_man_in_the_middle_plugin'),
+        indirect=True,
+    )   # type: ignore[misc]
     async def test_man_in_the_middle_plugin(self) -> None:
         await self.protocol_handler._run_once()
 

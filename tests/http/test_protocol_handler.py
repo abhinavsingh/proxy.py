@@ -47,8 +47,8 @@ def mock_selector_for_client_read(self: Any) -> None:
 
 class TestHttpProtocolHandlerWithoutServerMock(Assertions):
 
-    @pytest.fixture(autouse=True)
-    def setUp(self, mocker: MockerFixture) -> None:
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
 
@@ -69,7 +69,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
         )
         self.protocol_handler.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_connection_failed(self) -> None:
         mock_selector_for_client_read(self)
         self._conn.recv.return_value = CRLF.join([
@@ -83,7 +83,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
             ProxyConnectionFailed.RESPONSE_PKT,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_authentication_failed(self) -> None:
         self._conn = self.mock_fromfd.return_value
         mock_selector_for_client_read(self)
@@ -114,8 +114,8 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
 
 class TestHttpProtocolHandler(Assertions):
 
-    @pytest.fixture(autouse=True)
-    def setUp(self, mocker: MockerFixture) -> None:
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_server_connection = mocker.patch(
@@ -138,7 +138,7 @@ class TestHttpProtocolHandler(Assertions):
         )
         self.protocol_handler.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_http_get(self) -> None:
         server = self.mock_server_connection.return_value
         server.connect.return_value = True
@@ -203,7 +203,7 @@ class TestHttpProtocolHandler(Assertions):
         assert parser.code is not None
         self.assertEqual(int(parser.code), 200)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_http_tunnel(self) -> None:
         server = self.mock_server_connection.return_value
         server.connect.return_value = True
@@ -277,7 +277,7 @@ class TestHttpProtocolHandler(Assertions):
         self.assertEqual(server.queue.call_count, 1)
         server.flush.assert_called_once()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_authenticated_proxy_http_get(self) -> None:
         self._conn = self.mock_fromfd.return_value
         mock_selector_for_client_read(self)
@@ -326,7 +326,7 @@ class TestHttpProtocolHandler(Assertions):
         ])
         await self.assert_data_queued(server)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_authenticated_proxy_http_tunnel(self) -> None:
         server = self.mock_server_connection.return_value
         server.connect.return_value = True

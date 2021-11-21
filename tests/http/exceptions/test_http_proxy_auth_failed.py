@@ -24,8 +24,8 @@ from ...assertions import Assertions
 
 class TestHttpProxyAuthFailed(Assertions):
 
-    @pytest.fixture(autouse=True)
-    def setUp(self, mocker: MockerFixture) -> None:
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_server_conn = mocker.patch(
@@ -43,7 +43,7 @@ class TestHttpProxyAuthFailed(Assertions):
         )
         self.protocol_handler.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_auth_fails_without_cred(self) -> None:
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
@@ -70,7 +70,7 @@ class TestHttpProxyAuthFailed(Assertions):
         )
         self._conn.send.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_auth_fails_with_invalid_cred(self) -> None:
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
@@ -98,7 +98,7 @@ class TestHttpProxyAuthFailed(Assertions):
         )
         self._conn.send.assert_not_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_auth_works_with_valid_cred(self) -> None:
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',
@@ -122,7 +122,7 @@ class TestHttpProxyAuthFailed(Assertions):
         self.mock_server_conn.assert_called_once()
         self.assertEqual(self.protocol_handler.work.has_buffer(), False)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_auth_works_with_mixed_case_basic_string(self) -> None:
         self._conn.recv.return_value = build_http_request(
             b'GET', b'http://upstream.host/not-found.html',

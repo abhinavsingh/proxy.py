@@ -138,8 +138,8 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
     @pytest.fixture(autouse=True, params=[
         PAC_FILE_PATH,
         PAC_FILE_CONTENT,
-    ])
-    def setUp(self, request: Any, mocker: MockerFixture) -> None:
+    ])  # type: ignore[misc]
+    def _setUp(self, request: Any, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.fileno = 10
@@ -169,7 +169,7 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
         ])
         mock_selector_for_client_read(self)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_pac_file_served_from_disk(self) -> None:
         await self.protocol_handler._run_once()
         self.assertEqual(
@@ -188,8 +188,8 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
 
 class TestStaticWebServerPlugin(Assertions):
 
-    @pytest.fixture(autouse=True)
-    def setUp(self, mocker: MockerFixture) -> None:
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.fileno = 10
@@ -219,7 +219,7 @@ class TestStaticWebServerPlugin(Assertions):
         )
         self.protocol_handler.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_static_web_server_serves(self) -> None:
         self._conn.recv.return_value = build_http_request(
             b'GET', b'/index.html',
@@ -267,7 +267,7 @@ class TestStaticWebServerPlugin(Assertions):
         self.assertEqual(gzip.decompress(response.body),
                          self.html_file_content)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_static_web_server_serves_404(self) -> None:
         self._conn.recv.return_value = build_http_request(
             b'GET', b'/not-found.html',
@@ -306,8 +306,8 @@ class TestStaticWebServerPlugin(Assertions):
 
 class TestWebServerPlugin(Assertions):
 
-    @pytest.fixture(autouse=True)
-    def setUp(self, mocker: MockerFixture) -> None:
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.fileno = 10
@@ -324,7 +324,7 @@ class TestWebServerPlugin(Assertions):
         )
         self.protocol_handler.initialize()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_default_web_server_returns_404(self) -> None:
         self._conn = self.mock_fromfd.return_value
         self.mock_selector.return_value.select.return_value = [

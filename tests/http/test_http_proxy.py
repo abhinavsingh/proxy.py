@@ -24,8 +24,8 @@ from proxy.common.utils import build_http_request
 
 class TestHttpProxyPlugin:
 
-    @pytest.fixture(autouse=True)
-    def setUp(self, mocker: MockerFixture) -> None:
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, mocker: MockerFixture) -> None:
         self.mock_server_conn = mocker.patch(
             'proxy.http.proxy.server.TcpServerConnection')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
@@ -49,7 +49,7 @@ class TestHttpProxyPlugin:
     def test_proxy_plugin_initialized(self) -> None:
         self.plugin.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_plugin_on_and_before_upstream_connection(self) -> None:
         self.plugin.return_value.write_to_descriptors.return_value = False
         self.plugin.return_value.read_from_descriptors.return_value = False
@@ -82,7 +82,7 @@ class TestHttpProxyPlugin:
         self.plugin.return_value.before_upstream_connection.assert_called()
         self.plugin.return_value.handle_client_request.assert_called()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_plugin_before_upstream_connection_can_teardown(self) -> None:
         self.plugin.return_value.write_to_descriptors.return_value = False
         self.plugin.return_value.read_from_descriptors.return_value = False

@@ -30,7 +30,7 @@ from ..assertions import Assertions
 
 class TestHttpProxyTlsInterception(Assertions):
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_e2e(self, mocker: MockerFixture) -> None:
         host, port = uuid.uuid4().hex, 443
         netloc = '{0}:{1}'.format(host, port)
@@ -109,7 +109,7 @@ class TestHttpProxyTlsInterception(Assertions):
         self._conn.recv.return_value = connect_request
 
         # Prepare mocked HttpProtocolHandlerPlugin
-        async def asyncReturnBool(val: bool):
+        async def asyncReturnBool(val: bool) -> bool:
             return val
         self.plugin.return_value.get_descriptors.return_value = ([], [])
         self.plugin.return_value.write_to_descriptors.return_value = asyncReturnBool(False)

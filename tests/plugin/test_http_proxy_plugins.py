@@ -34,8 +34,8 @@ from ..assertions import Assertions
 
 class TestHttpProxyPluginExamples(Assertions):
 
-    @pytest.fixture(autouse=True)
-    def setUp(self, request: Any, mocker: MockerFixture) -> None:
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, request: Any, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_server_conn = mocker.patch(
@@ -68,8 +68,12 @@ class TestHttpProxyPluginExamples(Assertions):
         )
         self.protocol_handler.initialize()
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("setUp", ['test_modify_post_data_plugin'], indirect=True)
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        ('test_modify_post_data_plugin'),
+        indirect=True,
+    )   # type: ignore[misc]
     async def test_modify_post_data_plugin(self) -> None:
         original = b'{"key": "value"}'
         modified = b'{"key": "modified"}'
@@ -111,8 +115,12 @@ class TestHttpProxyPluginExamples(Assertions):
             ),
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("setUp", ['test_proposed_rest_api_plugin'], indirect=True)
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        ('test_proposed_rest_api_plugin'),
+        indirect=True,
+    )   # type: ignore[misc]
     async def test_proposed_rest_api_plugin(self) -> None:
         path = b'/v1/users/'
         self._conn.recv.return_value = build_http_request(
@@ -150,8 +158,12 @@ class TestHttpProxyPluginExamples(Assertions):
             ),
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("setUp", ['test_redirect_to_custom_server_plugin'], indirect=True)
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        ('test_redirect_to_custom_server_plugin'),
+        indirect=True,
+    )   # type: ignore[misc]
     async def test_redirect_to_custom_server_plugin(self) -> None:
         request = build_http_request(
             b'GET', b'http://example.org/get',
@@ -187,8 +199,12 @@ class TestHttpProxyPluginExamples(Assertions):
             ),
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("setUp", ['test_filter_by_upstream_host_plugin'], indirect=True)
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        ('test_filter_by_upstream_host_plugin'),
+        indirect=True,
+    )   # type: ignore[misc]
     async def test_filter_by_upstream_host_plugin(self) -> None:
         request = build_http_request(
             b'GET', b'http://facebook.com/',
@@ -222,8 +238,12 @@ class TestHttpProxyPluginExamples(Assertions):
             ),
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("setUp", ['test_man_in_the_middle_plugin'], indirect=True)
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        ('test_man_in_the_middle_plugin'),
+        indirect=True,
+    )   # type: ignore[misc]
     async def test_man_in_the_middle_plugin(self) -> None:
         request = build_http_request(
             b'GET', b'http://super.secure/',
@@ -309,8 +329,12 @@ class TestHttpProxyPluginExamples(Assertions):
             ),
         )
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("setUp", ['test_filter_by_url_regex_plugin'], indirect=True)
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        ('test_filter_by_url_regex_plugin'),
+        indirect=True,
+    )   # type: ignore[misc]
     async def test_filter_by_url_regex_plugin(self) -> None:
         request = build_http_request(
             b'GET', b'http://www.facebook.com/tr/',
