@@ -23,7 +23,7 @@ import multiprocessing.synchronize
 
 from multiprocessing import connection
 from typing import Optional, Tuple, List, Dict
-from typing import Any      # noqa: W0611
+from typing import Any      # noqa: W0611   pylint: disable=unused-import
 
 from ...common.utils import is_threadless
 

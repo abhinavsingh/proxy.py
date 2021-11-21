@@ -122,9 +122,10 @@ class Threadless(multiprocessing.Process):
             DEFAULT_SELECTOR_SELECT_TIMEOUT,
             return_when=asyncio.FIRST_COMPLETED,
         )
-        for f in finished:
-            if f.result():
-                self.cleanup(int(f.get_name()))
+        for task in finished:
+            if task.result():
+                self.cleanup(task._work_id)     # type: ignore
+                # self.cleanup(int(task.get_name()))
 
     def fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
@@ -186,7 +187,8 @@ class Threadless(multiprocessing.Process):
                     writables,
                 ),
             )
-            task.set_name(work_id)
+            task._work_id = work_id     # type: ignore
+            # task.set_name(work_id)
             tasks.add(task)
         return tasks
 
