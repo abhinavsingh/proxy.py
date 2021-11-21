@@ -60,12 +60,12 @@ class Threadless:
 
     def __init__(
             self,
-            client_queue: connection.Connection,
+            work_queue: connection.Connection,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
-        self.client_queue = client_queue
+        self.work_queue = work_queue
         self.flags = flags
         self.event_queue = event_queue
 
@@ -110,7 +110,7 @@ class Threadless:
         # readables & writables that work_id is interested in
         # and are ready for IO.
         work_by_ids: Dict[int, Tuple[Readables, Writables]] = {}
-        client_queue_fileno = self.client_queue.fileno()
+        client_queue_fileno = self.work_queue.fileno()
         new_work_available = False
         for key, mask in selected:
             if key.fileobj == client_queue_fileno:
@@ -150,8 +150,8 @@ class Threadless:
         # unix socket domain environments.
         addr = None
         if not self.flags.unix_socket_path:
-            addr = self.client_queue.recv()
-        fileno = recv_handle(self.client_queue)
+            addr = self.work_queue.recv()
+        fileno = recv_handle(self.work_queue)
         self.works[fileno] = self.flags.work_klass(
             TcpClientConnection(conn=self._fromfd(fileno), addr=addr),
             flags=self.flags,
@@ -242,9 +242,9 @@ class Threadless:
         try:
             self.selector = selectors.DefaultSelector()
             self.selector.register(
-                self.client_queue.fileno(),
+                self.work_queue.fileno(),
                 selectors.EVENT_READ,
-                data=self.client_queue.fileno(),
+                data=self.work_queue.fileno(),
             )
             self.loop = asyncio.get_event_loop_policy().get_event_loop()
             while not self.running.is_set():
@@ -254,7 +254,7 @@ class Threadless:
             pass
         finally:
             assert self.selector is not None
-            self.selector.unregister(self.client_queue.fileno())
-            self.client_queue.close()
+            self.selector.unregister(self.work_queue.fileno())
+            self.work_queue.close()
             assert self.loop is not None
             self.loop.close()

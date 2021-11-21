@@ -185,7 +185,7 @@ class ThreadlessPool:
         pipe = multiprocessing.Pipe()
         self.work_queues.append(pipe[0])
         w = Threadless(
-            client_queue=pipe[1],
+            work_queue=pipe[1],
             flags=self.flags,
             event_queue=self.event_queue,
         )
