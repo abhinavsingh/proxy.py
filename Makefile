@@ -92,7 +92,8 @@ lib-dep:
 		-r requirements.txt \
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
-		-r requirements-tunnel.txt \
+		-r requirements-tunnel.txt && \
+	pip install "setuptools>=42"
 
 lib-lint:
 	python -m tox -e lint
