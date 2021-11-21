@@ -138,12 +138,13 @@ class Acceptor(multiprocessing.Process):
                                     'Accepting new work#{0}'.format(conn.fileno()),
                                 )
                                 addr = None if addr == '' else addr
+                                work = (conn, addr)
                                 if self.flags.local_executor:
                                     assert self._local
-                                    self._local.evq.put((conn, addr))
+                                    self._local.work_queue.put_nowait(work)
                                 else:
                                     addr = None if addr == '' else addr
-                                    self._work(conn, addr)
+                                    self._work(*work)
             except BlockingIOError:
                 pass
             finally:
@@ -186,7 +187,6 @@ class Acceptor(multiprocessing.Process):
         self._local = LocalExecutor(
             self.idd,
             self.flags,
-            self.sock,
             queue.Queue(),
             self.executor_queues,
             self.executor_pids,
@@ -198,7 +198,7 @@ class Acceptor(multiprocessing.Process):
 
     def _stop_local(self) -> None:
         if self._local is not None:
-            self._local.evq.put(False)
+            self._local.work_queue.put(False)
             self._local.join()
 
     def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:

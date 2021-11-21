@@ -43,8 +43,7 @@ class LocalExecutor(threading.Thread):
             self,
             idd: int,
             flags: argparse.Namespace,
-            sock: socket.socket,
-            evq: 'queue.Queue[Any]',
+            work_queue: 'queue.Queue[Any]',
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
             executor_locks: List[multiprocessing.synchronize.Lock],
@@ -53,8 +52,7 @@ class LocalExecutor(threading.Thread):
         super().__init__()
         # Index assigned by `AcceptorPool`
         self.idd = idd
-        self.sock = sock
-        self.evq = evq
+        self.work_queue = work_queue
         self.flags = flags
         self.executor_queues = executor_queues
         self.executor_pids = executor_pids
@@ -67,11 +65,11 @@ class LocalExecutor(threading.Thread):
 
     def run_once(self) -> bool:
         with contextlib.suppress(queue.Empty):
-            payload = self.evq.get(block=True, timeout=0.1)
-            if isinstance(payload, bool) and payload is False:
+            work = self.work_queue.get(block=True, timeout=0.1)
+            if isinstance(work, bool) and work is False:
                 return True
-            assert isinstance(payload, tuple)
-            conn, addr = payload
+            assert isinstance(work, tuple)
+            conn, addr = work
             self.dispatch(conn, addr)
         return False
 
