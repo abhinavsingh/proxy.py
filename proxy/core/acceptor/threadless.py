@@ -36,7 +36,7 @@ from ...common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 logger = logging.getLogger(__name__)
 
 
-class Threadless(multiprocessing.Process):
+class Threadless:
     """Work executor process.
 
     Threadless process provides an event loop, which is shared across
@@ -56,7 +56,6 @@ class Threadless(multiprocessing.Process):
     implements :class:`~proxy.core.acceptor.work.Work` protocol. It
     expects a client connection as work payload and hooks into the
     threadless event loop to handle the client connection.
-
     """
 
     def __init__(

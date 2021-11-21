@@ -97,6 +97,7 @@ class ThreadlessPool:
         self.work_locks: List[multiprocessing.synchronize.Lock] = []
         # List of threadless workers
         self._workers: List[Threadless] = []
+        self._processes: List[multiprocessing.Process] = []
 
     def __enter__(self) -> 'ThreadlessPool':
         self.setup()
@@ -189,18 +190,22 @@ class ThreadlessPool:
             event_queue=self.event_queue,
         )
         self._workers.append(w)
-        w.start()
-        assert w.pid
-        self.work_pids.append(w.pid)
-        logger.debug('Started threadless#%d process#%d', index, w.pid)
+        p = multiprocessing.Process(target=w.run)
+        p.daemon = True
+        self._processes.append(p)
+        p.start()
+        assert p.pid
+        self.work_pids.append(p.pid)
+        logger.debug('Started threadless#%d process#%d', index, p.pid)
 
     def _shutdown_workers(self) -> None:
         """Pop a running threadless worker and clean it up."""
         for index in range(self.flags.num_workers):
             self._workers[index].running.set()
         for index in range(self.flags.num_workers):
-            pid = self._workers[index].pid
-            self._workers[index].join()
+            pid = self.work_pids[index]
+            self._processes.pop().join()
+            self._workers.pop()
             self.work_pids.pop()
             self.work_queues.pop().close()
             logger.debug('Stopped threadless process#%d', pid)
