@@ -125,7 +125,7 @@ class Threadless:
                 work_by_ids[key.data][1].append(key.fileobj)
         return (work_fds, work_by_ids, new_work_available)
 
-    async def wait_for_tasks(
+    async def _wait_for_tasks(
             self,
             pending: Set['asyncio.Task[bool]'],
     ) -> None:
@@ -136,16 +136,16 @@ class Threadless:
         )
         for task in finished:
             if task.result():
-                self.cleanup(task._work_id)     # type: ignore
+                self._cleanup(task._work_id)     # type: ignore
                 # self.cleanup(int(task.get_name()))
 
-    def fromfd(self, fileno: int) -> socket.socket:
+    def _fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
             fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM,
         )
 
-    def accept_client(self) -> None:
+    def _accept_client(self) -> None:
         # Acceptor will not send address for
         # unix socket domain environments.
         addr = None
@@ -153,7 +153,7 @@ class Threadless:
             addr = self.client_queue.recv()
         fileno = recv_handle(self.client_queue)
         self.works[fileno] = self.flags.work_klass(
-            TcpClientConnection(conn=self.fromfd(fileno), addr=addr),
+            TcpClientConnection(conn=self._fromfd(fileno), addr=addr),
             flags=self.flags,
             event_queue=self.event_queue,
         )
@@ -169,22 +169,22 @@ class Threadless:
                 'Exception occurred during initialization',
                 exc_info=e,
             )
-            self.cleanup(fileno)
+            self._cleanup(fileno)
 
     # TODO: Use cached property to avoid execution repeatedly
     # within a second interval.  Note that our selector timeout
     # is 0.1 second which can unnecessarily result in cleanup
     # checks within a second boundary.
-    def cleanup_inactive(self) -> None:
+    def _cleanup_inactive(self) -> None:
         inactive_works: List[int] = []
         for work_id in self.works:
             if self.works[work_id].is_inactive():
                 inactive_works.append(work_id)
         for work_id in inactive_works:
-            self.cleanup(work_id)
+            self._cleanup(work_id)
 
     # TODO: HttpProtocolHandler.shutdown can call flush which may block
-    def cleanup(self, work_id: int) -> None:
+    def _cleanup(self, work_id: int) -> None:
         self.works[work_id].shutdown()
         del self.works[work_id]
         os.close(work_id)
@@ -204,7 +204,7 @@ class Threadless:
             tasks.add(task)
         return tasks
 
-    async def run_once(self) -> None:
+    async def _run_once(self) -> None:
         assert self.loop is not None
         work_fds, work_by_ids, new_work_available = await self._selected_events()
         try:
@@ -214,9 +214,9 @@ class Threadless:
             # client_queue fd itself a.k.a. accept_client
             # will become handle_readables.
             if new_work_available:
-                self.accept_client()
+                self._accept_client()
             if len(work_by_ids) == 0:
-                self.cleanup_inactive()
+                self._cleanup_inactive()
                 return
         finally:
             assert self.selector
@@ -225,14 +225,14 @@ class Threadless:
         # Invoke Threadless.handle_events
         self.unfinished.update(self._create_tasks(work_by_ids))
         logger.debug('Executing {0} works'.format(len(self.unfinished)))
-        await self.wait_for_tasks(self.unfinished)
+        await self._wait_for_tasks(self.unfinished)
         logger.debug(
             'Done executing works, {0} pending'.format(
                 len(self.unfinished),
             ),
         )
         # Remove and shutdown inactive workers
-        self.cleanup_inactive()
+        self._cleanup_inactive()
 
     def run(self) -> None:
         Logger.setup(
@@ -249,7 +249,7 @@ class Threadless:
             self.loop = asyncio.get_event_loop_policy().get_event_loop()
             while not self.running.is_set():
                 # logger.debug('Working on {0} works'.format(len(self.works)))
-                self.loop.run_until_complete(self.run_once())
+                self.loop.run_until_complete(self._run_once())
         except KeyboardInterrupt:
             pass
         finally:
