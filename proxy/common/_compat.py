@@ -12,8 +12,8 @@
 
     .. spelling::
 
-    compat
-    py
+        compat
+        py
 """
 
 import platform

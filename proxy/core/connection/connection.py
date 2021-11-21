@@ -77,7 +77,6 @@ class TcpConnection(ABC):
         return len(self.buffer) > 0
 
     def queue(self, mv: memoryview) -> None:
-        assert isinstance(mv, memoryview)
         self.buffer.append(mv)
 
     def flush(self) -> int:

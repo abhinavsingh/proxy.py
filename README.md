@@ -2038,7 +2038,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2.dev190+gc03c817.d20211121
+proxy.py v2.3.2.dev191+g78b59aa.d20211121
 
 options:
   -h, --help            show this help message and exit
@@ -2188,6 +2188,7 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
+
 # Changelog
 
 ## v2.x
