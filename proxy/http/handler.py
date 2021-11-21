@@ -369,10 +369,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     async def _run_once(self) -> bool:
         events, readables, writables = await self._selected_events()
         try:
-            teardown = await self.handle_events(readables, writables)
-            if teardown:
-                return True
-            return False
+            return await self.handle_events(readables, writables)
         finally:
             assert self.selector
             for fd in events:
