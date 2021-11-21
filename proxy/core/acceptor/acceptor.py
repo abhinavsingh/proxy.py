@@ -121,6 +121,23 @@ class Acceptor(multiprocessing.Process):
         self._total: Optional[int] = None
         self._local: Optional[LocalExecutor] = None
 
+    def accept(self, events: List[Tuple[selectors.SelectorKey, int]]) -> None:
+        for _, mask in events:
+            if mask & selectors.EVENT_READ:
+                if self.sock is not None:
+                    conn, addr = self.sock.accept()
+                    logging.debug(
+                        'Accepting new work#{0}'.format(conn.fileno()),
+                    )
+                    addr = None if addr == '' else addr
+                    work = (conn, addr)
+                    if self.flags.local_executor:
+                        assert self._local
+                        self._local.work_queue.put_nowait(work)
+                    else:
+                        addr = None if addr == '' else addr
+                        self._work(*work)
+
     def run_once(self) -> None:
         if self.selector is not None:
             events = self.selector.select(timeout=1)
@@ -130,21 +147,7 @@ class Acceptor(multiprocessing.Process):
             try:
                 if self.lock.acquire(block=False):
                     locked = True
-                    for _, mask in events:
-                        if mask & selectors.EVENT_READ:
-                            if self.sock is not None:
-                                conn, addr = self.sock.accept()
-                                logging.debug(
-                                    'Accepting new work#{0}'.format(conn.fileno()),
-                                )
-                                addr = None if addr == '' else addr
-                                work = (conn, addr)
-                                if self.flags.local_executor:
-                                    assert self._local
-                                    self._local.work_queue.put_nowait(work)
-                                else:
-                                    addr = None if addr == '' else addr
-                                    self._work(*work)
+                    self.accept(events)
             except BlockingIOError:
                 pass
             finally:

@@ -191,7 +191,7 @@ class ThreadlessPool:
         )
         self._workers.append(w)
         p = multiprocessing.Process(target=w.run)
-        p.daemon = True
+        # p.daemon = True
         self._processes.append(p)
         p.start()
         assert p.pid
@@ -203,7 +203,7 @@ class ThreadlessPool:
         for index in range(self.flags.num_workers):
             self._workers[index].running.set()
         for index in range(self.flags.num_workers):
-            pid = self.work_pids[index]
+            pid = self.work_pids[-1]
             self._processes.pop().join()
             self._workers.pop()
             self.work_pids.pop()
