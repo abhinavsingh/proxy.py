@@ -26,7 +26,7 @@ from proxy.http.parser import HttpParser
 
 from .utils import get_plugin_by_test_name
 
-from ..assertions_test import Assertions
+from ..test_assertions import Assertions
 
 
 class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
@@ -154,7 +154,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
         '_setUp',
-        ('test_modify_post_data_plugin'),
+        [('test_modify_post_data_plugin')],
         indirect=True,
     )   # type: ignore[misc]
     async def test_modify_post_data_plugin(self) -> None:
@@ -207,7 +207,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
         '_setUp',
-        ('test_man_in_the_middle_plugin'),
+        [('test_man_in_the_middle_plugin')],
         indirect=True,
     )   # type: ignore[misc]
     async def test_man_in_the_middle_plugin(self) -> None:
@@ -246,11 +246,12 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         self.server.flush.assert_called_once()
 
         # Server read
-        self.server.recv.return_value = \
+        self.server.recv.return_value = memoryview(
             build_http_response(
                 httpStatusCodes.OK,
                 reason=b'OK', body=b'Original Response From Upstream',
-            )
+            ),
+        )
         await self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.work.buffer[0].tobytes(),
