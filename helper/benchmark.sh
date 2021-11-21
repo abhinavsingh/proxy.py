@@ -8,10 +8,33 @@
 # :copyright: (c) 2013-present by Abhinav Singh and contributors.
 # :license: BSD, see LICENSE for more details.
 #
+usage() {
+  echo "Usage: ./helper/benchmark.sh"
+  echo "You must run this script from proxy.py repo root."
+}
+
+DIRNAME=$(dirname "$0")
+if [ "$DIRNAME" != "./helper" ]; then
+  usage
+  exit 1
+fi
+
+BASENAME=$(basename "$0")
+if [ "$BASENAME" != "benchmark.sh" ]; then
+  usage
+  exit 1
+fi
+
+PWD=$(pwd)
+if [ $(basename $PWD) != "proxy.py" ]; then
+  usage
+  exit 1
+fi
+
 TIMEOUT=1
-QPS=5000
+QPS=8000
 CONCURRENCY=100
-MILLION=100000
+TOTAL_REQUESTS=1000000
 OPEN_FILE_LIMIT=65536
 BACKLOG=OPEN_FILE_LIMIT
 PID_FILE=/tmp/proxy.pid
@@ -34,10 +57,19 @@ if [[ -z "$PID" ]]; then
 fi
 ADDR=$(lsof -Pan -p $PID -i | grep -v COMMAND | awk '{ print $9 }')
 
-echo "CONCURRENCY: $CONCURRENCY workers, TOTAL REQUESTS: $MILLION req, QPS: $QPS req/sec, TIMEOUT: $TIMEOUT sec"
+PRE_RUN_OPEN_FILES=$(./helper/monitor_open_files.sh)
+
+echo "CONCURRENCY: $CONCURRENCY workers, TOTAL REQUESTS: $TOTAL_REQUESTS req, QPS: $QPS req/sec, TIMEOUT: $TIMEOUT sec"
 hey \
-    -n $MILLION \
+    -n $TOTAL_REQUESTS \
     -c $CONCURRENCY \
     -q $QPS \
     -t $TIMEOUT \
     http://$ADDR/http-route-example
+
+POST_RUN_OPEN_FILES=$(./helper/monitor_open_files.sh)
+
+echo $output
+
+echo "Open files diff:"
+diff <( echo "$PRE_RUN_OPEN_FILES" ) <( echo "$POST_RUN_OPEN_FILES" )
