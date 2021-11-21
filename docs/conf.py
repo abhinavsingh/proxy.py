@@ -274,4 +274,5 @@ nitpick_ignore = [
     (_py_class_role, 'UUID'),
     (_py_class_role, 'WebsocketFrame'),
     (_py_class_role, 'Url'),
+    (_py_class_role, '_asyncio.Task'),
 ]
