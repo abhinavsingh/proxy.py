@@ -39,7 +39,8 @@ class TestHttpProxyPluginExamples(Assertions):
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_server_conn = mocker.patch(
-            'proxy.http.proxy.server.TcpServerConnection')
+            'proxy.http.proxy.server.TcpServerConnection',
+        )
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
@@ -101,7 +102,8 @@ class TestHttpProxyPluginExamples(Assertions):
 
         await self.protocol_handler._run_once()
         self.mock_server_conn.assert_called_with(
-            'httpbin.org', DEFAULT_HTTP_PORT)
+            'httpbin.org', DEFAULT_HTTP_PORT,
+        )
         self.mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(
                 b'POST', b'/post',
@@ -298,7 +300,8 @@ class TestHttpProxyPluginExamples(Assertions):
         # Client read
         await self.protocol_handler._run_once()
         self.mock_server_conn.assert_called_with(
-            'super.secure', DEFAULT_HTTP_PORT)
+            'super.secure', DEFAULT_HTTP_PORT,
+        )
         server.connect.assert_called_once()
         queued_request = \
             build_http_request(

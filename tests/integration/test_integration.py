@@ -1,4 +1,15 @@
-"""Test the simplest proxy use scenario for smoke."""
+# -*- coding: utf-8 -*-
+"""
+    proxy.py
+    ~~~~~~~~
+    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
+    Network monitoring, controls & Application development, testing, debugging.
+
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
+
+    Test the simplest proxy use scenario for smoke.
+"""
 from pathlib import Path
 from subprocess import check_output, Popen
 from typing import Generator

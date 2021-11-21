@@ -38,9 +38,11 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         self.mock_sign_csr = mocker.patch('proxy.http.proxy.server.sign_csr')
         self.mock_gen_csr = mocker.patch('proxy.http.proxy.server.gen_csr')
         self.mock_gen_public_key = mocker.patch(
-            'proxy.http.proxy.server.gen_public_key')
+            'proxy.http.proxy.server.gen_public_key',
+        )
         self.mock_server_conn = mocker.patch(
-            'proxy.http.proxy.server.TcpServerConnection')
+            'proxy.http.proxy.server.TcpServerConnection',
+        )
         self.mock_ssl_context = mocker.patch('ssl.create_default_context')
         self.mock_ssl_wrap = mocker.patch('ssl.wrap_socket')
 
@@ -151,7 +153,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
 
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
-        "_setUp",
+        '_setUp',
         ('test_modify_post_data_plugin'),
         indirect=True,
     )   # type: ignore[misc]
@@ -198,12 +200,13 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         #     body=modified,
         # )
         response = HttpParser.response(
-            self.server.queue.call_args_list[0][0][0].tobytes())
+            self.server.queue.call_args_list[0][0][0].tobytes(),
+        )
         self.assertEqual(response.body, modified)
 
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
-        "_setUp",
+        '_setUp',
         ('test_man_in_the_middle_plugin'),
         indirect=True,
     )   # type: ignore[misc]

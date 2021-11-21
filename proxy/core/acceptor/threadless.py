@@ -216,9 +216,11 @@ class Threadless(multiprocessing.Process):
         if num_works > 0:
             logger.debug('Executing {0} works'.format(num_works))
             await self.wait_for_tasks(self.unfinished)
-            logger.debug('Done executing works, {0} pending'.format(
-                len(self.unfinished),
-            ))
+            logger.debug(
+                'Done executing works, {0} pending'.format(
+                    len(self.unfinished),
+                ),
+            )
         # Remove and shutdown inactive workers
         self.cleanup_inactive()
 

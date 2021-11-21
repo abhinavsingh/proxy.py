@@ -119,7 +119,8 @@ class TestHttpProtocolHandler(Assertions):
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_server_connection = mocker.patch(
-            'proxy.http.proxy.server.TcpServerConnection')
+            'proxy.http.proxy.server.TcpServerConnection',
+        )
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)

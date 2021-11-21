@@ -27,9 +27,7 @@ endif
 .PHONY: container container-run container-release
 .PHONY: devtools dashboard dashboard-clean
 
-all:
-	echo $(IMAGE_TAG)
-	# lib-test
+all: lib-test
 
 https-certificates:
 	# Generate server key

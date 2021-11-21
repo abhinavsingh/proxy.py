@@ -53,12 +53,14 @@ class BaseTcpServerHandler(Work):
         if self.flags.unix_socket_path:     # pragma: no cover
             logger.debug(
                 'Work#{0} accepted from {1}'.format(
-                    self.work.connection.fileno(), self.work.address),
+                    self.work.connection.fileno(), self.work.address,
+                ),
             )
         else:
             logger.debug(
                 'Work#{0} accepted from {1}'.format(
-                    self.work.connection.fileno(), self.work.address),
+                    self.work.connection.fileno(), self.work.address,
+                ),
             )
 
     @abstractmethod

@@ -135,7 +135,8 @@ class Acceptor(multiprocessing.Process):
                             if self.sock is not None:
                                 conn, addr = self.sock.accept()
                                 logging.debug(
-                                    'Accepting new work#{0}'.format(conn.fileno()))
+                                    'Accepting new work#{0}'.format(conn.fileno()),
+                                )
                                 if self.flags.local_executor:
                                     assert self._local
                                     self._local.evq.put((conn, addr))

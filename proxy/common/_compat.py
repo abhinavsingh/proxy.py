@@ -1,9 +1,19 @@
-"""Compatibility code for using Proxy.py across various versions of Python.
+# -*- coding: utf-8 -*-
+"""
+    proxy.py
+    ~~~~~~~~
+    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
+    Network monitoring, controls & Application development, testing, debugging.
 
-.. spelling::
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
 
-   compat
-   py
+    Compatibility code for using Proxy.py across various versions of Python.
+
+    .. spelling::
+
+    compat
+    py
 """
 
 import platform

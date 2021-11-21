@@ -135,10 +135,12 @@ def mock_selector_for_client_read(self: Any) -> None:
 
 class TestWebServerPluginWithPacFilePlugin(Assertions):
 
-    @pytest.fixture(autouse=True, params=[
-        PAC_FILE_PATH,
-        PAC_FILE_CONTENT,
-    ])  # type: ignore[misc]
+    @pytest.fixture(
+        autouse=True, params=[
+            PAC_FILE_PATH,
+            PAC_FILE_CONTENT,
+        ],
+    )  # type: ignore[misc]
     def _setUp(self, request: Any, mocker: MockerFixture) -> None:
         self.mock_fromfd = mocker.patch('socket.fromfd')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
@@ -152,7 +154,8 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
         else:
             self.expected_response = PAC_FILE_CONTENT
         self.flags = FlagParser.initialize(
-            pac_file=self.pac_file, threaded=True)
+            pac_file=self.pac_file, threaded=True,
+        )
         self.flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
             bytes_(PLUGIN_WEB_SERVER),
@@ -198,7 +201,8 @@ class TestStaticWebServerPlugin(Assertions):
         # Setup a static directory
         self.static_server_dir = os.path.join(tempfile.gettempdir(), 'static')
         self.index_file_path = os.path.join(
-            self.static_server_dir, 'index.html')
+            self.static_server_dir, 'index.html',
+        )
         self.html_file_content = b'''<html><head></head><body><h1>Proxy.py Testing</h1></body></html>'''
         os.makedirs(self.static_server_dir, exist_ok=True)
         with open(self.index_file_path, 'wb') as f:
@@ -264,8 +268,10 @@ class TestStaticWebServerPlugin(Assertions):
             bytes_(len(encoded_html_file_content)),
         )
         assert response.body
-        self.assertEqual(gzip.decompress(response.body),
-                         self.html_file_content)
+        self.assertEqual(
+            gzip.decompress(response.body),
+            self.html_file_content,
+        )
 
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_static_web_server_serves_404(self) -> None:

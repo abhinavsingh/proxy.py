@@ -27,7 +27,8 @@ class TestHttpProxyPlugin:
     @pytest.fixture(autouse=True)   # type: ignore[misc]
     def _setUp(self, mocker: MockerFixture) -> None:
         self.mock_server_conn = mocker.patch(
-            'proxy.http.proxy.server.TcpServerConnection')
+            'proxy.http.proxy.server.TcpServerConnection',
+        )
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_fromfd = mocker.patch('socket.fromfd')
 
@@ -78,7 +79,8 @@ class TestHttpProxyPlugin:
         await self.protocol_handler._run_once()
 
         self.mock_server_conn.assert_called_with(
-            'upstream.host', DEFAULT_HTTP_PORT)
+            'upstream.host', DEFAULT_HTTP_PORT,
+        )
         self.plugin.return_value.before_upstream_connection.assert_called()
         self.plugin.return_value.handle_client_request.assert_called()
 

@@ -2011,8 +2011,8 @@ Simply run the following command from repo root to start benchmark
 ```console
 ❯ proxy -h
 usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS] [--backlog BACKLOG]
-          [--hostname HOSTNAME] [--port PORT]
+          [--threaded] [--num-workers NUM_WORKERS] [--local-executor]
+          [--backlog BACKLOG] [--hostname HOSTNAME] [--port PORT]
           [--unix-socket-path UNIX_SOCKET_PATH]
           [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
           [--log-file LOG_FILE] [--log-format LOG_FORMAT]
@@ -2038,7 +2038,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2
+proxy.py v2.3.2.dev184+gc71f91f.d20211121
 
 options:
   -h, --help            show this help message and exit
@@ -2055,6 +2055,13 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
+  --local-executor      Default: False. Disabled by default. When enabled
+                        acceptors will make use of local (same process)
+                        executor instead of distributing load across remote
+                        (other process) executors. Enable this option to
+                        achieve CPU affinity between acceptors and executors,
+                        instead of using underlying OS kernel scheduling
+                        algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server
   --hostname HOSTNAME   Default: ::1. Server IP address.
@@ -2181,7 +2188,6 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
-
 # Changelog
 
 ## v2.x

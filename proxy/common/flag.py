@@ -342,7 +342,7 @@ class FlagParser:
             opts.get(
                 'local_executor',
                 args.local_executor,
-            )
+            ),
         )
 
         args.proxy_py_data_dir = DEFAULT_DATA_DIRECTORY_PATH
