@@ -82,7 +82,7 @@ class Threadless(multiprocessing.Process):
 
     async def _selected_events(self) -> Tuple[
             Dict[socket.socket, int],
-            Dict[int, Tuple[Readables, Writables]]
+            Dict[int, Tuple[Readables, Writables]],
     ]:
         assert self.selector is not None
         events: Dict[socket.socket, int] = {}

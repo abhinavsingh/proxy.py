@@ -22,7 +22,8 @@ import threading
 import multiprocessing.synchronize
 
 from multiprocessing import connection
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple, List, Dict
+from typing import Any      # noqa: W0611
 
 from ...common.utils import is_threadless
 
@@ -42,7 +43,7 @@ class LocalExecutor(threading.Thread):
             idd: int,
             flags: argparse.Namespace,
             sock: socket.socket,
-            evq: queue.Queue[Any],
+            evq: 'queue.Queue[Any]',
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
             executor_locks: List[multiprocessing.synchronize.Lock],

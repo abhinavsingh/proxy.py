@@ -50,6 +50,7 @@ class cached_property:
 
     .. spelling::
 
+       backports
        getter
        Arndt
     """
