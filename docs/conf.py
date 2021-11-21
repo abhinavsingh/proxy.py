@@ -1,5 +1,5 @@
 # pylint: disable=invalid-name
-# Requires Python 3.6+
+# Requires Python 3.7+
 # Ref: https://www.sphinx-doc.org/en/master/usage/configuration.html
 """Configuration for the Sphinx documentation generator."""
 
