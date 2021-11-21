@@ -19,9 +19,8 @@ import socket
 import asyncio
 import logging
 import selectors
-import contextlib
 
-from typing import Tuple, List, Union, Optional, AsyncGenerator, Dict, Any
+from typing import Tuple, List, Union, Optional, Dict, Any
 
 from .plugin import HttpProtocolHandlerPlugin
 from .parser import HttpParser, httpParserStates, httpParserTypes
@@ -64,11 +63,6 @@ flags.add_argument(
     'an inactive connection must be dropped.  Inactivity is defined by no '
     'data sent or received by the client.',
 )
-
-SelectedEventsGeneratorType = AsyncGenerator[
-    Tuple[Readables, Writables],
-    None,
-]
 
 
 class HttpProtocolHandler(BaseTcpServerHandler):
@@ -354,8 +348,10 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn
 
-    @contextlib.asynccontextmanager
-    async def _selected_events(self) -> SelectedEventsGeneratorType:
+    # FIXME: Returning events is only necessary because we cannot use async context manager
+    # for < Python 3.8.  As a reason, this method is no longer a context manager and caller
+    # is responsible for unregistering the descriptors.
+    async def _selected_events(self) -> Tuple[Dict[socket.socket, int], Readables, Writables]:
         assert self.selector
         events = await self.get_events()
         for fd in events:
@@ -368,16 +364,19 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 readables.append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 writables.append(key.fileobj)
-        yield (readables, writables)
-        for fd in events:
-            self.selector.unregister(fd)
+        return (events, readables, writables)
 
     async def _run_once(self) -> bool:
-        async with self._selected_events() as (readables, writables):
+        events, readables, writables = await self._selected_events()
+        try:
             teardown = await self.handle_events(readables, writables)
             if teardown:
                 return True
             return False
+        finally:
+            assert self.selector
+            for fd in events:
+                self.selector.unregister(fd)
 
     def _flush(self) -> None:
         assert self.selector

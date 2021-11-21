@@ -18,12 +18,11 @@ import logging
 import asyncio
 import argparse
 import selectors
-import contextlib
 import multiprocessing
 
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
-from typing import Dict, Optional, Tuple, List, AsyncGenerator, Set
+from typing import Dict, Optional, Tuple, List, Set
 
 from .work import Work
 
@@ -81,9 +80,9 @@ class Threadless(multiprocessing.Process):
         # Ref https://github.com/abhinavsingh/proxy.py/runs/4279055360?check_suite_focus=true
         self.unfinished: Set['asyncio.Task[bool]'] = set()
 
-    @contextlib.asynccontextmanager
-    async def selected_events(self) -> AsyncGenerator[
-        Dict[int, Tuple[Readables, Writables]], None,
+    async def _selected_events(self) -> Tuple[
+            Dict[socket.socket, int],
+            Dict[int, Tuple[Readables, Writables]]
     ]:
         assert self.selector is not None
         events: Dict[socket.socket, int] = {}
@@ -109,9 +108,7 @@ class Threadless(multiprocessing.Process):
                 work_by_ids[key.data][0].append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 work_by_ids[key.data][1].append(key.fileobj)
-        yield work_by_ids
-        for fd in events:
-            self.selector.unregister(fd)
+        return (events, work_by_ids)
 
     # TODO: Use correct future typing annotations
     async def wait_for_tasks(
@@ -195,11 +192,17 @@ class Threadless(multiprocessing.Process):
 
     async def run_once(self) -> None:
         assert self.loop is not None
-        async with self.selected_events() as work_by_ids:
+        events, work_by_ids = await self._selected_events()
+        try:
             if len(work_by_ids) == 0:
                 # Remove and shutdown inactive connections
                 self.cleanup_inactive()
                 return
+        finally:
+            assert self.selector
+            for fd in events:
+                self.selector.unregister(fd)
+
         # Note that selector from now on is idle,
         # until all the logic below completes.
         #

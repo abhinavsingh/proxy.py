@@ -25,7 +25,7 @@ from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VA
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.utils import cached_property
+from ...common.backports import cached_property
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
