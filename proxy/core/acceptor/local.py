@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class LocalExecutor(Threadless['queue.Queue[Any]']):
-    """Listens for READ_EVENT over a queue, accepts and initializes work."""
+    """A threadless executor implementation which uses a queue to receive new work."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)

@@ -26,8 +26,13 @@ logger = logging.getLogger(__name__)
 
 
 class RemoteExecutor(Threadless[connection.Connection]):
-    """RemoteExecutor receives work over a Connection object.
-    RemoteExecutor uses ``recv_handle`` to accept incoming work.
+    """A threadless executor implementation which receives work over a connection.
+
+    NOTE: RemoteExecutor uses ``recv_handle`` to accept file descriptors.
+
+    TODO: Refactor and abstract ``recv_handle`` part so that a threaded
+    remote executor can also accept work over a connection.  Currently,
+    remote executors must be running in a process.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

@@ -57,34 +57,17 @@ class Acceptor(multiprocessing.Process):
     """Work acceptor process.
 
     On start-up, `Acceptor` accepts a file descriptor which will be used to
-    accept new work.  File descriptor is accepted over a `fd_queue` which is
-    closed immediately after receiving the descriptor.
+    accept new work.  File descriptor is accepted over a `fd_queue`.
 
     `Acceptor` goes on to listen for new work over the received server socket.
     By default, `Acceptor` will spawn a new thread to handle each work.
 
-    However, when `--threadless` option is enabled, `Acceptor` process
-    will also pre-spawns a
-    :class:`~proxy.core.acceptor.threadless.Threadless` process during
-    start-up.  Accepted work is passed to these
-    :class:`~proxy.core.acceptor.threadless.Threadless` processes.
-    `Acceptor` process shares accepted work with a
-    :class:`~proxy.core.acceptor.threadless.Threadless` process over
-    it's dedicated pipe.
-
-    TODO(abhinavsingh): Open questions::
-
-       1. Instead of starting
-          :class:`~proxy.core.acceptor.threadless.Threadless` process,
-          can we work with a
-          :class:`~proxy.core.acceptor.threadless.Threadless` thread?
-       2. What are the performance implications of sharing fds between
-          threads vs processes?
-       3. How much performance degradation happens when acceptor and
-          threadless processes are running on separate CPU cores?
-       4. Can we ensure both acceptor and threadless process are pinned to
-          the same CPU core?
-
+    However, when `--threadless` option is enabled without `--local-executor`,
+    `Acceptor` process will also pre-spawns a
+    :class:`~proxy.core.acceptor.threadless.Threadless` process during start-up.
+    Accepted work is delegated to these :class:`~proxy.core.acceptor.threadless.Threadless`
+    processes. `Acceptor` process shares accepted work with a
+    :class:`~proxy.core.acceptor.threadless.Threadless` process over it's dedicated pipe.
     """
 
     def __init__(

@@ -167,6 +167,7 @@ class Proxy:
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
         self.flags.port = self.listener._port
+        # Setup EventManager
         if self.flags.enable_events:
             logger.info('Core Event enabled')
             self.event_manager = EventManager()
@@ -174,12 +175,14 @@ class Proxy:
         event_queue = self.event_manager.queue \
             if self.event_manager is not None \
             else None
+        # Setup remote executors
         if not self.flags.local_executor:
             self.executors = ThreadlessPool(
                 flags=self.flags,
                 event_queue=event_queue,
             )
             self.executors.setup()
+        # Setup acceptors
         self.acceptors = AcceptorPool(
             flags=self.flags,
             listener=self.listener,

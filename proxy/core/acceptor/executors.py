@@ -76,12 +76,6 @@ class ThreadlessPool:
 
     If necessary, start multiple threadless pool with different
     work classes.
-
-    TODO: We could optimize multiple-work-type scenario
-    by making Threadless class constructor independent of ``work_klass``.
-    We could then relay the ``work_klass`` during work delegation.
-    This will also make ThreadlessPool constructor agnostic
-    of ``work_klass``.
     """
 
     def __init__(

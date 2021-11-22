@@ -39,9 +39,9 @@ logger = logging.getLogger(__name__)
 
 
 class Threadless(ABC, Generic[T]):
-    """Work executor process.
+    """Work executor base class.
 
-    Threadless process provides an event loop, which is shared across
+    Threadless provides an event loop, which is shared across
     multiple :class:`~proxy.core.acceptor.work.Work` instances to handle
     work.
 
