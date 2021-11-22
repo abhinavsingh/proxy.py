@@ -15,7 +15,6 @@
 """
 import queue
 import socket
-import asyncio
 import logging
 import argparse
 import selectors
@@ -107,10 +106,6 @@ class Acceptor(multiprocessing.Process):
         self._local_work_queue: Optional['queue.Queue[Any]'] = None
         self._local: Optional[LocalExecutor] = None
         self._lthread: Optional[threading.Thread] = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        if not self.flags.local_executor and \
-                not is_threadless(self.flags.threadless, self.flags.threaded):
-            self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
     def accept(self, events: List[Tuple[selectors.SelectorKey, int]]) -> None:
         for _, mask in events:
@@ -172,8 +167,6 @@ class Acceptor(multiprocessing.Process):
             if self.flags.local_executor:
                 self._stop_local()
             self.sock.close()
-            if self._loop:
-                self._loop.close()
             logger.debug('Acceptor#%d shutdown', self.idd)
 
     def _start_local(self) -> None:
