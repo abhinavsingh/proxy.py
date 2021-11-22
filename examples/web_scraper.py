@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
-import socket
 
 from typing import Dict
 
@@ -40,7 +39,7 @@ class WebScraper(Work):
     only PUBSUB protocol.
     """
 
-    async def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         """Return sockets and events (read or write) that we are interested in."""
         return {}
 

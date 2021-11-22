@@ -143,22 +143,22 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             logger.debug('Client connection closed')
             super().shutdown()
 
-    async def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         # Get default client events
-        events: Dict[socket.socket, int] = await super().get_events()
+        events: Dict[int, int] = await super().get_events()
         # HttpProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
-            for r in plugin_read_desc:
-                if r not in events:
-                    events[r] = selectors.EVENT_READ
+            for rfileno in plugin_read_desc:
+                if rfileno not in events:
+                    events[rfileno] = selectors.EVENT_READ
                 else:
-                    events[r] |= selectors.EVENT_READ
-            for w in plugin_write_desc:
-                if w not in events:
-                    events[w] = selectors.EVENT_WRITE
+                    events[rfileno] |= selectors.EVENT_READ
+            for wfileno in plugin_write_desc:
+                if wfileno not in events:
+                    events[wfileno] = selectors.EVENT_WRITE
                 else:
-                    events[w] |= selectors.EVENT_WRITE
+                    events[wfileno] |= selectors.EVENT_WRITE
         return events
 
     # We override super().handle_events and never call it
@@ -237,7 +237,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return False
 
     async def handle_writables(self, writables: Writables) -> bool:
-        if self.work.connection in writables and self.work.has_buffer():
+        if self.work.connection.fileno() in writables and self.work.has_buffer():
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
 
@@ -267,7 +267,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return False
 
     async def handle_readables(self, readables: Readables) -> bool:
-        if self.work.connection in readables:
+        if self.work.connection.fileno() in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
             try:
@@ -294,7 +294,72 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return False
 
     ##
-    # run() is here to maintain backward compatibility for threaded mode
+    # Internal methods
+    ##
+
+    def _encryption_enabled(self) -> bool:
+        return self.flags.keyfile is not None and \
+            self.flags.certfile is not None
+
+    def _optionally_wrap_socket(
+            self, conn: socket.socket,
+    ) -> Union[ssl.SSLSocket, socket.socket]:
+        """Attempts to wrap accepted client connection using provided certificates.
+
+        Shutdown and closes client connection upon error.
+        """
+        if self._encryption_enabled():
+            assert self.flags.keyfile and self.flags.certfile
+            # TODO(abhinavsingh): Insecure TLS versions must not be accepted by default
+            conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
+        return conn
+
+    # FIXME: Returning events is only necessary because we cannot use async context manager
+    # for < Python 3.8.  As a reason, this method is no longer a context manager and caller
+    # is responsible for unregistering the descriptors.
+    async def _selected_events(self) -> Tuple[Dict[int, int], Readables, Writables]:
+        assert self.selector
+        events = await self.get_events()
+        for fd in events:
+            self.selector.register(fd, events[fd])
+        ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
+        readables = []
+        writables = []
+        for key, mask in ev:
+            if mask & selectors.EVENT_READ:
+                readables.append(key.fileobj)
+            if mask & selectors.EVENT_WRITE:
+                writables.append(key.fileobj)
+        return (events, readables, writables)
+
+    def _flush(self) -> None:
+        assert self.selector
+        logger.debug('Flushing pending data')
+        try:
+            self.selector.register(
+                self.work.connection,
+                selectors.EVENT_WRITE,
+            )
+            while self.work.has_buffer():
+                logging.debug('Waiting for client read ready')
+                ev: List[
+                    Tuple[selectors.SelectorKey, int]
+                ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
+                if len(ev) == 0:
+                    continue
+                self.work.flush()
+        except BrokenPipeError:
+            pass
+        finally:
+            self.selector.unregister(self.work.connection)
+
+    def _connection_inactive_for(self) -> float:
+        return time.time() - self.last_activity
+
+    ##
+    # run() and _run_once() are here to maintain backward compatibility
+    # with threaded mode.  These methods are only called when running
+    # in threaded mode.
     ##
 
     def run(self) -> None:
@@ -327,74 +392,13 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         finally:
             self.shutdown()
 
-    ##
-    # Internal methods
-    ##
-
-    def _encryption_enabled(self) -> bool:
-        return self.flags.keyfile is not None and \
-            self.flags.certfile is not None
-
-    def _optionally_wrap_socket(
-            self, conn: socket.socket,
-    ) -> Union[ssl.SSLSocket, socket.socket]:
-        """Attempts to wrap accepted client connection using provided certificates.
-
-        Shutdown and closes client connection upon error.
-        """
-        if self._encryption_enabled():
-            assert self.flags.keyfile and self.flags.certfile
-            # TODO(abhinavsingh): Insecure TLS versions must not be accepted by default
-            conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
-        return conn
-
-    # FIXME: Returning events is only necessary because we cannot use async context manager
-    # for < Python 3.8.  As a reason, this method is no longer a context manager and caller
-    # is responsible for unregistering the descriptors.
-    async def _selected_events(self) -> Tuple[Dict[socket.socket, int], Readables, Writables]:
-        assert self.selector
-        events = await self.get_events()
-        for fd in events:
-            self.selector.register(fd, events[fd])
-        ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
-        readables = []
-        writables = []
-        for key, mask in ev:
-            if mask & selectors.EVENT_READ:
-                readables.append(key.fileobj)
-            if mask & selectors.EVENT_WRITE:
-                writables.append(key.fileobj)
-        return (events, readables, writables)
-
     async def _run_once(self) -> bool:
         events, readables, writables = await self._selected_events()
         try:
             return await self.handle_events(readables, writables)
         finally:
             assert self.selector
+            # TODO: Like Threadless we should not unregister
+            # work fds repeatedly.
             for fd in events:
                 self.selector.unregister(fd)
-
-    def _flush(self) -> None:
-        assert self.selector
-        logger.debug('Flushing pending data')
-        try:
-            self.selector.register(
-                self.work.connection,
-                selectors.EVENT_WRITE,
-            )
-            while self.work.has_buffer():
-                logging.debug('Waiting for client read ready')
-                ev: List[
-                    Tuple[selectors.SelectorKey, int]
-                ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
-                if len(ev) == 0:
-                    continue
-                self.work.flush()
-        except BrokenPipeError:
-            pass
-        finally:
-            self.selector.unregister(self.work.connection)
-
-    def _connection_inactive_for(self) -> float:
-        return time.time() - self.last_activity

@@ -127,6 +127,7 @@ lib-coverage:
 	$(OPEN) htmlcov/index.html
 
 lib-profile:
+	ulimit -n 65536 && \
 	sudo py-spy record \
 		-o profile.svg \
 		-t -F -s -- \
@@ -137,6 +138,8 @@ lib-profile:
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
 			--local-executor \
+			--backlog 65536 \
+			--open-file-limit 65536
 			--log-file /dev/null
 
 devtools:

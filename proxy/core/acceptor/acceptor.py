@@ -26,6 +26,7 @@ from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
 from typing import List, Optional, Tuple
+from typing import Any
 
 from ...common.flag import flags
 from ...common.utils import is_threadless
@@ -119,6 +120,7 @@ class Acceptor(multiprocessing.Process):
         self.sock: Optional[socket.socket] = None
         # Internals
         self._total: Optional[int] = None
+        self._local_work_queue: Optional['queue.Queue[Any]'] = None
         self._local: Optional[LocalExecutor] = None
         self._lthread: Optional[threading.Thread] = None
 
@@ -133,8 +135,8 @@ class Acceptor(multiprocessing.Process):
                     addr = None if addr == '' else addr
                     work = (conn, addr)
                     if self.flags.local_executor:
-                        assert self._local
-                        self._local.work_queue.put_nowait(work)
+                        assert self._local_work_queue
+                        self._local_work_queue.put_nowait(work)
                     else:
                         addr = None if addr == '' else addr
                         self._work(*work)
@@ -188,8 +190,9 @@ class Acceptor(multiprocessing.Process):
 
     def _start_local(self) -> None:
         assert self.sock
+        self._local_work_queue = queue.Queue()
         self._local = LocalExecutor(
-            work_queue=queue.Queue(),
+            work_queue=self._local_work_queue,
             flags=self.flags,
             event_queue=self.event_queue,
         )
@@ -198,8 +201,8 @@ class Acceptor(multiprocessing.Process):
         self._lthread.start()
 
     def _stop_local(self) -> None:
-        if self._lthread is not None and self._local is not None:
-            self._local.work_queue.put(False)
+        if self._lthread is not None and self._local_work_queue is not None:
+            self._local_work_queue.put(False)
             self._lthread.join()
 
     def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:

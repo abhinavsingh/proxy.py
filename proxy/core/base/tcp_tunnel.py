@@ -12,7 +12,6 @@
 
        tcp
 """
-import socket
 import logging
 import selectors
 
@@ -65,19 +64,19 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
             self.upstream.close()
         super().shutdown()
 
-    async def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         # Get default client events
-        ev: Dict[socket.socket, int] = await super().get_events()
+        ev: Dict[int, int] = await super().get_events()
         # Read from server if we are connected
         if self.upstream and self.upstream._conn is not None:
-            ev[self.upstream.connection] = selectors.EVENT_READ
+            ev[self.upstream.connection.fileno()] = selectors.EVENT_READ
         # If there is pending buffer for server
         # also register for EVENT_WRITE events
         if self.upstream and self.upstream.has_buffer():
-            if self.upstream.connection in ev:
-                ev[self.upstream.connection] |= selectors.EVENT_WRITE
+            if self.upstream.connection.fileno() in ev:
+                ev[self.upstream.connection.fileno()] |= selectors.EVENT_WRITE
             else:
-                ev[self.upstream.connection] = selectors.EVENT_WRITE
+                ev[self.upstream.connection.fileno()] = selectors.EVENT_WRITE
         return ev
 
     async def handle_events(
@@ -90,7 +89,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
         if do_shutdown:
             return do_shutdown
         # Handle server events
-        if self.upstream and self.upstream.connection in readables:
+        if self.upstream and self.upstream.connection.fileno() in readables:
             data = self.upstream.recv()
             if data is None:
                 # Server closed connection
@@ -98,7 +97,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
                 return True
             # tunnel data to client
             self.work.queue(data)
-        if self.upstream and self.upstream.connection in writables:
+        if self.upstream and self.upstream.connection.fileno() in writables:
             self.upstream.flush()
         return False
 

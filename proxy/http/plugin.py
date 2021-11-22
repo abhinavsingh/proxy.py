@@ -71,9 +71,7 @@ class HttpProtocolHandlerPlugin(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def get_descriptors(
-            self,
-    ) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         """Implementations must return a list of descriptions that they wish to
         read from and write into."""
         return [], []  # pragma: no cover

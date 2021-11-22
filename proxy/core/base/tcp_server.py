@@ -12,7 +12,6 @@
 
        tcp
 """
-import socket
 import logging
 import selectors
 
@@ -68,19 +67,19 @@ class BaseTcpServerHandler(Work):
         """Optionally return True to close client connection."""
         pass    # pragma: no cover
 
-    async def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         events = {}
         # We always want to read from client
         # Register for EVENT_READ events
         if self.must_flush_before_shutdown is False:
-            events[self.work.connection] = selectors.EVENT_READ
+            events[self.work.connection.fileno()] = selectors.EVENT_READ
         # If there is pending buffer for client
         # also register for EVENT_WRITE events
         if self.work.has_buffer():
-            if self.work.connection in events:
-                events[self.work.connection] |= selectors.EVENT_WRITE
+            if self.work.connection.fileno() in events:
+                events[self.work.connection.fileno()] |= selectors.EVENT_WRITE
             else:
-                events[self.work.connection] = selectors.EVENT_WRITE
+                events[self.work.connection.fileno()] = selectors.EVENT_WRITE
         return events
 
     async def handle_events(
@@ -102,7 +101,7 @@ class BaseTcpServerHandler(Work):
 
     async def handle_writables(self, writables: Writables) -> bool:
         teardown = False
-        if self.work.connection in writables and self.work.has_buffer():
+        if self.work.connection.fileno() in writables and self.work.has_buffer():
             logger.debug(
                 'Flushing buffer to client {0}'.format(self.work.address),
             )
@@ -115,7 +114,7 @@ class BaseTcpServerHandler(Work):
 
     async def handle_readables(self, readables: Readables) -> bool:
         teardown = False
-        if self.work.connection in readables:
+        if self.work.connection.fileno() in readables:
             data = self.work.recv(self.flags.client_recvbuf_size)
             if data is None:
                 logger.debug(

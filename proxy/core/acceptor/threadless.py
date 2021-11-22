@@ -79,6 +79,12 @@ class Threadless(ABC, Generic[T]):
         #
         # Ref https://github.com/abhinavsingh/proxy.py/runs/4279055360?check_suite_focus=true
         self.unfinished: Set['asyncio.Task[bool]'] = set()
+        self.registered_events_by_work_ids: Dict[
+            # work_id
+            int,
+            # fileno, mask
+            Dict[int, int]
+        ] = {}
         self.wait_timeout: float = DEFAULT_SELECTOR_SELECT_TIMEOUT
 
     @abstractproperty
@@ -137,28 +143,51 @@ class Threadless(ABC, Generic[T]):
             self._cleanup(fileno)
 
     async def _selected_events(self) -> Tuple[
-            List[socket.socket],
             Dict[int, Tuple[Readables, Writables]],
             bool,
     ]:
         """For each work, collects events they are interested in.
         Calls select for events of interest.  """
         assert self.selector is not None
-        work_fds: List[socket.socket] = []
         for work_id in self.works:
             worker_events = await self.works[work_id].get_events()
-            for fd in worker_events:
-                # Can throw ValueError: Invalid file descriptor: -1
-                #
-                # A guard within Work classes may not help here due to
-                # asynchronous nature.  Hence, threadless will handle
-                # ValueError exceptions raised by selector.register
-                # for invalid fd.
-                self.selector.register(
-                    fd, events=worker_events[fd],
-                    data=work_id,
-                )
-                work_fds.append(fd)
+            # NOTE: Current assumption is that multiple works will not
+            # be interested in the same fd.  Descriptors of interests
+            # returned by work must be unique.
+            #
+            # TODO: Ideally we must diff and unregister socks not
+            # returned of interest within this _select_events call
+            # but exists in registered_socks_by_work_ids
+            for fileno in worker_events:
+                if work_id not in self.registered_events_by_work_ids:
+                    self.registered_events_by_work_ids[work_id] = {}
+                mask = worker_events[fileno]
+                if fileno in self.registered_events_by_work_ids[work_id]:
+                    oldmask = self.registered_events_by_work_ids[work_id][fileno]
+                    if mask != oldmask:
+                        self.selector.modify(
+                            fileno, events=mask,
+                            data=work_id,
+                        )
+                        self.registered_events_by_work_ids[work_id][fileno] = mask
+                        logger.debug(
+                            'fd#{0} modified for mask#{1} by work#{2}'.format(
+                                fileno, mask, work_id))
+                else:
+                    # Can throw ValueError: Invalid file descriptor: -1
+                    #
+                    # A guard within Work classes may not help here due to
+                    # asynchronous nature.  Hence, threadless will handle
+                    # ValueError exceptions raised by selector.register
+                    # for invalid fd.
+                    self.selector.register(
+                        fileno, events=mask,
+                        data=work_id,
+                    )
+                    self.registered_events_by_work_ids[work_id][fileno] = mask
+                    logger.debug(
+                        'fd#{0} registered for mask#{1} by work#{2}'.format(
+                            fileno, mask, work_id))
         selected = self.selector.select(
             timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT,
         )
@@ -181,7 +210,7 @@ class Threadless(ABC, Generic[T]):
                 work_by_ids[key.data][0].append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 work_by_ids[key.data][1].append(key.fileobj)
-        return (work_fds, work_by_ids, new_work_available)
+        return (work_by_ids, new_work_available)
 
     async def _wait_for_tasks(
             self,
@@ -217,6 +246,15 @@ class Threadless(ABC, Generic[T]):
 
     # TODO: HttpProtocolHandler.shutdown can call flush which may block
     def _cleanup(self, work_id: int) -> None:
+        if work_id in self.registered_events_by_work_ids:
+            assert self.selector
+            for fileno in self.registered_events_by_work_ids[work_id]:
+                logger.debug(
+                    'fd#{0} unregistered by work#{1}'.format(
+                        fileno, work_id))
+                self.selector.unregister(fileno)
+            self.registered_events_by_work_ids[work_id].clear()
+            del self.registered_events_by_work_ids[work_id]
         self.works[work_id].shutdown()
         del self.works[work_id]
         if self.work_queue_fileno() is not None:
@@ -239,33 +277,28 @@ class Threadless(ABC, Generic[T]):
 
     async def _run_once(self) -> bool:
         assert self.loop is not None
-        work_fds, work_by_ids, new_work_available = await self._selected_events()
-        try:
-            # Accept new work if available
-            #
-            # TODO: We must use a work klass to handle
-            # client_queue fd itself a.k.a. accept_client
-            # will become handle_readables.
-            if new_work_available:
-                teardown = self.receive_from_work_queue()
-                if teardown:
-                    return teardown
-            if len(work_by_ids) == 0:
-                self._cleanup_inactive()
-                return False
-        finally:
-            assert self.selector
-            for wfd in work_fds:
-                self.selector.unregister(wfd)
+        work_by_ids, new_work_available = await self._selected_events()
+        # Accept new work if available
+        #
+        # TODO: We must use a work klass to handle
+        # client_queue fd itself a.k.a. accept_client
+        # will become handle_readables.
+        if new_work_available:
+            teardown = self.receive_from_work_queue()
+            if teardown:
+                return teardown
+        if len(work_by_ids) == 0:
+            self._cleanup_inactive()
+            return False
         # Invoke Threadless.handle_events
         self.unfinished.update(self._create_tasks(work_by_ids))
-        logger.debug('Executing {0} works'.format(len(self.unfinished)))
+        # logger.debug('Executing {0} works'.format(len(self.unfinished)))
         await self._wait_for_tasks(self.unfinished)
-        logger.debug(
-            'Done executing works, {0} pending'.format(
-                len(self.unfinished),
-            ),
-        )
+        # logger.debug(
+        #     'Done executing works, {0} pending, {1} registered'.format(
+        #         len(self.unfinished), len(self.registered_events_by_work_ids),
+        #     ),
+        # )
         # Remove and shutdown inactive workers
         self._cleanup_inactive()
         return False

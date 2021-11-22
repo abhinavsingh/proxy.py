@@ -8,12 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from abc import ABC, abstractmethod
-
 import ssl
-import socket
 import logging
 
+from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Any
 
 from ...common.types import Readables, Writables
@@ -67,13 +65,13 @@ class TcpUpstreamConnectionHandler(ABC):
     def initialize_upstream(self, addr: str, port: int) -> None:
         self.upstream = TcpServerConnection(addr, port)
 
-    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         if not self.upstream:
             return [], []
-        return [self.upstream.connection], [self.upstream.connection] if self.upstream.has_buffer() else []
+        return [self.upstream.connection.fileno()], [self.upstream.connection.fileno()] if self.upstream.has_buffer() else []
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        if self.upstream and self.upstream.connection in r:
+        if self.upstream and self.upstream.connection.fileno() in r:
             try:
                 raw = self.upstream.recv(self.server_recvbuf_size)
                 if raw is not None:
@@ -90,7 +88,7 @@ class TcpUpstreamConnectionHandler(ABC):
         return False
 
     def write_to_descriptors(self, w: Writables) -> bool:
-        if self.upstream and self.upstream.connection in w and self.upstream.has_buffer():
+        if self.upstream and self.upstream.connection.fileno() in w and self.upstream.has_buffer():
             try:
                 self.upstream.flush()
             except ssl.SSLWantWriteError:

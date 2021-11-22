@@ -177,28 +177,24 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.flags.ca_signing_key_file is not None and \
             self.flags.ca_cert_file is not None
 
-    def get_descriptors(
-            self,
-    ) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         if not self.request.has_host():
             return [], []
-
-        r: List[socket.socket] = []
-        w: List[socket.socket] = []
+        r: List[int] = []
+        w: List[int] = []
         if (
             self.upstream and
             not self.upstream.closed and
             self.upstream.connection
         ):
-            r.append(self.upstream.connection)
+            r.append(self.upstream.connection.fileno())
         if (
             self.upstream and
             not self.upstream.closed and
             self.upstream.has_buffer() and
             self.upstream.connection
         ):
-            w.append(self.upstream.connection)
-
+            w.append(self.upstream.connection.fileno())
         # TODO(abhinavsingh): We need to keep a mapping of plugin and
         # descriptors registered by them, so that within write/read blocks
         # we can invoke the right plugin callbacks.
@@ -206,7 +202,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
             r.extend(plugin_read_desc)
             w.extend(plugin_write_desc)
-
         return r, w
 
     def _close_and_release(self) -> bool:
@@ -219,7 +214,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return True
 
     async def write_to_descriptors(self, w: Writables) -> bool:
-        if (self.upstream and self.upstream.connection not in w) or not self.upstream:
+        if (self.upstream and self.upstream.connection.fileno() not in w) or not self.upstream:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered.
@@ -230,7 +225,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         elif self.request.has_host() and \
                 self.upstream and not self.upstream.closed and \
                 self.upstream.has_buffer() and \
-                self.upstream.connection in w:
+                self.upstream.connection.fileno() in w:
             logger.debug('Server is write ready, flushing buffer')
             try:
                 self.upstream.flush()
@@ -255,7 +250,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if (
             self.upstream and not
             self.upstream.closed and
-            self.upstream.connection not in r
+            self.upstream.connection.fileno() not in r
         ) or not self.upstream:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
@@ -267,7 +262,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         elif self.request.has_host() \
                 and self.upstream \
                 and not self.upstream.closed \
-                and self.upstream.connection in r:
+                and self.upstream.connection.fileno() in r:
             logger.debug('Server is ready for reads, reading...')
             try:
                 raw = self.upstream.recv(self.flags.server_recvbuf_size)
