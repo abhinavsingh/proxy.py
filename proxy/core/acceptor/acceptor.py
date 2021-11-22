@@ -141,8 +141,7 @@ class Acceptor(multiprocessing.Process):
                                     assert self._local
                                     self._local.evq.put((conn, addr))
                                 else:
-                                    addr = None if addr == '' else addr
-                                    self._work(conn, addr)
+                                    self._work(conn, addr or None)
             except BlockingIOError:
                 pass
             finally:

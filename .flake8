@@ -65,7 +65,6 @@ extend-ignore =
   N802    # FIXME: func name should be lowercase
   N816    # FIXME: mixed case var name
   P101    # FIXME: format string with unindexed params
-  PT007   # FIXME: wrong values type in @pytest.mark.parametrize, expected tuple
   PT009   # FIXME: pytest encourages use of `assert`
   PT018   # FIXME: use multiple `assert`s instead of one complex
   Q000    # FIXME: inconsistent double quotes use when single ones are needed
