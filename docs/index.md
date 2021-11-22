@@ -36,6 +36,7 @@ Glossary <glossary>
 :hidden:
 
 Code Of Conduct <contributing/code_of_conduct>
+contributing/guidelines
 contributing/security
 Private unsupported (dev) API autodoc <pkg/modules>
 ```

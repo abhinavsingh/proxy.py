@@ -159,6 +159,7 @@ root_doc = master_doc = 'index'  # Sphinx 4+ / 3-  # noqa: WPS429
 # -- Options for intersphinx extension ---------------------------------------
 
 intersphinx_mapping = {
+    'myst': ('https://myst-parser.rtfd.io/en/latest', None),
     'python': ('https://docs.python.org/3', None),
     'python2': ('https://docs.python.org/2', None),
 }
