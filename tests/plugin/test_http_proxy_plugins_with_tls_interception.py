@@ -106,8 +106,8 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -115,8 +115,8 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             )],
             [(
                 selectors.SelectorKey(
-                    fileobj=self.client_ssl_connection,
-                    fd=self.client_ssl_connection.fileno,
+                    fileobj=self.client_ssl_connection.fileno(),
+                    fd=self.client_ssl_connection.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -124,8 +124,8 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             )],
             [(
                 selectors.SelectorKey(
-                    fileobj=self.server_ssl_connection,
-                    fd=self.server_ssl_connection.fileno,
+                    fileobj=self.server_ssl_connection.fileno(),
+                    fd=self.server_ssl_connection.fileno(),
                     events=selectors.EVENT_WRITE,
                     data=None,
                 ),
@@ -133,8 +133,8 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             )],
             [(
                 selectors.SelectorKey(
-                    fileobj=self.server_ssl_connection,
-                    fd=self.server_ssl_connection.fileno,
+                    fileobj=self.server_ssl_connection.fileno(),
+                    fd=self.server_ssl_connection.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),

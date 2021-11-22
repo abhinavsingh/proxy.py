@@ -35,8 +35,8 @@ def mock_selector_for_client_read(self: Any) -> None:
     self.mock_selector.return_value.select.return_value = [
         (
             selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
+                fileobj=self._conn.fileno(),
+                fd=self._conn.fileno(),
                 events=selectors.EVENT_READ,
                 data=None,
             ),
@@ -217,8 +217,8 @@ class TestHttpProtocolHandler(Assertions):
             [
                 (
                     selectors.SelectorKey(
-                        fileobj=self._conn,
-                        fd=self._conn.fileno,
+                        fileobj=self._conn.fileno(),
+                        fd=self._conn.fileno(),
                         events=selectors.EVENT_READ,
                         data=None,
                     ),
@@ -228,8 +228,8 @@ class TestHttpProtocolHandler(Assertions):
             [
                 (
                     selectors.SelectorKey(
-                        fileobj=self._conn,
-                        fd=self._conn.fileno,
+                        fileobj=self._conn.fileno(),
+                        fd=self._conn.fileno(),
                         events=0,
                         data=None,
                     ),
@@ -239,8 +239,8 @@ class TestHttpProtocolHandler(Assertions):
             [
                 (
                     selectors.SelectorKey(
-                        fileobj=self._conn,
-                        fd=self._conn.fileno,
+                        fileobj=self._conn.fileno(),
+                        fd=self._conn.fileno(),
                         events=selectors.EVENT_READ,
                         data=None,
                     ),
@@ -250,8 +250,8 @@ class TestHttpProtocolHandler(Assertions):
             [
                 (
                     selectors.SelectorKey(
-                        fileobj=server.connection,
-                        fd=server.connection.fileno,
+                        fileobj=server.connection.fileno(),
+                        fd=server.connection.fileno(),
                         events=0,
                         data=None,
                     ),
@@ -372,8 +372,8 @@ class TestHttpProtocolHandler(Assertions):
             [
                 (
                     selectors.SelectorKey(
-                        fileobj=self._conn,
-                        fd=self._conn.fileno,
+                        fileobj=self._conn.fileno(),
+                        fd=self._conn.fileno(),
                         events=selectors.EVENT_READ,
                         data=None,
                     ),
@@ -383,8 +383,8 @@ class TestHttpProtocolHandler(Assertions):
             [
                 (
                     selectors.SelectorKey(
-                        fileobj=self._conn,
-                        fd=self._conn.fileno,
+                        fileobj=self._conn.fileno(),
+                        fd=self._conn.fileno(),
                         events=0,
                         data=None,
                     ),
@@ -394,8 +394,8 @@ class TestHttpProtocolHandler(Assertions):
             [
                 (
                     selectors.SelectorKey(
-                        fileobj=server.connection,
-                        fd=server.connection.fileno,
+                        fileobj=server.connection.fileno(),
+                        fd=server.connection.fileno(),
                         events=0,
                         data=None,
                     ),

@@ -63,8 +63,8 @@ def mock_selector_for_client_read(self: Any) -> None:
     self.mock_selector.return_value.select.return_value = [
         (
             selectors.SelectorKey(
-                fileobj=self._conn,
-                fd=self._conn.fileno,
+                fileobj=self._conn.fileno(),
+                fd=self._conn.fileno(),
                 events=selectors.EVENT_READ,
                 data=None,
             ),
@@ -231,8 +231,8 @@ class TestStaticWebServerPlugin(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -240,8 +240,8 @@ class TestStaticWebServerPlugin(Assertions):
             )],
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_WRITE,
                     data=None,
                 ),
@@ -281,8 +281,8 @@ class TestStaticWebServerPlugin(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -290,8 +290,8 @@ class TestStaticWebServerPlugin(Assertions):
             )],
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_WRITE,
                     data=None,
                 ),
@@ -336,8 +336,8 @@ class TestWebServerPlugin(Assertions):
         self.mock_selector.return_value.select.return_value = [
             (
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),

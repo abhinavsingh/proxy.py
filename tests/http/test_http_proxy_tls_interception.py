@@ -131,8 +131,8 @@ class TestHttpProxyTlsInterception(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -150,7 +150,7 @@ class TestHttpProxyTlsInterception(Assertions):
         )
         self.plugin.return_value.on_request_complete.assert_called()
         self.plugin.return_value.read_from_descriptors.assert_called_with([
-            self._conn,
+            self._conn.fileno(),
         ])
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
         self.proxy_plugin.return_value.handle_client_request.assert_called()

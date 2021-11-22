@@ -93,8 +93,8 @@ class TestHttpProxyPluginExamples(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -140,8 +140,8 @@ class TestHttpProxyPluginExamples(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -183,8 +183,8 @@ class TestHttpProxyPluginExamples(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -226,8 +226,8 @@ class TestHttpProxyPluginExamples(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -280,8 +280,8 @@ class TestHttpProxyPluginExamples(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -289,8 +289,8 @@ class TestHttpProxyPluginExamples(Assertions):
             )],
             [(
                 selectors.SelectorKey(
-                    fileobj=server.connection,
-                    fd=server.connection.fileno,
+                    fileobj=server.connection.fileno(),
+                    fd=server.connection.fileno(),
                     events=selectors.EVENT_WRITE,
                     data=None,
                 ),
@@ -298,8 +298,8 @@ class TestHttpProxyPluginExamples(Assertions):
             )],
             [(
                 selectors.SelectorKey(
-                    fileobj=server.connection,
-                    fd=server.connection.fileno,
+                    fileobj=server.connection.fileno(),
+                    fd=server.connection.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -361,8 +361,8 @@ class TestHttpProxyPluginExamples(Assertions):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
