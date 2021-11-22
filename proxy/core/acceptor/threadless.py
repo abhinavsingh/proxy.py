@@ -33,7 +33,7 @@ from ..event import eventNames, EventQueue
 
 from .work import Work
 
-T = TypeVar("T")
+T = TypeVar('T')
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class Threadless(ABC, Generic[T]):
             # work_id
             int,
             # fileno, mask
-            Dict[int, int]
+            Dict[int, int],
         ] = {}
         self.wait_timeout: float = DEFAULT_SELECTOR_SELECT_TIMEOUT
 
@@ -172,7 +172,9 @@ class Threadless(ABC, Generic[T]):
                         self.registered_events_by_work_ids[work_id][fileno] = mask
                         logger.debug(
                             'fd#{0} modified for mask#{1} by work#{2}'.format(
-                                fileno, mask, work_id))
+                                fileno, mask, work_id,
+                            ),
+                        )
                 else:
                     # Can throw ValueError: Invalid file descriptor: -1
                     #
@@ -187,7 +189,9 @@ class Threadless(ABC, Generic[T]):
                     self.registered_events_by_work_ids[work_id][fileno] = mask
                     logger.debug(
                         'fd#{0} registered for mask#{1} by work#{2}'.format(
-                            fileno, mask, work_id))
+                            fileno, mask, work_id,
+                        ),
+                    )
         selected = self.selector.select(
             timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT,
         )
@@ -251,7 +255,9 @@ class Threadless(ABC, Generic[T]):
             for fileno in self.registered_events_by_work_ids[work_id]:
                 logger.debug(
                     'fd#{0} unregistered by work#{1}'.format(
-                        fileno, work_id))
+                        fileno, work_id,
+                    ),
+                )
                 self.selector.unregister(fileno)
             self.registered_events_by_work_ids[work_id].clear()
             del self.registered_events_by_work_ids[work_id]
