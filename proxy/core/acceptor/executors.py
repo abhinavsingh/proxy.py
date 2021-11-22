@@ -202,7 +202,7 @@ class ThreadlessPool:
         """Pop a running threadless worker and clean it up."""
         for index in range(self.flags.num_workers):
             self._workers[index].running.set()
-        for index in range(self.flags.num_workers):
+        for _ in range(self.flags.num_workers):
             pid = self.work_pids[-1]
             self._processes.pop().join()
             self._workers.pop()

@@ -72,7 +72,9 @@ class TestHttpProxyPluginExamples(Assertions):
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
         "_setUp",
-        [('test_modify_post_data_plugin')],
+        (
+            ('test_modify_post_data_plugin'),
+        ),
         indirect=True,
     )   # type: ignore[misc]
     async def test_modify_post_data_plugin(self) -> None:
@@ -120,7 +122,9 @@ class TestHttpProxyPluginExamples(Assertions):
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
         "_setUp",
-        [('test_proposed_rest_api_plugin')],
+        (
+            ('test_proposed_rest_api_plugin'),
+        ),
         indirect=True,
     )   # type: ignore[misc]
     async def test_proposed_rest_api_plugin(self) -> None:
@@ -163,7 +167,9 @@ class TestHttpProxyPluginExamples(Assertions):
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
         "_setUp",
-        [('test_redirect_to_custom_server_plugin')],
+        (
+            ('test_redirect_to_custom_server_plugin'),
+        ),
         indirect=True,
     )   # type: ignore[misc]
     async def test_redirect_to_custom_server_plugin(self) -> None:
@@ -204,7 +210,9 @@ class TestHttpProxyPluginExamples(Assertions):
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
         "_setUp",
-        [('test_filter_by_upstream_host_plugin')],
+        (
+            ('test_filter_by_upstream_host_plugin'),
+        ),
         indirect=True,
     )   # type: ignore[misc]
     async def test_filter_by_upstream_host_plugin(self) -> None:
@@ -243,7 +251,9 @@ class TestHttpProxyPluginExamples(Assertions):
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
         "_setUp",
-        [('test_man_in_the_middle_plugin')],
+        (
+            ('test_man_in_the_middle_plugin'),
+        ),
         indirect=True,
     )   # type: ignore[misc]
     async def test_man_in_the_middle_plugin(self) -> None:
@@ -335,7 +345,9 @@ class TestHttpProxyPluginExamples(Assertions):
     @pytest.mark.asyncio    # type: ignore[misc]
     @pytest.mark.parametrize(
         "_setUp",
-        [('test_filter_by_url_regex_plugin')],
+        (
+            ('test_filter_by_url_regex_plugin'),
+        ),
         indirect=True,
     )   # type: ignore[misc]
     async def test_filter_by_url_regex_plugin(self) -> None:
