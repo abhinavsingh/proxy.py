@@ -12,6 +12,7 @@
 
        http
 """
+import sys
 import ssl
 import time
 import errno
@@ -367,7 +368,11 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
         This is here just to maintain backward compatibility with threaded mode.
         """
-        loop = asyncio.get_event_loop_policy().get_event_loop()
+        if sys.version_info.major == 3 and \
+                sys.version_info.minor == 6:
+            loop = asyncio.new_event_loop()
+        else:
+            loop = asyncio.get_event_loop_policy().get_event_loop()
         try:
             self.initialize()
             while True:
