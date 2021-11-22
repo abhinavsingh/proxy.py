@@ -36,7 +36,7 @@ from .work import Work
 logger = logging.getLogger(__name__)
 
 
-class LocalExecutor(threading.Thread):
+class LocalExecutor:
     """Listens for READ_EVENT over a queue, accepts and initializes work."""
 
     def __init__(

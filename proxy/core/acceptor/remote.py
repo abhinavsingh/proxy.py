@@ -31,7 +31,7 @@ class RemoteExecutor(Threadless):
         return self.work_queue.fileno()
 
     def close_work_queue(self) -> None:
-        return super().close_work_queue()
+        self.work_queue.close()
 
     def receive_from_work_queue(self) -> None:
         # Acceptor will not send address for

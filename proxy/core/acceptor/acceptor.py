@@ -120,6 +120,7 @@ class Acceptor(multiprocessing.Process):
         # Internals
         self._total: Optional[int] = None
         self._local: Optional[LocalExecutor] = None
+        self._lthread: Optional[threading.Thread] = None
 
     def accept(self, events: List[Tuple[selectors.SelectorKey, int]]) -> None:
         for _, mask in events:
@@ -196,13 +197,14 @@ class Acceptor(multiprocessing.Process):
             self.executor_locks,
             self.event_queue,
         )
-        self._local.daemon = True
-        self._local.start()
+        self._lthread = threading.Thread(target=self._local.run)
+        self._lthread.daemon = True
+        self._lthread.start()
 
     def _stop_local(self) -> None:
-        if self._local is not None:
+        if self._lthread is not None and self._local is not None:
             self._local.work_queue.put(False)
-            self._local.join()
+            self._lthread.join()
 
     def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
         self._total = self._total or 0
