@@ -246,7 +246,6 @@ _py_class_role = 'py:class'
 nitpick_ignore = [
     (_any_role, '<proxy.HttpProxyBasePlugin>'),
     (_any_role, '__init__'),
-    (_any_role, '--threadless'),
     (_any_role, 'Client'),
     (_any_role, 'event_queue'),
     (_any_role, 'fd_queue'),

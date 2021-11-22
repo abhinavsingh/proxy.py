@@ -62,7 +62,7 @@ class Acceptor(multiprocessing.Process):
     `Acceptor` goes on to listen for new work over the received server socket.
     By default, `Acceptor` will spawn a new thread to handle each work.
 
-    However, when `--threadless` option is enabled without `--local-executor`,
+    However, when ``--threadless`` option is enabled without ``--local-executor``,
     `Acceptor` process will also pre-spawns a
     :class:`~proxy.core.acceptor.threadless.Threadless` process during start-up.
     Accepted work is delegated to these :class:`~proxy.core.acceptor.threadless.Threadless`
