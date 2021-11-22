@@ -132,13 +132,11 @@ class Acceptor(multiprocessing.Process):
                     logging.debug(
                         'Accepting new work#{0}'.format(conn.fileno()),
                     )
-                    addr = None if addr == '' else addr
-                    work = (conn, addr)
+                    work = (conn, addr or None)
                     if self.flags.local_executor:
                         assert self._local_work_queue
                         self._local_work_queue.put_nowait(work)
                     else:
-                        addr = None if addr == '' else addr
                         self._work(*work)
 
     def run_once(self) -> None:
