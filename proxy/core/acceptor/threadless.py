@@ -270,7 +270,7 @@ class Threadless(ABC, Generic[T]):
             task = self.loop.create_task(
                 self.works[work_id].handle_events(*work_by_ids[work_id]),
             )
-            task._work_id = work_id     # type: ignore
+            task._work_id = work_id     # type: ignore[attr-defined]
             # task.set_name(work_id)
             tasks.add(task)
         return tasks

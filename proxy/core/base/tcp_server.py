@@ -49,18 +49,11 @@ class BaseTcpServerHandler(Work):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.must_flush_before_shutdown = False
-        if self.flags.unix_socket_path:     # pragma: no cover
-            logger.debug(
-                'Work#{0} accepted from {1}'.format(
-                    self.work.connection.fileno(), self.work.address,
-                ),
-            )
-        else:
-            logger.debug(
-                'Work#{0} accepted from {1}'.format(
-                    self.work.connection.fileno(), self.work.address,
-                ),
-            )
+        logger.debug(
+            'Work#%d accepted from %s',
+            self.work.connection.fileno(),
+            self.work.address,
+        )
 
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
