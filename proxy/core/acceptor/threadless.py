@@ -20,23 +20,23 @@ import argparse
 import selectors
 import multiprocessing
 
-from multiprocessing import connection
-from multiprocessing.reduction import recv_handle
-from typing import Dict, Optional, Tuple, List, Set
+from abc import abstractmethod, ABC
+from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar
 
 from .work import Work
 
-from ..connection import TcpClientConnection
-from ..event import EventQueue, eventNames
+from ..event import EventQueue
 
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
+T = TypeVar("T")
+
 logger = logging.getLogger(__name__)
 
 
-class Threadless:
+class Threadless(ABC, Generic[T]):
     """Work executor process.
 
     Threadless process provides an event loop, which is shared across
@@ -60,7 +60,7 @@ class Threadless:
 
     def __init__(
             self,
-            work_queue: connection.Connection,
+            work_queue: T,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
     ) -> None:
@@ -78,7 +78,26 @@ class Threadless:
         #
         # Ref https://github.com/abhinavsingh/proxy.py/runs/4279055360?check_suite_focus=true
         self.unfinished: Set['asyncio.Task[bool]'] = set()
-        self.wait_timeout: float = (self.flags.num_workers / 2) * DEFAULT_SELECTOR_SELECT_TIMEOUT
+        self.wait_timeout: float = (
+            self.flags.num_workers / 2) * DEFAULT_SELECTOR_SELECT_TIMEOUT
+
+    @abstractmethod
+    def receive_from_work_queue(self) -> None:
+        """Work queue is ready to receive new work."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def work_queue_fileno(self) -> Optional[int]:
+        """If work queue must be selected before calling
+        ``receive_from_work_queue`` then implementation must
+        return work queue fd."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def close_work_queue(self) -> None:
+        """If an fd was selectable for work queue, make sure
+        to close the work queue fd here."""
+        raise NotImplementedError()
 
     async def _selected_events(self) -> Tuple[
             List[socket.socket],
@@ -110,10 +129,12 @@ class Threadless:
         # readables & writables that work_id is interested in
         # and are ready for IO.
         work_by_ids: Dict[int, Tuple[Readables, Writables]] = {}
-        client_queue_fileno = self.work_queue.fileno()
         new_work_available = False
+        wqfileno = self.work_queue_fileno()
+        if wqfileno is None:
+            new_work_available = True
         for key, mask in selected:
-            if key.fileobj == client_queue_fileno:
+            if wqfileno is not None and key.fileobj == wqfileno:
                 assert mask & selectors.EVENT_READ
                 new_work_available = True
                 continue
@@ -144,32 +165,6 @@ class Threadless:
             fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM,
         )
-
-    def _accept_client(self) -> None:
-        # Acceptor will not send address for
-        # unix socket domain environments.
-        addr = None
-        if not self.flags.unix_socket_path:
-            addr = self.work_queue.recv()
-        fileno = recv_handle(self.work_queue)
-        self.works[fileno] = self.flags.work_klass(
-            TcpClientConnection(conn=self._fromfd(fileno), addr=addr),
-            flags=self.flags,
-            event_queue=self.event_queue,
-        )
-        self.works[fileno].publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'fileno': fileno, 'addr': addr},
-            publisher_id=self.__class__.__name__,
-        )
-        try:
-            self.works[fileno].initialize()
-        except Exception as e:
-            logger.exception(
-                'Exception occurred during initialization',
-                exc_info=e,
-            )
-            self._cleanup(fileno)
 
     # TODO: Use cached property to avoid execution repeatedly
     # within a second interval.  Note that our selector timeout
@@ -214,7 +209,7 @@ class Threadless:
             # client_queue fd itself a.k.a. accept_client
             # will become handle_readables.
             if new_work_available:
-                self._accept_client()
+                self.receive_from_work_queue()
             if len(work_by_ids) == 0:
                 self._cleanup_inactive()
                 return
@@ -239,13 +234,15 @@ class Threadless:
             self.flags.log_file, self.flags.log_level,
             self.flags.log_format,
         )
+        wqfileno = self.work_queue_fileno()
         try:
             self.selector = selectors.DefaultSelector()
-            self.selector.register(
-                self.work_queue.fileno(),
-                selectors.EVENT_READ,
-                data=self.work_queue.fileno(),
-            )
+            if wqfileno is not None:
+                self.selector.register(
+                    wqfileno,
+                    selectors.EVENT_READ,
+                    data=wqfileno,
+                )
             self.loop = asyncio.get_event_loop_policy().get_event_loop()
             while not self.running.is_set():
                 # logger.debug('Working on {0} works'.format(len(self.works)))
@@ -254,7 +251,8 @@ class Threadless:
             pass
         finally:
             assert self.selector is not None
-            self.selector.unregister(self.work_queue.fileno())
-            self.work_queue.close()
+            if wqfileno is not None:
+                self.selector.unregister(wqfileno)
+                self.close_work_queue()
             assert self.loop is not None
             self.loop.close()

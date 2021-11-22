@@ -24,7 +24,7 @@ from multiprocessing.reduction import send_handle
 from typing import Any, Optional, List, Tuple
 
 from .work import Work
-from .threadless import Threadless
+from .remote import RemoteExecutor
 
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
@@ -96,7 +96,7 @@ class ThreadlessPool:
         self.work_pids: List[int] = []
         self.work_locks: List[multiprocessing.synchronize.Lock] = []
         # List of threadless workers
-        self._workers: List[Threadless] = []
+        self._workers: List[RemoteExecutor] = []
         self._processes: List[multiprocessing.Process] = []
 
     def __enter__(self) -> 'ThreadlessPool':
@@ -184,7 +184,7 @@ class ThreadlessPool:
         self.work_locks.append(multiprocessing.Lock())
         pipe = multiprocessing.Pipe()
         self.work_queues.append(pipe[0])
-        w = Threadless(
+        w = RemoteExecutor(
             work_queue=pipe[1],
             flags=self.flags,
             event_queue=self.event_queue,
