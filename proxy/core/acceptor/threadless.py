@@ -21,7 +21,7 @@ import argparse
 import selectors
 import multiprocessing
 
-from abc import abstractmethod, ABC, abstractproperty
+from abc import abstractmethod, ABC
 from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
@@ -87,8 +87,8 @@ class Threadless(ABC, Generic[T]):
         ] = {}
         self.wait_timeout: float = DEFAULT_SELECTOR_SELECT_TIMEOUT
 
-    @abstractproperty
     @property
+    @abstractmethod
     def loop(self) -> Optional[asyncio.AbstractEventLoop]:
         raise NotImplementedError()
 

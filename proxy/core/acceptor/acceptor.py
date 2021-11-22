@@ -26,7 +26,7 @@ from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
 from typing import List, Optional, Tuple
-from typing import Any
+from typing import Any      # noqa: W0611   pylint: disable=unused-import
 
 from ...common.flag import flags
 from ...common.utils import is_threadless
