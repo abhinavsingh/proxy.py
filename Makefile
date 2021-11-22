@@ -120,7 +120,7 @@ lib-release: lib-package
 	twine upload dist/*
 
 lib-doc:
-	python -m tox -e lint && \
+	python -m tox -e build-docs && \
 	$(OPEN) .tox/build-docs/docs_out/index.html
 
 lib-coverage:
