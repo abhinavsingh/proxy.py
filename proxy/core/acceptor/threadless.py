@@ -326,8 +326,7 @@ class Threadless(ABC, Generic[T]):
             assert self.loop
             while not self.running.is_set():
                 # logger.debug('Working on {0} works'.format(len(self.works)))
-                teardown = self.loop.run_until_complete(self._run_once())
-                if teardown:
+                if self.loop.run_until_complete(self._run_once()):
                     break
         except KeyboardInterrupt:
             pass

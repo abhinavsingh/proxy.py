@@ -113,8 +113,7 @@ class WebsocketClient(TcpConnection):
     def run(self) -> None:
         try:
             while not self.closed:
-                teardown = self.run_once()
-                if teardown:
+                if self.run_once():
                     break
         except KeyboardInterrupt:
             pass

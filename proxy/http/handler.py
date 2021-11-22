@@ -367,6 +367,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
         This is here just to maintain backward compatibility with threaded mode.
         """
+        loop = asyncio.get_event_loop_policy().get_event_loop()
         try:
             self.initialize()
             while True:
@@ -377,8 +378,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                         'between client and server connection, tearing down...',
                     )
                     break
-                teardown = asyncio.run(self._run_once())
-                if teardown:
+                if loop.run_until_complete(self._run_once()):
                     break
         except KeyboardInterrupt:  # pragma: no cover
             pass
@@ -391,6 +391,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             )
         finally:
             self.shutdown()
+            loop.close()
 
     async def _run_once(self) -> bool:
         events, readables, writables = await self._selected_events()

@@ -13,7 +13,7 @@
 [![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
 [![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
 [![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
 [![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
@@ -1709,7 +1709,7 @@ If threadless works for you, consider sending a PR by editing `_env_threadless_c
 ```
 
 Hence a Python version that understands typing annotations is required.
-Make sure you are using `Python 3.7+`.
+Make sure you are using `Python 3.6+`.
 
 Verify the version before running `proxy.py`:
 
@@ -1722,7 +1722,7 @@ All `typing` annotations can be replaced with `comment-only` annotations. Exampl
 >>> ################^^^^^^^^^^^
 ```
 
-It will enable `proxy.py` to run on Python `pre-3.7`, even on `2.7`.
+It will enable `proxy.py` to run on Python `pre-3.6`, even on `2.7`.
 However, as all future versions of Python will support `typing` annotations,
 this has not been considered.
 
