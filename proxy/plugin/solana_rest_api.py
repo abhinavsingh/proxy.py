@@ -123,8 +123,12 @@ class EthereumModel:
             slot = int(self.client.get_slot(commitment=Confirmed)["result"])
         elif tag in ('earliest', 'pending'):
             raise Exception("Invalid tag {}".format(tag))
-        else:
+        elif isinstance(tag, str):
             slot = int(tag, 16)
+        elif isinstance(tag, int):
+            slot = tag
+        else:
+            raise Exception(f'Failed to parse block tag: {tag}')
         return slot
 
     def eth_blockNumber(self):
