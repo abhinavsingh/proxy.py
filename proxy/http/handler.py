@@ -196,7 +196,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
         try:
             # HttpProtocolHandlerPlugin.on_client_data
-            # Can raise HttpProtocolException to teardown the connection
+            # Can raise HttpProtocolException to tear down the connection
             for plugin in self.plugins.values():
                 optional_data = plugin.on_client_data(data)
                 if optional_data is None:
@@ -370,7 +370,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         try:
             self.initialize()
             while True:
-                # Teardown if client buffer is empty and connection is inactive
+                # Tear down if client buffer is empty and connection is inactive
                 if self.is_inactive():
                     logger.debug(
                         'Client buffer is empty and maximum inactivity has reached '

@@ -98,7 +98,7 @@ class Threadless(ABC, Generic[T]):
 
         Receive it and call ``work_on_tcp_conn``.
 
-        Return True to teardown the loop."""
+        Return True to tear down the loop."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -110,7 +110,7 @@ class Threadless(ABC, Generic[T]):
 
     def close_work_queue(self) -> None:
         """Only called if ``work_queue_fileno`` returns an integer.
-        If an fd is selectable for work queue, make sure
+        If an fd is select-able for work queue, make sure
         to close the work queue fd now."""
         pass    # pragma: no cover
 

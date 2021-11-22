@@ -83,7 +83,7 @@ class TcpUpstreamConnectionHandler(ABC):
                     self.total_size += len(raw)
                     self.handle_upstream_data(raw)
                 else:
-                    # Teardown because upstream proxy closed the connection
+                    # Tear down because upstream proxy closed the connection
                     return True
             except ssl.SSLWantReadError:
                 logger.info('Upstream SSLWantReadError, will retry')

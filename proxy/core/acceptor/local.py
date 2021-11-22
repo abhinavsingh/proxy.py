@@ -11,6 +11,7 @@
     .. spelling::
 
         acceptor
+        teardown
 """
 import queue
 import logging

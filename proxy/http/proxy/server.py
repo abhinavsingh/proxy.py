@@ -440,7 +440,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         #     self.access_log()
         return chunk
 
-    # Can return None to teardown connection
+    # Can return None to tear down connection
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
         if not self.request.has_host():
             return raw
