@@ -9,8 +9,7 @@ solana config set -u $SOLANA_URL
 
 echo "Dumping evm_loader and extracting ELF parameters"
 export EVM_LOADER=$(solana address -k /spl/bin/evm_loader-keypair.json)
-solana program dump "$EVM_LOADER" ./evm_loader.dump
-export $(/spl/bin/neon-cli --evm_loader="$EVM_LOADER" neon-elf-params ./evm_loader.dump)
+export $(/spl/bin/neon-cli --evm_loader="$EVM_LOADER" neon-elf-params)
 
 /spl/bin/create-test-accounts.sh 1
 
