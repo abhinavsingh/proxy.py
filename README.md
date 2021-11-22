@@ -2215,5 +2215,3 @@ https://github.com/abhinavsingh/proxy.py/issues/new
 - Single threaded server.
 
 For detailed changelog refer to release PRs or commit history.
- history.
- history.

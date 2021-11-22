@@ -17,8 +17,9 @@ import logging
 import asyncio
 import contextlib
 
-from typing import Optional
-from typing import Any      # noqa: W0611, F401   pylint: disable=unused-import
+from typing import Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Any
 
 from .threadless import Threadless
 
