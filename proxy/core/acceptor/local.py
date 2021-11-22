@@ -12,116 +12,44 @@
 
         acceptor
 """
-import os
 import queue
-import socket
 import logging
-import argparse
-import selectors
-import threading
+import asyncio
 import contextlib
-import multiprocessing.synchronize
 
-from multiprocessing import connection
-from typing import Optional, Tuple, List, Dict
-from typing import Any      # noqa: W0611   pylint: disable=unused-import
+from typing import Optional
+from typing import Any      # noqa: W0611, F401   pylint: disable=unused-import
 
-from ...common.utils import is_threadless
-
-from ..event import EventQueue
-
-from .executors import ThreadlessPool
-from .work import Work
+from .threadless import Threadless
 
 logger = logging.getLogger(__name__)
 
 
-class LocalExecutor:
+class LocalExecutor(Threadless['queue.Queue[Any]']):
     """Listens for READ_EVENT over a queue, accepts and initializes work."""
 
-    def __init__(
-            self,
-            idd: int,
-            flags: argparse.Namespace,
-            work_queue: 'queue.Queue[Any]',
-            executor_queues: List[connection.Connection],
-            executor_pids: List[int],
-            executor_locks: List[multiprocessing.synchronize.Lock],
-            event_queue: Optional[EventQueue] = None,
-    ) -> None:
-        super().__init__()
-        # Index assigned by `AcceptorPool`
-        self.idd = idd
-        self.work_queue = work_queue
-        self.flags = flags
-        self.executor_queues = executor_queues
-        self.executor_pids = executor_pids
-        self.executor_locks = executor_locks
-        self.event_queue = event_queue
-        # Incremented every time work() is called
-        self._total: int = 0
-        self._selector: Optional[selectors.DefaultSelector] = None
-        self._works: Dict[int, Work] = {}
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
-    def run_once(self) -> bool:
+    @property
+    def loop(self) -> Optional[asyncio.AbstractEventLoop]:
+        if self._loop is None:
+            self._loop = asyncio.new_event_loop()
+        return self._loop
+
+    def work_queue_fileno(self) -> Optional[int]:
+        return None
+
+    def receive_from_work_queue(self) -> bool:
         with contextlib.suppress(queue.Empty):
-            work = self.work_queue.get(block=True, timeout=0.1)
+            work = self.work_queue.get(block=False)
             if isinstance(work, bool) and work is False:
                 return True
             assert isinstance(work, tuple)
             conn, addr = work
-            self.dispatch(conn, addr)
+            # NOTE: Here we are assuming to receive a connection object
+            # and not a fileno because we are a LocalExecutor.
+            fileno = conn.fileno()
+            self.work_on_tcp_conn(fileno=fileno, addr=addr, conn=conn)
         return False
-
-    def run(self) -> None:
-        self._selector = selectors.DefaultSelector()
-        try:
-            while True:
-                if self.run_once():
-                    break
-        except KeyboardInterrupt:
-            pass
-
-    def _cleanup(self, work_id: int) -> None:
-        self._works[work_id].shutdown()
-        del self._works[work_id]
-        os.close(work_id)
-
-    def dispatch(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
-        if is_threadless(self.flags.threadless, self.flags.threaded):
-            # Index of worker to which this work should be dispatched
-            # Use round-robin strategy by default.
-            #
-            # By default all acceptors will start sending work to
-            # 1st workers.  To randomize, we offset index by idd.
-            index = (self._total + self.idd) % self.flags.num_workers
-            thread = threading.Thread(
-                target=ThreadlessPool.delegate,
-                args=(
-                    self.executor_pids[index],
-                    self.executor_queues[index],
-                    self.executor_locks[index],
-                    conn,
-                    addr,
-                    self.flags.unix_socket_path,
-                ),
-            )
-            thread.start()
-            logger.debug(
-                'Dispatched work#{0}.{1} to worker#{2}'.format(
-                    self.idd, self._total, index,
-                ),
-            )
-        else:
-            _, thread = ThreadlessPool.start_threaded_work(
-                self.flags,
-                conn, addr,
-                event_queue=self.event_queue,
-                publisher_id=self.__class__.__name__,
-            )
-            logger.debug(
-                'Started work#{0}.{1} in thread#{2}'.format(
-                    self.idd, self._total, thread.ident,
-                ),
-            )
-        self._total += 1

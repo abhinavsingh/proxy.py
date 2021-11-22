@@ -116,12 +116,14 @@ flags.add_argument(
 class Proxy:
     """Proxy is a context manager to control proxy.py library core.
 
-    By default, AcceptorPool is started with
+    By default, :class:`~proxy.core.pool.AcceptorPool` is started with
     :class:`~proxy.http.handler.HttpProtocolHandler` work class.
     By definition, it expects HTTP traffic to flow between clients and server.
 
-    In ``--threadless`` mode, ThreadlessPool is also started, which is
-    responsible for handling work accepted by :class:`~proxy.core.acceptor.Acceptor`.
+    In ``--threadless`` mode and without ``--local-executor``,
+    a :class:`~proxy.core.executors.ThreadlessPool` is also started.
+    Executor pool receives newly accepted work by :class:`~proxy.core.acceptor.Acceptor`
+    and creates an instance of work class for processing the received work.
 
     Optionally, Proxy class also initializes the EventManager.
     A multi-process safe pubsub system which can be used to build various
@@ -172,17 +174,18 @@ class Proxy:
         event_queue = self.event_manager.queue \
             if self.event_manager is not None \
             else None
-        self.executors = ThreadlessPool(
-            flags=self.flags,
-            event_queue=event_queue,
-        )
-        self.executors.setup()
+        if not self.flags.local_executor:
+            self.executors = ThreadlessPool(
+                flags=self.flags,
+                event_queue=event_queue,
+            )
+            self.executors.setup()
         self.acceptors = AcceptorPool(
             flags=self.flags,
             listener=self.listener,
-            executor_queues=self.executors.work_queues,
-            executor_pids=self.executors.work_pids,
-            executor_locks=self.executors.work_locks,
+            executor_queues=self.executors.work_queues if self.executors else [],
+            executor_pids=self.executors.work_pids if self.executors else [],
+            executor_locks=self.executors.work_locks if self.executors else [],
             event_queue=event_queue,
         )
         self.acceptors.setup()
@@ -191,8 +194,9 @@ class Proxy:
     def shutdown(self) -> None:
         assert self.acceptors
         self.acceptors.shutdown()
-        assert self.executors
-        self.executors.shutdown()
+        if not self.flags.local_executor:
+            assert self.executors
+            self.executors.shutdown()
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.shutdown()

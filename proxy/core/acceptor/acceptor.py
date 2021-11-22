@@ -189,13 +189,9 @@ class Acceptor(multiprocessing.Process):
     def _start_local(self) -> None:
         assert self.sock
         self._local = LocalExecutor(
-            self.idd,
-            self.flags,
-            queue.Queue(),
-            self.executor_queues,
-            self.executor_pids,
-            self.executor_locks,
-            self.event_queue,
+            work_queue=queue.Queue(),
+            flags=self.flags,
+            event_queue=self.event_queue,
         )
         self._lthread = threading.Thread(target=self._local.run)
         self._lthread.daemon = True

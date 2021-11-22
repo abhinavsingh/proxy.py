@@ -136,6 +136,7 @@ lib-profile:
 			--disable-http-proxy \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
+			--local-executor \
 			--log-file /dev/null
 
 devtools:

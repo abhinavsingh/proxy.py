@@ -13,6 +13,7 @@
        acceptor
 """
 import os
+import ssl
 import socket
 import logging
 import asyncio
@@ -20,16 +21,17 @@ import argparse
 import selectors
 import multiprocessing
 
-from abc import abstractmethod, ABC
-from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar
-
-from .work import Work
-
-from ..event import EventQueue
+from abc import abstractmethod, ABC, abstractproperty
+from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
+
+from ..connection import TcpClientConnection
+from ..event import eventNames, EventQueue
+
+from .work import Work
 
 T = TypeVar("T")
 
@@ -72,18 +74,25 @@ class Threadless(ABC, Generic[T]):
         self.running = multiprocessing.Event()
         self.works: Dict[int, Work] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
-        self.loop: Optional[asyncio.AbstractEventLoop] = None
         # If we remove single quotes for typing hint below,
         # runtime exceptions will occur for < Python 3.9.
         #
         # Ref https://github.com/abhinavsingh/proxy.py/runs/4279055360?check_suite_focus=true
         self.unfinished: Set['asyncio.Task[bool]'] = set()
-        self.wait_timeout: float = (
-            self.flags.num_workers / 2) * DEFAULT_SELECTOR_SELECT_TIMEOUT
+        self.wait_timeout: float = DEFAULT_SELECTOR_SELECT_TIMEOUT
+
+    @abstractproperty
+    @property
+    def loop(self) -> Optional[asyncio.AbstractEventLoop]:
+        raise NotImplementedError()
 
     @abstractmethod
-    def receive_from_work_queue(self) -> None:
-        """Work queue is ready to receive new work."""
+    def receive_from_work_queue(self) -> bool:
+        """Work queue is ready to receive new work.
+
+        Receive it and call ``work_on_tcp_conn``.
+
+        Return True to teardown the loop."""
         raise NotImplementedError()
 
     @abstractmethod
@@ -93,11 +102,39 @@ class Threadless(ABC, Generic[T]):
         return work queue fd."""
         raise NotImplementedError()
 
-    @abstractmethod
     def close_work_queue(self) -> None:
-        """If an fd was selectable for work queue, make sure
-        to close the work queue fd here."""
-        raise NotImplementedError()
+        """Only called if ``work_queue_fileno`` returns an integer.
+        If an fd is selectable for work queue, make sure
+        to close the work queue fd now."""
+        pass    # pragma: no cover
+
+    def work_on_tcp_conn(
+            self,
+            fileno: int,
+            addr: Optional[Tuple[str, int]] = None,
+            conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None,
+    ) -> None:
+        self.works[fileno] = self.flags.work_klass(
+            TcpClientConnection(
+                conn=conn or self._fromfd(fileno),
+                addr=addr,
+            ),
+            flags=self.flags,
+            event_queue=self.event_queue,
+        )
+        self.works[fileno].publish_event(
+            event_name=eventNames.WORK_STARTED,
+            event_payload={'fileno': fileno, 'addr': addr},
+            publisher_id=self.__class__.__name__,
+        )
+        try:
+            self.works[fileno].initialize()
+        except Exception as e:
+            logger.exception(
+                'Exception occurred during initialization',
+                exc_info=e,
+            )
+            self._cleanup(fileno)
 
     async def _selected_events(self) -> Tuple[
             List[socket.socket],
@@ -182,7 +219,8 @@ class Threadless(ABC, Generic[T]):
     def _cleanup(self, work_id: int) -> None:
         self.works[work_id].shutdown()
         del self.works[work_id]
-        os.close(work_id)
+        if self.work_queue_fileno() is not None:
+            os.close(work_id)
 
     def _create_tasks(
             self,
@@ -199,7 +237,7 @@ class Threadless(ABC, Generic[T]):
             tasks.add(task)
         return tasks
 
-    async def _run_once(self) -> None:
+    async def _run_once(self) -> bool:
         assert self.loop is not None
         work_fds, work_by_ids, new_work_available = await self._selected_events()
         try:
@@ -209,10 +247,12 @@ class Threadless(ABC, Generic[T]):
             # client_queue fd itself a.k.a. accept_client
             # will become handle_readables.
             if new_work_available:
-                self.receive_from_work_queue()
+                teardown = self.receive_from_work_queue()
+                if teardown:
+                    return teardown
             if len(work_by_ids) == 0:
                 self._cleanup_inactive()
-                return
+                return False
         finally:
             assert self.selector
             for wfd in work_fds:
@@ -228,6 +268,7 @@ class Threadless(ABC, Generic[T]):
         )
         # Remove and shutdown inactive workers
         self._cleanup_inactive()
+        return False
 
     def run(self) -> None:
         Logger.setup(
@@ -243,10 +284,12 @@ class Threadless(ABC, Generic[T]):
                     selectors.EVENT_READ,
                     data=wqfileno,
                 )
-            self.loop = asyncio.get_event_loop_policy().get_event_loop()
+            assert self.loop
             while not self.running.is_set():
                 # logger.debug('Working on {0} works'.format(len(self.works)))
-                self.loop.run_until_complete(self._run_once())
+                teardown = self.loop.run_until_complete(self._run_once())
+                if teardown:
+                    break
         except KeyboardInterrupt:
             pass
         finally:
