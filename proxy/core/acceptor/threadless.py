@@ -26,7 +26,7 @@ from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
-from ...common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
+from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
 
 from ..connection import TcpClientConnection
 from ..event import eventNames, EventQueue
@@ -86,6 +86,7 @@ class Threadless(ABC, Generic[T]):
             Dict[int, int],
         ] = {}
         self.wait_timeout: float = DEFAULT_SELECTOR_SELECT_TIMEOUT
+        self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
 
     @property
     @abstractmethod
@@ -216,12 +217,9 @@ class Threadless(ABC, Generic[T]):
                 work_by_ids[key.data][1].append(key.fileobj)
         return (work_by_ids, new_work_available)
 
-    async def _wait_for_tasks(
-            self,
-            pending: Set['asyncio.Task[bool]'],
-    ) -> None:
+    async def _wait_for_tasks(self) -> None:
         finished, self.unfinished = await asyncio.wait(
-            pending,
+            self.unfinished,
             timeout=self.wait_timeout,
             return_when=asyncio.FIRST_COMPLETED,
         )
@@ -236,10 +234,6 @@ class Threadless(ABC, Generic[T]):
             type=socket.SOCK_STREAM,
         )
 
-    # TODO: Use cached property to avoid execution repeatedly
-    # within a second interval.  Note that our selector timeout
-    # is 0.1 second which can unnecessarily result in cleanup
-    # checks within a second boundary.
     def _cleanup_inactive(self) -> None:
         inactive_works: List[int] = []
         for work_id in self.works:
@@ -294,20 +288,29 @@ class Threadless(ABC, Generic[T]):
             if teardown:
                 return teardown
         if len(work_by_ids) == 0:
-            self._cleanup_inactive()
             return False
         # Invoke Threadless.handle_events
         self.unfinished.update(self._create_tasks(work_by_ids))
         # logger.debug('Executing {0} works'.format(len(self.unfinished)))
-        await self._wait_for_tasks(self.unfinished)
+        await self._wait_for_tasks()
         # logger.debug(
         #     'Done executing works, {0} pending, {1} registered'.format(
         #         len(self.unfinished), len(self.registered_events_by_work_ids),
         #     ),
         # )
-        # Remove and shutdown inactive workers
-        self._cleanup_inactive()
         return False
+
+    async def _run_forever(self) -> None:
+        tick = 0
+        while not self.running.is_set():
+            if await self._run_once():
+                if self.loop:
+                    self.loop.stop()
+                break
+            if (tick * DEFAULT_SELECTOR_SELECT_TIMEOUT) > self.cleanup_inactive_timeout:
+                self._cleanup_inactive()
+                tick = 0
+            tick += 1
 
     def run(self) -> None:
         Logger.setup(
@@ -324,10 +327,9 @@ class Threadless(ABC, Generic[T]):
                     data=wqfileno,
                 )
             assert self.loop
-            while not self.running.is_set():
-                # logger.debug('Working on {0} works'.format(len(self.works)))
-                if self.loop.run_until_complete(self._run_once()):
-                    break
+            # logger.debug('Working on {0} works'.format(len(self.works)))
+            self.loop.create_task(self._run_forever())
+            self.loop.run_forever()
         except KeyboardInterrupt:
             pass
         finally:
@@ -336,4 +338,5 @@ class Threadless(ABC, Generic[T]):
                 self.selector.unregister(wqfileno)
                 self.close_work_queue()
             assert self.loop is not None
+            self.loop.run_until_complete(self.loop.shutdown_asyncgens())
             self.loop.close()

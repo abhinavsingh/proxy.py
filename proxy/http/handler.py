@@ -314,45 +314,6 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn
 
-    # FIXME: Returning events is only necessary because we cannot use async context manager
-    # for < Python 3.8.  As a reason, this method is no longer a context manager and caller
-    # is responsible for unregistering the descriptors.
-    async def _selected_events(self) -> Tuple[Dict[int, int], Readables, Writables]:
-        assert self.selector
-        events = await self.get_events()
-        for fd in events:
-            self.selector.register(fd, events[fd])
-        ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
-        readables = []
-        writables = []
-        for key, mask in ev:
-            if mask & selectors.EVENT_READ:
-                readables.append(key.fileobj)
-            if mask & selectors.EVENT_WRITE:
-                writables.append(key.fileobj)
-        return (events, readables, writables)
-
-    def _flush(self) -> None:
-        assert self.selector
-        logger.debug('Flushing pending data')
-        try:
-            self.selector.register(
-                self.work.connection,
-                selectors.EVENT_WRITE,
-            )
-            while self.work.has_buffer():
-                logging.debug('Waiting for client read ready')
-                ev: List[
-                    Tuple[selectors.SelectorKey, int]
-                ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
-                if len(ev) == 0:
-                    continue
-                self.work.flush()
-        except BrokenPipeError:
-            pass
-        finally:
-            self.selector.unregister(self.work.connection)
-
     def _connection_inactive_for(self) -> float:
         return time.time() - self.last_activity
 
@@ -403,3 +364,42 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # work fds repeatedly.
             for fd in events:
                 self.selector.unregister(fd)
+
+    # FIXME: Returning events is only necessary because we cannot use async context manager
+    # for < Python 3.8.  As a reason, this method is no longer a context manager and caller
+    # is responsible for unregistering the descriptors.
+    async def _selected_events(self) -> Tuple[Dict[int, int], Readables, Writables]:
+        assert self.selector
+        events = await self.get_events()
+        for fd in events:
+            self.selector.register(fd, events[fd])
+        ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
+        readables = []
+        writables = []
+        for key, mask in ev:
+            if mask & selectors.EVENT_READ:
+                readables.append(key.fileobj)
+            if mask & selectors.EVENT_WRITE:
+                writables.append(key.fileobj)
+        return (events, readables, writables)
+
+    def _flush(self) -> None:
+        assert self.selector
+        logger.debug('Flushing pending data')
+        try:
+            self.selector.register(
+                self.work.connection,
+                selectors.EVENT_WRITE,
+            )
+            while self.work.has_buffer():
+                logging.debug('Waiting for client read ready')
+                ev: List[
+                    Tuple[selectors.SelectorKey, int]
+                ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
+                if len(ev) == 0:
+                    continue
+                self.work.flush()
+        except BrokenPipeError:
+            pass
+        finally:
+            self.selector.unregister(self.work.connection)
