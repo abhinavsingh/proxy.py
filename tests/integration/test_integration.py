@@ -26,7 +26,7 @@ from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
 # * https://github.com/pytest-dev/pytest/issues/7469#issuecomment-918345196
 # * https://github.com/pytest-dev/pytest/issues/3342
 @pytest.fixture  # type: ignore[misc]
-def _proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
+def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     """Instantiate proxy.py in a subprocess for testing.
 
     NOTE: Doesn't waits for the proxy to startup.
@@ -56,21 +56,21 @@ def _proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
 # * https://github.com/pytest-dev/pytest/issues/3342
 @pytest.mark.smoke  # type: ignore[misc]
 @pytest.mark.parametrize(
-    '_proxy_py_subprocess',
+    'proxy_py_subprocess',
     (
         ('--threadless'),
         ('--threadless --local-executor'),
         ('--threaded'),
     ),
     indirect=True,
-)
+)   # type: ignore[misc]
 @pytest.mark.xfail(
     IS_WINDOWS,
     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
     raises=OSError,
 )  # type: ignore[misc]
-def test_curl(_proxy_py_subprocess: int) -> None:
+def test_curl(proxy_py_subprocess: int) -> None:
     """An acceptance test with using ``curl`` through proxy.py."""
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
-    check_output([str(shell_script_test), str(_proxy_py_subprocess)])
+    check_output([str(shell_script_test), str(proxy_py_subprocess)])
