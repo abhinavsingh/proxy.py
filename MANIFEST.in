@@ -1,6 +1,7 @@
 include LICENSE
 include README.md
-global-exclude *.png *.gif
+exclude ProxyPy.png
+exclude Dashboard.png
+exclude shortlink.gif
 prune dashboard
 prune menubar
-prune .github
