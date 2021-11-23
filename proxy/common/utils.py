@@ -180,10 +180,10 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
     """Find and returns first line ending in CRLF along with following buffer.
 
     If no ending CRLF is found, line is None."""
-    parts = raw.split(CRLF)
-    if len(parts) == 1:
-        return None, raw
-    return parts[0], CRLF.join(parts[1:])
+    parts = raw.split(CRLF, 1)
+    return (None, raw) \
+        if len(parts) == 1 \
+        else (parts[0], parts[1])
 
 
 def wrap_socket(

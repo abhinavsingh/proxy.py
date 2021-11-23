@@ -44,7 +44,7 @@ class LocalExecutor(Threadless['queue.Queue[Any]']):
 
     def receive_from_work_queue(self) -> bool:
         with contextlib.suppress(queue.Empty):
-            work = self.work_queue.get(block=False)
+            work = self.work_queue.get_nowait()
             if isinstance(work, bool) and work is False:
                 return True
             assert isinstance(work, tuple)
