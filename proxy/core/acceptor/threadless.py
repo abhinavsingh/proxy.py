@@ -302,15 +302,20 @@ class Threadless(ABC, Generic[T]):
 
     async def _run_forever(self) -> None:
         tick = 0
-        while not self.running.is_set():
-            if await self._run_once():
-                if self.loop:
-                    self.loop.stop()
-                break
-            if (tick * DEFAULT_SELECTOR_SELECT_TIMEOUT) > self.cleanup_inactive_timeout:
-                self._cleanup_inactive()
-                tick = 0
-            tick += 1
+        try:
+            while True:
+                if await self._run_once():
+                    break
+                # Check for inactive and shutdown signal only second
+                if (tick * DEFAULT_SELECTOR_SELECT_TIMEOUT) > self.cleanup_inactive_timeout:
+                    self._cleanup_inactive()
+                    if self.running.is_set():
+                        break
+                    tick = 0
+                tick += 1
+        finally:
+            if self.loop:
+                self.loop.stop()
 
     def run(self) -> None:
         Logger.setup(

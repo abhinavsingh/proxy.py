@@ -41,15 +41,6 @@ PID_FILE=/tmp/proxy.pid
 
 ulimit -n $OPEN_FILE_LIMIT
 
-# time python -m \
-#     proxy \
-#     --enable-web-server \
-#     --plugin proxy.plugin.WebServerPlugin \
-#     --backlog $BACKLOG \
-#     --open-file-limit $OPEN_FILE_LIMIT \
-#     --pid-file $PID_FILE \
-#     --log-file /dev/null
-
 PID=$(cat $PID_FILE)
 if [[ -z "$PID" ]]; then
   echo "Either pid file doesn't exist or no pid found in the pid file"
