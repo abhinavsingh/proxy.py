@@ -27,9 +27,7 @@ endif
 .PHONY: container container-run container-release
 .PHONY: devtools dashboard dashboard-clean
 
-all:
-	echo $(IMAGE_TAG)
-	# lib-test
+all: lib-test
 
 https-certificates:
 	# Generate server key
@@ -94,7 +92,8 @@ lib-dep:
 		-r requirements.txt \
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
-		-r requirements-tunnel.txt \
+		-r requirements-tunnel.txt && \
+	pip install "setuptools>=42"
 
 lib-lint:
 	python -m tox -e lint
@@ -128,6 +127,7 @@ lib-coverage:
 	$(OPEN) htmlcov/index.html
 
 lib-profile:
+	ulimit -n 65536 && \
 	sudo py-spy record \
 		-o profile.svg \
 		-t -F -s -- \
@@ -137,6 +137,9 @@ lib-profile:
 			--disable-http-proxy \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
+			--local-executor \
+			--backlog 65536 \
+			--open-file-limit 65536
 			--log-file /dev/null
 
 devtools:

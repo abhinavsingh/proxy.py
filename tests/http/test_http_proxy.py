@@ -8,9 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
+import pytest
 import selectors
-from unittest import mock
+
+from pytest_mock import MockerFixture
 
 from proxy.common.constants import DEFAULT_HTTP_PORT
 from proxy.common.flag import FlagParser
@@ -21,27 +22,25 @@ from proxy.http.exception import HttpProtocolException
 from proxy.common.utils import build_http_request
 
 
-class TestHttpProxyPlugin(unittest.TestCase):
+class TestHttpProxyPlugin:
 
-    @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
-    def setUp(
-        self,
-        mock_fromfd: mock.Mock,
-        mock_selector: mock.Mock,
-    ) -> None:
-        self.mock_fromfd = mock_fromfd
-        self.mock_selector = mock_selector
+    @pytest.fixture(autouse=True)   # type: ignore[misc]
+    def _setUp(self, mocker: MockerFixture) -> None:
+        self.mock_server_conn = mocker.patch(
+            'proxy.http.proxy.server.TcpServerConnection',
+        )
+        self.mock_selector = mocker.patch('selectors.DefaultSelector')
+        self.mock_fromfd = mocker.patch('socket.fromfd')
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
         self.flags = FlagParser.initialize(threaded=True)
-        self.plugin = mock.MagicMock()
+        self.plugin = mocker.MagicMock()
         self.flags.plugins = {
             b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],
             b'HttpProxyBasePlugin': [self.plugin],
         }
-        self._conn = mock_fromfd.return_value
+        self._conn = self.mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
             TcpClientConnection(self._conn, self._addr),
             flags=self.flags,
@@ -51,11 +50,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
     def test_proxy_plugin_initialized(self) -> None:
         self.plugin.assert_called()
 
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_proxy_plugin_on_and_before_upstream_connection(
-            self,
-            mock_server_conn: mock.Mock,
-    ) -> None:
+    @pytest.mark.asyncio    # type: ignore[misc]
+    async def test_proxy_plugin_on_and_before_upstream_connection(self) -> None:
         self.plugin.return_value.write_to_descriptors.return_value = False
         self.plugin.return_value.read_from_descriptors.return_value = False
         self.plugin.return_value.before_upstream_connection.side_effect = lambda r: r
@@ -71,8 +67,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -80,16 +76,16 @@ class TestHttpProxyPlugin(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler._run_once()
-        mock_server_conn.assert_called_with('upstream.host', DEFAULT_HTTP_PORT)
+        await self.protocol_handler._run_once()
+
+        self.mock_server_conn.assert_called_with(
+            'upstream.host', DEFAULT_HTTP_PORT,
+        )
         self.plugin.return_value.before_upstream_connection.assert_called()
         self.plugin.return_value.handle_client_request.assert_called()
 
-    @mock.patch('proxy.http.proxy.server.TcpServerConnection')
-    def test_proxy_plugin_before_upstream_connection_can_teardown(
-            self,
-            mock_server_conn: mock.Mock,
-    ) -> None:
+    @pytest.mark.asyncio    # type: ignore[misc]
+    async def test_proxy_plugin_before_upstream_connection_can_teardown(self) -> None:
         self.plugin.return_value.write_to_descriptors.return_value = False
         self.plugin.return_value.read_from_descriptors.return_value = False
         self.plugin.return_value.before_upstream_connection.side_effect = HttpProtocolException()
@@ -103,8 +99,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
         self.mock_selector.return_value.select.side_effect = [
             [(
                 selectors.SelectorKey(
-                    fileobj=self._conn,
-                    fd=self._conn.fileno,
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -112,8 +108,8 @@ class TestHttpProxyPlugin(unittest.TestCase):
             )],
         ]
 
-        self.protocol_handler._run_once()
-        mock_server_conn.assert_not_called()
+        await self.protocol_handler._run_once()
+        self.mock_server_conn.assert_not_called()
         self.plugin.return_value.before_upstream_connection.assert_called()
 
     def test_proxy_plugin_plugins_can_teardown_from_write_to_descriptors(self) -> None:

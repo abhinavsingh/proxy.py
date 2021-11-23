@@ -7,17 +7,20 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    Compatibility code for using Proxy.py across various versions of Python.
-
-    .. spelling::
-
-        compat
-        py
 """
+from typing import Any
 
-import platform
 
+class Assertions:
 
-SYS_PLATFORM = platform.system()
-IS_WINDOWS = SYS_PLATFORM == 'Windows'
+    def assertTrue(self, obj: Any) -> None:
+        assert obj
+
+    def assertFalse(self, obj: Any) -> None:
+        assert not obj
+
+    def assertEqual(self, obj1: Any, obj2: Any) -> None:
+        assert obj1 == obj2
+
+    def assertNotEqual(self, obj1: Any, obj2: Any) -> None:
+        assert obj1 != obj2

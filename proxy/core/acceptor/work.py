@@ -13,7 +13,6 @@
        acceptor
 """
 import argparse
-import socket
 
 from abc import ABC, abstractmethod
 from uuid import uuid4, UUID
@@ -43,12 +42,12 @@ class Work(ABC):
         self.work = work
 
     @abstractmethod
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         """Return sockets and events (read or write) that we are interested in."""
         return {}   # pragma: no cover
 
     @abstractmethod
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
             writables: Writables,

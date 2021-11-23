@@ -71,15 +71,13 @@ class HttpProtocolHandlerPlugin(ABC):
         return self.__class__.__name__
 
     @abstractmethod
-    def get_descriptors(
-            self,
-    ) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         """Implementations must return a list of descriptions that they wish to
         read from and write into."""
         return [], []  # pragma: no cover
 
     @abstractmethod
-    def write_to_descriptors(self, w: Writables) -> bool:
+    async def write_to_descriptors(self, w: Writables) -> bool:
         """Implementations must now write/flush data over the socket.
 
         Note that buffer management is in-build into the connection classes.
@@ -90,7 +88,7 @@ class HttpProtocolHandlerPlugin(ABC):
         return False  # pragma: no cover
 
     @abstractmethod
-    def read_from_descriptors(self, r: Readables) -> bool:
+    async def read_from_descriptors(self, r: Readables) -> bool:
         """Implementations must now read data over the socket."""
         return False  # pragma: no cover
 

@@ -109,6 +109,7 @@
     - [Setup Local Environment](#setup-local-environment)
     - [Setup Git Hooks](#setup-git-hooks)
     - [Sending a Pull Request](#sending-a-pull-request)
+- [Benchmarks](#benchmarks)
 - [Flags](#flags)
 - [Changelog](#changelog)
   - [v2.x](#v2x)
@@ -126,35 +127,55 @@
 
     ```console
     # On Macbook Pro 2019 / 2.4 GHz 8-Core Intel Core i9 / 32 GB RAM
-    ❯ hey -n 10000 -c 100 http://localhost:8899/http-route-example
+    ❯ ./helper/benchmark.sh
+      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req, QPS: 5000 req/sec, TIMEOUT: 1 sec
 
-    Summary:
-      Total:	0.3248 secs
-      Slowest:	0.1007 secs
-      Fastest:	0.0002 secs
-      Average:	0.0028 secs
-      Requests/sec:	30784.7958
+      Summary:
+        Total:	3.1560 secs
+        Slowest:	0.0375 secs
+        Fastest:	0.0006 secs
+        Average:	0.0031 secs
+        Requests/sec:	31685.9140
 
-      Total data:	190000 bytes
-      Size/request:	19 bytes
+        Total data:	1900000 bytes
+        Size/request:	19 bytes
 
-    Response time histogram:
-      0.000 [1]	|
-      0.010 [9533]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-      0.020 [384]	|■■
+      Response time histogram:
+        0.001 [1]	|
+        0.004 [91680]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+        0.008 [7929]	|■■■
+        0.012 [263]	|
+        0.015 [29]	|
+        0.019 [8]	|
+        0.023 [23]	|
+        0.026 [15]	|
+        0.030 [27]	|
+        0.034 [16]	|
+        0.037 [9]	|
 
-    Latency distribution:
-      10% in 0.0004 secs
-      25% in 0.0007 secs
-      50% in 0.0013 secs
-      75% in 0.0029 secs
-      90% in 0.0057 secs
-      95% in 0.0097 secs
-      99% in 0.0185 secs
 
-    Status code distribution:
-      [200]	10000 responses
+      Latency distribution:
+        10% in 0.0022 secs
+        25% in 0.0025 secs
+        50% in 0.0029 secs
+        75% in 0.0034 secs
+        90% in 0.0041 secs
+        95% in 0.0048 secs
+        99% in 0.0066 secs
+
+      Details (average, fastest, slowest):
+        DNS+dialup:	0.0000 secs, 0.0006 secs, 0.0375 secs
+        DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0000 secs
+        req write:	0.0000 secs, 0.0000 secs, 0.0046 secs
+        resp wait:	0.0030 secs, 0.0006 secs, 0.0320 secs
+        resp read:	0.0000 secs, 0.0000 secs, 0.0029 secs
+
+      Status code distribution:
+        [200]	100000 responses
     ```
+
+    PS: `proxy.py` and benchmark tools are running on the same machine during the above load test.
+    Checkout the repo and try it for yourself.  See [Benchmarks](#benchmarks) for more details.
 
 - Lightweight
   - Uses only `~5-20MB` RAM
@@ -1977,13 +1998,21 @@ Every pull request is tested using GitHub actions.
 See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
 for list of tests.
 
+# Benchmarks
+
+Simply run the following command from repo root to start benchmark
+
+```console
+❯ ./helper/benchmark.sh
+```
+
 # Flags
 
 ```console
 ❯ proxy -h
 usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS] [--backlog BACKLOG]
-          [--hostname HOSTNAME] [--port PORT]
+          [--threaded] [--num-workers NUM_WORKERS] [--local-executor]
+          [--backlog BACKLOG] [--hostname HOSTNAME] [--port PORT]
           [--unix-socket-path UNIX_SOCKET_PATH]
           [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
           [--log-file LOG_FILE] [--log-format LOG_FORMAT]
@@ -2009,7 +2038,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2
+proxy.py v2.3.2.dev193+g87ff921.d20211121
 
 options:
   -h, --help            show this help message and exit
@@ -2026,6 +2055,13 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
+  --local-executor      Default: False. Disabled by default. When enabled
+                        acceptors will make use of local (same process)
+                        executor instead of distributing load across remote
+                        (other process) executors. Enable this option to
+                        achieve CPU affinity between acceptors and executors,
+                        instead of using underlying OS kernel scheduling
+                        algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server
   --hostname HOSTNAME   Default: ::1. Server IP address.
@@ -2154,6 +2190,10 @@ https://github.com/abhinavsingh/proxy.py/issues/new
 ```
 
 # Changelog
+
+## v2.4.0
+
+- No longer support `Python 3.6` due to `asyncio.run` usage in the core.
 
 ## v2.x
 

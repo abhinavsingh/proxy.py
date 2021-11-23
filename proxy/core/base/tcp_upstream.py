@@ -8,12 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from abc import ABC, abstractmethod
-
 import ssl
-import socket
 import logging
 
+from abc import ABC, abstractmethod
 from typing import Tuple, List, Optional, Any
 
 from ...common.types import Readables, Writables
@@ -24,11 +22,12 @@ logger = logging.getLogger(__name__)
 
 class TcpUpstreamConnectionHandler(ABC):
     """:class:`~proxy.core.base.TcpUpstreamConnectionHandler` can
-    be used to insert an upstream server connection lifecycle within
-    asynchronous proxy.py lifecycle.
+    be used to insert an upstream server connection lifecycle.
 
     Call `initialize_upstream` to initialize the upstream connection object.
     Then, directly use ``self.upstream`` object within your class.
+
+    See :class:`~proxy.plugin.proxy_pool.ProxyPoolPlugin` for example usage.
 
     .. spelling::
 
@@ -67,20 +66,25 @@ class TcpUpstreamConnectionHandler(ABC):
     def initialize_upstream(self, addr: str, port: int) -> None:
         self.upstream = TcpServerConnection(addr, port)
 
-    def get_descriptors(self) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         if not self.upstream:
             return [], []
-        return [self.upstream.connection], [self.upstream.connection] if self.upstream.has_buffer() else []
+        return [self.upstream.connection.fileno()], \
+            [self.upstream.connection.fileno()] \
+            if self.upstream.has_buffer() \
+            else []
 
     def read_from_descriptors(self, r: Readables) -> bool:
-        if self.upstream and self.upstream.connection in r:
+        if self.upstream and \
+                self.upstream.connection.fileno() in r:
             try:
                 raw = self.upstream.recv(self.server_recvbuf_size)
                 if raw is not None:
                     self.total_size += len(raw)
                     self.handle_upstream_data(raw)
                 else:
-                    return True     # Teardown because upstream proxy closed the connection
+                    # Tear down because upstream proxy closed the connection
+                    return True
             except ssl.SSLWantReadError:
                 logger.info('Upstream SSLWantReadError, will retry')
                 return False
@@ -90,7 +94,9 @@ class TcpUpstreamConnectionHandler(ABC):
         return False
 
     def write_to_descriptors(self, w: Writables) -> bool:
-        if self.upstream and self.upstream.connection in w and self.upstream.has_buffer():
+        if self.upstream and \
+                self.upstream.connection.fileno() in w and \
+                self.upstream.has_buffer():
             try:
                 self.upstream.flush()
             except ssl.SSLWantWriteError:

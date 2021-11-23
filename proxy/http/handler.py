@@ -16,11 +16,11 @@ import ssl
 import time
 import errno
 import socket
+import asyncio
 import logging
 import selectors
-import contextlib
 
-from typing import Tuple, List, Union, Optional, Generator, Dict, Any
+from typing import Tuple, List, Union, Optional, Dict, Any
 
 from .plugin import HttpProtocolHandlerPlugin
 from .parser import HttpParser, httpParserStates, httpParserTypes
@@ -63,11 +63,6 @@ flags.add_argument(
     'an inactive connection must be dropped.  Inactivity is defined by no '
     'data sent or received by the client.',
 )
-
-SelectedEventsGeneratorType = Generator[
-    Tuple[Readables, Writables],
-    None, None,
-]
 
 
 class HttpProtocolHandler(BaseTcpServerHandler):
@@ -124,19 +119,16 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # Flush pending buffer in threaded mode only.
             # For threadless mode, BaseTcpServerHandler implements
             # the must_flush_before_shutdown logic automagically.
-            if self.selector:
+            if self.selector and self.work.has_buffer():
                 self._flush()
-
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()
-
             logger.debug(
                 'Closing client connection %r '
                 'at address %s has buffer %s' %
                 (self.work.connection, self.work.address, self.work.has_buffer()),
             )
-
             conn = self.work.connection
             # Unwrap if wrapped before shutdown.
             if self._encryption_enabled() and \
@@ -151,53 +143,49 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             logger.debug('Client connection closed')
             super().shutdown()
 
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         # Get default client events
-        events: Dict[socket.socket, int] = super().get_events()
+        events: Dict[int, int] = await super().get_events()
         # HttpProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
-            for r in plugin_read_desc:
-                if r not in events:
-                    events[r] = selectors.EVENT_READ
+            for rfileno in plugin_read_desc:
+                if rfileno not in events:
+                    events[rfileno] = selectors.EVENT_READ
                 else:
-                    events[r] |= selectors.EVENT_READ
-            for w in plugin_write_desc:
-                if w not in events:
-                    events[w] = selectors.EVENT_WRITE
+                    events[rfileno] |= selectors.EVENT_READ
+            for wfileno in plugin_write_desc:
+                if wfileno not in events:
+                    events[wfileno] = selectors.EVENT_WRITE
                 else:
-                    events[w] |= selectors.EVENT_WRITE
+                    events[wfileno] |= selectors.EVENT_WRITE
         return events
 
     # We override super().handle_events and never call it
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
             writables: Writables,
     ) -> bool:
         """Returns True if proxy must tear down."""
         # Flush buffer for ready to write sockets
-        teardown = self.handle_writables(writables)
+        teardown = await self.handle_writables(writables)
         if teardown:
             return True
-
         # Invoke plugin.write_to_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.write_to_descriptors(writables)
+            teardown = await plugin.write_to_descriptors(writables)
             if teardown:
                 return True
-
         # Read from ready to read sockets
-        teardown = self.handle_readables(readables)
+        teardown = await self.handle_readables(readables)
         if teardown:
             return True
-
         # Invoke plugin.read_from_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.read_from_descriptors(readables)
+            teardown = await plugin.read_from_descriptors(readables)
             if teardown:
                 return True
-
         return False
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
@@ -208,7 +196,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
         try:
             # HttpProtocolHandlerPlugin.on_client_data
-            # Can raise HttpProtocolException to teardown the connection
+            # Can raise HttpProtocolException to tear down the connection
             for plugin in self.plugins.values():
                 optional_data = plugin.on_client_data(data)
                 if optional_data is None:
@@ -248,8 +236,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             return True
         return False
 
-    def handle_writables(self, writables: Writables) -> bool:
-        if self.work.connection in writables and self.work.has_buffer():
+    async def handle_writables(self, writables: Writables) -> bool:
+        if self.work.connection.fileno() in writables and self.work.has_buffer():
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
 
@@ -265,7 +253,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
             try:
                 # Call super() for client flush
-                teardown = super().handle_writables(writables)
+                teardown = await super().handle_writables(writables)
                 if teardown:
                     return True
             except BrokenPipeError:
@@ -278,12 +266,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 return True
         return False
 
-    def handle_readables(self, readables: Readables) -> bool:
-        if self.work.connection in readables:
+    async def handle_readables(self, readables: Readables) -> bool:
+        if self.work.connection.fileno() in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
             try:
-                teardown = super().handle_readables(readables)
+                teardown = await super().handle_readables(readables)
                 if teardown:
                     return teardown
             except ssl.SSLWantReadError:    # Try again later
@@ -306,40 +294,6 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return False
 
     ##
-    # run() is here to maintain backward compatibility for threaded mode
-    ##
-
-    def run(self) -> None:
-        """run() method is not used when in --threadless mode.
-
-        This is here just to maintain backward compatibility with threaded mode.
-        """
-        try:
-            self.initialize()
-            while True:
-                # Teardown if client buffer is empty and connection is inactive
-                if self.is_inactive():
-                    logger.debug(
-                        'Client buffer is empty and maximum inactivity has reached '
-                        'between client and server connection, tearing down...',
-                    )
-                    break
-                teardown = self._run_once()
-                if teardown:
-                    break
-        except KeyboardInterrupt:  # pragma: no cover
-            pass
-        except ssl.SSLError as e:
-            logger.exception('ssl.SSLError', exc_info=e)
-        except Exception as e:
-            logger.exception(
-                'Exception while handling connection %r' %
-                self.work.connection, exc_info=e,
-            )
-        finally:
-            self.shutdown()
-
-    ##
     # Internal methods
     ##
 
@@ -360,10 +314,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn
 
-    @contextlib.contextmanager
-    def _selected_events(self) -> SelectedEventsGeneratorType:
+    # FIXME: Returning events is only necessary because we cannot use async context manager
+    # for < Python 3.8.  As a reason, this method is no longer a context manager and caller
+    # is responsible for unregistering the descriptors.
+    async def _selected_events(self) -> Tuple[Dict[int, int], Readables, Writables]:
         assert self.selector
-        events = self.get_events()
+        events = await self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
         ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
@@ -374,27 +330,18 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 readables.append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 writables.append(key.fileobj)
-        yield (readables, writables)
-        for fd in events:
-            self.selector.unregister(fd)
-
-    def _run_once(self) -> bool:
-        with self._selected_events() as (readables, writables):
-            teardown = self.handle_events(readables, writables)
-            if teardown:
-                return True
-            return False
+        return (events, readables, writables)
 
     def _flush(self) -> None:
         assert self.selector
-        if not self.work.has_buffer():
-            return
+        logger.debug('Flushing pending data')
         try:
             self.selector.register(
                 self.work.connection,
                 selectors.EVENT_WRITE,
             )
             while self.work.has_buffer():
+                logging.debug('Waiting for client read ready')
                 ev: List[
                     Tuple[selectors.SelectorKey, int]
                 ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
@@ -408,3 +355,51 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     def _connection_inactive_for(self) -> float:
         return time.time() - self.last_activity
+
+    ##
+    # run() and _run_once() are here to maintain backward compatibility
+    # with threaded mode.  These methods are only called when running
+    # in threaded mode.
+    ##
+
+    def run(self) -> None:
+        """run() method is not used when in --threadless mode.
+
+        This is here just to maintain backward compatibility with threaded mode.
+        """
+        loop = asyncio.new_event_loop()
+        try:
+            self.initialize()
+            while True:
+                # Tear down if client buffer is empty and connection is inactive
+                if self.is_inactive():
+                    logger.debug(
+                        'Client buffer is empty and maximum inactivity has reached '
+                        'between client and server connection, tearing down...',
+                    )
+                    break
+                if loop.run_until_complete(self._run_once()):
+                    break
+        except KeyboardInterrupt:  # pragma: no cover
+            pass
+        except ssl.SSLError as e:
+            logger.exception('ssl.SSLError', exc_info=e)
+        except Exception as e:
+            logger.exception(
+                'Exception while handling connection %r' %
+                self.work.connection, exc_info=e,
+            )
+        finally:
+            self.shutdown()
+            loop.close()
+
+    async def _run_once(self) -> bool:
+        events, readables, writables = await self._selected_events()
+        try:
+            return await self.handle_events(readables, writables)
+        finally:
+            assert self.selector
+            # TODO: Like Threadless we should not unregister
+            # work fds repeatedly.
+            for fd in events:
+                self.selector.unregister(fd)
