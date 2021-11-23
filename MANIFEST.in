@@ -1,5 +1,3 @@
-include LICENSE
-include README.md
 exclude ProxyPy.png
 exclude Dashboard.png
 exclude shortlink.gif
