@@ -265,9 +265,12 @@ jobs:
     - name: Setup git user as [bot]
       if: >-
         fromJSON(needs.pre-setup.outputs.is-untagged-devel)
+      # Refs:
+      # * https://github.community/t/github-actions-bot-email-address/17204/6
+      # * https://github.com/actions/checkout/issues/13#issuecomment-724415212
       run: >
         git config --local user.email
-        'github-actions[bot]@users.noreply.github.com'
+        '41898282+github-actions[bot]@users.noreply.github.com'
 
         git config --local user.name 'github-actions[bot]'
     - name: >-
@@ -755,9 +758,12 @@ jobs:
         fetch-depth: 1
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Setup git user as [bot]
+      # Refs:
+      # * https://github.community/t/github-actions-bot-email-address/17204/6
+      # * https://github.com/actions/checkout/issues/13#issuecomment-724415212
       run: >
         git config --local user.email
-        'github-actions[bot]@users.noreply.github.com'
+        '41898282+github-actions[bot]@users.noreply.github.com'
 
         git config --local user.name 'github-actions[bot]'
 
