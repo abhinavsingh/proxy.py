@@ -6,9 +6,21 @@ codecov:
 coverage:
   status:
     project:
-      default:
+      default: false  # disable the default status that measures entire project
+      # examples:   # declare a new status context "examples"
+      tests:    # declare a new status context "tests"
+        # target: 100%  # we always want 100% coverage here
+        paths:
+        - "tests/"   # only include coverage in "tests/" folder
+      lib:  # declare a new status context "lib"
+        paths:
+        - "!tests/"  # remove all files in "tests/"
         threshold: 1%
     patch:
       default:
+        target: auto
+        base: auto
         threshold: 1%
+comment:
+  require_changes: true
 ...
