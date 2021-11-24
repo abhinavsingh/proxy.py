@@ -2,8 +2,8 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
-IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(shell ./write-scm-version.sh)
+DOCKER_LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
+DOCKER_IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(shell ./write-scm-version.sh)
 
 HTTPS_KEY_FILE_PATH := https-key.pem
 HTTPS_CERT_FILE_PATH := https-cert.pem
@@ -151,12 +151,14 @@ dashboard:
 dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
+container-buildx:
+	docker build -t $(DOCKER_IMAGE_TAG) --platform linux/amd64,linux/arm/v7,linux/arm64 .
+
 container:
-	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .
+	docker build -t $(DOCKER_IMAGE_TAG) .
 
 container-release:
-	docker push $(IMAGE_TAG)
-	docker push $(LATEST_TAG)
+	docker push $(DOCKER_IMAGE_TAG)
 
 container-run:
-	docker run -it -p 8899:8899 --rm $(LATEST_TAG)
+	docker run -it -p 8899:8899 --rm $(DOCKER_LATEST_TAG)
