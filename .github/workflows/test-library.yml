@@ -265,11 +265,7 @@ jobs:
     - name: Setup git user as [bot]
       if: >-
         fromJSON(needs.pre-setup.outputs.is-untagged-devel)
-      run: >
-        git config --local user.email
-        'github-actions[bot]@users.noreply.github.com'
-
-        git config --local user.name 'github-actions[bot]'
+      uses: fregante/setup-git-user@v1.0.1
     - name: >-
         Tag the release in the local Git repo
         as ${{ needs.pre-setup.outputs.git-tag }}
@@ -755,11 +751,7 @@ jobs:
         fetch-depth: 1
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Setup git user as [bot]
-      run: >
-        git config --local user.email
-        'github-actions[bot]@users.noreply.github.com'
-
-        git config --local user.name 'github-actions[bot]'
+      uses: fregante/setup-git-user@v1.0.1
 
     - name: >-
         Tag the release in the local Git repo
