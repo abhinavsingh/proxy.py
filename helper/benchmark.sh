@@ -32,7 +32,7 @@ if [ $(basename $PWD) != "proxy.py" ]; then
 fi
 
 TIMEOUT=1
-QPS=20000
+QPS=8000
 CONCURRENCY=100
 TOTAL_REQUESTS=100000
 OPEN_FILE_LIMIT=65536
@@ -40,15 +40,6 @@ BACKLOG=OPEN_FILE_LIMIT
 PID_FILE=/tmp/proxy.pid
 
 ulimit -n $OPEN_FILE_LIMIT
-
-# time python -m \
-#     proxy \
-#     --enable-web-server \
-#     --plugin proxy.plugin.WebServerPlugin \
-#     --backlog $BACKLOG \
-#     --open-file-limit $OPEN_FILE_LIMIT \
-#     --pid-file $PID_FILE \
-#     --log-file /dev/null
 
 PID=$(cat $PID_FILE)
 if [[ -z "$PID" ]]; then

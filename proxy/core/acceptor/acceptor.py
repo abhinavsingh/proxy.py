@@ -13,7 +13,6 @@
        acceptor
        pre
 """
-import queue
 import socket
 import logging
 import argparse
@@ -26,11 +25,11 @@ from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
 from typing import List, Optional, Tuple
-from typing import Any      # noqa: W0611   pylint: disable=unused-import
 
 from ...common.flag import flags
 from ...common.utils import is_threadless
 from ...common.logger import Logger
+from ...common.backports import NonBlockingQueue
 from ...common.constants import DEFAULT_LOCAL_EXECUTOR
 
 from ..event import EventQueue
@@ -103,7 +102,7 @@ class Acceptor(multiprocessing.Process):
         self.sock: Optional[socket.socket] = None
         # Internals
         self._total: Optional[int] = None
-        self._local_work_queue: Optional['queue.Queue[Any]'] = None
+        self._local_work_queue: Optional['NonBlockingQueue'] = None
         self._local: Optional[LocalExecutor] = None
         self._lthread: Optional[threading.Thread] = None
 
@@ -118,7 +117,7 @@ class Acceptor(multiprocessing.Process):
                     work = (conn, addr or None)
                     if self.flags.local_executor:
                         assert self._local_work_queue
-                        self._local_work_queue.put_nowait(work)
+                        self._local_work_queue.put(work)
                     else:
                         self._work(*work)
 
@@ -171,7 +170,7 @@ class Acceptor(multiprocessing.Process):
 
     def _start_local(self) -> None:
         assert self.sock
-        self._local_work_queue = queue.Queue()
+        self._local_work_queue = NonBlockingQueue()
         self._local = LocalExecutor(
             work_queue=self._local_work_queue,
             flags=self.flags,

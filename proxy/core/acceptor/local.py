@@ -19,14 +19,16 @@ import asyncio
 import contextlib
 
 from typing import Optional
-from typing import Any      # noqa: W0611   pylint: disable=unused-import
+from typing import Any
+
+from ...common.backports import NonBlockingQueue    # noqa: W0611, F401   pylint: disable=unused-import
 
 from .threadless import Threadless
 
 logger = logging.getLogger(__name__)
 
 
-class LocalExecutor(Threadless['queue.Queue[Any]']):
+class LocalExecutor(Threadless['NonBlockingQueue']):
     """A threadless executor implementation which uses a queue to receive new work."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -44,7 +46,7 @@ class LocalExecutor(Threadless['queue.Queue[Any]']):
 
     def receive_from_work_queue(self) -> bool:
         with contextlib.suppress(queue.Empty):
-            work = self.work_queue.get(block=False)
+            work = self.work_queue.get()
             if isinstance(work, bool) and work is False:
                 return True
             assert isinstance(work, tuple)

@@ -139,7 +139,7 @@ lib-profile:
 			--plugin proxy.plugin.WebServerPlugin \
 			--local-executor \
 			--backlog 65536 \
-			--open-file-limit 65536
+			--open-file-limit 65536 \
 			--log-file /dev/null
 
 devtools:
