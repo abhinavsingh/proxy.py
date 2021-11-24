@@ -24,7 +24,7 @@ endif
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile lib-doc
 .PHONY: lib-dep lib-flake8 lib-mypy
-.PHONY: container container-run container-release
+.PHONY: container container-run container-release container-buildx
 .PHONY: devtools dashboard dashboard-clean
 
 all: lib-test
@@ -152,7 +152,7 @@ dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
 container-buildx:
-	docker build -t $(DOCKER_IMAGE_TAG) --platform linux/amd64,linux/arm/v7,linux/arm64 .
+	docker buildx build -t $(DOCKER_IMAGE_TAG) --platform linux/amd64,linux/arm/v7,linux/arm64 .
 
 container:
 	docker build -t $(DOCKER_IMAGE_TAG) .
