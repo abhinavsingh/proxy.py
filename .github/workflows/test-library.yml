@@ -662,6 +662,11 @@ jobs:
     - name: Install makefile dependency
       run: |
         pip install setuptools_scm
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
     - name: Build container
       run: |
         make container-buildx -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
