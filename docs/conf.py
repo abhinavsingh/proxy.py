@@ -267,6 +267,7 @@ nitpick_ignore = [
     (_py_class_role, 'HttpWebServerBasePlugin'),
     (_py_class_role, 'multiprocessing.context.Process'),
     (_py_class_role, 'multiprocessing.synchronize.Lock'),
+    (_py_class_role, 'NonBlockingQueue'),
     (_py_class_role, 'paramiko.channel.Channel'),
     (_py_class_role, 'proxy.http.parser.parser.T'),
     (_py_class_role, 'proxy.plugin.cache.store.base.CacheStore'),
