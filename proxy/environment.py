@@ -19,7 +19,6 @@ class solana_cli:
             logger.debug("Calling: " + " ".join(cmd))
             return subprocess.check_output(cmd, universal_newlines=True)
         except subprocess.CalledProcessError as err:
-            import sys
             logger.debug("ERR: solana error {}".format(err))
             raise
 
@@ -35,7 +34,16 @@ class neon_cli:
             logger.debug("Calling: " + " ".join(cmd))
             return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True)
         except subprocess.CalledProcessError as err:
-            import sys
+            logger.debug("ERR: neon-cli error {}".format(err))
+            raise
+
+    def version(self):
+        try:
+            cmd = ["neon-cli",
+                   "--version"]
+            logger.debug("Calling: " + " ".join(cmd))
+            return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True).split()[1]
+        except subprocess.CalledProcessError as err:
             logger.debug("ERR: neon-cli error {}".format(err))
             raise
 

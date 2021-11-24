@@ -93,6 +93,9 @@ class EthereumModel:
         # NEON_CHAIN_ID is a string in decimal form
         return hex(int(self.neon_config_dict['NEON_CHAIN_ID']))
 
+    def neon_cli_version(self):
+        return neon_cli().version()
+
     def net_version(self):
         neon_config_load(self)
         # NEON_CHAIN_ID is a string in decimal form
