@@ -14,7 +14,8 @@ updates:
   # Allow up to 1 open pull requests
   open-pull-requests-limit: 1
   # Add reviewers
-  reviewers: abhinavsingh
+  reviewers:
+  - abhinavsingh
 
 # Maintain dependencies for npm
 - package-ecosystem: "npm"
@@ -23,8 +24,8 @@ updates:
     interval: "daily"
   # Allow up to 1 open pull requests
   open-pull-requests-limit: 1
-  # Add reviewers
-  reviewers: abhinavsingh
+  reviewers:
+  - abhinavsingh
   # Prefix all commit messages with "npm"
   commit-message:
     prefix: "npm"
@@ -36,8 +37,8 @@ updates:
     interval: "daily"
   # Allow up to 1 open pull requests
   open-pull-requests-limit: 1
-  # Add reviewers
-  reviewers: abhinavsingh
+  reviewers:
+  - abhinavsingh
   # Include a list of updated dependencies
   # with a prefix determined by the dependency group
   commit-message:
