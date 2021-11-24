@@ -37,11 +37,11 @@ class TestListener(unittest.TestCase):
         self.assertEqual(sock.setsockopt.call_count, 2)
         self.assertEqual(
             sock.setsockopt.call_args_list[0][0],
-            (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1,),
+            (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1),
         )
         self.assertEqual(
             sock.setsockopt.call_args_list[1][0],
-            (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1,),
+            (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
         )
         sock.bind.assert_called_with(
             (str(flags.hostname), 0),
@@ -77,11 +77,11 @@ class TestListener(unittest.TestCase):
         self.assertEqual(sock.setsockopt.call_count, 2)
         self.assertEqual(
             sock.setsockopt.call_args_list[0][0],
-            (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1,),
+            (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1),
         )
         self.assertEqual(
             sock.setsockopt.call_args_list[1][0],
-            (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1,),
+            (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
         )
         sock.bind.assert_called_with(sock_path)
         sock.listen.assert_called_with(flags.backlog)

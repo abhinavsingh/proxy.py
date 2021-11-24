@@ -11,7 +11,7 @@
 import time
 import threading
 
-from typing import Any
+from typing import Any, Deque
 from queue import Empty
 from collections import deque
 
@@ -94,25 +94,25 @@ class NonBlockingQueue:
     Here because proxy.py still supports 3.6
     '''
 
-    def __init__(self):
-        self._queue = deque()
-        self._count = threading.Semaphore(0)
+    def __init__(self) -> None:
+        self._queue: Deque[Any] = deque()
+        self._count: threading.Semaphore = threading.Semaphore(0)
 
-    def put(self, item):
+    def put(self, item: Any) -> None:
         '''Put the item on the queue.'''
         self._queue.append(item)
         self._count.release()
 
-    def get(self):
+    def get(self) -> Any:
         '''Remove and return an item from the queue.'''
         if not self._count.acquire(False, None):
             raise Empty
         return self._queue.popleft()
 
-    def empty(self):
+    def empty(self) -> bool:
         '''Return True if the queue is empty, False otherwise (not reliable!).'''
         return len(self._queue) == 0
 
-    def qsize(self):
+    def qsize(self) -> int:
         '''Return the approximate size of the queue (not reliable!).'''
         return len(self._queue)
