@@ -286,9 +286,9 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                     # here to avoid flooding the logs.
                     logger.debug('%r' % e)
                 else:
-                    logger.exception(
-                        'Exception while receiving from %s connection %r with reason %r' %
-                        (self.work.tag, self.work.connection, e),
+                    logger.warning(
+                        'Exception when receiving from %s connection#%d with reason %r' %
+                        (self.work.tag, self.work.connection.fileno(), e),
                     )
                 return True
         return False
