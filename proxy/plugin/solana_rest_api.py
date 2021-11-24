@@ -29,12 +29,11 @@ import traceback
 import threading
 
 from .solana_rest_api_tools import EthereumAddress, get_token_balance_or_airdrop, getAccountInfo, call_signed, \
-                                   call_emulated, EthereumError, neon_config_load, MINIMAL_GAS_PRICE
+                                   call_emulated, EthereumError, neon_config_load, MINIMAL_GAS_PRICE, estimate_gas
 from solana.rpc.commitment import Commitment, Confirmed
 from web3 import Web3
 import logging
 from ..core.acceptor.pool import proxy_id_glob
-import os
 from ..indexer.utils import get_trx_results, LogDB
 from ..indexer.sql_dict import SQLDict
 from ..environment import evm_loader_id, solana_cli, solana_url, neon_cli
@@ -45,7 +44,6 @@ logger.setLevel(logging.DEBUG)
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
-EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 
 class EthereumModel:
     def __init__(self):
@@ -105,12 +103,11 @@ class EthereumModel:
 
     def eth_estimateGas(self, param):
         try:
-            caller_id = param['from'] if 'from' in param else "0x0000000000000000000000000000000000000000"
-            contract_id = param['to'] if 'to' in param else "deploy"
-            data = param['data'] if 'data' in param else "None"
-            value = param['value'] if 'value' in param else ""
-            result = call_emulated(contract_id, caller_id, data, value)
-            return result['used_gas']+EXTRA_GAS
+            caller_id = param.get('from', "0x0000000000000000000000000000000000000000")
+            contract_id = param.get('to', "deploy")
+            data = param.get('data', "None")
+            value = param.get('value', "")
+            return estimate_gas(self.client, self.signer, contract_id, EthereumAddress(caller_id), data, value)
         except Exception as err:
             logger.debug("Exception on eth_estimateGas: %s", err)
             raise

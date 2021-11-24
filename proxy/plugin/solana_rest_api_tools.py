@@ -100,6 +100,9 @@ obligatory_accounts = [
     AccountMeta(pubkey=sysvarclock, is_signer=False, is_writable=False),
 ]
 
+EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
+
+
 class SQLCost():
     def __init__(self):
 
@@ -1253,3 +1256,23 @@ def make_instruction_data_from_tx(instruction, private_key=None):
         return (pub.to_canonical_address(), sig.to_bytes(), raw_msg)
     else:
         raise Exception("function gets ")
+
+
+def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> bool:
+    pda_account, nonce = ether2program(eth_account)
+    info = client.get_account_info(pda_account, commitment=Confirmed)
+    value = get_from_dict(info, "result", "value")
+    return value is not None
+
+
+def estimate_gas(client: SolanaClient, signer: SolanaAccount, contract_id: str, caller_eth_account: EthereumAddress,
+                 data: str = None, value: str = None):
+    if not is_account_exists(client, caller_eth_account):
+        create_eth_account_and_airdrop(client, signer, caller_eth_account)
+    result = call_emulated(contract_id, str(caller_eth_account), data, value)
+    used_gas = result.get("used_gas")
+    if used_gas is None:
+        logger.error(f"Failed estimate_gas, unexpected result, by contract_id: {contract_id}, caller_eth_account: "
+                     f"{caller_eth_account}, data: {data}, value: {value}, emulation result: {result}")
+        raise Exception("Bad estimate_gas result")
+    return used_gas + EXTRA_GAS

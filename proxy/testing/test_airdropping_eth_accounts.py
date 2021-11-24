@@ -11,7 +11,7 @@ from web3 import Web3, eth as web3_eth
 from solana.rpc.api import Client as SolanaClient
 
 from ..plugin.solana_rest_api import EthereumModel
-from ..plugin.solana_rest_api_tools import get_token_balance_gwei, EthereumAddress, ether2program
+from ..plugin.solana_rest_api_tools import get_token_balance_gwei, ether2program
 
 
 class TestAirdroppingEthAccounts(unittest.TestCase):
@@ -50,9 +50,19 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
         self.assertEqual(self._EXPECTED_BALANCE_WEI, wrapper_actual_balance)
         self.assertEqual(self._EXPECTED_BALANCE_WEI, nested_actual_balance)
 
+    def test_airdrop_on_deploy_estimation(self):
+        owner_eth_account: LocalAccount = self._web3.eth.account.create()
+        compile_result = solcx.compile_source(self._CONTRACT_STORAGE_SOURCE)
+        _, contract_interface = compile_result.popitem()
+        contract_data = contract_interface.get("bin")
+        self.assertIsNotNone(contract_data)
+        self._web3.eth.estimate_gas({"from": owner_eth_account.address, "data": contract_data})
+        owner_balance = self._get_balance_wei(owner_eth_account.address)
+        self.assertEqual(self._EXPECTED_BALANCE_WEI, owner_balance)
+
     def _compile_and_deploy_contract(self, contract_owner: LocalAccount, source: str) -> web3_eth.Contract:
-        compiled_sol = solcx.compile_source(source)
-        contract_id, contract_interface = compiled_sol.popitem()
+        compile_result = solcx.compile_source(source)
+        contract_id, contract_interface = compile_result.popitem()
         contract = self._web3.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
         nonce = self._web3.eth.get_transaction_count(contract_owner.address)
         chain_id = self._web3.eth.chain_id
@@ -64,8 +74,8 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
         contract = self._web3.eth.contract(address=trx_receipt.contractAddress, abi=contract.abi)
         return contract
 
-    def _get_balance_wei(self, eth_acc: str) -> int:
-        token_owner_account, nonce = ether2program(eth_acc)
+    def _get_balance_wei(self, eth_account: str) -> int:
+        token_owner_account, nonce = ether2program(eth_account)
         balance = get_token_balance_gwei(self._solana_client, token_owner_account)
         self.assertIsNotNone(balance)
         self.assertIsInstance(balance, int)
