@@ -14,4 +14,4 @@ codecov==2.1.12
 tox==3.24.4
 mccabe==0.6.1
 pylint==2.11.1
-rope==0.21.0
+rope==0.22.0
