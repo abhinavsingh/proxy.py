@@ -291,9 +291,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         ),
                     )
                 else:
-                    logger.exception(
-                        'Exception while receiving from %s connection %r with reason %r' %
-                        (self.upstream.tag, self.upstream.connection, e),
+                    logger.warning(
+                        'Exception while receiving from %s connection#%d with reason %r' %
+                        (self.upstream.tag, self.upstream.connection.fileno(), e),
                     )
                 return self._close_and_release()
 
