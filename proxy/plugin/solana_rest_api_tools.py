@@ -58,6 +58,7 @@ ACCOUNT_SEED_VERSION=b'\1'
 COLLATERALL_POOL_MAX=10
 
 EMPTY_STORAGE_TAG=0
+FINALIZED_STORAGE_TAG=5
 
 sysvarclock = "SysvarC1ock11111111111111111111111111111111"
 sysinstruct = "Sysvar1nstructions1111111111111111111111111"
@@ -334,8 +335,8 @@ def create_multiple_accounts_with_seed(client, funding, base, seeds, sizes):
                 raise Exception("insufficient balance")
             if PublicKey(owner) != PublicKey(evm_loader_id):
                 raise Exception("wrong owner")
-            if tag != EMPTY_STORAGE_TAG:
-                raise Exception("not empty")
+            if tag not in {EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG}:
+                raise Exception("not empty, not finalized")
 
     if len(trx.instructions) > 0:
         send_transaction(client, trx, funding)
