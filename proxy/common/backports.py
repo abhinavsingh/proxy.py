@@ -9,8 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
+import threading
 
 from typing import Any
+from queue import Empty
+from collections import deque
 
 
 class cached_property:
@@ -80,3 +83,36 @@ class cached_property:
             finally:
                 cache[self.__name__] = (value, now)
         return value
+
+
+class NonBlockingQueue:
+    '''Simple, unbounded, non-blocking FIFO queue.
+
+    Supports only a single consumer.
+
+    NOTE: This is available in Python since 3.7 as SimpleQueue.
+    Here because proxy.py still supports 3.6
+    '''
+
+    def __init__(self):
+        self._queue = deque()
+        self._count = threading.Semaphore(0)
+
+    def put(self, item):
+        '''Put the item on the queue.'''
+        self._queue.append(item)
+        self._count.release()
+
+    def get(self):
+        '''Remove and return an item from the queue.'''
+        if not self._count.acquire(False, None):
+            raise Empty
+        return self._queue.popleft()
+
+    def empty(self):
+        '''Return True if the queue is empty, False otherwise (not reliable!).'''
+        return len(self._queue) == 0
+
+    def qsize(self):
+        '''Return the approximate size of the queue (not reliable!).'''
+        return len(self._queue)

@@ -107,6 +107,7 @@ class Listener:
     def _listen_server_port(self) -> None:
         self._socket = socket.socket(self.flags.family, socket.SOCK_STREAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self._socket.bind((str(self.flags.hostname), self.flags.port))
         self._socket.listen(self.flags.backlog)
         self._socket.setblocking(False)
