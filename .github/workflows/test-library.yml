@@ -656,6 +656,9 @@ jobs:
         echo "Status:    ${{ steps.buildx.outputs.status }}"
         echo "Flags:     ${{ steps.buildx.outputs.flags }}"
         echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
+    - name: Install makefile dependency
+      run: |
+        pip install setuptools_scm
     - name: Build container
       run: |
         make container-buildx
