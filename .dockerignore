@@ -1,13 +1,5 @@
 # Ignore everything
 **
 
-# Except proxy
-!.git
-!proxy
-!requirements.txt
-!pyproject.toml
-!setup.cfg
+!dist/*.whl
 !README.md
-
-# Ignore __pycache__ directory
-proxy/__pycache__

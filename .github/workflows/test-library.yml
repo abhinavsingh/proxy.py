@@ -632,6 +632,9 @@ jobs:
     # TODO: To build our docker container, we must wait for check,
     # so that we can use the same distribution available.
     runs-on: ${{ matrix.os }}-latest
+    needs:
+    - build
+    - pre-setup  # transitive, for accessing settings
     name: 🐳 🐍${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
       matrix:
@@ -661,7 +664,7 @@ jobs:
         pip install setuptools_scm
     - name: Build container
       run: |
-        make container-buildx
+        make container-buildx -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
 
   check:  # This job does nothing and is only used for the branch protection
     needs:

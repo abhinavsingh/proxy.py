@@ -14,6 +14,9 @@ CA_KEY_FILE_PATH := ca-key.pem
 CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
+# Dummy invalid hardcoded value
+PROXYPY_PKG_PATH := dist/proxy.py.whl
+
 OPEN=$(shell which open)
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
@@ -24,7 +27,7 @@ endif
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile lib-doc
 .PHONY: lib-dep lib-flake8 lib-mypy
-.PHONY: container container-run container-release container-buildx
+.PHONY: container container-run container-release container-build container-buildx
 .PHONY: devtools dashboard dashboard-clean
 
 all: lib-test
@@ -152,10 +155,19 @@ dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
 container-buildx:
-	docker buildx build -t $(DOCKER_IMAGE_TAG) --platform linux/amd64,linux/arm/v7,linux/arm64 .
+	docker buildx build \
+		--platform linux/amd64,linux/arm/v7,linux/arm64 \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) \
+		-t $(DOCKER_IMAGE_TAG) .
 
-container:
-	docker build -t $(DOCKER_IMAGE_TAG) .
+container-build:
+	docker build \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) \
+		-t $(DOCKER_IMAGE_TAG) .
+
+container: lib-package
+	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
+
 
 container-release:
 	docker push $(DOCKER_IMAGE_TAG)
