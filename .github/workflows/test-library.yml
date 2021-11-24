@@ -131,7 +131,7 @@ jobs:
     - name: Set up pip cache
       if: >-
         steps.request-check.outputs.release-requested != 'true'
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.7
       with:
         path: ${{ steps.pip-cache-dir.outputs.dir }}
         key: >-
@@ -228,7 +228,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.7
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
@@ -349,7 +349,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.7
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
@@ -464,7 +464,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.7
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-

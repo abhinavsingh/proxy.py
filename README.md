@@ -128,47 +128,47 @@
     ```console
     # On Macbook Pro 2019 / 2.4 GHz 8-Core Intel Core i9 / 32 GB RAM
     ❯ ./helper/benchmark.sh
-      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req, QPS: 5000 req/sec, TIMEOUT: 1 sec
+      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req, QPS: 8000 req/sec, TIMEOUT: 1 sec
 
       Summary:
-        Total:	3.1560 secs
-        Slowest:	0.0375 secs
-        Fastest:	0.0006 secs
-        Average:	0.0031 secs
-        Requests/sec:	31685.9140
+        Total:	3.1217 secs
+        Slowest:	0.0499 secs
+        Fastest:	0.0004 secs
+        Average:	0.0030 secs
+        Requests/sec:	32033.7261
 
         Total data:	1900000 bytes
         Size/request:	19 bytes
 
       Response time histogram:
-        0.001 [1]	|
-        0.004 [91680]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-        0.008 [7929]	|■■■
-        0.012 [263]	|
-        0.015 [29]	|
-        0.019 [8]	|
-        0.023 [23]	|
-        0.026 [15]	|
-        0.030 [27]	|
-        0.034 [16]	|
-        0.037 [9]	|
+        0.000 [1]	|
+        0.005 [92268]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+        0.010 [7264]	|■■■
+        0.015 [318]	|
+        0.020 [102]	|
+        0.025 [32]	|
+        0.030 [6]	|
+        0.035 [4]	|
+        0.040 [1]	|
+        0.045 [2]	|
+        0.050 [2]	|
 
 
       Latency distribution:
-        10% in 0.0022 secs
-        25% in 0.0025 secs
-        50% in 0.0029 secs
-        75% in 0.0034 secs
-        90% in 0.0041 secs
-        95% in 0.0048 secs
-        99% in 0.0066 secs
+        10% in 0.0017 secs
+        25% in 0.0020 secs
+        50% in 0.0025 secs
+        75% in 0.0036 secs
+        90% in 0.0050 secs
+        95% in 0.0060 secs
+        99% in 0.0087 secs
 
       Details (average, fastest, slowest):
-        DNS+dialup:	0.0000 secs, 0.0006 secs, 0.0375 secs
+        DNS+dialup:	0.0000 secs, 0.0004 secs, 0.0499 secs
         DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0000 secs
-        req write:	0.0000 secs, 0.0000 secs, 0.0046 secs
-        resp wait:	0.0030 secs, 0.0006 secs, 0.0320 secs
-        resp read:	0.0000 secs, 0.0000 secs, 0.0029 secs
+        req write:	0.0000 secs, 0.0000 secs, 0.0020 secs
+        resp wait:	0.0030 secs, 0.0004 secs, 0.0462 secs
+        resp read:	0.0000 secs, 0.0000 secs, 0.0027 secs
 
       Status code distribution:
         [200]	100000 responses
