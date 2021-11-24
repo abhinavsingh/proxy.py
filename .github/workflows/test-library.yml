@@ -265,11 +265,7 @@ jobs:
     - name: Setup git user as [bot]
       if: >-
         fromJSON(needs.pre-setup.outputs.is-untagged-devel)
-      run: >
-        git config --local user.email
-        'github-actions[bot]@users.noreply.github.com'
-
-        git config --local user.name 'github-actions[bot]'
+      uses: fregante/setup-git-user@v1.0.1
     - name: >-
         Tag the release in the local Git repo
         as ${{ needs.pre-setup.outputs.git-tag }}
@@ -755,11 +751,7 @@ jobs:
         fetch-depth: 1
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Setup git user as [bot]
-      run: >
-        git config --local user.email
-        'github-actions[bot]@users.noreply.github.com'
-
-        git config --local user.name 'github-actions[bot]'
+      uses: fregante/setup-git-user@v1.0.1
 
     - name: >-
         Tag the release in the local Git repo
@@ -772,4 +764,38 @@ jobs:
         to the just published release back to GitHub
       run: >-
         git push --atomic origin '${{ needs.pre-setup.outputs.git-tag }}'
+
+  publish-github-release:
+    name: >-
+      Publish a GitHub Release for
+      ${{ needs.pre-setup.outputs.git-tag }}
+    needs:
+    - post-release-repo-update
+    - pre-setup  # transitive, for accessing settings
+    runs-on: Ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: >-
+        Publish a GitHub Release for
+        ${{ needs.pre-setup.outputs.git-tag }}
+      uses: softprops/action-gh-release@v1
+      with:
+        # body/body_path:  # FIXME: Use once Towncrier is integrated.
+        discussion_category_name: Announcements
+        fail_on_unmatched_files: true
+        files: |
+          dist/${{ needs.pre-setup.outputs.sdist-artifact-name }}
+          dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}
+        name: ${{ needs.pre-setup.outputs.git-tag }}
+        tag_name: ${{ needs.pre-setup.outputs.git-tag }}
+        target_commitish: ${{ github.event.inputs.release-commitish }}
 ...
