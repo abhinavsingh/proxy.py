@@ -156,7 +156,7 @@ dashboard-clean:
 
 container-buildx:
 	docker buildx build \
-		--platform linux/386,linux/amd64,linux/arm/v6,linux/arm64 \
+		--platform linux/386,linux/amd64,linux/arm64 \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) \
 		-t $(DOCKER_IMAGE_TAG) .
 
