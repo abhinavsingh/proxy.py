@@ -666,9 +666,6 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Install makefile dependency
-      run: |
-        pip install setuptools_scm
     - name: Download all the dists
       uses: actions/download-artifact@v2
       with:
