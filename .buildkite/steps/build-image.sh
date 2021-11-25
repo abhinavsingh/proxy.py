@@ -15,4 +15,5 @@ docker pull neonlabsorg/evm_loader:${EVM_LOADER_REVISION}
 docker build -t neonlabsorg/proxy:${REVISION} \
     --build-arg SOLANA_REVISION=${SOLANA_REVISION} \
     --build-arg EVM_LOADER_REVISION=${EVM_LOADER_REVISION} \
+    --build-arg PROXY_REVISION=${REVISION} \
     .
