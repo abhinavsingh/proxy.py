@@ -678,7 +678,7 @@ jobs:
       run: |
         make container-buildx \
           -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
-          -e BUILDX_TARGET_PLATFORM='{{ matrix.targetplatform }}'
+          -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}'
 
   check:  # This job does nothing and is only used for the branch protection
     needs:
