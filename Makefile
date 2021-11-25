@@ -3,7 +3,6 @@ SHELL := /bin/bash
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
 DOCKER_LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
-DOCKER_IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(shell ./write-scm-version.sh)
 
 HTTPS_KEY_FILE_PATH := https-key.pem
 HTTPS_CERT_FILE_PATH := https-cert.pem
@@ -16,6 +15,7 @@ CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
 
 # Dummy invalid hardcoded value
 PROXYPY_PKG_PATH := dist/proxy.py.whl
+BUILDX_TARGET_PLATFORM := linux/amd64
 
 OPEN=$(shell which open)
 UNAME := $(shell uname)
@@ -155,24 +155,18 @@ dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
 # Usage:
-# make container-buildx -e PROXYPY_PKG_PATH=$(ls dist/*.whl)
+# make container-buildx -e PROXYPY_PKG_PATH=$(ls dist/*.whl) -e BUILDX_TARGET_PLATFORM=linux/arm64
 container-buildx:
 	docker buildx build \
-		--platform linux/386,linux/amd64,linux/arm64 \
-		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) \
-		-t $(DOCKER_IMAGE_TAG) .
+		--platform $(BUILDX_TARGET_PLATFORM) \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 
 container-build:
 	docker build \
-		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) \
-		-t $(DOCKER_IMAGE_TAG) .
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 
 container: lib-package
 	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
-
-
-container-release:
-	docker push $(DOCKER_IMAGE_TAG)
 
 container-run:
 	docker run -it -p 8899:8899 --rm $(DOCKER_LATEST_TAG)

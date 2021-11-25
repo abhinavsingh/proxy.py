@@ -635,11 +635,19 @@ jobs:
     needs:
     - build
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 🐍${{ matrix.python }} @ ${{ matrix.os }}
+    name: 🐳 🐍${{ matrix.python }} @ ${{ matrix.targetplatform }}
     strategy:
       matrix:
-        os: [ubuntu]
-        python: ['3.10']
+        os:
+        - Ubuntu
+        python:
+        - '3.10'
+        targetplatform:
+        - 'linux/386'
+        - 'linux/amd64'
+        - 'linux/arm/v5'
+        - 'linux/arm/v7'
+        - 'linux/arm64/v8'
       # max-parallel: 1
       fail-fast: false
     steps:
@@ -652,13 +660,11 @@ jobs:
         buildkitd-flags: --debug
         config: .github/buildkitd.toml
         install: true
-    - name: Inspect builder
+    - name: Create builder
       run: |
-        echo "Name:      ${{ steps.buildx.outputs.name }}"
-        echo "Endpoint:  ${{ steps.buildx.outputs.endpoint }}"
-        echo "Status:    ${{ steps.buildx.outputs.status }}"
-        echo "Flags:     ${{ steps.buildx.outputs.flags }}"
-        echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
+        docker buildx create --name proxypybuilder
+        docker buildx use proxypybuilder
+        docker buildx inspect
         docker buildx ls
     - name: Install makefile dependency
       run: |
@@ -668,12 +674,14 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
-    - name: Enable Multiarch    # This slows down container build time by 4-5x
+    - name: Enable Multiarch    # This slows down arm build by 4-5x
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
     - name: Build container
       run: |
-        make container-buildx -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
+        make container-buildx \
+          -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
+          -e BUILDX_TARGET_PLATFORM='{{ matrix.targetplatform }}'
 
   check:  # This job does nothing and is only used for the branch protection
     needs:
