@@ -677,13 +677,15 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
+    - name: Set PROXYPY_CONTAINER_VERSION
+      run: |
+        echo "PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)" > $GITHUB_ENV
     - name: Build container
       run: |
-        PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .) \
         make container-buildx \
           -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
           -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}' \
-          -e PROXYPY_CONTAINER_VERSION=$PROXYPY_CONTAINER_VERSION
+          -e PROXYPY_CONTAINER_VERSION='${{ env.PROXYPY_CONTAINER_VERSION }}'
 
   check:  # This job does nothing and is only used for the branch protection
     needs:
