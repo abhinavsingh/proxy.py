@@ -1,7 +1,9 @@
 FROM python:3.10-alpine as base
 LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
-  com.abhinavsingh.description="⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on \
-  Network monitoring, controls & Application development, testing, debugging." \
+  com.abhinavsingh.description="⚡ Fast • 🪶 Lightweight • 0️⃣ Dependency • 🔌 Pluggable • \
+  😈 TLS interception • 🔒 DNS-over-HTTPS • 🔥 Poor Man's VPN • ⏪ Reverse & ⏩ Forward • \
+  👮🏿 \"Proxy Server\" framework • 🌐 \"Web Server\" framework • ➵ ➶ ➷ ➠ \"PubSub\" framework • \
+  👷 \"Work\" acceptor & executor framework" \
   com.abhinavsingh.url="https://github.com/abhinavsingh/proxy.py" \
   com.abhinavsingh.vcs-url="https://github.com/abhinavsingh/proxy.py" \
   com.abhinavsingh.docker.cmd="docker run -it --rm -p 8899:8899 abhinavsingh/proxy.py"

@@ -2,7 +2,10 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-DOCKER_LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
+# Override to target specific versions of proxy.py
+PROXYPY_CONTAINER_VERSION := latest
+# Used by container build and run targets
+PROXYPY_CONTAINER_TAG := $(NS)/$(IMAGE_NAME):$(PROXYPY_CONTAINER_VERSION)
 
 HTTPS_KEY_FILE_PATH := https-key.pem
 HTTPS_CERT_FILE_PATH := https-cert.pem
@@ -154,19 +157,25 @@ dashboard:
 dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
+container: lib-package
+	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
+
 # Usage:
-# make container-buildx -e PROXYPY_PKG_PATH=$(ls dist/*.whl) -e BUILDX_TARGET_PLATFORM=linux/arm64
+#
+# make container-buildx \
+#	-e PROXYPY_PKG_PATH=$(ls dist/*.whl) \
+#	-e BUILDX_TARGET_PLATFORM=linux/arm64 \
+#	-e PROXYPY_CONTAINER_VERSION=latest
 container-buildx:
 	docker buildx build \
 		--platform $(BUILDX_TARGET_PLATFORM) \
+		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 
 container-build:
 	docker build \
+		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 
-container: lib-package
-	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
-
 container-run:
-	docker run -it -p 8899:8899 --rm $(DOCKER_LATEST_TAG)
+	docker run -it -p 8899:8899 --rm $(PROXYPY_CONTAINER_TAG)
