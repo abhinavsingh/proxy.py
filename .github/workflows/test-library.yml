@@ -645,9 +645,11 @@ jobs:
         targetplatform:
         - 'linux/386'
         - 'linux/amd64'
-        - 'linux/arm/v5'
+        - 'linux/arm/v6'
         - 'linux/arm/v7'
         - 'linux/arm64/v8'
+        - 'linux/ppc64le'
+        - 'linux/s390x'
       # max-parallel: 1
       fail-fast: false
     steps:
@@ -660,12 +662,6 @@ jobs:
         buildkitd-flags: --debug
         config: .github/buildkitd.toml
         install: true
-    - name: Create builder
-      run: |
-        docker buildx create --name proxypybuilder
-        docker buildx use proxypybuilder
-        docker buildx inspect
-        docker buildx ls
     - name: Download all the dists
       uses: actions/download-artifact@v2
       with:
@@ -674,6 +670,12 @@ jobs:
     - name: Enable Multiarch    # This slows down arm build by 4-5x
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Create builder
+      run: |
+        docker buildx create --name proxypybuilder
+        docker buildx use proxypybuilder
+        docker buildx inspect
+        docker buildx ls
     - name: Build container
       run: |
         make container-buildx \
