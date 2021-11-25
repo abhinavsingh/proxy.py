@@ -1,4 +1,5 @@
 ---
+# yamllint disable rule:line-length
 name: lib
 
 on:   # yamllint disable-line rule:truthy
@@ -679,8 +680,7 @@ jobs:
     - name: Build container
       run: |
         make container-buildx \
-          -e PROXYPY_PKG_PATH=\
-            'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
+          -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
           -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}'
 
   check:  # This job does nothing and is only used for the branch protection
