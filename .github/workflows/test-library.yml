@@ -667,6 +667,9 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
+    - name: Fix lsb_release
+      run: |
+        sudo apt install -y lsb-release
     - name: Build container
       run: |
         make container-buildx -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
