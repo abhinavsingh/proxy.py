@@ -679,10 +679,11 @@ jobs:
         docker buildx ls
     - name: Build container
       run: |
+        PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .) \
         make container-buildx \
           -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
           -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}' \
-          -e PROXYPY_CONTAINER_VERSION='${{ needs.pre-setup.outputs.dist-version }}'
+          -e PROXYPY_CONTAINER_VERSION=$PROXYPY_CONTAINER_VERSION
 
   check:  # This job does nothing and is only used for the branch protection
     needs:

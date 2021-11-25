@@ -257,10 +257,28 @@ or from GitHub `master` branch
 
 ## Using Docker
 
+Stable version container releases are available for following platforms:
+
+- `linux/386`
+- `linux/amd64`
+- `linux/arm/v6`
+- `linux/arm/v7`
+- `linux/arm64/v8`
+- `linux/ppc64le`
+- `linux/s390x`
+
 ### Stable Version from Docker Hub
+
+Run `proxy.py` latest container:
 
 ```console
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
+```
+
+To run specific target platform container on multi-platform supported servers:
+
+```console
+❯ docker run -it -p 8899:8899 --rm --platform linux/arm64/v8 abhinavsingh/proxy.py:latest
 ```
 
 ### Build Development Version Locally
@@ -392,6 +410,16 @@ To start `proxy.py` from source code follow these instructions:
 
   ```console
   ❯ make lib-dep
+  ```
+
+- Generate `proxy/common/_scm_version.py`
+
+  NOTE: *Following step is not necessary for editable installs.*
+
+  This file writes SCM detected version to `proxy/common/_scm_version.py` file.
+
+  ```console
+  ❯ ./write-scm-version.sh
   ```
 
 - Optionally, run tests
