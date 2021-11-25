@@ -659,6 +659,7 @@ jobs:
         echo "Status:    ${{ steps.buildx.outputs.status }}"
         echo "Flags:     ${{ steps.buildx.outputs.flags }}"
         echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
+        docker buildx ls
     - name: Install makefile dependency
       run: |
         pip install setuptools_scm
@@ -667,9 +668,9 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
-    - name: Fix lsb_release
+    - name: Enable Multiarch    # This slows down container build time by 4-5x
       run: |
-        sudo apt install -y lsb-release
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
     - name: Build container
       run: |
         make container-buildx -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'

@@ -154,6 +154,8 @@ dashboard:
 dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
+# Usage:
+# make container-buildx -e PROXYPY_PKG_PATH=$(ls dist/*.whl)
 container-buildx:
 	docker buildx build \
 		--platform linux/386,linux/amd64,linux/arm64 \
