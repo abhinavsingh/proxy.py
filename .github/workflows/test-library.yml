@@ -802,6 +802,7 @@ jobs:
 
     permissions:
       contents: write
+      discussions: write
 
     steps:
     - name: Download all the dists
@@ -813,15 +814,27 @@ jobs:
     - name: >-
         Publish a GitHub Release for
         ${{ needs.pre-setup.outputs.git-tag }}
-      uses: softprops/action-gh-release@v1
+      uses: ncipollo/release-action@v1.8.10
       with:
-        # body/body_path:  # FIXME: Use once Towncrier is integrated.
-        discussion_category_name: Announcements
-        fail_on_unmatched_files: true
-        files: |
+        allowUpdates: false
+        artifactErrorsFailBuild: false
+        artifacts: |
           dist/${{ needs.pre-setup.outputs.sdist-artifact-name }}
           dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}
+        artifactContentType: raw  # Because whl and tgz are of different types
+        # body/bodyFile:  # FIXME: Use once Towncrier is integrated.
+        commit: ${{ github.event.inputs.release-commitish }}
+        discussionCategory: Announcements
+        draft: false
         name: ${{ needs.pre-setup.outputs.git-tag }}
-        tag_name: ${{ needs.pre-setup.outputs.git-tag }}
-        target_commitish: ${{ github.event.inputs.release-commitish }}
+        # omitBody: false
+        omitBodyDuringUpdate: true
+        omitName: false
+        omitNameDuringUpdate: true
+        omitPrereleaseDuringUpdate: true
+        prerelease: false
+        removeArtifacts: false
+        replacesArtifacts: false
+        tag: ${{ needs.pre-setup.outputs.git-tag }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 ...
