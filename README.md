@@ -615,7 +615,7 @@ Along with the proxy request log, you must also see a http web server request lo
 ### FilterByUpstreamHostPlugin
 
 Drops traffic by inspecting upstream host.
-By default, plugin drops traffic for `facebook.com` and `www.facebok.com`.
+By default, plugin drops traffic for `google.com` and `www.google.com`.
 
 Start `proxy.py` as:
 
@@ -624,7 +624,7 @@ Start `proxy.py` as:
     --plugins proxy.plugin.FilterByUpstreamHostPlugin
 ```
 
-Verify using `curl -v -x localhost:8899 http://facebook.com`:
+Verify using `curl -v -x localhost:8899 http://google.com`:
 
 ```console
 ... [redacted] ...
