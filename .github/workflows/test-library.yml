@@ -1,5 +1,4 @@
 ---
-# yamllint disable rule:line-length
 name: lib
 
 on:   # yamllint disable-line rule:truthy
@@ -270,7 +269,7 @@ jobs:
     - name: >-
         Tag the release in the local Git repo
         as ${{ needs.pre-setup.outputs.git-tag }}
-        for setuptools-scm to se the desired version
+        for setuptools-scm to see the desired version
       if: >-
         fromJSON(needs.pre-setup.outputs.is-untagged-devel)
       run: >-
@@ -678,13 +677,16 @@ jobs:
         docker buildx inspect
         docker buildx ls
     - name: Set PROXYPY_CONTAINER_VERSION
-      run: |
-        echo "PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)" > $GITHUB_ENV
+      run: >-
+        echo "PROXYPY_CONTAINER_VERSION=
+          $(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)"
+          > $GITHUB_ENV
     - name: Build container
-      run: |
-        make container-buildx \
-          -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
-          -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}' \
+      run: >-
+        make container-buildx
+          -e PROXYPY_PKG_PATH=
+            'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
+          -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}'
           -e PROXYPY_CONTAINER_VERSION='${{ env.PROXYPY_CONTAINER_VERSION }}'
 
   check:  # This job does nothing and is only used for the branch protection
