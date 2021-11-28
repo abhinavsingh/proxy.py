@@ -194,6 +194,11 @@ jobs:
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
         }}-py3-none-any.whl')
+    - name: Set PROXYPY_CONTAINER_VERSION env
+      shell: bash
+      run: >-
+        VER=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .);
+        echo "PROXYPY_CONTAINER_VERSION=$VER" > $GITHUB_ENV
 
   build:
     name: 👷 dists ${{ needs.pre-setup.outputs.git-tag }}
@@ -678,11 +683,6 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Set PROXYPY_CONTAINER_VERSION
-      run: >-
-        echo "PROXYPY_CONTAINER_VERSION=
-          $(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)"
-          > $GITHUB_ENV
     - name: Build container
       run: >-
         make container-buildx
