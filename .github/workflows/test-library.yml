@@ -692,11 +692,13 @@ jobs:
     - name: Build container
       run: >-
         make container-buildx
-          -e PROXYPY_PKG_PATH=
-            'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
+          -e PROXYPY_PKG_PATH='dist/${{
+              needs.pre-setup.outputs.wheel-artifact-name
+            }}'
           -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}'
-          -e PROXYPY_CONTAINER_VERSION=
-            '${{ needs.pre-setup.outputs.container-version }}'
+          -e PROXYPY_CONTAINER_VERSION='${{
+              needs.pre-setup.outputs.container-version
+            }}'
     - name: Run & Test container
       run: |
         docker run \
