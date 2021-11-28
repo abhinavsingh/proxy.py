@@ -66,7 +66,7 @@ jobs:
       git-tag: ${{ steps.git-tag.outputs.tag }}
       sdist-artifact-name: ${{ steps.artifact-name.outputs.sdist }}
       wheel-artifact-name: ${{ steps.artifact-name.outputs.wheel }}
-      container-version: ${{ steps.container-version.outputs.version }}
+      container-version: ${{ steps.container.outputs.version }}
     steps:
     - name: Switch to using Python 3.9 by default
       uses: actions/setup-python@v2
@@ -195,8 +195,8 @@ jobs:
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
         }}-py3-none-any.whl')
-    - name: Set container version
-      id: container-version
+    - name: Calculate container attributes
+      id: container
       shell: bash
       run: >-
         VER=$(echo '${{
@@ -204,7 +204,7 @@ jobs:
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
         }}' | tr + .);
-        echo "::set-output name=container-version::$VER"
+        echo "::set-output name=version::$VER"
 
   build:
     name: 👷 dists ${{ needs.pre-setup.outputs.git-tag }}
@@ -700,13 +700,12 @@ jobs:
               needs.pre-setup.outputs.container-version
             }}'
     - name: Run & Test container
-      run: |
-        docker run \
-          -p 8899:8899 \
+      run: >-
+        docker run
+          -p 8899:8899
           abhinavsingh/proxy.py:'${{
             needs.pre-setup.outputs.container-version
-          }}';
-        ./tests/integration/test_integration.sh 8899
+          }}' && ./tests/integration/test_integration.sh 8899
 
   check:  # This job does nothing and is only used for the branch protection
     needs:
