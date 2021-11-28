@@ -7,14 +7,19 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       api
 """
 import json
 from typing import Optional
 
 from ..common.utils import bytes_, build_http_response, text_
+
+from ..http import httpStatusCodes
 from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.codes import httpStatusCodes
 
 
 class ProposedRestApiPlugin(HttpProxyBasePlugin):
@@ -27,7 +32,7 @@ class ProposedRestApiPlugin(HttpProxyBasePlugin):
     without establishing upstream connection.
 
     Note: This plugin won't work if your client is making
-    HTTPS connection to api.example.com.
+    HTTPS connection to ``api.example.com``.
     """
 
     API_SERVER = b'api.example.com'
@@ -50,39 +55,46 @@ class ProposedRestApiPlugin(HttpProxyBasePlugin):
                     'url': text_(API_SERVER) + '/v1/users/2/',
                     'username': 'someone',
                 },
-            ]
+            ],
         },
     }
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         # Return None to disable establishing connection to upstream
         # Most likely our api.example.com won't even exist under development
         # scenario
         return None
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         if request.host != self.API_SERVER:
             return request
         assert request.path
         if request.path in self.REST_API_SPEC:
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.OK,
-                reason=b'OK',
-                headers={b'Content-Type': b'application/json'},
-                body=bytes_(json.dumps(
-                    self.REST_API_SPEC[request.path]))
-            )))
+            self.client.queue(
+                memoryview(
+                    build_http_response(
+                        httpStatusCodes.OK,
+                        reason=b'OK',
+                        headers={b'Content-Type': b'application/json'},
+                        body=bytes_(
+                            json.dumps(
+                                self.REST_API_SPEC[request.path],
+                            ),
+                        ),
+                    ),
+                ),
+            )
         else:
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.NOT_FOUND,
-                reason=b'NOT FOUND', body=b'Not Found'
-            )))
+            self.client.queue(
+                memoryview(
+                    build_http_response(
+                        httpStatusCodes.NOT_FOUND,
+                        reason=b'NOT FOUND', body=b'Not Found',
+                    ),
+                ),
+            )
         return None
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
-
-    def on_upstream_connection_close(self) -> None:
-        pass

@@ -7,18 +7,25 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
+       iterable
 """
 from typing import NamedTuple, Tuple, List, Optional
 
-from ..common.utils import bytes_, find_http_line
-from ..common.constants import CRLF, DEFAULT_BUFFER_SIZE
+from ...common.utils import bytes_, find_http_line
+from ...common.constants import CRLF, DEFAULT_BUFFER_SIZE
 
 
-ChunkParserStates = NamedTuple('ChunkParserStates', [
-    ('WAITING_FOR_SIZE', int),
-    ('WAITING_FOR_DATA', int),
-    ('COMPLETE', int),
-])
+ChunkParserStates = NamedTuple(
+    'ChunkParserStates', [
+        ('WAITING_FOR_SIZE', int),
+        ('WAITING_FOR_DATA', int),
+        ('COMPLETE', int),
+    ],
+)
 chunkParserStates = ChunkParserStates(1, 2, 3)
 
 
@@ -33,7 +40,7 @@ class ChunkParser:
         self.size: Optional[int] = None
 
     def parse(self, raw: bytes) -> bytes:
-        more = True if len(raw) > 0 else False
+        more = len(raw) > 0
         while more and self.state != chunkParserStates.COMPLETE:
             more, raw = self.process(raw)
         return raw

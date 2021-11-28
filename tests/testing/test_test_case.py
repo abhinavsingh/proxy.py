@@ -16,7 +16,8 @@ from proxy.common.utils import get_available_port
 
 class TestTestCase(unittest.TestCase):
 
-    def test_wait_for_server(self) -> None:
+    def test_wait_for_server_raises_timeout_error(self) -> None:
         with self.assertRaises(TimeoutError):
             proxy.TestCase.wait_for_server(
-                get_available_port(), wait_for_seconds=1)
+                get_available_port(), wait_for_seconds=0.1,
+            )

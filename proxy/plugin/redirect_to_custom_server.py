@@ -13,7 +13,6 @@ from typing import Optional
 
 from ..http.proxy import HttpProxyBasePlugin
 from ..http.parser import HttpParser
-from ..http.methods import httpMethods
 
 
 class RedirectToCustomServerPlugin(HttpProxyBasePlugin):
@@ -22,24 +21,17 @@ class RedirectToCustomServerPlugin(HttpProxyBasePlugin):
     UPSTREAM_SERVER = b'http://localhost:8899/'
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         # Redirect all non-https requests to inbuilt WebServer.
-        if request.method != httpMethods.CONNECT:
+        if not request.is_https_tunnel():
             request.set_url(self.UPSTREAM_SERVER)
             # Update Host header too, otherwise upstream can reject our request
             if request.has_header(b'Host'):
                 request.del_header(b'Host')
             request.add_header(
                 b'Host', urlparse.urlsplit(
-                    self.UPSTREAM_SERVER).netloc)
+                    self.UPSTREAM_SERVER,
+                ).netloc,
+            )
         return request
-
-    def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
-        return request
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
-
-    def on_upstream_connection_close(self) -> None:
-        pass

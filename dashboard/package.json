@@ -30,10 +30,10 @@
     "@types/js-cookie": "^2.2.6",
     "@typescript-eslint/eslint-plugin": "^2.34.0",
     "@typescript-eslint/parser": "^2.34.0",
-    "chrome-devtools-frontend": "^1.0.827632",
+    "chrome-devtools-frontend": "^1.0.944903",
     "eslint": "^6.8.0",
     "eslint-config-standard": "^14.1.1",
-    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-import": "^2.25.3",
     "eslint-plugin-node": "^10.0.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.1.0",
@@ -50,6 +50,6 @@
     "rollup-plugin-typescript": "^1.0.1",
     "ts-node": "^7.0.1",
     "typescript": "^3.9.7",
-    "ws": "^7.4.0"
+    "ws": "^7.4.6"
   }
 }

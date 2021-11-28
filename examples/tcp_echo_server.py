@@ -11,8 +11,7 @@
 import time
 from typing import Optional
 
-from proxy.proxy import Proxy
-from proxy.core.acceptor import AcceptorPool
+from proxy import Proxy
 from proxy.core.base import BaseTcpServerHandler
 
 
@@ -20,27 +19,27 @@ class EchoServerHandler(BaseTcpServerHandler):
     """Sets client socket to non-blocking during initialization."""
 
     def initialize(self) -> None:
-        self.client.connection.setblocking(False)
+        self.work.connection.setblocking(False)
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
         # echo back to client
-        self.client.queue(data)
+        self.work.queue(data)
         return None
 
 
 def main() -> None:
     # This example requires `threadless=True`
-    pool = AcceptorPool(
-        flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
-        work_klass=EchoServerHandler)
-    try:
-        pool.setup()
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        pool.shutdown()
+    with Proxy(
+        work_klass=EchoServerHandler,
+        threadless=True,
+        num_workers=1,
+        port=12345,
+    ):
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':

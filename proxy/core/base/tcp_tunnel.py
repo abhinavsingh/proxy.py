@@ -7,10 +7,15 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       tcp
 """
-from abc import abstractmethod
-import socket
+import logging
 import selectors
+
+from abc import abstractmethod
 from typing import Any, Optional, Dict
 
 from ...http.parser import HttpParser, httpParserTypes
@@ -20,13 +25,26 @@ from ...common.utils import text_
 from ..connection import TcpServerConnection
 from .tcp_server import BaseTcpServerHandler
 
+logger = logging.getLogger(__name__)
+
 
 class BaseTcpTunnelHandler(BaseTcpServerHandler):
-    """Base TCP tunnel interface."""
+    """BaseTcpTunnelHandler build on-top of BaseTcpServerHandler work class.
+
+    On-top of BaseTcpServerHandler implementation,
+    BaseTcpTunnelHandler introduces an upstream TcpServerConnection
+    and adds it to the core event loop when needed.
+
+    Currently, implementations must call connect_upstream from within
+    handle_data.  See HttpsConnectTunnelHandler for example usage.
+    """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.request = HttpParser(httpParserTypes.REQUEST_PARSER)
+        self.request = HttpParser(
+            httpParserTypes.REQUEST_PARSER,
+            enable_proxy_protocol=self.flags.enable_proxy_protocol,
+        )
         self.upstream: Optional[TcpServerConnection] = None
 
     @abstractmethod
@@ -34,55 +52,63 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
         pass    # pragma: no cover
 
     def initialize(self) -> None:
-        self.client.connection.setblocking(False)
+        self.work.connection.setblocking(False)
 
     def shutdown(self) -> None:
         if self.upstream:
-            print('Connection closed with upstream {0}:{1}'.format(
-                text_(self.request.host), self.request.port))
+            logger.debug(
+                'Connection closed with upstream {0}:{1}'.format(
+                    text_(self.request.host), self.request.port,
+                ),
+            )
             self.upstream.close()
         super().shutdown()
 
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         # Get default client events
-        ev: Dict[socket.socket, int] = super().get_events()
+        ev: Dict[int, int] = await super().get_events()
         # Read from server if we are connected
         if self.upstream and self.upstream._conn is not None:
-            ev[self.upstream.connection] = selectors.EVENT_READ
+            ev[self.upstream.connection.fileno()] = selectors.EVENT_READ
         # If there is pending buffer for server
         # also register for EVENT_WRITE events
         if self.upstream and self.upstream.has_buffer():
-            if self.upstream.connection in ev:
-                ev[self.upstream.connection] |= selectors.EVENT_WRITE
+            if self.upstream.connection.fileno() in ev:
+                ev[self.upstream.connection.fileno()] |= selectors.EVENT_WRITE
             else:
-                ev[self.upstream.connection] = selectors.EVENT_WRITE
+                ev[self.upstream.connection.fileno()] = selectors.EVENT_WRITE
         return ev
 
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
-            writables: Writables) -> bool:
+            writables: Writables,
+    ) -> bool:
         # Handle client events
-        do_shutdown: bool = super().handle_events(readables, writables)
+        do_shutdown: bool = await super().handle_events(readables, writables)
         if do_shutdown:
             return do_shutdown
         # Handle server events
-        if self.upstream and self.upstream.connection in readables:
+        if self.upstream and self.upstream.connection.fileno() in readables:
             data = self.upstream.recv()
             if data is None:
                 # Server closed connection
-                print('Connection closed by server')
+                logger.debug('Connection closed by server')
                 return True
             # tunnel data to client
-            self.client.queue(data)
-        if self.upstream and self.upstream.connection in writables:
+            self.work.queue(data)
+        if self.upstream and self.upstream.connection.fileno() in writables:
             self.upstream.flush()
         return False
 
     def connect_upstream(self) -> None:
         assert self.request.host and self.request.port
         self.upstream = TcpServerConnection(
-            text_(self.request.host), self.request.port)
+            text_(self.request.host), self.request.port,
+        )
         self.upstream.connect()
-        print('Connection established with upstream {0}:{1}'.format(
-            text_(self.request.host), self.request.port))
+        logger.debug(
+            'Connection established with upstream {0}:{1}'.format(
+                text_(self.request.host), self.request.port,
+            ),
+        )

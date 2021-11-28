@@ -7,4 +7,15 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       Submodules
 """
+from .client import SshClient
+from .tunnel import Tunnel
+
+__all__ = [
+    'SshClient',
+    'Tunnel',
+]

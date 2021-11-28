@@ -7,9 +7,12 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       acceptor
 """
 import argparse
-import socket
 
 from abc import ABC, abstractmethod
 from uuid import uuid4, UUID
@@ -25,25 +28,30 @@ class Work(ABC):
 
     def __init__(
             self,
-            client: TcpClientConnection,
+            work: TcpClientConnection,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
-            uid: Optional[UUID] = None) -> None:
-        self.client = client
-        self.flags = flags
-        self.event_queue = event_queue
+            uid: Optional[UUID] = None,
+    ) -> None:
+        # Work uuid
         self.uid: UUID = uid if uid is not None else uuid4()
+        self.flags = flags
+        # Eventing core queue
+        self.event_queue = event_queue
+        # Accept work
+        self.work = work
 
     @abstractmethod
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         """Return sockets and events (read or write) that we are interested in."""
         return {}   # pragma: no cover
 
     @abstractmethod
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
-            writables: Writables) -> bool:
+            writables: Writables,
+    ) -> bool:
         """Handle readable and writable sockets.
 
         Return True to shutdown work."""
@@ -63,7 +71,7 @@ class Work(ABC):
         self.publish_event(
             event_name=eventNames.WORK_FINISHED,
             event_payload={},
-            publisher_id=self.__class__.__name__
+            publisher_id=self.__class__.__name__,
         )
 
     def run(self) -> None:
@@ -71,13 +79,14 @@ class Work(ABC):
         compatibility with threaded mode where work class is started as
         a separate thread.
         """
-        pass
+        pass    # pragma: no cover
 
     def publish_event(
             self,
             event_name: int,
             event_payload: Dict[str, Any],
-            publisher_id: Optional[str] = None) -> None:
+            publisher_id: Optional[str] = None,
+    ) -> None:
         """Convenience method provided to publish events into the global event queue."""
         if not self.flags.enable_events:
             return
@@ -86,5 +95,5 @@ class Work(ABC):
             self.uid.hex,
             event_name,
             event_payload,
-            publisher_id
+            publisher_id,
         )

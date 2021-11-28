@@ -7,11 +7,15 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       eventing
+       Submodules
+       Subpackages
 """
-from .proxy import entry_point
-from .proxy import main, start
-from .proxy import Proxy
-from .testing.test_case import TestCase
+from .proxy import entry_point, main, Proxy
+from .testing import TestCase
 
 __all__ = [
     # PyPi package entry_point. See
@@ -19,7 +23,7 @@ __all__ = [
     'entry_point',
     # Embed proxy.py. See
     # https://github.com/abhinavsingh/proxy.py#embed-proxypy
-    'main', 'start',
+    'main',
     # Unit testing with proxy.py. See
     # https://github.com/abhinavsingh/proxy.py#unit-testing-with-proxypy
     'TestCase',

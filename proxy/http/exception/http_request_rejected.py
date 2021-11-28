@@ -7,6 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
 """
 from typing import Optional, Dict
 
@@ -21,11 +25,13 @@ class HttpRequestRejected(HttpProtocolException):
     Connections can either be dropped/closed or optionally an
     HTTP status code can be returned."""
 
-    def __init__(self,
-                 status_code: Optional[int] = None,
-                 reason: Optional[bytes] = None,
-                 headers: Optional[Dict[bytes, bytes]] = None,
-                 body: Optional[bytes] = None):
+    def __init__(
+        self,
+        status_code: Optional[int] = None,
+        reason: Optional[bytes] = None,
+        headers: Optional[Dict[bytes, bytes]] = None,
+        body: Optional[bytes] = None,
+    ):
         self.status_code: Optional[int] = status_code
         self.reason: Optional[bytes] = reason
         self.headers: Optional[Dict[bytes, bytes]] = headers
@@ -33,10 +39,12 @@ class HttpRequestRejected(HttpProtocolException):
 
     def response(self, _request: HttpParser) -> Optional[memoryview]:
         if self.status_code:
-            return memoryview(build_http_response(
-                status_code=self.status_code,
-                reason=self.reason,
-                headers=self.headers,
-                body=self.body
-            ))
+            return memoryview(
+                build_http_response(
+                    status_code=self.status_code,
+                    reason=self.reason,
+                    headers=self.headers,
+                    body=self.body,
+                ),
+            )
         return None

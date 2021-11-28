@@ -7,17 +7,46 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       utils
+       websocket
+       Websocket
+       WebSocket
 """
+import sys
 import ssl
-import contextlib
+import socket
+import logging
 import functools
 import ipaddress
-import socket
+import contextlib
 
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
-from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT
+from ._compat import IS_WINDOWS  # noqa: WPS436
+from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT, DEFAULT_THREADLESS
+
+if not IS_WINDOWS:
+    import resource
+
+logger = logging.getLogger(__name__)
+
+
+def is_threadless(threadless: bool, threaded: bool) -> bool:
+    # if default is threadless then return true unless
+    # user has overridden mode using threaded flag.
+    #
+    # if default is not threadless then return true
+    # only if user has overridden using --threadless flag
+    return (DEFAULT_THREADLESS and not threaded) or (not DEFAULT_THREADLESS and threadless)
+
+
+def is_py2() -> bool:
+    """Exists only to avoid mocking :data:`sys.version_info` in tests."""
+    return sys.version_info.major == 2
 
 
 def text_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
@@ -44,22 +73,27 @@ def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
     return s
 
 
-def build_http_request(method: bytes, url: bytes,
-                       protocol_version: bytes = HTTP_1_1,
-                       headers: Optional[Dict[bytes, bytes]] = None,
-                       body: Optional[bytes] = None) -> bytes:
+def build_http_request(
+    method: bytes, url: bytes,
+    protocol_version: bytes = HTTP_1_1,
+    headers: Optional[Dict[bytes, bytes]] = None,
+    body: Optional[bytes] = None,
+) -> bytes:
     """Build and returns a HTTP request packet."""
     if headers is None:
         headers = {}
     return build_http_pkt(
-        [method, url, protocol_version], headers, body)
+        [method, url, protocol_version], headers, body,
+    )
 
 
-def build_http_response(status_code: int,
-                        protocol_version: bytes = HTTP_1_1,
-                        reason: Optional[bytes] = None,
-                        headers: Optional[Dict[bytes, bytes]] = None,
-                        body: Optional[bytes] = None) -> bytes:
+def build_http_response(
+    status_code: int,
+    protocol_version: bytes = HTTP_1_1,
+    reason: Optional[bytes] = None,
+    headers: Optional[Dict[bytes, bytes]] = None,
+    body: Optional[bytes] = None,
+) -> bytes:
     """Build and returns a HTTP response packet."""
     line = [protocol_version, bytes_(status_code)]
     if reason:
@@ -85,25 +119,28 @@ def build_http_header(k: bytes, v: bytes) -> bytes:
     return k + COLON + WHITESPACE + v
 
 
-def build_http_pkt(line: List[bytes],
-                   headers: Optional[Dict[bytes, bytes]] = None,
-                   body: Optional[bytes] = None) -> bytes:
+def build_http_pkt(
+    line: List[bytes],
+    headers: Optional[Dict[bytes, bytes]] = None,
+    body: Optional[bytes] = None,
+) -> bytes:
     """Build and returns a HTTP request or response packet."""
-    req = WHITESPACE.join(line) + CRLF
+    pkt = WHITESPACE.join(line) + CRLF
     if headers is not None:
         for k in headers:
-            req += build_http_header(k, headers[k]) + CRLF
-    req += CRLF
+            pkt += build_http_header(k, headers[k]) + CRLF
+    pkt += CRLF
     if body:
-        req += body
-    return req
+        pkt += body
+    return pkt
 
 
 def build_websocket_handshake_request(
         key: bytes,
         method: bytes = b'GET',
         url: bytes = b'/',
-        host: bytes = b'localhost') -> bytes:
+        host: bytes = b'localhost',
+) -> bytes:
     """
     Build and returns a Websocket handshake request packet.
 
@@ -119,7 +156,7 @@ def build_websocket_handshake_request(
             b'Upgrade': b'websocket',
             b'Sec-WebSocket-Key': key,
             b'Sec-WebSocket-Version': b'13',
-        }
+        },
     )
 
 
@@ -134,8 +171,8 @@ def build_websocket_handshake_response(accept: bytes) -> bytes:
         headers={
             b'Upgrade': b'websocket',
             b'Connection': b'Upgrade',
-            b'Sec-WebSocket-Accept': accept
-        }
+            b'Sec-WebSocket-Accept': accept,
+        },
     )
 
 
@@ -143,23 +180,26 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
     """Find and returns first line ending in CRLF along with following buffer.
 
     If no ending CRLF is found, line is None."""
-    pos = raw.find(CRLF)
-    if pos == -1:
-        return None, raw
-    line = raw[:pos]
-    rest = raw[pos + len(CRLF):]
-    return line, rest
+    parts = raw.split(CRLF, 1)
+    return (None, raw) \
+        if len(parts) == 1 \
+        else (parts[0], parts[1])
 
 
-def wrap_socket(conn: socket.socket, keyfile: str,
-                certfile: str) -> ssl.SSLSocket:
+def wrap_socket(
+    conn: socket.socket, keyfile: str,
+    certfile: str,
+) -> ssl.SSLSocket:
+    """Use this to upgrade server_side socket to TLS."""
     ctx = ssl.create_default_context(
-        ssl.Purpose.CLIENT_AUTH)
+        ssl.Purpose.CLIENT_AUTH,
+    )
     ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
     ctx.verify_mode = ssl.CERT_NONE
     ctx.load_cert_chain(
         certfile=certfile,
-        keyfile=keyfile)
+        keyfile=keyfile,
+    )
     return ctx.wrap_socket(
         conn,
         server_side=True,
@@ -167,18 +207,23 @@ def wrap_socket(conn: socket.socket, keyfile: str,
 
 
 def new_socket_connection(
-        addr: Tuple[str, int], timeout: int = DEFAULT_TIMEOUT) -> socket.socket:
+        addr: Tuple[str, int],
+        timeout: float = DEFAULT_TIMEOUT,
+        source_address: Optional[Tuple[str, int]] = None,
+) -> socket.socket:
     conn = None
     try:
         ip = ipaddress.ip_address(addr[0])
         if ip.version == 4:
             conn = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM, 0)
+                socket.AF_INET, socket.SOCK_STREAM, 0,
+            )
             conn.settimeout(timeout)
             conn.connect(addr)
         else:
             conn = socket.socket(
-                socket.AF_INET6, socket.SOCK_STREAM, 0)
+                socket.AF_INET6, socket.SOCK_STREAM, 0,
+            )
             conn.settimeout(timeout)
             conn.connect((addr[0], addr[1], 0, 0))
     except ValueError:
@@ -188,7 +233,7 @@ def new_socket_connection(
         return conn
 
     # try to establish dual stack IPv4/IPv6 connection.
-    return socket.create_connection(addr, timeout=timeout)
+    return socket.create_connection(addr, timeout=timeout, source_address=source_address)
 
 
 class socket_connection(contextlib.ContextDecorator):
@@ -207,12 +252,14 @@ class socket_connection(contextlib.ContextDecorator):
             self,
             exc_type: Optional[Type[BaseException]],
             exc_val: Optional[BaseException],
-            exc_tb: Optional[TracebackType]) -> None:
+            exc_tb: Optional[TracebackType],
+    ) -> None:
         if self.conn:
             self.conn.close()
 
     def __call__(   # type: ignore
-            self, func: Callable[..., Any]) -> Callable[[Tuple[Any, ...], Dict[str, Any]], Any]:
+            self, func: Callable[..., Any],
+    ) -> Callable[[Tuple[Any, ...], Dict[str, Any]], Any]:
         @functools.wraps(func)
         def decorated(*args: Any, **kwargs: Any) -> Any:
             with self as conn:
@@ -226,3 +273,20 @@ def get_available_port() -> int:
         sock.bind(('', 0))
         _, port = sock.getsockname()
     return int(port)
+
+
+def set_open_file_limit(soft_limit: int) -> None:
+    """Configure open file description soft limit on supported OS."""
+    if IS_WINDOWS:  # resource module not available on Windows OS
+        return
+
+    curr_soft_limit, curr_hard_limit = resource.getrlimit(
+        resource.RLIMIT_NOFILE,
+    )
+    if curr_soft_limit < soft_limit < curr_hard_limit:
+        resource.setrlimit(
+            resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit),
+        )
+        logger.debug(
+            'Open file soft limit set to %d', soft_limit,
+        )

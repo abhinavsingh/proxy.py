@@ -8,8 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import logging
+
 from proxy.common.utils import socket_connection
 from proxy.common.constants import DEFAULT_BUFFER_SIZE
+
+logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     with socket_connection(('::', 12345)) as client:
@@ -18,4 +22,4 @@ if __name__ == '__main__':
             data = client.recv(DEFAULT_BUFFER_SIZE)
             if data is None:
                 break
-            print(data)
+            logger.info(data)

@@ -7,16 +7,21 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       pki
 """
-import time
+import os
 import sys
+import uuid
+import time
+import logging
+import tempfile
 import argparse
 import contextlib
-import os
-import uuid
 import subprocess
-import tempfile
-import logging
+
 from typing import List, Generator, Optional, Tuple
 
 from .utils import bytes_
@@ -57,13 +62,14 @@ def remove_passphrase(
         key_in_path: str,
         password: str,
         key_out_path: str,
-        timeout: int = 10) -> bool:
+        timeout: int = 10,
+) -> bool:
     """Remove passphrase from a private key."""
     command = [
         'openssl', 'rsa',
         '-passin', 'pass:%s' % password,
         '-in', key_in_path,
-        '-out', key_out_path
+        '-out', key_out_path,
     ]
     return run_openssl_command(command, timeout)
 
@@ -72,12 +78,13 @@ def gen_private_key(
         key_path: str,
         password: str,
         bits: int = 2048,
-        timeout: int = 10) -> bool:
+        timeout: int = 10,
+) -> bool:
     """Generates a private key."""
     command = [
         'openssl', 'genrsa', '-aes256',
         '-passout', 'pass:%s' % password,
-        '-out', key_path, str(bits)
+        '-out', key_path, str(bits),
     ]
     return run_openssl_command(command, timeout)
 
@@ -90,7 +97,8 @@ def gen_public_key(
         alt_subj_names: Optional[List[str]] = None,
         extended_key_usage: Optional[str] = None,
         validity_in_days: int = 365,
-        timeout: int = 10) -> bool:
+        timeout: int = 10,
+) -> bool:
     """For a given private key, generates a corresponding public key."""
     with ssl_config(alt_subj_names, extended_key_usage) as (config_path, has_extension):
         command = [
@@ -98,7 +106,7 @@ def gen_public_key(
             '-days', str(validity_in_days), '-subj', subject,
             '-passin', 'pass:%s' % private_key_password,
             '-config', config_path,
-            '-key', private_key_path, '-out', public_key_path
+            '-key', private_key_path, '-out', public_key_path,
         ]
         if has_extension:
             command.extend([
@@ -112,13 +120,14 @@ def gen_csr(
         key_path: str,
         password: str,
         crt_path: str,
-        timeout: int = 10) -> bool:
+        timeout: int = 10,
+) -> bool:
     """Generates a CSR based upon existing certificate and key file."""
     command = [
         'openssl', 'x509', '-x509toreq',
         '-passin', 'pass:%s' % password,
         '-in', crt_path, '-signkey', key_path,
-        '-out', csr_path
+        '-out', csr_path,
     ]
     return run_openssl_command(command, timeout)
 
@@ -133,7 +142,8 @@ def sign_csr(
         alt_subj_names: Optional[List[str]] = None,
         extended_key_usage: Optional[str] = None,
         validity_in_days: int = 365,
-        timeout: int = 10) -> bool:
+        timeout: int = 10,
+) -> bool:
     """Sign a CSR using CA key and certificate."""
     with ext_file(alt_subj_names, extended_key_usage) as extension_path:
         command = [
@@ -152,7 +162,8 @@ def sign_csr(
 
 def get_ext_config(
         alt_subj_names: Optional[List[str]] = None,
-        extended_key_usage: Optional[str] = None) -> bytes:
+        extended_key_usage: Optional[str] = None,
+) -> bytes:
     config = b''
     # Add SAN extension
     if alt_subj_names is not None and len(alt_subj_names) > 0:
@@ -169,12 +180,14 @@ def get_ext_config(
 @contextlib.contextmanager
 def ext_file(
         alt_subj_names: Optional[List[str]] = None,
-        extended_key_usage: Optional[str] = None) -> Generator[str, None, None]:
+        extended_key_usage: Optional[str] = None,
+) -> Generator[str, None, None]:
     # Write config to temp file
     config_path = os.path.join(tempfile.gettempdir(), uuid.uuid4().hex)
     with open(config_path, 'wb') as cnf:
         cnf.write(
-            get_ext_config(alt_subj_names, extended_key_usage))
+            get_ext_config(alt_subj_names, extended_key_usage),
+        )
 
     yield config_path
 
@@ -185,7 +198,8 @@ def ext_file(
 @contextlib.contextmanager
 def ssl_config(
         alt_subj_names: Optional[List[str]] = None,
-        extended_key_usage: Optional[str] = None) -> Generator[Tuple[str, bool], None, None]:
+        extended_key_usage: Optional[str] = None,
+) -> Generator[Tuple[str, bool], None, None]:
     config = DEFAULT_CONFIG
 
     has_extension = False
@@ -212,7 +226,7 @@ def run_openssl_command(command: List[str], timeout: int) -> bool:
     cmd = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        stderr=subprocess.PIPE,
     )
     cmd.communicate(timeout=timeout)
     return cmd.returncode == 0
@@ -221,7 +235,7 @@ def run_openssl_command(command: List[str], timeout: int) -> bool:
 if __name__ == '__main__':
     available_actions = (
         'remove_passphrase', 'gen_private_key', 'gen_public_key',
-        'gen_csr', 'sign_csr'
+        'gen_csr', 'sign_csr',
     )
 
     parser = argparse.ArgumentParser(
@@ -231,7 +245,7 @@ if __name__ == '__main__':
         'action',
         type=str,
         default=None,
-        help='Valid actions: ' + ', '.join(available_actions)
+        help='Valid actions: ' + ', '.join(available_actions),
     )
     parser.add_argument(
         '--password',
@@ -279,32 +293,44 @@ if __name__ == '__main__':
 
     # Validation
     if args.action not in available_actions:
-        print('Invalid --action. Valid values ' + ', '.join(available_actions))
+        logger.error(
+            'Invalid --action. Valid values ' +
+            ', '.join(available_actions),
+        )
         sys.exit(1)
     if args.action in ('gen_private_key', 'gen_public_key'):
         if args.private_key_path is None:
-            print('--private-key-path is required for ' + args.action)
+            logger.error('--private-key-path is required for ' + args.action)
             sys.exit(1)
     if args.action == 'gen_public_key':
         if args.public_key_path is None:
-            print('--public-key-file is required for private key generation')
+            logger.error(
+                '--public-key-file is required for private key generation',
+            )
             sys.exit(1)
 
     # Execute
     if args.action == 'gen_private_key':
         gen_private_key(args.private_key_path, args.password)
     elif args.action == 'gen_public_key':
-        gen_public_key(args.public_key_path, args.private_key_path,
-                       args.password, args.subject)
+        gen_public_key(
+            args.public_key_path, args.private_key_path,
+            args.password, args.subject,
+        )
     elif args.action == 'remove_passphrase':
-        remove_passphrase(args.private_key_path, args.password,
-                          args.private_key_path)
+        remove_passphrase(
+            args.private_key_path, args.password,
+            args.private_key_path,
+        )
     elif args.action == 'gen_csr':
         gen_csr(
             args.csr_path,
             args.private_key_path,
             args.password,
-            args.public_key_path)
+            args.public_key_path,
+        )
     elif args.action == 'sign_csr':
-        sign_csr(args.csr_path, args.crt_path, args.private_key_path, args.password,
-                 args.public_key_path, str(int(time.time())), alt_subj_names=[args.hostname, ])
+        sign_csr(
+            args.csr_path, args.crt_path, args.private_key_path, args.password,
+            args.public_key_path, str(int(time.time())), alt_subj_names=[args.hostname],
+        )

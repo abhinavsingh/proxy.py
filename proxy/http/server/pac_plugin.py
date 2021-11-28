@@ -7,14 +7,21 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
+       pac
 """
 import gzip
+
 from typing import List, Tuple, Optional, Any
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
-from ..websocket import WebsocketFrame
+
 from ..parser import HttpParser
+
 from ...common.utils import bytes_, text_, build_http_response
 from ...common.flag import flags
 from ...common.constants import DEFAULT_PAC_FILE, DEFAULT_PAC_FILE_URL_PATH
@@ -26,13 +33,15 @@ flags.add_argument(
     default=DEFAULT_PAC_FILE,
     help='A file (Proxy Auto Configuration) or string to serve when '
     'the server receives a direct file request. '
-    'Using this option enables proxy.HttpWebServerPlugin.')
+    'Using this option enables proxy.HttpWebServerPlugin.',
+)
 flags.add_argument(
     '--pac-file-url-path',
     type=str,
     default=text_(DEFAULT_PAC_FILE_URL_PATH),
     help='Default: %s. Web server path to serve the PAC file.' %
-    text_(DEFAULT_PAC_FILE_URL_PATH))
+    text_(DEFAULT_PAC_FILE_URL_PATH),
+)
 
 
 class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
@@ -54,15 +63,6 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
         if self.flags.pac_file and self.pac_file_response:
             self.client.queue(self.pac_file_response)
 
-    def on_websocket_open(self) -> None:
-        pass    # pragma: no cover
-
-    def on_websocket_message(self, frame: WebsocketFrame) -> None:
-        pass    # pragma: no cover
-
-    def on_websocket_close(self) -> None:
-        pass    # pragma: no cover
-
     def cache_pac_file_response(self) -> None:
         if self.flags.pac_file:
             try:
@@ -70,9 +70,11 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
                     content = f.read()
             except IOError:
                 content = bytes_(self.flags.pac_file)
-            self.pac_file_response = memoryview(build_http_response(
-                200, reason=b'OK', headers={
-                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                    b'Content-Encoding': b'gzip',
-                }, body=gzip.compress(content)
-            ))
+            self.pac_file_response = memoryview(
+                build_http_response(
+                    200, reason=b'OK', headers={
+                        b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                        b'Content-Encoding': b'gzip',
+                    }, body=gzip.compress(content),
+                ),
+            )

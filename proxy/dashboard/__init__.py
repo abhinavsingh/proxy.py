@@ -7,4 +7,19 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       Submodules
+       websocket
+       Websocket
 """
+from .dashboard import ProxyDashboard
+from .inspect_traffic import InspectTrafficPlugin
+from .plugin import ProxyDashboardWebsocketPlugin
+
+__all__ = [
+    'ProxyDashboard',
+    'InspectTrafficPlugin',
+    'ProxyDashboardWebsocketPlugin',
+]

@@ -7,13 +7,18 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       shortlink
 """
 from typing import Optional
 
 from ..common.constants import DOT, SLASH
 from ..common.utils import build_http_response
+
+from ..http import httpStatusCodes
 from ..http.parser import HttpParser
-from ..http.codes import httpStatusCodes
 from ..http.proxy import HttpProxyBasePlugin
 
 
@@ -22,15 +27,15 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
 
     Enable ShortLinkPlugin and speed up your daily browsing experience.
 
-    Example:
-    * f/ for facebook.com
-    * g/ for google.com
-    * t/ for twitter.com
-    * y/ for youtube.com
-    * proxy/ for py internal web servers.
+    Example::
+    * ``f/`` for ``facebook.com``
+    * ``g/`` for ``google.com`
+    * ``t/`` for ``twitter.com``
+    * ``y/`` for ``youtube.com``
+    * ``proxy/`` for ``py`` internal web servers.
     Customize map below for your taste and need.
 
-    Paths are also preserved. E.g. t/imoracle will
+    Paths are also preserved. E.g. ``t/imoracle`` will
     resolve to http://twitter.com/imoracle.
     """
 
@@ -47,38 +52,42 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
     }
 
     def before_upstream_connection(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         if request.host and request.host != b'localhost' and DOT not in request.host:
             # Avoid connecting to upstream
             return None
         return request
 
     def handle_client_request(
-            self, request: HttpParser) -> Optional[HttpParser]:
+            self, request: HttpParser,
+    ) -> Optional[HttpParser]:
         if request.host and request.host != b'localhost' and DOT not in request.host:
             if request.host in self.SHORT_LINKS:
                 path = SLASH if not request.path else request.path
-                self.client.queue(memoryview(build_http_response(
-                    httpStatusCodes.SEE_OTHER, reason=b'See Other',
-                    headers={
-                        b'Location': b'http://' + self.SHORT_LINKS[request.host] + path,
-                        b'Content-Length': b'0',
-                        b'Connection': b'close',
-                    }
-                )))
+                self.client.queue(
+                    memoryview(
+                        build_http_response(
+                            httpStatusCodes.SEE_OTHER, reason=b'See Other',
+                            headers={
+                                b'Location': b'http://' + self.SHORT_LINKS[request.host] + path,
+                                b'Content-Length': b'0',
+                                b'Connection': b'close',
+                            },
+                        ),
+                    ),
+                )
             else:
-                self.client.queue(memoryview(build_http_response(
-                    httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
-                    headers={
-                        b'Content-Length': b'0',
-                        b'Connection': b'close',
-                    }
-                )))
+                self.client.queue(
+                    memoryview(
+                        build_http_response(
+                            httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+                            headers={
+                                b'Content-Length': b'0',
+                                b'Connection': b'close',
+                            },
+                        ),
+                    ),
+                )
             return None
         return request
-
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
-        return chunk
-
-    def on_upstream_connection_close(self) -> None:
-        pass

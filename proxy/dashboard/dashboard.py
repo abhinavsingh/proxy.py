@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
     proxy.py
     ~~~~~~~~
@@ -15,10 +16,11 @@ from typing import List, Tuple, Any, Dict
 from .plugin import ProxyDashboardWebsocketPlugin
 
 from ..common.utils import build_http_response, bytes_
-from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
+
+from ..http import httpStatusCodes
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
-from ..http.codes import httpStatusCodes
+from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
 
 logger = logging.getLogger(__name__)
 
@@ -63,18 +65,29 @@ class ProxyDashboard(HttpWebServerBasePlugin):
         if request.path == b'/dashboard/':
             self.client.queue(
                 HttpWebServerPlugin.read_and_build_static_file_response(
-                    os.path.join(self.flags.static_server_dir, 'dashboard', 'proxy.html')))
+                    os.path.join(
+                        self.flags.static_server_dir,
+                        'dashboard', 'proxy.html',
+                    ),
+                    self.flags.min_compression_limit,
+                ),
+            )
         elif request.path in (
                 b'/dashboard',
-                b'/dashboard/proxy.html'):
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.PERMANENT_REDIRECT, reason=b'Permanent Redirect',
-                headers={
-                    b'Location': b'/dashboard/',
-                    b'Content-Length': b'0',
-                    b'Connection': b'close',
-                }
-            )))
+                b'/dashboard/proxy.html',
+        ):
+            self.client.queue(
+                memoryview(
+                    build_http_response(
+                        httpStatusCodes.PERMANENT_REDIRECT, reason=b'Permanent Redirect',
+                        headers={
+                            b'Location': b'/dashboard/',
+                            b'Content-Length': b'0',
+                            b'Connection': b'close',
+                        },
+                    ),
+                ),
+            )
 
     def on_websocket_open(self) -> None:
         logger.info('app ws opened')
@@ -98,12 +111,17 @@ class ProxyDashboard(HttpWebServerBasePlugin):
             logger.info(frame.opcode)
             self.reply({'id': message['id'], 'response': 'not_implemented'})
 
-    def on_websocket_close(self) -> None:
+    def on_client_connection_close(self) -> None:
         logger.info('app ws closed')
         # TODO(abhinavsingh): unsubscribe
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
-            memoryview(WebsocketFrame.text(
-                bytes_(
-                    json.dumps(data)))))
+            memoryview(
+                WebsocketFrame.text(
+                    bytes_(
+                        json.dumps(data),
+                    ),
+                ),
+            ),
+        )

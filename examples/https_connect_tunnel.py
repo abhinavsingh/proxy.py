@@ -9,30 +9,33 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
+
 from typing import Any, Optional
 
-from proxy.proxy import Proxy
+from proxy import Proxy
 from proxy.common.utils import build_http_response
-from proxy.http.codes import httpStatusCodes
+from proxy.http import httpStatusCodes
 from proxy.http.parser import httpParserStates
-from proxy.http.methods import httpMethods
-from proxy.core.acceptor import AcceptorPool
 from proxy.core.base import BaseTcpTunnelHandler
 
 
 class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
     """A https CONNECT tunnel."""
 
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(build_http_response(
-        httpStatusCodes.OK,
-        reason=b'Connection established'
-    ))
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(
+        build_http_response(
+            httpStatusCodes.OK,
+            reason=b'Connection established',
+        ),
+    )
 
-    PROXY_TUNNEL_UNSUPPORTED_SCHEME = memoryview(build_http_response(
-        httpStatusCodes.BAD_REQUEST,
-        headers={b'Connection': b'close'},
-        reason=b'Unsupported protocol scheme'
-    ))
+    PROXY_TUNNEL_UNSUPPORTED_SCHEME = memoryview(
+        build_http_response(
+            httpStatusCodes.BAD_REQUEST,
+            headers={b'Connection': b'close'},
+            reason=b'Unsupported protocol scheme',
+        ),
+    )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -47,9 +50,10 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
         self.request.parse(data)
 
         # Drop the request if not a CONNECT request
-        if self.request.method != httpMethods.CONNECT:
-            self.client.queue(
-                HttpsConnectTunnelHandler.PROXY_TUNNEL_UNSUPPORTED_SCHEME)
+        if not self.request.is_https_tunnel():
+            self.work.queue(
+                HttpsConnectTunnelHandler.PROXY_TUNNEL_UNSUPPORTED_SCHEME,
+            )
             return True
 
         # CONNECT requests are short and we need not worry about
@@ -60,25 +64,26 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
         self.connect_upstream()
 
         # Queue tunnel established response to client
-        self.client.queue(
-            HttpsConnectTunnelHandler.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
+        self.work.queue(
+            HttpsConnectTunnelHandler.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+        )
 
         return None
 
 
 def main() -> None:
     # This example requires `threadless=True`
-    pool = AcceptorPool(
-        flags=Proxy.initialize(port=12345, num_workers=1, threadless=True),
-        work_klass=HttpsConnectTunnelHandler)
-    try:
-        pool.setup()
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        pool.shutdown()
+    with Proxy(
+        work_klass=HttpsConnectTunnelHandler,
+        threadless=True,
+        num_workers=1,
+        port=12345,
+    ):
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':

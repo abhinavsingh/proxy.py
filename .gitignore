@@ -2,16 +2,19 @@
 .coverage
 .coverage.*
 .idea
-.vscode
 .project
 .pydevproject
 .settings
 .mypy_cache
 .hypothesis
 .tox
+.python-version
 
 coverage.xml
 proxy.py.iml
+
+.vscode/*
+!.vscode/settings.json
 
 *.pyc
 *.egg-info
@@ -25,4 +28,6 @@ cover
 htmlcov
 dist
 build
+
 proxy/public
+profile.svg

@@ -8,15 +8,18 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import Tuple, Callable
-
+import logging
 import paramiko
+
+from typing import Optional, Tuple, Callable
+
+logger = logging.getLogger(__name__)
 
 
 class Tunnel:
     """Establishes a tunnel between local (machine where Tunnel is running) and remote host.
     Once a tunnel has been established, remote host can route HTTP(s) traffic to
-    localhost over tunnel.
+    ``localhost`` over tunnel.
     """
 
     def __init__(
@@ -25,7 +28,8 @@ class Tunnel:
             remote_addr: Tuple[str, int],
             private_pem_key: str,
             remote_proxy_port: int,
-            conn_handler: Callable[[paramiko.channel.Channel], None]) -> None:
+            conn_handler: Callable[[paramiko.channel.Channel], None],
+    ) -> None:
         self.remote_addr = remote_addr
         self.ssh_username = ssh_username
         self.private_pem_key = private_pem_key
@@ -41,14 +45,19 @@ class Tunnel:
                 hostname=self.remote_addr[0],
                 port=self.remote_addr[1],
                 username=self.ssh_username,
-                key_filename=self.private_pem_key
+                key_filename=self.private_pem_key,
             )
-            print('SSH connection established...')
-            transport: paramiko.transport.Transport = ssh.get_transport()
+            logger.info('SSH connection established...')
+            transport: Optional[paramiko.transport.Transport] = ssh.get_transport(
+            )
+            assert transport is not None
             transport.request_port_forward('', self.remote_proxy_port)
-            print('Tunnel port forward setup successful...')
+            logger.info('Tunnel port forward setup successful...')
             while True:
-                conn: paramiko.channel.Channel = transport.accept(timeout=1)
+                conn: Optional[paramiko.channel.Channel] = transport.accept(
+                    timeout=1,
+                )
+                assert conn is not None
                 e = transport.get_exception()
                 if e:
                     raise e

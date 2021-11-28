@@ -26,7 +26,8 @@ class ProxyDashboardWebsocketPlugin(ABC):
             self,
             flags: argparse.Namespace,
             client: TcpClientConnection,
-            event_queue: EventQueue) -> None:
+            event_queue: EventQueue,
+    ) -> None:
         self.flags = flags
         self.client = client
         self.event_queue = event_queue
@@ -34,23 +35,28 @@ class ProxyDashboardWebsocketPlugin(ABC):
     @abstractmethod
     def methods(self) -> List[str]:
         """Return list of methods that this plugin will handle."""
-        pass
+        pass    # pragma: no cover
 
     def connected(self) -> None:
         """Invoked when client websocket handshake finishes."""
-        pass
+        pass    # pragma: no cover
 
     @abstractmethod
     def handle_message(self, message: Dict[str, Any]) -> None:
         """Handle messages for registered methods."""
-        pass
+        pass    # pragma: no cover
 
     def disconnected(self) -> None:
         """Invoked when client websocket connection gets closed."""
-        pass
+        pass    # pragma: no cover
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
-            memoryview(WebsocketFrame.text(
-                bytes_(
-                    json.dumps(data)))))
+            memoryview(
+                WebsocketFrame.text(
+                    bytes_(
+                        json.dumps(data),
+                    ),
+                ),
+            ),
+        )

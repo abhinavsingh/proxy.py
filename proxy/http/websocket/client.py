@@ -7,12 +7,17 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       http
+       websocket
 """
+import ssl
 import base64
-import selectors
 import socket
 import secrets
-import ssl
+import selectors
 
 from typing import Optional, Union, Callable
 
@@ -20,26 +25,35 @@ from .frame import WebsocketFrame
 
 from ..parser import httpParserTypes, HttpParser
 
-from ...common.constants import DEFAULT_BUFFER_SIZE
+from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.utils import new_socket_connection, build_websocket_handshake_request, text_
 from ...core.connection import tcpConnectionTypes, TcpConnection
 
 
 class WebsocketClient(TcpConnection):
 
-    def __init__(self,
-                 hostname: bytes,
-                 port: int,
-                 path: bytes = b'/',
-                 on_message: Optional[Callable[[WebsocketFrame], None]] = None) -> None:
+    def __init__(
+        self,
+        hostname: bytes,
+        port: int,
+        path: bytes = b'/',
+        on_message: Optional[Callable[[WebsocketFrame], None]] = None,
+    ) -> None:
         super().__init__(tcpConnectionTypes.CLIENT)
         self.hostname: bytes = hostname
         self.port: int = port
         self.path: bytes = path
         self.sock: socket.socket = new_socket_connection(
-            (socket.gethostbyname(text_(self.hostname)), self.port))
-        self.on_message: Optional[Callable[[
-            WebsocketFrame], None]] = on_message
+            (socket.gethostbyname(text_(self.hostname)), self.port),
+        )
+        self.on_message: Optional[
+            Callable[
+                [
+                    WebsocketFrame,
+                ],
+                None,
+            ]
+        ] = on_message
         self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
 
     @property
@@ -56,17 +70,19 @@ class WebsocketClient(TcpConnection):
             build_websocket_handshake_request(
                 key,
                 url=self.path,
-                host=self.hostname))
+                host=self.hostname,
+            ),
+        )
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
         response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
         accept = response.header(b'Sec-Websocket-Accept')
         assert WebsocketFrame.key_to_accept(key) == accept
 
     def ping(self, data: Optional[bytes] = None) -> None:
-        pass
+        pass    # pragma: no cover
 
     def pong(self, data: Optional[bytes] = None) -> None:
-        pass
+        pass    # pragma: no cover
 
     def shutdown(self, _data: Optional[bytes] = None) -> None:
         """Closes connection with the server."""
@@ -77,7 +93,7 @@ class WebsocketClient(TcpConnection):
         if self.has_buffer():
             ev |= selectors.EVENT_WRITE
         self.selector.register(self.sock.fileno(), ev)
-        events = self.selector.select(timeout=1)
+        events = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
         self.selector.unregister(self.sock)
         for _, mask in events:
             if mask & selectors.EVENT_READ and self.on_message:
@@ -97,8 +113,7 @@ class WebsocketClient(TcpConnection):
     def run(self) -> None:
         try:
             while not self.closed:
-                teardown = self.run_once()
-                if teardown:
+                if self.run_once():
                     break
         except KeyboardInterrupt:
             pass

@@ -8,22 +8,31 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import socket
 import ssl
+import socket
+
 from typing import Union, Tuple, Optional
 
-from .connection import TcpConnection, tcpConnectionTypes, TcpConnectionUninitializedException
+from .connection import TcpConnection, TcpConnectionUninitializedException
+from .types import tcpConnectionTypes
 
 
 class TcpClientConnection(TcpConnection):
-    """An accepted client connection request."""
+    """A buffered client connection object."""
 
-    def __init__(self,
-                 conn: Union[ssl.SSLSocket, socket.socket],
-                 addr: Tuple[str, int]):
+    def __init__(
+        self,
+        conn: Union[ssl.SSLSocket, socket.socket],
+        # optional for unix socket servers
+        addr: Optional[Tuple[str, int]] = None,
+    ) -> None:
         super().__init__(tcpConnectionTypes.CLIENT)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = conn
-        self.addr: Tuple[str, int] = addr
+        self.addr: Optional[Tuple[str, int]] = addr
+
+    @property
+    def address(self) -> str:
+        return 'unix:client' if not self.addr else '{0}:{1}'.format(self.addr[0], self.addr[1])
 
     @property
     def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
@@ -40,5 +49,6 @@ class TcpClientConnection(TcpConnection):
             # ca_certs=self.flags.ca_cert_file,
             certfile=certfile,
             keyfile=keyfile,
-            ssl_version=ssl.PROTOCOL_TLS)
+            ssl_version=ssl.PROTOCOL_TLS,
+        )
         self.connection.setblocking(False)

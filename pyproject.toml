@@ -1,0 +1,13 @@
+[build-system]
+requires = [
+  # Essentials
+  "setuptools",
+
+  # Plugins
+  "setuptools-scm[toml] >= 6",
+  "setuptools-scm-git-archive >= 1.1",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "proxy/common/_scm_version.py"

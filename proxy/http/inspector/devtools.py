@@ -7,6 +7,11 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       devtools
+       http
 """
 import json
 import logging
@@ -20,17 +25,25 @@ from ..server import HttpWebServerBasePlugin, httpProtocolTypes
 from ...common.utils import bytes_, text_
 from ...core.event import EventSubscriber
 from ...common.flag import flags
-from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH
+from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DEVTOOLS_DOC_URL
+from ...common.constants import DEFAULT_ENABLE_DEVTOOLS
 
 logger = logging.getLogger(__name__)
 
+
+flags.add_argument(
+    '--enable-devtools',
+    action='store_true',
+    default=DEFAULT_ENABLE_DEVTOOLS,
+    help='Default: False.  Enables integration with Chrome Devtool Frontend. Also see --devtools-ws-path.',
+)
 
 flags.add_argument(
     '--devtools-ws-path',
     type=str,
     default=DEFAULT_DEVTOOLS_WS_PATH,
     help='Default: /devtools.  Only applicable '
-    'if --enable-devtools is used.'
+    'if --enable-devtools is used.',
 )
 
 
@@ -44,23 +57,25 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
     - Core events unrelated to DevTools protocol are dropped.
     """
 
-    DOC_URL = 'http://dashboard.proxy.py'
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.subscriber = EventSubscriber(self.event_queue)
+        self.subscriber = EventSubscriber(
+            self.event_queue,
+            callback=lambda event: CoreEventsToDevtoolsProtocol.transformer(
+                self.client, event,
+            ),
+        )
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
-            (httpProtocolTypes.WEBSOCKET, text_(self.flags.devtools_ws_path))
+            (httpProtocolTypes.WEBSOCKET, text_(self.flags.devtools_ws_path)),
         ]
 
     def handle_request(self, request: HttpParser) -> None:
         raise NotImplementedError('This should have never been called')
 
     def on_websocket_open(self) -> None:
-        self.subscriber.subscribe(
-            lambda event: CoreEventsToDevtoolsProtocol.transformer(self.client, event))
+        self.subscriber.setup()
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         try:
@@ -72,14 +87,13 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
             return
         self.handle_devtools_message(message)
 
-    def on_websocket_close(self) -> None:
-        self.subscriber.unsubscribe()
+    def on_client_connection_close(self) -> None:
+        self.subscriber.shutdown()
 
     def handle_devtools_message(self, message: Dict[str, Any]) -> None:
         frame = WebsocketFrame()
         frame.fin = True
         frame.opcode = websocketOpcodes.TEXT_FRAME
-
         # logger.info(message)
         method = message['method']
         if method in (
@@ -88,7 +102,7 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
             'Emulation.canEmulate',
         ):
             data: Dict[str, Any] = {
-                'result': False
+                'result': False,
             }
         elif method == 'Page.getResourceTree':
             data = {
@@ -96,13 +110,13 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
                     'frameTree': {
                         'frame': {
                             'id': 1,
-                            'url': DevtoolsProtocolPlugin.DOC_URL,
+                            'url': DEFAULT_DEVTOOLS_DOC_URL,
                             'mimeType': 'other',
                         },
                         'childFrames': [],
-                        'resources': []
-                    }
-                }
+                        'resources': [],
+                    },
+                },
             }
         elif method == 'Network.getResponseBody':
             connection_id = message['params']['requestId']
@@ -110,12 +124,11 @@ class DevtoolsProtocolPlugin(HttpWebServerBasePlugin):
                 'result': {
                     'body': text_(CoreEventsToDevtoolsProtocol.RESPONSES[connection_id]),
                     'base64Encoded': False,
-                }
+                },
             }
         else:
             logging.warning('Unhandled devtools method %s', method)
             data = {}
-
         data['id'] = message['id']
         frame.data = bytes_(json.dumps(data))
         self.client.queue(memoryview(frame.build()))

@@ -1,0 +1,193 @@
+---
+repos:
+- repo: https://github.com/asottile/add-trailing-comma.git
+  rev: v2.0.1
+  hooks:
+  - id: add-trailing-comma
+    args:
+    - --py36-plus
+
+# - repo: https://github.com/timothycrosley/isort.git
+#   rev: 5.4.2
+#   hooks:
+#   - id: isort
+#     args:
+#     - --honor-noqa
+
+- repo: https://github.com/Lucas-C/pre-commit-hooks.git
+  rev: v1.1.7
+  hooks:
+  - id: remove-tabs
+    exclude: |
+      (?x)
+      ^
+        helper/proxy\.pac|
+        Makefile|
+        proxy/common/pki\.py|
+        README\.md|
+        .+\.(plist|pbxproj)
+      $
+
+- repo: https://github.com/pre-commit/pre-commit-hooks.git
+  rev: v4.0.1
+  hooks:
+  # Side-effects:
+  - id: trailing-whitespace
+    exclude: |
+      (?x)
+      ^
+        \.github/workflows/codeql-analysis\.yml|
+        dashboard/src/core/plugins/inspect_traffic\.json
+      $
+  - id: check-merge-conflict
+  - id: double-quote-string-fixer
+    exclude: |
+      (?x)
+      ^
+      (
+        tests/(
+          http/exceptions/test_http_proxy_auth_failed|
+          plugin/test_http_proxy_plugins
+        )|
+        proxy/(
+          common/constants|
+          plugin/(cache/store/disk|filter_by_url_regex|proxy_pool)
+        )
+      )\.py
+      $
+  - id: end-of-file-fixer
+    exclude: |
+      (?x)
+      ^
+      dashboard/(
+        src/core/plugins/inspect_traffic\.json|
+        static/bootstrap-4\.3\.1\.min\.(cs|j)s
+      )|
+      menubar/proxy\.py/(
+        Assets\.xcassets/(
+          AppIcon\.appiconset/|
+          StatusBarButtonImage\.imageset/|
+        )|
+        Preview\sContent/Preview\sAssets\.xcassets/
+      )Contents\.json|
+      requirements-release\.txt
+      $
+  - id: requirements-txt-fixer
+    exclude: >-
+      ^(docs/requirements|requirements(|-(release|testing|tunnel)))\.txt$
+  # Non-modifying checks:
+  - id: name-tests-test
+    args:
+    - --django
+    exclude: >-
+      ^tests/plugin/utils\.py$
+    files: >-
+      ^tests/[^_].*\.py$
+  - id: check-added-large-files
+  - id: check-byte-order-marker
+  - id: check-case-conflict
+  # disabled due to pre-commit/pre-commit-hooks#159
+  # - id: check-docstring-first
+  - id: check-json
+  - id: check-symlinks
+  - id: check-yaml
+  - id: detect-private-key
+
+  # Heavy checks:
+  - id: check-ast
+  - id: debug-statements
+
+- repo: https://github.com/PyCQA/pydocstyle.git
+  rev: 6.1.1
+  hooks:
+  - id: pydocstyle
+    additional_dependencies:
+    - toml
+    args:
+    - |-
+      --ignore=
+      D101,
+      D102,
+      D103,
+      D105,
+      D106,
+      D107,
+      D203,
+      D205,
+      D208,
+      D209,
+      D212,
+      D213,
+      D300,
+      D400,
+      D401,
+      D402,
+      D403,
+      D404,
+      D405,
+      D407,
+      D412,
+      D413,
+      D415,
+
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.1.0
+  hooks:
+  - id: codespell
+    exclude: >-
+      ^.+\.min\.js$
+
+- repo: https://github.com/adrienverge/yamllint.git
+  rev: v1.26.2
+  hooks:
+  - id: yamllint
+    args:
+    - --strict
+    types: [file, yaml]
+
+- repo: https://github.com/PyCQA/flake8.git
+  rev: 3.9.2
+  hooks:
+  - id: flake8
+    language_version: python3
+    additional_dependencies:
+    - flake8-2020 >= 1.6.0
+    - flake8-docstrings >= 1.5.0
+    - flake8-pytest-style >= 1.2.2
+    - wemake-python-styleguide ~= 0.15.0
+
+- repo: https://github.com/pre-commit/mirrors-mypy.git
+  rev: v0.910
+  hooks:
+  - id: mypy
+    additional_dependencies:
+    - paramiko == 2.8.0
+    - types-paramiko == 2.7.3
+    - types-setuptools == 57.4.2
+    args:
+    # FIXME: get rid of missing imports ignore
+    - --ignore-missing-imports
+    - --install-types
+    - --namespace-packages
+    - --non-interactive
+    - --pretty
+    - --show-column-numbers
+    - --show-error-codes
+    - --show-error-context
+    - --strict
+    - --strict-optional
+    - examples/
+    - proxy/
+    - tests/
+    pass_filenames: false
+
+- repo: local
+  hooks:
+  - id: pylint
+    language: system
+    name: PyLint
+    files: \.py$
+    entry: python -m pylint
+    args: []
+    stages:
+    - manual

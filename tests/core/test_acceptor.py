@@ -15,22 +15,27 @@ import multiprocessing
 from unittest import mock
 
 from proxy.core.acceptor import Acceptor
-from proxy.proxy import Proxy
+from proxy.common.flag import FlagParser
 
 
 class TestAcceptor(unittest.TestCase):
 
     def setUp(self) -> None:
         self.acceptor_id = 1
-        self.mock_protocol_handler = mock.MagicMock()
         self.pipe = multiprocessing.Pipe()
-        self.flags = Proxy.initialize()
+        self.flags = FlagParser.initialize(
+            threaded=True,
+            work_klass=mock.MagicMock(),
+        )
         self.acceptor = Acceptor(
             idd=self.acceptor_id,
-            work_queue=self.pipe[1],
+            fd_queue=self.pipe[1],
             flags=self.flags,
             lock=multiprocessing.Lock(),
-            work_klass=self.mock_protocol_handler)
+            executor_queues=[],
+            executor_pids=[],
+            executor_locks=[],
+        )
 
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -39,7 +44,8 @@ class TestAcceptor(unittest.TestCase):
             self,
             mock_recv_handle: mock.Mock,
             mock_fromfd: mock.Mock,
-            mock_selector: mock.Mock) -> None:
+            mock_selector: mock.Mock,
+    ) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
@@ -53,9 +59,9 @@ class TestAcceptor(unittest.TestCase):
         self.acceptor.run()
 
         sock.accept.assert_not_called()
-        self.mock_protocol_handler.assert_not_called()
+        self.flags.work_klass.assert_not_called()
 
-    @mock.patch('proxy.core.acceptor.acceptor.TcpClientConnection')
+    @mock.patch('proxy.core.acceptor.executors.TcpClientConnection')
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -66,7 +72,8 @@ class TestAcceptor(unittest.TestCase):
             mock_fromfd: mock.Mock,
             mock_selector: mock.Mock,
             mock_thread: mock.Mock,
-            mock_client: mock.Mock) -> None:
+            mock_client: mock.Mock,
+    ) -> None:
         fileno = 10
         conn = mock.MagicMock()
         addr = mock.MagicMock()
@@ -77,7 +84,7 @@ class TestAcceptor(unittest.TestCase):
         mock_thread.return_value.start.side_effect = KeyboardInterrupt()
 
         selector = mock_selector.return_value
-        selector.select.return_value = [(None, None)]
+        selector.select.return_value = [(None, selectors.EVENT_READ)]
 
         self.acceptor.run()
 
@@ -87,14 +94,15 @@ class TestAcceptor(unittest.TestCase):
         mock_fromfd.assert_called_with(
             fileno,
             family=socket.AF_INET6,
-            type=socket.SOCK_STREAM
+            type=socket.SOCK_STREAM,
         )
-        self.mock_protocol_handler.assert_called_with(
+        self.flags.work_klass.assert_called_with(
             mock_client.return_value,
             flags=self.flags,
             event_queue=None,
         )
         mock_thread.assert_called_with(
-            target=self.mock_protocol_handler.return_value.run)
+            target=self.flags.work_klass.return_value.run,
+        )
         mock_thread.return_value.start.assert_called()
         sock.close.assert_called()

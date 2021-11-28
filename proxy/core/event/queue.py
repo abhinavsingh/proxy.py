@@ -9,8 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import threading
 import time
+import threading
+
+from multiprocessing import connection
+
 from typing import Dict, Optional, Any
 
 from ...common.types import DictQueueType
@@ -19,23 +22,25 @@ from .names import eventNames
 
 
 class EventQueue:
-    """Global event queue.
+    """Global event queue.  Must be a multiprocessing.Manager queue because
+    subscribers need to dispatch their subscription queue over this global
+    queue.
 
-    Each event contains:
+    Each published event contains following schema::
 
-    1. Request ID               - Globally unique
-    2. Process ID               - Process ID of event publisher.
-                                  This will be process id of acceptor workers.
-    3. Thread ID                - Thread ID of event publisher.
-                                  When --threadless is enabled, this value will
-                                  be same for all the requests
-                                  received by a single acceptor worker.
-                                  When --threadless is disabled, this value will be
-                                  Thread ID of the thread handling the client request.
-    4. Event Timestamp          - Time when this event occur
-    5. Event Name               - One of the defined or custom event name
-    6. Event Payload            - Optional data associated with the event
-    7. Publisher ID (optional)  - Optionally, publishing entity unique name / ID
+        {
+            'request_id': 'Globally unique request ID',
+            'process_id': 'Process ID of event publisher. This '
+                          'will be the process ID of acceptor workers.',
+            'thread_id': 'Thread ID of event publisher. '
+                         'When --threadless is enabled, this value '
+                         'will be same for all the requests.'
+            'event_timestamp': 'Time when this event occured',
+            'event_name': 'one of the pre-defined or custom event name',
+            'event_payload': 'Optional data associated with the event',
+            'publisher_id': 'Optional publisher entity unique name',
+        }
+
     """
 
     def __init__(self, queue: DictQueueType) -> None:
@@ -46,13 +51,13 @@ class EventQueue:
         request_id: str,
         event_name: int,
         event_payload: Dict[str, Any],
-        publisher_id: Optional[str] = None
+        publisher_id: Optional[str] = None,
     ) -> None:
         self.queue.put({
-            'request_id': request_id,
             'process_id': os.getpid(),
             'thread_id': threading.get_ident(),
             'event_timestamp': time.time(),
+            'request_id': request_id,
             'event_name': event_name,
             'event_payload': event_payload,
             'publisher_id': publisher_id,
@@ -61,16 +66,22 @@ class EventQueue:
     def subscribe(
             self,
             sub_id: str,
-            channel: DictQueueType) -> None:
-        """Subscribe to global events."""
+            channel: connection.Connection,
+    ) -> None:
+        """Subscribe to global events.
+
+        sub_id is a subscription identifier which must be globally
+        unique.  channel MUST be a multiprocessing connection.
+        """
         self.queue.put({
             'event_name': eventNames.SUBSCRIBE,
-            'event_payload': {'sub_id': sub_id, 'channel': channel},
+            'event_payload': {'sub_id': sub_id, 'conn': channel},
         })
 
     def unsubscribe(
             self,
-            sub_id: str) -> None:
+            sub_id: str,
+    ) -> None:
         """Unsubscribe by subscriber id."""
         self.queue.put({
             'event_name': eventNames.UNSUBSCRIBE,
