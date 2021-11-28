@@ -66,7 +66,7 @@ jobs:
       git-tag: ${{ steps.git-tag.outputs.tag }}
       sdist-artifact-name: ${{ steps.artifact-name.outputs.sdist }}
       wheel-artifact-name: ${{ steps.artifact-name.outputs.wheel }}
-      container-version: ${{ steps.container.outputs.version }}
+      container-version: v${{ steps.container.outputs.version }}
     steps:
     - name: Switch to using Python 3.9 by default
       uses: actions/setup-python@v2
@@ -689,8 +689,9 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Build container
+    - name: Build container & Push to GHCR
       run: >-
+        docker images;
         make container-buildx
         -e PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
@@ -698,8 +699,9 @@ jobs:
         -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}'
         -e PROXYPY_CONTAINER_VERSION='${{
           needs.pre-setup.outputs.container-version
-        }}'
-    - name: Run & Test container
+        }}';
+        docker images
+    - name: Run & Test from GHCR
       run: >-
         docker run
         -p 8899:8899
@@ -747,13 +749,13 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: >-
-        Publish 🐍📦 v${{ needs.pre-setup.outputs.git-tag }} to PyPI
+        Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.PYPI_TOKEN }}
 
   publish-testpypi:
-    name: Publish 🐍📦 to TestPyPI
+    name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
     needs:
     - check
     - pre-setup  # transitive, for accessing settings
@@ -776,11 +778,40 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: >-
-        Publish 🐍📦  v${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
+        Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.TESTPYPI_API_TOKEN }}
         repository_url: https://test.pypi.org/legacy/
+
+  # publish-docker:
+  #   name: Publish 🐳 📦 ${{ needs.pre-setup.outputs.git-tag }} to Docker Hub
+  #   needs:
+  #   - check
+  #   - pre-setup  # transitive, for accessing settings
+  #   if: >-
+  #     fromJSON(needs.pre-setup.outputs.release-requested)
+  #   runs-on: Ubuntu-latest
+
+  #   environment:
+  #     name: release-docker
+  #     url: >-
+  #       https://test.pypi.org/project/proxy.py/${{
+  #         needs.pre-setup.outputs.dist-version
+  #       }}
+
+  #   steps:
+  #   - name: Download all the dists
+  #     uses: actions/download-artifact@v2
+  #     with:
+  #       name: python-package-distributions
+  #       path: dist/
+  #   - name: >-
+  #       Publish 🐳 📦 ${{ needs.pre-setup.outputs.git-tag }} to Docker Hub
+  #     uses: pypa/gh-action-pypi-publish@release/v1
+  #     with:
+  #       password: ${{ secrets.TESTPYPI_API_TOKEN }}
+  #       repository_url: https://test.pypi.org/legacy/
 
   post-release-repo-update:
     name: >-
