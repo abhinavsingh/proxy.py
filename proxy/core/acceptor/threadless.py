@@ -313,6 +313,8 @@ class Threadless(ABC, Generic[T]):
                         break
                     tick = 0
                 tick += 1
+        except KeyboardInterrupt:
+            pass
         finally:
             if self.loop:
                 self.loop.stop()
