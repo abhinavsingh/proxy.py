@@ -199,8 +199,12 @@ jobs:
       id: container-version
       shell: bash
       run: >-
-        VER=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .);
-        print('::set-output name=version::$VER')
+        VER=$(echo '${{
+            steps.request-check.outputs.release-requested == 'true'
+            && github.event.inputs.release-version
+            || steps.scm-version.outputs.dist-version
+        }}' | tr + .);
+        echo "::set-output name=container-version::$VER"
 
   build:
     name: 👷 dists ${{ needs.pre-setup.outputs.git-tag }}
@@ -695,10 +699,11 @@ jobs:
             '${{ needs.pre-setup.outputs.container-version }}'
     - name: Run & Test container
       run: |
-        docker run\
-          -p 8899:8899\
-          abhinavsingh/proxy.py:\
-          '${{ needs.pre-setup.outputs.container-version }}';
+        docker run \
+          -p 8899:8899 \
+          abhinavsingh/proxy.py:'${{
+            needs.pre-setup.outputs.container-version
+          }}';
         ./tests/integration/test_integration.sh 8899
 
   check:  # This job does nothing and is only used for the branch protection
