@@ -759,6 +759,7 @@ jobs:
     - pre-setup  # transitive, for accessing settings
     if: >-
       fromJSON(needs.pre-setup.outputs.is-untagged-devel)
+      || fromJSON(needs.pre-setup.outputs.release-requested)
     runs-on: Ubuntu-latest
 
     environment:
