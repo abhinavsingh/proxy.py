@@ -8,13 +8,3 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from blacksheep.server import Application
-from blacksheep.server.responses import text
-
-
-app = Application()
-
-
-@app.route('/http-route-example')
-async def home(request):    # type: ignore[no-untyped-def]
-    return text('HTTP route response')
