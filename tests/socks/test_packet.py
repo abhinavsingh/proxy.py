@@ -17,14 +17,12 @@ from proxy.socks import Socks4Packet, socks4Operations
 
 
 def unhexlify(raw: str) -> bytes:
-    # See https://github.com/python/mypy/issues/1533
-    # for type ignore rationale
-    return binascii.unhexlify(re.sub(r'\s', '', raw))   # type: ignore
+    return binascii.unhexlify(re.sub(r'\s', '', raw))
 
 
 # Examples taken from https://en.wikipedia.org/wiki/SOCKS
-CLIENT_CONNECT_REQ = unhexlify("04 01 00 50 42 66 07 63 46 72 65 64 00")
-SERVER_CONNECT_OK = unhexlify("00 5A")
+CLIENT_CONNECT_REQ = unhexlify('04 01 00 50 42 66 07 63 46 72 65 64 00')
+SERVER_CONNECT_OK = unhexlify('00 5A')
 
 
 class TestSocks4Packet(unittest.TestCase):

@@ -17,7 +17,9 @@ NULL = b'\x00'
 
 
 class Socks4Packet:
-    """FIXME: Currently doesn't buffer during parsing and expects
+    """SOCKS4 and SOCKS4a protocol parser.
+
+    FIXME: Currently doesn't buffer during parsing and expects
     packet to arrive within a single socket.recv event.
     """
 
@@ -52,7 +54,8 @@ class Socks4Packet:
         # Parse userid
         ulen = len(raw) - cursor - 1
         self.userid = struct.unpack(
-            '!%ds' % ulen, raw[cursor:cursor+ulen])[0]
+            '!%ds' % ulen, raw[cursor:cursor+ulen],
+        )[0]
         cursor += ulen
         # Assert null terminated
         assert raw[cursor] == NULL[0]
@@ -63,5 +66,5 @@ class Socks4Packet:
             '!bbH4s%ds' % len(user_id),
             self.vn, self.cd,
             self.dstport, self.dstip,
-            user_id
+            user_id,
         ) + NULL
