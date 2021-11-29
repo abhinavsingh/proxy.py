@@ -1,12 +1,29 @@
 # Benchmark
 
 # Table of Contents
+- [TL;DR](#tldr)
 - [Usage](#usage)
 - [Results](#results)
   - [Proxy.py](#proxypy)
-  - [Tornado](#tornado)
+  - [Blacksheep](#blacksheep)
   - [AioHttp](#aiohttp)
+  - [Tornado](#tornado)
   - [Flask](#flask)
+
+## TL;DR
+
+1 Million requests benchmark results @ 8000 QPS
+
+| Server | Throughput (request/sec) |
+| ------ | ------------ |
+| `proxy.py` | 30,351 |
+| `blacksheep` | 7,358 |
+| `aiohttp` | 6,615 |
+| `tornado` | 3,301 |
+| `Flask` | 830 |
+
+- On a single core, `proxy.py` yields `7829 req/sec` throughput
+- Reference: [Add benchmarks comparison for `proxy.py`, `tornado`, `aiohttp`, `flask`](https://github.com/abhinavsingh/proxy.py/pull/827)
 
 ## Usage
 
@@ -24,7 +41,7 @@
 CONCURRENCY: 100 workers, QPS: 8000 req/sec, TOTAL DURATION: 1m, TIMEOUT: 1 sec
 ```
 
-### Proxy.py
+### `Proxy.py`
 
 ```console
 =============================
@@ -79,64 +96,63 @@ Server gracefully shutdown
 =============================
 ```
 
-### Tornado
+### `Blacksheep`
 
 ```console
 =============================
-Benchmarking Tornado
-Server (pid:31161) running
+Benchmarking Blacksheep
+Server (pid:42973) running
 
 Summary:
-  Total:	60.0208 secs
-  Slowest:	0.1234 secs
-  Fastest:	0.0050 secs
-  Average:	0.0323 secs
-  Requests/sec:	3301.1874
+  Total:	60.0112 secs
+  Slowest:	0.0357 secs
+  Fastest:	0.0047 secs
+  Average:	0.0136 secs
+  Requests/sec:	7358.7628
 
-  Total data:	3515190 bytes
+  Total data:	8390552 bytes
   Size/request:	19 bytes
 
 Response time histogram:
   0.005 [1]	|
-  0.017 [6]	|
-  0.029 [13657]	|■■■
-  0.040 [168114]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-  0.052 [2458]	|■
-  0.064 [411]	|
-  0.076 [194]	|
-  0.088 [72]	|
-  0.100 [6]	|
-  0.112 [34]	|
-  0.123 [57]	|
+  0.008 [3]	|
+  0.011 [4]	|
+  0.014 [310108]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.017 [123192]	|■■■■■■■■■■■■■■■■
+  0.020 [6795]	|■
+  0.023 [1008]	|
+  0.026 [222]	|
+  0.029 [180]	|
+  0.033 [58]	|
+  0.036 [37]	|
 
 
 Latency distribution:
-  10% in 0.0288 secs
-  25% in 0.0299 secs
-  50% in 0.0317 secs
-  75% in 0.0338 secs
-  90% in 0.0360 secs
-  95% in 0.0378 secs
-  99% in 0.0426 secs
+  10% in 0.0123 secs
+  25% in 0.0127 secs
+  50% in 0.0133 secs
+  75% in 0.0142 secs
+  90% in 0.0152 secs
+  95% in 0.0158 secs
+  99% in 0.0181 secs
 
 Details (average, fastest, slowest):
-  DNS+dialup:	0.0000 secs, 0.0050 secs, 0.1234 secs
+  DNS+dialup:	0.0000 secs, 0.0047 secs, 0.0357 secs
   DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0000 secs
-  req write:	0.0000 secs, 0.0000 secs, 0.0005 secs
-  resp wait:	0.0322 secs, 0.0048 secs, 0.0960 secs
+  req write:	0.0000 secs, 0.0000 secs, 0.0006 secs
+  resp wait:	0.0136 secs, 0.0030 secs, 0.0356 secs
   resp read:	0.0000 secs, 0.0000 secs, 0.0010 secs
 
 Status code distribution:
-  [200]	185010 responses
+  [200]	441608 responses
 
-Error distribution:
-  [13130]	Get "http://127.0.0.1:8888/http-route-example": dial tcp 127.0.0.1:8888: connect: connection refused
+
 
 Server gracefully shutdown
 =============================
 ```
 
-### AioHttp
+### `AioHttp`
 
 ```console
 =============================
@@ -194,7 +210,64 @@ Server gracefully shutdown
 =============================
 ```
 
-### Flask
+### `Tornado`
+
+```console
+=============================
+Benchmarking Tornado
+Server (pid:31161) running
+
+Summary:
+  Total:	60.0208 secs
+  Slowest:	0.1234 secs
+  Fastest:	0.0050 secs
+  Average:	0.0323 secs
+  Requests/sec:	3301.1874
+
+  Total data:	3515190 bytes
+  Size/request:	19 bytes
+
+Response time histogram:
+  0.005 [1]	|
+  0.017 [6]	|
+  0.029 [13657]	|■■■
+  0.040 [168114]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.052 [2458]	|■
+  0.064 [411]	|
+  0.076 [194]	|
+  0.088 [72]	|
+  0.100 [6]	|
+  0.112 [34]	|
+  0.123 [57]	|
+
+
+Latency distribution:
+  10% in 0.0288 secs
+  25% in 0.0299 secs
+  50% in 0.0317 secs
+  75% in 0.0338 secs
+  90% in 0.0360 secs
+  95% in 0.0378 secs
+  99% in 0.0426 secs
+
+Details (average, fastest, slowest):
+  DNS+dialup:	0.0000 secs, 0.0050 secs, 0.1234 secs
+  DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0000 secs
+  req write:	0.0000 secs, 0.0000 secs, 0.0005 secs
+  resp wait:	0.0322 secs, 0.0048 secs, 0.0960 secs
+  resp read:	0.0000 secs, 0.0000 secs, 0.0010 secs
+
+Status code distribution:
+  [200]	185010 responses
+
+Error distribution:
+  [13130]	Get "http://127.0.0.1:8888/http-route-example": dial tcp 127.0.0.1:8888: connect: connection refused
+
+Server gracefully shutdown
+=============================
+```
+
+### `Flask`
 
 ```console
 =============================

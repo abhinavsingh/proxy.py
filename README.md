@@ -174,11 +174,21 @@
         [200]	100000 responses
     ```
 
-    PS: `proxy.py` and benchmark tools are running on the same machine during the above load test.
-    Checkout the repo and try it for yourself.  See [Benchmarks](#benchmarks) for more details.
+  - `1 Million` requests benchmark comparison @ `8000 QPS`
+
+    | Server | Throughput (request/sec) |
+    | ------ | ------------ |
+    | `proxy.py` | 30,351 |
+    | `blacksheep` | 7,358 |
+    | `aiohttp` | 6,615 |
+    | `tornado` | 3,301 |
+    | `Flask` | 830 |
+
+    See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and how to run them locally.
 
 - Lightweight
-  - Uses only `~5-20MB` RAM
+  - Uses `~5-20 MB` RAM
+  - Compressed containers size is `~18.04 MB`
   - No external dependency other than standard Python library
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
@@ -1627,21 +1637,11 @@ optional arguments:
 
 ## Internal Documentation
 
-Code is well documented. Browse through internal class hierarchy and documentation using `pydoc3`
+Code is well documented. You have a few options to browse the internal class hierarchy and documentation:
 
-```console
-❯ pydoc3 proxy
-
-PACKAGE CONTENTS
-    __main__
-    common (package)
-    core (package)
-    http (package)
-    main
-
-FILE
-    /Users/abhinav/Dev/proxy.py/proxy/__init__.py
-```
+1. Visit [proxypy.readthedocs.io](https://proxypy.readthedocs.io/)
+2. Build and open docs locally using `make lib-doc`
+2. Use `pydoc3` locally using `pydoc3 proxy`
 
 # Run Dashboard
 
@@ -2028,7 +2028,9 @@ for list of tests.
 
 # Benchmarks
 
-Simply run the following command from repo root to start benchmark
+See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisons with other OSS web servers.
+
+To run standalone benchmark for `proxy.py`, use the following command from repo root:
 
 ```console
 ❯ ./helper/benchmark.sh
