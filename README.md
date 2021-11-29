@@ -174,7 +174,7 @@
         [200]	100000 responses
     ```
 
-    1 Million requests benchmark results @ 8000 QPS
+  - `1 Million` requests benchmark comparison @ `8000 QPS`
 
     | Server | Throughput (req/sec) |
     | ------ | ------------ |
@@ -187,7 +187,8 @@
     See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and how to run them locally.
 
 - Lightweight
-  - Uses only `~5-20MB` RAM
+  - Uses `~5-20 MB` RAM
+  - Compressed containers size is `~18.04 MB`
   - No external dependency other than standard Python library
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
@@ -2037,7 +2038,7 @@ for list of tests.
 
 # Benchmarks
 
-See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisions with other OSS web servers.
+See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisons with other OSS web servers.
 
 To run standalone benchmark for `proxy.py`, use the following command from repo root:
 

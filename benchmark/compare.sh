@@ -122,14 +122,14 @@ benchmark_proxy_py $PROXYPY_PORT
 echo "============================="
 
 echo "============================="
+echo "Benchmarking Blacksheep"
+benchmark_asgi $BLACKSHEEP_PORT benchmark.blacksheep.server:app
+echo "============================="
+
+echo "============================="
 echo "Benchmarking AIOHTTP"
 benchmark_lib aiohttp $AIOHTTP_PORT
 echo "============================="
-
-# echo "============================="
-# echo "Benchmarking Blacksheep"
-# benchmark_asgi $BLACKSHEEP_PORT benchmark.blacksheep.server:app
-# echo "============================="
 
 echo "============================="
 echo "Benchmarking Tornado"
