@@ -19,11 +19,11 @@ class MainHandler(tornado.web.RequestHandler):
 
 def make_app():
     return tornado.web.Application([
-        (r"/http-route-example", MainHandler),
+        (r'/http-route-example', MainHandler),
     ])
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app = make_app()
     app.listen(8888, address='127.0.0.1')
     tornado.ioloop.IOLoop.current().start()
