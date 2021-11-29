@@ -12,7 +12,8 @@ import tornado.ioloop
 import tornado.web
 
 
-class MainHandler(tornado.web.RequestHandler):      # type: ignore
+# pylint: disable=W0223
+class MainHandler(tornado.web.RequestHandler):      # type: ignore[misc]
     def get(self) -> None:
         self.write('HTTP route response')
 
