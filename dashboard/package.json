@@ -45,7 +45,7 @@
     "jsdom": "^15.2.1",
     "ncp": "^2.0.0",
     "rollup": "^1.32.1",
-    "rollup-plugin-copy": "^3.3.0",
+    "rollup-plugin-copy": "^3.4.0",
     "rollup-plugin-javascript-obfuscator": "^1.0.4",
     "rollup-plugin-typescript": "^1.0.1",
     "ts-node": "^7.0.1",
