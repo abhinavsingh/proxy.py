@@ -106,7 +106,11 @@ class Acceptor(multiprocessing.Process):
         self._local: Optional[LocalExecutor] = None
         self._lthread: Optional[threading.Thread] = None
 
-    def accept(self, events: List[Tuple[selectors.SelectorKey, int]]) -> None:
+    def accept(
+            self,
+            events: List[Tuple[selectors.SelectorKey, int]]
+    ) -> List[Tuple[socket.socket, Optional[Tuple[str, int]]]]:
+        works = []
         for _, mask in events:
             if mask & selectors.EVENT_READ:
                 if self.sock is not None:
@@ -114,28 +118,30 @@ class Acceptor(multiprocessing.Process):
                     logging.debug(
                         'Accepting new work#{0}'.format(conn.fileno()),
                     )
-                    work = (conn, addr or None)
-                    if self.flags.local_executor:
-                        assert self._local_work_queue
-                        self._local_work_queue.put(work)
-                    else:
-                        self._work(*work)
+                    works.append((conn, addr or None))
+        return works
 
     def run_once(self) -> None:
         if self.selector is not None:
             events = self.selector.select(timeout=1)
             if len(events) == 0:
                 return
-            locked = False
+            locked, works = False, []
             try:
                 if self.lock.acquire(block=False):
                     locked = True
-                    self.accept(events)
+                    works = self.accept(events)
             except BlockingIOError:
                 pass
             finally:
                 if locked:
                     self.lock.release()
+            for work in works:
+                if self.flags.local_executor:
+                    assert self._local_work_queue
+                    self._local_work_queue.put(work)
+                else:
+                    self._work(*work)
 
     def run(self) -> None:
         Logger.setup(

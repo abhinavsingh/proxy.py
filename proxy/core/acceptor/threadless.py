@@ -225,7 +225,7 @@ class Threadless(ABC, Generic[T]):
         )
         for task in finished:
             if task.result():
-                self._cleanup(task._work_id)     # type: ignore
+                self._cleanup(task._work_id)    # type: ignore
                 # self.cleanup(int(task.get_name()))
 
     def _fromfd(self, fileno: int) -> socket.socket:
