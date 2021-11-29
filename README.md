@@ -174,8 +174,17 @@
         [200]	100000 responses
     ```
 
-    PS: `proxy.py` and benchmark tools are running on the same machine during the above load test.
-    Checkout the repo and try it for yourself.  See [Benchmarks](#benchmarks) for more details.
+    1 Million requests benchmark results @ 8000 QPS
+
+    | Server | Throughput (req/sec) |
+    | ------ | ------------ |
+    | `proxy.py` | 30,351 |
+    | `blacksheep` | 7,358 |
+    | `aiohttp` | 6,615 |
+    | `tornado` | 3,301 |
+    | `Flask` | 830 |
+
+    See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and how to run them locally.
 
 - Lightweight
   - Uses only `~5-20MB` RAM
@@ -2028,7 +2037,9 @@ for list of tests.
 
 # Benchmarks
 
-Simply run the following command from repo root to start benchmark
+See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisions with other OSS web servers.
+
+To run standalone benchmark for `proxy.py`, use the following command from repo root:
 
 ```console
 ❯ ./helper/benchmark.sh

@@ -41,26 +41,31 @@ BACKLOG=OPEN_FILE_LIMIT
 
 SERVER_HOST=127.0.0.1
 
-AIOHTTP_PORT=8080
 FLASK_PORT=8000
+AIOHTTP_PORT=8080
 TORNADO_PORT=8888
 PROXYPY_PORT=8899
+BLACKSHEEP_PORT=9000
 
 ulimit -n $OPEN_FILE_LIMIT
 
 echo "CONCURRENCY: $CONCURRENCY workers, QPS: $QPS req/sec, TOTAL DURATION: $DURATION, TIMEOUT: $TIMEOUT sec"
 
-start_benchmark_stop() {
-  python ./benchmark/$1/server.py > /dev/null 2>&1 &
-  local SERVER_PID=$!
-  echo "Server (pid:$SERVER_PID) running"
-  sleep 1
+run_benchmark() {
   hey \
       -z $DURATION \
       -c $CONCURRENCY \
       -q $QPS \
       -t $TIMEOUT \
-      http://127.0.0.1:$2/http-route-example
+      http://127.0.0.1:$1/http-route-example
+}
+
+benchmark_lib() {
+  python ./benchmark/$1/server.py > /dev/null 2>&1 &
+  local SERVER_PID=$!
+  echo "Server (pid:$SERVER_PID) running"
+  sleep 1
+  run_benchmark $2
   kill -15 $SERVER_PID
   sleep 1
   kill -0 $SERVER_PID > /dev/null 2>&1
@@ -73,7 +78,7 @@ start_benchmark_stop() {
 benchmark_proxy_py() {
   python -m proxy \
     --hostname 127.0.0.1 \
-    --port $PROXYPY_PORT \
+    --port $1 \
     --backlog 65536 \
     --open-file-limit 65536 \
     --enable-web-server \
@@ -83,12 +88,25 @@ benchmark_proxy_py() {
   local SERVER_PID=$!
   echo "Server (pid:$SERVER_PID) running"
   sleep 1
-  hey \
-      -z $DURATION \
-      -c $CONCURRENCY \
-      -q $QPS \
-      -t $TIMEOUT \
-      http://127.0.0.1:$PROXYPY_PORT/http-route-example
+  run_benchmark $1
+  kill -15 $SERVER_PID
+  sleep 1
+  kill -0 $SERVER_PID > /dev/null 2>&1
+  local RUNNING=$?
+  if [ "$RUNNING" == "1" ]; then
+    echo "Server gracefully shutdown"
+  fi
+}
+
+benchmark_asgi() {
+  uvicorn \
+    --port $1 \
+    --backlog 65536 \
+    $2 > /dev/null 2>&1 &
+  local SERVER_PID=$!
+  echo "Server (pid:$SERVER_PID) running"
+  sleep 1
+  run_benchmark $1
   kill -15 $SERVER_PID
   sleep 1
   kill -0 $SERVER_PID > /dev/null 2>&1
@@ -100,20 +118,25 @@ benchmark_proxy_py() {
 
 echo "============================="
 echo "Benchmarking Proxy.Py"
-benchmark_proxy_py
+benchmark_proxy_py $PROXYPY_PORT
 echo "============================="
 
 echo "============================="
 echo "Benchmarking AIOHTTP"
-start_benchmark_stop aiohttp $AIOHTTP_PORT
+benchmark_lib aiohttp $AIOHTTP_PORT
 echo "============================="
+
+# echo "============================="
+# echo "Benchmarking Blacksheep"
+# benchmark_asgi $BLACKSHEEP_PORT benchmark.blacksheep.server:app
+# echo "============================="
 
 echo "============================="
 echo "Benchmarking Tornado"
-start_benchmark_stop tornado $TORNADO_PORT
+benchmark_lib tornado $TORNADO_PORT
 echo "============================="
 
 echo "============================="
 echo "Benchmarking Flask"
-start_benchmark_stop flask $FLASK_PORT
+benchmark_lib flask $FLASK_PORT
 echo "============================="
