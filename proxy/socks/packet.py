@@ -13,7 +13,13 @@ import struct
 from typing import Optional
 
 
+NULL = b'\x00'
+
+
 class Socks4Packet:
+    """FIXME: Currently doesn't buffer during parsing and expects
+    packet to arrive within a single socket.recv event.
+    """
 
     def __init__(self) -> None:
         # 1 byte, must be equal to 4
@@ -29,14 +35,33 @@ class Socks4Packet:
 
     def parse(self, raw: memoryview) -> None:
         cursor = 0
+        # Parse vn
         if self.vn is None:
             assert int(raw[cursor]) == 4
             self.vn = 4
+        cursor += 1
+        # Parse cd
+        self.cd = raw[cursor]
+        cursor += 1
+        # Parse dstport
+        self.dstport = struct.unpack('!H', raw[cursor:cursor+2])[0]
+        cursor += 2
+        # Parse dstip
+        self.dstip = struct.unpack('!4s', raw[cursor:cursor+4])[0]
+        cursor += 4
+        # Parse userid
+        ulen = len(raw) - cursor - 1
+        self.userid = struct.unpack(
+            '!%ds' % ulen, raw[cursor:cursor+ulen])[0]
+        cursor += ulen
+        # Assert null terminated
+        assert raw[cursor] == NULL[0]
 
     def pack(self) -> bytes:
+        user_id = self.userid or b''
         return struct.pack(
-            '!bbHLs',
+            '!bbH4s%ds' % len(user_id),
             self.vn, self.cd,
             self.dstport, self.dstip,
-            self.userid or b''
-        )
+            user_id
+        ) + NULL
