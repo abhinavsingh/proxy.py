@@ -14,7 +14,7 @@
 
 1 Million requests benchmark results @ 8000 QPS
 
-| Server | Throughput (req/sec) |
+| Server | Throughput (request/sec) |
 | ------ | ------------ |
 | `proxy.py` | 30,351 |
 | `blacksheep` | 7,358 |

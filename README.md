@@ -176,7 +176,7 @@
 
   - `1 Million` requests benchmark comparison @ `8000 QPS`
 
-    | Server | Throughput (req/sec) |
+    | Server | Throughput (request/sec) |
     | ------ | ------------ |
     | `proxy.py` | 30,351 |
     | `blacksheep` | 7,358 |
@@ -1637,21 +1637,11 @@ optional arguments:
 
 ## Internal Documentation
 
-Code is well documented. Browse through internal class hierarchy and documentation using `pydoc3`
+Code is well documented. You have a few options to browse the internal class hierarchy and documentation:
 
-```console
-❯ pydoc3 proxy
-
-PACKAGE CONTENTS
-    __main__
-    common (package)
-    core (package)
-    http (package)
-    main
-
-FILE
-    /Users/abhinav/Dev/proxy.py/proxy/__init__.py
-```
+1. Visit [proxypy.readthedocs.io](https://proxypy.readthedocs.io/)
+2. Build and open docs locally using `make lib-doc`
+2. Use `pydoc3` locally using `pydoc3 proxy`
 
 # Run Dashboard
 
