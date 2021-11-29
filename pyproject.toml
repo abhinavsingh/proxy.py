@@ -11,3 +11,50 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 write_to = "proxy/common/_scm_version.py"
+
+[tool.towncrier]
+  directory = "docs/changelog-fragments.d/"
+  filename = "CHANGELOG.md"
+  issue_format = "{{issue}}`{issue}`"
+  start_string = "<!-- towncrier release notes start -->\n\n"
+  template = "docs/changelog-fragments.d/.CHANGELOG-TEMPLATE.md.j2"
+  title_format = "## [{version}] - {project_date}"
+  underlines = ["##", "###", "####", "#####"]
+
+  [[tool.towncrier.section]]
+    path = ""
+
+  [[tool.towncrier.type]]
+    directory = "bugfix"
+    name = "Bugfixes"
+    showcontent = true
+
+  [[tool.towncrier.type]]
+    directory = "feature"
+    name = "Features"
+    showcontent = true
+
+  [[tool.towncrier.type]]
+    directory = "deprecation"
+    name = "Deprecations (removal in next major release)"
+    showcontent = true
+
+  [[tool.towncrier.type]]
+    directory = "breaking"
+    name = "Backward incompatible changes"
+    showcontent = true
+
+  [[tool.towncrier.type]]
+    directory = "doc"
+    name = "Documentation"
+    showcontent = true
+
+  [[tool.towncrier.type]]
+    directory = "misc"
+    name = "Miscellaneous"
+    showcontent = true
+
+  [[tool.towncrier.type]]
+    directory = "internal"
+    name = "Contributor-facing changes"
+    showcontent = true
