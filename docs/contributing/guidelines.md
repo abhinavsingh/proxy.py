@@ -3,6 +3,7 @@ de
 facto
 Pre
 reStructuredText
+Towncrier
 ```
 
 ```{include} ../../CONTRIBUTING.md
@@ -32,3 +33,6 @@ the docs <myst:intro/writing>` to learn more on how to use it.
 [MyST parser]: https://pypi.org/project/myst-parser/
 [Read The Docs]: https://readthedocs.org
 [Sphinx]: https://www.sphinx-doc.org
+
+```{include} ../changelog-fragments.d/README.md
+```
