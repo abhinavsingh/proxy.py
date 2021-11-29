@@ -13,9 +13,9 @@ from flask import Flask
 app = Flask(__name__)
 
 
-@app.route('/http-route-example')
-def hello_world():
-    return b'HTTP route response'
+@app.route('/http-route-example')   # type: ignore
+def hello_world() -> str:
+    return 'HTTP route response'
 
 
 if __name__ == '__main__':
