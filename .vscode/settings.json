@@ -39,6 +39,7 @@
   "python.linting.pylintEnabled": true,
   "python.linting.pylintArgs": ["--generate-members"],
   "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": ["--config", ".flake8"],
   "python.linting.mypyEnabled": true,
   "python.formatting.provider": "autopep8",
   "autoDocstring.docstringFormat": "sphinx"

@@ -2,8 +2,10 @@ SHELL := /bin/bash
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
-LATEST_TAG := $(NS)/$(IMAGE_NAME):latest
-IMAGE_TAG := $(NS)/$(IMAGE_NAME):$(shell ./write-scm-version.sh)
+# Override to target specific versions of proxy.py
+PROXYPY_CONTAINER_VERSION := latest
+# Used by container build and run targets
+PROXYPY_CONTAINER_TAG := $(NS)/$(IMAGE_NAME):$(PROXYPY_CONTAINER_VERSION)
 
 HTTPS_KEY_FILE_PATH := https-key.pem
 HTTPS_CERT_FILE_PATH := https-cert.pem
@@ -13,6 +15,10 @@ HTTPS_SIGNED_CERT_FILE_PATH := https-signed-cert.pem
 CA_KEY_FILE_PATH := ca-key.pem
 CA_CERT_FILE_PATH := ca-cert.pem
 CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
+
+# Dummy invalid hardcoded value
+PROXYPY_PKG_PATH := dist/proxy.py.whl
+BUILDX_TARGET_PLATFORM := linux/amd64
 
 OPEN=$(shell which open)
 UNAME := $(shell uname)
@@ -24,12 +30,10 @@ endif
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile lib-doc
 .PHONY: lib-dep lib-flake8 lib-mypy
-.PHONY: container container-run container-release
+.PHONY: container container-run container-release container-build container-buildx
 .PHONY: devtools dashboard dashboard-clean
 
-all:
-	echo $(IMAGE_TAG)
-	# lib-test
+all: lib-test
 
 https-certificates:
 	# Generate server key
@@ -94,7 +98,8 @@ lib-dep:
 		-r requirements.txt \
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
-		-r requirements-tunnel.txt \
+		-r requirements-tunnel.txt && \
+	pip install "setuptools>=42"
 
 lib-lint:
 	python -m tox -e lint
@@ -120,7 +125,7 @@ lib-release: lib-package
 	twine upload dist/*
 
 lib-doc:
-	python -m tox -e lint && \
+	python -m tox -e build-docs && \
 	$(OPEN) .tox/build-docs/docs_out/index.html
 
 lib-coverage:
@@ -128,6 +133,7 @@ lib-coverage:
 	$(OPEN) htmlcov/index.html
 
 lib-profile:
+	ulimit -n 65536 && \
 	sudo py-spy record \
 		-o profile.svg \
 		-t -F -s -- \
@@ -137,6 +143,9 @@ lib-profile:
 			--disable-http-proxy \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
+			--local-executor \
+			--backlog 65536 \
+			--open-file-limit 65536 \
 			--log-file /dev/null
 
 devtools:
@@ -148,12 +157,25 @@ dashboard:
 dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
-container:
-	docker build -t $(LATEST_TAG) -t $(IMAGE_TAG) .
+container: lib-package
+	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
 
-container-release:
-	docker push $(IMAGE_TAG)
-	docker push $(LATEST_TAG)
+# Usage:
+#
+# make container-buildx \
+#	-e PROXYPY_PKG_PATH=$(ls dist/*.whl) \
+#	-e BUILDX_TARGET_PLATFORM=linux/arm64 \
+#	-e PROXYPY_CONTAINER_VERSION=latest
+container-buildx:
+	docker buildx build \
+		--platform $(BUILDX_TARGET_PLATFORM) \
+		-t $(PROXYPY_CONTAINER_TAG) \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
+
+container-build:
+	docker build \
+		-t $(PROXYPY_CONTAINER_TAG) \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 
 container-run:
-	docker run -it -p 8899:8899 --rm $(LATEST_TAG)
+	docker run -it -p 8899:8899 --rm $(PROXYPY_CONTAINER_TAG)

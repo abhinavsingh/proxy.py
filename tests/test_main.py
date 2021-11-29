@@ -21,7 +21,7 @@ from unittest import mock
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
 
-from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT
+from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE
 from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
 from proxy.common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
 from proxy.common.constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
@@ -30,7 +30,7 @@ from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PI
 from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
 from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_WORK_KLASS
 from proxy.common.constants import PLUGIN_INSPECT_TRAFFIC, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEB_SERVER
-from proxy.common.constants import PLUGIN_HTTP_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_PROXY_AUTH
+from proxy.common.constants import PLUGIN_HTTP_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_PROXY_AUTH, DEFAULT_LOG_FORMAT
 
 
 class TestMain(unittest.TestCase):
@@ -71,6 +71,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
         mock_args.enable_dashboard = DEFAULT_ENABLE_DASHBOARD
         mock_args.work_klass = DEFAULT_WORK_KLASS
+        mock_args.local_executor = DEFAULT_LOCAL_EXECUTOR
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -95,6 +96,7 @@ class TestMain(unittest.TestCase):
     ) -> None:
         pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         mock_sleep.side_effect = KeyboardInterrupt()
+        mock_initialize.return_value.local_executor = False
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.pid_file = pid_file
         entry_point()
@@ -142,6 +144,7 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
+        mock_initialize.return_value.local_executor = False
         mock_initialize.return_value.enable_events = False
         main()
         mock_event_manager.assert_not_called()
@@ -181,6 +184,7 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
+        mock_initialize.return_value.local_executor = False
         mock_initialize.return_value.enable_events = True
         main()
         mock_event_manager.assert_called_once()

@@ -1,0 +1,3 @@
+aiohttp==3.8.1
+Flask==2.0.2
+tornado==6.1

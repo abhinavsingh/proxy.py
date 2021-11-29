@@ -16,8 +16,8 @@
 import socket
 import logging
 import argparse
-import threading
 import selectors
+import threading
 import multiprocessing
 import multiprocessing.synchronize
 
@@ -26,48 +26,47 @@ from multiprocessing.reduction import recv_handle
 
 from typing import List, Optional, Tuple
 
-from proxy.core.acceptor.executors import ThreadlessPool
+from ...common.flag import flags
+from ...common.utils import is_threadless
+from ...common.logger import Logger
+from ...common.backports import NonBlockingQueue
+from ...common.constants import DEFAULT_LOCAL_EXECUTOR
 
 from ..event import EventQueue
 
-from ...common.utils import is_threadless
-from ...common.logger import Logger
+from .local import LocalExecutor
+from .executors import ThreadlessPool
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--local-executor',
+    action='store_true',
+    default=DEFAULT_LOCAL_EXECUTOR,
+    help='Default: ' + ('True' if DEFAULT_LOCAL_EXECUTOR else 'False') + '.  ' +
+    'Disabled by default.  When enabled acceptors will make use of ' +
+    'local (same process) executor instead of distributing load across ' +
+    'remote (other process) executors.  Enable this option to achieve CPU affinity between ' +
+    'acceptors and executors, instead of using underlying OS kernel scheduling algorithm.',
+)
 
 
 class Acceptor(multiprocessing.Process):
     """Work acceptor process.
 
     On start-up, `Acceptor` accepts a file descriptor which will be used to
-    accept new work.  File descriptor is accepted over a `fd_queue` which is
-    closed immediately after receiving the descriptor.
+    accept new work.  File descriptor is accepted over a `fd_queue`.
 
     `Acceptor` goes on to listen for new work over the received server socket.
     By default, `Acceptor` will spawn a new thread to handle each work.
 
-    However, when `--threadless` option is enabled, `Acceptor` process
-    will also pre-spawns a
-    :class:`~proxy.core.acceptor.threadless.Threadless` process during
-    start-up.  Accepted work is passed to these
-    :class:`~proxy.core.acceptor.threadless.Threadless` processes.
-    `Acceptor` process shares accepted work with a
-    :class:`~proxy.core.acceptor.threadless.Threadless` process over
-    it's dedicated pipe.
-
-    TODO(abhinavsingh): Open questions::
-
-       1. Instead of starting
-          :class:`~proxy.core.acceptor.threadless.Threadless` process,
-          can we work with a
-          :class:`~proxy.core.acceptor.threadless.Threadless` thread?
-       2. What are the performance implications of sharing fds between
-          threads vs processes?
-       3. How much performance degradation happens when acceptor and
-          threadless processes are running on separate CPU cores?
-       4. Can we ensure both acceptor and threadless process are pinned to
-          the same CPU core?
-
+    However, when ``--threadless`` option is enabled without ``--local-executor``,
+    `Acceptor` process will also pre-spawns a
+    :class:`~proxy.core.acceptor.threadless.Threadless` process during start-up.
+    Accepted work is delegated to these :class:`~proxy.core.acceptor.threadless.Threadless`
+    processes. `Acceptor` process shares accepted work with a
+    :class:`~proxy.core.acceptor.threadless.Threadless` process over it's dedicated pipe.
     """
 
     def __init__(
@@ -101,8 +100,26 @@ class Acceptor(multiprocessing.Process):
         # File descriptor used to accept new work
         # Currently, a socket fd is assumed.
         self.sock: Optional[socket.socket] = None
-        # Incremented every time work() is called
-        self._total: int = 0
+        # Internals
+        self._total: Optional[int] = None
+        self._local_work_queue: Optional['NonBlockingQueue'] = None
+        self._local: Optional[LocalExecutor] = None
+        self._lthread: Optional[threading.Thread] = None
+
+    def accept(self, events: List[Tuple[selectors.SelectorKey, int]]) -> None:
+        for _, mask in events:
+            if mask & selectors.EVENT_READ:
+                if self.sock is not None:
+                    conn, addr = self.sock.accept()
+                    logging.debug(
+                        'Accepting new work#{0}'.format(conn.fileno()),
+                    )
+                    work = (conn, addr or None)
+                    if self.flags.local_executor:
+                        assert self._local_work_queue
+                        self._local_work_queue.put(work)
+                    else:
+                        self._work(*work)
 
     def run_once(self) -> None:
         if self.selector is not None:
@@ -113,12 +130,7 @@ class Acceptor(multiprocessing.Process):
             try:
                 if self.lock.acquire(block=False):
                     locked = True
-                    for _, mask in events:
-                        if mask & selectors.EVENT_READ:
-                            if self.sock is not None:
-                                conn, addr = self.sock.accept()
-                                addr = None if addr == '' else addr
-                                self._work(conn, addr)
+                    self.accept(events)
             except BlockingIOError:
                 pass
             finally:
@@ -142,6 +154,8 @@ class Acceptor(multiprocessing.Process):
             type=socket.SOCK_STREAM,
         )
         try:
+            if self.flags.local_executor:
+                self._start_local()
             self.selector.register(self.sock, selectors.EVENT_READ)
             while not self.running.is_set():
                 self.run_once()
@@ -149,10 +163,30 @@ class Acceptor(multiprocessing.Process):
             pass
         finally:
             self.selector.unregister(self.sock)
+            if self.flags.local_executor:
+                self._stop_local()
             self.sock.close()
             logger.debug('Acceptor#%d shutdown', self.idd)
 
+    def _start_local(self) -> None:
+        assert self.sock
+        self._local_work_queue = NonBlockingQueue()
+        self._local = LocalExecutor(
+            work_queue=self._local_work_queue,
+            flags=self.flags,
+            event_queue=self.event_queue,
+        )
+        self._lthread = threading.Thread(target=self._local.run)
+        self._lthread.daemon = True
+        self._lthread.start()
+
+    def _stop_local(self) -> None:
+        if self._lthread is not None and self._local_work_queue is not None:
+            self._local_work_queue.put(False)
+            self._lthread.join()
+
     def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
+        self._total = self._total or 0
         if is_threadless(self.flags.threadless, self.flags.threaded):
             # Index of worker to which this work should be dispatched
             # Use round-robin strategy by default.
@@ -173,20 +207,21 @@ class Acceptor(multiprocessing.Process):
             )
             thread.start()
             logger.debug(
-                'Dispatched work#{0}.{1} to worker#{2}'.format(
-                    self.idd, self._total, index,
+                'Dispatched work#{0}.{1}.{2} to worker#{3}'.format(
+                    conn.fileno(), self.idd, self._total, index,
                 ),
             )
         else:
             _, thread = ThreadlessPool.start_threaded_work(
                 self.flags,
-                conn, addr,
+                conn,
+                addr,
                 event_queue=self.event_queue,
                 publisher_id=self.__class__.__name__,
             )
             logger.debug(
-                'Started work#{0}.{1} in thread#{2}'.format(
-                    self.idd, self._total, thread.ident,
+                'Started work#{0}.{1}.{2} in thread#{3}'.format(
+                    conn.fileno(), self.idd, self._total, thread.ident,
                 ),
             )
         self._total += 1

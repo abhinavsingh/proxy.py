@@ -25,7 +25,7 @@ from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VA
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.utils import cached_property
+from ...common.backports import cached_property
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
@@ -235,9 +235,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
 
-    def get_descriptors(
-            self,
-    ) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         r, w = [], []
         for plugin in self.plugins.values():
             r1, w1 = plugin.get_descriptors()
@@ -245,14 +243,14 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             w.extend(w1)
         return r, w
 
-    def write_to_descriptors(self, w: Writables) -> bool:
+    async def write_to_descriptors(self, w: Writables) -> bool:
         for plugin in self.plugins.values():
             teardown = plugin.write_to_descriptors(w)
             if teardown:
                 return True
         return False
 
-    def read_from_descriptors(self, r: Readables) -> bool:
+    async def read_from_descriptors(self, r: Readables) -> bool:
         for plugin in self.plugins.values():
             teardown = plugin.read_from_descriptors(r)
             if teardown:
@@ -266,7 +264,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             remaining = raw.tobytes()
             frame = WebsocketFrame()
             while remaining != b'':
-                # TODO: Teardown if invalid protocol exception
+                # TODO: Tear down if invalid protocol exception
                 remaining = frame.parse(remaining)
                 if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
                     logger.warning(
@@ -294,7 +292,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive():
                     logger.error(
-                        'Pipelined request is not keep-alive, will teardown request...',
+                        'Pipelined request is not keep-alive, will tear down request...',
                     )
                     raise HttpProtocolException()
                 self.pipeline_request = None

@@ -12,7 +12,6 @@
 
        http
 """
-import socket
 import argparse
 
 from abc import ABC
@@ -61,9 +60,7 @@ class HttpProxyBasePlugin(ABC):
     # Since 3.4.0
     #
     # @abstractmethod
-    def get_descriptors(
-            self,
-    ) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         return [], []  # pragma: no cover
 
     # @abstractmethod

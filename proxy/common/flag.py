@@ -333,7 +333,15 @@ class FlagParser:
         )
         args.pid_file = cast(
             Optional[str], opts.get(
-                'pid_file', args.pid_file,
+                'pid_file',
+                args.pid_file,
+            ),
+        )
+        args.local_executor = cast(
+            bool,
+            opts.get(
+                'local_executor',
+                args.local_executor,
             ),
         )
 
