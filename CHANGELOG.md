@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- towncrier release notes start -->
 
 
-## v2.4.0
-
-- No longer support `Python 3.6` due to `asyncio.run` usage in the core.
-
 ## v2.x
 
 - No longer ~~a single file module~~.
