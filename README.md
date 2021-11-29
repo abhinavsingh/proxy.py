@@ -111,10 +111,10 @@
     - [Sending a Pull Request](#sending-a-pull-request)
 - [Benchmarks](#benchmarks)
 - [Flags](#flags)
-- [Changelog](#changelog)
-  - [v2.x](#v2x)
-  - [v1.x](#v1x)
-  - [v0.x](#v0x)
+- [Changelog](https://proxypy.rtfd.io/en/latest/changelog)
+  - [v2.x](https://proxypy.rtfd.io/en/latest/changelog#v2x)
+  - [v1.x](https://proxypy.rtfd.io/en/latest/changelog#v1x)
+  - [v0.x](https://proxypy.rtfd.io/en/latest/changelog#v0x)
 
 [//]: # (DO-NOT-REMOVE-docs-badges-END)
 
@@ -2227,30 +2227,3 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
-
-# Changelog
-
-## v2.4.0
-
-- No longer support `Python 3.6` due to `asyncio.run` usage in the core.
-
-## v2.x
-
-- No longer ~~a single file module~~.
-- Added support for threadless execution.
-- Added dashboard app.
-- Added support for unit testing.
-
-## v1.x
-
-- `Python3` only.
-  - Deprecated support for ~~Python 2.x~~.
-- Added support multi core accept.
-- Added plugin support.
-
-## v0.x
-
-- Single file.
-- Single threaded server.
-
-For detailed changelog refer to release PRs or commit history.
