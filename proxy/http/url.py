@@ -105,6 +105,8 @@ class Url:
                 host, port = raw, None
         # patch up invalid ipv6 scenario
         rhost = host.decode('utf-8')
-        if COLON.decode('utf-8') in rhost and rhost[0] != '[' and rhost[-1] != ']':
+        if COLON.decode('utf-8') in rhost and \
+                rhost[0] != '[' and \
+                rhost[-1] != ']':
             host = b'[' + host + b']'
         return host, port

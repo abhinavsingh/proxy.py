@@ -278,7 +278,15 @@ class HttpParser:
         return more, raw
 
     def _process_line_and_headers(self, raw: bytes) -> Tuple[bool, bytes]:
-        """Returns False when no CRLF could be found in received bytes."""
+        """Returns False when no CRLF could be found in received bytes.
+
+        TODO: We should not return until parser reaches headers complete
+        state or when there is no more data left to parse.
+
+        TODO: For protection against Slowloris attack, we must parse the
+        request line and headers only after receiving end of header marker.
+        This will also help make the parser even more stateless.
+        """
         line, raw = find_http_line(raw)
         if line is None:
             return False, raw
