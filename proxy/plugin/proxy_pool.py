@@ -87,7 +87,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         # in progress for SSL cache handling.
         #
         # Implement your own logic here e.g. round-robin, least connection etc.
-        endpoint = random.choice(self.flags.proxy_pool)[0].split(':')
+        endpoint = random.choice(self.flags.proxy_pool)[0].split(':', 1)
         if endpoint[0] == 'localhost' and endpoint[1] == '8899':
             return request
         logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
@@ -142,7 +142,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             assert url.hostname
             host, port = url.hostname.decode('utf-8'), url.port
             port = port if port else (
-                443 if request.is_https_tunnel() else 80
+                443 if request.is_https_tunnel else 80
             )
         path = None if not request.path else request.path.decode()
         self.request_host_port_path_method = [

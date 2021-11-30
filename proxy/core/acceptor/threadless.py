@@ -27,6 +27,7 @@ from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
+from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
 from ..connection import TcpClientConnection
 from ..event import eventNames, EventQueue
@@ -85,7 +86,7 @@ class Threadless(ABC, Generic[T]):
             # fileno, mask
             Dict[int, int],
         ] = {}
-        self.wait_timeout: float = DEFAULT_SELECTOR_SELECT_TIMEOUT
+        self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
 
     @property
@@ -128,6 +129,7 @@ class Threadless(ABC, Generic[T]):
             ),
             flags=self.flags,
             event_queue=self.event_queue,
+            uid=fileno,
         )
         self.works[fileno].publish_event(
             event_name=eventNames.WORK_STARTED,
@@ -150,7 +152,12 @@ class Threadless(ABC, Generic[T]):
         """For each work, collects events they are interested in.
         Calls select for events of interest.  """
         assert self.selector is not None
+        unfinished_work_ids = set()
+        for task in self.unfinished:
+            unfinished_work_ids.add(task._work_id)   # type: ignore
         for work_id in self.works:
+            if work_id in unfinished_work_ids:
+                continue
             worker_events = await self.works[work_id].get_events()
             # NOTE: Current assumption is that multiple works will not
             # be interested in the same fd.  Descriptors of interests
@@ -225,7 +232,7 @@ class Threadless(ABC, Generic[T]):
         )
         for task in finished:
             if task.result():
-                self._cleanup(task._work_id)     # type: ignore
+                self._cleanup(task._work_id)    # type: ignore
                 # self.cleanup(int(task.get_name()))
 
     def _fromfd(self, fileno: int) -> socket.socket:

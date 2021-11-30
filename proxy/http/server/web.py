@@ -25,7 +25,6 @@ from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VA
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.backports import cached_property
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
@@ -114,27 +113,28 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.route: Optional[HttpWebServerBasePlugin] = None
 
         self.plugins: Dict[str, HttpWebServerBasePlugin] = {}
-        if b'HttpWebServerBasePlugin' in self.flags.plugins:
-            for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
-                instance: HttpWebServerBasePlugin = klass(
-                    self.uid,
-                    self.flags,
-                    self.client,
-                    self.event_queue,
-                )
-                self.plugins[instance.name()] = instance
-
-    @cached_property(ttl=0)
-    def routes(self) -> Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]]:
-        r: Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]] = {
+        self.routes: Dict[
+            int, Dict[Pattern[str], HttpWebServerBasePlugin],
+        ] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
             httpProtocolTypes.WEBSOCKET: {},
         }
-        for name in self.plugins:
-            for (protocol, route) in self.plugins[name].routes():
-                r[protocol][re.compile(route)] = self.plugins[name]
-        return r
+        if b'HttpWebServerBasePlugin' in self.flags.plugins:
+            self._initialize_web_plugins()
+
+    def _initialize_web_plugins(self) -> None:
+        for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
+            instance: HttpWebServerBasePlugin = klass(
+                self.uid,
+                self.flags,
+                self.client,
+                self.event_queue,
+            )
+            self.plugins[instance.name()] = instance
+            for (protocol, route) in instance.routes():
+                pattern = re.compile(route)
+                self.routes[protocol][pattern] = self.plugins[instance.name()]
 
     def encryption_enabled(self) -> bool:
         return self.flags.keyfile is not None and \
@@ -223,7 +223,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 break
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
-            path = text_(path).split('?')[0]
+            path = text_(path).split('?', 1)[0]
             self.client.queue(
                 self.read_and_build_static_file_response(
                     self.flags.static_server_dir + path,
@@ -279,7 +279,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
         if self.request.state == httpParserStates.COMPLETE and \
-                self.request.is_http_1_1_keep_alive() and \
+                self.request.is_http_1_1_keep_alive and \
                 self.route is not None:
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(
@@ -290,7 +290,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.pipeline_request.parse(raw.tobytes())
             if self.pipeline_request.state == httpParserStates.COMPLETE:
                 self.route.handle_request(self.pipeline_request)
-                if not self.pipeline_request.is_http_1_1_keep_alive():
+                if not self.pipeline_request.is_http_1_1_keep_alive:
                     logger.error(
                         'Pipelined request is not keep-alive, will tear down request...',
                     )

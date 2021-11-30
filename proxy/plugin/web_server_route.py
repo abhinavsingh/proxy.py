@@ -18,6 +18,18 @@ from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 
+HTTP_RESPONSE = memoryview(
+    build_http_response(
+        httpStatusCodes.OK, body=b'HTTP route response',
+    ),
+)
+
+HTTPS_RESPONSE = memoryview(
+    build_http_response(
+        httpStatusCodes.OK, body=b'HTTPS route response',
+    ),
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,21 +45,9 @@ class WebServerPlugin(HttpWebServerBasePlugin):
 
     def handle_request(self, request: HttpParser) -> None:
         if request.path == b'/http-route-example':
-            self.client.queue(
-                memoryview(
-                    build_http_response(
-                        httpStatusCodes.OK, body=b'HTTP route response',
-                    ),
-                ),
-            )
+            self.client.queue(HTTP_RESPONSE)
         elif request.path == b'/https-route-example':
-            self.client.queue(
-                memoryview(
-                    build_http_response(
-                        httpStatusCodes.OK, body=b'HTTPS route response',
-                    ),
-                ),
-            )
+            self.client.queue(HTTPS_RESPONSE)
 
     def on_websocket_open(self) -> None:
         logger.info('Websocket open')
