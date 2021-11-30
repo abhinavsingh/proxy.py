@@ -42,6 +42,7 @@ SERVER_HOST=127.0.0.1
 
 AIOHTTP_PORT=8080
 TORNADO_PORT=8888
+STARLETTE_PORT=8890
 PROXYPY_PORT=8899
 BLACKSHEEP_PORT=9000
 
@@ -117,22 +118,27 @@ benchmark_asgi() {
   fi
 }
 
-echo "============================="
-echo "Benchmarking Proxy.Py"
-benchmark_proxy_py $PROXYPY_PORT
-echo "============================="
+# echo "============================="
+# echo "Benchmarking Proxy.Py"
+# benchmark_proxy_py $PROXYPY_PORT
+# echo "============================="
 
-echo "============================="
-echo "Benchmarking Blacksheep"
-benchmark_lib blacksheep $BLACKSHEEP_PORT
-echo "============================="
+# echo "============================="
+# echo "Benchmarking Blacksheep"
+# benchmark_lib blacksheep $BLACKSHEEP_PORT
+# echo "============================="
 
-echo "============================="
-echo "Benchmarking AIOHTTP"
-benchmark_lib aiohttp $AIOHTTP_PORT
-echo "============================="
+# echo "============================="
+# echo "Benchmarking Starlette"
+# benchmark_lib starlette $STARLETTE_PORT
+# echo "============================="
 
-echo "============================="
-echo "Benchmarking Tornado"
-benchmark_lib tornado $TORNADO_PORT
-echo "============================="
+# echo "============================="
+# echo "Benchmarking AIOHTTP"
+# benchmark_lib aiohttp $AIOHTTP_PORT
+# echo "============================="
+
+# echo "============================="
+# echo "Benchmarking Tornado"
+# benchmark_lib tornado $TORNADO_PORT
+# echo "============================="

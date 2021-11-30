@@ -7,11 +7,12 @@
 
 ## TL;DR
 
-1 Million requests benchmark results
+NOTE: On Macbook Pro 2019 / 2.4 GHz 8-Core Intel Core i9 / 32 GB RAM
 
-| Server | Throughput (request/sec) | Num Workers | Running With |
-| ------ | ------------ | ------------------------| ------------ |
+| Server | Throughput (request/sec) | Num Workers | Runner |
+| ------ | ------------ | ------------------------| ------ |
 | `blacksheep` | 46,564 | 10 | uvicorn |
+| `starlette` | 44,102 | 10 | uvicorn |
 | `proxy.py` | 39,232 | 10 | - |
 | `aiohttp` | 6,615 | 1 | - |
 | `tornado` | 3,301 | 1 | - |
