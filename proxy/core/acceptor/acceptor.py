@@ -110,7 +110,7 @@ class Acceptor(multiprocessing.Process):
 
     def accept(
             self,
-            events: List[Tuple[selectors.SelectorKey, int]]
+            events: List[Tuple[selectors.SelectorKey, int]],
     ) -> List[Tuple[socket.socket, Optional[Tuple[str, int]]]]:
         works = []
         for _, mask in events:
