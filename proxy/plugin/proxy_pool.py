@@ -82,8 +82,8 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         by returning None.
 
         TODO(abhinavsingh): Ideally connection to upstream proxy endpoints
-        must be bootstrapped within it's own re-usable and gc'd pool, to avoid establishing
-        a fresh upstream proxy connection for each client request.
+        must be bootstrapped within it's own re-usable and garbage collected pool,
+        to avoid establishing a new upstream proxy connection for each client request.
 
         See :class:`~proxy.core.connection.pool.ConnectionPool` which is a work
         in progress for SSL cache handling.
