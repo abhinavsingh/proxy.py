@@ -211,6 +211,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # valid request.
             if data and self.request.state != httpParserStates.COMPLETE:
                 # Parse http request
+                #
                 # TODO(abhinavsingh): Remove .tobytes after parser is
                 # memoryview compliant
                 self.request.parse(data.tobytes())

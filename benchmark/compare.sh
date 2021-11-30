@@ -84,7 +84,8 @@ benchmark_proxy_py() {
     --enable-web-server \
     --plugin proxy.plugin.WebServerPlugin \
     --disable-http-proxy \
-    --local-executor --log-file /dev/null > /dev/null 2>&1 &
+    --local-executor \
+    --log-file /dev/null > /dev/null 2>&1 &
   local SERVER_PID=$!
   echo "Server (pid:$SERVER_PID) running"
   sleep 1

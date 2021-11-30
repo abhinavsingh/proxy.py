@@ -138,6 +138,7 @@ lib-profile:
 		-o profile.svg \
 		-t -F -s -- \
 		python -m proxy \
+			--hostname 127.0.0.1 \
 			--num-acceptors 1 \
 			--num-workers 1 \
 			--disable-http-proxy \

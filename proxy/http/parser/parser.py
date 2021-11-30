@@ -287,34 +287,39 @@ class HttpParser:
         request line and headers only after receiving end of header marker.
         This will also help make the parser even more stateless.
         """
-        line, raw = find_http_line(raw)
-        if line is None:
-            return False, raw
+        while True:
+            line, raw = find_http_line(raw)
+            if line is None:
+                return False, raw
 
-        if self.state == httpParserStates.INITIALIZED:
-            self._process_line(line)
             if self.state == httpParserStates.INITIALIZED:
-                return len(raw) > 0, raw
-        elif self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
-            if self.state == httpParserStates.LINE_RCVD:
-                # LINE_RCVD state is equivalent to RCVING_HEADERS
-                self.state = httpParserStates.RCVING_HEADERS
-            if line.strip() == b'':  # Blank line received.
-                self.state = httpParserStates.HEADERS_COMPLETE
-            else:
-                self._process_header(line)
+                self._process_line(line)
+                if self.state == httpParserStates.INITIALIZED:
+                    # return len(raw) > 0, raw
+                    continue
+            elif self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
+                if self.state == httpParserStates.LINE_RCVD:
+                    self.state = httpParserStates.RCVING_HEADERS
+                if line == b'' or line.strip() == b'':  # Blank line received.
+                    self.state = httpParserStates.HEADERS_COMPLETE
+                else:
+                    self._process_header(line)
 
-        # When server sends a response line without any header or body e.g.
-        # HTTP/1.1 200 Connection established\r\n\r\n
-        if self.state == httpParserStates.LINE_RCVD and \
-                self.type == httpParserTypes.RESPONSE_PARSER and \
-                raw == CRLF:
-            self.state = httpParserStates.COMPLETE
-        elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                not self.body_expected and \
-                raw == b'':
-            self.state = httpParserStates.COMPLETE
+            # When server sends a response line without any header or body e.g.
+            # HTTP/1.1 200 Connection established\r\n\r\n
+            if self.state == httpParserStates.LINE_RCVD and \
+                    self.type == httpParserTypes.RESPONSE_PARSER and \
+                    raw == CRLF:
+                self.state = httpParserStates.COMPLETE
+            elif self.state == httpParserStates.HEADERS_COMPLETE and \
+                    not self.body_expected and \
+                    raw == b'':
+                self.state = httpParserStates.COMPLETE
 
+            # If raw length is now zero, bail out
+            # If we have received all headers, bail out
+            if raw == b'' or self.state == httpParserStates.HEADERS_COMPLETE:
+                break
         return len(raw) > 0, raw
 
     def _process_line(self, raw: bytes) -> None:
