@@ -189,19 +189,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return False
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
+        """Handles incoming data from client."""
         if data is None:
             logger.debug('Client closed connection, tearing down...')
             self.work.closed = True
             return True
-
         try:
-            # HttpProtocolHandlerPlugin.on_client_data
-            # Can raise HttpProtocolException to tear down the connection
-            for plugin in self.plugins.values():
-                optional_data = plugin.on_client_data(data)
-                if optional_data is None:
-                    break
-                data = optional_data
             # Don't parse incoming data any further after 1st request has completed.
             #
             # This specially does happen for pipeline requests.
@@ -209,7 +202,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # Plugins can utilize on_client_data for such cases and
             # apply custom logic to handle request data sent after 1st
             # valid request.
-            if data and self.request.state != httpParserStates.COMPLETE:
+            if self.request.state != httpParserStates.COMPLETE:
                 # Parse http request
                 #
                 # TODO(abhinavsingh): Remove .tobytes after parser is
@@ -229,6 +222,14 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                                     plugin_.client._conn = upgraded_sock
                         elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                             return True
+            else:
+                # HttpProtocolHandlerPlugin.on_client_data
+                # Can raise HttpProtocolException to tear down the connection
+                for plugin in self.plugins.values():
+                    optional_data = plugin.on_client_data(data)
+                    if optional_data is None:
+                        break
+                    data = optional_data
         except HttpProtocolException as e:
             logger.debug('HttpProtocolException raised')
             response: Optional[memoryview] = e.response(self.request)

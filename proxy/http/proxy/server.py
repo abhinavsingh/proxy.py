@@ -903,7 +903,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_request_complete(self) -> None:
         if not self.flags.enable_events:
             return
-
         assert self.request.port
         self.event_queue.publish(
             request_id=self.uid.hex,
@@ -924,7 +923,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_events(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
-
         if self.response.state == httpParserStates.COMPLETE:
             self.emit_response_complete()
         elif self.response.state == httpParserStates.RCVING_BODY:
@@ -935,7 +933,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_headers_complete(self) -> None:
         if not self.flags.enable_events:
             return
-
         self.event_queue.publish(
             request_id=self.uid.hex,
             event_name=eventNames.RESPONSE_HEADERS_COMPLETE,
@@ -948,7 +945,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_chunk_received(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
-
         self.event_queue.publish(
             request_id=self.uid.hex,
             event_name=eventNames.RESPONSE_CHUNK_RECEIVED,
@@ -962,7 +958,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_complete(self) -> None:
         if not self.flags.enable_events:
             return
-
         self.event_queue.publish(
             request_id=self.uid.hex,
             event_name=eventNames.RESPONSE_COMPLETE,

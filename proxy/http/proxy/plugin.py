@@ -121,6 +121,8 @@ class HttpProxyBasePlugin(ABC):
         Essentially, if you return None from within before_upstream_connection,
         be prepared to handle_client_data and not handle_client_request.
 
+        Only called after initial request from client has been received.
+
         Raise HttpRequestRejected to tear down the connection
         Return None to drop the connection
         """
