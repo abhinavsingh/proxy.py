@@ -363,7 +363,7 @@ class HttpParser:
         parts = raw.split(COLON, 1)
         key, value = (
             parts[0].strip(),
-            b'' if len(parts) == 1 else parts[1].strip()
+            b'' if len(parts) == 1 else parts[1].strip(),
         )
         k = self.add_header(key, value)
         # b'content-length' in self.headers and int(self.header(b'content-length')) > 0

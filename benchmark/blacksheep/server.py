@@ -22,4 +22,4 @@ async def home(request):    # type: ignore[no-untyped-def]
     return text('HTTP route response')
 
 if __name__ == '__main__':
-    uvicorn.run("server:app", port=9000, workers=10, log_level="warning")
+    uvicorn.run('server:app', port=9000, workers=10, log_level='warning')

@@ -19,10 +19,12 @@ async def homepage(request):
     return Response('HTTP route response', media_type='text/plain')
 
 
-app = Starlette(debug=True, routes=[
-    Route('/http-route-example', homepage),
-])
+app = Starlette(
+    debug=True, routes=[
+        Route('/http-route-example', homepage),
+    ],
+)
 
 
 if __name__ == '__main__':
-    uvicorn.run("server:app", port=8890, workers=10, log_level="warning")
+    uvicorn.run('server:app', port=8890, workers=10, log_level='warning')

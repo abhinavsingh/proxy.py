@@ -114,7 +114,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
         self.plugins: Dict[str, HttpWebServerBasePlugin] = {}
         self.routes: Dict[
-            int, Dict[Pattern[str], HttpWebServerBasePlugin]
+            int, Dict[Pattern[str], HttpWebServerBasePlugin],
         ] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
