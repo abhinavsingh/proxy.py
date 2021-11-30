@@ -123,7 +123,7 @@ class Acceptor(multiprocessing.Process):
                         )
                         works.append((conn, addr or None))
                     except BlockingIOError:
-                        logger.info('blocking io error')
+                        # logger.info('blocking io error')
                         pass
         return works
 

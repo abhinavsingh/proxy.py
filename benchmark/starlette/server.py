@@ -15,7 +15,7 @@ from starlette.responses import Response
 from starlette.routing import Route
 
 
-async def homepage(request):
+async def homepage(request):    # type: ignore[no-untyped-def]
     return Response('HTTP route response', media_type='text/plain')
 
 

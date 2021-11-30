@@ -57,7 +57,7 @@ class cached_property:
        Arndt
     """
 
-    def __init__(self, ttl: float = 0.0):
+    def __init__(self, ttl: float = 0):
         self.ttl = ttl
 
     def __call__(self, fget: Any, doc: Any = None) -> 'cached_property':
