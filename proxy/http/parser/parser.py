@@ -19,6 +19,7 @@ from ...common.constants import HTTP_1_1, HTTP_1_0, SLASH, CRLF
 from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
 from ...common.utils import build_http_request, build_http_response, find_http_line, text_
 from ...common.flag import flags
+from ...common.backports import cached_property
 
 from ..url import Url
 from ..methods import httpMethods
@@ -143,6 +144,7 @@ class HttpParser:
         NOTE: Host field WILL be None for incoming local WebServer requests."""
         return self.host is not None
 
+    @cached_property(ttl=0)
     def is_http_1_1_keep_alive(self) -> bool:
         """Returns true for HTTP/1.1 keep-alive connections."""
         return self.version == HTTP_1_1 and \
@@ -151,28 +153,33 @@ class HttpParser:
                 self.header(b'Connection').lower() == b'keep-alive'
             )
 
+    @cached_property(ttl=0)
     def is_connection_upgrade(self) -> bool:
         """Returns true for websocket upgrade requests."""
         return self.version == HTTP_1_1 and \
             self.has_header(b'Connection') and \
             self.has_header(b'Upgrade')
 
+    @cached_property(ttl=0)
     def is_https_tunnel(self) -> bool:
         """Returns true for HTTPS CONNECT tunnel request."""
         return self.method == httpMethods.CONNECT
 
+    @cached_property(ttl=0)
     def is_chunked_encoded(self) -> bool:
         """Returns true if transfer-encoding chunked is used."""
         return b'transfer-encoding' in self.headers and \
                self.headers[b'transfer-encoding'][1].lower() == b'chunked'
 
+    @cached_property(ttl=0)
     def content_expected(self) -> bool:
         """Returns true if content-length is present and not 0."""
         return b'content-length' in self.headers and int(self.header(b'content-length')) > 0
 
+    @cached_property(ttl=0)
     def body_expected(self) -> bool:
         """Returns true if content or chunked response is expected."""
-        return self.content_expected() or self.is_chunked_encoded()
+        return self.content_expected or self.is_chunked_encoded
 
     def parse(self, raw: bytes) -> None:
         """Parses HTTP request out of raw bytes.
@@ -204,7 +211,7 @@ class HttpParser:
                 COLON +
                 str(self.port).encode() +
                 path
-            ) if not self.is_https_tunnel() else (self.host + COLON + str(self.port).encode())
+            ) if not self.is_https_tunnel else (self.host + COLON + str(self.port).encode())
         return build_http_request(
             self.method, path, self.version,
             headers={} if not self.headers else {
@@ -238,7 +245,7 @@ class HttpParser:
         #   the latter MUST be ignored.
         #
         # TL;DR -- Give transfer-encoding header preference over content-length.
-        if self.is_chunked_encoded():
+        if self.is_chunked_encoded:
             if not self.chunk:
                 self.chunk = ChunkParser()
             raw = self.chunk.parse(raw)
@@ -296,7 +303,7 @@ class HttpParser:
                 raw == CRLF:
             self.state = httpParserStates.COMPLETE
         elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                not self.body_expected() and \
+                not self.body_expected and \
                 raw == b'':
             self.state = httpParserStates.COMPLETE
 
@@ -310,7 +317,7 @@ class HttpParser:
                 self.protocol.parse(raw)
             else:
                 # Ref: https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
-                line = raw.split(WHITESPACE)
+                line = raw.split(WHITESPACE, 2)
                 if len(line) == 3:
                     self.method = line[0].upper()
                     self.set_url(line[1])
@@ -324,26 +331,27 @@ class HttpParser:
                     # but we should solve circular import problem first.
                     raise ValueError('Invalid request line')
         else:
-            line = raw.split(WHITESPACE)
+            line = raw.split(WHITESPACE, 2)
             self.version = line[0]
             self.code = line[1]
-            self.reason = WHITESPACE.join(line[2:])
+            self.reason = line[2]
             self.state = httpParserStates.LINE_RCVD
 
     def _process_header(self, raw: bytes) -> None:
-        parts = raw.split(COLON)
-        key = parts[0].strip()
-        value = COLON.join(parts[1:]).strip()
-        self.add_headers([(key, value)])
+        parts = raw.split(COLON, 1)
+        self.add_header(
+            parts[0].strip(),
+            b'' if len(parts) == 1 else parts[1].strip(),
+        )
 
     def _get_body_or_chunks(self) -> Optional[bytes]:
         return ChunkParser.to_chunks(self.body) \
-            if self.body and self.is_chunked_encoded() else \
+            if self.body and self.is_chunked_encoded else \
             self.body
 
     def _set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
-            if self.is_https_tunnel() and self._url:
+            if self.is_https_tunnel and self._url:
                 self.host = self._url.hostname
                 self.port = 443 if self._url.port is None else self._url.port
             elif self._url:

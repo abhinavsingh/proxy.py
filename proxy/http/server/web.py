@@ -223,7 +223,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 break
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
-            path = text_(path).split('?')[0]
+            path = text_(path).split('?', 1)[0]
             self.client.queue(
                 self.read_and_build_static_file_response(
                     self.flags.static_server_dir + path,
@@ -279,7 +279,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
         if self.request.state == httpParserStates.COMPLETE and \
-                self.request.is_http_1_1_keep_alive() and \
+                self.request.is_http_1_1_keep_alive and \
                 self.route is not None:
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(
@@ -290,7 +290,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.pipeline_request.parse(raw.tobytes())
             if self.pipeline_request.state == httpParserStates.COMPLETE:
                 self.route.handle_request(self.pipeline_request)
-                if not self.pipeline_request.is_http_1_1_keep_alive():
+                if not self.pipeline_request.is_http_1_1_keep_alive:
                     logger.error(
                         'Pipelined request is not keep-alive, will tear down request...',
                     )

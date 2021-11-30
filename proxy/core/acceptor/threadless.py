@@ -150,7 +150,12 @@ class Threadless(ABC, Generic[T]):
         """For each work, collects events they are interested in.
         Calls select for events of interest.  """
         assert self.selector is not None
+        unfinished_work_ids = set()
+        for task in self.unfinished:
+            unfinished_work_ids.add(task._work_id)   # type: ignore
         for work_id in self.works:
+            if work_id in unfinished_work_ids:
+                continue
             worker_events = await self.works[work_id].get_events()
             # NOTE: Current assumption is that multiple works will not
             # be interested in the same fd.  Descriptors of interests

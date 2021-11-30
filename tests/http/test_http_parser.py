@@ -56,21 +56,21 @@ class TestHttpParser(unittest.TestCase):
 
     def test_urlparse(self) -> None:
         self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
-        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(self.parser.host, b'httpbin.org')
         self.assertEqual(self.parser.port, 443)
         self.assertNotEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_urlparse_on_invalid_connect_request(self) -> None:
         self.parser.parse(b'CONNECT / HTTP/1.0\r\n\r\n')
-        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(self.parser.host, None)
         self.assertEqual(self.parser.port, 443)
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_unicode_character_domain_connect(self) -> None:
         self.parser.parse(bytes_('CONNECT ççç.org:443 HTTP/1.1\r\n'))
-        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(self.parser.host, bytes_('ççç.org'))
         self.assertEqual(self.parser.port, 443)
 
@@ -78,7 +78,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(
             bytes_('CONNECT 2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF:443 HTTP/1.1\r\n'),
         )
-        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(
             self.parser.host, bytes_(
                 '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]',
@@ -92,7 +92,7 @@ class TestHttpParser(unittest.TestCase):
                 'CONNECT [2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]:443 HTTP/1.1\r\n',
             ),
         )
-        self.assertTrue(self.parser.is_https_tunnel())
+        self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(
             self.parser.host, bytes_(
                 '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]',
@@ -663,7 +663,7 @@ class TestHttpParser(unittest.TestCase):
                 httpMethods.GET, b'/',
             ),
         )
-        self.assertTrue(self.parser.is_http_1_1_keep_alive())
+        self.assertTrue(self.parser.is_http_1_1_keep_alive)
 
     def test_is_http_1_1_keep_alive_with_non_close_connection_header(
             self,
@@ -676,7 +676,7 @@ class TestHttpParser(unittest.TestCase):
                 },
             ),
         )
-        self.assertTrue(self.parser.is_http_1_1_keep_alive())
+        self.assertTrue(self.parser.is_http_1_1_keep_alive)
 
     def test_is_not_http_1_1_keep_alive_with_close_header(self) -> None:
         self.parser.parse(
@@ -687,7 +687,7 @@ class TestHttpParser(unittest.TestCase):
                 },
             ),
         )
-        self.assertFalse(self.parser.is_http_1_1_keep_alive())
+        self.assertFalse(self.parser.is_http_1_1_keep_alive)
 
     def test_is_not_http_1_1_keep_alive_for_http_1_0(self) -> None:
         self.parser.parse(
@@ -695,7 +695,7 @@ class TestHttpParser(unittest.TestCase):
                 httpMethods.GET, b'/', protocol_version=b'HTTP/1.0',
             ),
         )
-        self.assertFalse(self.parser.is_http_1_1_keep_alive())
+        self.assertFalse(self.parser.is_http_1_1_keep_alive)
 
     def test_paramiko_doc(self) -> None:
         response = b'HTTP/1.1 304 Not Modified\r\nDate: Tue, 03 Dec 2019 02:31:55 GMT\r\nConnection: keep-alive' \

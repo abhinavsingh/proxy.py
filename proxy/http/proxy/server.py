@@ -307,7 +307,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # parse incoming response packet
             # only for non-https requests and when
             # tls interception is enabled
-            if not self.request.is_https_tunnel():
+            if not self.request.is_https_tunnel:
                 # See https://github.com/abhinavsingh/proxy.py/issues/127 for why
                 # currently response parsing is disabled when TLS interception is enabled.
                 #
@@ -425,7 +425,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
         access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
-        if not self.request.is_https_tunnel():
+        if not self.request.is_https_tunnel:
             access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
         logger.info(access_log_format.format_map(log_attrs))
 
@@ -435,7 +435,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # However, this must also be accompanied by resetting both request
         # and response objects.
         #
-        # if not self.request.is_https_tunnel() and \
+        # if not self.request.is_https_tunnel and \
         #         self.response.state == httpParserStates.COMPLETE:
         #     self.access_log()
         return chunk
@@ -466,11 +466,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # We also handle pipeline scenario for https proxy
             # requests is TLS interception is enabled.
             if self.request.state == httpParserStates.COMPLETE and (
-                    not self.request.is_https_tunnel() or
+                    not self.request.is_https_tunnel or
                     self.tls_interception_enabled()
             ):
                 if self.pipeline_request is not None and \
-                        self.pipeline_request.is_connection_upgrade():
+                        self.pipeline_request.is_connection_upgrade:
                     # Previous pipelined request was a WebSocket
                     # upgrade request. Incoming client data now
                     # must be treated as WebSocket protocol packets.
@@ -503,7 +503,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                             self.pipeline_request.build(),
                         ),
                     )
-                    if not self.pipeline_request.is_connection_upgrade():
+                    if not self.pipeline_request.is_connection_upgrade:
                         self.pipeline_request = None
             # For scenarios where we cannot peek into the data,
             # simply queue for upstream server.
@@ -549,7 +549,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # For https requests, respond back with tunnel established response.
         # Optionally, setup interceptor if TLS interception is enabled.
         if self.upstream:
-            if self.request.is_https_tunnel():
+            if self.request.is_https_tunnel:
                 self.client.queue(
                     HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
                 )
@@ -910,7 +910,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             event_name=eventNames.REQUEST_COMPLETE,
             event_payload={
                 'url': text_(self.request.path)
-                if self.request.is_https_tunnel()
+                if self.request.is_https_tunnel
                 else 'http://%s:%d%s' % (text_(self.request.host), self.request.port, text_(self.request.path)),
                 'method': text_(self.request.method),
                 'headers': {text_(k): text_(v[1]) for k, v in self.request.headers.items()},

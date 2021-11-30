@@ -86,6 +86,7 @@ class AcceptorPool:
         self.fd_queues: List[connection.Connection] = []
         # Internals
         self.lock = multiprocessing.Lock()
+        # self.semaphore = multiprocessing.Semaphore(0)
 
     def __enter__(self) -> 'AcceptorPool':
         self.setup()
@@ -125,6 +126,7 @@ class AcceptorPool:
                 fd_queue=work_queue[1],
                 flags=self.flags,
                 lock=self.lock,
+                # semaphore=self.semaphore,
                 event_queue=self.event_queue,
                 executor_queues=self.executor_queues,
                 executor_pids=self.executor_pids,

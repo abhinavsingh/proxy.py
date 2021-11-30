@@ -75,6 +75,7 @@ class Acceptor(multiprocessing.Process):
             fd_queue: connection.Connection,
             flags: argparse.Namespace,
             lock: multiprocessing.synchronize.Lock,
+            # semaphore: multiprocessing.synchronize.Semaphore,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
             executor_locks: List[multiprocessing.synchronize.Lock],
@@ -88,6 +89,7 @@ class Acceptor(multiprocessing.Process):
         self.idd = idd
         # Mutex used for synchronization with acceptors
         self.lock = lock
+        # self.semaphore = semaphore
         # Queue over which server socket fd is received on start-up
         self.fd_queue: connection.Connection = fd_queue
         # Available executors
@@ -114,11 +116,15 @@ class Acceptor(multiprocessing.Process):
         for _, mask in events:
             if mask & selectors.EVENT_READ:
                 if self.sock is not None:
-                    conn, addr = self.sock.accept()
-                    logging.debug(
-                        'Accepting new work#{0}'.format(conn.fileno()),
-                    )
-                    works.append((conn, addr or None))
+                    try:
+                        conn, addr = self.sock.accept()
+                        logging.debug(
+                            'Accepting new work#{0}'.format(conn.fileno()),
+                        )
+                        works.append((conn, addr or None))
+                    except BlockingIOError:
+                        logger.info('blocking io error')
+                        pass
         return works
 
     def run_once(self) -> None:
@@ -126,13 +132,21 @@ class Acceptor(multiprocessing.Process):
             events = self.selector.select(timeout=1)
             if len(events) == 0:
                 return
+            # locked = False
+            # try:
+            #     if self.lock.acquire(block=False):
+            #         locked = True
+            #         self.semaphore.release()
+            # finally:
+            #     if locked:
+            #         self.lock.release()
             locked, works = False, []
             try:
+                # if not self.semaphore.acquire(False, None):
+                #     return
                 if self.lock.acquire(block=False):
                     locked = True
                     works = self.accept(events)
-            except BlockingIOError:
-                pass
             finally:
                 if locked:
                     self.lock.release()

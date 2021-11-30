@@ -38,8 +38,7 @@ class cached_property:
     two-element tuple with the last computed property value and the last time
     it was updated in seconds since the epoch.
 
-    The default time-to-live (TTL) is 300 seconds (5 minutes). Set the TTL to
-    zero for the cached value to never expire.
+    The default time-to-live (TTL) is 0 seconds i.e. cached value will never expire.
 
     To expire a cached property value manually just do::
         del instance._cached_properties[<property name>]
@@ -58,7 +57,7 @@ class cached_property:
        Arndt
     """
 
-    def __init__(self, ttl: float = 300.0):
+    def __init__(self, ttl: float = 0.0):
         self.ttl = ttl
 
     def __call__(self, fget: Any, doc: Any = None) -> 'cached_property':

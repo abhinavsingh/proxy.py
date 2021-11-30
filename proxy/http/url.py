@@ -73,14 +73,14 @@ class Url:
             rest = raw[len(b'https://'):] \
                 if is_https \
                 else raw[len(b'http://'):]
-            parts = rest.split(SLASH)
+            parts = rest.split(SLASH, 1)
             host, port = Url.parse_host_and_port(parts[0])
             return cls(
                 scheme=b'https' if is_https else b'http',
                 hostname=host,
                 port=port,
                 remainder=None if len(parts) == 1 else (
-                    SLASH + SLASH.join(parts[1:])
+                    SLASH + parts[1]
                 ),
             )
         host, port = Url.parse_host_and_port(raw)
