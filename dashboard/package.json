@@ -41,7 +41,7 @@
     "jasmine": "^3.6.3",
     "jasmine-ts": "^0.3.0",
     "jquery": "^3.5.1",
-    "js-cookie": "^2.2.1",
+    "js-cookie": "^3.0.1",
     "jsdom": "^15.2.1",
     "ncp": "^2.0.0",
     "rollup": "^1.32.1",
