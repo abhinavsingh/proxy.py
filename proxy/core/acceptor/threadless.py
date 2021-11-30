@@ -27,6 +27,7 @@ from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
+from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
 from ..connection import TcpClientConnection
 from ..event import eventNames, EventQueue
@@ -85,7 +86,7 @@ class Threadless(ABC, Generic[T]):
             # fileno, mask
             Dict[int, int],
         ] = {}
-        self.wait_timeout: float = DEFAULT_SELECTOR_SELECT_TIMEOUT
+        self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
 
     @property
@@ -128,6 +129,7 @@ class Threadless(ABC, Generic[T]):
             ),
             flags=self.flags,
             event_queue=self.event_queue,
+            uid=fileno,
         )
         self.works[fileno].publish_event(
             event_name=eventNames.WORK_STARTED,

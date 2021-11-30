@@ -19,7 +19,6 @@ from ...common.constants import HTTP_1_1, HTTP_1_0, SLASH, CRLF
 from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
 from ...common.utils import build_http_request, build_http_response, find_http_line, text_
 from ...common.flag import flags
-from ...common.backports import cached_property
 
 from ..url import Url
 from ..methods import httpMethods
@@ -84,6 +83,10 @@ class HttpParser:
         self.chunk: Optional[ChunkParser] = None
         # Internal request line as a url structure
         self._url: Optional[Url] = None
+        # Deduced states from the packet
+        self._is_chunked_encoded: bool = False
+        self._content_expected: bool = False
+        self._is_https_tunnel: bool = False
 
     @classmethod
     def request(
@@ -114,9 +117,13 @@ class HttpParser:
         """Returns true if header key was found in payload."""
         return key.lower() in self.headers
 
-    def add_header(self, key: bytes, value: bytes) -> None:
-        """Add/Update a header to internal data structure."""
-        self.headers[key.lower()] = (key, value)
+    def add_header(self, key: bytes, value: bytes) -> bytes:
+        """Add/Update a header to internal data structure.
+
+        Returns key with which passed (key, value) tuple is available."""
+        k = key.lower()
+        self.headers[k] = (key, value)
+        return k
 
     def add_headers(self, headers: List[Tuple[bytes, bytes]]) -> None:
         """Add/Update multiple headers to internal data structure"""
@@ -144,7 +151,7 @@ class HttpParser:
         NOTE: Host field WILL be None for incoming local WebServer requests."""
         return self.host is not None
 
-    @cached_property(ttl=0)
+    @property
     def is_http_1_1_keep_alive(self) -> bool:
         """Returns true for HTTP/1.1 keep-alive connections."""
         return self.version == HTTP_1_1 and \
@@ -153,33 +160,32 @@ class HttpParser:
                 self.header(b'Connection').lower() == b'keep-alive'
             )
 
-    @cached_property(ttl=0)
+    @property
     def is_connection_upgrade(self) -> bool:
         """Returns true for websocket upgrade requests."""
         return self.version == HTTP_1_1 and \
             self.has_header(b'Connection') and \
             self.has_header(b'Upgrade')
 
-    @cached_property(ttl=0)
+    @property
     def is_https_tunnel(self) -> bool:
         """Returns true for HTTPS CONNECT tunnel request."""
-        return self.method == httpMethods.CONNECT
+        return self._is_https_tunnel
 
-    @cached_property(ttl=0)
+    @property
     def is_chunked_encoded(self) -> bool:
         """Returns true if transfer-encoding chunked is used."""
-        return b'transfer-encoding' in self.headers and \
-               self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+        return self._is_chunked_encoded
 
-    @cached_property(ttl=0)
+    @property
     def content_expected(self) -> bool:
         """Returns true if content-length is present and not 0."""
-        return b'content-length' in self.headers and int(self.header(b'content-length')) > 0
+        return self._content_expected
 
-    @cached_property(ttl=0)
+    @property
     def body_expected(self) -> bool:
         """Returns true if content or chunked response is expected."""
-        return self.content_expected or self.is_chunked_encoded     # type: ignore[no-any-return]
+        return self.content_expected or self.is_chunked_encoded
 
     def parse(self, raw: bytes) -> None:
         """Parses HTTP request out of raw bytes.
@@ -193,6 +199,18 @@ class HttpParser:
             more, raw = self._process_body(raw) \
                 if self.state >= httpParserStates.HEADERS_COMPLETE else \
                 self._process_line_and_headers(raw)
+            # When server sends a response line without any header or body e.g.
+            # HTTP/1.1 200 Connection established\r\n\r\n
+            if self.state == httpParserStates.LINE_RCVD and \
+                    raw == CRLF and \
+                    self.type == httpParserTypes.RESPONSE_PARSER:
+                self.state = httpParserStates.COMPLETE
+            # Mark request as complete if headers received and no incoming
+            # body indication received.
+            elif self.state == httpParserStates.HEADERS_COMPLETE and \
+                    not self.body_expected and \
+                    raw == b'':
+                self.state = httpParserStates.COMPLETE
         self.buffer = raw
 
     def build(self, disable_headers: Optional[List[bytes]] = None, for_proxy: bool = False) -> bytes:
@@ -305,17 +323,6 @@ class HttpParser:
                 else:
                     self._process_header(line)
 
-            # When server sends a response line without any header or body e.g.
-            # HTTP/1.1 200 Connection established\r\n\r\n
-            if self.state == httpParserStates.LINE_RCVD and \
-                    self.type == httpParserTypes.RESPONSE_PARSER and \
-                    raw == CRLF:
-                self.state = httpParserStates.COMPLETE
-            elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                    not self.body_expected and \
-                    raw == b'':
-                self.state = httpParserStates.COMPLETE
-
             # If raw length is now zero, bail out
             # If we have received all headers, bail out
             if raw == b'' or self.state == httpParserStates.HEADERS_COMPLETE:
@@ -333,6 +340,8 @@ class HttpParser:
                 line = raw.split(WHITESPACE, 2)
                 if len(line) == 3:
                     self.method = line[0].upper()
+                    if self.method == httpMethods.CONNECT:
+                        self._is_https_tunnel = True
                     self.set_url(line[1])
                     self.version = line[2]
                     self.state = httpParserStates.LINE_RCVD
@@ -352,10 +361,18 @@ class HttpParser:
 
     def _process_header(self, raw: bytes) -> None:
         parts = raw.split(COLON, 1)
-        self.add_header(
+        key, value = (
             parts[0].strip(),
-            b'' if len(parts) == 1 else parts[1].strip(),
+            b'' if len(parts) == 1 else parts[1].strip()
         )
+        k = self.add_header(key, value)
+        # b'content-length' in self.headers and int(self.header(b'content-length')) > 0
+        if k == b'content-length' and int(value) > 0:
+            self._content_expected = True
+        # return b'transfer-encoding' in self.headers and \
+        #   self.headers[b'transfer-encoding'][1].lower() == b'chunked'
+        elif k == b'transfer-encoding' and value.lower() == b'chunked':
+            self._is_chunked_encoded = True
 
     def _get_body_or_chunks(self) -> Optional[bytes]:
         return ChunkParser.to_chunks(self.body) \

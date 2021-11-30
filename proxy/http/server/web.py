@@ -25,7 +25,6 @@ from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VA
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.backports import cached_property
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
@@ -114,27 +113,28 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.route: Optional[HttpWebServerBasePlugin] = None
 
         self.plugins: Dict[str, HttpWebServerBasePlugin] = {}
-        if b'HttpWebServerBasePlugin' in self.flags.plugins:
-            for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
-                instance: HttpWebServerBasePlugin = klass(
-                    self.uid,
-                    self.flags,
-                    self.client,
-                    self.event_queue,
-                )
-                self.plugins[instance.name()] = instance
-
-    @cached_property(ttl=0)
-    def routes(self) -> Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]]:
-        r: Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]] = {
+        self.routes: Dict[
+            int, Dict[Pattern[str], HttpWebServerBasePlugin]
+        ] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
             httpProtocolTypes.WEBSOCKET: {},
         }
-        for name in self.plugins:
-            for (protocol, route) in self.plugins[name].routes():
-                r[protocol][re.compile(route)] = self.plugins[name]
-        return r
+        if b'HttpWebServerBasePlugin' in self.flags.plugins:
+            self._initialize_web_plugins()
+
+    def _initialize_web_plugins(self) -> None:
+        for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
+            instance: HttpWebServerBasePlugin = klass(
+                self.uid,
+                self.flags,
+                self.client,
+                self.event_queue,
+            )
+            self.plugins[instance.name()] = instance
+            for (protocol, route) in instance.routes():
+                pattern = re.compile(route)
+                self.routes[protocol][pattern] = self.plugins[instance.name()]
 
     def encryption_enabled(self) -> bool:
         return self.flags.keyfile is not None and \
