@@ -31,7 +31,7 @@ if [ $(basename $PWD) != "proxy.py" ]; then
   exit 1
 fi
 
-TIMEOUT=1
+TIMEOUT=1sec
 CONCURRENCY=100
 TOTAL_REQUESTS=100000
 OPEN_FILE_LIMIT=65536
@@ -49,14 +49,18 @@ ADDR=$(lsof -Pan -p $PID -i | grep -v COMMAND | awk '{ print $9 }')
 
 PRE_RUN_OPEN_FILES=$(./helper/monitor_open_files.sh)
 
-echo "CONCURRENCY: $CONCURRENCY workers, TOTAL REQUESTS: $TOTAL_REQUESTS req"
-oha \
-  --no-tui \
-  --latency-correction
-  -n $TOTAL_REQUESTS \
-  -c $CONCURRENCY \
-  http://$ADDR/http-route-example
+run_benchmark() {
+  echo "CONCURRENCY: $CONCURRENCY workers, TOTAL REQUESTS: $TOTAL_REQUESTS req"
+  oha \
+    --no-tui \
+    --latency-correction \
+    -n $TOTAL_REQUESTS \
+    -c $CONCURRENCY \
+    -t $TIMEOUT \
+    http://$ADDR/http-route-example
+}
 
+run_benchmark
 
 POST_RUN_OPEN_FILES=$(./helper/monitor_open_files.sh)
 

@@ -31,8 +31,7 @@ if [ $(basename $PWD) != "proxy.py" ]; then
   exit 1
 fi
 
-TIMEOUT=1
-QPS=8000
+TIMEOUT=1sec
 CONCURRENCY=100
 DURATION=1m
 TOTAL_REQUESTS=100000
@@ -41,7 +40,6 @@ BACKLOG=OPEN_FILE_LIMIT
 
 SERVER_HOST=127.0.0.1
 
-FLASK_PORT=8000
 AIOHTTP_PORT=8080
 TORNADO_PORT=8888
 PROXYPY_PORT=8899
@@ -49,15 +47,16 @@ BLACKSHEEP_PORT=9000
 
 ulimit -n $OPEN_FILE_LIMIT
 
-echo "CONCURRENCY: $CONCURRENCY workers, QPS: $QPS req/sec, TOTAL DURATION: $DURATION, TIMEOUT: $TIMEOUT sec"
+echo "CONCURRENCY: $CONCURRENCY workers, DURATION: $DURATION, TIMEOUT: $TIMEOUT"
 
 run_benchmark() {
-  hey \
-      -z $DURATION \
-      -c $CONCURRENCY \
-      -q $QPS \
-      -t $TIMEOUT \
-      http://127.0.0.1:$1/http-route-example
+  oha \
+    --no-tui \
+    --latency-correction \
+    -z $DURATION \
+    -c $CONCURRENCY \
+    -t $TIMEOUT \
+    http://127.0.0.1:$1/http-route-example
 }
 
 benchmark_lib() {
@@ -84,6 +83,7 @@ benchmark_proxy_py() {
     --enable-web-server \
     --plugin proxy.plugin.WebServerPlugin \
     --disable-http-proxy \
+    --num-acceptors 1 \
     --local-executor \
     --log-file /dev/null > /dev/null 2>&1 &
   local SERVER_PID=$!
@@ -124,7 +124,7 @@ echo "============================="
 
 echo "============================="
 echo "Benchmarking Blacksheep"
-benchmark_asgi $BLACKSHEEP_PORT benchmark.blacksheep.server:app
+benchmark_lib blacksheep $BLACKSHEEP_PORT
 echo "============================="
 
 echo "============================="
@@ -135,9 +135,4 @@ echo "============================="
 echo "============================="
 echo "Benchmarking Tornado"
 benchmark_lib tornado $TORNADO_PORT
-echo "============================="
-
-echo "============================="
-echo "Benchmarking Flask"
-benchmark_lib flask $FLASK_PORT
 echo "============================="
