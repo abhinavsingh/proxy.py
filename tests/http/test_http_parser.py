@@ -57,6 +57,10 @@ class TestHttpParser(unittest.TestCase):
     def test_urlparse(self) -> None:
         self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
         self.assertTrue(self.parser.is_https_tunnel)
+        self.assertFalse(self.parser.is_connection_upgrade)
+        self.assertTrue(self.parser.is_http_1_1_keep_alive)
+        self.assertFalse(self.parser.content_expected)
+        self.assertFalse(self.parser.body_expected)
         self.assertEqual(self.parser.host, b'httpbin.org')
         self.assertEqual(self.parser.port, 443)
         self.assertNotEqual(self.parser.state, httpParserStates.COMPLETE)

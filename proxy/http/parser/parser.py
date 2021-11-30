@@ -179,7 +179,7 @@ class HttpParser:
     @cached_property(ttl=0)
     def body_expected(self) -> bool:
         """Returns true if content or chunked response is expected."""
-        return self.content_expected or self.is_chunked_encoded
+        return self.content_expected or self.is_chunked_encoded     # type: ignore[no-any-return]
 
     def parse(self, raw: bytes) -> None:
         """Parses HTTP request out of raw bytes.
