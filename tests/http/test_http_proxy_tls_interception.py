@@ -145,9 +145,8 @@ class TestHttpProxyTlsInterception(Assertions):
         # Assert our mocked plugins invocations
         self.plugin.return_value.get_descriptors.assert_called()
         self.plugin.return_value.write_to_descriptors.assert_called_with([])
-        self.plugin.return_value.on_client_data.assert_called_with(
-            connect_request,
-        )
+        # on_client_data is only called after initial request has completed
+        self.plugin.return_value.on_client_data.assert_not_called()
         self.plugin.return_value.on_request_complete.assert_called()
         self.plugin.return_value.read_from_descriptors.assert_called_with([
             self._conn.fileno(),

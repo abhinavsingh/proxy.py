@@ -94,6 +94,7 @@ class HttpProtocolHandlerPlugin(ABC):
 
     @abstractmethod
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
+        """Called only after original request has been completely received."""
         return raw  # pragma: no cover
 
     @abstractmethod

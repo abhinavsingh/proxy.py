@@ -15,7 +15,7 @@
 from typing import TypeVar, Optional, Dict, Type, Tuple, List
 
 from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_ENABLE_PROXY_PROTOCOL
-from ...common.constants import HTTP_1_1, HTTP_1_0, SLASH, CRLF
+from ...common.constants import HTTP_1_1, SLASH, CRLF
 from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
 from ...common.utils import build_http_request, build_http_response, find_http_line, text_
 from ...common.flag import flags
@@ -271,7 +271,7 @@ class HttpParser:
                 self.body = self.chunk.body
                 self.state = httpParserStates.COMPLETE
             more = False
-        elif b'content-length' in self.headers:
+        elif self.content_expected:
             self.state = httpParserStates.RCVING_BODY
             if self.body is None:
                 self.body = b''
@@ -283,13 +283,15 @@ class HttpParser:
                 self.state = httpParserStates.COMPLETE
             more, raw = len(raw) > 0, raw[total_size - received_size:]
         else:
-            # HTTP/1.0 scenario only
-            assert self.version == HTTP_1_0
             self.state = httpParserStates.RCVING_BODY
             # Received a packet without content-length header
             # and no transfer-encoding specified.
             #
+            # This can happen for both HTTP/1.0 and HTTP/1.1 scenarios.
+            # Currently, we consume the remaining buffer as body.
+            #
             # Ref https://github.com/abhinavsingh/proxy.py/issues/398
+            #
             # See TestHttpParser.test_issue_398 scenario
             self.body = raw
             more, raw = False, b''
