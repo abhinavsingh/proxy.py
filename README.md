@@ -26,7 +26,6 @@
 
 - [Features](#features)
 - [Install](#install)
-  - [Stable vs Develop](#stable-vs-develop)
   - [Using PIP](#using-pip)
     - [Stable version](#stable-version-with-pip)
     - [Development version](#development-version-with-pip)
@@ -92,6 +91,8 @@
   - [Inspect Traffic](#inspect-traffic)
 - [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
+  - [Stable vs Develop](#stable-vs-develop)
+    - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
   - [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
   - [Unable to load plugins](#unable-to-load-plugins)
@@ -222,14 +223,6 @@
   - See `--pac-file` and `--pac-file-url-path` flags
 
 # Install
-
-## Stable vs Develop
-
-`master` branch contains latest stable code and is available via `PyPi` repository
-
-`develop` branch contains cutting edge changes
-
-Development branch is kept stable *(most of the times)*. But if you want 100% reliability and serving users in production environment, always use stable version from `PyPi` or `Docker` container from `hub.docker.com`.
 
 ## Using PIP
 
@@ -1694,6 +1687,30 @@ start `proxy.py` as:
 Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
+
+## Stable vs Develop
+
+- `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `hub.docker.com`
+
+  Issues reported for `stable` releases are considered with top-priority.  However, currently we don't backport fixes into older releases.  Example, if you reported an issue in `v2.3.1`, but current `master` branch now contains `v2.4.0rc1`.  Then, the fix will land in `v2.4.0rc2`.
+
+- `develop` branch contains cutting edge changes
+
+  Development branch is kept stable *(most of the times)*. **But**, if you want *100% reliability* and serving users in *production environment*, ALWAYS use the stable version.
+
+### Release Schedule
+
+A `vX.Y.ZrcN` pull request is created once a month which merges `develop` → `master`.  Find below how code flows from a pull request to the next stable release.
+
+1. Development release is deployed from `develop` → `test.pypi.org` after every pull request merge
+
+2. Alpha release is deployed from `develop` → `pypi.org` **before** merging the `vX.Y.Z.rcN` pull request from `develop` → `master` branch.  There can be multiple alpha releases made before merging the `rc` pull request
+
+3. Beta release is deployed from `master` → `pypi.org`.  Beta releases are made in preparation of `rc` releases and can be skipped if unnecessary
+
+4. Release candidate is deployed from `master` → `pypi.org`.  Release candidates are always made available before final stable release
+
+5. Stable release is deployed from `master` → `pypi.org`
 
 ## Threads vs Threadless
 
