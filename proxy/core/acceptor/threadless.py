@@ -230,7 +230,7 @@ class Threadless(ABC, Generic[T]):
             timeout=self.wait_timeout,
             return_when=asyncio.FIRST_COMPLETED,
         )
-        return finished
+        return finished     # noqa: WPS331
 
     def _fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
