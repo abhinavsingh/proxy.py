@@ -214,7 +214,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 # TODO(abhinavsingh): Remove .tobytes after parser is
                 # memoryview compliant
                 self.request.parse(data.tobytes())
-                if self.request.state == httpParserStates.COMPLETE:
+                if self.request.is_complete:
                     # Invoke plugin.on_request_complete
                     for plugin in self.plugins.values():
                         upgraded_sock = plugin.on_request_complete()

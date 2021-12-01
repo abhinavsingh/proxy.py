@@ -193,7 +193,8 @@ class TestHttpParser(unittest.TestCase):
         self.assertTrue(self.parser.has_header(b'key'))
 
     def test_set_host_port_raises(self) -> None:
-        with self.assertRaises(KeyError):
+        # Assertion for url will fail
+        with self.assertRaises(AssertionError):
             self.parser._set_line_attributes()
 
     def test_find_line(self) -> None:
@@ -243,6 +244,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser._url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
+        assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'host'], (b'Host', b'example.com'),
         )
@@ -296,7 +298,7 @@ class TestHttpParser(unittest.TestCase):
             self.parser.total_size,
             len(pkt) + len(CRLF) + len(host_hdr),
         )
-        self.assertDictEqual(self.parser.headers, {})
+        assert self.parser.headers is None
         self.assertEqual(self.parser.buffer, b'Host: localhost:8080')
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
@@ -305,6 +307,7 @@ class TestHttpParser(unittest.TestCase):
             self.parser.total_size, len(pkt) +
             (3 * len(CRLF)) + len(host_hdr),
         )
+        assert self.parser.headers is not None
         self.assertEqual(
             self.parser.headers[b'host'],
             (
@@ -330,6 +333,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
         self.parser.parse(b'localhost:8080' + CRLF)
+        assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'host'],
             (
@@ -345,6 +349,7 @@ class TestHttpParser(unittest.TestCase):
 
         self.parser.parse(b'Content-Type: text/plain' + CRLF)
         self.assertEqual(self.parser.buffer, b'')
+        assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'content-type'], (
                 b'Content-Type',
@@ -373,6 +378,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser._url.hostname, b'localhost')
         self.assertEqual(self.parser._url.port, None)
         self.assertEqual(self.parser.version, b'HTTP/1.1')
+        assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'content-type'],
             (b'Content-Type', b'application/x-www-form-urlencoded'),
@@ -528,6 +534,7 @@ class TestHttpParser(unittest.TestCase):
             b'<TITLE>301 Moved</TITLE></HEAD><BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
             b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n',
         )
+        assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'content-length'],
             (b'Content-Length', b'219'),
@@ -550,6 +557,7 @@ class TestHttpParser(unittest.TestCase):
                 b'X-Frame-Options: SAMEORIGIN\r\n',
             ]),
         )
+        assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'x-frame-options'],
             (b'X-Frame-Options', b'SAMEORIGIN'),

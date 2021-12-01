@@ -45,6 +45,8 @@ DOT = b'.'
 SLASH = b'/'
 HTTP_1_0 = b'HTTP/1.0'
 HTTP_1_1 = b'HTTP/1.1'
+HTTP_URL_PREFIX = b'http://'
+HTTPS_URL_PREFIX = b'https://'
 
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + \

@@ -15,7 +15,6 @@ from typing import Any, Optional
 from proxy import Proxy
 from proxy.common.utils import build_http_response
 from proxy.http import httpStatusCodes
-from proxy.http.parser import httpParserStates
 from proxy.core.base import BaseTcpTunnelHandler
 
 
@@ -58,7 +57,7 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
 
         # CONNECT requests are short and we need not worry about
         # receiving partial request bodies here.
-        assert self.request.state == httpParserStates.COMPLETE
+        assert self.request.is_complete
 
         # Establish connection with upstream
         self.connect_upstream()

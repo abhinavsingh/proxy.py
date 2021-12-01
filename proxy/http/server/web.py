@@ -28,7 +28,7 @@ from ..codes import httpStatusCodes
 from ..exception import HttpProtocolException
 from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..parser import HttpParser, httpParserTypes
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
@@ -274,7 +274,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
-        if self.request.state == httpParserStates.COMPLETE and \
+        if self.request.is_complete and \
                 self.request.is_http_1_1_keep_alive and \
                 self.route is not None:
             if self.pipeline_request is None:
@@ -284,7 +284,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
             # compliant
             self.pipeline_request.parse(raw.tobytes())
-            if self.pipeline_request.state == httpParserStates.COMPLETE:
+            if self.pipeline_request.is_complete:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive:
                     logger.error(
