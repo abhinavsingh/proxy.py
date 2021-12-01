@@ -329,8 +329,6 @@ class Threadless(ABC, Generic[T]):
             work_id = task._work_id     # type: ignore
             try:
                 teardown = task.result()
-            except Exception:
-                pass
             finally:
                 if teardown:
                     self._cleanup(work_id)
