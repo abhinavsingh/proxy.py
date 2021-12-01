@@ -353,7 +353,7 @@ class HttpParser:
                     continue
                 # Ref: https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
                 parts = line.split(WHITESPACE, 2)
-                if len(line) == 3:
+                if len(parts) == 3:
                     self.method = parts[0]
                     if self.method == httpMethods.CONNECT:
                         self._is_https_tunnel = True
