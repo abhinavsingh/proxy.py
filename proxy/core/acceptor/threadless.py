@@ -11,6 +11,8 @@
     .. spelling::
 
        acceptor
+       readables
+       writables
 """
 import os
 import ssl

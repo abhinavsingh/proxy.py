@@ -11,6 +11,8 @@
     .. spelling::
 
        acceptor
+       readables
+       writables
        pre
 """
 import socket
