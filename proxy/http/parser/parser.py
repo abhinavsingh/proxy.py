@@ -351,16 +351,15 @@ class HttpParser:
                     # in one network read and don't expect partial packets
                     self.protocol.parse(line)
                     continue
-                else:
-                    # Ref: https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
-                    parts = line.split(WHITESPACE, 2)
-                    self.method = parts[0]
-                    if self.method == httpMethods.CONNECT:
-                        self._is_https_tunnel = True
-                    self.set_url(parts[1])
-                    self.version = parts[2]
-                    self.state = httpParserStates.LINE_RCVD
-                    break
+                # Ref: https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
+                parts = line.split(WHITESPACE, 2)
+                self.method = parts[0]
+                if self.method == httpMethods.CONNECT:
+                    self._is_https_tunnel = True
+                self.set_url(parts[1])
+                self.version = parts[2]
+                self.state = httpParserStates.LINE_RCVD
+                break
             else:
                 parts = line.split(WHITESPACE, 2)
                 self.version = parts[0]

@@ -59,9 +59,8 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         request_host = None
         if request.host:
             request_host = request.host
-        else:
-            if b'host' in request.headers:
-                request_host = request.header(b'host')
+        elif request.headers and b'host' in request.headers:
+            request_host = request.header(b'host')
 
         if not request_host:
             logger.error("Cannot determine host")
