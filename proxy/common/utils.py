@@ -11,9 +11,6 @@
     .. spelling::
 
        utils
-       websocket
-       Websocket
-       WebSocket
 """
 import sys
 import ssl

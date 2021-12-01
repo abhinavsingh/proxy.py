@@ -10,10 +10,7 @@
 
     .. spelling::
 
-       acceptor
-       acceptors
        pre
-       Submodules
 """
 from .acceptor import Acceptor
 from .pool import AcceptorPool

@@ -28,10 +28,6 @@ class TcpUpstreamConnectionHandler(ABC):
     Then, directly use ``self.upstream`` object within your class.
 
     See :class:`~proxy.plugin.proxy_pool.ProxyPoolPlugin` for example usage.
-
-    .. spelling::
-
-        tcp
     """
 
     def __init__(self, *args: Any,  **kwargs: Any) -> None:
