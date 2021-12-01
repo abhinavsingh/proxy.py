@@ -95,24 +95,23 @@ class Url:
         if num_parts == 1:
             return parts[0], None
         # Host and port found
-        elif num_parts == 2:
-            host, port = COLON.join(parts[:-1]), int(parts[-1])
+        if num_parts == 2:
+            return COLON.join(parts[:-1]), int(parts[-1])
         # More than a single COLON i.e. IPv6 scenario
-        elif num_parts == 3:
-            try:
-                # Try to resolve last part as an int port
-                last_token = parts[-1].split(COLON)
-                port = int(last_token[-1])
-                host = COLON.join(parts[:-1]) + COLON + \
-                    COLON.join(last_token[:-1])
-            except ValueError:
-                # If unable to convert last part into port,
-                # treat entire data as host
-                host, port = raw, None
-            # patch up invalid ipv6 scenario
-            rhost = host.decode('utf-8')
-            if COLON.decode('utf-8') in rhost and \
-                    rhost[0] != '[' and \
-                    rhost[-1] != ']':
-                host = b'[' + host + b']'
+        try:
+            # Try to resolve last part as an int port
+            last_token = parts[-1].split(COLON)
+            port = int(last_token[-1])
+            host = COLON.join(parts[:-1]) + COLON + \
+                COLON.join(last_token[:-1])
+        except ValueError:
+            # If unable to convert last part into port,
+            # treat entire data as host
+            host, port = raw, None
+        # patch up invalid ipv6 scenario
+        rhost = host.decode('utf-8')
+        if COLON.decode('utf-8') in rhost and \
+                rhost[0] != '[' and \
+                rhost[-1] != ']':
+            host = b'[' + host + b']'
         return host, port
