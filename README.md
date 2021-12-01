@@ -1692,7 +1692,7 @@ Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 - `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `hub.docker.com`
 
-  Issues reported for `stable` releases are considered with top-priority.  However, currently we don't backport fixes into older releases.  Example, if you reported an issue in `v2.3.1`, but current `master` branch now contains `v2.4.0rc1`.  Then, the fix will land in `v2.4.0rc2`.
+  Issues reported for `stable` releases are considered with top-priority.  However, currently we don't back port fixes into older releases.  Example, if you reported an issue in `v2.3.1`, but current `master` branch now contains `v2.4.0rc1`.  Then, the fix will land in `v2.4.0rc2`.
 
 - `develop` branch contains cutting edge changes
 
