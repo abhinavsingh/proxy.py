@@ -353,13 +353,21 @@ class HttpParser:
                     continue
                 # Ref: https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
                 parts = line.split(WHITESPACE, 2)
-                self.method = parts[0]
-                if self.method == httpMethods.CONNECT:
-                    self._is_https_tunnel = True
-                self.set_url(parts[1])
-                self.version = parts[2]
-                self.state = httpParserStates.LINE_RCVD
-                break
+                if len(line) == 3:
+                    self.method = parts[0]
+                    if self.method == httpMethods.CONNECT:
+                        self._is_https_tunnel = True
+                    self.set_url(parts[1])
+                    self.version = parts[2]
+                    self.state = httpParserStates.LINE_RCVD
+                    break
+                else:
+                    # To avoid a possible attack vector, we raise exception
+                    # if parser receives an invalid request line.
+                    #
+                    # TODO: Better to use raise HttpProtocolException,
+                    # but we should solve circular import problem first.
+                    raise ValueError('Invalid request line')
             else:
                 parts = line.split(WHITESPACE, 2)
                 self.version = parts[0]
