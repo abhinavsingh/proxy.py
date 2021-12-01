@@ -367,15 +367,14 @@ class HttpParser:
                 # TODO: Better to use raise HttpProtocolException,
                 # but we should solve circular import problem first.
                 raise ValueError('Invalid request line')
-            else:
-                parts = line.split(WHITESPACE, 2)
-                self.version = parts[0]
-                self.code = parts[1]
-                # Our own WebServerPlugin example currently doesn't send any reason
-                if len(parts) == 3:
-                    self.reason = parts[2]
-                self.state = httpParserStates.LINE_RCVD
-                break
+            parts = line.split(WHITESPACE, 2)
+            self.version = parts[0]
+            self.code = parts[1]
+            # Our own WebServerPlugin example currently doesn't send any reason
+            if len(parts) == 3:
+                self.reason = parts[2]
+            self.state = httpParserStates.LINE_RCVD
+            break
         return len(raw) > 0, raw
 
     def _process_header(self, raw: bytes) -> None:
