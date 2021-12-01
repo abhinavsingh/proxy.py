@@ -358,7 +358,9 @@ class HttpParser:
             line = raw.split(WHITESPACE, 2)
             self.version = line[0]
             self.code = line[1]
-            self.reason = line[2]
+            # Our own WebServerPlugin example currently doesn't send any reason
+            if len(line) == 3:
+                self.reason = line[2]
             self.state = httpParserStates.LINE_RCVD
 
     def _process_header(self, raw: bytes) -> None:

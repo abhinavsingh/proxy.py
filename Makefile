@@ -141,7 +141,6 @@ lib-profile:
 			--hostname 127.0.0.1 \
 			--num-acceptors 1 \
 			--num-workers 1 \
-			--disable-http-proxy \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
 			--local-executor \

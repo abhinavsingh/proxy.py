@@ -117,6 +117,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     def shutdown(self) -> None:
         try:
             # Flush pending buffer in threaded mode only.
+            #
             # For threadless mode, BaseTcpServerHandler implements
             # the must_flush_before_shutdown logic automagically.
             if self.selector and self.work.has_buffer():
@@ -139,6 +140,15 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         except OSError:
             pass
         finally:
+            # Section 4.2.2.13 of RFC 1122 tells us that a close() with any pending readable data
+            # could lead to an immediate reset being sent.
+            #
+            #   "A host MAY implement a 'half-duplex' TCP close sequence, so that an application
+            #   that has called CLOSE cannot continue to read data from the connection.
+            #   If such a host issues a CLOSE call while received data is still pending in TCP,
+            #   or if new data is received after CLOSE is called, its TCP SHOULD send a RST to
+            #   show that data was lost."
+            #
             self.work.connection.close()
             logger.debug('Client connection closed')
             super().shutdown()
