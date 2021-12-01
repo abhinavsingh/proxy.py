@@ -17,7 +17,7 @@ from typing import TypeVar, Optional, Dict, Type, Tuple, List
 from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_ENABLE_PROXY_PROTOCOL
 from ...common.constants import HTTP_1_1, SLASH, CRLF
 from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
-from ...common.utils import build_http_request, build_http_response, find_http_line, text_
+from ...common.utils import build_http_request, build_http_response, text_
 from ...common.flag import flags
 
 from ..url import Url
@@ -63,10 +63,12 @@ class HttpParser:
         if enable_proxy_protocol:
             assert self.type == httpParserTypes.REQUEST_PARSER
             self.protocol = ProxyProtocol()
+        # Request attributes
         self.host: Optional[bytes] = None
         self.port: Optional[int] = None
         self.path: Optional[bytes] = None
         self.method: Optional[bytes] = None
+        # Response attributes
         self.code: Optional[bytes] = None
         self.reason: Optional[bytes] = None
         self.version: Optional[bytes] = None
@@ -78,7 +80,7 @@ class HttpParser:
         # - Keys are lower case header names.
         # - Values are 2-tuple containing original
         #   header and it's value as received.
-        self.headers: Dict[bytes, Tuple[bytes, bytes]] = {}
+        self.headers: Optional[Dict[bytes, Tuple[bytes, bytes]]] = None
         self.body: Optional[bytes] = None
         self.chunk: Optional[ChunkParser] = None
         # Internal request line as a url structure
@@ -109,19 +111,24 @@ class HttpParser:
 
     def header(self, key: bytes) -> bytes:
         """Convenient method to return original header value from internal data structure."""
-        if key.lower() not in self.headers:
+        if self.headers is None or key.lower() not in self.headers:
             raise KeyError('%s not found in headers', text_(key))
         return self.headers[key.lower()][1]
 
     def has_header(self, key: bytes) -> bool:
         """Returns true if header key was found in payload."""
+        if self.headers is None:
+            return False
         return key.lower() in self.headers
 
     def add_header(self, key: bytes, value: bytes) -> bytes:
         """Add/Update a header to internal data structure.
 
         Returns key with which passed (key, value) tuple is available."""
+        if self.headers is None:
+            self.headers = {}
         k = key.lower()
+        # k = key
         self.headers[k] = (key, value)
         return k
 
@@ -132,7 +139,7 @@ class HttpParser:
 
     def del_header(self, header: bytes) -> None:
         """Delete a header from internal data structure."""
-        if header.lower() in self.headers:
+        if self.headers and header.lower() in self.headers:
             del self.headers[header.lower()]
 
     def del_headers(self, headers: List[bytes]) -> None:
@@ -185,30 +192,34 @@ class HttpParser:
     @property
     def body_expected(self) -> bool:
         """Returns true if content or chunked response is expected."""
-        return self.content_expected or self.is_chunked_encoded
+        return self._content_expected or self._is_chunked_encoded
 
     def parse(self, raw: bytes) -> None:
         """Parses HTTP request out of raw bytes.
 
         Check for `HttpParser.state` after `parse` has successfully returned."""
-        self.total_size += len(raw)
+        size = len(raw)
+        self.total_size += size
         raw = self.buffer + raw
-        self.buffer, more = b'', len(raw) > 0
+        self.buffer, more = b'', size > 0
         while more and self.state != httpParserStates.COMPLETE:
             # gte with HEADERS_COMPLETE also encapsulated RCVING_BODY state
-            more, raw = self._process_body(raw) \
-                if self.state >= httpParserStates.HEADERS_COMPLETE else \
-                self._process_line_and_headers(raw)
+            if self.state >= httpParserStates.HEADERS_COMPLETE:
+                more, raw = self._process_body(raw)
+            elif self.state == httpParserStates.INITIALIZED:
+                more, raw = self._process_line(raw)
+            else:
+                more, raw = self._process_headers(raw)
             # When server sends a response line without any header or body e.g.
             # HTTP/1.1 200 Connection established\r\n\r\n
-            if self.state == httpParserStates.LINE_RCVD and \
-                    raw == CRLF and \
-                    self.type == httpParserTypes.RESPONSE_PARSER:
+            if self.type == httpParserTypes.RESPONSE_PARSER and \
+                    self.state == httpParserStates.LINE_RCVD and \
+                    raw == CRLF:
                 self.state = httpParserStates.COMPLETE
             # Mark request as complete if headers received and no incoming
             # body indication received.
             elif self.state == httpParserStates.HEADERS_COMPLETE and \
-                    not self.body_expected and \
+                    not (self._content_expected or self._is_chunked_encoded) and \
                     raw == b'':
                 self.state = httpParserStates.COMPLETE
         self.buffer = raw
@@ -229,7 +240,7 @@ class HttpParser:
                 COLON +
                 str(self.port).encode() +
                 path
-            ) if not self.is_https_tunnel else (self.host + COLON + str(self.port).encode())
+            ) if not self._is_https_tunnel else (self.host + COLON + str(self.port).encode())
         return build_http_request(
             self.method, path, self.version,
             headers={} if not self.headers else {
@@ -263,7 +274,7 @@ class HttpParser:
         #   the latter MUST be ignored.
         #
         # TL;DR -- Give transfer-encoding header preference over content-length.
-        if self.is_chunked_encoded:
+        if self._is_chunked_encoded:
             if not self.chunk:
                 self.chunk = ChunkParser()
             raw = self.chunk.parse(raw)
@@ -271,7 +282,7 @@ class HttpParser:
                 self.body = self.chunk.body
                 self.state = httpParserStates.COMPLETE
             more = False
-        elif self.content_expected:
+        elif self._content_expected:
             self.state = httpParserStates.RCVING_BODY
             if self.body is None:
                 self.body = b''
@@ -297,7 +308,7 @@ class HttpParser:
             more, raw = False, b''
         return more, raw
 
-    def _process_line_and_headers(self, raw: bytes) -> Tuple[bool, bytes]:
+    def _process_headers(self, raw: bytes) -> Tuple[bool, bytes]:
         """Returns False when no CRLF could be found in received bytes.
 
         TODO: We should not return until parser reaches headers complete
@@ -308,60 +319,62 @@ class HttpParser:
         This will also help make the parser even more stateless.
         """
         while True:
-            line, raw = find_http_line(raw)
-            if line is None:
+            parts = raw.split(CRLF, 1)
+            if len(parts) == 1:
                 return False, raw
-
-            if self.state == httpParserStates.INITIALIZED:
-                self._process_line(line)
-                if self.state == httpParserStates.INITIALIZED:
-                    # return len(raw) > 0, raw
-                    continue
-            elif self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
-                if self.state == httpParserStates.LINE_RCVD:
-                    self.state = httpParserStates.RCVING_HEADERS
+            line, raw = parts[0], parts[1]
+            if self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
                 if line == b'' or line.strip() == b'':  # Blank line received.
                     self.state = httpParserStates.HEADERS_COMPLETE
                 else:
+                    self.state = httpParserStates.RCVING_HEADERS
                     self._process_header(line)
-
             # If raw length is now zero, bail out
             # If we have received all headers, bail out
             if raw == b'' or self.state == httpParserStates.HEADERS_COMPLETE:
                 break
         return len(raw) > 0, raw
 
-    def _process_line(self, raw: bytes) -> None:
-        if self.type == httpParserTypes.REQUEST_PARSER:
-            if self.protocol is not None and self.protocol.version is None:
-                # We expect to receive entire proxy protocol v1 line
-                # in one network read and don't expect partial packets
-                self.protocol.parse(raw)
-            else:
-                # Ref: https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
-                line = raw.split(WHITESPACE, 2)
-                if len(line) == 3:
-                    self.method = line[0].upper()
-                    if self.method == httpMethods.CONNECT:
-                        self._is_https_tunnel = True
-                    self.set_url(line[1])
-                    self.version = line[2]
-                    self.state = httpParserStates.LINE_RCVD
+    def _process_line(self, raw: bytes) -> Tuple[bool, bytes]:
+        while True:
+            parts = raw.split(CRLF, 1)
+            if len(parts) == 1:
+                return False, raw
+            line, raw = parts[0], parts[1]
+            if self.type == httpParserTypes.REQUEST_PARSER:
+                if self.protocol is not None and self.protocol.version is None:
+                    # We expect to receive entire proxy protocol v1 line
+                    # in one network read and don't expect partial packets
+                    self.protocol.parse(line)
+                    continue
                 else:
-                    # To avoid a possible attack vector, we raise exception
-                    # if parser receives an invalid request line.
-                    #
-                    # TODO: Better to use raise HttpProtocolException,
-                    # but we should solve circular import problem first.
-                    raise ValueError('Invalid request line')
-        else:
-            line = raw.split(WHITESPACE, 2)
-            self.version = line[0]
-            self.code = line[1]
-            # Our own WebServerPlugin example currently doesn't send any reason
-            if len(line) == 3:
-                self.reason = line[2]
-            self.state = httpParserStates.LINE_RCVD
+                    # Ref: https://datatracker.ietf.org/doc/html/rfc2616#section-5.1
+                    parts = line.split(WHITESPACE, 2)
+                    if len(parts) == 3:
+                        self.method = parts[0]
+                        if self.method == httpMethods.CONNECT:
+                            self._is_https_tunnel = True
+                        self.set_url(parts[1])
+                        self.version = parts[2]
+                        self.state = httpParserStates.LINE_RCVD
+                        break
+                    else:
+                        # To avoid a possible attack vector, we raise exception
+                        # if parser receives an invalid request line.
+                        #
+                        # TODO: Better to use raise HttpProtocolException,
+                        # but we should solve circular import problem first.
+                        raise ValueError('Invalid request line')
+            else:
+                parts = line.split(WHITESPACE, 2)
+                self.version = parts[0]
+                self.code = parts[1]
+                # Our own WebServerPlugin example currently doesn't send any reason
+                if len(parts) == 3:
+                    self.reason = parts[2]
+                self.state = httpParserStates.LINE_RCVD
+                break
+        return len(raw) > 0, raw
 
     def _process_header(self, raw: bytes) -> None:
         parts = raw.split(COLON, 1)
@@ -380,20 +393,16 @@ class HttpParser:
 
     def _get_body_or_chunks(self) -> Optional[bytes]:
         return ChunkParser.to_chunks(self.body) \
-            if self.body and self.is_chunked_encoded else \
+            if self.body and self._is_chunked_encoded else \
             self.body
 
     def _set_line_attributes(self) -> None:
         if self.type == httpParserTypes.REQUEST_PARSER:
-            if self.is_https_tunnel and self._url:
+            assert self._url
+            if self._is_https_tunnel:
                 self.host = self._url.hostname
                 self.port = 443 if self._url.port is None else self._url.port
-            elif self._url:
+            else:
                 self.host, self.port = self._url.hostname, self._url.port \
                     if self._url.port else DEFAULT_HTTP_PORT
-            else:
-                raise KeyError(
-                    'Invalid request. Method: %r, Url: %r' %
-                    (self.method, self._url),
-                )
             self.path = self._url.remainder
