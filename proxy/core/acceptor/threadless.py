@@ -224,16 +224,13 @@ class Threadless(ABC, Generic[T]):
                 work_by_ids[key.data][1].append(key.fileobj)
         return (work_by_ids, new_work_available)
 
-    async def _wait_for_tasks(self) -> None:
+    async def _wait_for_tasks(self) -> Set['asyncio.Task[bool]']:
         finished, self.unfinished = await asyncio.wait(
             self.unfinished,
             timeout=self.wait_timeout,
             return_when=asyncio.FIRST_COMPLETED,
         )
-        for task in finished:
-            if task.result():
-                self._cleanup(task._work_id)    # type: ignore
-                # self.cleanup(int(task.get_name()))
+        return finished     # noqa: WPS331
 
     def _fromfd(self, fileno: int) -> socket.socket:
         return socket.fromfd(
@@ -299,7 +296,11 @@ class Threadless(ABC, Generic[T]):
         # Invoke Threadless.handle_events
         self.unfinished.update(self._create_tasks(work_by_ids))
         # logger.debug('Executing {0} works'.format(len(self.unfinished)))
-        await self._wait_for_tasks()
+        # Cleanup finished tasks
+        for task in await self._wait_for_tasks():
+            if task.result():
+                self._cleanup(task._work_id)    # type: ignore
+                # self.cleanup(int(task.get_name()))
         # logger.debug(
         #     'Done executing works, {0} pending, {1} registered'.format(
         #         len(self.unfinished), len(self.registered_events_by_work_ids),
