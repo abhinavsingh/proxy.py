@@ -10,7 +10,6 @@
 
     .. spelling::
 
-       acceptor
        pre
 """
 import socket

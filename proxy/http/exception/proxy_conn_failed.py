@@ -11,7 +11,6 @@
     .. spelling::
 
        conn
-       http
 """
 from .base import HttpProtocolException
 
