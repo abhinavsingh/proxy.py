@@ -10,7 +10,7 @@
 """
 from typing import Any
 
-from ..http.parser import HttpParser, httpParserTypes, httpParserStates
+from ..http.parser import HttpParser, httpParserTypes
 from ..http.proxy import HttpProxyBasePlugin
 
 
@@ -34,7 +34,7 @@ class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
         # Note that these chunks also include headers
         self.response.parse(chunk.tobytes())
         # If response is complete, modify and dispatch to client
-        if self.response.state == httpParserStates.COMPLETE:
+        if self.response.is_complete:
             # Avoid setting a body for responses where a body is not expected.
             # Otherwise, example curl will report warnings.
             if self.response.body_expected:

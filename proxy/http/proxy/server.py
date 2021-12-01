@@ -312,7 +312,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 # currently response parsing is disabled when TLS interception is enabled.
                 #
                 # or self.tls_interception_enabled():
-                if self.response.state == httpParserStates.COMPLETE:
+                if self.response.is_complete:
                     self.handle_pipeline_response(raw)
                 else:
                     # TODO(abhinavsingh): Remove .tobytes after parser is
@@ -436,7 +436,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # and response objects.
         #
         # if not self.request.is_https_tunnel and \
-        #         self.response.state == httpParserStates.COMPLETE:
+        #         self.response.is_complete:
         #     self.access_log()
         return chunk
 
@@ -465,7 +465,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # For http proxy requests, handle pipeline case.
             # We also handle pipeline scenario for https proxy
             # requests is TLS interception is enabled.
-            if self.request.state == httpParserStates.COMPLETE and (
+            if self.request.is_complete and (
                     not self.request.is_https_tunnel or
                     self.tls_interception_enabled()
             ):
@@ -488,7 +488,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 # TODO(abhinavsingh): Remove .tobytes after parser is
                 # memoryview compliant
                 self.pipeline_request.parse(raw.tobytes())
-                if self.pipeline_request.state == httpParserStates.COMPLETE:
+                if self.pipeline_request.is_complete:
                     for plugin in self.plugins.values():
                         assert self.pipeline_request is not None
                         r = plugin.handle_client_request(self.pipeline_request)
@@ -592,7 +592,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
         # compliant
         self.pipeline_response.parse(raw.tobytes())
-        if self.pipeline_response.state == httpParserStates.COMPLETE:
+        if self.pipeline_response.is_complete:
             self.pipeline_response = None
 
     def connect_upstream(self) -> None:
@@ -912,7 +912,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.request.is_https_tunnel
                 else 'http://%s:%d%s' % (text_(self.request.host), self.request.port, text_(self.request.path)),
                 'method': text_(self.request.method),
-                'headers': {text_(k): text_(v[1]) for k, v in self.request.headers.items()},
+                'headers': {}
+                if not self.request.headers else
+                {text_(k): text_(v[1])
+                 for k, v in self.request.headers.items()},
                 'body': text_(self.request.body)
                 if self.request.method == httpMethods.POST
                 else None,
@@ -923,7 +926,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_events(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
-        if self.response.state == httpParserStates.COMPLETE:
+        if self.response.is_complete:
             self.emit_response_complete()
         elif self.response.state == httpParserStates.RCVING_BODY:
             self.emit_response_chunk_received(chunk_size)
@@ -937,7 +940,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             request_id=self.uid.hex,
             event_name=eventNames.RESPONSE_HEADERS_COMPLETE,
             event_payload={
-                'headers': {text_(k): text_(v[1]) for k, v in self.response.headers.items()},
+                'headers': {}
+                if not self.response.headers else
+                {text_(k): text_(v[1])
+                 for k, v in self.response.headers.items()},
             },
             publisher_id=self.__class__.__name__,
         )
