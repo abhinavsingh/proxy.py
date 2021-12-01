@@ -84,7 +84,7 @@ benchmark_proxy_py() {
     --enable-web-server \
     --plugin proxy.plugin.WebServerPlugin \
     --disable-http-proxy \
-    --num-acceptors 1 \
+    --num-acceptors 10 \
     --local-executor \
     --log-file /dev/null > /dev/null 2>&1 &
   local SERVER_PID=$!

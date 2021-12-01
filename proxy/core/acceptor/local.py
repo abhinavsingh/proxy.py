@@ -38,7 +38,7 @@ class LocalExecutor(Threadless['NonBlockingQueue']):
     @property
     def loop(self) -> Optional[asyncio.AbstractEventLoop]:
         if self._loop is None:
-            self._loop = asyncio.new_event_loop()
+            self._loop = asyncio.get_event_loop_policy().new_event_loop()
         return self._loop
 
     def work_queue_fileno(self) -> Optional[int]:
