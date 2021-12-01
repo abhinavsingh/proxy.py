@@ -914,8 +914,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 'method': text_(self.request.method),
                 'headers': {}
                 if not self.request.headers else
-                {text_(k): text_(v[1])
-                 for k, v in self.request.headers.items()},
+                {
+                    text_(k): text_(v[1])
+                    for k, v in self.request.headers.items()
+                },
                 'body': text_(self.request.body)
                 if self.request.method == httpMethods.POST
                 else None,
@@ -942,8 +944,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             event_payload={
                 'headers': {}
                 if not self.response.headers else
-                {text_(k): text_(v[1])
-                 for k, v in self.response.headers.items()},
+                {
+                    text_(k): text_(v[1])
+                    for k, v in self.response.headers.items()
+                },
             },
             publisher_id=self.__class__.__name__,
         )
