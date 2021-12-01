@@ -111,6 +111,7 @@ DEFAULT_ENABLE_PROXY_PROTOCOL = False
 # 25 milliseconds to keep the loops hot
 # Will consume ~0.3-0.6% CPU when idle.
 DEFAULT_SELECTOR_SELECT_TIMEOUT = 25 / 1000
+DEFAULT_WAIT_FOR_TASKS_TIMEOUT = 1 / 1000
 DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT = 1   # in seconds
 
 DEFAULT_DEVTOOLS_DOC_URL = 'http://proxy'

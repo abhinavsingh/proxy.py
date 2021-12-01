@@ -75,7 +75,7 @@ class TcpConnection(ABC):
         return self.closed
 
     def has_buffer(self) -> bool:
-        return self._num_buffer > 0
+        return self._num_buffer != 0
 
     def queue(self, mv: memoryview) -> None:
         self.buffer.append(mv)

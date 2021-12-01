@@ -37,7 +37,7 @@ class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
         if self.response.state == httpParserStates.COMPLETE:
             # Avoid setting a body for responses where a body is not expected.
             # Otherwise, example curl will report warnings.
-            if self.response.body_expected():
+            if self.response.body_expected:
                 self.response.body = b'\n'.join(self.DEFAULT_CHUNKS) + b'\n'
             self.client.queue(memoryview(self.response.build_response()))
         return memoryview(b'')

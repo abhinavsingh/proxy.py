@@ -29,7 +29,7 @@ endif
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile lib-doc
-.PHONY: lib-dep lib-flake8 lib-mypy
+.PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope
 .PHONY: container container-run container-release container-build container-buildx
 .PHONY: devtools dashboard dashboard-clean
 
@@ -138,9 +138,26 @@ lib-profile:
 		-o profile.svg \
 		-t -F -s -- \
 		python -m proxy \
+			--hostname 127.0.0.1 \
 			--num-acceptors 1 \
 			--num-workers 1 \
-			--disable-http-proxy \
+			--enable-web-server \
+			--plugin proxy.plugin.WebServerPlugin \
+			--local-executor \
+			--backlog 65536 \
+			--open-file-limit 65536 \
+			--log-file /dev/null
+
+lib-speedscope:
+	ulimit -n 65536 && \
+	sudo py-spy record \
+		-o profile.speedscope.json \
+		-f speedscope \
+		-t -F -s -- \
+		python -m proxy \
+			--hostname 127.0.0.1 \
+			--num-acceptors 1 \
+			--num-workers 1 \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
 			--local-executor \

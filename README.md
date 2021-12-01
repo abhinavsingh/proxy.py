@@ -111,10 +111,10 @@
     - [Sending a Pull Request](#sending-a-pull-request)
 - [Benchmarks](#benchmarks)
 - [Flags](#flags)
-- [Changelog](#changelog)
-  - [v2.x](#v2x)
-  - [v1.x](#v1x)
-  - [v0.x](#v0x)
+- [Changelog](https://proxypy.rtfd.io/en/latest/changelog)
+  - [v2.x](https://proxypy.rtfd.io/en/latest/changelog#v2x)
+  - [v1.x](https://proxypy.rtfd.io/en/latest/changelog#v1x)
+  - [v0.x](https://proxypy.rtfd.io/en/latest/changelog#v0x)
 
 [//]: # (DO-NOT-REMOVE-docs-badges-END)
 
@@ -128,57 +128,55 @@
     ```console
     # On Macbook Pro 2019 / 2.4 GHz 8-Core Intel Core i9 / 32 GB RAM
     ❯ ./helper/benchmark.sh
-      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req, QPS: 8000 req/sec, TIMEOUT: 1 sec
+      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req
 
       Summary:
-        Total:	3.1217 secs
-        Slowest:	0.0499 secs
-        Fastest:	0.0004 secs
-        Average:	0.0030 secs
-        Requests/sec:	32033.7261
+        Success rate:	1.0000
+        Total:	2.5489 secs
+        Slowest:	0.0443 secs
+        Fastest:	0.0006 secs
+        Average:	0.0025 secs
+        Requests/sec:	39232.6572
 
-        Total data:	1900000 bytes
-        Size/request:	19 bytes
+        Total data:	1.81 MiB
+        Size/request:	19 B
+        Size/sec:	727.95 KiB
 
       Response time histogram:
-        0.000 [1]	|
-        0.005 [92268]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-        0.010 [7264]	|■■■
-        0.015 [318]	|
-        0.020 [102]	|
-        0.025 [32]	|
-        0.030 [6]	|
-        0.035 [4]	|
-        0.040 [1]	|
-        0.045 [2]	|
-        0.050 [2]	|
-
+        0.001 [5006]  |■■■■■
+        0.001 [19740] |■■■■■■■■■■■■■■■■■■■■■
+        0.002 [29701] |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+        0.002 [21278] |■■■■■■■■■■■■■■■■■■■■■■
+        0.003 [15376] |■■■■■■■■■■■■■■■■
+        0.004 [6644]  |■■■■■■■
+        0.004 [1609]  |■
+        0.005 [434]   |
+        0.006 [83]    |
+        0.006 [29]    |
+        0.007 [100]   |
 
       Latency distribution:
-        10% in 0.0017 secs
-        25% in 0.0020 secs
-        50% in 0.0025 secs
-        75% in 0.0036 secs
-        90% in 0.0050 secs
-        95% in 0.0060 secs
-        99% in 0.0087 secs
+        10% in 0.0014 secs
+        25% in 0.0018 secs
+        50% in 0.0023 secs
+        75% in 0.0030 secs
+        90% in 0.0036 secs
+        95% in 0.0040 secs
+        99% in 0.0047 secs
 
       Details (average, fastest, slowest):
-        DNS+dialup:	0.0000 secs, 0.0004 secs, 0.0499 secs
-        DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0000 secs
-        req write:	0.0000 secs, 0.0000 secs, 0.0020 secs
-        resp wait:	0.0030 secs, 0.0004 secs, 0.0462 secs
-        resp read:	0.0000 secs, 0.0000 secs, 0.0027 secs
+        DNS+dialup:	0.0025 secs, 0.0015 secs, 0.0030 secs
+        DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0001 secs
 
       Status code distribution:
-        [200]	100000 responses
+        [200] 100000 responses
     ```
 
-    PS: `proxy.py` and benchmark tools are running on the same machine during the above load test.
-    Checkout the repo and try it for yourself.  See [Benchmarks](#benchmarks) for more details.
+  - See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and how to run them locally.
 
 - Lightweight
-  - Uses only `~5-20MB` RAM
+  - Uses `~5-20 MB` RAM
+  - Compressed containers size is `~18.04 MB`
   - No external dependency other than standard Python library
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
@@ -1627,21 +1625,11 @@ optional arguments:
 
 ## Internal Documentation
 
-Code is well documented. Browse through internal class hierarchy and documentation using `pydoc3`
+Code is well documented. You have a few options to browse the internal class hierarchy and documentation:
 
-```console
-❯ pydoc3 proxy
-
-PACKAGE CONTENTS
-    __main__
-    common (package)
-    core (package)
-    http (package)
-    main
-
-FILE
-    /Users/abhinav/Dev/proxy.py/proxy/__init__.py
-```
+1. Visit [proxypy.readthedocs.io](https://proxypy.readthedocs.io/)
+2. Build and open docs locally using `make lib-doc`
+2. Use `pydoc3` locally using `pydoc3 proxy`
 
 # Run Dashboard
 
@@ -2028,7 +2016,9 @@ for list of tests.
 
 # Benchmarks
 
-Simply run the following command from repo root to start benchmark
+See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisons with other OSS web servers.
+
+To run standalone benchmark for `proxy.py`, use the following command from repo root:
 
 ```console
 ❯ ./helper/benchmark.sh
@@ -2216,30 +2206,3 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
-
-# Changelog
-
-## v2.4.0
-
-- No longer support `Python 3.6` due to `asyncio.run` usage in the core.
-
-## v2.x
-
-- No longer ~~a single file module~~.
-- Added support for threadless execution.
-- Added dashboard app.
-- Added support for unit testing.
-
-## v1.x
-
-- `Python3` only.
-  - Deprecated support for ~~Python 2.x~~.
-- Added support multi core accept.
-- Added plugin support.
-
-## v0.x
-
-- Single file.
-- Single threaded server.
-
-For detailed changelog refer to release PRs or commit history.

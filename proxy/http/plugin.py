@@ -7,10 +7,6 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import socket
 import argparse
@@ -94,6 +90,7 @@ class HttpProtocolHandlerPlugin(ABC):
 
     @abstractmethod
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
+        """Called only after original request has been completely received."""
         return raw  # pragma: no cover
 
     @abstractmethod

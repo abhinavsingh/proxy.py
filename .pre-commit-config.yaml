@@ -176,6 +176,7 @@ repos:
     - --show-error-context
     - --strict
     - --strict-optional
+    - benchmark/
     - examples/
     - proxy/
     - tests/
