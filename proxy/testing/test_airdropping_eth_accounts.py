@@ -11,7 +11,8 @@ from web3 import Web3, eth as web3_eth
 from solana.rpc.api import Client as SolanaClient
 
 from ..plugin.solana_rest_api import EthereumModel
-from ..plugin.solana_rest_api_tools import get_token_balance_gwei, ether2program
+from ..plugin.solana_rest_api_tools import get_token_balance_gwei
+from ..common_neon.address import ether2program
 
 
 class TestAirdroppingEthAccounts(unittest.TestCase):

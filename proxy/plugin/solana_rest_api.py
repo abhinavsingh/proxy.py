@@ -8,35 +8,37 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import List, Tuple, Optional
+import base58
 import copy
-import json
-import unittest
 import eth_utils
+import json
+import logging
 import rlp
-import solana
-from solana.account import Account as sol_Account
-from ..common.utils import socket_connection, text_, build_http_response
+import threading
+import traceback
+import unittest
+
+from ..common.utils import build_http_response
 from ..http.codes import httpStatusCodes
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
-from .eth_proto import Trx as EthTrx
+from solana.account import Account as sol_Account
 from solana.rpc.api import Client as SolanaClient, SendTransactionError as SolanaTrxError
-from sha3 import keccak_256
-import base58
-import traceback
-import threading
-
-from .solana_rest_api_tools import EthereumAddress, get_token_balance_or_airdrop, getAccountInfo, call_signed, \
-                                   call_emulated, EthereumError, neon_config_load, MINIMAL_GAS_PRICE, estimate_gas
-from solana.rpc.commitment import Commitment, Confirmed
+from solana.rpc.commitment import Confirmed
+from typing import List, Tuple, Optional
 from web3 import Web3
-import logging
+
+from .eth_proto import Trx as EthTrx
+from .solana_rest_api_tools import getAccountInfo, call_signed, neon_config_load, \
+    get_token_balance_or_airdrop, estimate_gas
+from ..common_neon.address import EthereumAddress
+from ..common_neon.emulator_interactor import call_emulated
+from ..common_neon.errors import EthereumError
 from ..core.acceptor.pool import proxy_id_glob
-from ..indexer.utils import get_trx_results, LogDB
+from ..environment import neon_cli, solana_cli, SOLANA_URL, MINIMAL_GAS_PRICE
 from ..indexer.sql_dict import SQLDict
-from ..environment import evm_loader_id, solana_cli, solana_url, neon_cli
+from ..indexer.utils import get_trx_results, LogDB
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -50,7 +52,7 @@ NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 class EthereumModel:
     def __init__(self):
         self.signer = self.get_solana_account()
-        self.client = SolanaClient(solana_url)
+        self.client = SolanaClient(SOLANA_URL)
 
         self.logs_db = LogDB()
         self.blocks_by_hash = SQLDict(tablename="solana_blocks_by_hash")
@@ -410,8 +412,8 @@ class EthereumModel:
 
         nonce = int(self.eth_getTransactionCount('0x' + sender, None), base=16)
 
-        logger.debug('Eth Sender trx nonce: %s', nonce)
-        logger.debug('Operator nonce: %s', trx.nonce)
+        logger.debug('Eth Sender trx nonce in solana: %s', nonce)
+        logger.debug('Eth Sender trx nonce in transaction: %s', trx.nonce)
 
         if (int(nonce) != int(trx.nonce)):
             raise EthereumError(-32002, 'Verifying nonce before send transaction: Error processing Instruction 1: invalid program argument'
