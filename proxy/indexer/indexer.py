@@ -1,8 +1,9 @@
 from proxy.indexer.indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
 import base58
-import rlp
 import json
+import logging
 import os
+import rlp
 import time
 import logging
 from multiprocessing.dummy import Pool as ThreadPool

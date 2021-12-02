@@ -2,8 +2,8 @@ import os
 from web3 import Web3
 import unittest
 from solana.publickey import PublicKey
-from solcx import compile_source
-from solcx import install_solc
+from solcx import compile_source, install_solc
+
 
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")

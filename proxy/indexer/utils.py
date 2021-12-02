@@ -3,10 +3,10 @@ import base64
 import json
 import logging
 import os
-import rlp
 import psycopg2
+import rlp
 import subprocess
-from construct import Struct, Bytes, Int64ul
+
 from eth_utils import big_endian_to_int
 from ethereum.transactions import Transaction as EthTrx
 from ethereum.utils import sha3
@@ -15,18 +15,16 @@ from solana.publickey import PublicKey
 from solana.rpc.api import Client
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
+from solana.system_program import SYS_PROGRAM_ID
+from solana.sysvar import SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
 from web3.auto.gethdev import w3
-from proxy.environment import solana_url, evm_loader_id, ETH_TOKEN_MINT_ID
 
-sysvarclock = "SysvarC1ock11111111111111111111111111111111"
-sysinstruct = "Sysvar1nstructions1111111111111111111111111"
-keccakprog = "KeccakSecp256k11111111111111111111111111111"
-rentid = "SysvarRent111111111111111111111111111111111"
-incinerator = "1nc1nerator11111111111111111111111111111111"
-system = "11111111111111111111111111111111"
+from ..common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PROGRAM
+from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT
+from ..environment import SOLANA_URL, EVM_LOADER_ID, ETH_TOKEN_MINT_ID
 
 
 logger = logging.getLogger(__name__)
@@ -46,7 +44,7 @@ def get_trx_results(trx):
     accounts = trx["transaction"]["message"]["accountKeys"]
     evm_loader_instructions = []
     for idx, instruction in enumerate(trx["transaction"]["message"]["instructions"]):
-        if accounts[instruction["programIdIndex"]] == evm_loader_id:
+        if accounts[instruction["programIdIndex"]] == EVM_LOADER_ID:
             evm_loader_instructions.append(idx)
 
     slot = trx['slot']
@@ -60,7 +58,7 @@ def get_trx_results(trx):
     for inner in (trx['meta']['innerInstructions']):
         if inner["index"] in evm_loader_instructions:
             for event in inner['instructions']:
-                if accounts[event['programIdIndex']] == evm_loader_id:
+                if accounts[event['programIdIndex']] == EVM_LOADER_ID:
                     log = base58.b58decode(event['data'])
                     instruction = log[:1]
                     if (int().from_bytes(instruction, "little") == 7):  # OnEvent evmInstruction code
@@ -115,22 +113,6 @@ def get_trx_receipts(unsigned_msg, signature):
 
     return (trx_raw.hex(), eth_signature, from_address)
 
-STORAGE_ACCOUNT_INFO_LAYOUT = Struct(
-    # "tag" / Int8ul,
-    "caller" / Bytes(20),
-    "nonce" / Int64ul,
-    "gas_limit" / Int64ul,
-    "gas_price" / Int64ul,
-    "slot" / Int64ul,
-    "operator" / Bytes(32),
-    "accounts_len" / Int64ul,
-    "executor_data_size" / Int64ul,
-    "evm_data_size" / Int64ul,
-    "gas_used_and_paid" / Int64ul,
-    "number_of_payments" / Int64ul,
-    "sign" / Bytes(65),
-
-)
 
 def get_account_list(client, storage_account):
     opts = {
@@ -311,7 +293,7 @@ class Canceller:
             values = bytes(numbs)
             self.signer = Account(values)
 
-        self.client = Client(solana_url)
+        self.client = Client(SOLANA_URL)
 
         self.operator = self.signer.public_key()
         self.operator_token = get_associated_token_address(PublicKey(self.operator), ETH_TOKEN_MINT_ID)
@@ -320,7 +302,7 @@ class Canceller:
     def call(self, *args):
         try:
             cmd = ["solana",
-                   "--url", solana_url,
+                   "--url", SOLANA_URL,
                    ] + list(args)
             logger.debug(cmd)
             return subprocess.check_output(cmd, universal_newlines=True)
@@ -331,15 +313,15 @@ class Canceller:
 
     def unlock_accounts(self, blocked_storages):
         readonly_accs = [
-            PublicKey(evm_loader_id),
+            PublicKey(EVM_LOADER_ID),
             ETH_TOKEN_MINT_ID,
             PublicKey(TOKEN_PROGRAM_ID),
-            PublicKey(sysvarclock),
-            PublicKey(sysinstruct),
-            PublicKey(keccakprog),
-            PublicKey(rentid),
-            PublicKey(incinerator),
-            PublicKey(system),
+            PublicKey(SYSVAR_CLOCK_PUBKEY),
+            PublicKey(SYSVAR_INSTRUCTION_PUBKEY),
+            PublicKey(KECCAK_PROGRAM),
+            PublicKey(SYSVAR_RENT_PUBKEY),
+            PublicKey(INCINERATOR_PUBKEY),
+            PublicKey(SYS_PROGRAM_ID),
         ]
         for storage, trx_accs in blocked_storages.items():
             (eth_trx, blocked_accs) = trx_accs
@@ -366,15 +348,15 @@ class Canceller:
                         AccountMeta(pubkey=self.operator, is_signer=True, is_writable=True),
                         AccountMeta(pubkey=self.operator_token, is_signer=False, is_writable=True),
                         AccountMeta(pubkey=acc_list[4], is_signer=False, is_writable=True),
-                        AccountMeta(pubkey=incinerator, is_signer=False, is_writable=True),
-                        AccountMeta(pubkey=system, is_signer=False, is_writable=False)
+                        AccountMeta(pubkey=INCINERATOR_PUBKEY, is_signer=False, is_writable=True),
+                        AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False)
                     ]
                 for acc in acc_list:
                     keys.append(AccountMeta(pubkey=acc, is_signer=False, is_writable=(False if acc in readonly_accs else True)))
 
                 trx = Transaction()
                 trx.add(TransactionInstruction(
-                    program_id=evm_loader_id,
+                    program_id=EVM_LOADER_ID,
                     data=bytearray.fromhex("15") + eth_trx[0].to_bytes(8, 'little'),
                     keys=keys
                 ))
