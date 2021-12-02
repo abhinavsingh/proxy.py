@@ -350,6 +350,10 @@ class Canceller:
             if blocked_accs is None:
                 logger.error("blocked_accs is None")
                 continue
+            if acc_list is None:
+                logger.error("acc_list is None. Storage is empty")
+                logger.error(storage)
+                continue
 
             eth_trx = rlp.decode(bytes.fromhex(eth_trx), EthTrx)
             if acc_list != blocked_accs:
