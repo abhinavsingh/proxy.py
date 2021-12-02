@@ -1,13 +1,11 @@
+from proxy.indexer.indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
 import base58
 import rlp
 import json
 import os
 import time
 import logging
-from solana.rpc.api import Client
 from multiprocessing.dummy import Pool as ThreadPool
-from typing import Dict, Union
-from proxy.environment import solana_url, evm_loader_id
 
 
 try:
@@ -17,16 +15,7 @@ except ImportError:
     from .utils import check_error, get_trx_results, get_trx_receipts, LogDB, Canceller
     from .sql_dict import SQLDict
 
-
-PARALLEL_REQUESTS = int(os.environ.get("PARALLEL_REQUESTS", "2"))
 CANCEL_TIMEOUT = int(os.environ.get("CANCEL_TIMEOUT", "60"))
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-DEVNET_HISTORY_START = "7BdwyUQ61RUZP63HABJkbW66beLk22tdXnP69KsvQBJekCPVaHoJY47Rw68b3VV1UbQNHxX3uxUSLfiJrfy2bTn"
-HISTORY_START = [DEVNET_HISTORY_START]
-
 UPDATE_BLOCK_COUNT = PARALLEL_REQUESTS * 16
 
 class HolderStruct:
@@ -57,131 +46,34 @@ class TransactionStruct:
         self.slot = slot
 
 
-class Indexer:
-    def __init__(self):
-        self.client = Client(solana_url)
+class Indexer(IndexerBase):
+    def __init__(self,
+                 solana_url,
+                 evm_loader_id,
+                 log_level = 'INFO'):
+        IndexerBase.__init__(self, solana_url, evm_loader_id, log_level)
+
         self.canceller = Canceller()
         self.logs_db = LogDB()
         self.blocks_by_hash = SQLDict(tablename="solana_blocks_by_hash")
-        self.transaction_receipts = SQLDict(tablename="known_transactions")
         self.ethereum_trx = SQLDict(tablename="ethereum_transactions")
         self.eth_sol_trx = SQLDict(tablename="ethereum_solana_transactions")
         self.sol_eth_trx = SQLDict(tablename="solana_ethereum_transactions")
         self.constants = SQLDict(tablename="constants")
-        self.last_slot = 0
-        self.current_slot = 0
-        self.transaction_order = []
         if 'last_block' not in self.constants:
             self.constants['last_block'] = 0
         self.blocked_storages = {}
-        self.counter_ = 0
-
-    def run(self, loop = True):
-        while (True):
-            try:
-                logger.debug("Start indexing")
-                self.gather_unknown_transactions()
-                logger.debug("Process receipts")
-                self.process_receipts()
-                logger.debug("Start getting blocks")
-                self.gather_blocks()
-                logger.debug("Unlock accounts")
-                self.canceller.unlock_accounts(self.blocked_storages)
-                self.blocked_storages = {}
-            except Exception as err:
-                logger.debug("Got exception while indexing. Type(err):%s, Exception:%s", type(err), err)
 
 
-    def gather_unknown_transactions(self):
-        poll_txs = set()
-        ordered_txs = []
-
-        minimal_tx = None
-        continue_flag = True
-        current_slot = self.client.get_slot(commitment="confirmed")["result"]
-        maximum_slot = self.last_slot
-        minimal_slot = current_slot
-
-        percent = 0
-
-        counter = 0
-        while (continue_flag):
-            opts: Dict[str, Union[int, str]] = {}
-            if minimal_tx:
-                opts["before"] = minimal_tx
-            opts["commitment"] = "confirmed"
-            result = self.client._provider.make_request("getSignaturesForAddress", evm_loader_id, opts)
-            logger.debug("{:>3} get_signatures_for_address {}".format(counter, len(result["result"])))
-            counter += 1
-
-            if len(result["result"]) == 0:
-                logger.debug("len(result['result']) == 0")
-                break
-
-            for tx in result["result"]:
-                solana_signature = tx["signature"]
-                slot = tx["slot"]
-
-                if solana_signature in HISTORY_START:
-                    logger.debug(solana_signature)
-                    continue_flag = False
-                    break
-
-                ordered_txs.append(solana_signature)
-
-                if solana_signature not in self.transaction_receipts:
-                    poll_txs.add(solana_signature)
-
-                if slot < minimal_slot:
-                    minimal_slot = slot
-                    minimal_tx = solana_signature
-
-                if slot > maximum_slot:
-                    maximum_slot = slot
-
-                if slot < self.last_slot:
-                    continue_flag = False
-                    break
-
-        logger.debug("start getting receipts")
-        pool = ThreadPool(PARALLEL_REQUESTS)
-        pool.map(self.get_tx_receipts, poll_txs)
-
-        if len(self.transaction_order):
-            index = 0
-            try:
-                index = ordered_txs.index(self.transaction_order[0])
-            except ValueError:
-                self.transaction_order = ordered_txs + self.transaction_order
-            else:
-                self.transaction_order = ordered_txs[:index] + self.transaction_order
-        else:
-            self.transaction_order = ordered_txs
-
-        self.last_slot = maximum_slot
-        self.current_slot = current_slot
-
-        self.counter_ = 0
-
-
-    def get_tx_receipts(self, solana_signature):
-        # trx = None
-        retry = True
-
-        while retry:
-            try:
-                trx = self.client.get_confirmed_transaction(solana_signature)['result']
-                self.transaction_receipts[solana_signature] = trx
-                retry = False
-            except Exception as err:
-                logger.debug(err)
-                time.sleep(1)
-
-        self.counter_ += 1
-        if self.counter_ % 100 == 0:
-            logger.debug(self.counter_)
-
-        # return (solana_signature, trx)
+    def process_functions(self):
+        IndexerBase.process_functions(self)
+        logger.debug("Process receipts")
+        self.process_receipts()
+        logger.debug("Start getting blocks")
+        self.gather_blocks()
+        logger.debug("Unlock accounts")
+        self.canceller.unlock_accounts(self.blocked_storages)
+        self.blocked_storages = {}
 
 
     def process_receipts(self):
@@ -209,7 +101,7 @@ class Indexer:
                 if trx['transaction']['message']['instructions'] is not None:
                     for instruction in trx['transaction']['message']['instructions']:
 
-                        if trx["transaction"]["message"]["accountKeys"][instruction["programIdIndex"]] != evm_loader_id:
+                        if trx["transaction"]["message"]["accountKeys"][instruction["programIdIndex"]] != self.evm_loader_id:
                             continue
 
                         if check_error(trx):
@@ -574,12 +466,27 @@ class Indexer:
         return (slot, block_hash)
 
 
-def run_indexer():
+def run_indexer(solana_url,
+                evm_loader_id,
+                log_level = 'DEBUG'):
     logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
     logger.setLevel(logging.DEBUG)
-    indexer = Indexer()
-    indexer.run(False)
+    logger.info(f"""Running indexer with params:
+        solana_url: {solana_url},
+        evm_loader_id: {evm_loader_id},
+        log_level: {log_level}""")
+
+    indexer = Indexer(solana_url,
+                      evm_loader_id,
+                      log_level)
+    indexer.run()
 
 
 if __name__ == "__main__":
-    run_indexer()
+    solana_url = os.environ.get('SOLANA_URL', 'http://localhost:8899')
+    evm_loader_id = os.environ.get('EVM_LOADER_ID', '53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io')
+    log_level = os.environ.get('LOG_LEVEL', 'INFO')
+
+    run_indexer(solana_url,
+                evm_loader_id,
+                log_level)
