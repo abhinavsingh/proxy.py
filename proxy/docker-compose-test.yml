@@ -46,7 +46,7 @@ services:
       POSTGRES_PASSWORD: neon-proxy-pass
     hostname: postgres
     healthcheck:
-      test: [ CMD-SHELL, "pg_isready" ]
+      test: [ CMD-SHELL, "pg_isready -h postgres -p 5432" ]
       interval: 5s
       timeout: 10s
       retries: 10
