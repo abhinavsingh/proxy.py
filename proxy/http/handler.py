@@ -87,10 +87,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     def initialize(self) -> None:
         """Optionally upgrades connection to HTTPS, set ``conn`` in non-blocking mode and initializes plugins."""
-        conn = self._optionally_wrap_socket(self.work.connection)
+        conn = self._optionally_wrap_socket()
         conn.setblocking(False)
         # Update client connection reference if connection was wrapped
         if self._encryption_enabled():
+            # TODO: May be we can simply update the work conn object reference
+            # instead of creating another instance of client connection.
             self.work = TcpClientConnection(conn=conn, addr=self.work.addr)
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
@@ -112,41 +114,14 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     def shutdown(self) -> None:
         try:
-            # Flush pending buffer in threaded mode only.
-            #
-            # For threadless mode, BaseTcpServerHandler implements
-            # the must_flush_before_shutdown logic automagically.
-            if self.selector and self.work.has_buffer():
-                self._flush()
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()
-            logger.debug(
-                'Closing client connection %r '
-                'at address %s has buffer %s' %
-                (self.work.connection, self.work.address, self.work.has_buffer()),
-            )
-            conn = self.work.connection
-            # Unwrap if wrapped before shutdown.
+            # Unwrap if socket was wrapped earlier.
             if self._encryption_enabled() and \
                     isinstance(self.work.connection, ssl.SSLSocket):
-                conn = self.work.connection.unwrap()
-            conn.shutdown(socket.SHUT_WR)
-            logger.debug('Client connection shutdown successful')
-        except OSError:
-            pass
+                self.work._conn = self.work.connection.unwrap()
         finally:
-            # Section 4.2.2.13 of RFC 1122 tells us that a close() with any pending readable data
-            # could lead to an immediate reset being sent.
-            #
-            #   "A host MAY implement a 'half-duplex' TCP close sequence, so that an application
-            #   that has called CLOSE cannot continue to read data from the connection.
-            #   If such a host issues a CLOSE call while received data is still pending in TCP,
-            #   or if new data is received after CLOSE is called, its TCP SHOULD send a RST to
-            #   show that data was lost."
-            #
-            self.work.connection.close()
-            logger.debug('Client connection closed')
             super().shutdown()
 
     async def get_events(self) -> Dict[int, int]:
@@ -309,16 +284,14 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return self.flags.keyfile is not None and \
             self.flags.certfile is not None
 
-    def _optionally_wrap_socket(
-            self, conn: socket.socket,
-    ) -> Union[ssl.SSLSocket, socket.socket]:
+    def _optionally_wrap_socket(self) -> Union[ssl.SSLSocket, socket.socket]:
         """Attempts to wrap accepted client connection using provided certificates.
 
         Shutdown and closes client connection upon error.
         """
+        conn = self.work.connection
         if self._encryption_enabled():
             assert self.flags.keyfile and self.flags.certfile
-            # TODO(abhinavsingh): Insecure TLS versions must not be accepted by default
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn
 
@@ -342,10 +315,10 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             while True:
                 # Tear down if client buffer is empty and connection is inactive
                 if self.is_inactive():
-                    logger.debug(
-                        'Client buffer is empty and maximum inactivity has reached '
-                        'between client and server connection, tearing down...',
-                    )
+                    # logger.debug(
+                    #     'Client buffer is empty and maximum inactivity has reached '
+                    #     'between client and server connection, tearing down...',
+                    # )
                     break
                 if loop.run_until_complete(self._run_once()):
                     break
@@ -359,6 +332,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 self.work.connection, exc_info=e,
             )
         finally:
+            if self.work.has_buffer():
+                self._flush()
             self.shutdown()
             loop.close()
 

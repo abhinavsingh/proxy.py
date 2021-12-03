@@ -12,6 +12,7 @@
 
        tcp
 """
+import socket
 import logging
 import selectors
 
@@ -42,8 +43,7 @@ class BaseTcpServerHandler(Work):
     Implementations must provide::
 
        a. handle_data(data: memoryview) implementation
-       b. Optionally, also implement other Work method
-          e.g. initialize, is_inactive, shutdown
+       b. Optionally, also implement other Work interface methods
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -59,6 +59,34 @@ class BaseTcpServerHandler(Work):
     def handle_data(self, data: memoryview) -> Optional[bool]:
         """Optionally return True to close client connection."""
         pass    # pragma: no cover
+
+    def shutdown(self) -> None:
+        try:
+            # logger.debug(
+            #     'Closing client connection %r '
+            #     'at address %s has buffer %s' %
+            #     (self.work.connection, self.work.address, self.work.has_buffer()),
+            # )
+            self.work.connection.shutdown(socket.SHUT_WR)
+            logger.debug('Client connection shutdown successful')
+        except OSError:
+            pass
+        finally:
+            # Section 4.2.2.13 of RFC 1122 tells us that a close() with any pending readable data
+            # could lead to an immediate reset being sent.
+            #
+            #   "A host MAY implement a 'half-duplex' TCP close sequence, so that an application
+            #   that has called CLOSE cannot continue to read data from the connection.
+            #   If such a host issues a CLOSE call while received data is still pending in TCP,
+            #   or if new data is received after CLOSE is called, its TCP SHOULD send a RST to
+            #   show that data was lost."
+            #
+            # TL;DR -- Recommendation is to read and receive 0 bytes after shutdown and
+            # before calling close.
+            #
+            self.work.connection.close()
+            logger.debug('Client connection closed')
+            super().shutdown()
 
     async def get_events(self) -> Dict[int, int]:
         events = {}

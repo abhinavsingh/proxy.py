@@ -251,9 +251,45 @@ class Threadless(ABC, Generic[T]):
         return (work_by_ids, new_work_available)
 
     async def _wait_for_tasks(self) -> Set['asyncio.Task[bool]']:
+        """Wait for tasks.
+
+        Adding a timeout value for wait can
+        result in a long tail latency histogram.
+
+        Example, see following comparison.
+
+          WITHOUT TIMEOUT         WITH TIMEOUT
+
+          0.004 [241]   |         0.004 [1472]  |■
+          0.005 [0]     |         0.005 [7]     |
+          0.006 [0]     |         0.006 [0]     |
+          0.007 [115]   |         0.007 [0]     |
+                                  0.008 [114]   |
+
+        In general, waiting for FIRST_COMPLETED task
+        itself can result in long tail latency.  Example,
+        see how 115 requests finished after 0.007 seconds
+        for the without timeout scenario, even though none
+        of the other request completed in 0.005 or 0.006 bucket.
+
+        Above behavior highlights flaw in our event loop strategy.
+        We want to identify finished tasks here because within
+        :class:`~proxy.core.acceptor.threadless.Threadless.run_once`
+        we want to clean up the finished tasks as soon as possible.
+        Cleaning up finished tasks asap, will result in a better
+        tail distribution for our latency histogram.
+
+        When using a timeout value, unfortunately, finished tasks
+        may not get cleaned up within a single cycle, resulting in
+        long tail latencies.
+
+        To improve upon tail latency, we must delegate clean up
+        within the work object.  Then, work object can proactively
+        clean up (which internally invokes work shutdown method).
+        """
         finished, self.unfinished = await asyncio.wait(
             self.unfinished,
-            timeout=self.wait_timeout,
+            # timeout=self.wait_timeout,
             return_when=asyncio.FIRST_COMPLETED,
         )
         return finished     # noqa: WPS331
@@ -266,7 +302,6 @@ class Threadless(ABC, Generic[T]):
         for work_id in inactive_works:
             self._cleanup(work_id)
 
-    # TODO: HttpProtocolHandler.shutdown can call flush which may block
     def _cleanup(self, work_id: int) -> None:
         if work_id in self.registered_events_by_work_ids:
             assert self.selector
@@ -281,6 +316,9 @@ class Threadless(ABC, Generic[T]):
             del self.registered_events_by_work_ids[work_id]
         self.works[work_id].shutdown()
         del self.works[work_id]
+        # For work received over a selectable work queue e.g. when using
+        # :class:`~multiprocessing.connection.Connection`, we must also
+        # close the duplicate descriptor received by threadless process.
         if self.work_queue_fileno() is not None:
             os.close(work_id)
 
