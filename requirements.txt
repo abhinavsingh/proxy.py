@@ -8,3 +8,4 @@ solana==0.10.0
 psycopg2-binary
 ethereum
 py-solc-x==1.1.0
+flask
