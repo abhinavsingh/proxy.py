@@ -30,7 +30,7 @@
     "@types/js-cookie": "^2.2.6",
     "@typescript-eslint/eslint-plugin": "^2.34.0",
     "@typescript-eslint/parser": "^2.34.0",
-    "chrome-devtools-frontend": "^1.0.944903",
+    "chrome-devtools-frontend": "^1.0.947377",
     "eslint": "^6.8.0",
     "eslint-config-standard": "^14.1.1",
     "eslint-plugin-import": "^2.25.3",
