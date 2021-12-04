@@ -690,6 +690,8 @@ jobs:
           -e PROXYPY_CONTAINER_VERSION='${{ env.PROXYPY_CONTAINER_VERSION }}'
 
   check:  # This job does nothing and is only used for the branch protection
+    if: always()
+
     needs:
     - analyze
     - test
@@ -698,13 +700,13 @@ jobs:
     - dashboard
     - brew
 
-    runs-on: ubuntu-latest
+    runs-on: Ubuntu-latest
 
     steps:
-    - name: Report success of the test matrix
-      run: >-
-        print("All's good")
-      shell: python
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
 
   publish-pypi:
     name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI
