@@ -28,9 +28,10 @@ class HolderStruct:
 
 
 class ContinueStruct:
-    def __init__(self, signature, results, accounts = None):
+    def __init__(self, signature, results, slot, accounts = None):
         self.signatures = [signature]
         self.results = results
+        self.slot = slot
         self.accounts = accounts
 
 
@@ -165,7 +166,7 @@ class Indexer(IndexerBase):
                                                     continue_result.signatures,
                                                     storage_account,
                                                     continue_result.accounts,
-                                                    slot
+                                                    max(slot, continue_result.slot)
                                                 )
 
                                             del continue_table[storage_account]
@@ -271,6 +272,7 @@ class Indexer(IndexerBase):
                                     logger.error("Strange behavior. Pay attention. BLOCKED ACCOUNTS NOT EQUAL")
                                 trx_table[eth_signature].got_result = continue_result.results
                                 trx_table[eth_signature].signatures += continue_result.signatures
+                                trx_table[eth_signature].slot = max(trx_table[eth_signature].slot, continue_result.slot)
 
                                 del continue_table[storage_account]
 
@@ -296,7 +298,7 @@ class Indexer(IndexerBase):
 
                                     continue_table[storage_account].results = got_result
                             else:
-                                continue_table[storage_account] = ContinueStruct(signature, got_result, blocked_accounts)
+                                continue_table[storage_account] = ContinueStruct(signature, got_result, slot, blocked_accounts)
 
                         elif instruction_data[0] == 0x0b or instruction_data[0] == 0x16: # ExecuteTrxFromAccountDataIterative ExecuteTrxFromAccountDataIterativeV02
                             if instruction_data[0] == 0x0b:
@@ -319,7 +321,7 @@ class Indexer(IndexerBase):
                                 else:
                                     holder_table[holder_account] = HolderStruct(storage_account)
                             else:
-                                continue_table[storage_account] =  ContinueStruct(signature, None, blocked_accounts)
+                                continue_table[storage_account] =  ContinueStruct(signature, None, slot, blocked_accounts)
                                 holder_table[holder_account] = HolderStruct(storage_account)
 
 
@@ -329,7 +331,7 @@ class Indexer(IndexerBase):
                             storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
                             blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in instruction['accounts'][6:]]
 
-                            continue_table[storage_account] = ContinueStruct(signature, ([], "0x0", 0, [], trx['slot']), blocked_accounts)
+                            continue_table[storage_account] = ContinueStruct(signature, ([], "0x0", 0, [], trx['slot']), slot, blocked_accounts)
 
                         elif instruction_data[0] == 0x0d:
                             # logger.debug("{:>10} {:>6} PartialCallOrContinueFromRawEthereumTX 0x{}".format(slot, counter, instruction_data.hex()))
@@ -349,6 +351,7 @@ class Indexer(IndexerBase):
 
                             if eth_signature in trx_table:
                                 trx_table[eth_signature].signatures.append(signature)
+                                trx_table[eth_signature].slot = max(trx_table[eth_signature].slot, slot)
                             else:
                                 trx_table[eth_signature] = TransactionStruct(
                                         eth_trx,
@@ -396,7 +399,7 @@ class Indexer(IndexerBase):
 
                                     continue_table[storage_account].results = got_result
                             else:
-                                continue_table[storage_account] =  ContinueStruct(signature, got_result, blocked_accounts)
+                                continue_table[storage_account] =  ContinueStruct(signature, got_result, slot, blocked_accounts)
                                 holder_table[holder_account] = HolderStruct(storage_account)
 
                         if instruction_data[0] > 0x16:
