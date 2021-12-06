@@ -157,19 +157,3 @@ def run_airdropper(solana_url,
                             airdrop_amount,
                             log_level)
     airdropper.run()
-
-
-if __name__ == "__main__":
-    solana_url = os.environ.get('SOLANA_URL', 'http://localhost:8899')
-    evm_loader_id = os.environ.get('EVM_LOADER_ID', '53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io')
-    faucet_url = os.environ.get('FAUCET_URL', 'http://localhost:3333')
-    wrapper_whitelist = os.environ.get('INDEXER_ERC20_WRAPPER_WHITELIST', '').split(',')
-    airdrop_amount = os.environ.get('AIRDROP_AMOUNT', 0)
-    log_level = os.environ.get('LOG_LEVEL', 'INFO')
-
-    run_airdropper(solana_url,
-                   evm_loader_id,
-                   faucet_url,
-                   wrapper_whitelist,
-                   airdrop_amount,
-                   log_level)
