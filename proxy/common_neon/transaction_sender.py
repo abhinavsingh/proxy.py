@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import rlp
 import time
@@ -18,7 +19,8 @@ from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, A
 from .emulator_interactor import call_emulated
 from .layouts import ACCOUNT_INFO_LAYOUT
 from .neon_instruction import NeonInstruction
-from .solana_interactor import SolanaInteractor, check_if_continue_returned, check_if_program_exceeded_instructions
+from .solana_interactor import SolanaInteractor, check_if_continue_returned, \
+    check_if_program_exceeded_instructions, check_if_storage_is_empty_error
 from ..environment import EVM_LOADER_ID
 from ..plugin.eth_proto import Trx as EthTrx
 
@@ -67,7 +69,7 @@ class TransactionSender:
         try:
             if call_iterative:
                 try:
-                    return iterative_executor.call_signed_iterative()
+                    return iterative_executor.call_signed_iterative_combined()
                 except Exception as err:
                     logger.debug(str(err))
                     if str(err).startswith("transaction too large:"):
@@ -77,7 +79,7 @@ class TransactionSender:
                         raise
 
             if call_from_holder:
-                return iterative_executor.call_signed_with_holder_acc()
+                return iterative_executor.call_signed_with_holder_combined()
         finally:
             self.free_perm_accs()
 
@@ -93,7 +95,7 @@ class TransactionSender:
 
     def create_iterative_executor(self):
         self.instruction.init_iterative(self.storage, self.holder, self.perm_accs_id)
-        return IterativeTransactionSender(self.sender, self.instruction, self.create_acc_trx, self.eth_trx, self.steps)
+        return IterativeTransactionSender(self.sender, self.instruction, self.create_acc_trx, self.eth_trx, self.steps, self.steps_emulated)
 
 
     def init_perm_accs(self):
@@ -302,6 +304,8 @@ class TransactionSender:
                 AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
             ] + add_keys_05
 
+        self.steps_emulated = output_json["steps_executed"]
+
 
 class NoniterativeTransactionSender:
     def __init__(self, solana_interactor: SolanaInteractor, neon_instruction: NeonInstruction, create_acc_trx: Transaction, eth_trx: EthTrx):
@@ -321,53 +325,52 @@ class NoniterativeTransactionSender:
 
 
 class IterativeTransactionSender:
-    def __init__(self, solana_interactor: SolanaInteractor, neon_instruction: NeonInstruction, create_acc_trx: Transaction, eth_trx: EthTrx, steps: int):
+    CONTINUE_REGULAR = 'ContinueV02'
+    CONTINUE_COMBINED = 'PartialCallOrContinueFromRawEthereumTX'
+    CONTINUE_HOLDER_COMB = 'ExecuteTrxFromAccountDataIterativeOrContinue'
+
+    def __init__(self, solana_interactor: SolanaInteractor, neon_instruction: NeonInstruction, create_acc_trx: Transaction, eth_trx: EthTrx, steps: int, steps_emulated: int):
         self.sender = solana_interactor
         self.instruction = neon_instruction
         self.create_acc_trx = create_acc_trx
         self.eth_trx = eth_trx
         self.steps = steps
+        self.steps_emulated = steps_emulated
+        self.instruction_type = self.CONTINUE_REGULAR
 
 
-    def call_signed_iterative(self):
-        if len(self.create_acc_trx.instructions):
-            precall_txs = Transaction()
-            precall_txs.add(self.create_acc_trx)
-            self.sender.send_measured_transaction(precall_txs, self.eth_trx, 'CreateAccountsForTrx')
-
-        call_txs = self.instruction.make_iterative_call_transaction()
-
-        logger.debug("Partial call")
-        self.sender.send_measured_transaction(call_txs, self.eth_trx, 'PartialCallFromRawEthereumTXv02')
-
+    def call_signed_iterative_combined(self):
+        self.create_accounts_for_trx()
+        self.instruction_type = self.CONTINUE_COMBINED
         return self.call_continue()
 
 
-    def call_signed_with_holder_acc(self):
+    def call_signed_with_holder_combined(self):
         self.write_trx_to_holder_account()
-        if len(self.create_acc_trx.instructions):
-            precall_txs = Transaction()
-            precall_txs.add(self.create_acc_trx)
-            self.sender.send_measured_transaction(precall_txs, self.eth_trx, 'create_accounts_for_deploy')
-
-        # ExecuteTrxFromAccountDataIterative
-        logger.debug("ExecuteTrxFromAccountDataIterative:")
-        call_txs = self.instruction.make_call_from_account_instruction()
-        self.sender.send_measured_transaction(call_txs, self.eth_trx, 'ExecuteTrxFromAccountDataIterativeV02')
-
+        self.create_accounts_for_trx()
+        self.instruction_type = self.CONTINUE_HOLDER_COMB
         return self.call_continue()
+
+
+    def create_accounts_for_trx(self):
+        length = len(self.create_acc_trx.instructions)
+        if length == 0:
+            return
+        logger.debug(f"Create account for trx: {length}")
+        precall_txs = Transaction()
+        precall_txs.add(self.create_acc_trx)
+        self.sender.send_measured_transaction(precall_txs, self.eth_trx, 'CreateAccountsForTrx')
 
 
     def write_trx_to_holder_account(self):
+        logger.debug('write_trx_to_holder_account')
         msg = self.eth_trx.signature() + len(self.eth_trx.unsigned_msg()).to_bytes(8, byteorder="little") + self.eth_trx.unsigned_msg()
 
-        # Write transaction to transaction holder account
         offset = 0
         receipts = []
         rest = msg
         while len(rest):
             (part, rest) = (rest[:1000], rest[1000:])
-            # logger.debug("sender_sol %s %s %s", sender_sol, holder, acc.public_key())
             trx = self.instruction.make_write_transaction(offset, part)
             receipts.append(self.sender.send_transaction_unconfirmed(trx))
             offset += len(part)
@@ -377,6 +380,19 @@ class IterativeTransactionSender:
 
 
     def call_continue(self):
+        return_result = None
+        try:
+            return_result = self.call_continue_bucked()
+        except Exception as err:
+            logger.debug("call_continue_bucked_combined exception: {}".format(str(err)))
+
+        if return_result is not None:
+            return return_result
+
+        return self.call_continue_iterative()
+
+
+    def call_continue_iterative(self):
         try:
             return self.call_continue_step_by_step()
         except Exception as err:
@@ -398,7 +414,7 @@ class IterativeTransactionSender:
     def call_continue_step(self):
         step_count = self.steps
         while step_count > 0:
-            trx = self.instruction.make_continue_instruction(step_count)
+            trx = self.instruction.make_continue_transaction(step_count)
 
             logger.debug("Step count {}".format(step_count))
             try:
@@ -413,8 +429,71 @@ class IterativeTransactionSender:
 
 
     def call_cancel(self):
-        trx = self.instruction.make_cancel_instruction()
+        trx = self.instruction.make_cancel_transaction()
 
         logger.debug("Cancel")
         result = self.sender.send_measured_transaction(trx, self.eth_trx, 'CancelWithNonce')
         return result['result']['transaction']['signatures'][0]
+
+
+    def call_continue_bucked(self):
+        logger.debug("Send bucked combined: %s", self.instruction_type)
+        steps = self.steps
+
+        receipts = []
+        for index in range(math.ceil(self.steps_emulated/self.steps) + self.addition_count()):
+            try:
+                trx = self.make_bucked_trx(steps, index)
+                receipts.append(self.sender.send_transaction_unconfirmed(trx))
+            except SendTransactionError as err:
+                logger.error(f"Failed to call continue bucked, error: {err.result}")
+                if check_if_storage_is_empty_error(err.result):
+                    pass
+                elif check_if_program_exceeded_instructions(err.result):
+                    steps = int(steps * 90 / 100)
+                else:
+                    raise
+            except Exception as err:
+                logger.debug(str(err))
+                if str(err).startswith('failed to get recent blockhash'):
+                    pass
+                else:
+                    raise
+
+        return self.collect_bucked_results(receipts, self.instruction_type)
+
+
+    def addition_count(self):
+        '''
+        How many transactions are needed depending on trx type:
+        CONTINUE_COMBINED: 2 (1 for begin and 1 for decreased steps)
+        CONTINUE_HOLDER_COMB: 1 for begin
+        0 otherwise
+        '''
+        addition_count = 0
+        if self.instruction_type == self.CONTINUE_COMBINED:
+            addition_count = 2
+        elif self.instruction_type == self.CONTINUE_HOLDER_COMB:
+            addition_count = 1
+        return addition_count
+
+
+    def make_bucked_trx(self, steps, index):
+        if self.instruction_type == self.CONTINUE_REGULAR:
+            return self.instruction.make_continue_transaction(steps, index)
+        elif self.instruction_type == self.CONTINUE_COMBINED:
+            return self.instruction.make_partial_call_or_continue_transaction(steps - index)
+        elif self.instruction_type == self.CONTINUE_HOLDER_COMB:
+            return self.instruction.make_partial_call_or_continue_from_account_data(steps, index)
+        else:
+            raise Exception("Unknown continue type: {}".format(self.instruction_type))
+
+
+    def collect_bucked_results(self, receipts, reason):
+        logger.debug(f"Collected bucked results: {receipts}")
+        result_list = self.sender.collect_results(receipts, eth_trx=self.eth_trx, reason=reason)
+        for result in result_list:
+            # self.sender.get_measurements(result)
+            signature = check_if_continue_returned(result)
+            if signature:
+                return signature

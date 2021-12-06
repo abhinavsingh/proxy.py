@@ -5,10 +5,12 @@ import logging
 import re
 import time
 
+from solana.rpc.api import Client as SolanaClient
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 
 from .costs import update_transaction_cost
+from .utils import get_from_dict
 from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, LOG_SENDING_SOLANA_TRANSACTION
 
 logger = logging.getLogger(__name__)
@@ -16,7 +18,7 @@ logger.setLevel(logging.DEBUG)
 
 
 class SolanaInteractor:
-    def __init__(self, signer, client) -> None:
+    def __init__(self, signer, client: SolanaClient) -> None:
         self.signer = signer
         self.client = client
 
@@ -191,6 +193,16 @@ def check_if_program_exceeded_instructions(err_result):
         err_result['data']['logs'][-2].find(err_instruction) >= 0 or \
         err_result['data']['logs'][-1].find(err_budget) >= 0:
         return True
+    return False
+
+
+def check_if_storage_is_empty_error(err_result):
+    error_arr = get_from_dict(err_result, "data", "err", "InstructionError")
+    if error_arr is not None and isinstance(error_arr, list):
+        error_dict = error_arr[1]
+        if isinstance(error_dict, dict) and 'Custom' in error_dict:
+            if error_dict['Custom'] == 1 or error_dict['Custom'] == 4:
+                return True
     return False
 
 

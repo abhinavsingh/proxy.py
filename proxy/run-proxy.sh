@@ -8,7 +8,6 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="http://solana:8899"
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=100000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="0.5"
-  [[ -z "$USE_COMBINED_START_CONTINUE"  ]] && export USE_COMBINED_START_CONTINUE="NO"
   [[ -z "$CONTINUE_COUNT_FACTOR"        ]] && export CONTINUE_COUNT_FACTOR="3"
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=0
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="postgres"

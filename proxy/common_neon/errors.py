@@ -12,6 +12,7 @@ class EthereumError(Exception):
         if self.data: error['data'] = self.data
         return error
 
+
 class SolanaErrors(Enum):
     AccountNotFound = "Invalid param: could not find account"
 
