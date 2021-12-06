@@ -639,7 +639,8 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             traceback.print_exc()
             response = {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': str(err)}}
 
-        logger.debug('>>> %s 0x%0x %s', threading.get_ident(), id(self.model), json.dumps(response))
+        logger.debug('>>> %s 0x%0x %s %s', threading.get_ident(), id(self.model), json.dumps(response),
+                     request['method'] if 'method' in request else '---')
 
         self.client.queue(memoryview(build_http_response(
             httpStatusCodes.OK, body=json.dumps(response).encode('utf8'),
