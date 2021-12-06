@@ -283,56 +283,7 @@ class NeonInstruction:
         return trx
 
 
-    def make_partial_call_instruction(self) -> TransactionInstruction:
-        return TransactionInstruction(
-            program_id = EVM_LOADER_ID,
-            data = bytearray.fromhex("13") + self.collateral_pool_index_buf + int(0).to_bytes(8, byteorder="little") + self.msg,
-            keys = [
-                AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
-
-                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-
-            ] + self.eth_accounts + [
-
-                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
-            ] + obligatory_accounts
-            )
-
-
-    def make_iterative_call_transaction(self, length_before: int = 0) -> Transaction:
-        trx = Transaction()
-        trx.add(self.make_keccak_instruction(length_before + 1, len(self.eth_trx.unsigned_msg()), 13))
-        trx.add(self.make_partial_call_instruction())
-        return trx
-
-
-    def make_call_from_account_instruction(self) -> Transaction:
-        return Transaction().add(TransactionInstruction(
-            program_id = EVM_LOADER_ID,
-            data = bytearray.fromhex("16") + self.collateral_pool_index_buf + int(0).to_bytes(8, byteorder="little"),
-            keys = [
-                AccountMeta(pubkey=self.holder, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
-
-                AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-
-            ] + self.eth_accounts + [
-
-                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
-            ] + obligatory_accounts
-        ))
-
-
-    def make_continue_instruction(self, steps, index=None) -> Transaction:
+    def make_continue_transaction(self, steps, index=None) -> Transaction:
         data = bytearray.fromhex("14") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder="little")
         if index:
             data = data + index.to_bytes(8, byteorder="little")
@@ -356,7 +307,7 @@ class NeonInstruction:
         ))
 
 
-    def make_cancel_instruction(self) -> Transaction:
+    def make_cancel_transaction(self) -> Transaction:
         return Transaction().add(TransactionInstruction(
             program_id = EVM_LOADER_ID,
             data = bytearray.fromhex("15") + self.eth_trx.nonce.to_bytes(8, 'little'),
@@ -366,6 +317,59 @@ class NeonInstruction:
                 AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=INCINERATOR_PUBKEY, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
+
+            ] + self.eth_accounts + [
+
+                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
+            ] + obligatory_accounts
+        ))
+
+
+    def make_partial_call_or_continue_instruction(self, steps: int = 0) -> TransactionInstruction:
+        data = bytearray.fromhex("0D") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder="little") + self.msg
+        return TransactionInstruction(
+            program_id = EVM_LOADER_ID,
+            data = data,
+            keys = [
+                AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
+
+                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
+                AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
+
+            ] + self.eth_accounts + [
+
+                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
+            ] + obligatory_accounts
+        )
+
+
+    def make_partial_call_or_continue_transaction(self, steps: int = 0, length_before: int = 0) -> Transaction:
+        trx = Transaction()
+        trx.add(self.make_keccak_instruction(length_before + 1, len(self.eth_trx.unsigned_msg()), 13))
+        trx.add(self.make_partial_call_or_continue_instruction(steps))
+        return trx
+
+
+    def make_partial_call_or_continue_from_account_data(self, steps, index=None) -> Transaction:
+        data = bytearray.fromhex("0E") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder='little')
+        if index:
+            data = data + index.to_bytes(8, byteorder="little")
+        return Transaction().add(TransactionInstruction(
+            program_id = EVM_LOADER_ID,
+            data = data,
+            keys = [
+                AccountMeta(pubkey=self.holder, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
+
+                AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
+                AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
 
             ] + self.eth_accounts + [
