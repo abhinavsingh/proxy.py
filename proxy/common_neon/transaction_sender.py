@@ -393,6 +393,8 @@ class IterativeTransactionSender:
             return_result = self.call_continue_bucked()
         except Exception as err:
             logger.debug("call_continue_bucked_combined exception: {}".format(str(err)))
+            if str(err).startswith("transaction too large:"):
+                raise
 
         if return_result is not None:
             return return_result
