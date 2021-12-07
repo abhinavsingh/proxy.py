@@ -1,4 +1,4 @@
-ARG SOLANA_REVISION=v1.7.9-resources
+ARG SOLANA_REVISION=v1.7.9-testnet
 ARG EVM_LOADER_REVISION=stable
 
 FROM neonlabsorg/solana:${SOLANA_REVISION} AS cli
@@ -6,6 +6,7 @@ FROM neonlabsorg/solana:${SOLANA_REVISION} AS cli
 FROM neonlabsorg/evm_loader:${EVM_LOADER_REVISION} AS spl
 
 FROM ubuntu:20.04
+ARG PROXY_REVISION
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive apt -y install \
@@ -41,6 +42,7 @@ COPY --from=spl /opt/solana_utils.py \
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
 COPY . /opt
+RUN sed -i 's/NEON_PROXY_REVISION_TO_BE_REPLACED/'"$PROXY_REVISION"'/g' /opt/proxy/plugin/solana_rest_api.py
 COPY proxy/operator-keypair.json /root/.config/solana/id.json
 RUN cd /usr/local/lib/python3.8/dist-packages/ && patch -p0 </opt/solana-py.patch
 

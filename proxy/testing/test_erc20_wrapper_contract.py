@@ -15,7 +15,7 @@ from solana.rpc.api import Client as SolanaClient
 from solana.account import Account as SolanaAccount
 from solana.publickey import PublicKey
 
-from proxy.plugin.solana_rest_api_tools import createERC20TokenAccountTrx, createEtherAccountTrx
+from proxy.common_neon.neon_instruction import NeonInstruction
 
 # install_solc(version='latest')
 install_solc(version='0.7.6')
@@ -66,7 +66,7 @@ interface IERC20 {
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    
+
     function approveSolana(bytes32 spender, uint64 value) external returns (bool);
     event ApprovalSolana(address indexed owner, bytes32 indexed spender, uint64 value);
 }
@@ -147,7 +147,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         compiled_wrapper = compile_source(ERC20_WRAPPER_SOURCE)
         wrapper_id, wrapper_interface = compiled_wrapper.popitem()
         self.wrapper = wrapper_interface
-        
+
         erc20 = proxy.eth.contract(abi=self.wrapper['abi'], bytecode=wrapper_interface['bin'])
         nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         tx = {'nonce': nonce}
@@ -171,7 +171,9 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         admin_token_seeds = [ b"\1", b"ERC20Balance", bytes(self.token.pubkey), contract_address_bytes, admin_address_bytes ]
         admin_token_key = PublicKey.find_program_address(admin_token_seeds, evm_loader_id)[0]
         admin_token_info = { "key": admin_token_key, "owner": admin_address_solana, "contract": contract_address_solana, "mint": self.token.pubkey }
-        self.solana_client.send_transaction(createERC20TokenAccountTrx(self.solana_account, admin_token_info), self.solana_account, opts=TxOpts(skip_preflight=True, skip_confirmation=False))
+
+        instr = NeonInstruction(self.solana_account.public_key()).createERC20TokenAccountTrx(admin_token_info)
+        self.solana_client.send_transaction(instr, self.solana_account, opts=TxOpts(skip_preflight=True, skip_confirmation=False))
         self.token.mint_to(admin_token_key, self.solana_account, 10_000_000_000_000, opts=TxOpts(skip_preflight=True, skip_confirmation=False))
 
     def test_erc20_name(self):
