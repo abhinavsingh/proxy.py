@@ -19,7 +19,7 @@ from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, A
 from .emulator_interactor import call_emulated
 from .layouts import ACCOUNT_INFO_LAYOUT
 from .neon_instruction import NeonInstruction
-from .solana_interactor import SolanaInteractor, check_if_continue_returned, \
+from .solana_interactor import SolanaInteractor, check_if_continue_returned, check_for_errors,\
     check_if_program_exceeded_instructions, check_if_storage_is_empty_error
 from ..environment import EVM_LOADER_ID
 from ..plugin.eth_proto import Trx as EthTrx
@@ -321,6 +321,12 @@ class NoniterativeTransactionSender:
             call_txs_05.add(self.create_acc_trx)
         call_txs_05.add(self.instruction.make_noniterative_call_transaction(len(call_txs_05.instructions)))
         result = self.sender.send_measured_transaction(call_txs_05, self.eth_trx, 'CallFromRawEthereumTX')
+
+        if check_for_errors(result):
+            if check_if_program_exceeded_instructions(result):
+                raise Exception("Program failed to complete")
+            raise Exception(json.dumps(result['result']['meta']))
+
         return result['result']['transaction']['signatures'][0]
 
 
@@ -359,7 +365,9 @@ class IterativeTransactionSender:
         logger.debug(f"Create account for trx: {length}")
         precall_txs = Transaction()
         precall_txs.add(self.create_acc_trx)
-        self.sender.send_measured_transaction(precall_txs, self.eth_trx, 'CreateAccountsForTrx')
+        result = self.sender.send_measured_transaction(precall_txs, self.eth_trx, 'CreateAccountsForTrx')
+        if check_for_errors(result):
+            raise Exception("Failed to create account for trx")
 
 
     def write_trx_to_holder_account(self):
@@ -493,7 +501,7 @@ class IterativeTransactionSender:
         logger.debug(f"Collected bucked results: {receipts}")
         result_list = self.sender.collect_results(receipts, eth_trx=self.eth_trx, reason=reason)
         for result in result_list:
-            # self.sender.get_measurements(result)
+            self.sender.get_measurements(result)
             signature = check_if_continue_returned(result)
             if signature:
                 return signature
