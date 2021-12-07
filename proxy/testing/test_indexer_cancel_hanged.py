@@ -1,9 +1,9 @@
 import os
 import sys
 
-from proxy.plugin.solana_rest_api_tools import sysinstruct, ETH_TOKEN_MINT_ID, system, send_transaction, MINIMAL_GAS_PRICE
+from proxy.common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY
+from proxy.environment import ETH_TOKEN_MINT_ID, MINIMAL_GAS_PRICE
 
-sys.path.append("/spl/bin/")
 os.environ['SOLANA_URL'] = "http://solana:8899"
 os.environ['EVM_LOADER'] = "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io"
 os.environ['ETH_TOKEN_MINT'] = "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU"
@@ -18,6 +18,7 @@ from ethereum.transactions import Transaction as EthTrx
 from ethereum.utils import sha3
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Confirmed
+from solana.system_program import SYS_PROGRAM_ID
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from solana_utils import *
 from solcx import install_solc
@@ -74,7 +75,7 @@ contract ReturnsEvents {
 class CancelTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        print("\ntest_event.py setUpClass")
+        print("\ntest_cancel_hanged.py setUpClass")
 
         cls.token = SplToken(solana_url)
         wallet = WalletAccount(wallet_path())
@@ -184,7 +185,7 @@ class CancelTest(unittest.TestCase):
                 AccountMeta(pubkey=storage_account, is_signer=False, is_writable=True),
 
                 # System instructions account:
-                AccountMeta(pubkey=PublicKey(sysinstruct), is_signer=False, is_writable=False),
+                AccountMeta(pubkey=PublicKey(SYSVAR_INSTRUCTION_PUBKEY), is_signer=False, is_writable=False),
                 # Operator address:
                 AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=True),
                 # Collateral pool address:
@@ -194,7 +195,7 @@ class CancelTest(unittest.TestCase):
                 # User's NEON token account:
                 AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 # System program account:
-                AccountMeta(pubkey=PublicKey(system), is_signer=False, is_writable=False),
+                AccountMeta(pubkey=PublicKey(SYS_PROGRAM_ID), is_signer=False, is_writable=False),
 
                 AccountMeta(pubkey=self.reId, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.reId_token, is_signer=False, is_writable=True),

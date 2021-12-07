@@ -23,7 +23,8 @@ from .core.acceptor import AcceptorPool
 from .http.handler import HttpProtocolHandler
 
 from multiprocessing import Process
-from .indexer.solana_receipts_update import run_indexer
+from .indexer.indexer import run_indexer
+from proxy.environment import SOLANA_URL, EVM_LOADER_ID
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,9 @@ class Proxy:
             os.remove(self.flags.pid_file)
 
     def __enter__(self) -> 'Proxy':
-        self.indexer = Process(target=run_indexer)
+        self.indexer = Process(target=run_indexer,
+                               args=(SOLANA_URL,
+                                     EVM_LOADER_ID,))
         self.indexer.start()
         self.acceptors = AcceptorPool(
             flags=self.flags,

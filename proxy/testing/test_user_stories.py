@@ -91,6 +91,18 @@ class TestUserStories(unittest.TestCase):
         print('used_gas:', used_gas)
         self.assertEqual(used_gas, 53001 + EXTRA_GAS)
 
+    def test_05_check_params_omitted(self):
+        print("https://github.com/neonlabsorg/proxy-model.py/issues/318")
+        response = json.loads(requests.post(
+            proxy_url, headers=headers,
+            data=json.dumps({"jsonrpc": "2.0",
+                             "id": get_line_number(),
+                             "method": "eth_chainId"
+                             })).text)
+        print('response:', response)
+        chain_id = int(response['result'], 0)
+        print('chain_id:', chain_id)
+        self.assertEqual(chain_id, 111)
 
 if __name__ == '__main__':
     unittest.main()
