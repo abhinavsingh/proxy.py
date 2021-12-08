@@ -283,30 +283,6 @@ class NeonInstruction:
         return trx
 
 
-    def make_continue_transaction(self, steps, index=None) -> Transaction:
-        data = bytearray.fromhex("14") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder="little")
-        if index:
-            data = data + index.to_bytes(8, byteorder="little")
-
-        return Transaction().add(TransactionInstruction(
-            program_id = EVM_LOADER_ID,
-            data = data,
-            keys = [
-                AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
-
-                AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-
-            ] + self.eth_accounts + [
-
-                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
-            ] + obligatory_accounts
-        ))
-
-
     def make_cancel_transaction(self) -> Transaction:
         return Transaction().add(TransactionInstruction(
             program_id = EVM_LOADER_ID,
