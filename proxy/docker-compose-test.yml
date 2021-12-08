@@ -66,6 +66,7 @@ services:
       POSTGRES_PASSWORD: neon-proxy-pass
       NEW_USER_AIRDROP_AMOUNT: 100
       LOG_SENDING_SOLANA_TRANSACTION: "YES"
+      LOG_NEON_CLI_DEBUG: "YES"
       CONFIG: ci
     hostname: proxy
     depends_on:
