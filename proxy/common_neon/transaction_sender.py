@@ -424,7 +424,7 @@ class IterativeTransactionSender:
     def call_continue_step(self):
         step_count = self.steps
         while step_count > 0:
-            trx = self.instruction.make_continue_transaction(step_count)
+            trx = self.make_combined_trx(step_count, 0)
 
             logger.debug("Step count {}".format(step_count))
             try:
@@ -453,7 +453,7 @@ class IterativeTransactionSender:
         receipts = []
         for index in range(math.ceil(self.steps_emulated/self.steps) + self.addition_count()):
             try:
-                trx = self.make_bucked_trx(steps, index)
+                trx = self.make_combined_trx(steps, index)
                 receipts.append(self.sender.send_transaction_unconfirmed(trx))
             except SendTransactionError as err:
                 logger.error(f"Failed to call continue bucked, error: {err.result}")
@@ -488,10 +488,8 @@ class IterativeTransactionSender:
         return addition_count
 
 
-    def make_bucked_trx(self, steps, index):
-        if self.instruction_type == self.CONTINUE_REGULAR:
-            return self.instruction.make_continue_transaction(steps, index)
-        elif self.instruction_type == self.CONTINUE_COMBINED:
+    def make_combined_trx(self, steps, index):
+        if self.instruction_type == self.CONTINUE_COMBINED:
             return self.instruction.make_partial_call_or_continue_transaction(steps - index)
         elif self.instruction_type == self.CONTINUE_HOLDER_COMB:
             return self.instruction.make_partial_call_or_continue_from_account_data(steps, index)

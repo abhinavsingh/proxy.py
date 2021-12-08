@@ -17,6 +17,7 @@ TIMEOUT_TO_RELOAD_NEON_CONFIG = int(os.environ.get("TIMEOUT_TO_RELOAD_NEON_CONFI
 MINIMAL_GAS_PRICE=int(os.environ.get("MINIMAL_GAS_PRICE", 1))*10**9
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 LOG_SENDING_SOLANA_TRANSACTION = os.environ.get("LOG_SENDING_SOLANA_TRANSACTION", "NO") == "YES"
+LOG_NEON_CLI_DEBUG = os.environ.get("LOG_NEON_CLI_DEBUG", "NO") == "YES"
 
 class solana_cli:
     def call(self, *args):
@@ -38,7 +39,9 @@ class neon_cli:
                    "--commitment=recent",
                    "--url", SOLANA_URL,
                    "--evm_loader={}".format(EVM_LOADER_ID),
-                   ] + list(args)
+                   ]\
+                  + (["-vvv"] if LOG_NEON_CLI_DEBUG else [])\
+                  + list(args)
             logger.debug("Calling: " + " ".join(cmd))
             return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True)
         except subprocess.CalledProcessError as err:
