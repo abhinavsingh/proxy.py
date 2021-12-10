@@ -11,6 +11,7 @@
 import unittest
 import binascii
 import re
+import os
 
 from proxy.http.parser.tls import TlsParser, TlsHandshake
 from proxy.http.parser.tls import tlsContentType, tlsHandshakeType
@@ -37,8 +38,21 @@ class TestTlsParser(unittest.TestCase):
         tls = TlsParser()
         tls.parse(self.unhexlify(data))
         self.assertEqual(tls.content_type, tlsContentType.HANDSHAKE)
-        self.assertEqual(tls.length, 0xa5)
-        self.assertEqual(tls.handshake.handshake_type, tlsHandshakeType.CLIENT_HELLO)
-        self.assertEqual(tls.handshake.length, 0xa1)
+        self.assertEqual(tls.length, b'\x00\xa5')
+        self.assertEqual(tls.handshake.msg_type, tlsHandshakeType.CLIENT_HELLO)
+        self.assertEqual(tls.handshake.length, b'\x00\x00\xa1')
         self.assertEqual(len(tls.handshake.build()), 0xa1 + 0x04)
+        self.assertEqual(tls.handshake.client_hello.protocol_version, b'\x03\x03')
+        self.assertEqual(tls.handshake.client_hello.random, self.unhexlify('00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f'))
+
+    def test_parse_server_hello(self) -> None:
+        data = open(os.path.join(os.path.dirname(__file__), 'tls_server_hello.data'), 'r').read()
+        tls = TlsParser()
+        tls.parse(self.unhexlify(data))
+        self.assertEqual(tls.content_type, tlsContentType.HANDSHAKE)
+        self.assertEqual(tls.handshake.msg_type, tlsHandshakeType.SERVER_HELLO)
+        self.assertEqual(tls.handshake.server_hello.protocol_version, b'\x03\x03')
+        print(tls.handshake.server_hello.format())
+
+
 

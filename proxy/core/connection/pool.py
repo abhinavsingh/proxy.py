@@ -7,10 +7,6 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       reusability
 """
 import logging
 
@@ -64,6 +60,7 @@ class ConnectionPool:
     def __init__(self) -> None:
         # Pools of connection per upstream server
         self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
+        self.handshake_pools: Dict[Tuple[str, int], Dict[int, bytes]] = {}
 
     def acquire(self, host: str, port: int) -> Tuple[bool, TcpServerConnection]:
         """Returns a connection for use with the server."""

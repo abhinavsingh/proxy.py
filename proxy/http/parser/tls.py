@@ -8,6 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
+import binascii
 import struct
 import logging
 
@@ -16,6 +18,9 @@ from typing import NamedTuple, Optional
 
 logger = logging.getLogger(__name__)
 
+def pretty_hexlify(raw: bytes) -> str:
+    hexlified = binascii.hexlify(raw).decode('utf-8')
+    return ' '.join([hexlified[i: i+2] for i in range(0, len(hexlified), 2)])
 
 TlsContentType = NamedTuple(
     'TlsContentType', [
@@ -74,27 +79,110 @@ class TlsClientHello:
     """TLS Client Hello"""
 
     def __init__(self) -> None:
-        self.data: Optional[bytes] = None
+        self.protocol_version: Optional[bytes] = None
+        self.random: Optional[bytes] = None
+        self.session_id: Optional[bytes] = None
+        self.cipher_suite: Optional[bytes] = None
+        self.compression_method: Optional[bytes] = None
+        self.extension: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
-        self.data = raw
-
+    def parse(self, raw: bytes) -> (bool, bytes):
+        try:
+            idx = 0
+            length = len(raw)
+            self.protocol_version = raw[idx:idx + 2]
+            idx += 2
+            self.random = raw[idx:idx + 32]
+            idx += 32
+            session_length = raw[idx]
+            self.session_id = raw[idx: idx + 1 + session_length]
+            idx += 1 + session_length
+            cipher_suite_length, = struct.unpack('!H', raw[idx: idx + 2])
+            self.cipher_suite = raw[idx: idx + 2 + cipher_suite_length]
+            idx += 2 + cipher_suite_length
+            compression_method_length = raw[idx]
+            self.compression_method = raw[idx: idx + 1 + compression_method_length]
+            idx += 1 + compression_method_length
+            # extension
+            if idx == length:
+                self.extension = []
+            else:
+                extension_length, = struct.unpack('!H', raw[idx: idx + 2])
+                self.extension = raw[idx: idx + 2 + extension_length]
+                idx += 2 + extension_length
+            return True, raw[idx:]
+        except Exception as e:
+            logger.exception(e)
+            return False, raw
+       
     def build(self) -> bytes:
-        return self.data
+        # calculate length
+        return b''.join([bs for bs in [self.protocol_version, self.random, self.session_id, self.cipher_suite,
+            self.compression_method, self.extension] if bs is not None ])
+
+    def format(self) -> str:
+        parts = []
+        parts.append('Protocol Version: %s'%(pretty_hexlify(self.protocol_version) if self.protocol_version is not None else ''))
+        parts.append('Random: %s'%(pretty_hexlify(self.random) if self.random is not None else ''))
+        parts.append('Session ID: %s'%(pretty_hexlify(self.session_id) if self.session_id is not None else ''))
+        parts.append('Cipher Suite: %s'%(pretty_hexlify(self.cipher_suite) if self.cipher_suite is not None else ''))
+        parts.append('Compression Method: %s'%(pretty_hexlify(self.compression_method) if self.compression_method is not None else ''))
+        parts.append('Extension: %s'%(pretty_hexlify(self.extension) if self.extension is not None else ''))
+        return os.linesep.join(parts)
 
 
 class TlsServerHello:
     """TLS Server Hello"""
 
     def __init__(self) -> None:
-        self.data: Optional[bytes] = None
+        self.protocol_version: Optional[bytes] = None
+        self.random: Optional[bytes] = None
+        self.session_id: Optional[bytes] = None
+        self.cipher_suite: Optional[bytes] = None
+        self.compression_method: Optional[bytes] = None
+        self.extension: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
-        self.data = raw
+    def parse(self, raw: bytes) -> (bool, bytes):
+        try:
+            idx = 0
+            length = len(raw)
+            self.protocol_version = raw[idx:idx + 2]
+            idx += 2
+            self.random = raw[idx:idx + 32]
+            idx += 32
+            session_length = raw[idx]
+            self.session_id = raw[idx: idx + 1 + session_length]
+            idx += 1 + session_length
+            self.cipher_suite = raw[idx: idx + 2]
+            idx += 2
+            compression_method_length = raw[idx]
+            self.compression_method = raw[idx: idx + 1 + compression_method_length]
+            idx += 1 + compression_method_length
+            # extension
+            if idx == length:
+                self.extension = []
+            else:
+                extension_length, = struct.unpack('!H', raw[idx: idx + 2])
+                self.extension = raw[idx: idx + 2 + extension_length ]
+                idx += 2 + extension_length
+            return True, raw[idx:]
+        except Exception as e:
+            logger.exception(e)
+            return False, raw
 
     def build(self) -> bytes:
-        return self.data
+        return b''.join([bs for bs in [self.protocol_version, self.random, self.session_id, self.cipher_suite,
+            self.compression_method, self.extension] if bs is not None ])
 
+    def format(self) -> str:
+        parts = []
+        parts.append('Protocol Version: %s'%(pretty_hexlify(self.protocol_version) if self.protocol_version is not None else ''))
+        parts.append('Random: %s'%(pretty_hexlify(self.random) if self.random is not None else ''))
+        parts.append('Session ID: %s'%(pretty_hexlify(self.session_id) if self.session_id is not None else ''))
+        parts.append('Cipher Suite: %s'%(pretty_hexlify(self.cipher_suite) if self.cipher_suite is not None else ''))
+        parts.append('Compression Method: %s'%(pretty_hexlify(self.compression_method) if self.compression_method is not None else ''))
+        parts.append('Extension: %s'%(pretty_hexlify(self.extension) if self.extension is not None else ''))
+        return os.linesep.join(parts)
 
 class TlsCertificate:
     """TLS Certificate"""
@@ -102,8 +190,9 @@ class TlsCertificate:
     def __init__(self) -> None:
         self.data: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
+    def parse(self, raw: bytes) -> (bool, bytes):
         self.data = raw
+        return True, raw
 
     def build(self) -> bytes:
         return self.data
@@ -115,8 +204,9 @@ class TlsServerKeyExchange:
     def __init__(self) -> None:
         self.data: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
+    def parse(self, raw: bytes) -> (bool, bytes):
         self.data = raw
+        return True, raw
 
     def build(self) -> bytes:
         return self.data
@@ -128,8 +218,8 @@ class TlsCertificateRequest:
     def __init__(self) -> None:
         self.data: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
-        self.data = raw
+    def parse(self, raw: bytes) -> (bool, bytes):
+        return False, raw
 
     def build(self) -> bytes:
         return self.data
@@ -141,8 +231,8 @@ class TlsServerHelloDone:
     def __init__(self) -> None:
         self.data: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
-        self.data = raw
+    def parse(self, raw: bytes) -> (bool, bytes):
+        return False, raw
 
     def build(self) -> bytes:
         return self.data
@@ -154,8 +244,8 @@ class TlsCertificateVerify:
     def __init__(self) -> None:
         self.data: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
-        self.data = raw
+    def parse(self, raw: bytes) -> (bool, bytes):
+        return False, raw
 
     def build(self) -> bytes:
         return self.data
@@ -167,8 +257,8 @@ class TlsClientKeyExchange:
     def __init__(self) -> None:
         self.data: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
-        self.data = raw
+    def parse(self, raw: bytes) -> (bool, bytes):
+        return False, raw
 
     def build(self) -> bytes:
         return self.data
@@ -180,8 +270,8 @@ class TlsFinished:
     def __init__(self) -> None:
         self.data: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
-        self.data = raw
+    def parse(self, raw: bytes) -> (bool, bytes):
+        return False, raw
 
     def build(self) -> bytes:
         return self.data
@@ -191,10 +281,10 @@ class TlsHandshake:
     """TLS Handshake"""
 
     def __init__(self) -> None:
-        self.handshake_type: int = tlsHandshakeType.OTHER
-        self.length: int = 0
+        self.msg_type: int = tlsHandshakeType.OTHER
+        self.length: Optional[bytes] = None
         self.hello_request: Optional[TlsHelloRequest] = None
-        self.client_hellp: Optional[TlsClientHello] = None
+        self.client_hello: Optional[TlsClientHello] = None
         self.server_hello: Optional[TlsServerHello] = None
         self.certificate: Optional[TlsCertificate] = None
         self.server_key_exchange: Optional[TlsServerKeyExchange] = None
@@ -205,66 +295,82 @@ class TlsHandshake:
         self.finished: Optional[TlsFinished] = None
         self.data: Optional[bytes] = None
 
-    def parse(self, raw: bytes) -> bytes:
+    def parse(self, raw: bytes) -> (bool, bytes):
         length = len(raw)
         if length < 4:
             logger.debug('invalid data, len(raw) = %s', legth)
             return raw
         else:
-            payload_length, = struct.unpack('!H', b'\x00' + raw[1:4])
+            payload_length, = struct.unpack('!I', b'\x00' + raw[1:4])
             self.length = payload_length
             if length < 4 + payload_length:
                 logger.debug('incomplete data, len(raw) = %s, len(payload) = %s', length, payload_length)
-                return raw
+                return False, raw
             else:
                 # parse
-                self.handshake_type = raw[0]
+                self.msg_type = raw[0]
+                self.length = raw[1:4]
                 self.data = raw[: 4 + payload_length]
                 payload = raw[4: 4 + payload_length]
-                if self.handshake_type == tlsHandshakeType.HELLO_REQUEST:
+                if self.msg_type == tlsHandshakeType.HELLO_REQUEST:
                     # parse hello request
                     self.hello_request = TlsHelloRequest()
                     self.hello_request.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.CLIENT_HELLO:
+                elif self.msg_type == tlsHandshakeType.CLIENT_HELLO:
                     # parse client hello
-                    self.client_hellp = TlsClientHello()
-                    self.client_hellp.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.SERVER_HELLO:
+                    self.client_hello = TlsClientHello()
+                    self.client_hello.parse(payload)
+                elif self.msg_type == tlsHandshakeType.SERVER_HELLO:
                     # parse server hello
                     self.server_hello = TlsServerHello()
                     self.server_hello.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.CERTIFICATE:
+                elif self.msg_type == tlsHandshakeType.CERTIFICATE:
                     # parse certficate
                     self.certificate = TlsCertificate()
                     self.certificate.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.SERVER_KEY_EXCHANGE:
+                elif self.msg_type == tlsHandshakeType.SERVER_KEY_EXCHANGE:
                     # parse server key exchange
                     self.server_key_exchange = TlsServerKeyExchange()
                     self.server_key_exchange.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.CERTIFICATE_REQUEST:
+                elif self.msg_type == tlsHandshakeType.CERTIFICATE_REQUEST:
                     # parse certificate request
                     self.certificate_request = TlsCertificateRequest()
                     self.certificate_request.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.SERVER_HELLO_DONE:
+                elif self.msg_type == tlsHandshakeType.SERVER_HELLO_DONE:
                     # parse server hello done
                     self.server_hello_done = TlsServerHelloDone()
                     self.server_hello_done.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.CERTIFICATE_VERIFY:
+                elif self.msg_type == tlsHandshakeType.CERTIFICATE_VERIFY:
                     # parse certificate verify
                     self.certificate_verify = TlsCertificateVerify()
-                    self.certificate_verify.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.CLIENT_KEY_EXCHANGE:
+                    rself.certificate_verify.parse(payload)
+                elif self.msg_type == tlsHandshakeType.CLIENT_KEY_EXCHANGE:
                     # parse client key exchange
                     self.client_key_exchange = TlsClientKeyExchange()
                     self.client_key_exchange.parse(payload)
-                elif self.handshake_type == tlsHandshakeType.FINISHED:
+                elif self.msg_type == tlsHandshakeType.FINISHED:
                     # parse finished
                     self.finished = TlsFinished()
                     self.finished.parse(payload)
-                return raw[4 + payload_length:]
+                return True, raw[4 + payload_length:]
 
     def build(self) -> bytes:
-        return self.data
+        data = bytes()
+        data += bytes([self.msg_type])
+        payload = bytes()
+        if self.msg_type == tlsHandshakeType.CLIENT_HELLO:
+            payload = self.client_hello.build()
+        elif self.msg_type == tlsHandshakeType.SERVER_HELLO:
+            payload = self.server_hello.build()
+        elif self.msg_type == tlsHandshakeType.CERTIFICATE:
+            payload = self.certificate.build()
+        elif self.msg_type == tlsHandshakeType.SERVER_KEY_EXCHANGE:
+            payload = self.server_key_exchange.build()
+        # calculate length
+        length = struct.pack('!I', len(payload))[1:]
+        data += length
+        data += payload
+        return data
 
 
 class TlsParser:
@@ -273,38 +379,49 @@ class TlsParser:
     def __init__(self) -> None:
         self.content_type: int = tlsContentType.OTHER
         self.protocol_version: Optional[TlsProtocolVersion] = None
-        self.length: int = 0
-        self.data: Optional[bytes] = None
+        self.length: Optional[bytes] = None
         # only parse hand shake payload temporary
         self.handshake: Optional[TlsHandshake] = None
+        self.certificate: Optional[TlsCertificate]
 
-    def parse(self, raw: bytes) -> bytes:
+    def parse(self, raw: bytes) -> (bool, bytes):
         """parse TLS fragmentation
         Ref: https://datatracker.ietf.org/doc/html/rfc5246#page-15
+             https://datatracker.ietf.org/doc/html/rfc5077#page-3
+             https://datatracker.ietf.org/doc/html/rfc8446#page-10
         """
         length = len(raw)
         if length < 5:
             logger.debug('invalid data, len(raw) = %s', length)
-            return raw
+            return False, raw
         else:
             payload_length, = struct.unpack('!H', raw[3:5])
-            self.length = payload_length
+            self.protocol_version
             if length < 5 + payload_length:
                 logger.debug('incomplete data, len(raw) = %s, len(payload) = %s', length, payload_length)
-                return raw
+                return False, raw
             else:
                 # parse
                 self.content_type = raw[0]
-                self.data = raw[: 5 + payload_length]
+                self.protocol_version = raw[1:3]
+                self.length = raw[3:5]
                 payload = raw[5:5 + payload_length]
                 if self.content_type == tlsContentType.HANDSHAKE:
                     # parse handshake
                     self.handshake = TlsHandshake()
                     self.handshake.parse(payload)
-                    self.data = raw[:5 + payload_length]
-                return raw[5 + payload_length:]
+                return True, raw[5 + payload_length:]
 
     def build(self) -> bytes:
-        return self.data
+        data = bytes()
+        data += bytes([self.content_type])
+        data += self.protocol_version
+        payload = bytes()
+        if self.content_type == tlsContentType.HANDSHAKE:
+            payload += self.handshake.build()
+        length = struct.pack('!H', len(payload))
+        data += length
+        data += payload
+        return data
 
 
