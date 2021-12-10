@@ -31,7 +31,7 @@ from ..codes import httpStatusCodes
 from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes
-from ..parser.tls import TlsParser, TlsHandshake, tlsContentType, tlsHandshakeType
+# from ..parser.tls import TlsParser, TlsHandshake, tlsContentType, tlsHandshakeType
 
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
@@ -304,31 +304,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     return self._close_and_release()
                 else:
                     return False
-            # parse server response
-            tls = TlsParser()
-            flag, left = tls.parse(raw.tobytes())
-            if tls.content_type == tlsContentType.HANDSHAKE:
-                # save
-                logger.debug('receive TLS handshake, handshake type = %s', tls.handshake.msg_type)
-                import binascii
-                open('%s_%s_%s.data'%(text_(self.request.host), self.request.port, tls.handshake.msg_type), 'w+').write(binascii.hexlify(raw).decode('utf-8'))
-                if tls.handshake.msg_type == tlsHandshakeType.SERVER_HELLO:
-                    logger.debug('got TLS SERVER_HELLO response, session_id = |%s|', binascii.hexlify(tls.handshake.server_hello.session_id))
-                    logger.debug('server hello : %s', tls.handshake.server_hello.format())
-                    self.upstream.session_id = tls.handshake.server_hello.session_id
-                    # self.upstream.handshake[tlsHandshakeType.SERVER_HELLO] = raw.tobytes()
-                    self.upstream.handshake[tlsHandshakeType.SERVER_HELLO] = tls.build()
-                    # parse remain
-                    flag, left = tls.parse(left)
-                    logger.debug('flag = %s, msg_type = %s', flag, tls.handshake.msg_type)
-                    if tls.handshake.msg_type == tlsHandshakeType.CERTIFICATE:
-                        self.upstream.handshake[tlsHandshakeType.CERTIFICATE] = tls.build()
-                    # parse remain
-                    if len(left):
-                        flag, left = tls.parse(left)
-                        logger.debug('flag = %s, msg_type = %s', flag, tls.handshake.msg_type)
-                        if tls.handshake.msg_type == tlsHandshakeType.SERVER_KEY_EXCHANGE:
-                            self.upstream.handshake[tlsHandshakeType.SERVER_KEY_EXCHANGE] = tls.build()
             for plugin in self.plugins.values():
                 raw = plugin.handle_upstream_chunk(raw)
 
@@ -536,34 +511,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # For scenarios where we cannot peek into the data,
             # simply queue for upstream server.
             else:
-                if self.request.is_https_tunnel():
-                    # parse raw
-                    # parse server response
-                    tls = TlsParser()
-                    tls.parse(raw)
-                    if tls.content_type == tlsContentType.HANDSHAKE:
-                        # save
-                        import binascii
-                        logger.debug('receive client tls handshake, handshake type = %s', tls.handshake.msg_type)
-                        if tls.handshake.msg_type == tlsHandshakeType.CLIENT_HELLO:
-                            logger.debug('client hello : %s', tls.handshake.client_hello.format())
-                            # connection reused
-                            if tlsHandshakeType.SERVER_HELLO in self.upstream.handshake:
-                                # send cached SERVER HELLO response to client
-                                logger.debug('return cached SERVER HELLO to client')
-                                data = self.upstream.handshake[tlsHandshakeType.SERVER_HELLO] + self.upstream.handshake[tlsHandshakeType.CERTIFICATE] + \
-                                    self.upstream.handshake[tlsHandshakeType.SERVER_KEY_EXCHANGE]
-                                self.client.queue(memoryview(data))
-                                return None
-                    # check if close_notify
-                    bs = raw.tobytes()
-                    logger.debug(bs)
-                    logger.debug('bs[0] = |%s|', bs[0])
-                    if bs[0] == 0x15:
-                        logger.debug('close notify, just ignore')
-                        return None
-                    else:
-                        logger.debug('not close notify')
                 self.upstream.queue(raw)
             return None
         return raw
@@ -847,7 +794,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         assert isinstance(self.upstream.connection, socket.socket)
         do_close = False
         try:
-            self.upstream.wrap(text_(self.request.host), self.flags.ca_file)
+            # check if has wrapped already
+            logger.debug('type(self.upstream) = %s', type(self.upstream))
+            if not isinstance(self.upstream.connection, ssl.SSLSocket):
+                self.upstream.wrap(text_(self.request.host), self.flags.ca_file)
+            else:
+                logger.debug('self.upstream is ssl.SSLSocket already, do not need to wrap')
         except ssl.SSLCertVerificationError:    # Server raised certificate verification error
             # When --disable-interception-on-ssl-cert-verification-error flag is on,
             # we will cache such upstream hosts and avoid intercepting them for future
