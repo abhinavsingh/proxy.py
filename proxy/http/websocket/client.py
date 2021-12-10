@@ -7,11 +7,6 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
-       websocket
 """
 import ssl
 import base64
@@ -25,7 +20,7 @@ from .frame import WebsocketFrame
 
 from ..parser import httpParserTypes, HttpParser
 
-from ...common.constants import DEFAULT_BUFFER_SIZE
+from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.utils import new_socket_connection, build_websocket_handshake_request, text_
 from ...core.connection import tcpConnectionTypes, TcpConnection
 
@@ -93,7 +88,7 @@ class WebsocketClient(TcpConnection):
         if self.has_buffer():
             ev |= selectors.EVENT_WRITE
         self.selector.register(self.sock.fileno(), ev)
-        events = self.selector.select(timeout=1)
+        events = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
         self.selector.unregister(self.sock)
         for _, mask in events:
             if mask & selectors.EVENT_READ and self.on_message:
@@ -113,8 +108,7 @@ class WebsocketClient(TcpConnection):
     def run(self) -> None:
         try:
             while not self.closed:
-                teardown = self.run_once()
-                if teardown:
+                if self.run_once():
                     break
         except KeyboardInterrupt:
             pass

@@ -118,6 +118,13 @@ else:
 # Usually you set "language" from the command line for these cases.
 language = 'en'
 
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+# This pattern also affects html_static_path and html_extra_path.
+exclude_patterns = [
+    'changelog-fragments.d/**',  # Towncrier-managed change notes
+]
+
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -159,6 +166,7 @@ root_doc = master_doc = 'index'  # Sphinx 4+ / 3-  # noqa: WPS429
 # -- Options for intersphinx extension ---------------------------------------
 
 intersphinx_mapping = {
+    'myst': ('https://myst-parser.rtfd.io/en/latest', None),
     'python': ('https://docs.python.org/3', None),
     'python2': ('https://docs.python.org/2', None),
 }
@@ -240,11 +248,11 @@ default_role = 'any'
 
 nitpicky = True
 _any_role = 'any'
+_py_obj_role = 'py:obj'
 _py_class_role = 'py:class'
 nitpick_ignore = [
     (_any_role, '<proxy.HttpProxyBasePlugin>'),
     (_any_role, '__init__'),
-    (_any_role, '--threadless'),
     (_any_role, 'Client'),
     (_any_role, 'event_queue'),
     (_any_role, 'fd_queue'),
@@ -255,7 +263,10 @@ nitpick_ignore = [
     (_any_role, 'HttpParser.state'),
     (_any_role, 'HttpProtocolHandler'),
     (_any_role, 'multiprocessing.Manager'),
+    (_any_role, 'proxy.core.base.tcp_upstream.TcpUpstreamConnectionHandler'),
     (_any_role, 'work_klass'),
+    (_py_class_role, '_asyncio.Task'),
+    (_py_class_role, 'asyncio.events.AbstractEventLoop'),
     (_py_class_role, 'CacheStore'),
     (_py_class_role, 'HttpParser'),
     (_py_class_role, 'HttpProtocolHandlerPlugin'),
@@ -263,13 +274,21 @@ nitpick_ignore = [
     (_py_class_role, 'HttpWebServerBasePlugin'),
     (_py_class_role, 'multiprocessing.context.Process'),
     (_py_class_role, 'multiprocessing.synchronize.Lock'),
+    (_py_class_role, 'NonBlockingQueue'),
     (_py_class_role, 'paramiko.channel.Channel'),
     (_py_class_role, 'proxy.http.parser.parser.T'),
     (_py_class_role, 'proxy.plugin.cache.store.base.CacheStore'),
+    (_py_class_role, 'proxy.core.pool.AcceptorPool'),
+    (_py_class_role, 'proxy.core.executors.ThreadlessPool'),
+    (_py_class_role, 'proxy.core.acceptor.threadless.T'),
+    (_py_class_role, 'queue.Queue[Any]'),
     (_py_class_role, 'TcpClientConnection'),
     (_py_class_role, 'TcpServerConnection'),
     (_py_class_role, 'unittest.case.TestCase'),
     (_py_class_role, 'unittest.result.TestResult'),
     (_py_class_role, 'UUID'),
+    (_py_class_role, 'Url'),
     (_py_class_role, 'WebsocketFrame'),
+    (_py_class_role, 'Work'),
+    (_py_obj_role, 'proxy.core.acceptor.threadless.T'),
 ]

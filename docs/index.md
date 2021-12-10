@@ -28,6 +28,7 @@ Scalable
 ```{toctree}
 :hidden:
 
+changelog
 Glossary <glossary>
 ```
 
@@ -35,5 +36,8 @@ Glossary <glossary>
 :caption: Contributing
 :hidden:
 
+Code Of Conduct <contributing/code_of_conduct>
+contributing/guidelines
+contributing/security
 Private unsupported (dev) API autodoc <pkg/modules>
 ```

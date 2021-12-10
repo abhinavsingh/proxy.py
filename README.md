@@ -1,9 +1,5 @@
 [![Proxy.Py](https://raw.githubusercontent.com/abhinavsingh/proxy.py/develop/ProxyPy.png)](https://github.com/abhinavsingh/proxy.py)
 
-<p style="text-align: center;">
-⚡ Fast • 🪶 Lightweight • 0️⃣ Dependency • 🔌 Pluggable • 😈 TLS interception • 🔒 DNS-over-HTTPS • 🔥 Poor Man's VPN • ⏪ Reverse & ⏩ Forward • 👮🏿 "Proxy Server" framework • 🌐 "Web Server" framework • ➵ ➶ ➷ ➠ "PubSub" framework • 👷 "Work" acceptor & executor framework
-</p>
-
 [//]: # (DO-NOT-REMOVE-docs-badges-START)
 
 [![PyPi Monthly](https://img.shields.io/pypi/dm/proxy.py?style=for-the-badge&color=darkgreen)](https://pypi.org/project/proxy.py/)
@@ -16,26 +12,20 @@
 [![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 [![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
+[![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
+[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
 [![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
-[![docker](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-docker.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-docker.yml)
-[![dashboard](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-dashboard.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-dashboard.yml)
-[![brew](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-brew.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-brew.yml)
-[![CodeQL](https://github.com/abhinavsingh/proxy.py/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/codeql-analysis.yml)
+[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
 
 [![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/issues)
 [![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen)](https://twitter.com/imoracle)
 [![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen)](https://github.com/jaxl-innovations-private-limited)
 
-[![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
-[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
-[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
-
 # Table of Contents
 
 - [Features](#features)
 - [Install](#install)
-  - [Stable vs Develop](#stable-vs-develop)
   - [Using PIP](#using-pip)
     - [Stable version](#stable-version-with-pip)
     - [Development version](#development-version-with-pip)
@@ -101,6 +91,8 @@
   - [Inspect Traffic](#inspect-traffic)
 - [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
+  - [Stable vs Develop](#stable-vs-develop)
+    - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
   - [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
   - [Unable to load plugins](#unable-to-load-plugins)
@@ -118,11 +110,12 @@
     - [Setup Local Environment](#setup-local-environment)
     - [Setup Git Hooks](#setup-git-hooks)
     - [Sending a Pull Request](#sending-a-pull-request)
+- [Benchmarks](#benchmarks)
 - [Flags](#flags)
-- [Changelog](#changelog)
-  - [v2.x](#v2x)
-  - [v1.x](#v1x)
-  - [v0.x](#v0x)
+- [Changelog](https://proxypy.rtfd.io/en/latest/changelog)
+  - [v2.x](https://proxypy.rtfd.io/en/latest/changelog#v2x)
+  - [v1.x](https://proxypy.rtfd.io/en/latest/changelog#v1x)
+  - [v0.x](https://proxypy.rtfd.io/en/latest/changelog#v0x)
 
 [//]: # (DO-NOT-REMOVE-docs-badges-END)
 
@@ -135,38 +128,56 @@
 
     ```console
     # On Macbook Pro 2019 / 2.4 GHz 8-Core Intel Core i9 / 32 GB RAM
-    ❯ hey -n 10000 -c 100 http://localhost:8899/http-route-example
+    ❯ ./helper/benchmark.sh
+      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req
 
-    Summary:
-      Total:	0.3248 secs
-      Slowest:	0.1007 secs
-      Fastest:	0.0002 secs
-      Average:	0.0028 secs
-      Requests/sec:	30784.7958
+      Summary:
+        Success rate:	1.0000
+        Total:	2.5489 secs
+        Slowest:	0.0443 secs
+        Fastest:	0.0006 secs
+        Average:	0.0025 secs
+        Requests/sec:	39232.6572
 
-      Total data:	190000 bytes
-      Size/request:	19 bytes
+        Total data:	1.81 MiB
+        Size/request:	19 B
+        Size/sec:	727.95 KiB
 
-    Response time histogram:
-      0.000 [1]	|
-      0.010 [9533]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-      0.020 [384]	|■■
+      Response time histogram:
+        0.001 [5006]  |■■■■■
+        0.001 [19740] |■■■■■■■■■■■■■■■■■■■■■
+        0.002 [29701] |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+        0.002 [21278] |■■■■■■■■■■■■■■■■■■■■■■
+        0.003 [15376] |■■■■■■■■■■■■■■■■
+        0.004 [6644]  |■■■■■■■
+        0.004 [1609]  |■
+        0.005 [434]   |
+        0.006 [83]    |
+        0.006 [29]    |
+        0.007 [100]   |
 
-    Latency distribution:
-      10% in 0.0004 secs
-      25% in 0.0007 secs
-      50% in 0.0013 secs
-      75% in 0.0029 secs
-      90% in 0.0057 secs
-      95% in 0.0097 secs
-      99% in 0.0185 secs
+      Latency distribution:
+        10% in 0.0014 secs
+        25% in 0.0018 secs
+        50% in 0.0023 secs
+        75% in 0.0030 secs
+        90% in 0.0036 secs
+        95% in 0.0040 secs
+        99% in 0.0047 secs
 
-    Status code distribution:
-      [200]	10000 responses
+      Details (average, fastest, slowest):
+        DNS+dialup:	0.0025 secs, 0.0015 secs, 0.0030 secs
+        DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0001 secs
+
+      Status code distribution:
+        [200] 100000 responses
     ```
 
+  - See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and how to run them locally.
+
 - Lightweight
-  - Uses only `~5-20MB` RAM
+  - Uses `~5-20 MB` RAM
+  - Compressed containers size is `~18.04 MB`
   - No external dependency other than standard Python library
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
@@ -213,14 +224,6 @@
 
 # Install
 
-## Stable vs Develop
-
-`master` branch contains latest stable code and is available via `PyPi` repository
-
-`develop` branch contains cutting edge changes
-
-Development branch is kept stable *(most of the times)*. But if you want 100% reliability and serving users in production environment, always use stable version from `PyPi` or `Docker` container from `hub.docker.com`.
-
 ## Using PIP
 
 ### Stable Version with PIP
@@ -245,10 +248,28 @@ or from GitHub `master` branch
 
 ## Using Docker
 
+Stable version container releases are available for following platforms:
+
+- `linux/386`
+- `linux/amd64`
+- `linux/arm/v6`
+- `linux/arm/v7`
+- `linux/arm64/v8`
+- `linux/ppc64le`
+- `linux/s390x`
+
 ### Stable Version from Docker Hub
+
+Run `proxy.py` latest container:
 
 ```console
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
+```
+
+To run specific target platform container on multi-platform supported servers:
+
+```console
+❯ docker run -it -p 8899:8899 --rm --platform linux/arm64/v8 abhinavsingh/proxy.py:latest
 ```
 
 ### Build Development Version Locally
@@ -380,6 +401,16 @@ To start `proxy.py` from source code follow these instructions:
 
   ```console
   ❯ make lib-dep
+  ```
+
+- Generate `proxy/common/_scm_version.py`
+
+  NOTE: *Following step is not necessary for editable installs.*
+
+  This file writes SCM detected version to `proxy/common/_scm_version.py` file.
+
+  ```console
+  ❯ ./write-scm-version.sh
   ```
 
 - Optionally, run tests
@@ -1587,21 +1618,11 @@ optional arguments:
 
 ## Internal Documentation
 
-Code is well documented. Browse through internal class hierarchy and documentation using `pydoc3`
+Code is well documented. You have a few options to browse the internal class hierarchy and documentation:
 
-```console
-❯ pydoc3 proxy
-
-PACKAGE CONTENTS
-    __main__
-    common (package)
-    core (package)
-    http (package)
-    main
-
-FILE
-    /Users/abhinav/Dev/proxy.py/proxy/__init__.py
-```
+1. Visit [proxypy.readthedocs.io](https://proxypy.readthedocs.io/)
+2. Build and open docs locally using `make lib-doc`
+2. Use `pydoc3` locally using `pydoc3 proxy`
 
 # Run Dashboard
 
@@ -1666,6 +1687,30 @@ start `proxy.py` as:
 Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
+
+## Stable vs Develop
+
+- `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `hub.docker.com`
+
+  Issues reported for `stable` releases are considered with top-priority.  However, currently we don't back port fixes into older releases.  Example, if you reported an issue in `v2.3.1`, but current `master` branch now contains `v2.4.0rc1`.  Then, the fix will land in `v2.4.0rc2`.
+
+- `develop` branch contains cutting edge changes
+
+  Development branch is kept stable *(most of the times)*. **But**, if you want *100% reliability* and serving users in *production environment*, ALWAYS use the stable version.
+
+### Release Schedule
+
+A `vX.Y.ZrcN` pull request is created once a month which merges `develop` → `master`.  Find below how code flows from a pull request to the next stable release.
+
+1. Development release is deployed from `develop` → `test.pypi.org` after every pull request merge
+
+2. Alpha release is deployed from `develop` → `pypi.org` **before** merging the `vX.Y.Z.rcN` pull request from `develop` → `master` branch.  There can be multiple alpha releases made before merging the `rc` pull request
+
+3. Beta release is deployed from `master` → `pypi.org`.  Beta releases are made in preparation of `rc` releases and can be skipped if unnecessary
+
+4. Release candidate is deployed from `master` → `pypi.org`.  Release candidates are always made available before final stable release
+
+5. Stable release is deployed from `master` → `pypi.org`
 
 ## Threads vs Threadless
 
@@ -1986,13 +2031,23 @@ Every pull request is tested using GitHub actions.
 See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
 for list of tests.
 
+# Benchmarks
+
+See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisons with other OSS web servers.
+
+To run standalone benchmark for `proxy.py`, use the following command from repo root:
+
+```console
+❯ ./helper/benchmark.sh
+```
+
 # Flags
 
 ```console
 ❯ proxy -h
 usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS] [--backlog BACKLOG]
-          [--hostname HOSTNAME] [--port PORT]
+          [--threaded] [--num-workers NUM_WORKERS] [--local-executor]
+          [--backlog BACKLOG] [--hostname HOSTNAME] [--port PORT]
           [--unix-socket-path UNIX_SOCKET_PATH]
           [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
           [--log-file LOG_FILE] [--log-format LOG_FORMAT]
@@ -2018,7 +2073,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2
+proxy.py v2.3.2.dev190+ge60d80d.d20211124
 
 options:
   -h, --help            show this help message and exit
@@ -2035,6 +2090,13 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
+  --local-executor      Default: False. Disabled by default. When enabled
+                        acceptors will make use of local (same process)
+                        executor instead of distributing load across remote
+                        (other process) executors. Enable this option to
+                        achieve CPU affinity between acceptors and executors,
+                        instead of using underlying OS kernel scheduling
+                        algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server
   --hostname HOSTNAME   Default: ::1. Server IP address.
@@ -2161,26 +2223,3 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
-
-# Changelog
-
-## v2.x
-
-- No longer ~~a single file module~~.
-- Added support for threadless execution.
-- Added dashboard app.
-- Added support for unit testing.
-
-## v1.x
-
-- `Python3` only.
-  - Deprecated support for ~~Python 2.x~~.
-- Added support multi core accept.
-- Added plugin support.
-
-## v0.x
-
-- Single file.
-- Single threaded server.
-
-For detailed changelog refer to release PRs or commit history.

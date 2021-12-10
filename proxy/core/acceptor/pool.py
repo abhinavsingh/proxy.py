@@ -31,10 +31,6 @@ from ..event import EventQueue
 from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_ACCEPTORS
 
-# Lock shared by acceptors for
-# sequential acceptance of work.
-LOCK = multiprocessing.Lock()
-
 logger = logging.getLogger(__name__)
 
 
@@ -72,6 +68,7 @@ class AcceptorPool:
             listener: Listener,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
+            executor_locks: List[multiprocessing.synchronize.Lock],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         self.flags = flags
@@ -80,12 +77,16 @@ class AcceptorPool:
         # Available executors
         self.executor_queues: List[connection.Connection] = executor_queues
         self.executor_pids: List[int] = executor_pids
+        self.executor_locks: List[multiprocessing.synchronize.Lock] = executor_locks
         # Eventing core queue
         self.event_queue: Optional[EventQueue] = event_queue
         # Acceptor process instances
         self.acceptors: List[Acceptor] = []
         # Fd queues used to share file descriptor with acceptor processes
         self.fd_queues: List[connection.Connection] = []
+        # Internals
+        self.lock = multiprocessing.Lock()
+        # self.semaphore = multiprocessing.Semaphore(0)
 
     def __enter__(self) -> 'AcceptorPool':
         self.setup()
@@ -124,10 +125,12 @@ class AcceptorPool:
                 idd=acceptor_id,
                 fd_queue=work_queue[1],
                 flags=self.flags,
-                lock=LOCK,
+                lock=self.lock,
+                # semaphore=self.semaphore,
                 event_queue=self.event_queue,
                 executor_queues=self.executor_queues,
                 executor_pids=self.executor_pids,
+                executor_locks=self.executor_locks,
             )
             acceptor.start()
             logger.debug(

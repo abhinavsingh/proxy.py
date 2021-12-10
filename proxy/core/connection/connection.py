@@ -41,6 +41,7 @@ class TcpConnection(ABC):
         self.buffer: List[memoryview] = []
         self.closed: bool = False
         self._reusable: bool = False
+        self._num_buffer = 0
 
     @property
     @abstractmethod
@@ -76,10 +77,11 @@ class TcpConnection(ABC):
         return self.closed
 
     def has_buffer(self) -> bool:
-        return len(self.buffer) > 0
+        return self._num_buffer != 0
 
     def queue(self, mv: memoryview) -> None:
         self.buffer.append(mv)
+        self._num_buffer += 1
 
     def flush(self) -> int:
         """Users must handle BrokenPipeError exceptions"""
@@ -89,6 +91,7 @@ class TcpConnection(ABC):
         sent: int = self.send(mv[:DEFAULT_MAX_SEND_SIZE])
         if sent == len(mv):
             self.buffer.pop(0)
+            self._num_buffer -= 1
         else:
             self.buffer[0] = memoryview(mv[sent:])
         del mv
@@ -105,3 +108,4 @@ class TcpConnection(ABC):
         assert not self.closed
         self._reusable = True
         self.buffer = []
+        self._num_buffer = 0

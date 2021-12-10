@@ -1,0 +1,48 @@
+---
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+# Maintain dependencies for GitHub Actions
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule:
+    interval: "daily"
+  # Allow up to 1 open pull requests
+  open-pull-requests-limit: 1
+  # Add reviewers
+  reviewers:
+  - abhinavsingh
+
+# Maintain dependencies for npm
+- package-ecosystem: "npm"
+  directory: "/dashboard"
+  schedule:
+    interval: "daily"
+  # Allow up to 1 open pull requests
+  open-pull-requests-limit: 1
+  reviewers:
+  - abhinavsingh
+  # Prefix all commit messages with "npm"
+  commit-message:
+    prefix: "npm"
+
+# Maintain dependencies for pip
+- package-ecosystem: "pip"
+  directory: "/"
+  schedule:
+    interval: "daily"
+  # Allow up to 1 open pull requests
+  open-pull-requests-limit: 1
+  reviewers:
+  - abhinavsingh
+  # Include a list of updated dependencies
+  # with a prefix determined by the dependency group
+  commit-message:
+    prefix: "pip prod"
+    prefix-development: "pip dev"
+    include: "scope"
+...

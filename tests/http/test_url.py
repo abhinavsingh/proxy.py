@@ -15,6 +15,22 @@ from proxy.http import Url
 
 class TestUrl(unittest.TestCase):
 
+    def test_url_str(self) -> None:
+        url = Url.from_bytes(b'localhost')
+        self.assertEqual(str(url), 'localhost')
+        url = Url.from_bytes(b'/')
+        self.assertEqual(str(url), '/')
+        url = Url.from_bytes(b'http://httpbin.org/get')
+        self.assertEqual(str(url), 'http://httpbin.org/get')
+        url = Url.from_bytes(b'httpbin.org:443')
+        self.assertEqual(str(url), 'httpbin.org:443')
+        url = Url.from_bytes('å∫ç.com'.encode('utf-8'))
+        self.assertEqual(str(url), 'å∫ç.com')
+        url = Url.from_bytes(b'https://example.com/path/dir/?a=b&c=d#p=q')
+        self.assertEqual(str(url), 'https://example.com/path/dir/?a=b&c=d#p=q')
+        url = Url.from_bytes(b'http://localhost:12345/v1/users/')
+        self.assertEqual(str(url), 'http://localhost:12345/v1/users/')
+
     def test_just_domain_name_url(self) -> None:
         url = Url.from_bytes(b'localhost')
         self.assertEqual(url.scheme, None)

@@ -7,20 +7,16 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import ssl
 import time
 import errno
 import socket
+import asyncio
 import logging
 import selectors
-import contextlib
 
-from typing import Tuple, List, Union, Optional, Generator, Dict, Any
+from typing import Tuple, List, Union, Optional, Dict, Any
 
 from .plugin import HttpProtocolHandlerPlugin
 from .parser import HttpParser, httpParserStates, httpParserTypes
@@ -31,7 +27,8 @@ from ..common.utils import wrap_socket, is_threadless
 from ..core.base import BaseTcpServerHandler
 from ..core.connection import TcpClientConnection
 from ..common.flag import flags
-from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, DEFAULT_TIMEOUT
+from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE
+from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT, DEFAULT_TIMEOUT
 
 
 logger = logging.getLogger(__name__)
@@ -62,11 +59,6 @@ flags.add_argument(
     'an inactive connection must be dropped.  Inactivity is defined by no '
     'data sent or received by the client.',
 )
-
-SelectedEventsGeneratorType = Generator[
-    Tuple[Readables, Writables],
-    None, None,
-]
 
 
 class HttpProtocolHandler(BaseTcpServerHandler):
@@ -121,21 +113,19 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     def shutdown(self) -> None:
         try:
             # Flush pending buffer in threaded mode only.
+            #
             # For threadless mode, BaseTcpServerHandler implements
             # the must_flush_before_shutdown logic automagically.
-            if self.selector:
+            if self.selector and self.work.has_buffer():
                 self._flush()
-
             # Invoke plugin.on_client_connection_close
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()
-
             logger.debug(
                 'Closing client connection %r '
                 'at address %s has buffer %s' %
                 (self.work.connection, self.work.address, self.work.has_buffer()),
             )
-
             conn = self.work.connection
             # Unwrap if wrapped before shutdown.
             if self._encryption_enabled() and \
@@ -146,73 +136,71 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         except OSError:
             pass
         finally:
+            # Section 4.2.2.13 of RFC 1122 tells us that a close() with any pending readable data
+            # could lead to an immediate reset being sent.
+            #
+            #   "A host MAY implement a 'half-duplex' TCP close sequence, so that an application
+            #   that has called CLOSE cannot continue to read data from the connection.
+            #   If such a host issues a CLOSE call while received data is still pending in TCP,
+            #   or if new data is received after CLOSE is called, its TCP SHOULD send a RST to
+            #   show that data was lost."
+            #
             self.work.connection.close()
             logger.debug('Client connection closed')
             super().shutdown()
 
-    def get_events(self) -> Dict[socket.socket, int]:
+    async def get_events(self) -> Dict[int, int]:
         # Get default client events
-        events: Dict[socket.socket, int] = super().get_events()
+        events: Dict[int, int] = await super().get_events()
         # HttpProtocolHandlerPlugin.get_descriptors
         for plugin in self.plugins.values():
             plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
-            for r in plugin_read_desc:
-                if r not in events:
-                    events[r] = selectors.EVENT_READ
+            for rfileno in plugin_read_desc:
+                if rfileno not in events:
+                    events[rfileno] = selectors.EVENT_READ
                 else:
-                    events[r] |= selectors.EVENT_READ
-            for w in plugin_write_desc:
-                if w not in events:
-                    events[w] = selectors.EVENT_WRITE
+                    events[rfileno] |= selectors.EVENT_READ
+            for wfileno in plugin_write_desc:
+                if wfileno not in events:
+                    events[wfileno] = selectors.EVENT_WRITE
                 else:
-                    events[w] |= selectors.EVENT_WRITE
+                    events[wfileno] |= selectors.EVENT_WRITE
         return events
 
     # We override super().handle_events and never call it
-    def handle_events(
+    async def handle_events(
             self,
             readables: Readables,
             writables: Writables,
     ) -> bool:
         """Returns True if proxy must tear down."""
         # Flush buffer for ready to write sockets
-        teardown = self.handle_writables(writables)
+        teardown = await self.handle_writables(writables)
         if teardown:
             return True
-
         # Invoke plugin.write_to_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.write_to_descriptors(writables)
+            teardown = await plugin.write_to_descriptors(writables)
             if teardown:
                 return True
-
         # Read from ready to read sockets
-        teardown = self.handle_readables(readables)
+        teardown = await self.handle_readables(readables)
         if teardown:
             return True
-
         # Invoke plugin.read_from_descriptors
         for plugin in self.plugins.values():
-            teardown = plugin.read_from_descriptors(readables)
+            teardown = await plugin.read_from_descriptors(readables)
             if teardown:
                 return True
-
         return False
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
+        """Handles incoming data from client."""
         if data is None:
             logger.debug('Client closed connection, tearing down...')
             self.work.closed = True
             return True
-
         try:
-            # HttpProtocolHandlerPlugin.on_client_data
-            # Can raise HttpProtocolException to teardown the connection
-            for plugin in self.plugins.values():
-                optional_data = plugin.on_client_data(data)
-                if optional_data is None:
-                    break
-                data = optional_data
             # Don't parse incoming data any further after 1st request has completed.
             #
             # This specially does happen for pipeline requests.
@@ -220,12 +208,13 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # Plugins can utilize on_client_data for such cases and
             # apply custom logic to handle request data sent after 1st
             # valid request.
-            if data and self.request.state != httpParserStates.COMPLETE:
+            if self.request.state != httpParserStates.COMPLETE:
                 # Parse http request
+                #
                 # TODO(abhinavsingh): Remove .tobytes after parser is
                 # memoryview compliant
                 self.request.parse(data.tobytes())
-                if self.request.state == httpParserStates.COMPLETE:
+                if self.request.is_complete:
                     # Invoke plugin.on_request_complete
                     for plugin in self.plugins.values():
                         upgraded_sock = plugin.on_request_complete()
@@ -239,6 +228,14 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                                     plugin_.client._conn = upgraded_sock
                         elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                             return True
+            else:
+                # HttpProtocolHandlerPlugin.on_client_data
+                # Can raise HttpProtocolException to tear down the connection
+                for plugin in self.plugins.values():
+                    optional_data = plugin.on_client_data(data)
+                    if optional_data is None:
+                        break
+                    data = optional_data
         except HttpProtocolException as e:
             logger.debug('HttpProtocolException raised')
             response: Optional[memoryview] = e.response(self.request)
@@ -247,8 +244,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             return True
         return False
 
-    def handle_writables(self, writables: Writables) -> bool:
-        if self.work.connection in writables and self.work.has_buffer():
+    async def handle_writables(self, writables: Writables) -> bool:
+        if self.work.connection.fileno() in writables and self.work.has_buffer():
             logger.debug('Client is ready for writes, flushing buffer')
             self.last_activity = time.time()
 
@@ -264,7 +261,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
             try:
                 # Call super() for client flush
-                teardown = super().handle_writables(writables)
+                teardown = await super().handle_writables(writables)
                 if teardown:
                     return True
             except BrokenPipeError:
@@ -277,12 +274,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 return True
         return False
 
-    def handle_readables(self, readables: Readables) -> bool:
-        if self.work.connection in readables:
+    async def handle_readables(self, readables: Readables) -> bool:
+        if self.work.connection.fileno() in readables:
             logger.debug('Client is ready for reads, reading')
             self.last_activity = time.time()
             try:
-                teardown = super().handle_readables(readables)
+                teardown = await super().handle_readables(readables)
                 if teardown:
                     return teardown
             except ssl.SSLWantReadError:    # Try again later
@@ -297,46 +294,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                     # here to avoid flooding the logs.
                     logger.debug('%r' % e)
                 else:
-                    logger.exception(
-                        'Exception while receiving from %s connection %r with reason %r' %
-                        (self.work.tag, self.work.connection, e),
+                    logger.warning(
+                        'Exception when receiving from %s connection#%d with reason %r' %
+                        (self.work.tag, self.work.connection.fileno(), e),
                     )
                 return True
         return False
-
-    ##
-    # run() is here to maintain backward compatibility for threaded mode
-    ##
-
-    def run(self) -> None:
-        """run() method is not used when in --threadless mode.
-
-        This is here just to maintain backward compatibility with threaded mode.
-        """
-        try:
-            self.initialize()
-            while True:
-                # Teardown if client buffer is empty and connection is inactive
-                if self.is_inactive():
-                    logger.debug(
-                        'Client buffer is empty and maximum inactivity has reached '
-                        'between client and server connection, tearing down...',
-                    )
-                    break
-                teardown = self._run_once()
-                if teardown:
-                    break
-        except KeyboardInterrupt:  # pragma: no cover
-            pass
-        except ssl.SSLError as e:
-            logger.exception('ssl.SSLError', exc_info=e)
-        except Exception as e:
-            logger.exception(
-                'Exception while handling connection %r' %
-                self.work.connection, exc_info=e,
-            )
-        finally:
-            self.shutdown()
 
     ##
     # Internal methods
@@ -359,13 +322,66 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
         return conn
 
-    @contextlib.contextmanager
-    def _selected_events(self) -> SelectedEventsGeneratorType:
+    def _connection_inactive_for(self) -> float:
+        return time.time() - self.last_activity
+
+    ##
+    # run() and _run_once() are here to maintain backward compatibility
+    # with threaded mode.  These methods are only called when running
+    # in threaded mode.
+    ##
+
+    def run(self) -> None:
+        """run() method is not used when in --threadless mode.
+
+        This is here just to maintain backward compatibility with threaded mode.
+        """
+        loop = asyncio.new_event_loop()
+        try:
+            self.initialize()
+            while True:
+                # Tear down if client buffer is empty and connection is inactive
+                if self.is_inactive():
+                    logger.debug(
+                        'Client buffer is empty and maximum inactivity has reached '
+                        'between client and server connection, tearing down...',
+                    )
+                    break
+                if loop.run_until_complete(self._run_once()):
+                    break
+        except KeyboardInterrupt:  # pragma: no cover
+            pass
+        except ssl.SSLError as e:
+            logger.exception('ssl.SSLError', exc_info=e)
+        except Exception as e:
+            logger.exception(
+                'Exception while handling connection %r' %
+                self.work.connection, exc_info=e,
+            )
+        finally:
+            self.shutdown()
+            loop.close()
+
+    async def _run_once(self) -> bool:
+        events, readables, writables = await self._selected_events()
+        try:
+            return await self.handle_events(readables, writables)
+        finally:
+            assert self.selector
+            # TODO: Like Threadless we should not unregister
+            # work fds repeatedly.
+            for fd in events:
+                self.selector.unregister(fd)
+
+    # FIXME: Returning events is only necessary because we cannot use async context manager
+    # for < Python 3.8.  As a reason, this method is no longer a context manager and caller
+    # is responsible for unregistering the descriptors.
+    async def _selected_events(self) -> Tuple[Dict[int, int], Readables, Writables]:
         assert self.selector
-        events = self.get_events()
+        events = await self.get_events()
         for fd in events:
             self.selector.register(fd, events[fd])
-        ev = self.selector.select(timeout=1)
+        ev = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
         readables = []
         writables = []
         for key, mask in ev:
@@ -373,30 +389,21 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 readables.append(key.fileobj)
             if mask & selectors.EVENT_WRITE:
                 writables.append(key.fileobj)
-        yield (readables, writables)
-        for fd in events:
-            self.selector.unregister(fd)
-
-    def _run_once(self) -> bool:
-        with self._selected_events() as (readables, writables):
-            teardown = self.handle_events(readables, writables)
-            if teardown:
-                return True
-            return False
+        return (events, readables, writables)
 
     def _flush(self) -> None:
         assert self.selector
-        if not self.work.has_buffer():
-            return
+        logger.debug('Flushing pending data')
         try:
             self.selector.register(
                 self.work.connection,
                 selectors.EVENT_WRITE,
             )
             while self.work.has_buffer():
+                logging.debug('Waiting for client read ready')
                 ev: List[
                     Tuple[selectors.SelectorKey, int]
-                ] = self.selector.select(timeout=1)
+                ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
                 if len(ev) == 0:
                     continue
                 self.work.flush()
@@ -404,6 +411,3 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             pass
         finally:
             self.selector.unregister(self.work.connection)
-
-    def _connection_inactive_for(self) -> float:
-        return time.time() - self.last_activity

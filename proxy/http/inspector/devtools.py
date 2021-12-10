@@ -11,7 +11,6 @@
     .. spelling::
 
        devtools
-       http
 """
 import json
 import logging

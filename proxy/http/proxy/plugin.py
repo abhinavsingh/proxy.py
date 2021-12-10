@@ -7,12 +7,7 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
-import socket
 import argparse
 
 from abc import ABC
@@ -61,9 +56,7 @@ class HttpProxyBasePlugin(ABC):
     # Since 3.4.0
     #
     # @abstractmethod
-    def get_descriptors(
-            self,
-    ) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         return [], []  # pragma: no cover
 
     # @abstractmethod
@@ -123,6 +116,8 @@ class HttpProxyBasePlugin(ABC):
 
         Essentially, if you return None from within before_upstream_connection,
         be prepared to handle_client_data and not handle_client_request.
+
+        Only called after initial request from client has been received.
 
         Raise HttpRequestRejected to tear down the connection
         Return None to drop the connection

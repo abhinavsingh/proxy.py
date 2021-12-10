@@ -7,10 +7,6 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import re
 import gzip
@@ -32,7 +28,7 @@ from ..codes import httpStatusCodes
 from ..exception import HttpProtocolException
 from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..parser import HttpParser, httpParserTypes
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
@@ -110,25 +106,31 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.start_time: float = time.time()
         self.pipeline_request: Optional[HttpParser] = None
         self.switched_protocol: Optional[int] = None
-        self.routes: Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]] = {
+        self.route: Optional[HttpWebServerBasePlugin] = None
+
+        self.plugins: Dict[str, HttpWebServerBasePlugin] = {}
+        self.routes: Dict[
+            int, Dict[Pattern[str], HttpWebServerBasePlugin],
+        ] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
             httpProtocolTypes.WEBSOCKET: {},
         }
-        self.route: Optional[HttpWebServerBasePlugin] = None
-
-        self.plugins: Dict[str, HttpWebServerBasePlugin] = {}
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
-            for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
-                instance: HttpWebServerBasePlugin = klass(
-                    self.uid,
-                    self.flags,
-                    self.client,
-                    self.event_queue,
-                )
-                self.plugins[instance.name()] = instance
-                for (protocol, route) in instance.routes():
-                    self.routes[protocol][re.compile(route)] = instance
+            self._initialize_web_plugins()
+
+    def _initialize_web_plugins(self) -> None:
+        for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
+            instance: HttpWebServerBasePlugin = klass(
+                self.uid,
+                self.flags,
+                self.client,
+                self.event_queue,
+            )
+            self.plugins[instance.name()] = instance
+            for (protocol, route) in instance.routes():
+                pattern = re.compile(route)
+                self.routes[protocol][pattern] = self.plugins[instance.name()]
 
     def encryption_enabled(self) -> bool:
         return self.flags.keyfile is not None and \
@@ -186,45 +188,38 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def on_request_complete(self) -> Union[socket.socket, bool]:
         if self.request.has_host():
             return False
-
         path = self.request.path or b'/'
-
-        # If a websocket route exists for the path, try upgrade
-        for route in self.routes[httpProtocolTypes.WEBSOCKET]:
-            match = route.match(text_(path))
-            if match:
-                self.route = self.routes[httpProtocolTypes.WEBSOCKET][route]
-
-                # Connection upgrade
-                teardown = self.try_upgrade()
-                if teardown:
-                    return True
-
-                # For upgraded connections, nothing more to do
-                if self.switched_protocol:
-                    # Invoke plugin.on_websocket_open
-                    self.route.on_websocket_open()
-                    return False
-
-                break
-
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
             if self.encryption_enabled() else \
             httpProtocolTypes.HTTP
         for route in self.routes[protocol]:
-            match = route.match(text_(path))
-            if match:
+            if route.match(text_(path)):
                 self.route = self.routes[protocol][route]
+                assert self.route
                 self.route.handle_request(self.request)
                 if self.request.has_header(b'connection') and \
                         self.request.header(b'connection').lower() == b'close':
                     return True
                 return False
-
+        # If a websocket route exists for the path, try upgrade
+        for route in self.routes[httpProtocolTypes.WEBSOCKET]:
+            if route.match(text_(path)):
+                self.route = self.routes[httpProtocolTypes.WEBSOCKET][route]
+                # Connection upgrade
+                teardown = self.try_upgrade()
+                if teardown:
+                    return True
+                # For upgraded connections, nothing more to do
+                if self.switched_protocol:
+                    # Invoke plugin.on_websocket_open
+                    assert self.route
+                    self.route.on_websocket_open()
+                    return False
+                break
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
-            path = text_(path).split('?')[0]
+            path = text_(path).split('?', 1)[0]
             self.client.queue(
                 self.read_and_build_static_file_response(
                     self.flags.static_server_dir + path,
@@ -232,14 +227,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 ),
             )
             return True
-
         # Catch all unhandled web server requests, return 404
         self.client.queue(self.DEFAULT_404_RESPONSE)
         return True
 
-    def get_descriptors(
-            self,
-    ) -> Tuple[List[socket.socket], List[socket.socket]]:
+    def get_descriptors(self) -> Tuple[List[int], List[int]]:
         r, w = [], []
         for plugin in self.plugins.values():
             r1, w1 = plugin.get_descriptors()
@@ -247,14 +239,14 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             w.extend(w1)
         return r, w
 
-    def write_to_descriptors(self, w: Writables) -> bool:
+    async def write_to_descriptors(self, w: Writables) -> bool:
         for plugin in self.plugins.values():
             teardown = plugin.write_to_descriptors(w)
             if teardown:
                 return True
         return False
 
-    def read_from_descriptors(self, r: Readables) -> bool:
+    async def read_from_descriptors(self, r: Readables) -> bool:
         for plugin in self.plugins.values():
             teardown = plugin.read_from_descriptors(r)
             if teardown:
@@ -268,7 +260,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             remaining = raw.tobytes()
             frame = WebsocketFrame()
             while remaining != b'':
-                # TODO: Teardown if invalid protocol exception
+                # TODO: Tear down if invalid protocol exception
                 remaining = frame.parse(remaining)
                 if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
                     logger.warning(
@@ -282,8 +274,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
-        if self.request.state == httpParserStates.COMPLETE and \
-                self.request.is_http_1_1_keep_alive() and \
+        if self.request.is_complete and \
+                self.request.is_http_1_1_keep_alive and \
                 self.route is not None:
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(
@@ -292,11 +284,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
             # compliant
             self.pipeline_request.parse(raw.tobytes())
-            if self.pipeline_request.state == httpParserStates.COMPLETE:
+            if self.pipeline_request.is_complete:
                 self.route.handle_request(self.pipeline_request)
-                if not self.pipeline_request.is_http_1_1_keep_alive():
+                if not self.pipeline_request.is_http_1_1_keep_alive:
                     logger.error(
-                        'Pipelined request is not keep-alive, will teardown request...',
+                        'Pipelined request is not keep-alive, will tear down request...',
                     )
                     raise HttpProtocolException()
                 self.pipeline_request = None
@@ -327,7 +319,5 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if not log_handled:
             self.access_log(context)
 
-    # TODO: Allow plugins to customize access_log, similar
-    # to how proxy server plugins are able to do it.
     def access_log(self, context: Dict[str, Any]) -> None:
         logger.info(DEFAULT_WEB_ACCESS_LOG_FORMAT.format_map(context))

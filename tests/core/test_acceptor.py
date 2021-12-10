@@ -34,6 +34,7 @@ class TestAcceptor(unittest.TestCase):
             lock=multiprocessing.Lock(),
             executor_queues=[],
             executor_pids=[],
+            executor_locks=[],
         )
 
     @mock.patch('selectors.DefaultSelector')
@@ -83,7 +84,7 @@ class TestAcceptor(unittest.TestCase):
         mock_thread.return_value.start.side_effect = KeyboardInterrupt()
 
         selector = mock_selector.return_value
-        selector.select.return_value = [(None, None)]
+        selector.select.return_value = [(None, selectors.EVENT_READ)]
 
         self.acceptor.run()
 

@@ -7,10 +7,6 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       eventing
 """
 import os
 import sys
@@ -114,15 +110,20 @@ flags.add_argument(
 
 
 class Proxy:
-    """Context manager to control AcceptorPool, ExecutorPool & EventingCore lifecycle.
+    """Proxy is a context manager to control proxy.py library core.
 
-    By default, AcceptorPool is started with
+    By default, :class:`~proxy.core.pool.AcceptorPool` is started with
     :class:`~proxy.http.handler.HttpProtocolHandler` work class.
     By definition, it expects HTTP traffic to flow between clients and server.
 
-    Optionally, it also initializes the eventing core, a multi-process safe
-    pubsub system queue which can be used to build various patterns
-    for message sharing and/or signaling.
+    In ``--threadless`` mode and without ``--local-executor``,
+    a :class:`~proxy.core.executors.ThreadlessPool` is also started.
+    Executor pool receives newly accepted work by :class:`~proxy.core.acceptor.Acceptor`
+    and creates an instance of work class for processing the received work.
+
+    Optionally, Proxy class also initializes the EventManager.
+    A multi-process safe pubsub system which can be used to build various
+    patterns for message sharing and/or signaling.
     """
 
     def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
@@ -162,6 +163,7 @@ class Proxy:
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
         self.flags.port = self.listener._port
+        # Setup EventManager
         if self.flags.enable_events:
             logger.info('Core Event enabled')
             self.event_manager = EventManager()
@@ -169,16 +171,20 @@ class Proxy:
         event_queue = self.event_manager.queue \
             if self.event_manager is not None \
             else None
-        self.executors = ThreadlessPool(
-            flags=self.flags,
-            event_queue=event_queue,
-        )
-        self.executors.setup()
+        # Setup remote executors
+        if not self.flags.local_executor:
+            self.executors = ThreadlessPool(
+                flags=self.flags,
+                event_queue=event_queue,
+            )
+            self.executors.setup()
+        # Setup acceptors
         self.acceptors = AcceptorPool(
             flags=self.flags,
             listener=self.listener,
-            executor_queues=self.executors.work_queues,
-            executor_pids=self.executors.work_pids,
+            executor_queues=self.executors.work_queues if self.executors else [],
+            executor_pids=self.executors.work_pids if self.executors else [],
+            executor_locks=self.executors.work_locks if self.executors else [],
             event_queue=event_queue,
         )
         self.acceptors.setup()
@@ -187,8 +193,9 @@ class Proxy:
     def shutdown(self) -> None:
         assert self.acceptors
         self.acceptors.shutdown()
-        assert self.executors
-        self.executors.shutdown()
+        if not self.flags.local_executor:
+            assert self.executors
+            self.executors.shutdown()
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.shutdown()
