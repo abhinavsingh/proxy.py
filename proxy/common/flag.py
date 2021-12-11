@@ -157,7 +157,7 @@ class FlagParser:
             auth_plugins.append(auth_plugin)
 
         # --enable flags must be parsed before loading plugins
-        # otherwise we will miss the plugins passed via contructor
+        # otherwise we will miss the plugins passed via constructor
         args.enable_web_server = cast(
             bool,
             opts.get(
