@@ -317,7 +317,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             # TODO: Track and inject web server specific response attributes
             # Currently, plugins are allowed to queue raw bytes, because of
             # which we'll have to reparse the queued packets to deduce
-            # several attributes required below.  Atleast for code and
+            # several attributes required below.  At least for code and
             # reason attributes.
             #
             # 'response_bytes': self.response.total_size,
