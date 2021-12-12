@@ -340,11 +340,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
             'request_bytes': self.request.total_size,
-            'request_code': self.request.code,
             'request_ua': self.request.header(b'user-agent')
             if self.request.has_header(b'user-agent')
             else None,
-            'request_reason': self.request.reason,
             'request_version': self.request.version,
             # Response
             'response_bytes': self.response.total_size,
