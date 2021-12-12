@@ -156,6 +156,30 @@ class FlagParser:
             # unless user overrides the default auth plugin.
             auth_plugins.append(auth_plugin)
 
+        # --enable flags must be parsed before loading plugins
+        # otherwise we will miss the plugins passed via constructor
+        args.enable_web_server = cast(
+            bool,
+            opts.get(
+                'enable_web_server',
+                args.enable_web_server,
+            ),
+        )
+        args.enable_static_server = cast(
+            bool,
+            opts.get(
+                'enable_static_server',
+                args.enable_static_server,
+            ),
+        )
+        args.enable_events = cast(
+            bool,
+            opts.get(
+                'enable_events',
+                args.enable_events,
+            ),
+        )
+
         # Load default plugins along with user provided --plugins
         default_plugins = [
             bytes_(p)
@@ -290,18 +314,12 @@ class FlagParser:
             args.num_acceptors = cast(
                 int, num_acceptors if num_acceptors > 0 else multiprocessing.cpu_count(),
             )
+
         args.static_server_dir = cast(
             str,
             opts.get(
                 'static_server_dir',
                 args.static_server_dir,
-            ),
-        )
-        args.enable_static_server = cast(
-            bool,
-            opts.get(
-                'enable_static_server',
-                args.enable_static_server,
             ),
         )
         args.min_compression_limit = cast(
@@ -324,13 +342,6 @@ class FlagParser:
         args.timeout = cast(int, opts.get('timeout', args.timeout))
         args.threadless = cast(bool, opts.get('threadless', args.threadless))
         args.threaded = cast(bool, opts.get('threaded', args.threaded))
-        args.enable_events = cast(
-            bool,
-            opts.get(
-                'enable_events',
-                args.enable_events,
-            ),
-        )
         args.pid_file = cast(
             Optional[str], opts.get(
                 'pid_file',
