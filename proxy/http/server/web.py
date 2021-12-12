@@ -301,10 +301,28 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if self.request.has_host():
             return
         context = {
-            'client_addr': self.client.address,
+            'client_ip': None if not self.client.addr else self.client.addr[0],
+            'client_port': None if not self.client.addr else self.client.addr[1],
+            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            # Request
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
-            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            'request_bytes': self.request.total_size,
+            'request_ua': self.request.header(b'user-agent')
+            if self.request.has_header(b'user-agent')
+            else None,
+            'request_version': self.request.version,
+            # Response
+            #
+            # TODO: Track and inject web server specific response attributes
+            # Currently, plugins are allowed to queue raw bytes, because of
+            # which we'll have to reparse the queued packets to deduce
+            # several attributes required below.  Atleast for code and
+            # reason attributes.
+            #
+            # 'response_bytes': self.response.total_size,
+            # 'response_code': text_(self.response.code),
+            # 'response_reason': text_(self.response.reason),
         }
         log_handled = False
         if self.route:
