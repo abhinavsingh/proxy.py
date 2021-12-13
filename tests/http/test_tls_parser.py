@@ -53,6 +53,3 @@ class TestTlsParser(unittest.TestCase):
         self.assertEqual(tls.handshake.msg_type, tlsHandshakeType.SERVER_HELLO)
         self.assertEqual(tls.handshake.server_hello.protocol_version, b'\x03\x03')
         print(tls.handshake.server_hello.format())
-
-
-

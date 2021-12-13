@@ -30,7 +30,7 @@ TlsContentType = NamedTuple(
         ('APPLICATION_DATA', int),
         ('OTHER', int),
     ],
-    )
+)
 tlsContentType = TlsContentType(20, 21, 22, 23, 255)
 
 class TlsProtocolVersion:
@@ -59,7 +59,7 @@ TlsHandshakeType = NamedTuple(
         ('FINISHED', int),
         ('OTHER', int),
     ],
-    )
+)
 tlsHandshakeType = TlsHandshakeType(0, 1, 2, 11, 12, 13, 14, 15, 16, 20, 255)
 
 class TlsHelloRequest:
@@ -114,11 +114,14 @@ class TlsClientHello:
         except Exception as e:
             logger.exception(e)
             return False, raw
-       
+
     def build(self) -> bytes:
         # calculate length
-        return b''.join([bs for bs in [self.protocol_version, self.random, self.session_id, self.cipher_suite,
-            self.compression_method, self.extension] if bs is not None ])
+        return b''.join([
+            bs for bs in [
+                self.protocol_version, self.random, self.session_id, self.cipher_suite,
+                self.compression_method, self.extension,
+            ] if bs is not None ])
 
     def format(self) -> str:
         parts = []
@@ -163,7 +166,7 @@ class TlsServerHello:
                 self.extension = []
             else:
                 extension_length, = struct.unpack('!H', raw[idx: idx + 2])
-                self.extension = raw[idx: idx + 2 + extension_length ]
+                self.extension = raw[idx: idx + 2 + extension_length]
                 idx += 2 + extension_length
             return True, raw[idx:]
         except Exception as e:
@@ -171,8 +174,11 @@ class TlsServerHello:
             return False, raw
 
     def build(self) -> bytes:
-        return b''.join([bs for bs in [self.protocol_version, self.random, self.session_id, self.cipher_suite,
-            self.compression_method, self.extension] if bs is not None ])
+        return b''.join([
+            bs for bs in [
+                self.protocol_version, self.random, self.session_id, self.cipher_suite,
+                self.compression_method, self.extension,
+            ] if bs is not None ])
 
     def format(self) -> str:
         parts = []
@@ -423,5 +429,3 @@ class TlsParser:
         data += length
         data += payload
         return data
-
-
