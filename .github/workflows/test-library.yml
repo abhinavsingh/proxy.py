@@ -650,6 +650,7 @@ jobs:
         make lib-dep
     - name: Run make targets
       run: |
+        ./write-scm-version.sh
         python3 check.py
         make
         make https-certificates
