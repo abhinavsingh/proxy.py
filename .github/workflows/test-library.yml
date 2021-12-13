@@ -641,6 +641,8 @@ jobs:
       fail-fast: false
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
