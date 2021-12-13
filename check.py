@@ -65,7 +65,7 @@ with open('README.md', 'rb+') as f:
         pre_flags +
         b'# Flags\n\n```console\n\xe2\x9d\xaf proxy -h\n' +
         lib_help +
-        b'```\n'
+        b'```\n',
     )
 
 # Version is also hardcoded in README.md flags section
