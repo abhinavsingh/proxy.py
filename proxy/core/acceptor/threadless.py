@@ -59,11 +59,13 @@ class Threadless(ABC, Generic[T]):
 
     def __init__(
             self,
+            iid: str,
             work_queue: T,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
+        self.iid = iid
         self.work_queue = work_queue
         self.flags = flags
         self.event_queue = event_queue
@@ -84,6 +86,7 @@ class Threadless(ABC, Generic[T]):
         ] = {}
         self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
+        self._total: int = 0
 
     @property
     @abstractmethod
@@ -122,6 +125,7 @@ class Threadless(ABC, Generic[T]):
             fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
             type=socket.SOCK_STREAM,
         )
+        uid = '%s-%s-%s' % (self.iid, self._total, fileno)
         self.works[fileno] = self.flags.work_klass(
             TcpClientConnection(
                 conn=conn,
@@ -129,8 +133,7 @@ class Threadless(ABC, Generic[T]):
             ),
             flags=self.flags,
             event_queue=self.event_queue,
-            # TODO: Put more context into UID e.g. acceptor/worker IDs, request counter etc
-            uid=str(fileno),
+            uid=uid,
         )
         self.works[fileno].publish_event(
             event_name=eventNames.WORK_STARTED,
@@ -139,6 +142,7 @@ class Threadless(ABC, Generic[T]):
         )
         try:
             self.works[fileno].initialize()
+            self._total += 1
         except Exception as e:
             logger.exception(
                 'Exception occurred during initialization',

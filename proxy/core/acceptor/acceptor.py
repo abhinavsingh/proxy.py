@@ -191,6 +191,7 @@ class Acceptor(multiprocessing.Process):
         assert self.sock
         self._local_work_queue = NonBlockingQueue()
         self._local = LocalExecutor(
+            iid=self.idd,
             work_queue=self._local_work_queue,
             flags=self.flags,
             event_queue=self.event_queue,

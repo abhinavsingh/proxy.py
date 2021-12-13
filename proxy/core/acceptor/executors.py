@@ -175,6 +175,7 @@ class ThreadlessPool:
         pipe = multiprocessing.Pipe()
         self.work_queues.append(pipe[0])
         w = RemoteExecutor(
+            iid=index,
             work_queue=pipe[1],
             flags=self.flags,
             event_queue=self.event_queue,
