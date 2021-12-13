@@ -129,7 +129,8 @@ class Threadless(ABC, Generic[T]):
             ),
             flags=self.flags,
             event_queue=self.event_queue,
-            uid=fileno,
+            # TODO: Put more context into UID e.g. acceptor/worker IDs, request counter etc
+            uid=str(fileno),
         )
         self.works[fileno].publish_event(
             event_name=eventNames.WORK_STARTED,

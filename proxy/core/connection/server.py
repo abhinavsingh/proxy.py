@@ -49,7 +49,8 @@ class TcpServerConnection(TcpConnection):
         ctx = ssl.create_default_context(
             ssl.Purpose.SERVER_AUTH, cafile=ca_file,
         )
-        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        # ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
         ctx.check_hostname = True
         self.connection.setblocking(True)
         self._conn = ctx.wrap_socket(

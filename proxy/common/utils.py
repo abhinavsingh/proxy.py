@@ -191,7 +191,8 @@ def wrap_socket(
     ctx = ssl.create_default_context(
         ssl.Purpose.CLIENT_AUTH,
     )
-    ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    # ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
     ctx.verify_mode = ssl.CERT_NONE
     ctx.load_cert_chain(
         certfile=certfile,

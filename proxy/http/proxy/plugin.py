@@ -11,7 +11,6 @@
 import argparse
 
 from abc import ABC
-from uuid import UUID
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..parser import HttpParser
@@ -28,7 +27,7 @@ class HttpProxyBasePlugin(ABC):
 
     def __init__(
             self,
-            uid: UUID,
+            uid: str,
             flags: argparse.Namespace,
             client: TcpClientConnection,
             event_queue: EventQueue,
