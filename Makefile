@@ -177,6 +177,11 @@ dashboard-clean:
 container: lib-package
 	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
 
+container-build:
+	docker build \
+		-t $(PROXYPY_CONTAINER_TAG) \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
+
 # Usage:
 #
 # make container-buildx \
@@ -186,11 +191,6 @@ container: lib-package
 container-buildx:
 	docker buildx build \
 		--platform $(BUILDX_TARGET_PLATFORM) \
-		-t $(PROXYPY_CONTAINER_TAG) \
-		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
-
-container-build:
-	docker build \
 		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 

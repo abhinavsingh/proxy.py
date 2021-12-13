@@ -631,6 +631,37 @@ jobs:
         npm run build
         cd ..
 
+  make:
+    runs-on: ${{ matrix.os }}-latest
+    name: Make targets ${{ matrix.node }} @ ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu, macOS]
+        python: ['3.10']
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install Pip Dependencies
+      run: |
+        make lib-dep
+    - name: Run make targets
+      run: |
+        python3 check.py
+        make
+        make https-certificates
+        make sign-https-certificates
+        make ca-certificates
+        make lib-flake8
+        make lib-mypy
+        make lib-package
+        make lib-doc
+        make lib-coverage
+        make container
+
   docker:
     # TODO: To build our docker container, we must wait for check,
     # so that we can use the same distribution available.
@@ -682,10 +713,14 @@ jobs:
     - name: Set PROXYPY_CONTAINER_VERSION
       run: |
         echo "PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)" > $GITHUB_ENV
+    - name: Inspect artifacts
+      run: |
+        ls -l dist
+        cat .dockerignore
     - name: Build container
       run: |
         make container-buildx \
-          -e PROXYPY_PKG_PATH='./dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
+          -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
           -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}' \
           -e PROXYPY_CONTAINER_VERSION='${{ env.PROXYPY_CONTAINER_VERSION }}'
 
@@ -699,6 +734,7 @@ jobs:
     - docker
     - dashboard
     - brew
+    - make
 
     runs-on: Ubuntu-latest
 
