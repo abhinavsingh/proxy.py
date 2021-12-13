@@ -689,6 +689,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v1
@@ -696,11 +701,6 @@ jobs:
         buildkitd-flags: --debug
         config: .github/buildkitd.toml
         install: true
-    - name: Download all the dists
-      uses: actions/download-artifact@v2
-      with:
-        name: python-package-distributions
-        path: dist/
     - name: Enable Multiarch    # This slows down arm build by 4-5x
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
@@ -715,6 +715,7 @@ jobs:
         echo "PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)" > $GITHUB_ENV
     - name: Inspect artifacts
       run: |
+        pwd
         ls -l dist
         cat .dockerignore
     - name: Build container
