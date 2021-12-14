@@ -275,8 +275,6 @@ class TransactionSender:
                 sender_sol = PublicKey(acc_desc["account"])
             else:
                 add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=True))
-                token_account = getTokenAddr(PublicKey(acc_desc["account"]))
-                add_keys_05.append(AccountMeta(pubkey=token_account, is_signer=False, is_writable=True))
                 if acc_desc["new"]:
                     if code_account:
                         add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=code_account_writable))
@@ -298,10 +296,8 @@ class TransactionSender:
 
         self.eth_accounts = [
                 AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=getTokenAddr(contract_sol), is_signer=False, is_writable=True),
             ] + ([AccountMeta(pubkey=code_sol, is_signer=False, is_writable=code_writable)] if code_sol != None else []) + [
                 AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
             ] + add_keys_05
 
         self.steps_emulated = output_json["steps_executed"]
