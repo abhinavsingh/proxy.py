@@ -723,7 +723,7 @@ jobs:
         cat .dockerignore
     - name: Build container
       run: |
-        sudo make container-buildx \
+        make container-buildx \
           -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
           -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}' \
           -e PROXYPY_CONTAINER_VERSION='${{ env.PROXYPY_CONTAINER_VERSION }}'
