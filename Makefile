@@ -126,11 +126,11 @@ lib-release: lib-package
 
 lib-doc:
 	python -m tox -e build-docs && \
-	$(OPEN) .tox/build-docs/docs_out/index.html
+	$(OPEN) .tox/build-docs/docs_out/index.html || true
 
 lib-coverage:
 	pytest --cov=proxy --cov=tests --cov-report=html tests/ && \
-	$(OPEN) htmlcov/index.html
+	$(OPEN) htmlcov/index.html || true
 
 lib-profile:
 	ulimit -n 65536 && \

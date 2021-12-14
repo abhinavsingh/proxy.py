@@ -15,3 +15,4 @@ tox==3.24.4
 mccabe==0.6.1
 pylint==2.12.2
 rope==0.22.0
+httpx[http2]
