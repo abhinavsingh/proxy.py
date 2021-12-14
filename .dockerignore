@@ -1,5 +1,5 @@
 # Ignore everything
 **
 
-!dist
+!dist/**
 !README.md
