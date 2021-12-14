@@ -364,6 +364,7 @@ class IterativeTransactionSender:
         result = self.sender.send_measured_transaction(precall_txs, self.eth_trx, 'CreateAccountsForTrx')
         if check_for_errors(result):
             raise Exception("Failed to create account for trx")
+        self.create_acc_trx = Transaction()
 
 
     def write_trx_to_holder_account(self):
