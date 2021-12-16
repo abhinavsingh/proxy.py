@@ -375,16 +375,27 @@ class IterativeTransactionSender:
         msg = self.eth_trx.signature() + len(self.eth_trx.unsigned_msg()).to_bytes(8, byteorder="little") + self.eth_trx.unsigned_msg()
 
         offset = 0
-        receipts = []
         rest = msg
+        trxs = []
         while len(rest):
             (part, rest) = (rest[:1000], rest[1000:])
             trx = self.instruction.make_write_transaction(offset, part)
-            receipts.append(self.sender.send_transaction_unconfirmed(trx))
+            trxs.append(trx)
             offset += len(part)
 
-        logger.debug("receipts %s", receipts)
-        self.sender.collect_results(receipts, eth_trx=self.eth_trx, reason='WriteHolder')
+        while len(trxs) > 0:
+            receipts = {}
+            for trx in trxs:
+                receipts[self.sender.send_transaction_unconfirmed(trx)] = trx
+
+            logger.debug("receipts %s", receipts)
+            for rcpt, trx in receipts.items():
+                try:
+                    self.sender.collect_result(rcpt, eth_trx=self.eth_trx, reason='WriteHolder')
+                except Exception as err:
+                    logger.debug("collect_result exception: {}".format(str(err)))
+                else:
+                    trxs.remove(trx)
 
 
     def call_continue(self):
