@@ -2073,7 +2073,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0rc2.dev21+g20b3eb1.d20211203
+proxy.py v2.4.0rc3.dev33+gc341594.d20211214
 
 options:
   -h, --help            show this help message and exit
