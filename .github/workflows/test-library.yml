@@ -781,6 +781,13 @@ jobs:
         REGISTRY_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
         }};
+        docker pull $REGISTRY_TAG-linux.386 &&
+        docker pull $REGISTRY_TAG-linux.arm.v6 &&
+        docker pull $REGISTRY_TAG-linux.arm.v7 &&
+        docker pull $REGISTRY_TAG-linux.arm64 &&
+        docker pull $REGISTRY_TAG-linux.arm64.v8 &&
+        docker pull $REGISTRY_TAG-linux.ppc64le &&
+        docker pull $REGISTRY_TAG-linux.s390x &&
         docker manifest create
         $REGISTRY_TAG
         $REGISTRY_TAG-linux.386
