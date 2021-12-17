@@ -742,9 +742,16 @@ jobs:
         --hostname 0.0.0.0
         --enable-web-server
         --local-executor && ./tests/integration/test_integration.sh 8899
-    - name: Push to GHCR
+    - name: Tag & Push to GHCR
       run: >-
-        docker push ghcr.io/abhinavsingh/proxy.py:${{
+        GHCR_TAG="ghcr.io/abhinavsingh/proxy.py";
+        IMAGE_ID=$(docker images | grep ${{
+          needs.pre-setup.outputs.container-version
+        }} | awk '{ print $3 }');
+        docker tag $IMAGE_ID $GHCR_TAG:${{
+          needs.pre-setup.outputs.container-version
+        }} &&
+        docker push $GHCR_TAG:${{
           needs.pre-setup.outputs.container-version
         }}
 
