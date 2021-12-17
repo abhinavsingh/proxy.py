@@ -704,8 +704,8 @@ jobs:
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
       with:
-        # FIXME: See https://github.com/docker/buildx/issues/850#issuecomment-996408167
         version: v0.7.0
         buildkitd-flags: --debug
         config: .github/buildkitd.toml
@@ -734,6 +734,7 @@ jobs:
     - name: Run & Test from GHCR
       run: >-
         docker run
+        -d
         -p 8899:8899
         abhinavsingh/proxy.py:${{
           needs.pre-setup.outputs.container-version
