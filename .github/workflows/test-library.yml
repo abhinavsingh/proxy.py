@@ -557,10 +557,8 @@ jobs:
         # a pull request then we can checkout the head.
         fetch-depth: 2
 
-    # If this run was triggered by a pull request event, then checkout
-    # the head of the pull request instead of the merge commit.
-    - run: git checkout HEAD^2
-      if: ${{ github.event_name == 'pull_request' }}
+    # If this run was triggered by a pull request event
+    - if: ${{ github.event_name == 'pull_request' }}
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -642,7 +640,7 @@ jobs:
         cd ..
 
   developer:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: 🧑‍💻 👩‍💻 👨‍💻 ${{ matrix.os }}-latest
     name: Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
@@ -687,9 +685,9 @@ jobs:
         # be kept consistent with ghcr-manifest tags.
         targetplatform:
         - 'linux/386'
+        - 'linux/amd64'
         - 'linux/arm/v6'
         - 'linux/arm/v7'
-        - 'linux/amd64'
         - 'linux/arm64/v8'
         - 'linux/ppc64le'
         - 'linux/s390x'
@@ -782,6 +780,7 @@ jobs:
     - name: Create & Push manifest
       run: >-
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        docker run --rm $REGISTRY_URL
         REGISTRY_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
         }};
@@ -795,9 +794,9 @@ jobs:
         docker manifest create
         $REGISTRY_TAG
         $REGISTRY_TAG-linux.386
+        $REGISTRY_TAG-linux.amd64
         $REGISTRY_TAG-linux.arm.v6
         $REGISTRY_TAG-linux.arm.v7
-        $REGISTRY_TAG-linux.arm64
         $REGISTRY_TAG-linux.arm64.v8
         $REGISTRY_TAG-linux.ppc64le
         $REGISTRY_TAG-linux.s390x
