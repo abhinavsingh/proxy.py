@@ -637,8 +637,8 @@ jobs:
         cd ..
 
   developer:
-    runs-on: 🧑‍💻 👩‍💻 👨‍💻 ${{ matrix.os }}-latest
-    name: Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}-latest
+    name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu, macOS]
