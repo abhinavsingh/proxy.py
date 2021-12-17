@@ -670,8 +670,6 @@ jobs:
         python3 -m proxy --version
 
   docker:
-    # TODO: To build our docker container, we must wait for check,
-    # so that we can use the same distribution available.
     runs-on: ${{ matrix.os }}-latest
     permissions:
       packages: write
@@ -685,11 +683,13 @@ jobs:
         - Ubuntu
         python:
         - '3.10'
+        # NOTE: Change to target platform must also
+        # be kept consistent with ghcr-manifest tags.
         targetplatform:
         - 'linux/386'
-        - 'linux/amd64'
         - 'linux/arm/v6'
         - 'linux/arm/v7'
+        - 'linux/amd64'
         - 'linux/arm64/v8'
         - 'linux/ppc64le'
         - 'linux/s390x'
@@ -752,16 +752,44 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Tag & Push to GHCR
       run: >-
-        GHCR_TAG="ghcr.io/abhinavsingh/proxy.py";
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
         IMAGE_ID=$(docker images | grep ${{
           needs.pre-setup.outputs.container-version
         }} | awk '{ print $3 }');
-        docker tag $IMAGE_ID $GHCR_TAG:${{
+        PLATFORM=$(echo '${{
+          matrix.targetplatform
+        }}' | tr / .);
+        PLATFORM_CONTAINER_URL=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
-        }} &&
-        docker push $GHCR_TAG:${{
+        }}-$PLATFORM;
+        docker tag $IMAGE_ID $PLATFORM_CONTAINER_URL
+        &&
+        docker push $PLATFORM_CONTAINER_URL
+
+  ghcr-manifest:
+    name: 🐳 → GHCR cross-platform manifest
+    runs-on: Ubuntu-latest
+    needs:
+    - docker
+    - pre-setup  # transitive, for accessing settings
+    steps:
+    - name: Create & Push manifest
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        REGISTRY_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
-        }}
+        }};
+        docker manifest create
+        $REGISTRY_TAG
+        $REGISTRY_TAG-linux.386
+        $REGISTRY_TAG-linux.arm.v6
+        $REGISTRY_TAG-linux.arm.v7
+        $REGISTRY_TAG-linux.arm64
+        $REGISTRY_TAG-linux.arm64.v8
+        $REGISTRY_TAG-linux.ppc64le
+        $REGISTRY_TAG-linux.s390x
+        &&
+        docker manifest push $REGISTRY_TAG
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
@@ -770,7 +798,7 @@ jobs:
     - analyze
     - test
     - lint
-    - docker
+    - ghcr-manifest
     - dashboard
     - brew
     - developer
