@@ -719,7 +719,7 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Build container & Push to GHCR
+    - name: Build container
       run: >-
         docker images;
         make container-buildx
@@ -731,7 +731,7 @@ jobs:
           needs.pre-setup.outputs.container-version
         }}';
         docker images
-    - name: Run & Test from GHCR
+    - name: Run & Test container
       run: >-
         docker run
         -d
@@ -742,6 +742,11 @@ jobs:
         --hostname 0.0.0.0
         --enable-web-server
         --local-executor && ./tests/integration/test_integration.sh 8899
+    - name: Push to GHCR
+      run: >-
+        docker push ghcr.io/abhinavsingh/proxy.py:${{
+          needs.pre-setup.outputs.container-version
+        }}
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
