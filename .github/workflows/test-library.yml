@@ -744,12 +744,13 @@ jobs:
         --hostname 0.0.0.0
         --enable-web-server
         --local-executor && ./tests/integration/test_integration.sh 8899
-    - name: Tag & Push to GHCR
+    - name: Login to GHCR
       uses: docker/login-action@v1
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Tag & Push to GHCR
       run: >-
         GHCR_TAG="ghcr.io/abhinavsingh/proxy.py";
         IMAGE_ID=$(docker images | grep ${{
