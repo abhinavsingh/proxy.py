@@ -557,9 +557,6 @@ jobs:
         # a pull request then we can checkout the head.
         fetch-depth: 2
 
-    # If this run was triggered by a pull request event
-    - if: ${{ github.event_name == 'pull_request' }}
-
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
@@ -784,13 +781,6 @@ jobs:
         REGISTRY_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
         }};
-        docker pull $REGISTRY_TAG-linux.386 &&
-        docker pull $REGISTRY_TAG-linux.arm.v6 &&
-        docker pull $REGISTRY_TAG-linux.arm.v7 &&
-        docker pull $REGISTRY_TAG-linux.arm64 &&
-        docker pull $REGISTRY_TAG-linux.arm64.v8 &&
-        docker pull $REGISTRY_TAG-linux.ppc64le &&
-        docker pull $REGISTRY_TAG-linux.s390x &&
         docker manifest create
         $REGISTRY_TAG
         $REGISTRY_TAG-linux.386
