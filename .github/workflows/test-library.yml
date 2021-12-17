@@ -663,7 +663,6 @@ jobs:
         make lib-package
         make lib-doc
         make lib-coverage
-        make container
 
   docker:
     # TODO: To build our docker container, we must wait for check,
