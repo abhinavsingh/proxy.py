@@ -631,9 +631,9 @@ jobs:
         npm run build
         cd ..
 
-  make:
+  developer:
     runs-on: ${{ matrix.os }}-latest
-    name: Make targets ${{ matrix.node }} @ ${{ matrix.os }}
+    name: Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu, macOS]
@@ -650,19 +650,14 @@ jobs:
     - name: Install Pip Dependencies
       run: |
         make lib-dep
-    - name: Run make targets
+    - name: Run essentials
       run: |
         ./write-scm-version.sh
         python3 check.py
-        make
         make https-certificates
         make sign-https-certificates
         make ca-certificates
-        make lib-flake8
-        make lib-mypy
-        make lib-package
-        make lib-doc
-        make lib-coverage
+        python3 -m proxy --version
 
   docker:
     # TODO: To build our docker container, we must wait for check,
@@ -734,7 +729,7 @@ jobs:
     - docker
     - dashboard
     - brew
-    - make
+    - developer
 
     runs-on: Ubuntu-latest
 
