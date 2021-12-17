@@ -7,14 +7,9 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import argparse
 
-from uuid import UUID
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -31,7 +26,7 @@ class HttpWebServerBasePlugin(ABC):
 
     def __init__(
             self,
-            uid: UUID,
+            uid: str,
             flags: argparse.Namespace,
             client: TcpClientConnection,
             event_queue: EventQueue,

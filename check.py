@@ -36,6 +36,7 @@ ALL_PY_FILES = (
     list(REPO_ROOT.glob('*.py')) +
     list((REPO_ROOT / 'proxy').rglob('*.py')) +
     list((REPO_ROOT / 'examples').rglob('*.py')) +
+    list((REPO_ROOT / 'benchmark').rglob('*.py')) +
     list((REPO_ROOT / 'tests').rglob('*.py'))
 )
 
@@ -59,11 +60,12 @@ lib_help = subprocess.check_output(
 with open('README.md', 'rb+') as f:
     c = f.read()
     pre_flags, post_flags = c.split(b'# Flags')
-    help_text, post_changelog = post_flags.split(b'# Changelog')
     f.seek(0)
     f.write(
-        pre_flags + b'# Flags\n\n```console\n\xe2\x9d\xaf proxy -h\n' + lib_help + b'```' +
-        b'\n\n# Changelog' + post_changelog,
+        pre_flags +
+        b'# Flags\n\n```console\n\xe2\x9d\xaf proxy -h\n' +
+        lib_help +
+        b'```\n',
     )
 
 # Version is also hardcoded in README.md flags section

@@ -29,7 +29,7 @@ endif
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile lib-doc
-.PHONY: lib-dep lib-flake8 lib-mypy
+.PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope
 .PHONY: container container-run container-release container-build container-buildx
 .PHONY: devtools dashboard dashboard-clean
 
@@ -126,11 +126,11 @@ lib-release: lib-package
 
 lib-doc:
 	python -m tox -e build-docs && \
-	$(OPEN) .tox/build-docs/docs_out/index.html
+	$(OPEN) .tox/build-docs/docs_out/index.html || true
 
 lib-coverage:
 	pytest --cov=proxy --cov=tests --cov-report=html tests/ && \
-	$(OPEN) htmlcov/index.html
+	$(OPEN) htmlcov/index.html || true
 
 lib-profile:
 	ulimit -n 65536 && \
@@ -138,9 +138,26 @@ lib-profile:
 		-o profile.svg \
 		-t -F -s -- \
 		python -m proxy \
+			--hostname 127.0.0.1 \
 			--num-acceptors 1 \
 			--num-workers 1 \
-			--disable-http-proxy \
+			--enable-web-server \
+			--plugin proxy.plugin.WebServerPlugin \
+			--local-executor \
+			--backlog 65536 \
+			--open-file-limit 65536 \
+			--log-file /dev/null
+
+lib-speedscope:
+	ulimit -n 65536 && \
+	sudo py-spy record \
+		-o profile.speedscope.json \
+		-f speedscope \
+		-t -F -s -- \
+		python -m proxy \
+			--hostname 127.0.0.1 \
+			--num-acceptors 1 \
+			--num-workers 1 \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
 			--local-executor \
@@ -160,6 +177,11 @@ dashboard-clean:
 container: lib-package
 	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
 
+container-build:
+	docker build \
+		-t $(PROXYPY_CONTAINER_TAG) \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
+
 # Usage:
 #
 # make container-buildx \
@@ -170,11 +192,6 @@ container-buildx:
 	docker buildx build \
 		--load \
 		--platform $(BUILDX_TARGET_PLATFORM) \
-		-t $(PROXYPY_CONTAINER_TAG) \
-		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
-
-container-build:
-	docker build \
 		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 

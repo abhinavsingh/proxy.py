@@ -34,7 +34,7 @@ class ModifyPostDataPlugin(HttpProxyBasePlugin):
             request.body = ModifyPostDataPlugin.MODIFIED_BODY
             # Update Content-Length header only when request is NOT chunked
             # encoded
-            if not request.is_chunked_encoded():
+            if not request.is_chunked_encoded:
                 request.add_header(
                     b'Content-Length',
                     bytes_(len(request.body)),

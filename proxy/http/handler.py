@@ -7,10 +7,6 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import ssl
 import time
@@ -117,6 +113,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     def shutdown(self) -> None:
         try:
             # Flush pending buffer in threaded mode only.
+            #
             # For threadless mode, BaseTcpServerHandler implements
             # the must_flush_before_shutdown logic automagically.
             if self.selector and self.work.has_buffer():
@@ -139,6 +136,15 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         except OSError:
             pass
         finally:
+            # Section 4.2.2.13 of RFC 1122 tells us that a close() with any pending readable data
+            # could lead to an immediate reset being sent.
+            #
+            #   "A host MAY implement a 'half-duplex' TCP close sequence, so that an application
+            #   that has called CLOSE cannot continue to read data from the connection.
+            #   If such a host issues a CLOSE call while received data is still pending in TCP,
+            #   or if new data is received after CLOSE is called, its TCP SHOULD send a RST to
+            #   show that data was lost."
+            #
             self.work.connection.close()
             logger.debug('Client connection closed')
             super().shutdown()
@@ -189,19 +195,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         return False
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
+        """Handles incoming data from client."""
         if data is None:
             logger.debug('Client closed connection, tearing down...')
             self.work.closed = True
             return True
-
         try:
-            # HttpProtocolHandlerPlugin.on_client_data
-            # Can raise HttpProtocolException to tear down the connection
-            for plugin in self.plugins.values():
-                optional_data = plugin.on_client_data(data)
-                if optional_data is None:
-                    break
-                data = optional_data
             # Don't parse incoming data any further after 1st request has completed.
             #
             # This specially does happen for pipeline requests.
@@ -209,12 +208,13 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # Plugins can utilize on_client_data for such cases and
             # apply custom logic to handle request data sent after 1st
             # valid request.
-            if data and self.request.state != httpParserStates.COMPLETE:
+            if self.request.state != httpParserStates.COMPLETE:
                 # Parse http request
+                #
                 # TODO(abhinavsingh): Remove .tobytes after parser is
                 # memoryview compliant
                 self.request.parse(data.tobytes())
-                if self.request.state == httpParserStates.COMPLETE:
+                if self.request.is_complete:
                     # Invoke plugin.on_request_complete
                     for plugin in self.plugins.values():
                         upgraded_sock = plugin.on_request_complete()
@@ -228,6 +228,14 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                                     plugin_.client._conn = upgraded_sock
                         elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
                             return True
+            else:
+                # HttpProtocolHandlerPlugin.on_client_data
+                # Can raise HttpProtocolException to tear down the connection
+                for plugin in self.plugins.values():
+                    optional_data = plugin.on_client_data(data)
+                    if optional_data is None:
+                        break
+                    data = optional_data
         except HttpProtocolException as e:
             logger.debug('HttpProtocolException raised')
             response: Optional[memoryview] = e.response(self.request)

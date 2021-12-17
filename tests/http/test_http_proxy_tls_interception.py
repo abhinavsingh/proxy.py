@@ -145,9 +145,8 @@ class TestHttpProxyTlsInterception(Assertions):
         # Assert our mocked plugins invocations
         self.plugin.return_value.get_descriptors.assert_called()
         self.plugin.return_value.write_to_descriptors.assert_called_with([])
-        self.plugin.return_value.on_client_data.assert_called_with(
-            connect_request,
-        )
+        # on_client_data is only called after initial request has completed
+        self.plugin.return_value.on_client_data.assert_not_called()
         self.plugin.return_value.on_request_complete.assert_called()
         self.plugin.return_value.read_from_descriptors.assert_called_with([
             self._conn.fileno(),
@@ -164,8 +163,8 @@ class TestHttpProxyTlsInterception(Assertions):
             ssl.Purpose.SERVER_AUTH, cafile=str(DEFAULT_CA_FILE),
         )
         # self.assertEqual(self.mock_ssl_context.return_value.options,
-        # ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 |
-        # ssl.OP_NO_TLSv1_1)
+        #                  ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 |
+        #                  ssl.OP_NO_TLSv1_1)
         self.assertEqual(plain_connection.setblocking.call_count, 2)
         self.mock_ssl_context.return_value.wrap_socket.assert_called_with(
             plain_connection, server_hostname=host,

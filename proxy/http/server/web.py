@@ -7,10 +7,6 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import re
 import gzip
@@ -25,7 +21,6 @@ from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VA
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
 from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
-from ...common.backports import cached_property
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
@@ -33,7 +28,7 @@ from ..codes import httpStatusCodes
 from ..exception import HttpProtocolException
 from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..parser import HttpParser, httpParserTypes
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
@@ -114,27 +109,28 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.route: Optional[HttpWebServerBasePlugin] = None
 
         self.plugins: Dict[str, HttpWebServerBasePlugin] = {}
-        if b'HttpWebServerBasePlugin' in self.flags.plugins:
-            for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
-                instance: HttpWebServerBasePlugin = klass(
-                    self.uid,
-                    self.flags,
-                    self.client,
-                    self.event_queue,
-                )
-                self.plugins[instance.name()] = instance
-
-    @cached_property(ttl=0)
-    def routes(self) -> Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]]:
-        r: Dict[int, Dict[Pattern[str], HttpWebServerBasePlugin]] = {
+        self.routes: Dict[
+            int, Dict[Pattern[str], HttpWebServerBasePlugin],
+        ] = {
             httpProtocolTypes.HTTP: {},
             httpProtocolTypes.HTTPS: {},
             httpProtocolTypes.WEBSOCKET: {},
         }
-        for name in self.plugins:
-            for (protocol, route) in self.plugins[name].routes():
-                r[protocol][re.compile(route)] = self.plugins[name]
-        return r
+        if b'HttpWebServerBasePlugin' in self.flags.plugins:
+            self._initialize_web_plugins()
+
+    def _initialize_web_plugins(self) -> None:
+        for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
+            instance: HttpWebServerBasePlugin = klass(
+                self.uid,
+                self.flags,
+                self.client,
+                self.event_queue,
+            )
+            self.plugins[instance.name()] = instance
+            for (protocol, route) in instance.routes():
+                pattern = re.compile(route)
+                self.routes[protocol][pattern] = self.plugins[instance.name()]
 
     def encryption_enabled(self) -> bool:
         return self.flags.keyfile is not None and \
@@ -223,7 +219,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 break
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
-            path = text_(path).split('?')[0]
+            path = text_(path).split('?', 1)[0]
             self.client.queue(
                 self.read_and_build_static_file_response(
                     self.flags.static_server_dir + path,
@@ -278,8 +274,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
-        if self.request.state == httpParserStates.COMPLETE and \
-                self.request.is_http_1_1_keep_alive() and \
+        if self.request.is_complete and \
+                self.request.is_http_1_1_keep_alive and \
                 self.route is not None:
             if self.pipeline_request is None:
                 self.pipeline_request = HttpParser(
@@ -288,9 +284,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
             # compliant
             self.pipeline_request.parse(raw.tobytes())
-            if self.pipeline_request.state == httpParserStates.COMPLETE:
+            if self.pipeline_request.is_complete:
                 self.route.handle_request(self.pipeline_request)
-                if not self.pipeline_request.is_http_1_1_keep_alive():
+                if not self.pipeline_request.is_http_1_1_keep_alive:
                     logger.error(
                         'Pipelined request is not keep-alive, will tear down request...',
                     )
@@ -305,10 +301,28 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if self.request.has_host():
             return
         context = {
-            'client_addr': self.client.address,
+            'client_ip': None if not self.client.addr else self.client.addr[0],
+            'client_port': None if not self.client.addr else self.client.addr[1],
+            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            # Request
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
-            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            'request_bytes': self.request.total_size,
+            'request_ua': self.request.header(b'user-agent')
+            if self.request.has_header(b'user-agent')
+            else None,
+            'request_version': self.request.version,
+            # Response
+            #
+            # TODO: Track and inject web server specific response attributes
+            # Currently, plugins are allowed to queue raw bytes, because of
+            # which we'll have to reparse the queued packets to deduce
+            # several attributes required below.  At least for code and
+            # reason attributes.
+            #
+            # 'response_bytes': self.response.total_size,
+            # 'response_code': text_(self.response.code),
+            # 'response_reason': text_(self.response.reason),
         }
         log_handled = False
         if self.route:

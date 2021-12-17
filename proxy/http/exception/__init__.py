@@ -7,11 +7,6 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
-       Submodules
 """
 from .base import HttpProtocolException
 from .http_request_rejected import HttpRequestRejected

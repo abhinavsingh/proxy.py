@@ -28,6 +28,7 @@ Scalable
 ```{toctree}
 :hidden:
 
+changelog
 Glossary <glossary>
 ```
 

@@ -307,12 +307,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # parse incoming response packet
             # only for non-https requests and when
             # tls interception is enabled
-            if not self.request.is_https_tunnel():
-                # See https://github.com/abhinavsingh/proxy.py/issues/127 for why
-                # currently response parsing is disabled when TLS interception is enabled.
-                #
-                # or self.tls_interception_enabled():
-                if self.response.state == httpParserStates.COMPLETE:
+            if not self.request.is_https_tunnel \
+                    or self.tls_interception_enabled():
+                if self.response.is_complete:
                     self.handle_pipeline_response(raw)
                 else:
                     # TODO(abhinavsingh): Remove .tobytes after parser is
@@ -340,11 +337,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
             'request_bytes': self.request.total_size,
-            'request_code': self.request.code,
             'request_ua': self.request.header(b'user-agent')
             if self.request.has_header(b'user-agent')
             else None,
-            'request_reason': self.request.reason,
             'request_version': self.request.version,
             # Response
             'response_bytes': self.response.total_size,
@@ -425,7 +420,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
         access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
-        if not self.request.is_https_tunnel():
+        if not self.request.is_https_tunnel:
             access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
         logger.info(access_log_format.format_map(log_attrs))
 
@@ -435,8 +430,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # However, this must also be accompanied by resetting both request
         # and response objects.
         #
-        # if not self.request.is_https_tunnel() and \
-        #         self.response.state == httpParserStates.COMPLETE:
+        # if not self.request.is_https_tunnel and \
+        #         self.response.is_complete:
         #     self.access_log()
         return chunk
 
@@ -465,12 +460,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # For http proxy requests, handle pipeline case.
             # We also handle pipeline scenario for https proxy
             # requests is TLS interception is enabled.
-            if self.request.state == httpParserStates.COMPLETE and (
-                    not self.request.is_https_tunnel() or
+            if self.request.is_complete and (
+                    not self.request.is_https_tunnel or
                     self.tls_interception_enabled()
             ):
                 if self.pipeline_request is not None and \
-                        self.pipeline_request.is_connection_upgrade():
+                        self.pipeline_request.is_connection_upgrade:
                     # Previous pipelined request was a WebSocket
                     # upgrade request. Incoming client data now
                     # must be treated as WebSocket protocol packets.
@@ -488,7 +483,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 # TODO(abhinavsingh): Remove .tobytes after parser is
                 # memoryview compliant
                 self.pipeline_request.parse(raw.tobytes())
-                if self.pipeline_request.state == httpParserStates.COMPLETE:
+                if self.pipeline_request.is_complete:
                     for plugin in self.plugins.values():
                         assert self.pipeline_request is not None
                         r = plugin.handle_client_request(self.pipeline_request)
@@ -503,7 +498,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                             self.pipeline_request.build(),
                         ),
                     )
-                    if not self.pipeline_request.is_connection_upgrade():
+                    if not self.pipeline_request.is_connection_upgrade:
                         self.pipeline_request = None
             # For scenarios where we cannot peek into the data,
             # simply queue for upstream server.
@@ -549,7 +544,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # For https requests, respond back with tunnel established response.
         # Optionally, setup interceptor if TLS interception is enabled.
         if self.upstream:
-            if self.request.is_https_tunnel():
+            if self.request.is_https_tunnel:
                 self.client.queue(
                     HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
                 )
@@ -592,7 +587,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
         # compliant
         self.pipeline_response.parse(raw.tobytes())
-        if self.pipeline_response.state == httpParserStates.COMPLETE:
+        if self.pipeline_response.is_complete:
             self.pipeline_response = None
 
     def connect_upstream(self) -> None:
@@ -735,7 +730,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         ca_key_path = self.flags.ca_key_file
         ca_key_password = ''
         ca_crt_path = self.flags.ca_cert_file
-        serial = self.uid.int
+        serial = self.uid
 
         # Sign generated CSR
         if not os.path.isfile(cert_file_path):
@@ -903,17 +898,21 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_request_complete(self) -> None:
         if not self.flags.enable_events:
             return
-
         assert self.request.port
         self.event_queue.publish(
-            request_id=self.uid.hex,
+            request_id=self.uid,
             event_name=eventNames.REQUEST_COMPLETE,
             event_payload={
                 'url': text_(self.request.path)
-                if self.request.is_https_tunnel()
+                if self.request.is_https_tunnel
                 else 'http://%s:%d%s' % (text_(self.request.host), self.request.port, text_(self.request.path)),
                 'method': text_(self.request.method),
-                'headers': {text_(k): text_(v[1]) for k, v in self.request.headers.items()},
+                'headers': {}
+                if not self.request.headers else
+                {
+                    text_(k): text_(v[1])
+                    for k, v in self.request.headers.items()
+                },
                 'body': text_(self.request.body)
                 if self.request.method == httpMethods.POST
                 else None,
@@ -924,8 +923,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_events(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
-
-        if self.response.state == httpParserStates.COMPLETE:
+        if self.response.is_complete:
             self.emit_response_complete()
         elif self.response.state == httpParserStates.RCVING_BODY:
             self.emit_response_chunk_received(chunk_size)
@@ -935,12 +933,16 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_headers_complete(self) -> None:
         if not self.flags.enable_events:
             return
-
         self.event_queue.publish(
-            request_id=self.uid.hex,
+            request_id=self.uid,
             event_name=eventNames.RESPONSE_HEADERS_COMPLETE,
             event_payload={
-                'headers': {text_(k): text_(v[1]) for k, v in self.response.headers.items()},
+                'headers': {}
+                if not self.response.headers else
+                {
+                    text_(k): text_(v[1])
+                    for k, v in self.response.headers.items()
+                },
             },
             publisher_id=self.__class__.__name__,
         )
@@ -948,9 +950,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_chunk_received(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
-
         self.event_queue.publish(
-            request_id=self.uid.hex,
+            request_id=self.uid,
             event_name=eventNames.RESPONSE_CHUNK_RECEIVED,
             event_payload={
                 'chunk_size': chunk_size,
@@ -962,9 +963,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_complete(self) -> None:
         if not self.flags.enable_events:
             return
-
         self.event_queue.publish(
-            request_id=self.uid.hex,
+            request_id=self.uid,
             event_name=eventNames.RESPONSE_COMPLETE,
             event_payload={
                 'encoded_response_size': self.response.total_size,

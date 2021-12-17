@@ -10,7 +10,6 @@
 
     .. spelling::
 
-       http
        pac
 """
 import gzip

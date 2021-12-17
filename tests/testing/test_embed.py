@@ -31,18 +31,18 @@ class TestProxyPyEmbedded(TestCase):
     integration test suite for proxy.py."""
 
     PROXY_PY_STARTUP_FLAGS = TestCase.DEFAULT_PROXY_PY_STARTUP_FLAGS + [
-        '--enable-web-server', '--port', '0',
+        '--enable-web-server',
     ]
 
     def test_with_proxy(self) -> None:
         """Makes a HTTP request to in-build web server via proxy server."""
-        assert self.PROXY and self.PROXY.acceptors
+        assert self.PROXY
         with socket_connection(('localhost', self.PROXY.flags.port)) as conn:
             conn.send(
                 build_http_request(
-                    httpMethods.GET, b'http://localhost:%d/' % self.PROXY.acceptors.flags.port,
+                    httpMethods.GET, b'http://localhost:%d/' % self.PROXY.flags.port,
                     headers={
-                        b'Host': b'localhost:%d' % self.PROXY.acceptors.flags.port,
+                        b'Host': b'localhost:%d' % self.PROXY.flags.port,
                     },
                 ),
             )

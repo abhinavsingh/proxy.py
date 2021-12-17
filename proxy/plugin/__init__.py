@@ -11,7 +11,6 @@
     .. spelling::
 
        Cloudflare
-       Submodules
 """
 from .cache import CacheResponsesPlugin, BaseCacheResponsesPlugin
 from .filter_by_upstream import FilterByUpstreamHostPlugin

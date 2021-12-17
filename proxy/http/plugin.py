@@ -7,15 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import socket
 import argparse
 
-from uuid import UUID
 from abc import ABC, abstractmethod
 from typing import Tuple, List, Union, Optional
 
@@ -50,13 +45,13 @@ class HttpProtocolHandlerPlugin(ABC):
 
     def __init__(
             self,
-            uid: UUID,
+            uid: str,
             flags: argparse.Namespace,
             client: TcpClientConnection,
             request: HttpParser,
             event_queue: EventQueue,
     ):
-        self.uid: UUID = uid
+        self.uid: str = uid
         self.flags: argparse.Namespace = flags
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
@@ -94,6 +89,7 @@ class HttpProtocolHandlerPlugin(ABC):
 
     @abstractmethod
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
+        """Called only after original request has been completely received."""
         return raw  # pragma: no cover
 
     @abstractmethod
