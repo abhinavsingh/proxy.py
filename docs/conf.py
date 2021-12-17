@@ -53,6 +53,7 @@ release = get_scm_version()
 
 rst_epilog = f"""
 .. |project| replace:: {project}
+.. |release_l| replace:: ``v{release}``
 """
 
 
@@ -100,6 +101,7 @@ extensions = [
     # Third-party extensions:
     'myst_parser',  # extended markdown; https://pypi.org/project/myst-parser/
     'sphinxcontrib.apidoc',
+    'sphinxcontrib.towncrier',  # provides `towncrier-draft-entries` directive
 ]
 
 # Conditional third-party extensions:
@@ -221,6 +223,13 @@ linkcheck_ignore = [
 ]
 linkcheck_workers = 25
 
+# -- Options for towncrier_draft extension -----------------------------------
+
+towncrier_draft_autoversion_mode = 'draft'  # or: 'sphinx-version', 'sphinx-release'
+towncrier_draft_include_empty = True
+towncrier_draft_working_directory = PROJECT_ROOT_DIR
+# Not yet supported: towncrier_draft_config_path = 'pyproject.toml'  # relative to cwd
+
 # -- Options for myst_parser extension ------------------------------------------
 
 myst_enable_extensions = [
@@ -237,6 +246,9 @@ myst_enable_extensions = [
 ]
 myst_substitutions = {
   'project': project,
+  'release': release,
+  'release_l': f'`v{release}`',
+  'version': version,
 }
 
 # -- Strict mode -------------------------------------------------------------
