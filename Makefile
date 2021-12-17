@@ -126,11 +126,11 @@ lib-release: lib-package
 
 lib-doc:
 	python -m tox -e build-docs && \
-	$(OPEN) .tox/build-docs/docs_out/index.html
+	$(OPEN) .tox/build-docs/docs_out/index.html || true
 
 lib-coverage:
 	pytest --cov=proxy --cov=tests --cov-report=html tests/ && \
-	$(OPEN) htmlcov/index.html
+	$(OPEN) htmlcov/index.html || true
 
 lib-profile:
 	ulimit -n 65536 && \
@@ -177,6 +177,11 @@ dashboard-clean:
 container: lib-package
 	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
 
+container-build:
+	docker build \
+		-t $(PROXYPY_CONTAINER_TAG) \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
+
 # Usage:
 #
 # make container-buildx \
@@ -186,11 +191,6 @@ container: lib-package
 container-buildx:
 	docker buildx build \
 		--platform $(BUILDX_TARGET_PLATFORM) \
-		-t $(PROXYPY_CONTAINER_TAG) \
-		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
-
-container-build:
-	docker build \
 		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 

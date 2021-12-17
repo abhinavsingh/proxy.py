@@ -631,6 +631,34 @@ jobs:
         npm run build
         cd ..
 
+  developer:
+    runs-on: ${{ matrix.os }}-latest
+    name: Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu, macOS]
+        python: ['3.10']
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install Pip Dependencies
+      run: |
+        make lib-dep
+    - name: Run essentials
+      run: |
+        ./write-scm-version.sh
+        python3 check.py
+        make https-certificates
+        make sign-https-certificates
+        make ca-certificates
+        python3 -m proxy --version
+
   docker:
     # TODO: To build our docker container, we must wait for check,
     # so that we can use the same distribution available.
@@ -658,18 +686,20 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Set up Docker Buildx
-      id: buildx
-      uses: docker/setup-buildx-action@v1
-      with:
-        buildkitd-flags: --debug
-        config: .github/buildkitd.toml
-        install: true
     - name: Download all the dists
       uses: actions/download-artifact@v2
       with:
         name: python-package-distributions
         path: dist/
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+      with:
+        # FIXME: See https://github.com/docker/buildx/issues/850#issuecomment-996408167
+        version: v0.7.0
+        buildkitd-flags: --debug
+        config: .github/buildkitd.toml
+        install: true
     - name: Enable Multiarch    # This slows down arm build by 4-5x
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
@@ -699,6 +729,7 @@ jobs:
     - docker
     - dashboard
     - brew
+    - developer
 
     runs-on: Ubuntu-latest
 
