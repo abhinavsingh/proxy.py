@@ -701,6 +701,7 @@ jobs:
       id: buildx
       uses: docker/setup-buildx-action@v1
       with:
+        # FIXME: See https://github.com/docker/buildx/issues/850#issuecomment-996408167
         version: v0.7.0
         buildkitd-flags: --debug
         config: .github/buildkitd.toml
@@ -717,11 +718,6 @@ jobs:
     - name: Set PROXYPY_CONTAINER_VERSION
       run: |
         echo "PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)" > $GITHUB_ENV
-    - name: Inspect artifacts
-      run: |
-        pwd
-        ls -l dist
-        cat .dockerignore
     - name: Build container
       run: |
         make container-buildx \
