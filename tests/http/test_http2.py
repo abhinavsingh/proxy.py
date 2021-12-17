@@ -8,13 +8,19 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import pytest
 import httpx
 
+from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
 from proxy import TestCase
 
 
 class TestHttp2WithProxy(TestCase):
 
+    @pytest.mark.skipif(
+        IS_WINDOWS,
+        reason='--threadless not supported on Windows',
+    )  # type: ignore[misc]
     def test_http2_via_proxy(self) -> None:
         assert self.PROXY
         response = httpx.get(
