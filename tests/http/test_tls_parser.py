@@ -39,7 +39,7 @@ class TestTlsParser(unittest.TestCase):
         assert tls.handshake
         self.assertEqual(tls.handshake.msg_type, tlsHandshakeType.CLIENT_HELLO)
         self.assertEqual(tls.handshake.length, b'\x00\x00\xa1')
-        self.assertEqual(len(tls.handshake.build()), 0xa1 + 0x04)
+        self.assertEqual(len(tls.handshake.build()), 0xA1 + 0x04)
         assert tls.handshake.client_hello
         self.assertEqual(
             tls.handshake.client_hello.protocol_version, b'\x03\x03',
