@@ -378,11 +378,11 @@ class TlsParser:
 
     def __init__(self) -> None:
         self.content_type: int = tlsContentType.OTHER
-        self.protocol_version: Optional[TlsProtocolVersion] = None
+        self.protocol_version: Optional[bytes] = None
         self.length: Optional[bytes] = None
         # only parse hand shake payload temporary
         self.handshake: Optional[TlsHandshake] = None
-        self.certificate: Optional[TlsCertificate]
+        self.certificate: Optional[TlsCertificate] = None
 
     def parse(self, raw: bytes) -> (bool, bytes):
         """parse TLS fragmentation
@@ -396,7 +396,6 @@ class TlsParser:
             return False, raw
         else:
             payload_length, = struct.unpack('!H', raw[3:5])
-            self.protocol_version
             if length < 5 + payload_length:
                 logger.debug('incomplete data, len(raw) = %s, len(payload) = %s', length, payload_length)
                 return False, raw
