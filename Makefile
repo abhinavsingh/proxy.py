@@ -190,6 +190,7 @@ container-build:
 #	-e PROXYPY_CONTAINER_VERSION=latest
 container-buildx:
 	docker buildx build \
+		--load \
 		--platform $(BUILDX_TARGET_PLATFORM) \
 		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .

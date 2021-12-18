@@ -1,5 +1,4 @@
 ---
-# yamllint disable rule:line-length
 name: lib
 
 on:   # yamllint disable-line rule:truthy
@@ -67,6 +66,7 @@ jobs:
       git-tag: ${{ steps.git-tag.outputs.tag }}
       sdist-artifact-name: ${{ steps.artifact-name.outputs.sdist }}
       wheel-artifact-name: ${{ steps.artifact-name.outputs.wheel }}
+      container-version: v${{ steps.container.outputs.version }}
     steps:
     - name: Switch to using Python 3.9 by default
       uses: actions/setup-python@v2
@@ -195,6 +195,16 @@ jobs:
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
         }}-py3-none-any.whl')
+    - name: Calculate container attributes
+      id: container
+      shell: bash
+      run: >-
+        VER=$(echo '${{
+            steps.request-check.outputs.release-requested == 'true'
+            && github.event.inputs.release-version
+            || steps.scm-version.outputs.dist-version
+        }}' | tr + .);
+        echo "::set-output name=version::$VER"
 
   build:
     name: 👷 dists ${{ needs.pre-setup.outputs.git-tag }}
@@ -547,11 +557,6 @@ jobs:
         # a pull request then we can checkout the head.
         fetch-depth: 2
 
-    # If this run was triggered by a pull request event, then checkout
-    # the head of the pull request instead of the merge commit.
-    - run: git checkout HEAD^2
-      if: ${{ github.event_name == 'pull_request' }}
-
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
@@ -633,7 +638,7 @@ jobs:
 
   developer:
     runs-on: ${{ matrix.os }}-latest
-    name: Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
+    name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu, macOS]
@@ -660,9 +665,9 @@ jobs:
         python3 -m proxy --version
 
   docker:
-    # TODO: To build our docker container, we must wait for check,
-    # so that we can use the same distribution available.
     runs-on: ${{ matrix.os }}-latest
+    permissions:
+      packages: write
     needs:
     - build
     - pre-setup  # transitive, for accessing settings
@@ -673,6 +678,8 @@ jobs:
         - Ubuntu
         python:
         - '3.10'
+        # NOTE: Change to target platform must also
+        # be kept consistent with ghcr-manifest tags.
         targetplatform:
         - 'linux/386'
         - 'linux/amd64'
@@ -694,8 +701,8 @@ jobs:
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
       with:
-        # FIXME: See https://github.com/docker/buildx/issues/850#issuecomment-996408167
         version: v0.7.0
         buildkitd-flags: --debug
         config: .github/buildkitd.toml
@@ -709,15 +716,89 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Set PROXYPY_CONTAINER_VERSION
-      run: |
-        echo "PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)" > $GITHUB_ENV
     - name: Build container
-      run: |
-        make container-buildx \
-          -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
-          -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}' \
-          -e PROXYPY_CONTAINER_VERSION='${{ env.PROXYPY_CONTAINER_VERSION }}'
+      run: >-
+        docker images;
+        make container-buildx
+        -e PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}'
+        -e PROXYPY_CONTAINER_VERSION='${{
+          needs.pre-setup.outputs.container-version
+        }}';
+        docker images
+    - name: Run & Test container
+      run: >-
+        docker run
+        -d
+        -p 8899:8899
+        abhinavsingh/proxy.py:${{
+          needs.pre-setup.outputs.container-version
+        }}
+        --hostname 0.0.0.0
+        --enable-web-server
+        --local-executor && ./tests/integration/test_integration.sh 8899
+    - name: Login to GHCR
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Tag & Push to GHCR
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        IMAGE_ID=$(docker images | grep ${{
+          needs.pre-setup.outputs.container-version
+        }} | awk '{ print $3 }');
+        PLATFORM=$(echo '${{
+          matrix.targetplatform
+        }}' | tr / .);
+        PLATFORM_CONTAINER_URL=$REGISTRY_URL:${{
+          needs.pre-setup.outputs.container-version
+        }}-$PLATFORM;
+        docker tag $IMAGE_ID $PLATFORM_CONTAINER_URL
+        &&
+        docker push $PLATFORM_CONTAINER_URL
+
+  # ghcr-manifest:
+  #   name: 🐳 → GHCR cross-platform manifest
+  #   runs-on: Ubuntu-latest
+  #   needs:
+  #   - docker
+  #   - pre-setup  # transitive, for accessing settings
+  #   steps:
+  #   - name: Login to GHCR
+  #     uses: docker/login-action@v1
+  #     with:
+  #       registry: ghcr.io
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.GITHUB_TOKEN }}
+  #   - name: Create & Push manifest
+  #     run: >-
+  #       REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+  #       docker run --rm $REGISTRY_URL
+  #       REGISTRY_TAG=$REGISTRY_URL:${{
+  #         needs.pre-setup.outputs.container-version
+  #       }};
+  #       docker pull $REGISTRY_TAG-linux.386 &&
+  #       docker pull $REGISTRY_TAG-linux.arm.v6 &&
+  #       docker pull $REGISTRY_TAG-linux.arm.v7 &&
+  #       docker pull $REGISTRY_TAG-linux.arm64 &&
+  #       docker pull $REGISTRY_TAG-linux.arm64.v8 &&
+  #       docker pull $REGISTRY_TAG-linux.ppc64le &&
+  #       docker pull $REGISTRY_TAG-linux.s390x &&
+  #       docker manifest create
+  #       $REGISTRY_TAG
+  #       $REGISTRY_TAG-linux.386
+  #       $REGISTRY_TAG-linux.amd64
+  #       $REGISTRY_TAG-linux.arm.v6
+  #       $REGISTRY_TAG-linux.arm.v7
+  #       $REGISTRY_TAG-linux.arm64.v8
+  #       $REGISTRY_TAG-linux.ppc64le
+  #       $REGISTRY_TAG-linux.s390x
+  #       &&
+  #       docker manifest push $REGISTRY_TAG
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
@@ -762,13 +843,13 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: >-
-        Publish 🐍📦 v${{ needs.pre-setup.outputs.git-tag }} to PyPI
+        Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.PYPI_TOKEN }}
 
   publish-testpypi:
-    name: Publish 🐍📦 to TestPyPI
+    name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
     needs:
     - check
     - pre-setup  # transitive, for accessing settings
@@ -791,11 +872,40 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: >-
-        Publish 🐍📦  v${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
+        Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.TESTPYPI_API_TOKEN }}
         repository_url: https://test.pypi.org/legacy/
+
+  # publish-docker:
+  #   name: Publish 🐳 📦 ${{ needs.pre-setup.outputs.git-tag }} to Docker Hub
+  #   needs:
+  #   - check
+  #   - pre-setup  # transitive, for accessing settings
+  #   if: >-
+  #     fromJSON(needs.pre-setup.outputs.release-requested)
+  #   runs-on: Ubuntu-latest
+
+  #   environment:
+  #     name: release-docker
+  #     url: >-
+  #       https://test.pypi.org/project/proxy.py/${{
+  #         needs.pre-setup.outputs.dist-version
+  #       }}
+
+  #   steps:
+  #   - name: Download all the dists
+  #     uses: actions/download-artifact@v2
+  #     with:
+  #       name: python-package-distributions
+  #       path: dist/
+  #   - name: >-
+  #       Publish 🐳 📦 ${{ needs.pre-setup.outputs.git-tag }} to Docker Hub
+  #     uses: pypa/gh-action-pypi-publish@release/v1
+  #     with:
+  #       password: ${{ secrets.TESTPYPI_API_TOKEN }}
+  #       repository_url: https://test.pypi.org/legacy/
 
   post-release-repo-update:
     name: >-
