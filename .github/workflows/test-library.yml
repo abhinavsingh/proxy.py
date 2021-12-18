@@ -665,30 +665,14 @@ jobs:
         python3 -m proxy --version
 
   docker:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: Ubuntu-latest
     permissions:
       packages: write
     needs:
     - build
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 🐍${{ matrix.python }} @ ${{ matrix.targetplatform }}
+    name: 🐳 container packaging
     strategy:
-      matrix:
-        os:
-        - Ubuntu
-        python:
-        - '3.10'
-        # NOTE: Change to target platform must also
-        # be kept consistent with ghcr-manifest tags.
-        targetplatform:
-        - 'linux/386'
-        - 'linux/amd64'
-        - 'linux/arm/v6'
-        - 'linux/arm/v7'
-        - 'linux/arm64/v8'
-        - 'linux/ppc64le'
-        - 'linux/s390x'
-      # max-parallel: 1
       fail-fast: false
     steps:
     - name: Checkout
@@ -719,11 +703,10 @@ jobs:
     - name: Build container
       run: >-
         docker images;
-        make container-buildx
+        make container-buildx-all-platforms
         -e PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
-        -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}'
         -e PROXYPY_CONTAINER_VERSION='${{
           needs.pre-setup.outputs.container-version
         }}';
@@ -751,15 +734,12 @@ jobs:
         IMAGE_ID=$(docker images | grep ${{
           needs.pre-setup.outputs.container-version
         }} | awk '{ print $3 }');
-        PLATFORM=$(echo '${{
-          matrix.targetplatform
-        }}' | tr / .);
-        PLATFORM_CONTAINER_URL=$REGISTRY_URL:${{
+        CONTAINER_URL=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
-        }}-$PLATFORM;
-        docker tag $IMAGE_ID $PLATFORM_CONTAINER_URL
+        }};
+        docker tag $IMAGE_ID $CONTAINER_URL
         &&
-        docker push $PLATFORM_CONTAINER_URL
+        docker push $CONTAINER_URL
 
   # ghcr-manifest:
   #   name: 🐳 → GHCR cross-platform manifest
