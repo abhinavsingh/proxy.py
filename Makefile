@@ -29,7 +29,7 @@ endif
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile lib-doc
-.PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope
+.PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope container-buildx-all-platforms
 .PHONY: container container-run container-release container-build container-buildx
 .PHONY: devtools dashboard dashboard-clean
 
@@ -192,6 +192,12 @@ container-buildx:
 	docker buildx build \
 		--load \
 		--platform $(BUILDX_TARGET_PLATFORM) \
+		-t $(PROXYPY_CONTAINER_TAG) \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
+
+container-buildx-all-platforms:
+	docker buildx build \
+		--platform linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x \
 		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 

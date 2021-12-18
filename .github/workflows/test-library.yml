@@ -665,30 +665,14 @@ jobs:
         python3 -m proxy --version
 
   docker:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: Ubuntu-latest
     permissions:
       packages: write
     needs:
     - build
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 🐍${{ matrix.python }} @ ${{ matrix.targetplatform }}
+    name: 🐳 containerize
     strategy:
-      matrix:
-        os:
-        - Ubuntu
-        python:
-        - '3.10'
-        # NOTE: Change to target platform must also
-        # be kept consistent with ghcr-manifest tags.
-        targetplatform:
-        - 'linux/386'
-        - 'linux/amd64'
-        - 'linux/arm/v6'
-        - 'linux/arm/v7'
-        - 'linux/arm64/v8'
-        - 'linux/ppc64le'
-        - 'linux/s390x'
-      # max-parallel: 1
       fail-fast: false
     steps:
     - name: Checkout
@@ -698,6 +682,12 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
+    - name: Login to GHCR
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v1
@@ -716,89 +706,41 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Build container
+    - name: Build, run & test container
       run: >-
-        docker images;
-        make container-buildx
-        -e PROXYPY_PKG_PATH='dist/${{
+        CONTAINER_TAG="abhinavsingh/proxy.py:${{
+          needs.pre-setup.outputs.container-version
+        }}";
+        docker buildx build
+        --load
+        --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
-        -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}'
-        -e PROXYPY_CONTAINER_VERSION='${{
-          needs.pre-setup.outputs.container-version
-        }}';
-        docker images
-    - name: Run & Test container
-      run: >-
+        -t $CONTAINER_TAG .
+        &&
         docker run
         -d
         -p 8899:8899
-        abhinavsingh/proxy.py:${{
-          needs.pre-setup.outputs.container-version
-        }}
+        $CONTAINER_TAG
         --hostname 0.0.0.0
         --enable-web-server
         --local-executor && ./tests/integration/test_integration.sh 8899
-    - name: Login to GHCR
-      uses: docker/login-action@v1
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Tag & Push to GHCR
+    - name: Build multi-platform containers
       run: >-
-        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
-        IMAGE_ID=$(docker images | grep ${{
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py"
+        CONTAINER_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
-        }} | awk '{ print $3 }');
-        PLATFORM=$(echo '${{
-          matrix.targetplatform
-        }}' | tr / .);
-        PLATFORM_CONTAINER_URL=$REGISTRY_URL:${{
-          needs.pre-setup.outputs.container-version
-        }}-$PLATFORM;
-        docker tag $IMAGE_ID $PLATFORM_CONTAINER_URL
-        &&
-        docker push $PLATFORM_CONTAINER_URL
-
-  # ghcr-manifest:
-  #   name: 🐳 → GHCR cross-platform manifest
-  #   runs-on: Ubuntu-latest
-  #   needs:
-  #   - docker
-  #   - pre-setup  # transitive, for accessing settings
-  #   steps:
-  #   - name: Login to GHCR
-  #     uses: docker/login-action@v1
-  #     with:
-  #       registry: ghcr.io
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.GITHUB_TOKEN }}
-  #   - name: Create & Push manifest
-  #     run: >-
-  #       REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
-  #       docker run --rm $REGISTRY_URL
-  #       REGISTRY_TAG=$REGISTRY_URL:${{
-  #         needs.pre-setup.outputs.container-version
-  #       }};
-  #       docker pull $REGISTRY_TAG-linux.386 &&
-  #       docker pull $REGISTRY_TAG-linux.arm.v6 &&
-  #       docker pull $REGISTRY_TAG-linux.arm.v7 &&
-  #       docker pull $REGISTRY_TAG-linux.arm64 &&
-  #       docker pull $REGISTRY_TAG-linux.arm64.v8 &&
-  #       docker pull $REGISTRY_TAG-linux.ppc64le &&
-  #       docker pull $REGISTRY_TAG-linux.s390x &&
-  #       docker manifest create
-  #       $REGISTRY_TAG
-  #       $REGISTRY_TAG-linux.386
-  #       $REGISTRY_TAG-linux.amd64
-  #       $REGISTRY_TAG-linux.arm.v6
-  #       $REGISTRY_TAG-linux.arm.v7
-  #       $REGISTRY_TAG-linux.arm64.v8
-  #       $REGISTRY_TAG-linux.ppc64le
-  #       $REGISTRY_TAG-linux.s390x
-  #       &&
-  #       docker manifest push $REGISTRY_TAG
+        }};
+        LATEST_TAG=$REGISTRY_URL:latest;
+        docker buildx build
+        --push
+        --platform
+        linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG
+        -t $LATEST_TAG .
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
