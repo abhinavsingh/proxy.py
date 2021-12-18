@@ -26,4 +26,4 @@ RUN apk update && apk add openssl
 
 EXPOSE 8899/tcp
 ENTRYPOINT [ "proxy" ]
-CMD [ "--hostname=0.0.0.0" ]
+CMD [ "--hostname=0.0.0.0 --local-executor" ]
