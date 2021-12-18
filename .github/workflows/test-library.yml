@@ -707,6 +707,9 @@ jobs:
         }}";
         docker buildx build
         --load
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
         -t $CONTAINER_TAG .
         &&
         docker run
