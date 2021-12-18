@@ -731,7 +731,7 @@ jobs:
         CONTAINER_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
         }};
-        LATEST_TAG=$REGISTRY_URL:latest
+        LATEST_TAG=$REGISTRY_URL:latest;
         docker buildx build
         --push
         --platform
