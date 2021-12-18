@@ -197,7 +197,6 @@ container-buildx:
 
 container-buildx-all-platforms:
 	docker buildx build \
-		--load \
 		--platform linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x \
 		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .

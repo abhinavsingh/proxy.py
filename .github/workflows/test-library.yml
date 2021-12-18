@@ -700,25 +700,19 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Build container
+    - name: Build, run & test container
       run: >-
-        docker images;
-        make container-buildx-all-platforms
-        -e PROXYPY_PKG_PATH='dist/${{
-          needs.pre-setup.outputs.wheel-artifact-name
-        }}'
-        -e PROXYPY_CONTAINER_VERSION='${{
+        CONTAINER_TAG="abhinavsingh/proxy.py:${{
           needs.pre-setup.outputs.container-version
-        }}';
-        docker images
-    - name: Run & Test container
-      run: >-
+        }}";
+        docker buildx build
+        --load
+        -t $CONTAINER_TAG .
+        &&
         docker run
         -d
         -p 8899:8899
-        abhinavsingh/proxy.py:${{
-          needs.pre-setup.outputs.container-version
-        }}
+        $CONTAINER_TAG
         --hostname 0.0.0.0
         --enable-web-server
         --local-executor && ./tests/integration/test_integration.sh 8899
@@ -728,18 +722,32 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Tag & Push to GHCR
+    - name: Build multi-platform containers
       run: >-
-        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
-        IMAGE_ID=$(docker images | grep ${{
+        CONTAINER_TAG="ghcr.io/abhinavsingh/proxy.py:${{
           needs.pre-setup.outputs.container-version
-        }} | awk '{ print $3 }');
-        CONTAINER_URL=$REGISTRY_URL:${{
-          needs.pre-setup.outputs.container-version
-        }};
-        docker tag $IMAGE_ID $CONTAINER_URL
-        &&
-        docker push $CONTAINER_URL
+        }}";
+        docker images;
+        docker buildx build
+        --platform
+        linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
+        -t $CONTAINER_TAG
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}';
+        docker images
+    # - name: Tag & Push to GHCR
+    #   run: >-
+    #     REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+    #     IMAGE_ID=$(docker images | grep ${{
+    #       needs.pre-setup.outputs.container-version
+    #     }} | awk '{ print $3 }');
+    #     CONTAINER_URL=$REGISTRY_URL:${{
+    #       needs.pre-setup.outputs.container-version
+    #     }};
+    #     docker tag $IMAGE_ID $CONTAINER_URL
+    #     &&
+    #     docker push $CONTAINER_URL
 
   # ghcr-manifest:
   #   name: 🐳 → GHCR cross-platform manifest
