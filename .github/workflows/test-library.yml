@@ -725,22 +725,41 @@ jobs:
         --hostname 0.0.0.0
         --enable-web-server
         --local-executor && ./tests/integration/test_integration.sh 8899
-    - name: Build multi-platform containers
+    - name: Push to GHCR
       run: >-
-        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py"
+        PLATFORMS=linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x;
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
         CONTAINER_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
         }};
         LATEST_TAG=$REGISTRY_URL:latest;
         docker buildx build
         --push
-        --platform
-        linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
+        --platform $PLATFORMS
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
         -t $CONTAINER_TAG
         -t $LATEST_TAG .
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: abhinavsingh
+        password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+    - name: Push to DockerHub
+      run: >-
+        PLATFORMS=linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x;
+        REGISTRY_URL="abhinavsingh/proxy.py";
+        CONTAINER_TAG=$REGISTRY_URL:${{
+          needs.pre-setup.outputs.container-version
+        }};
+        docker buildx build
+        --push
+        --platform $PLATFORMS
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
