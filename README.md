@@ -248,6 +248,13 @@ or from GitHub `master` branch
 
 ## Using Docker
 
+Multi-platform containers are available via:
+
+- Docker Hub
+  - `docker pull abhinavsingh/proxy.py:latest`
+- Github container registry (GHCR)
+  - `docker pull ghcr.io/abhinavsingh/proxy.py:latest`
+
 Stable version container releases are available for following platforms:
 
 - `linux/386`
@@ -266,7 +273,7 @@ Run `proxy.py` latest container:
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
-To run specific target platform container on multi-platform supported servers:
+Docker daemon will automatically pull the matching platform image. To run specific target platform container on multi-platform supported servers:
 
 ```console
 ❯ docker run -it -p 8899:8899 --rm --platform linux/arm64/v8 abhinavsingh/proxy.py:latest
@@ -1690,7 +1697,7 @@ Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 ## Stable vs Develop
 
-- `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `hub.docker.com`
+- `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `docker.io` and `ghcr.io` registries.
 
   Issues reported for `stable` releases are considered with top-priority.  However, currently we don't back port fixes into older releases.  Example, if you reported an issue in `v2.3.1`, but current `master` branch now contains `v2.4.0rc1`.  Then, the fix will land in `v2.4.0rc2`.
 

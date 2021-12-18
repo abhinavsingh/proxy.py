@@ -671,7 +671,7 @@ jobs:
     needs:
     - build
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 container packaging
+    name: 🐳 containerize
     strategy:
       fail-fast: false
     steps:
@@ -727,10 +727,11 @@ jobs:
         --local-executor && ./tests/integration/test_integration.sh 8899
     - name: Build multi-platform containers
       run: >-
-        CONTAINER_TAG="ghcr.io/abhinavsingh/proxy.py:${{
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py"
+        CONTAINER_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
-        }}";
-        docker images;
+        }};
+        LATEST_TAG=$REGISTRY_URL:latest
         docker buildx build
         --push
         --platform
@@ -738,8 +739,8 @@ jobs:
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
-        -t $CONTAINER_TAG .;
-        docker images
+        -t $CONTAINER_TAG
+        -t $LATEST_TAG .
 
   check:  # This job does nothing and is only used for the branch protection
     if: always()
