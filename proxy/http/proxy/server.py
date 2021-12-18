@@ -302,19 +302,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.upstream.closed:
                     logger.debug('Server closed connection, tearing down...')
                     return self._close_and_release()
-                else:
-                    return False
+                return False
             for plugin in self.plugins.values():
                 raw = plugin.handle_upstream_chunk(raw)
 
             # parse incoming response packet
             # only for non-https requests and when
             # tls interception is enabled
-            if not self.request.is_https_tunnel:
-                # See https://github.com/abhinavsingh/proxy.py/issues/127 for why
-                # currently response parsing is disabled when TLS interception is enabled.
-                #
-                # or self.tls_interception_enabled():
+            if not self.request.is_https_tunnel \
+                    or self.tls_interception_enabled():
                 if self.response.is_complete:
                     self.handle_pipeline_response(raw)
                 else:
@@ -343,11 +339,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
             'request_bytes': self.request.total_size,
-            'request_code': self.request.code,
             'request_ua': self.request.header(b'user-agent')
             if self.request.has_header(b'user-agent')
             else None,
-            'request_reason': self.request.reason,
             'request_version': self.request.version,
             # Response
             'response_bytes': self.response.total_size,
@@ -738,7 +732,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         ca_key_path = self.flags.ca_key_file
         ca_key_password = ''
         ca_crt_path = self.flags.ca_cert_file
-        serial = self.uid.int
+        serial = self.uid
 
         # Sign generated CSR
         if not os.path.isfile(cert_file_path):
@@ -913,7 +907,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             return
         assert self.request.port
         self.event_queue.publish(
-            request_id=self.uid.hex,
+            request_id=self.uid,
             event_name=eventNames.REQUEST_COMPLETE,
             event_payload={
                 'url': text_(self.request.path)
@@ -947,7 +941,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if not self.flags.enable_events:
             return
         self.event_queue.publish(
-            request_id=self.uid.hex,
+            request_id=self.uid,
             event_name=eventNames.RESPONSE_HEADERS_COMPLETE,
             event_payload={
                 'headers': {}
@@ -964,7 +958,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if not self.flags.enable_events:
             return
         self.event_queue.publish(
-            request_id=self.uid.hex,
+            request_id=self.uid,
             event_name=eventNames.RESPONSE_CHUNK_RECEIVED,
             event_payload={
                 'chunk_size': chunk_size,
@@ -977,7 +971,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if not self.flags.enable_events:
             return
         self.event_queue.publish(
-            request_id=self.uid.hex,
+            request_id=self.uid,
             event_name=eventNames.RESPONSE_COMPLETE,
             event_payload={
                 'encoded_response_size': self.response.total_size,

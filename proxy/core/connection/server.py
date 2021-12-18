@@ -27,7 +27,7 @@ class TcpServerConnection(TcpConnection):
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
         self.addr: Tuple[str, int] = (host, int(port))
         self.closed = True
-        self.handshake: Dict(int, bytes) = {}
+        self.handshake: Dict[int, bytes] = {}
         self.session_id: Optional[bytes] = None
 
     @property

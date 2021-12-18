@@ -1322,10 +1322,10 @@ import proxy
 
 if __name__ == '__main__':
   with proxy.Proxy([]) as p:
-    print(p.acceptors.flags.port)
+    print(p.flags.port)
 ```
 
-`acceptors.flags.port` will give you access to the random port allocated by the kernel.
+`flags.port` will give you access to the random port allocated by the kernel.
 
 ## Loading Plugins
 
@@ -1384,7 +1384,7 @@ Note that:
 
 1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and tear down `proxy.py`.
 2. `proxy.py` server will listen on a random available port on the system.
-   This random port is available as `self.PROXY.acceptors.flags.port` within your test cases.
+   This random port is available as `self.PROXY.flags.port` within your test cases.
 3. Only a single acceptor and worker is started by default (`--num-workers 1 --num-acceptors 1`) for faster setup and tear down.
 4. Most importantly, `proxy.TestCase` also ensures `proxy.py` server
    is up and running before proceeding with execution of tests. By default,
@@ -2073,7 +2073,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2.dev190+ge60d80d.d20211124
+proxy.py v2.4.0rc3.dev33+gc341594.d20211214
 
 options:
   -h, --help            show this help message and exit

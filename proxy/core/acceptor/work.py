@@ -15,7 +15,7 @@
 import argparse
 
 from abc import ABC, abstractmethod
-from uuid import uuid4, UUID
+from uuid import uuid4
 from typing import Optional, Dict, Any
 
 from ..event import eventNames, EventQueue
@@ -31,10 +31,10 @@ class Work(ABC):
             work: TcpClientConnection,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
-            uid: Optional[UUID] = None,
+            uid: Optional[str] = None,
     ) -> None:
         # Work uuid
-        self.uid: UUID = uid if uid is not None else uuid4()
+        self.uid: str = uid if uid is not None else uuid4().hex
         self.flags = flags
         # Eventing core queue
         self.event_queue = event_queue
@@ -92,7 +92,7 @@ class Work(ABC):
             return
         assert self.event_queue
         self.event_queue.publish(
-            self.uid.hex,
+            self.uid,
             event_name,
             event_payload,
             publisher_id,
