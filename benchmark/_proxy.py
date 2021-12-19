@@ -15,8 +15,8 @@ import proxy
 
 if __name__ == '__main__':
     with proxy.Proxy(
-            ["--plugin", "proxy.plugin.WebServerPlugin"],
-            hostname=ipaddress.ip_address("127.0.0.1"),
+            ['--plugin', 'proxy.plugin.WebServerPlugin'],
+            hostname=ipaddress.ip_address('127.0.0.1'),
             port=8899,
             backlog=65536,
             open_file_limit=65536,
@@ -24,7 +24,7 @@ if __name__ == '__main__':
             disable_proxy_server=False,
             num_acceptors=10,
             local_executor=True,
-            log_file="/dev/null",
+            log_file='/dev/null',
     ) as _:
         while True:
             try:
