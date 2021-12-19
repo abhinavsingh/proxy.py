@@ -28,7 +28,7 @@ from ..codes import httpStatusCodes
 from ..exception import HttpProtocolException
 from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
-from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..parser import HttpParser, httpParserTypes
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
@@ -274,7 +274,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return None
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
-        if self.request.state == httpParserStates.COMPLETE and \
+        if self.request.is_complete and \
                 self.request.is_http_1_1_keep_alive and \
                 self.route is not None:
             if self.pipeline_request is None:
@@ -284,7 +284,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
             # compliant
             self.pipeline_request.parse(raw.tobytes())
-            if self.pipeline_request.state == httpParserStates.COMPLETE:
+            if self.pipeline_request.is_complete:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive:
                     logger.error(
@@ -301,10 +301,28 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if self.request.has_host():
             return
         context = {
-            'client_addr': self.client.address,
+            'client_ip': None if not self.client.addr else self.client.addr[0],
+            'client_port': None if not self.client.addr else self.client.addr[1],
+            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            # Request
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
-            'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
+            'request_bytes': self.request.total_size,
+            'request_ua': self.request.header(b'user-agent')
+            if self.request.has_header(b'user-agent')
+            else None,
+            'request_version': self.request.version,
+            # Response
+            #
+            # TODO: Track and inject web server specific response attributes
+            # Currently, plugins are allowed to queue raw bytes, because of
+            # which we'll have to reparse the queued packets to deduce
+            # several attributes required below.  At least for code and
+            # reason attributes.
+            #
+            # 'response_bytes': self.response.total_size,
+            # 'response_code': text_(self.response.code),
+            # 'response_reason': text_(self.response.reason),
         }
         log_handled = False
         if self.route:

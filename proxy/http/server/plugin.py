@@ -10,7 +10,6 @@
 """
 import argparse
 
-from uuid import UUID
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -27,7 +26,7 @@ class HttpWebServerBasePlugin(ABC):
 
     def __init__(
             self,
-            uid: UUID,
+            uid: str,
             flags: argparse.Namespace,
             client: TcpClientConnection,
             event_queue: EventQueue,

@@ -15,7 +15,7 @@
 [![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
 [![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
-[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
+[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
 [![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
 
 [![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/issues)
@@ -26,13 +26,13 @@
 
 - [Features](#features)
 - [Install](#install)
-  - [Stable vs Develop](#stable-vs-develop)
   - [Using PIP](#using-pip)
     - [Stable version](#stable-version-with-pip)
     - [Development version](#development-version-with-pip)
   - [Using Docker](#using-docker)
-    - [Stable version](#stable-version-from-docker-hub)
-    - [Development version](#build-development-version-locally)
+    - [Stable version from Docker Hub](#stable-version-from-docker-hub)
+    - [Development Version from GHCR](#development-version-from-ghcr)
+    - [Build container locally](#build-development-version-locally)
   - [Using HomeBrew](#using-homebrew)
     - [Stable version](#stable-version-with-homebrew)
     - [Development version](#development-version-with-homebrew)
@@ -92,6 +92,8 @@
   - [Inspect Traffic](#inspect-traffic)
 - [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
+  - [Stable vs Develop](#stable-vs-develop)
+    - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
   - [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
   - [Unable to load plugins](#unable-to-load-plugins)
@@ -223,14 +225,6 @@
 
 # Install
 
-## Stable vs Develop
-
-`master` branch contains latest stable code and is available via `PyPi` repository
-
-`develop` branch contains cutting edge changes
-
-Development branch is kept stable *(most of the times)*. But if you want 100% reliability and serving users in production environment, always use stable version from `PyPi` or `Docker` container from `hub.docker.com`.
-
 ## Using PIP
 
 ### Stable Version with PIP
@@ -255,6 +249,15 @@ or from GitHub `master` branch
 
 ## Using Docker
 
+Multi-platform containers are available via:
+
+- Docker Hub
+  - `latest` tag points to last `stable` release
+  - `docker pull abhinavsingh/proxy.py:latest`
+- GitHub container registry (GHCR)
+  - `latest` tag points to last `develop` release
+  - `docker pull ghcr.io/abhinavsingh/proxy.py:latest`
+
 Stable version container releases are available for following platforms:
 
 - `linux/386`
@@ -273,10 +276,19 @@ Run `proxy.py` latest container:
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
+Docker daemon will automatically pull the matching platform image.
 To run specific target platform container on multi-platform supported servers:
 
 ```console
 ❯ docker run -it -p 8899:8899 --rm --platform linux/arm64/v8 abhinavsingh/proxy.py:latest
+```
+
+### Development Version from GHCR
+
+Run `proxy.py` container from cutting edge code in the develop branch:
+
+```console
+❯ docker run -it -p 8899:8899 --rm ghcr.io/abhinavsingh/proxy.py:latest
 ```
 
 ### Build Development Version Locally
@@ -1329,10 +1341,10 @@ import proxy
 
 if __name__ == '__main__':
   with proxy.Proxy([]) as p:
-    print(p.acceptors.flags.port)
+    print(p.flags.port)
 ```
 
-`acceptors.flags.port` will give you access to the random port allocated by the kernel.
+`flags.port` will give you access to the random port allocated by the kernel.
 
 ## Loading Plugins
 
@@ -1391,7 +1403,7 @@ Note that:
 
 1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and tear down `proxy.py`.
 2. `proxy.py` server will listen on a random available port on the system.
-   This random port is available as `self.PROXY.acceptors.flags.port` within your test cases.
+   This random port is available as `self.PROXY.flags.port` within your test cases.
 3. Only a single acceptor and worker is started by default (`--num-workers 1 --num-acceptors 1`) for faster setup and tear down.
 4. Most importantly, `proxy.TestCase` also ensures `proxy.py` server
    is up and running before proceeding with execution of tests. By default,
@@ -1694,6 +1706,30 @@ start `proxy.py` as:
 Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
+
+## Stable vs Develop
+
+- `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `docker.io` and `ghcr.io` registries.
+
+  Issues reported for `stable` releases are considered with top-priority.  However, currently we don't back port fixes into older releases.  Example, if you reported an issue in `v2.3.1`, but current `master` branch now contains `v2.4.0rc1`.  Then, the fix will land in `v2.4.0rc2`.
+
+- `develop` branch contains cutting edge changes
+
+  Development branch is kept stable *(most of the times)*. **But**, if you want *100% reliability* and serving users in *production environment*, ALWAYS use the stable version.
+
+### Release Schedule
+
+A `vX.Y.ZrcN` pull request is created once a month which merges `develop` → `master`.  Find below how code flows from a pull request to the next stable release.
+
+1. Development release is deployed from `develop` → `test.pypi.org` after every pull request merge
+
+2. Alpha release is deployed from `develop` → `pypi.org` **before** merging the `vX.Y.Z.rcN` pull request from `develop` → `master` branch.  There can be multiple alpha releases made before merging the `rc` pull request
+
+3. Beta release is deployed from `master` → `pypi.org`.  Beta releases are made in preparation of `rc` releases and can be skipped if unnecessary
+
+4. Release candidate is deployed from `master` → `pypi.org`.  Release candidates are always made available before final stable release
+
+5. Stable release is deployed from `master` → `pypi.org`
 
 ## Threads vs Threadless
 
@@ -2056,7 +2092,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2.dev190+ge60d80d.d20211124
+proxy.py v2.4.0rc3.dev33+gc341594.d20211214
 
 options:
   -h, --help            show this help message and exit

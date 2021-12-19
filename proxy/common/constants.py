@@ -45,6 +45,8 @@ DOT = b'.'
 SLASH = b'/'
 HTTP_1_0 = b'HTTP/1.0'
 HTTP_1_1 = b'HTTP/1.1'
+HTTP_URL_PREFIX = b'http://'
+HTTPS_URL_PREFIX = b'https://'
 
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + \
@@ -80,7 +82,7 @@ DEFAULT_KEY_FILE = None
 DEFAULT_LOG_FILE = None
 DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(module)s.%(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
-DEFAULT_WEB_ACCESS_LOG_FORMAT = '{client_addr} - {request_method} {request_path} - {connection_time_ms}ms'
+DEFAULT_WEB_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - {request_method} {request_path} - {connection_time_ms}ms'
 DEFAULT_HTTP_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port}{request_path} - ' + \
     '{response_code} {response_reason} - {response_bytes} bytes - ' + \

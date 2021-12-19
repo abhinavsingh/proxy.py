@@ -29,7 +29,7 @@ endif
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
 .PHONY: lib-release-test lib-release lib-profile lib-doc
-.PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope
+.PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope container-buildx-all-platforms
 .PHONY: container container-run container-release container-build container-buildx
 .PHONY: devtools dashboard dashboard-clean
 
@@ -126,11 +126,11 @@ lib-release: lib-package
 
 lib-doc:
 	python -m tox -e build-docs && \
-	$(OPEN) .tox/build-docs/docs_out/index.html
+	$(OPEN) .tox/build-docs/docs_out/index.html || true
 
 lib-coverage:
 	pytest --cov=proxy --cov=tests --cov-report=html tests/ && \
-	$(OPEN) htmlcov/index.html
+	$(OPEN) htmlcov/index.html || true
 
 lib-profile:
 	ulimit -n 65536 && \
@@ -177,6 +177,11 @@ dashboard-clean:
 container: lib-package
 	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
 
+container-build:
+	docker build \
+		-t $(PROXYPY_CONTAINER_TAG) \
+		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
+
 # Usage:
 #
 # make container-buildx \
@@ -185,12 +190,14 @@ container: lib-package
 #	-e PROXYPY_CONTAINER_VERSION=latest
 container-buildx:
 	docker buildx build \
+		--load \
 		--platform $(BUILDX_TARGET_PLATFORM) \
 		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 
-container-build:
-	docker build \
+container-buildx-all-platforms:
+	docker buildx build \
+		--platform linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x \
 		-t $(PROXYPY_CONTAINER_TAG) \
 		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
 

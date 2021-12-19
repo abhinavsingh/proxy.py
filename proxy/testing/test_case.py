@@ -23,6 +23,7 @@ class TestCase(unittest.TestCase):
     """Base TestCase class that automatically setup and tear down proxy.py."""
 
     DEFAULT_PROXY_PY_STARTUP_FLAGS = [
+        '--port', '0',
         '--num-workers', '1',
         '--num-acceptors', '1',
         '--threadless',
@@ -48,7 +49,7 @@ class TestCase(unittest.TestCase):
 
         cls.PROXY.__enter__()
         assert cls.PROXY.acceptors
-        cls.wait_for_server(cls.PROXY.acceptors.flags.port)
+        cls.wait_for_server(cls.PROXY.flags.port)
 
     @staticmethod
     def wait_for_server(
