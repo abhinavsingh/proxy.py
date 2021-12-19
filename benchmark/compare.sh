@@ -61,36 +61,11 @@ run_benchmark() {
 }
 
 benchmark_lib() {
-  python ./benchmark/$1/server.py > /dev/null 2>&1 &
+  python ./benchmark/_$1.py > /dev/null 2>&1 &
   local SERVER_PID=$!
   echo "Server (pid:$SERVER_PID) running"
   sleep 1
   run_benchmark $2
-  kill -15 $SERVER_PID
-  sleep 1
-  kill -0 $SERVER_PID > /dev/null 2>&1
-  local RUNNING=$?
-  if [ "$RUNNING" == "1" ]; then
-    echo "Server gracefully shutdown"
-  fi
-}
-
-benchmark_proxy_py() {
-  python -m proxy \
-    --hostname 127.0.0.1 \
-    --port $1 \
-    --backlog 65536 \
-    --open-file-limit 65536 \
-    --enable-web-server \
-    --plugin proxy.plugin.WebServerPlugin \
-    --disable-http-proxy \
-    --num-acceptors 10 \
-    --local-executor \
-    --log-file /dev/null > /dev/null 2>&1 &
-  local SERVER_PID=$!
-  echo "Server (pid:$SERVER_PID) running"
-  sleep 1
-  run_benchmark $1
   kill -15 $SERVER_PID
   sleep 1
   kill -0 $SERVER_PID > /dev/null 2>&1
@@ -120,7 +95,7 @@ benchmark_asgi() {
 
 # echo "============================="
 # echo "Benchmarking Proxy.Py"
-# benchmark_proxy_py $PROXYPY_PORT
+# PYTHONPATH=. benchmark_lib proxy $PROXYPY_PORT
 # echo "============================="
 
 # echo "============================="
