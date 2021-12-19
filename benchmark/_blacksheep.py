@@ -10,7 +10,7 @@
 """
 import uvicorn
 
-from blacksheep.server.application import Application
+from blacksheep.server import Application
 from blacksheep.server.responses import text
 
 
