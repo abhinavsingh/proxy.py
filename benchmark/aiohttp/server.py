@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from aiohttp import web
+from aiohttp import web     # type: ignore[attr-defined]
 
 
 async def handle(request: web.Request) -> web.StreamResponse:
