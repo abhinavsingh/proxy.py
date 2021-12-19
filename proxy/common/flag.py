@@ -22,7 +22,7 @@ from typing import Optional, List, Any, cast
 from ._compat import IS_WINDOWS  # noqa: WPS436
 from .plugins import Plugins
 from .types import IpAddress
-from .utils import bytes_, is_py2, set_open_file_limit
+from .utils import bytes_, is_py2, is_threadless, set_open_file_limit
 from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, DEFAULT_MIN_COMPRESSION_LIMIT
@@ -340,19 +340,27 @@ class FlagParser:
             ),
         )
         args.timeout = cast(int, opts.get('timeout', args.timeout))
-        args.threadless = cast(bool, opts.get('threadless', args.threadless))
-        args.threaded = cast(bool, opts.get('threaded', args.threaded))
-        args.pid_file = cast(
-            Optional[str], opts.get(
-                'pid_file',
-                args.pid_file,
-            ),
-        )
         args.local_executor = cast(
             bool,
             opts.get(
                 'local_executor',
                 args.local_executor,
+            ),
+        )
+        args.threaded = cast(bool, opts.get('threaded', args.threaded))
+        # Pre-evaluate threadless values based upon environment and config
+        #
+        # --threadless is now default mode of execution
+        # but we still have exceptions based upon OS config.
+        # Make sure executors are not started if is_threadless
+        # evaluates to False.
+        args.threadless = cast(bool, opts.get('threadless', args.threadless))
+        args.threadless = is_threadless(args.threadless, args.threaded)
+
+        args.pid_file = cast(
+            Optional[str], opts.get(
+                'pid_file',
+                args.pid_file,
             ),
         )
 
