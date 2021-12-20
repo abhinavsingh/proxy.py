@@ -744,7 +744,7 @@ jobs:
         }}'
         -t $CONTAINER_TAG .
     - name: Tag latest on GHCR
-      if: {{ github.ref == 'ref/head/develop' }}
+      if: github.ref == 'ref/head/develop'
       run: >-
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
         LATEST_TAG=$REGISTRY_URL:latest;
