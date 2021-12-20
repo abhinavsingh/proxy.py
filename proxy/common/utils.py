@@ -99,7 +99,7 @@ def build_http_response(
         headers = {}
     has_content_length = False
     has_transfer_encoding = False
-    for k in headers:
+    for k, _ in headers.items():
         if k.lower() == b'content-length':
             has_content_length = True
         if k.lower() == b'transfer-encoding':
@@ -124,8 +124,8 @@ def build_http_pkt(
     """Build and returns a HTTP request or response packet."""
     pkt = WHITESPACE.join(line) + CRLF
     if headers is not None:
-        for k in headers:
-            pkt += build_http_header(k, headers[k]) + CRLF
+        for k, v in headers.items():
+            pkt += build_http_header(k, v) + CRLF
     pkt += CRLF
     if body:
         pkt += body

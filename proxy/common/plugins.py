@@ -74,12 +74,18 @@ class Plugins:
             mro = list(inspect.getmro(klass))
             mro.reverse()
             iterator = iter(mro)
-            while next(iterator) is not abc.ABC:
-                pass
-            base_klass = next(iterator)
-            if klass not in p[bytes_(base_klass.__name__)]:
-                p[bytes_(base_klass.__name__)].append(klass)
-            logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
+            try:
+                while next(iterator) is not abc.ABC:
+                    pass
+                base_klass = next(iterator)
+                if klass not in p[bytes_(base_klass.__name__)]:
+                    p[bytes_(base_klass.__name__)].append(klass)
+                logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
+            except StopIteration:
+                logger.warn(
+                    '%s is NOT a valid plugin',
+                    text_(plugin_),
+                )
         return p
 
     @staticmethod

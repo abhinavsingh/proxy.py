@@ -15,6 +15,7 @@ import unittest
 from unittest import mock
 
 from proxy.proxy import main, entry_point
+from proxy.common.constants import _env_threadless_compliant    # noqa: WPS450
 from proxy.common.utils import bytes_
 
 from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE
@@ -244,8 +245,9 @@ class TestMain(unittest.TestCase):
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()
         mock_event_manager.return_value.shutdown.assert_called_once()
-        mock_executor_pool.assert_called_once()
-        mock_executor_pool.return_value.setup.assert_called_once()
+        if _env_threadless_compliant():
+            mock_executor_pool.assert_called_once()
+            mock_executor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called_once()
         mock_listener.return_value.setup.assert_called_once()
@@ -283,8 +285,9 @@ class TestMain(unittest.TestCase):
         mock_parse_args.assert_called_once()
         # Currently --enable-devtools flag alone doesn't enable eventing core
         mock_event_manager.assert_not_called()
-        mock_executor_pool.assert_called_once()
-        mock_executor_pool.return_value.setup.assert_called_once()
+        if _env_threadless_compliant():
+            mock_executor_pool.assert_called_once()
+            mock_executor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called_once()
         mock_listener.return_value.setup.assert_called_once()
