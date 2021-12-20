@@ -205,7 +205,7 @@ jobs:
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
         }}' | tr + .);
-        PLATFORMS=linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x;
+        PLATFORMS="linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x";
         echo "::set-output name=version::$VER";
         echo "::set-output name=platforms::$PLATFORMS"
 
