@@ -15,7 +15,7 @@ import unittest
 from unittest import mock
 
 from proxy.proxy import main, entry_point
-from proxy.common.constants import _env_threadless_compliant
+from proxy.common.constants import _env_threadless_compliant    # noqa: WPS450
 from proxy.common.utils import bytes_
 
 from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE
