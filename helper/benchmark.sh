@@ -64,8 +64,6 @@ run_benchmark
 
 POST_RUN_OPEN_FILES=$(./helper/monitor_open_files.sh)
 
-echo $output
-
 echo "Open files diff:"
 diff <( echo "$PRE_RUN_OPEN_FILES" ) <( echo "$POST_RUN_OPEN_FILES" )
 
