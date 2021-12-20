@@ -78,17 +78,15 @@ class TestPki(unittest.TestCase):
                 )
 
     def test_extfile_no_ext(self) -> None:
-        with pki.ext_file() as config_path:
-            with open(config_path, 'rb') as config:
-                self.assertEqual(config.read(), b'')
+        with pki.ext_file() as config_path, open(config_path, 'rb') as config:
+            self.assertEqual(config.read(), b'')
 
     def test_extfile(self) -> None:
-        with pki.ext_file(['proxy.py']) as config_path:
-            with open(config_path, 'rb') as config:
-                self.assertEqual(
-                    config.read(),
-                    b'\nsubjectAltName=DNS:proxy.py',
-                )
+        with pki.ext_file(['proxy.py']) as config_path, open(config_path, 'rb') as config:
+            self.assertEqual(
+                config.read(),
+                b'\nsubjectAltName=DNS:proxy.py',
+            )
 
     def test_gen_private_key(self) -> None:
         key_path, nopass_key_path = self._gen_private_key()

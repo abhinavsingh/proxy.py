@@ -221,12 +221,12 @@ class Proxy:
 
 
 def main(**opts: Any) -> None:
-    try:
-        with Proxy(sys.argv[1:], **opts):
-            while True:
+    with Proxy(sys.argv[1:], **opts):
+        while True:
+            try:
                 time.sleep(1)
-    except KeyboardInterrupt:
-        pass
+            except KeyboardInterrupt:
+                break
 
 
 def entry_point() -> None:

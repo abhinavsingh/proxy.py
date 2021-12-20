@@ -186,7 +186,7 @@ class FlagParser:
             for p in FlagParser.get_default_plugins(args)
         ]
         requested_plugins = Plugins.resolve_plugin_flag(
-            args.plugins, opts.get('plugins', None),
+            args.plugins, opts.get('plugins'),
         )
         plugins = Plugins.load(
             default_plugins + auth_plugins + requested_plugins,

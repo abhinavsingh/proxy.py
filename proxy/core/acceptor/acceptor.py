@@ -112,17 +112,17 @@ class Acceptor(multiprocessing.Process):
     ) -> List[Tuple[socket.socket, Optional[Tuple[str, int]]]]:
         works = []
         for _, mask in events:
-            if mask & selectors.EVENT_READ:
-                if self.sock is not None:
-                    try:
-                        conn, addr = self.sock.accept()
-                        logging.debug(
-                            'Accepting new work#{0}'.format(conn.fileno()),
-                        )
-                        works.append((conn, addr or None))
-                    except BlockingIOError:
-                        # logger.info('blocking io error')
-                        pass
+            if mask & selectors.EVENT_READ and \
+                    self.sock is not None:
+                try:
+                    conn, addr = self.sock.accept()
+                    logging.debug(
+                        'Accepting new work#{0}'.format(conn.fileno()),
+                    )
+                    works.append((conn, addr or None))
+                except BlockingIOError:
+                    # logger.info('blocking io error')
+                    pass
         return works
 
     def run_once(self) -> None:
