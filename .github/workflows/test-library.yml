@@ -67,6 +67,7 @@ jobs:
       sdist-artifact-name: ${{ steps.artifact-name.outputs.sdist }}
       wheel-artifact-name: ${{ steps.artifact-name.outputs.wheel }}
       container-version: v${{ steps.container.outputs.version }}
+      container-platforms: ${{ steps.container.outputs.platforms }}
     steps:
     - name: Switch to using Python 3.9 by default
       uses: actions/setup-python@v2
@@ -204,7 +205,9 @@ jobs:
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
         }}' | tr + .);
-        echo "::set-output name=version::$VER"
+        PLATFORMS="linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x";
+        echo "::set-output name=version::$VER";
+        echo "::set-output name=platforms::$PLATFORMS"
 
   build:
     name: 👷 dists ${{ needs.pre-setup.outputs.git-tag }}
@@ -727,19 +730,32 @@ jobs:
         --local-executor && ./tests/integration/test_integration.sh 8899
     - name: Push to GHCR
       run: >-
-        PLATFORMS=linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x;
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
         CONTAINER_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
         }};
-        LATEST_TAG=$REGISTRY_URL:latest;
         docker buildx build
         --push
-        --platform $PLATFORMS
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
-        -t $CONTAINER_TAG
+        -t $CONTAINER_TAG .
+    - name: Tag latest on GHCR
+      if: github.ref == 'ref/head/develop'
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        LATEST_TAG=$REGISTRY_URL:latest;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
         -t $LATEST_TAG .
     - name: Login to DockerHub
       uses: docker/login-action@v1
@@ -748,14 +764,15 @@ jobs:
         password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
     - name: Push to DockerHub
       run: >-
-        PLATFORMS=linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x;
         REGISTRY_URL="abhinavsingh/proxy.py";
         CONTAINER_TAG=$REGISTRY_URL:${{
           needs.pre-setup.outputs.container-version
         }};
         docker buildx build
         --push
-        --platform $PLATFORMS
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
@@ -838,35 +855,6 @@ jobs:
       with:
         password: ${{ secrets.TESTPYPI_API_TOKEN }}
         repository_url: https://test.pypi.org/legacy/
-
-  # publish-docker:
-  #   name: Publish 🐳 📦 ${{ needs.pre-setup.outputs.git-tag }} to Docker Hub
-  #   needs:
-  #   - check
-  #   - pre-setup  # transitive, for accessing settings
-  #   if: >-
-  #     fromJSON(needs.pre-setup.outputs.release-requested)
-  #   runs-on: Ubuntu-latest
-
-  #   environment:
-  #     name: release-docker
-  #     url: >-
-  #       https://test.pypi.org/project/proxy.py/${{
-  #         needs.pre-setup.outputs.dist-version
-  #       }}
-
-  #   steps:
-  #   - name: Download all the dists
-  #     uses: actions/download-artifact@v2
-  #     with:
-  #       name: python-package-distributions
-  #       path: dist/
-  #   - name: >-
-  #       Publish 🐳 📦 ${{ needs.pre-setup.outputs.git-tag }} to Docker Hub
-  #     uses: pypa/gh-action-pypi-publish@release/v1
-  #     with:
-  #       password: ${{ secrets.TESTPYPI_API_TOKEN }}
-  #       repository_url: https://test.pypi.org/legacy/
 
   post-release-repo-update:
     name: >-
