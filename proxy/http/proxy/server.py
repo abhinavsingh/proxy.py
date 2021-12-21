@@ -770,11 +770,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def intercept(self) -> Union[socket.socket, bool]:
         # Perform SSL/TLS handshake with upstream
-        self.wrap_server()
+        teardown = self.wrap_server()
+        if teardown:
+            return teardown
         # Generate certificate and perform handshake with client
         # wrap_client also flushes client data before wrapping
         # sending to client can raise, handle expected exceptions
-        self.wrap_client()
+        teardown = self.wrap_client()
+        if teardown:
+            return teardown
         # Update all plugin connection reference
         # TODO(abhinavsingh): Is this required?
         for plugin in self.plugins.values():
@@ -813,13 +817,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     ), exc_info=e,
                 )
             do_close = True
-        finally:
-            if do_close:
-                raise HttpProtocolException(
-                    'Exception when wrapping server for interception',
-                )
-        assert isinstance(self.upstream.connection, ssl.SSLSocket)
-        return False
+        if not do_close:
+            assert isinstance(self.upstream.connection, ssl.SSLSocket)
+        return do_close
 
     def wrap_client(self) -> bool:
         assert self.upstream is not None and self.flags.ca_signing_key_file is not None
@@ -883,13 +883,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 ), exc_info=e,
             )
             do_close = True
-        finally:
-            if do_close:
-                raise HttpProtocolException(
-                    'Exception when wrapping client for interception',
-                )
-        logger.debug('TLS intercepting using %s', generated_cert)
-        return False
+        if not do_close:
+            logger.debug('TLS intercepting using %s', generated_cert)
+        return do_close
 
     #
     # Event emitter callbacks
