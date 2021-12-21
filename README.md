@@ -15,7 +15,7 @@
 [![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
 [![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
-[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
+[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
 [![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
 
 [![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/issues)
@@ -30,8 +30,9 @@
     - [Stable version](#stable-version-with-pip)
     - [Development version](#development-version-with-pip)
   - [Using Docker](#using-docker)
-    - [Stable version](#stable-version-from-docker-hub)
-    - [Development version](#build-development-version-locally)
+    - [Stable version from Docker Hub](#stable-version-from-docker-hub)
+    - [Development Version from GHCR](#development-version-from-ghcr)
+    - [Build container locally](#build-development-version-locally)
   - [Using HomeBrew](#using-homebrew)
     - [Stable version](#stable-version-with-homebrew)
     - [Development version](#development-version-with-homebrew)
@@ -248,6 +249,15 @@ or from GitHub `master` branch
 
 ## Using Docker
 
+Multi-platform containers are available via:
+
+- Docker Hub
+  - `latest` tag points to last `stable` release
+  - `docker pull abhinavsingh/proxy.py:latest`
+- GitHub container registry (GHCR)
+  - `latest` tag points to last `develop` release
+  - `docker pull ghcr.io/abhinavsingh/proxy.py:latest`
+
 Stable version container releases are available for following platforms:
 
 - `linux/386`
@@ -266,10 +276,19 @@ Run `proxy.py` latest container:
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
+Docker daemon will automatically pull the matching platform image.
 To run specific target platform container on multi-platform supported servers:
 
 ```console
 ❯ docker run -it -p 8899:8899 --rm --platform linux/arm64/v8 abhinavsingh/proxy.py:latest
+```
+
+### Development Version from GHCR
+
+Run `proxy.py` container from cutting edge code in the develop branch:
+
+```console
+❯ docker run -it -p 8899:8899 --rm ghcr.io/abhinavsingh/proxy.py:latest
 ```
 
 ### Build Development Version Locally
@@ -1690,7 +1709,7 @@ Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 ## Stable vs Develop
 
-- `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `hub.docker.com`
+- `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `docker.io` and `ghcr.io` registries.
 
   Issues reported for `stable` releases are considered with top-priority.  However, currently we don't back port fixes into older releases.  Example, if you reported an issue in `v2.3.1`, but current `master` branch now contains `v2.4.0rc1`.  Then, the fix will land in `v2.4.0rc2`.
 
