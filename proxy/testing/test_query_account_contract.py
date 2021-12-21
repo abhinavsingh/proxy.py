@@ -254,42 +254,42 @@ class Test_Query_Account_Contract(unittest.TestCase):
         self.contract_address = tx_deploy_receipt.contractAddress
         print('contract address:', self.contract_address)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("Temporatily")
     def test_metadata_ok(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
         get_metadata_ok = query.functions.test_metadata_ok().call()
         assert(get_metadata_ok)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("Temporatily")
     def test_metadata_nonexistent_account(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
         get_metadata_nonexistent_account = query.functions.test_metadata_nonexistent_account().call()
         assert(get_metadata_nonexistent_account)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("Temporatily")
     def test_data_ok(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
         get_data_ok = query.functions.test_data_ok().call()
         assert(get_data_ok)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("Temporatily")
     def test_data_nonexistent_account(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
         get_data_nonexistent_account = query.functions.test_data_nonexistent_account().call()
         assert(get_data_nonexistent_account)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("Temporatily")
     def test_data_too_big_offset(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
         get_data_too_big_offset = query.functions.test_data_too_big_offset().call()
         assert(get_data_too_big_offset)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("Temporatily")
     def test_data_too_big_length(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])

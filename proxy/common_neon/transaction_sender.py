@@ -19,8 +19,8 @@ from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, A
 from .emulator_interactor import call_emulated
 from .layouts import ACCOUNT_INFO_LAYOUT
 from .neon_instruction import NeonInstruction
-from .solana_interactor import SolanaInteractor, check_if_continue_returned, check_for_errors,\
-    check_if_program_exceeded_instructions, check_if_storage_is_empty_error
+from .solana_interactor import SolanaInteractor, check_if_continue_returned, \
+    check_if_program_exceeded_instructions, check_for_errors
 from ..environment import EVM_LOADER_ID
 from ..plugin.eth_proto import Trx as EthTrx
 
@@ -275,8 +275,6 @@ class TransactionSender:
                 sender_sol = PublicKey(acc_desc["account"])
             else:
                 add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=True))
-                token_account = getTokenAddr(PublicKey(acc_desc["account"]))
-                add_keys_05.append(AccountMeta(pubkey=token_account, is_signer=False, is_writable=True))
                 if acc_desc["new"]:
                     if code_account:
                         add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=code_account_writable))
@@ -298,10 +296,8 @@ class TransactionSender:
 
         self.eth_accounts = [
                 AccountMeta(pubkey=contract_sol, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=getTokenAddr(contract_sol), is_signer=False, is_writable=True),
             ] + ([AccountMeta(pubkey=code_sol, is_signer=False, is_writable=code_writable)] if code_sol != None else []) + [
                 AccountMeta(pubkey=sender_sol, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
             ] + add_keys_05
 
         self.steps_emulated = output_json["steps_executed"]
@@ -368,6 +364,7 @@ class IterativeTransactionSender:
         result = self.sender.send_measured_transaction(precall_txs, self.eth_trx, 'CreateAccountsForTrx')
         if check_for_errors(result):
             raise Exception("Failed to create account for trx")
+        self.create_acc_trx = Transaction()
 
 
     def write_trx_to_holder_account(self):
@@ -439,7 +436,7 @@ class IterativeTransactionSender:
 
             logger.debug("Step count {}".format(step_count))
             try:
-                result = self.sender.send_measured_transaction(trx, self.eth_trx, 'ContinueV02')
+                result = self.sender.send_measured_transaction(trx, self.eth_trx, self.instruction_type)
                 return result
             except SendTransactionError as err:
                 if check_if_program_exceeded_instructions(err.result):
@@ -459,25 +456,15 @@ class IterativeTransactionSender:
 
     def call_continue_bucked(self):
         logger.debug("Send bucked combined: %s", self.instruction_type)
-        steps = self.steps
-
         receipts = []
         for index in range(math.ceil(self.steps_emulated/self.steps) + self.addition_count()):
             try:
-                trx = self.make_combined_trx(steps, index)
+                trx = self.make_combined_trx(self.steps, index)
                 receipts.append(self.sender.send_transaction_unconfirmed(trx))
-            except SendTransactionError as err:
-                logger.error(f"Failed to call continue bucked, error: {err.result}")
-                if check_if_storage_is_empty_error(err.result):
-                    pass
-                elif check_if_program_exceeded_instructions(err.result):
-                    steps = int(steps * 90 / 100)
-                else:
-                    raise
             except Exception as err:
                 logger.debug(str(err))
-                if str(err).startswith('failed to get recent blockhash'):
-                    pass
+                if len(receipts) > 0:
+                    break
                 else:
                     raise
 
