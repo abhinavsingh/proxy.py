@@ -15,7 +15,7 @@ import ipaddress
 from typing import Dict, List, Optional, Any
 
 from ..common.flag import flags
-from ..common.utils import text_
+from ..common.utils import text_, bytes_
 
 from ..http import Url, httpMethods
 from ..http.parser import HttpParser
@@ -68,7 +68,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         # Cached attributes to be used during access log override
-        self.request_host_port_path_method: List[Any] = [
+        self._metadata: List[Any] = [
             None, None, None, None,
         ]
 
@@ -94,20 +94,30 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
                 return request
         except ValueError:
             pass
-        # Choose a random proxy from the pool
-        # TODO: Implement your own logic here e.g. round-robin, least connection etc.
-        endpoint = random.choice(self.flags.proxy_pool)[0].split(':', 1)
-        if endpoint[0] == 'localhost' and endpoint[1] == '8899':
+        endpoint = self._select_proxy()
+        # If chosen proxy is the local instance,
+        # bypass upstream proxies
+        if endpoint.port == self.flags.port and endpoint.hostname in (
+                'localhost',
+                '127.0.0.1',
+                '0.0.0.0',
+                '::1',
+                '::',
+        ):
             return request
-        logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
-        self.initialize_upstream(endpoint[0], int(endpoint[1]))
+        endpoint_host_port = '{0}:{1}'.format(
+            text_(endpoint.hostname), endpoint.port,
+        )
+        logger.debug('Using endpoint: {0}'.format(endpoint_host_port))
+        assert endpoint.port and endpoint.hostname
+        self.initialize_upstream(text_(endpoint.hostname), endpoint.port)
         assert self.upstream
         try:
             self.upstream.connect()
         except TimeoutError:
             logger.info(
-                'Timed out connecting to upstream proxy {0}:{1}'.format(
-                    *endpoint,
+                'Timed out connecting to upstream proxy {0}'.format(
+                    endpoint_host_port,
                 ),
             )
             raise HttpProtocolException()
@@ -120,14 +130,14 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             # using a datastructure without having to spawn separate thread/process for health
             # check.
             logger.info(
-                'Connection refused by upstream proxy {0}:{1}'.format(
-                    *endpoint,
+                'Connection refused by upstream proxy {0}'.format(
+                    endpoint_host_port,
                 ),
             )
             raise HttpProtocolException()
         logger.debug(
-            'Established connection to upstream proxy {0}:{1}'.format(
-                *endpoint,
+            'Established connection to upstream proxy {0}'.format(
+                endpoint_host_port,
             ),
         )
         return None
@@ -154,7 +164,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
                 443 if request.is_https_tunnel else 80
             )
         path = None if not request.path else request.path.decode()
-        self.request_host_port_path_method = [
+        self._metadata = [
             host, port, path, request.method,
         ]
         # Queue original request to upstream proxy
@@ -189,9 +199,9 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         context.update({
             'upstream_proxy_host': addr,
             'upstream_proxy_port': port,
-            'server_host': self.request_host_port_path_method[0],
-            'server_port': self.request_host_port_path_method[1],
-            'request_path': self.request_host_port_path_method[2],
+            'server_host': self._metadata[0],
+            'server_port': self._metadata[1],
+            'request_path': self._metadata[2],
             'response_bytes': self.total_size,
         })
         self.access_log(context)
@@ -199,7 +209,14 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
         access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
-        request_method = self.request_host_port_path_method[3]
+        request_method = self._metadata[3]
         if request_method and request_method != httpMethods.CONNECT:
             access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
         logger.info(access_log_format.format_map(log_attrs))
+
+    def _select_proxy(self) -> Url:
+        """Choose a random proxy from the pool.
+
+        TODO: Implement your own logic here e.g. round-robin, least connection etc.
+        """
+        return Url.from_bytes(bytes_(random.choice(self.flags.proxy_pool)[0]))
