@@ -92,7 +92,7 @@ class ConnectionPool:
         """Release the connection.
 
         If the connection has not been closed,
-        then it will be retained in the pool for reusability.
+        then it will be retained in the pool for re-usability.
         """
         if conn.closed:
             logger.debug(
@@ -108,5 +108,5 @@ class ConnectionPool:
                 ),
             )
             assert not conn.is_reusable()
-            # Reset for reusability
+            # Reset for re-usability
             conn.reset()
