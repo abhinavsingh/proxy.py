@@ -760,9 +760,8 @@ Response body `Hello from man in the middle` is sent by our plugin.
 
 Forward incoming proxy requests to a set of upstream proxy servers.
 
-Let's start upstream proxies first.
-
-Start `proxy.py` on port `9000` and `9001`
+Let's start 2 upstream proxies first.  To simulate upstream proxies,
+start `proxy.py` on port `9000` and `9001`
 
 ```console
 ❯ proxy --port 9000
@@ -788,6 +787,10 @@ Make a curl request via `8899` proxy:
 
 Verify that `8899` proxy forwards requests to upstream proxies
 by checking respective logs.
+
+If an upstream proxy require credentials, pass them as arguments. Example:
+
+`--proxy-pool user:pass@upstream.proxy:port`
 
 ### FilterByClientIpPlugin
 
