@@ -26,7 +26,6 @@ from multiprocessing.reduction import recv_handle
 from typing import List, Optional, Tuple
 
 from ...common.flag import flags
-from ...common.utils import is_threadless
 from ...common.logger import Logger
 from ...common.backports import NonBlockingQueue
 from ...common.constants import DEFAULT_LOCAL_EXECUTOR
@@ -113,17 +112,17 @@ class Acceptor(multiprocessing.Process):
     ) -> List[Tuple[socket.socket, Optional[Tuple[str, int]]]]:
         works = []
         for _, mask in events:
-            if mask & selectors.EVENT_READ:
-                if self.sock is not None:
-                    try:
-                        conn, addr = self.sock.accept()
-                        logging.debug(
-                            'Accepting new work#{0}'.format(conn.fileno()),
-                        )
-                        works.append((conn, addr or None))
-                    except BlockingIOError:
-                        # logger.info('blocking io error')
-                        pass
+            if mask & selectors.EVENT_READ and \
+                    self.sock is not None:
+                try:
+                    conn, addr = self.sock.accept()
+                    logging.debug(
+                        'Accepting new work#{0}'.format(conn.fileno()),
+                    )
+                    works.append((conn, addr or None))
+                except BlockingIOError:
+                    # logger.info('blocking io error')
+                    pass
         return works
 
     def run_once(self) -> None:
@@ -207,7 +206,7 @@ class Acceptor(multiprocessing.Process):
 
     def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
         self._total = self._total or 0
-        if is_threadless(self.flags.threadless, self.flags.threaded):
+        if self.flags.threadless:
             # Index of worker to which this work should be dispatched
             # Use round-robin strategy by default.
             #

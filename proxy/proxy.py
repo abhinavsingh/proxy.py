@@ -171,8 +171,9 @@ class Proxy:
         event_queue = self.event_manager.queue \
             if self.event_manager is not None \
             else None
-        # Setup remote executors
-        if not self.flags.local_executor:
+        # Setup remote executors only if
+        # --local-executor mode isn't enabled.
+        if self.remote_executors_enabled:
             self.executors = ThreadlessPool(
                 flags=self.flags,
                 event_queue=event_queue,
@@ -193,7 +194,7 @@ class Proxy:
     def shutdown(self) -> None:
         assert self.acceptors
         self.acceptors.shutdown()
-        if not self.flags.local_executor:
+        if self.remote_executors_enabled:
             assert self.executors
             self.executors.shutdown()
         if self.flags.enable_events:
@@ -214,14 +215,18 @@ class Proxy:
         if self.flags.pid_file and os.path.exists(self.flags.pid_file):
             os.remove(self.flags.pid_file)
 
+    @property
+    def remote_executors_enabled(self) -> bool:
+        return self.flags.threadless and not self.flags.local_executor
+
 
 def main(**opts: Any) -> None:
-    try:
-        with Proxy(sys.argv[1:], **opts):
-            while True:
+    with Proxy(sys.argv[1:], **opts):
+        while True:
+            try:
                 time.sleep(1)
-    except KeyboardInterrupt:
-        pass
+            except KeyboardInterrupt:
+                break
 
 
 def entry_point() -> None:
