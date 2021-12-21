@@ -81,8 +81,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             headers={
                 b'Server': PROXY_AGENT_HEADER_VALUE,
                 b'Content-Length': b'0',
-                b'Connection': b'close',
             },
+            conn_close=True,
         ),
     )
 
@@ -93,8 +93,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             headers={
                 b'Server': PROXY_AGENT_HEADER_VALUE,
                 b'Content-Length': b'0',
-                b'Connection': b'close',
             },
+            conn_close=True,
         ),
     )
 
@@ -147,7 +147,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             headers = {
                 b'Content-Type': bytes_(content_type),
                 b'Cache-Control': b'max-age=86400',
-                b'Connection': b'close',
             }
             do_compress = len(content) > min_compression_limit
             if do_compress:
@@ -160,6 +159,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     reason=b'OK',
                     headers=headers,
                     body=gzip.compress(content) if do_compress else content,
+                    conn_close=True,
                 ),
             )
         except FileNotFoundError:

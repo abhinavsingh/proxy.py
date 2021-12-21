@@ -72,8 +72,8 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
                             headers={
                                 b'Location': b'http://' + self.SHORT_LINKS[request.host] + path,
                                 b'Content-Length': b'0',
-                                b'Connection': b'close',
                             },
+                            conn_close=True,
                         ),
                     ),
                 )
@@ -84,8 +84,8 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
                             httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
                             headers={
                                 b'Content-Length': b'0',
-                                b'Connection': b'close',
                             },
+                            conn_close=True,
                         ),
                     ),
                 )

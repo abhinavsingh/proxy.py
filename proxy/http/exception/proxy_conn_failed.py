@@ -30,9 +30,9 @@ class ProxyConnectionFailed(HttpProtocolException):
             reason=b'Bad Gateway',
             headers={
                 PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-                b'Connection': b'close',
             },
             body=b'Bad Gateway',
+            conn_close=True,
         ),
     )
 

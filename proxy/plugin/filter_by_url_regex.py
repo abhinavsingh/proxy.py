@@ -88,8 +88,8 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
                 # list
                 raise HttpRequestRejected(
                     status_code=httpStatusCodes.NOT_FOUND,
-                    headers={b'Connection': b'close'},
                     reason=b'Blocked',
+                    conn_close=True,
                 )
                 # stop looping through filter list
                 break

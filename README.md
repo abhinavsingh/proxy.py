@@ -1512,8 +1512,7 @@ As a decorator:
 - Generate HTTP GET request with headers
 
   ```python
-  >>> build_http_request(b'GET', b'/',
-          headers={b'Connection': b'close'})
+  >>> build_http_request(b'GET', b'/', conn_close=True)
   b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
   ```
 

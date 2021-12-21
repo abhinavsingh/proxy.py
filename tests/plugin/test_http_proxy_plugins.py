@@ -242,9 +242,7 @@ class TestHttpProxyPluginExamples(Assertions):
             build_http_response(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT,
                 reason=b'I\'m a tea pot',
-                headers={
-                    b'Connection': b'close',
-                },
+                conn_close=True,
             ),
         )
 
@@ -376,6 +374,6 @@ class TestHttpProxyPluginExamples(Assertions):
             build_http_response(
                 status_code=httpStatusCodes.NOT_FOUND,
                 reason=b'Blocked',
-                headers={b'Connection': b'close'},
+                conn_close=True,
             ),
         )
