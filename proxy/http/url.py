@@ -41,6 +41,10 @@ class Url:
         self.port: Optional[int] = port
         self.remainder: Optional[bytes] = remainder
 
+    @property
+    def has_credentials(self) -> bool:
+        return self.username is not None or self.password is not None
+
     def __str__(self) -> str:
         url = ''
         if self.scheme:

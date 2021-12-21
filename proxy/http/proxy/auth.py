@@ -19,6 +19,8 @@ from ..exception import ProxyAuthenticationFailed
 
 from ...common.flag import flags
 from ...common.constants import DEFAULT_BASIC_AUTH
+
+from ...http import httpHeaders
 from ...http.parser import HttpParser
 from ...http.proxy import HttpProxyBasePlugin
 
@@ -39,9 +41,9 @@ class AuthPlugin(HttpProxyBasePlugin):
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
         if self.flags.auth_code and request.headers:
-            if b'proxy-authorization' not in request.headers:
+            if httpHeaders.PROXY_AUTHORIZATION not in request.headers:
                 raise ProxyAuthenticationFailed()
-            parts = request.headers[b'proxy-authorization'][1].split()
+            parts = request.headers[httpHeaders.PROXY_AUTHORIZATION][1].split()
             if len(parts) != 2 \
                     or parts[0].lower() != b'basic' \
                     or parts[1] != self.flags.auth_code:

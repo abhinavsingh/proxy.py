@@ -12,6 +12,7 @@ from .handler import HttpProtocolHandler
 from .plugin import HttpProtocolHandlerPlugin
 from .codes import httpStatusCodes
 from .methods import httpMethods
+from .headers import httpHeaders
 from .url import Url
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     'HttpProtocolHandlerPlugin',
     'httpStatusCodes',
     'httpMethods',
+    'httpHeaders',
     'Url',
 ]
