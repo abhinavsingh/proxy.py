@@ -16,9 +16,9 @@
        Websocket
 """
 import io
-import hashlib
 import base64
 import struct
+import hashlib
 import secrets
 import logging
 
