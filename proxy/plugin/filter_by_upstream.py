@@ -37,6 +37,5 @@ class FilterByUpstreamHostPlugin(HttpProxyBasePlugin):
             raise HttpRequestRejected(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT,
                 reason=b'I\'m a tea pot',
-                conn_close=True,
             )
         return request
