@@ -1,4 +1,5 @@
 from proxy.indexer.indexer_base import IndexerBase, logger
+from proxy.indexer.price_provider import PriceProvider, mainnet_solana, mainnet_price_accounts
 import os
 import requests
 import base58
@@ -12,22 +13,33 @@ except ImportError:
     from .utils import check_error
     from .sql_dict import SQLDict
 
+ACCOUNT_CREATION_PRICE_SOL = 0.00472692
+AIRDROP_AMOUNT_SOL = ACCOUNT_CREATION_PRICE_SOL / 2
+NEON_PRICE_USD = 0.25
+
 class Airdropper(IndexerBase):
     def __init__(self,
                  solana_url,
                  evm_loader_id,
                  faucet_url = '',
                  wrapper_whitelist = [],
-                 airdrop_amount = 10,
-                 log_level = 'INFO'):
+                 log_level = 'INFO',
+                 price_upd_interval=60,
+                 neon_decimals = 9):
         IndexerBase.__init__(self, solana_url, evm_loader_id, log_level)
 
         # collection of eth-address-to-create-accout-trx mappings
         # for every addresses that was already funded with airdrop
         self.airdrop_ready = SQLDict(tablename="airdrop_ready")
         self.wrapper_whitelist = wrapper_whitelist
-        self.airdrop_amount = airdrop_amount
         self.faucet_url = faucet_url
+
+        # Price provider need pyth.network be deployed onto solana
+        # so using mainnet solana for simplicity
+        self.price_provider = PriceProvider(mainnet_solana,
+                                            price_upd_interval,
+                                            mainnet_price_accounts)
+        self.neon_decimals = neon_decimals
 
 
     # helper function checking if given contract address is in whitelist
@@ -59,18 +71,28 @@ class Airdropper(IndexerBase):
 
     def _airdrop_to(self, create_acc):
         eth_address = "0x" + bytearray(base58.b58decode(create_acc['data'])[20:][:20]).hex()
-
         if eth_address in self.airdrop_ready:  # transaction already processed
             return
 
-        logger.info(f"Airdrop to address: {eth_address}")
+        sol_price_usd = self.price_provider.get_price('SOL/USD')
+        if sol_price_usd is None:
+            logger.warning("Failed to get SOL/USD price")
+            return
 
-        json_data = { 'wallet': eth_address, 'amount': self.airdrop_amount }
-        resp = requests.post(self.faucet_url + '/request_eth_token', json = json_data)
+        logger.info(f'SOL/USD = ${sol_price_usd}')
+        airdrop_amount_usd = AIRDROP_AMOUNT_SOL * sol_price_usd
+        logger.info(f"Airdrop amount: ${airdrop_amount_usd}")
+        logger.info(f"NEON price: ${NEON_PRICE_USD}")
+        airdrop_amount_neon = airdrop_amount_usd / NEON_PRICE_USD
+        logger.info(f"Airdrop {airdrop_amount_neon} NEONs to address: {eth_address}")
+        airdrop_galans = int(airdrop_amount_neon * pow(10, self.neon_decimals))
+
+        json_data = { 'wallet': eth_address, 'amount': airdrop_galans }
+        resp = requests.post(self.faucet_url + '/request_neon_in_galans', json = json_data)
         if not resp.ok:
             logger.warning(f'Failed to airdrop: {resp.status_code}')
             return
-
+        
         self.airdrop_ready[eth_address] = create_acc
 
 
@@ -138,8 +160,9 @@ def run_airdropper(solana_url,
                    evm_loader_id,
                    faucet_url = '',
                    wrapper_whitelist = [],
-                   airdrop_amount = 10,
-                   log_level = 'INFO'):
+                   log_level = 'INFO',
+                   price_update_interval = 60,
+                   neon_decimals = 9):
     logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
     logger.setLevel(logging.DEBUG)
     logger.info(f"""Running indexer with params:
@@ -148,12 +171,14 @@ def run_airdropper(solana_url,
         log_level: {log_level},
         faucet_url: {faucet_url},
         wrapper_whitelist: {wrapper_whitelist},
-        airdrop_amount: {airdrop_amount}""")
+        price update interval: {price_update_interval},
+        NEON decimals: {neon_decimals}""")
 
     airdropper = Airdropper(solana_url,
                             evm_loader_id,
                             faucet_url,
                             wrapper_whitelist,
-                            airdrop_amount,
-                            log_level)
+                            log_level,
+                            price_update_interval,
+                            neon_decimals)
     airdropper.run()

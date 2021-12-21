@@ -24,9 +24,7 @@ logger.setLevel(logging.DEBUG)
 
 obligatory_accounts = [
     AccountMeta(pubkey=EVM_LOADER_ID, is_signer=False, is_writable=False),
-    AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
     AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-    AccountMeta(pubkey=SYSVAR_CLOCK_PUBKEY, is_signer=False, is_writable=False),
 ]
 
 

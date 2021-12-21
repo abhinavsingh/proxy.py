@@ -21,13 +21,15 @@ if __name__ == '__main__':
         evm_loader_id = os.environ['EVM_LOADER']
         faucet_url = os.environ['FAUCET_URL']
         wrapper_whitelist = os.environ['INDEXER_ERC20_WRAPPER_WHITELIST'].split(',')
-        airdrop_amount = int(os.environ['AIRDROP_AMOUNT'])
         log_level = os.environ['LOG_LEVEL']
+        price_update_interval = int(os.environ.get('PRICE_UPDATE_INTERVAL', '60'))
+        neon_decimals = int(os.environ.get('NEON_DECIMALS', '9'))
         run_airdropper(solana_url,
                        evm_loader_id,
                        faucet_url,
                        wrapper_whitelist,
-                       airdrop_amount,
-                       log_level)
+                       log_level,
+                       price_update_interval,
+                       neon_decimals)
     else:
         entry_point()
