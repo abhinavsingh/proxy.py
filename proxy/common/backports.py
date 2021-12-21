@@ -55,6 +55,7 @@ class cached_property:
        backports
        getter
        Arndt
+       del
     """
 
     def __init__(self, ttl: float = 0):
