@@ -114,3 +114,23 @@ class TestUrl(unittest.TestCase):
         self.assertEqual(url.hostname, b'localhost')
         self.assertEqual(url.port, 12345)
         self.assertEqual(url.remainder, b'/v1/users/')
+        self.assertEqual(url.username, None)
+        self.assertEqual(url.password, None)
+
+    def test_username_password(self) -> None:
+        url = Url.from_bytes(b'http://user:pass@localhost:12345/v1/users/')
+        self.assertEqual(url.scheme, b'http')
+        self.assertEqual(url.hostname, b'localhost')
+        self.assertEqual(url.port, 12345)
+        self.assertEqual(url.remainder, b'/v1/users/')
+        self.assertEqual(url.username, b'user')
+        self.assertEqual(url.password, b'pass')
+
+    def test_username_password_without_proto_prefix(self) -> None:
+        url = Url.from_bytes('user:pass@å∫ç.com'.encode('utf-8'))
+        self.assertEqual(url.scheme, None)
+        self.assertEqual(url.hostname, 'å∫ç.com'.encode('utf-8'))
+        self.assertEqual(url.port, None)
+        self.assertEqual(url.remainder, None)
+        self.assertEqual(url.username, b'user')
+        self.assertEqual(url.password, b'pass')

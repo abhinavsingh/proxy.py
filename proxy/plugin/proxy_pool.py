@@ -94,17 +94,17 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
                 return request
         except ValueError:
             pass
+        # If chosen proxy is the local instance, bypass upstream proxies
         endpoint = self._select_proxy()
-        # If chosen proxy is the local instance,
-        # bypass upstream proxies
         if endpoint.port == self.flags.port and endpoint.hostname in (
                 'localhost',
                 '127.0.0.1',
-                '0.0.0.0',
                 '::1',
+                '0.0.0.0',
                 '::',
         ):
             return request
+        # Establish connection to chosen upstream proxy
         endpoint_host_port = '{0}:{1}'.format(
             text_(endpoint.hostname), endpoint.port,
         )

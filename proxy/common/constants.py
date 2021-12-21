@@ -43,10 +43,13 @@ WHITESPACE = b' '
 COMMA = b','
 DOT = b'.'
 SLASH = b'/'
-HTTP_1_0 = b'HTTP/1.0'
-HTTP_1_1 = b'HTTP/1.1'
-HTTP_URL_PREFIX = b'http://'
-HTTPS_URL_PREFIX = b'https://'
+AT = b'@'
+HTTP_PROTO = b'http'
+HTTPS_PROTO = HTTP_PROTO + b's'
+HTTP_1_0 = HTTP_PROTO.upper() + SLASH + b'1.0'
+HTTP_1_1 = HTTP_PROTO.upper() + SLASH + b'1.1'
+HTTP_URL_PREFIX = HTTP_PROTO + COLON + SLASH + SLASH
+HTTPS_URL_PREFIX = HTTPS_PROTO + COLON + SLASH + SLASH
 
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + \
