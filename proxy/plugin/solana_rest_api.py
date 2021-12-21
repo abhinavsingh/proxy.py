@@ -17,6 +17,7 @@ import rlp
 import threading
 import traceback
 import unittest
+import time
 
 from ..common.utils import build_http_response
 from ..http.codes import httpStatusCodes
@@ -618,7 +619,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                     b'Access-Control-Max-Age': b'86400'
                 })))
             return
-
+        start_time = time.time()
         logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
         response = None
 
@@ -639,8 +640,10 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             traceback.print_exc()
             response = {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': str(err)}}
 
-        logger.debug('>>> %s 0x%0x %s %s', threading.get_ident(), id(self.model), json.dumps(response),
-                     request['method'] if 'method' in request else '---')
+        resp_time_ms = (time.time() - start_time)*1000  # convert this into milliseconds
+        logger.debug('>>> %s 0x%0x %s %s resp_time_ms= %s', threading.get_ident(), id(self.model), json.dumps(response),
+                     request.get('method', '---'),
+                     resp_time_ms)
 
         self.client.queue(memoryview(build_http_response(
             httpStatusCodes.OK, body=json.dumps(response).encode('utf8'),
