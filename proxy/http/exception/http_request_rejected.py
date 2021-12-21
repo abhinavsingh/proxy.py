@@ -41,6 +41,7 @@ class HttpRequestRejected(HttpProtocolException):
                     reason=self.reason,
                     headers=self.headers,
                     body=self.body,
+                    conn_close=True,
                 ),
             )
         return None

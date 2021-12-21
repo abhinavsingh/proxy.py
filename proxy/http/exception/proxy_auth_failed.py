@@ -33,9 +33,9 @@ class ProxyAuthenticationFailed(HttpProtocolException):
             headers={
                 PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
                 b'Proxy-Authenticate': b'Basic',
-                b'Connection': b'close',
             },
             body=b'Proxy Authentication Required',
+            conn_close=True,
         ),
     )
 
