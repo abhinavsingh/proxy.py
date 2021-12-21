@@ -12,10 +12,10 @@ from typing import Optional, Dict, TYPE_CHECKING
 
 from .base import HttpProtocolException
 
+from ...common.utils import build_http_response
+
 if TYPE_CHECKING:
     from ..parser import HttpParser
-
-from ...common.utils import build_http_response
 
 
 class HttpRequestRejected(HttpProtocolException):
