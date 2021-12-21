@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Any
 from ..common.flag import flags
 from ..common.utils import text_, bytes_
 
-from ..http import Url, httpMethods
+from ..http import Url, httpMethods, httpHeaders
 from ..http.parser import HttpParser
 from ..http.exception import HttpProtocolException
 from ..http.proxy import HttpProxyBasePlugin
@@ -67,6 +67,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self._endpoint: Url = self._select_proxy()
         # Cached attributes to be used during access log override
         self._metadata: List[Any] = [
             None, None, None, None,
@@ -95,8 +96,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         except ValueError:
             pass
         # If chosen proxy is the local instance, bypass upstream proxies
-        endpoint = self._select_proxy()
-        if endpoint.port == self.flags.port and endpoint.hostname in (
+        if self._endpoint.port == self.flags.port and self._endpoint.hostname in (
                 'localhost',
                 '127.0.0.1',
                 '::1',
@@ -105,19 +105,17 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         ):
             return request
         # Establish connection to chosen upstream proxy
-        endpoint_host_port = '{0}:{1}'.format(
-            text_(endpoint.hostname), endpoint.port,
-        )
-        logger.debug('Using endpoint: {0}'.format(endpoint_host_port))
-        assert endpoint.port and endpoint.hostname
-        self.initialize_upstream(text_(endpoint.hostname), endpoint.port)
+        assert self._endpoint.port and self._endpoint.hostname
+        endpoint_tuple = (text_(self._endpoint.hostname), self._endpoint.port)
+        logger.debug('Using endpoint: {0}:{1}'.format(*endpoint_tuple))
+        self.initialize_upstream(*endpoint_tuple)
         assert self.upstream
         try:
             self.upstream.connect()
         except TimeoutError:
             logger.info(
-                'Timed out connecting to upstream proxy {0}'.format(
-                    endpoint_host_port,
+                'Timed out connecting to upstream proxy {0}:{1}'.format(
+                    *endpoint_tuple,
                 ),
             )
             raise HttpProtocolException()
@@ -130,14 +128,14 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             # using a datastructure without having to spawn separate thread/process for health
             # check.
             logger.info(
-                'Connection refused by upstream proxy {0}'.format(
-                    endpoint_host_port,
+                'Connection refused by upstream proxy {0}:{1}'.format(
+                    *endpoint_tuple,
                 ),
             )
             raise HttpProtocolException()
         logger.debug(
-            'Established connection to upstream proxy {0}'.format(
-                endpoint_host_port,
+            'Established connection to upstream proxy {0}:{1}'.format(
+                *endpoint_tuple,
             ),
         )
         return None
@@ -167,7 +165,9 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         self._metadata = [
             host, port, path, request.method,
         ]
-        # Queue original request to upstream proxy
+        # Queue original request optionally with auth headers to upstream proxy
+        if self._endpoint.has_credentials:
+            request.add_header(httpHeaders.PROXY_AUTHORIZATION, b'')
         self.upstream.queue(memoryview(request.build(for_proxy=True)))
         return request
 
