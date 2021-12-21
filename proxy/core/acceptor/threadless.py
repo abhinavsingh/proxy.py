@@ -180,7 +180,7 @@ class Threadless(ABC, Generic[T]):
                 # else:
                 #     logger.info(
                 #         'fd#{0} by work#{1} not modified'.format(fileno, work_id))
-            else:
+            elif fileno != -1:
                 # Can throw ValueError: Invalid file descriptor: -1
                 #
                 # A guard within Work classes may not help here due to
