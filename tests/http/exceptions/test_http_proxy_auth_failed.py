@@ -15,7 +15,7 @@ from pytest_mock import MockerFixture
 
 from proxy.common.flag import FlagParser
 from proxy.http.exception.proxy_auth_failed import ProxyAuthenticationFailed
-from proxy.http import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler, httpHeaders
 from proxy.core.connection import TcpClientConnection
 from proxy.common.utils import build_http_request
 
@@ -77,7 +77,7 @@ class TestHttpProxyAuthFailed(Assertions):
             b'GET', b'http://upstream.host/not-found.html',
             headers={
                 b'Host': b'upstream.host',
-                b'Proxy-Authorization': b'Basic hello',
+                httpHeaders.PROXY_AUTHORIZATION: b'Basic hello',
             },
         )
         self.mock_selector.return_value.select.side_effect = [
@@ -105,7 +105,7 @@ class TestHttpProxyAuthFailed(Assertions):
             b'GET', b'http://upstream.host/not-found.html',
             headers={
                 b'Host': b'upstream.host',
-                b'Proxy-Authorization': b'Basic dXNlcjpwYXNz',
+                httpHeaders.PROXY_AUTHORIZATION: b'Basic dXNlcjpwYXNz',
             },
         )
         self.mock_selector.return_value.select.side_effect = [
@@ -129,7 +129,7 @@ class TestHttpProxyAuthFailed(Assertions):
             b'GET', b'http://upstream.host/not-found.html',
             headers={
                 b'Host': b'upstream.host',
-                b'Proxy-Authorization': b'bAsIc dXNlcjpwYXNz',
+                httpHeaders.PROXY_AUTHORIZATION: b'bAsIc dXNlcjpwYXNz',
             },
         )
         self.mock_selector.return_value.select.side_effect = [

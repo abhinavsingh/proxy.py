@@ -760,9 +760,8 @@ Response body `Hello from man in the middle` is sent by our plugin.
 
 Forward incoming proxy requests to a set of upstream proxy servers.
 
-Let's start upstream proxies first.
-
-Start `proxy.py` on port `9000` and `9001`
+Let's start 2 upstream proxies first.  To simulate upstream proxies,
+start `proxy.py` on port `9000` and `9001`
 
 ```console
 ❯ proxy --port 9000
@@ -788,6 +787,10 @@ Make a curl request via `8899` proxy:
 
 Verify that `8899` proxy forwards requests to upstream proxies
 by checking respective logs.
+
+If an upstream proxy require credentials, pass them as arguments. Example:
+
+`--proxy-pool user:pass@upstream.proxy:port`
 
 ### FilterByClientIpPlugin
 
@@ -2092,7 +2095,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0rc3.dev33+gc341594.d20211214
+proxy.py v2.4.0b4.dev12+g19e6881.d20211221
 
 options:
   -h, --help            show this help message and exit
@@ -2175,9 +2178,9 @@ options:
                         generated HTTPS certificates. If used, must also pass
                         --ca-cert-file and --ca-signing-key-file
   --ca-cert-dir CA_CERT_DIR
-                        Default: ~/.proxy.py. Directory to store dynamically
-                        generated certificates. Also see --ca-key-file, --ca-
-                        cert-file and --ca-signing-key-file
+                        Default: ~/.proxy/certificates. Directory to store
+                        dynamically generated certificates. Also see --ca-key-
+                        file, --ca-cert-file and --ca-signing-key-file
   --ca-cert-file CA_CERT_FILE
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,

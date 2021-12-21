@@ -26,6 +26,7 @@ from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
 
+from ..headers import httpHeaders
 from ..methods import httpMethods
 from ..codes import httpStatusCodes
 from ..plugin import HttpProtocolHandlerPlugin
@@ -557,7 +558,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 #   officially documented in any specification, drop it.
                 # - proxy-authorization is of no use for upstream, remove it.
                 self.request.del_headers(
-                    [b'proxy-authorization', b'proxy-connection'],
+                    [
+                        httpHeaders.PROXY_AUTHORIZATION,
+                        httpHeaders.PROXY_CONNECTION,
+                    ],
                 )
                 # - For HTTP/1.0, connection header defaults to close
                 # - For HTTP/1.1, connection header defaults to keep-alive
