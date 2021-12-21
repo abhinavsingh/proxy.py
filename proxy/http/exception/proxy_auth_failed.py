@@ -13,13 +13,17 @@
        auth
        http
 """
+from typing import TYPE_CHECKING
+
 from .base import HttpProtocolException
 
 from ..codes import httpStatusCodes
-from ..parser import HttpParser
 
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, PROXY_AGENT_HEADER_KEY
 from ...common.utils import build_http_response
+
+if TYPE_CHECKING:
+    from ..parser import HttpParser
 
 
 class ProxyAuthenticationFailed(HttpProtocolException):
@@ -39,5 +43,5 @@ class ProxyAuthenticationFailed(HttpProtocolException):
         ),
     )
 
-    def response(self, _request: HttpParser) -> memoryview:
+    def response(self, _request: 'HttpParser') -> memoryview:
         return self.RESPONSE_PKT
