@@ -668,12 +668,32 @@ jobs:
         make ca-certificates
         python3 -m proxy --version
 
+  check:  # This job does nothing and is only used for the branch protection
+    if: always()
+
+    needs:
+    - analyze
+    - test
+    - lint
+    - dashboard
+    - brew
+    - developer
+
+    runs-on: Ubuntu-latest
+
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
+
   docker:
     runs-on: Ubuntu-latest
     permissions:
       packages: write
+    if: success()
     needs:
-    - build
+    - check
     - pre-setup  # transitive, for accessing settings
     name: 🐳 containerize
     strategy:
@@ -785,26 +805,6 @@ jobs:
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
         -t $CONTAINER_TAG .
-
-  check:  # This job does nothing and is only used for the branch protection
-    if: always()
-
-    needs:
-    - analyze
-    - test
-    - lint
-    - docker
-    - dashboard
-    - brew
-    - developer
-
-    runs-on: Ubuntu-latest
-
-    steps:
-    - name: Decide whether the needed jobs succeeded or failed
-      uses: re-actors/alls-green@release/v1
-      with:
-        jobs: ${{ toJSON(needs) }}
 
   publish-pypi:
     name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI
