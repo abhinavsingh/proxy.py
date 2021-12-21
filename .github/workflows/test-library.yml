@@ -485,12 +485,13 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini', 'requirements.txt', 'requirements-testing.txt')
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini', 'requirements**.txt')
           }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
-              steps.calc-cache-key-py.outputs.py-hash-key
+            steps.calc-cache-key-py.outputs.py-hash-key
           }}-
           ${{ runner.os }}-pip-
     - name: Install tox
