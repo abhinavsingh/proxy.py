@@ -88,7 +88,7 @@ flags.add_argument(
     '--ca-cert-dir',
     type=str,
     default=DEFAULT_CA_CERT_DIR,
-    help='Default: ~/.proxy.py. Directory to store dynamically generated certificates. '
+    help='Default: ~/.proxy/certificates. Directory to store dynamically generated certificates. '
     'Also see --ca-key-file, --ca-cert-file and --ca-signing-key-file',
 )
 
@@ -732,7 +732,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         ca_key_path = self.flags.ca_key_file
         ca_key_password = ''
         ca_crt_path = self.flags.ca_cert_file
-        serial = self.uid
+        serial = '%d%d' % (time.time(), os.getpid())
 
         # Sign generated CSR
         if not os.path.isfile(cert_file_path):
