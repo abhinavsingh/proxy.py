@@ -51,6 +51,17 @@ HTTP_1_1 = HTTP_PROTO.upper() + SLASH + b'1.1'
 HTTP_URL_PREFIX = HTTP_PROTO + COLON + SLASH + SLASH
 HTTPS_URL_PREFIX = HTTPS_PROTO + COLON + SLASH + SLASH
 
+LOCAL_INTERFACE_HOSTNAMES = (
+    b'localhost',
+    b'127.0.0.1',
+    b'::1',
+)
+
+ANY_INTERFACE_HOSTNAMES = (
+    b'0.0.0.0',
+    b'::',
+)
+
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + \
     __version__.encode('utf-8', 'strict')

@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Any
 
 from ..common.flag import flags
 from ..common.utils import text_, bytes_
-from ..common.constants import COLON
+from ..common.constants import COLON, LOCAL_INTERFACE_HOSTNAMES, ANY_INTERFACE_HOSTNAMES
 
 from ..http import Url, httpMethods, httpHeaders
 from ..http.parser import HttpParser
@@ -98,16 +98,11 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         except ValueError:
             pass
         # If chosen proxy is the local instance, bypass upstream proxies
-        if self._endpoint.port == self.flags.port and self._endpoint.hostname in (
-                'localhost',
-                '127.0.0.1',
-                '::1',
-                '0.0.0.0',
-                '::',
-        ):
+        assert self._endpoint.port and self._endpoint.hostname
+        if self._endpoint.port == self.flags.port and \
+                self._endpoint.hostname in LOCAL_INTERFACE_HOSTNAMES + ANY_INTERFACE_HOSTNAMES:
             return request
         # Establish connection to chosen upstream proxy
-        assert self._endpoint.port and self._endpoint.hostname
         endpoint_tuple = (text_(self._endpoint.hostname), self._endpoint.port)
         logger.debug('Using endpoint: {0}:{1}'.format(*endpoint_tuple))
         self.initialize_upstream(*endpoint_tuple)
