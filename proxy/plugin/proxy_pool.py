@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import base64
 import random
 import logging
 import ipaddress
@@ -16,6 +17,7 @@ from typing import Dict, List, Optional, Any
 
 from ..common.flag import flags
 from ..common.utils import text_, bytes_
+from ..common.constants import COLON
 
 from ..http import Url, httpMethods, httpHeaders
 from ..http.parser import HttpParser
@@ -167,7 +169,16 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         ]
         # Queue original request optionally with auth headers to upstream proxy
         if self._endpoint.has_credentials:
-            request.add_header(httpHeaders.PROXY_AUTHORIZATION, b'')
+            assert self._endpoint.username and self._endpoint.password
+            request.add_header(
+                httpHeaders.PROXY_AUTHORIZATION,
+                b'Basic ' +
+                base64.b64encode(
+                    self._endpoint.username +
+                    COLON +
+                    self._endpoint.password,
+                ),
+            )
         self.upstream.queue(memoryview(request.build(for_proxy=True)))
         return request
 

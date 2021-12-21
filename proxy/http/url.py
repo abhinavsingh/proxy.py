@@ -43,7 +43,8 @@ class Url:
 
     @property
     def has_credentials(self) -> bool:
-        return self.username is not None or self.password is not None
+        """Returns true if both username and password components are present."""
+        return self.username is not None and self.password is not None
 
     def __str__(self) -> str:
         url = ''
