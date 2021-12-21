@@ -22,6 +22,7 @@ from ...common.flag import flags
 
 from ..url import Url
 from ..methods import httpMethods
+from ..exception import HttpProtocolException
 
 from .protocol import ProxyProtocol
 from .chunk import ChunkParser, chunkParserStates
@@ -363,10 +364,7 @@ class HttpParser:
                     break
                 # To avoid a possible attack vector, we raise exception
                 # if parser receives an invalid request line.
-                #
-                # TODO: Better to use raise HttpProtocolException,
-                # but we should solve circular import problem first.
-                raise ValueError('Invalid request line')
+                raise HttpProtocolException('Invalid request line %r' % raw)
             parts = line.split(WHITESPACE, 2)
             self.version = parts[0]
             self.code = parts[1]
