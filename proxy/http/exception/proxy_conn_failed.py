@@ -12,7 +12,7 @@
 
        conn
 """
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .base import HttpProtocolException
 
@@ -40,10 +40,11 @@ class ProxyConnectionFailed(HttpProtocolException):
         ),
     )
 
-    def __init__(self, host: str, port: int, reason: str):
+    def __init__(self, host: str, port: int, reason: str, **kwargs: Any):
         self.host: str = host
         self.port: int = port
         self.reason: str = reason
+        super().__init__('%s %s' % (self.__class__.__name__, reason), **kwargs)
 
     def response(self, _request: 'HttpParser') -> memoryview:
         return self.RESPONSE_PKT

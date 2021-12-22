@@ -13,7 +13,7 @@
        auth
        http
 """
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .base import HttpProtocolException
 
@@ -42,6 +42,9 @@ class ProxyAuthenticationFailed(HttpProtocolException):
             conn_close=True,
         ),
     )
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(self.__class__.__name__, **kwargs)
 
     def response(self, _request: 'HttpParser') -> memoryview:
         return self.RESPONSE_PKT

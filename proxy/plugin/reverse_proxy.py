@@ -101,12 +101,11 @@ class ReverseProxyPlugin(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                 )
             self.upstream.queue(memoryview(request.build()))
         except ConnectionRefusedError:
-            logger.info(
+            raise HttpProtocolException(
                 'Connection refused by upstream server {0}:{1}'.format(
                     text_(self.choice.hostname), port,
                 ),
             )
-            raise HttpProtocolException()
 
     def on_client_connection_close(self) -> None:
         if self.upstream and not self.upstream.closed:

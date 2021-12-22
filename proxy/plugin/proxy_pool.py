@@ -110,12 +110,11 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         try:
             self.upstream.connect()
         except TimeoutError:
-            logger.info(
+            raise HttpProtocolException(
                 'Timed out connecting to upstream proxy {0}:{1}'.format(
                     *endpoint_tuple,
                 ),
             )
-            raise HttpProtocolException()
         except ConnectionRefusedError:
             # TODO(abhinavsingh): Try another choice, when all (or max configured) choices have
             # exhausted, retry for configured number of times before giving up.
@@ -124,12 +123,11 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             # A periodic health check must put them back in the pool.  This can be achieved
             # using a datastructure without having to spawn separate thread/process for health
             # check.
-            logger.info(
+            raise HttpProtocolException(
                 'Connection refused by upstream proxy {0}:{1}'.format(
                     *endpoint_tuple,
                 ),
             )
-            raise HttpProtocolException()
         logger.debug(
             'Established connection to upstream proxy {0}:{1}'.format(
                 *endpoint_tuple,
