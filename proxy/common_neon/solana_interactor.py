@@ -6,19 +6,28 @@ import re
 import time
 
 from solana.blockhash import Blockhash
+from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
 from solana.rpc.api import SendTransactionError
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.transaction import Transaction
+from http.client import HTTPConnection, HTTPSConnection
+from urllib.parse import urlparse
 
 from .costs import update_transaction_cost
 from .utils import get_from_dict
 from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, LOG_SENDING_SOLANA_TRANSACTION, RETRY_ON_FAIL
 
+from typing import Any, List, NamedTuple, Union
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+class AccountInfo(NamedTuple):
+    tag: int
+    lamports: int
+    owner: PublicKey
 
 class SolanaInteractor:
     def __init__(self, signer, client: SolanaClient) -> None:
@@ -29,8 +38,7 @@ class SolanaInteractor:
     def get_operator_key(self):
         return self.signer.public_key()
 
-
-    def get_account_info(self, storage_account):
+    def get_account_info(self, storage_account) -> AccountInfo:
         opts = {
             "encoding": "base64",
             "commitment": "confirmed",
@@ -54,8 +62,30 @@ class SolanaInteractor:
         lamports = info['lamports']
         owner = info['owner']
 
-        return (account_tag, lamports, owner)
+        return AccountInfo(account_tag, lamports, owner)
 
+    def get_multiple_accounts_info(self, accounts: List[PublicKey]) -> List[AccountInfo]:
+        options = {
+            "encoding": "base64",
+            "commitment": "confirmed",
+            "dataSlice": { "offset": 0, "length": 16 }
+        }
+        result = self.client._provider.make_request("getMultipleAccounts", list(map(str, accounts)), options)
+        logger.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
+
+        if result['result']['value'] is None:
+            logger.debug("Can't get information about {}".format(accounts))
+            return None
+
+        accounts_info = []
+        for info in result['result']['value']:
+            if info is None:
+                accounts_info.append(None)
+            else:
+                data = base64.b64decode(info['data'][0])
+                accounts_info.append(AccountInfo(tag=data[0], lamports=info['lamports'], owner=info['owner']))
+
+        return accounts_info
 
     def get_sol_balance(self, account):
         return self.client.get_balance(account, commitment=Confirmed)['result']['value']
@@ -109,12 +139,34 @@ class SolanaInteractor:
                 raise
         raise RuntimeError("Failed trying {} times to get Blockhash for transaction {}".format(RETRY_ON_FAIL, txn.__dict__))
 
+    def send_multiple_transactions_unconfirmed(self, transactions: List[Transaction]) -> List[str]:
+        blockhash_resp = self.client.get_recent_blockhash() # commitment=Confirmed
+        if not blockhash_resp["result"]:
+            raise RuntimeError("failed to get recent blockhash")
 
-    def collect_result(self, reciept, eth_trx, reason=None):
-        self.confirm_transaction(reciept)
-        result = self.client.get_confirmed_transaction(reciept)
-        update_transaction_cost(result, eth_trx, reason)
-        return result
+        blockhash = blockhash_resp["result"]["value"]["blockhash"]
+
+        headers = {"Content-Type": "application/json"}
+        url = urlparse(self.client._provider.endpoint_uri)
+        connections = []
+
+        for transaction in transactions:
+            transaction.recent_blockhash = blockhash
+            transaction.sign(self.signer)
+        
+            base64_transaction = base64.b64encode(transaction.serialize()).decode("utf-8")
+            params = (base64_transaction, {"skipPreflight": True, "encoding": "base64"})
+            request = self.client._provider.json_encode({"jsonrpc": "2.0", "id": "1", "method": "sendTransaction", "params": params})
+
+            connection = HTTPSConnection(url.hostname, url.port) if url.scheme == "https" else HTTPConnection(url.hostname, url.port)
+            connection.request('POST', url.path, body=request, headers=headers)
+            connections.append(connection)
+
+        for connection in connections:
+            connection.getresponse()
+            connection.close()
+
+        return list(map(lambda trx: base58.b58encode(trx.signature()).decode("utf-8"), transactions))
 
 
     def send_measured_transaction(self, trx, eth_trx, reason):
@@ -152,12 +204,45 @@ class SolanaInteractor:
             elapsed_time += CONFIRMATION_CHECK_DELAY
         raise RuntimeError("could not confirm transaction: ", tx_sig)
 
+    def confirm_multiple_transactions(self, signatures: List[Union[str, bytes]]):
+        """Confirm a transaction."""
+        TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
+        elapsed_time = 0
+        while elapsed_time < TIMEOUT:
+            response = self.client.get_signature_statuses(signatures)
+            logger.debug('confirm_transactions: %s', response)
+            if response['result'] is None:
+                continue
+
+            for status in response['result']['value']:
+                if status is None:
+                    break
+                if status['confirmationStatus'] == 'processed':
+                    break
+            else:
+                return
+
+            time.sleep(CONFIRMATION_CHECK_DELAY)
+            elapsed_time += CONFIRMATION_CHECK_DELAY
+
+        raise RuntimeError("could not confirm transactions: ", signatures)
 
     def collect_results(self, receipts, eth_trx=None, reason=None):
+        self.confirm_multiple_transactions(receipts)
+
         results = []
         for rcpt in receipts:
-            results.append(self.collect_result(rcpt, eth_trx, reason))
+            result = self.client.get_confirmed_transaction(rcpt)
+            update_transaction_cost(result, eth_trx, reason)
+            results.append(result)
+
         return results
+
+    def collect_result(self, reciept, eth_trx, reason=None):
+        self.confirm_transaction(reciept)
+        result = self.client.get_confirmed_transaction(reciept)
+        update_transaction_cost(result, eth_trx, reason)
+        return result
 
     @staticmethod
     def extract_measurements_from_receipt(receipt):
