@@ -50,6 +50,7 @@ modelInstance = None
 NEON_PROXY_PKG_VERSION = '0.5.2-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
+
 class EthereumModel:
     def __init__(self):
         self.signer = self.get_solana_account()
