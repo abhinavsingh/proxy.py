@@ -11,7 +11,7 @@
 import ssl
 import socket
 
-from typing import Optional, Union, Tuple, Dict
+from typing import Optional, Union, Tuple
 
 from ...common.utils import new_socket_connection
 
