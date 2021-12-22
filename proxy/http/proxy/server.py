@@ -657,8 +657,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     text_(host), port, repr(e),
                 ) from e
         else:
-            logger.exception('Both host and port must exist')
-            raise HttpProtocolException()
+            raise HttpProtocolException('Both host and port must exist')
 
     #
     # Interceptor related methods

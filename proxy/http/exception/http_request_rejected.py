@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import Optional, Dict, TYPE_CHECKING
+from typing import Any, Optional, Dict, TYPE_CHECKING
 
 from .base import HttpProtocolException
 
@@ -25,16 +25,24 @@ class HttpRequestRejected(HttpProtocolException):
     HTTP status code can be returned."""
 
     def __init__(
-        self,
-        status_code: Optional[int] = None,
-        reason: Optional[bytes] = None,
-        headers: Optional[Dict[bytes, bytes]] = None,
-        body: Optional[bytes] = None,
+            self,
+            status_code: Optional[int] = None,
+            reason: Optional[bytes] = None,
+            headers: Optional[Dict[bytes, bytes]] = None,
+            body: Optional[bytes] = None,
+            **kwargs: Any,
     ):
         self.status_code: Optional[int] = status_code
         self.reason: Optional[bytes] = reason
         self.headers: Optional[Dict[bytes, bytes]] = headers
         self.body: Optional[bytes] = body
+        klass_name = self.__class__.__name__
+        super().__init__(
+            message='%s %r' % (klass_name, reason)
+            if reason
+            else klass_name,
+            **kwargs,
+        )
 
     def response(self, _request: 'HttpParser') -> Optional[memoryview]:
         if self.status_code:

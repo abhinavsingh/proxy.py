@@ -263,10 +263,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 # TODO: Tear down if invalid protocol exception
                 remaining = frame.parse(remaining)
                 if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
-                    logger.warning(
+                    raise HttpProtocolException(
                         'Client sent connection close packet',
                     )
-                    raise HttpProtocolException()
                 else:
                     assert self.route
                     self.route.on_websocket_message(frame)
@@ -287,10 +286,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if self.pipeline_request.is_complete:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive:
-                    logger.error(
+                    raise HttpProtocolException(
                         'Pipelined request is not keep-alive, will tear down request...',
                     )
-                    raise HttpProtocolException()
                 self.pipeline_request = None
         return raw
 

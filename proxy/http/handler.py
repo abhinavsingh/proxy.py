@@ -237,7 +237,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                         break
                     data = optional_data
         except HttpProtocolException as e:
-            logger.exception('HttpProtocolException raised', exc_info=e)
+            logger.info('HttpProtocolException: %s' % e)
             response: Optional[memoryview] = e.response(self.request)
             if response:
                 self.work.queue(response)
