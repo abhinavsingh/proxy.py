@@ -31,7 +31,6 @@ from ..codes import httpStatusCodes
 from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes
-# from ..parser.tls import TlsParser, TlsHandshake, tlsContentType, tlsHandshakeType
 
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE

@@ -52,7 +52,6 @@ class TcpConnection(ABC):
     def send(self, data: bytes) -> int:
         """Users must handle BrokenPipeError exceptions"""
         # logger.info(data)
-        logger.info('send to %s, data = |%s|', self.tag, data)
         return self.connection.send(data)
 
     def recv(
@@ -67,7 +66,6 @@ class TcpConnection(ABC):
             (len(data), self.tag),
         )
         # logger.info(data)
-        logger.info('recv from %s, data = |%s|', self.tag, data)
         return memoryview(data)
 
     def close(self) -> bool:
