@@ -172,7 +172,7 @@ class Indexer(IndexerBase):
                                             del continue_table[storage_account]
                                         else:
                                             logger.error("Storage not found")
-                                            logger.error(eth_signature, "unknown")
+                                            logger.error(f"{eth_signature} unknown")
                                             # raise
 
                                         del holder_table[write_account]
@@ -446,7 +446,7 @@ class Indexer(IndexerBase):
             }
         self.blocks_by_hash[block_hash] = slot
 
-        logger.debug(trx_struct.eth_signature + " " + status)
+        logger.debug(f"{trx_struct.eth_signature} {status}")
 
 
     def submit_transaction_part(self, trx_struct):
