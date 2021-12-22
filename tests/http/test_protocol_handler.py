@@ -26,7 +26,7 @@ from proxy.http.parser import HttpParser
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.parser import httpParserStates, httpParserTypes
 from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
-from proxy.http import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler, httpHeaders
 
 from ..test_assertions import Assertions
 
@@ -321,8 +321,8 @@ class TestHttpProtocolHandler(Assertions):
             b'User-Agent: proxy.py/%s' % bytes_(__version__),
             b'Host: localhost:%d' % self.http_server_port,
             b'Accept: */*',
-            b'Proxy-Connection: Keep-Alive',
-            b'Proxy-Authorization: Basic dXNlcjpwYXNz',
+            httpHeaders.PROXY_CONNECTION + b': Keep-Alive',
+            httpHeaders.PROXY_AUTHORIZATION + b': Basic dXNlcjpwYXNz',
             CRLF,
         ])
         await self.assert_data_queued(server)
@@ -354,8 +354,8 @@ class TestHttpProtocolHandler(Assertions):
             b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
             b'Host: localhost:%d' % self.http_server_port,
             b'User-Agent: proxy.py/%s' % bytes_(__version__),
-            b'Proxy-Connection: Keep-Alive',
-            b'Proxy-Authorization: Basic dXNlcjpwYXNz',
+            httpHeaders.PROXY_CONNECTION + b': Keep-Alive',
+            httpHeaders.PROXY_AUTHORIZATION + b': Basic dXNlcjpwYXNz',
             CRLF,
         ])
         await self.assert_tunnel_response(server)

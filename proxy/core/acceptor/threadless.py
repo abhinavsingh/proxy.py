@@ -180,13 +180,15 @@ class Threadless(ABC, Generic[T]):
                 # else:
                 #     logger.info(
                 #         'fd#{0} by work#{1} not modified'.format(fileno, work_id))
-            else:
-                # Can throw ValueError: Invalid file descriptor: -1
-                #
-                # A guard within Work classes may not help here due to
-                # asynchronous nature.  Hence, threadless will handle
-                # ValueError exceptions raised by selector.register
-                # for invalid fd.
+            # Can throw ValueError: Invalid file descriptor: -1
+            #
+            # A guard within Work classes may not help here due to
+            # asynchronous nature.  Hence, threadless will handle
+            # ValueError exceptions raised by selector.register
+            # for invalid fd.
+            #
+            # TODO: Also remove offending work from pool to avoid spin loop.
+            elif fileno != -1:
                 self.selector.register(
                     fileno, events=mask,
                     data=work_id,

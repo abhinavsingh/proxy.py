@@ -485,12 +485,13 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini', 'requirements.txt', 'requirements-testing.txt')
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini', 'requirements**.txt')
           }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
-              steps.calc-cache-key-py.outputs.py-hash-key
+            steps.calc-cache-key-py.outputs.py-hash-key
           }}-
           ${{ runner.os }}-pip-
     - name: Install tox
@@ -667,12 +668,32 @@ jobs:
         make ca-certificates
         python3 -m proxy --version
 
+  check:  # This job does nothing and is only used for the branch protection
+    if: always()
+
+    needs:
+    - analyze
+    - test
+    - lint
+    - dashboard
+    - brew
+    - developer
+
+    runs-on: Ubuntu-latest
+
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
+
   docker:
     runs-on: Ubuntu-latest
     permissions:
       packages: write
+    if: success()
     needs:
-    - build
+    - check
     - pre-setup  # transitive, for accessing settings
     name: 🐳 containerize
     strategy:
@@ -746,8 +767,11 @@ jobs:
     - name: Tag latest on GHCR
       if: >-
         github.event_name == 'push' &&
-        github.ref == format(
-          'refs/heads/{0}', github.event.repository.default_branch
+        (
+          github.ref == format(
+            'refs/heads/{0}', github.event.repository.default_branch
+          ) ||
+          github.ref == 'refs/heads/master'
         )
       run: >-
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
@@ -781,26 +805,6 @@ jobs:
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
         -t $CONTAINER_TAG .
-
-  check:  # This job does nothing and is only used for the branch protection
-    if: always()
-
-    needs:
-    - analyze
-    - test
-    - lint
-    - docker
-    - dashboard
-    - brew
-    - developer
-
-    runs-on: Ubuntu-latest
-
-    steps:
-    - name: Decide whether the needed jobs succeeded or failed
-      uses: re-actors/alls-green@release/v1
-      with:
-        jobs: ${{ toJSON(needs) }}
 
   publish-pypi:
     name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI

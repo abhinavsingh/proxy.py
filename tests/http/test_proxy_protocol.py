@@ -11,6 +11,7 @@
 import unittest
 
 from proxy.http.parser import ProxyProtocol, PROXY_PROTOCOL_V2_SIGNATURE
+from proxy.http.exception import HttpProtocolException
 
 
 class TestProxyProtocol(unittest.TestCase):
@@ -81,6 +82,6 @@ class TestProxyProtocol(unittest.TestCase):
             self.assertEqual(self.protocol.version, 2)
 
     def test_unknown_value_error(self) -> None:
-        with self.assertRaises(ValueError):
+        with self.assertRaises(HttpProtocolException):
             self.protocol.parse(PROXY_PROTOCOL_V2_SIGNATURE[:10])
             self.assertEqual(self.protocol.version, None)
