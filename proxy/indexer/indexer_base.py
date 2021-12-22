@@ -34,13 +34,14 @@ class IndexerBase:
     def __init__(self,
                  solana_url,
                  evm_loader_id,
-                 log_level):
+                 log_level,
+                 start_slot):
         logger.setLevel(log_levels.get(log_level, logging.INFO))
 
         self.evm_loader_id = evm_loader_id
         self.client = Client(solana_url)
         self.transaction_receipts = SQLDict(tablename="known_transactions")
-        self.last_slot = 0
+        self.last_slot = start_slot
         self.current_slot = 0
         self.transaction_order = []
         self.counter_ = 0

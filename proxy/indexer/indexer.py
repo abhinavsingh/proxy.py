@@ -53,7 +53,7 @@ class Indexer(IndexerBase):
                  solana_url,
                  evm_loader_id,
                  log_level = 'INFO'):
-        IndexerBase.__init__(self, solana_url, evm_loader_id, log_level)
+        IndexerBase.__init__(self, solana_url, evm_loader_id, log_level, 0)
 
         self.canceller = Canceller()
         self.logs_db = LogDB()
