@@ -298,16 +298,16 @@ if __name__ == '__main__':
             ', '.join(available_actions),
         )
         sys.exit(1)
-    if args.action in ('gen_private_key', 'gen_public_key'):
-        if args.private_key_path is None:
-            logger.error('--private-key-path is required for ' + args.action)
-            sys.exit(1)
-    if args.action == 'gen_public_key':
-        if args.public_key_path is None:
-            logger.error(
-                '--public-key-file is required for private key generation',
-            )
-            sys.exit(1)
+    if args.action in ('gen_private_key', 'gen_public_key') and \
+            args.private_key_path is None:
+        logger.error('--private-key-path is required for ' + args.action)
+        sys.exit(1)
+    if args.action == 'gen_public_key' and \
+            args.public_key_path is None:
+        logger.error(
+            '--public-key-file is required for private key generation',
+        )
+        sys.exit(1)
 
     # Execute
     if args.action == 'gen_private_key':

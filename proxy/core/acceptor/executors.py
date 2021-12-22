@@ -26,7 +26,6 @@ from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 
 from ...common.flag import flags
-from ...common.utils import is_threadless
 from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
 
 logger = logging.getLogger(__name__)
@@ -150,7 +149,7 @@ class ThreadlessPool:
 
     def setup(self) -> None:
         """Setup threadless processes."""
-        if is_threadless(self.flags.threadless, self.flags.threaded):
+        if self.flags.threadless:
             for index in range(self.flags.num_workers):
                 self._start_worker(index)
             logger.info(
@@ -161,7 +160,7 @@ class ThreadlessPool:
 
     def shutdown(self) -> None:
         """Shutdown threadless processes."""
-        if is_threadless(self.flags.threadless, self.flags.threaded):
+        if self.flags.threadless:
             self._shutdown_workers()
             logger.info(
                 'Stopped {0} threadless workers'.format(

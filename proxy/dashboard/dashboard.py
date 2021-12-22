@@ -83,8 +83,8 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                         headers={
                             b'Location': b'/dashboard/',
                             b'Content-Length': b'0',
-                            b'Connection': b'close',
                         },
+                        conn_close=True,
                     ),
                 ),
             )

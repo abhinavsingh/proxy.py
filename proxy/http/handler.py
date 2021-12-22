@@ -23,7 +23,7 @@ from .parser import HttpParser, httpParserStates, httpParserTypes
 from .exception import HttpProtocolException
 
 from ..common.types import Readables, Writables
-from ..common.utils import wrap_socket, is_threadless
+from ..common.utils import wrap_socket
 from ..core.base import BaseTcpServerHandler
 from ..core.connection import TcpClientConnection
 from ..common.flag import flags
@@ -76,7 +76,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             enable_proxy_protocol=self.flags.enable_proxy_protocol,
         )
         self.selector: Optional[selectors.DefaultSelector] = None
-        if not is_threadless(self.flags.threadless, self.flags.threaded):
+        if not self.flags.threadless:
             self.selector = selectors.DefaultSelector()
         self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
 
@@ -237,7 +237,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                         break
                     data = optional_data
         except HttpProtocolException as e:
-            logger.debug('HttpProtocolException raised')
+            logger.exception('HttpProtocolException raised', exc_info=e)
             response: Optional[memoryview] = e.response(self.request)
             if response:
                 self.work.queue(response)

@@ -99,10 +99,10 @@ class BaseTcpServerHandler(Work):
                 'Flushing buffer to client {0}'.format(self.work.address),
             )
             self.work.flush()
-            if self.must_flush_before_shutdown is True:
-                if not self.work.has_buffer():
-                    teardown = True
-                    self.must_flush_before_shutdown = False
+            if self.must_flush_before_shutdown is True and \
+                    not self.work.has_buffer():
+                teardown = True
+                self.must_flush_before_shutdown = False
         return teardown
 
     async def handle_readables(self, readables: Readables) -> bool:

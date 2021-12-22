@@ -12,13 +12,17 @@
 
        conn
 """
+from typing import TYPE_CHECKING
+
 from .base import HttpProtocolException
 
 from ..codes import httpStatusCodes
-from ..parser import HttpParser
 
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, PROXY_AGENT_HEADER_KEY
 from ...common.utils import build_http_response
+
+if TYPE_CHECKING:
+    from ..parser import HttpParser
 
 
 class ProxyConnectionFailed(HttpProtocolException):
@@ -30,9 +34,9 @@ class ProxyConnectionFailed(HttpProtocolException):
             reason=b'Bad Gateway',
             headers={
                 PROXY_AGENT_HEADER_KEY: PROXY_AGENT_HEADER_VALUE,
-                b'Connection': b'close',
             },
             body=b'Bad Gateway',
+            conn_close=True,
         ),
     )
 
@@ -41,5 +45,5 @@ class ProxyConnectionFailed(HttpProtocolException):
         self.port: int = port
         self.reason: str = reason
 
-    def response(self, _request: HttpParser) -> memoryview:
+    def response(self, _request: 'HttpParser') -> memoryview:
         return self.RESPONSE_PKT

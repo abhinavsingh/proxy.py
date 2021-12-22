@@ -31,8 +31,8 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
     PROXY_TUNNEL_UNSUPPORTED_SCHEME = memoryview(
         build_http_response(
             httpStatusCodes.BAD_REQUEST,
-            headers={b'Connection': b'close'},
             reason=b'Unsupported protocol scheme',
+            conn_close=True,
         ),
     )
 
