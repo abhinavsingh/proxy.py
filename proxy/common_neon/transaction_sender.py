@@ -271,9 +271,10 @@ class TransactionSender:
                         code_sol = None
                         code_writable = None
 
-            elif address == sender_ether:
+            if address == sender_ether:
                 sender_sol = PublicKey(acc_desc["account"])
-            else:
+
+            if address != to_address and address != sender_ether:
                 add_keys_05.append(AccountMeta(pubkey=acc_desc["account"], is_signer=False, is_writable=True))
                 if acc_desc["new"]:
                     if code_account:
