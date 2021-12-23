@@ -341,7 +341,7 @@ class IterativeTransactionSender:
     def call_signed_iterative_combined(self):
         if len(self.create_acc_trx.instructions) > 0:
             create_accounts_siganture = self.sender.send_transaction_unconfirmed(self.create_acc_trx)
-            self.sender.confirm_transaction(create_accounts_siganture)
+            self.sender.confirm_multiple_transactions([create_accounts_siganture])
 
         self.instruction_type = self.CONTINUE_COMBINED
         return self.call_continue()
