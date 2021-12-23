@@ -14,6 +14,7 @@ from solana.rpc.commitment import Confirmed
 from solana.rpc.types import RPCResponse, TxOpts
 from solana.transaction import Transaction
 from urllib.parse import urlparse
+from itertools import zip_longest
 
 from .costs import update_transaction_cost
 from .utils import get_from_dict
@@ -34,6 +35,25 @@ class SolanaInteractor:
         self.signer = signer
         self.client = client
 
+    def _send_rpc_batch_request(self, method: str, params_list: List[Any]) -> List[RPCResponse]:
+        request_data = []
+        for params in params_list:      
+            request_id = next(self.client._provider._request_counter) + 1
+            request = {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}
+            request_data.append(request)
+
+        response = requests.post(self.client._provider.endpoint_uri, headers={"Content-Type": "application/json"}, json=request_data)
+        response.raise_for_status()
+
+        response_data = cast(List[RPCResponse], response.json())
+        response_data.sort(key=lambda r: r["id"])
+
+        for request, response in zip_longest(request_data, response_data):
+            if request["id"] != response["id"]:
+                raise Exception("Invalid RPC response: request {} response {}", request, response)
+
+        return response_data
+    
 
     def get_operator_key(self):
         return self.signer.public_key()
@@ -92,18 +112,9 @@ class SolanaInteractor:
 
 
     def get_multiple_rent_exempt_balances_for_size(self, size_list: List[int]) -> List[int]:
-        request_data = []
-        for size in size_list:      
-            params = (size, {"commitment": "confirmed"})
-            request_id = next(self.client._provider._request_counter) + 1
-
-            request = {"jsonrpc": "2.0", "id": request_id, "method": "getMinimumBalanceForRentExemption", "params": params}
-            request_data.append(request)
-
-        response = requests.post(self.client._provider.endpoint_uri, headers={"Content-Type": "application/json"}, json=request_data)
-        response.raise_for_status()
-
-        return list(map(lambda r: r["result"], response.json()))
+        request = map(lambda size: (size, {"commitment": "confirmed"}), size_list)
+        response = self._send_rpc_batch_request("getMinimumBalanceForRentExemption", request)
+        return list(map(lambda r: r["result"], response))
 
 
     def _getAccountData(self, account, expected_length, owner=None):
@@ -157,22 +168,16 @@ class SolanaInteractor:
 
         blockhash = blockhash_resp["result"]["value"]["blockhash"]
 
-        request_data = []
+        request = []
         for transaction in transactions:
             transaction.recent_blockhash = blockhash
             transaction.sign(self.signer)
         
             base64_transaction = base64.b64encode(transaction.serialize()).decode("utf-8")
-            params = (base64_transaction, {"skipPreflight": skip_preflight, "encoding": "base64", "preflightCommitment": "confirmed"})
+            request.append((base64_transaction, {"skipPreflight": skip_preflight, "encoding": "base64", "preflightCommitment": "confirmed"}))
 
-            request_id = next(self.client._provider._request_counter) + 1
-            request = {"jsonrpc": "2.0", "id": request_id, "method": "sendTransaction", "params": params}
-            request_data.append(request)
-
-        response = requests.post(self.client._provider.endpoint_uri, headers={"Content-Type": "application/json"}, json=request_data)
-        response.raise_for_status()
-
-        return list(map(lambda r: r["result"], response.json()))
+        response = self._send_rpc_batch_request("sendTransaction", request)
+        return list(map(lambda r: r["result"], response))
 
 
     def send_measured_transaction(self, trx, eth_trx, reason):
@@ -216,18 +221,8 @@ class SolanaInteractor:
         raise RuntimeError("could not confirm transactions: ", signatures)
 
     def get_multiple_confirmed_transactions(self, signatures: List[str]) -> List[RPCResponse]:
-        request_data = []
-        for signature in signatures:
-            params = (signature, {"encoding": "json", "commitment": "confirmed"})
-            request_id = next(self.client._provider._request_counter) + 1
-
-            request = {"jsonrpc": "2.0", "id": request_id, "method": "getTransaction", "params": params}
-            request_data.append(request)
-
-        response = requests.post(self.client._provider.endpoint_uri, headers={"Content-Type": "application/json"}, json=request_data)
-        response.raise_for_status()
-
-        return cast(List[RPCResponse], response.json())
+        request = map(lambda signature: (signature, {"encoding": "json", "commitment": "confirmed"}), signatures)
+        return self._send_rpc_batch_request("getTransaction", request)
 
     def collect_results(self, receipts: List[str], eth_trx: Any = None, reason: str = None) -> List[RPCResponse]:
         self.confirm_multiple_transactions(receipts)
