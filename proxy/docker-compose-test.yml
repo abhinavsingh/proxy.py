@@ -82,6 +82,77 @@ services:
       - net
     entrypoint: proxy/run-test-proxy.sh
 
+  faucet:
+    container_name: faucet
+    image: neonlabsorg/proxy:${REVISION}
+    environment:
+      FAUCET_RPC_PORT: 3333
+      FAUCET_RPC_ALLOWED_ORIGINS: http://airdropper
+      FAUCET_WEB3_ENABLE: 'false'
+      WEB3_RPC_URL: http://proxy:9090/solana
+      WEB3_PRIVATE_KEY: ''
+      NEON_ERC20_TOKENS:
+      NEON_ERC20_MAX_AMOUNT: 1000
+      FAUCET_SOLANA_ENABLE: 'true'
+      SOLANA_URL: http://solana:8899
+      NEON_OPERATOR_KEYFILE: /root/.config/solana/id.json
+      NEON_ETH_MAX_AMOUNT: 10
+      TEST_FAUCET_INIT_NEON_BALANCE: 10000
+    hostname: faucet
+    expose:
+      - "3333"
+    networks:
+      - net
+    entrypoint: ./run-test-faucet.sh
+    depends_on:
+      proxy:
+        condition: service_started
+
+  airdropper-postgres:
+    container_name: airdropper-postgres
+    image: postgres:14.0
+    command: postgres -c 'max_connections=1000'
+    environment:
+      POSTGRES_DB: airdropper-db
+      POSTGRES_USER: neon-airdropper
+      POSTGRES_PASSWORD: neon-airdropper-pass
+    hostname: airdropper-postgres
+    expose:
+      - "5432"
+    networks:
+      - net
+    healthcheck:
+      test: [ CMD-SHELL, "pg_isready -h airdropper-postgres -p 5432" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 5s
+
+  airdropper:
+    container_name: airdropper
+    image: neonlabsorg/proxy:${REVISION}
+    environment:
+      POSTGRES_DB: airdropper-db
+      POSTGRES_USER: neon-airdropper
+      POSTGRES_PASSWORD: neon-airdropper-pass
+      POSTGRES_HOST: airdropper-postgres
+      SOLANA_URL: http://solana:8899
+      FAUCET_URL: http://faucet:3333
+      NEON_CLI_TIMEOUT: 0.9
+      INDEXER_ERC20_WRAPPER_WHITELIST: ANY
+      LOG_LEVEL: INFO
+      PRICE_UPDATE_INTERVAL: 10
+      START_SLOT: LATEST
+    hostname: airdropper
+    entrypoint: ./run-airdropper.sh
+    networks:
+      - net
+    depends_on:
+      airdropper-postgres:
+        condition: service_healthy
+      faucet:
+        condition: service_started
+
 networks:
   net:
 

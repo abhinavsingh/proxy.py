@@ -22,11 +22,12 @@ class Airdropper(IndexerBase):
                  solana_url,
                  evm_loader_id,
                  faucet_url = '',
-                 wrapper_whitelist = [],
+                 wrapper_whitelist = 'ANY',
                  log_level = 'INFO',
                  price_upd_interval=60,
-                 neon_decimals = 9):
-        IndexerBase.__init__(self, solana_url, evm_loader_id, log_level)
+                 neon_decimals = 9,
+                 start_slot = 0):
+        IndexerBase.__init__(self, solana_url, evm_loader_id, log_level, start_slot)
 
         # collection of eth-address-to-create-accout-trx mappings
         # for every addresses that was already funded with airdrop
@@ -37,13 +38,15 @@ class Airdropper(IndexerBase):
         # Price provider need pyth.network be deployed onto solana
         # so using mainnet solana for simplicity
         self.price_provider = PriceProvider(mainnet_solana,
-                                            price_upd_interval,
+                                            price_upd_interval, # seconds
                                             mainnet_price_accounts)
         self.neon_decimals = neon_decimals
 
 
     # helper function checking if given contract address is in whitelist
     def _is_allowed_wrapper_contract(self, contract_addr):
+        if self.wrapper_whitelist == 'ANY':
+            return True
         return contract_addr in self.wrapper_whitelist
 
 
@@ -159,10 +162,11 @@ class Airdropper(IndexerBase):
 def run_airdropper(solana_url,
                    evm_loader_id,
                    faucet_url = '',
-                   wrapper_whitelist = [],
+                   wrapper_whitelist = 'ANY',
                    log_level = 'INFO',
                    price_update_interval = 60,
-                   neon_decimals = 9):
+                   neon_decimals = 9,
+                   start_slot = 0):
     logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
     logger.setLevel(logging.DEBUG)
     logger.info(f"""Running indexer with params:
@@ -172,7 +176,8 @@ def run_airdropper(solana_url,
         faucet_url: {faucet_url},
         wrapper_whitelist: {wrapper_whitelist},
         price update interval: {price_update_interval},
-        NEON decimals: {neon_decimals}""")
+        NEON decimals: {neon_decimals},
+        Start slot: {start_slot}""")
 
     airdropper = Airdropper(solana_url,
                             evm_loader_id,
@@ -180,5 +185,6 @@ def run_airdropper(solana_url,
                             wrapper_whitelist,
                             log_level,
                             price_update_interval,
-                            neon_decimals)
+                            neon_decimals,
+                            start_slot)
     airdropper.run()

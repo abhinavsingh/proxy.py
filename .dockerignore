@@ -6,6 +6,9 @@
 !requirements.txt
 !setup.py
 !README.md
+!run-test-faucet.sh
+!run-faucet.sh
+!run-airdropper.sh
 
 # Ignore __pycache__ directory
 proxy/__pycache__
