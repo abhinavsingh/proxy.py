@@ -342,6 +342,7 @@ class IterativeTransactionSender:
         if len(self.create_acc_trx.instructions) > 0:
             create_accounts_siganture = self.sender.send_transaction_unconfirmed(self.create_acc_trx)
             self.sender.confirm_multiple_transactions([create_accounts_siganture])
+            self.create_acc_trx = Transaction()
 
         self.instruction_type = self.CONTINUE_COMBINED
         return self.call_continue()
@@ -353,6 +354,8 @@ class IterativeTransactionSender:
             precall_transactions.append(self.create_acc_trx)
         signatures = self.sender.send_multiple_transactions_unconfirmed(precall_transactions)
         self.sender.confirm_multiple_transactions(signatures)
+        
+        self.create_acc_trx = Transaction()
 
         self.instruction_type = self.CONTINUE_HOLDER_COMB
         return self.call_continue()
