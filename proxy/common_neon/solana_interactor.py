@@ -91,8 +91,19 @@ class SolanaInteractor:
         return self.client.get_balance(account, commitment=Confirmed)['result']['value']
 
 
-    def get_rent_exempt_balance_for_size(self, size):
-        return self.client.get_minimum_balance_for_rent_exemption(size, commitment=Confirmed)["result"]
+    def get_multiple_rent_exempt_balances_for_size(self, size_list: List[int]) -> List[int]:
+        request_data = []
+        for size in size_list:      
+            params = (size, {"commitment": "confirmed"})
+            request_id = next(self.client._provider._request_counter) + 1
+
+            request = {"jsonrpc": "2.0", "id": request_id, "method": "getMinimumBalanceForRentExemption", "params": params}
+            request_data.append(request)
+
+        response = requests.post(self.client._provider.endpoint_uri, headers={"Content-Type": "application/json"}, json=request_data)
+        response.raise_for_status()
+
+        return list(map(lambda r: r["result"], response.json()))
 
 
     def _getAccountData(self, account, expected_length, owner=None):

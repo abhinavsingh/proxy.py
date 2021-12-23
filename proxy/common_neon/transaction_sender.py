@@ -139,7 +139,7 @@ class TransactionSender:
         account = accountWithSeed(self.sender.get_operator_key(), seed)
 
         if self.sender.get_sol_balance(account) == 0:
-            minimum_balance = self.sender.get_rent_exempt_balance_for_size(storage_size)
+            minimum_balance = self.sender.get_multiple_rent_exempt_balances_for_size([storage_size])[0]
             logger.debug("Minimum balance required for account {}".format(minimum_balance))
 
             trx = Transaction()
@@ -149,17 +149,16 @@ class TransactionSender:
         return account
 
 
-    def create_multiple_accounts_with_seed(self, seeds, sizes):
+    def create_multiple_accounts_with_seed(self, seeds: List[bytes], sizes: List[int]) -> List[PublicKey]:
         accounts = list(map(lambda seed: accountWithSeed(self.sender.get_operator_key(), seed), seeds))
         accounts_info = self.sender.get_multiple_accounts_info(accounts)
+        minimum_balances = self.sender.get_multiple_rent_exempt_balances_for_size(sizes)
 
         trx = Transaction()
 
-        for account_key, account_info, seed, storage_size in zip(accounts, accounts_info, seeds, sizes):
+        for account_key, account_info, seed, minimum_balance, storage_size in zip(accounts, accounts_info, seeds, minimum_balances, sizes):
             if account_info is None:
-                minimum_balance = self.sender.get_rent_exempt_balance_for_size(storage_size)
                 logger.debug("Minimum balance required for account {}".format(minimum_balance))
-
                 trx.add(self.instruction.create_account_with_seed_trx(account_key, seed, minimum_balance, storage_size))
             else:
                 if account_info.lamports < minimum_balance:
@@ -247,7 +246,7 @@ class TransactionSender:
                     code_account = accountWithSeed(self.sender.get_operator_key(), seed)
                     logger.debug("     with code account %s", code_account)
                     code_size = acc_desc["code_size"] + 2048
-                    code_account_balance = self.sender.get_rent_exempt_balance_for_size(code_size)
+                    code_account_balance = self.sender.get_multiple_rent_exempt_balances_for_size([code_size])[0]
                     self.create_acc_trx.add(self.instruction.create_account_with_seed_trx(code_account, seed, code_account_balance, code_size))
                     # add_keys_05.append(AccountMeta(pubkey=code_account, is_signer=False, is_writable=acc_desc["writable"]))
                     code_account_writable = acc_desc["writable"]
@@ -354,7 +353,7 @@ class IterativeTransactionSender:
             precall_transactions.append(self.create_acc_trx)
         signatures = self.sender.send_multiple_transactions_unconfirmed(precall_transactions)
         self.sender.confirm_multiple_transactions(signatures)
-        
+
         self.create_acc_trx = Transaction()
 
         self.instruction_type = self.CONTINUE_HOLDER_COMB
