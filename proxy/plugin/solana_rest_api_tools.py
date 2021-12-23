@@ -15,7 +15,7 @@ from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.transaction_sender import TransactionSender
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.utils import get_from_dict
-from ..environment import read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
+from ..environment import NEW_USER_AIRDROP_AMOUNT, read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
 
 
 logger = logging.getLogger(__name__)
@@ -104,6 +104,9 @@ def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, et
         return get_token_balance_gwei(client, solana_account)
     except SolanaAccountNotFoundError:
         logger.debug(f"Account not found:  {eth_account} aka: {solana_account} - create")
+        if NEW_USER_AIRDROP_AMOUNT == 0:
+            return 0
+            
         create_eth_account_and_airdrop(client, signer, eth_account)
         return get_token_balance_gwei(client, solana_account)
 
