@@ -19,6 +19,7 @@ class SQLCost():
         cur.execute('''
                 CREATE TABLE IF NOT EXISTS OPERATOR_COST
                 (
+                    id SERIAL PRIMARY KEY,
                     hash char(64),
                     cost bigint,
                     used_gas bigint,
