@@ -15,9 +15,7 @@
 from typing import Optional
 
 from ..common.constants import DOT, SLASH
-from ..common.utils import build_http_response
 
-from ..http import httpStatusCodes
 from ..http.responses import NOT_FOUND_RESPONSE_PKT, seeOthersResponse
 from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
