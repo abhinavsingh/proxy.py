@@ -28,10 +28,10 @@ from .plugin import HttpProxyBasePlugin
 
 from ..headers import httpHeaders
 from ..methods import httpMethods
-from ..codes import httpStatusCodes
 from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
@@ -40,7 +40,7 @@ from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
 from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
 from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_PROXY_AUTH
-from ...common.utils import build_http_response, text_
+from ...common.utils import text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
@@ -135,13 +135,6 @@ flags.add_argument(
 
 class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     """HttpProtocolHandler plugin which implements HttpProxy specifications."""
-
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(
-        build_http_response(
-            httpStatusCodes.OK,
-            reason=b'Connection established',
-        ),
-    )
 
     # Used to synchronization during certificate generation and
     # connection pool operations.
@@ -546,9 +539,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # Optionally, setup interceptor if TLS interception is enabled.
         if self.upstream:
             if self.request.is_https_tunnel:
-                self.client.queue(
-                    HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
-                )
+                self.client.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
                 if self.tls_interception_enabled():
                     return self.intercept()
             # If an upstream server connection was established for http request,

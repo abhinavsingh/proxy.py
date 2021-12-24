@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import re
-import gzip
 import time
 import socket
 import logging
@@ -17,18 +16,18 @@ import mimetypes
 
 from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 
-from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
+from ...common.constants import DEFAULT_STATIC_SERVER_DIR
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
-from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
+from ...common.utils import bytes_, text_, build_websocket_handshake_response
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
-from ..codes import httpStatusCodes
 from ..exception import HttpProtocolException
 from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..parser import HttpParser, httpParserTypes
+from ..responses import NOT_FOUND_RESPONSE_PKT, NOT_IMPLEMENTED_RESPONSE_PKT, okResponse
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
@@ -74,30 +73,6 @@ flags.add_argument(
 class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     """HttpProtocolHandler plugin which handles incoming requests to local web server."""
 
-    DEFAULT_404_RESPONSE = memoryview(
-        build_http_response(
-            httpStatusCodes.NOT_FOUND,
-            reason=b'NOT FOUND',
-            headers={
-                b'Server': PROXY_AGENT_HEADER_VALUE,
-                b'Content-Length': b'0',
-            },
-            conn_close=True,
-        ),
-    )
-
-    DEFAULT_501_RESPONSE = memoryview(
-        build_http_response(
-            httpStatusCodes.NOT_IMPLEMENTED,
-            reason=b'NOT IMPLEMENTED',
-            headers={
-                b'Server': PROXY_AGENT_HEADER_VALUE,
-                b'Content-Length': b'0',
-            },
-            conn_close=True,
-        ),
-    )
-
     def __init__(
             self,
             *args: Any, **kwargs: Any,
@@ -137,7 +112,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.flags.certfile is not None
 
     @staticmethod
-    def read_and_build_static_file_response(path: str, min_compression_limit: int) -> memoryview:
+    def read_and_build_static_file_response(path: str) -> memoryview:
         try:
             with open(path, 'rb') as f:
                 content = f.read()
@@ -148,22 +123,12 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 b'Content-Type': bytes_(content_type),
                 b'Cache-Control': b'max-age=86400',
             }
-            do_compress = len(content) > min_compression_limit
-            if do_compress:
-                headers.update({
-                    b'Content-Encoding': b'gzip',
-                })
-            return memoryview(
-                build_http_response(
-                    httpStatusCodes.OK,
-                    reason=b'OK',
-                    headers=headers,
-                    body=gzip.compress(content) if do_compress else content,
-                    conn_close=True,
-                ),
+            return okResponse(
+                content=content,
+                headers=headers,
             )
         except FileNotFoundError:
-            return HttpWebServerPlugin.DEFAULT_404_RESPONSE
+            return NOT_FOUND_RESPONSE_PKT
 
     def try_upgrade(self) -> bool:
         if self.request.has_header(b'connection') and \
@@ -181,7 +146,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 )
                 self.switched_protocol = httpProtocolTypes.WEBSOCKET
             else:
-                self.client.queue(self.DEFAULT_501_RESPONSE)
+                self.client.queue(NOT_IMPLEMENTED_RESPONSE_PKT)
                 return True
         return False
 
@@ -223,12 +188,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.client.queue(
                 self.read_and_build_static_file_response(
                     self.flags.static_server_dir + path,
-                    self.flags.min_compression_limit,
                 ),
             )
             return True
         # Catch all unhandled web server requests, return 404
-        self.client.queue(self.DEFAULT_404_RESPONSE)
+        self.client.queue(NOT_FOUND_RESPONSE_PKT)
         return True
 
     def get_descriptors(self) -> Tuple[List[int], List[int]]:

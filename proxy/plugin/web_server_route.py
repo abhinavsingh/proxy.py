@@ -11,26 +11,15 @@
 import logging
 from typing import List, Tuple
 
-from ..common.utils import build_http_response
-
-from ..http import httpStatusCodes
+from ..http.responses import okResponse
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 
-HTTP_RESPONSE = memoryview(
-    build_http_response(
-        httpStatusCodes.OK, body=b'HTTP route response',
-    ),
-)
-
-HTTPS_RESPONSE = memoryview(
-    build_http_response(
-        httpStatusCodes.OK, body=b'HTTPS route response',
-    ),
-)
-
 logger = logging.getLogger(__name__)
+
+HTTP_RESPONSE = okResponse(content=b'HTTP route response')
+HTTPS_RESPONSE = okResponse(content=b'HTTP route response')
 
 
 class WebServerPlugin(HttpWebServerBasePlugin):

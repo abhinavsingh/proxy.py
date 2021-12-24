@@ -23,6 +23,7 @@ from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.http import httpMethods, httpStatusCodes, HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.http.parser import HttpParser
+from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
 from .utils import get_plugin_by_test_name
 
@@ -174,7 +175,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         )
         self.assertEqual(self.server.connection, self.server_ssl_connection)
         self._conn.send.assert_called_with(
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
         self.assertFalse(self.protocol_handler.work.has_buffer())
 
@@ -229,7 +230,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         )
         self.assertEqual(self.server.connection, self.server_ssl_connection)
         self._conn.send.assert_called_with(
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
         self.assertFalse(self.protocol_handler.work.has_buffer())
         #

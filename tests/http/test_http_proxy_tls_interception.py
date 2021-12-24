@@ -19,11 +19,12 @@ from pytest_mock import MockerFixture
 from unittest import mock
 from proxy.common.constants import DEFAULT_CA_FILE
 
-from proxy.core.connection import TcpClientConnection, TcpServerConnection
-from proxy.http import HttpProtocolHandler, httpMethods
-from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.utils import build_http_request, bytes_
 from proxy.common.flag import FlagParser
+from proxy.http import HttpProtocolHandler, httpMethods
+from proxy.http.proxy import HttpProxyPlugin
+from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
+from proxy.core.connection import TcpClientConnection, TcpServerConnection
 
 from ..test_assertions import Assertions
 
@@ -178,7 +179,7 @@ class TestHttpProxyTlsInterception(Assertions):
             ssl_connection,
         )
         self._conn.send.assert_called_with(
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
         assert self.flags.ca_cert_dir is not None
         self.mock_ssl_wrap.assert_called_with(
