@@ -88,8 +88,9 @@ def okResponse(
         headers: Optional[Dict[bytes, bytes]] = None,
         conn_close: bool = False,
 ) -> memoryview:
-    assert flags.args
-    do_compress = content and len(content) > flags.args.min_compression_limit
+    do_compress = flags.args and \
+        content and \
+        len(content) > flags.args.min_compression_limit
     if do_compress:
         if not headers:
             headers = {}

@@ -126,6 +126,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return okResponse(
                 content=content,
                 headers=headers,
+                # TODO: Should we really close or take advantage of keep-alive?
+                conn_close=True,
             )
         except FileNotFoundError:
             return NOT_FOUND_RESPONSE_PKT

@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
+import gzip
 import socket
 import pytest
 import selectors
@@ -22,7 +23,7 @@ from proxy.core.connection import TcpClientConnection, TcpServerConnection
 
 from proxy.http import httpMethods, httpStatusCodes, HttpProtocolHandler
 from proxy.http.proxy import HttpProxyPlugin
-from proxy.http.parser import HttpParser
+from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
 from .utils import get_plugin_by_test_name
@@ -258,10 +259,10 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             ),
         )
         await self.protocol_handler._run_once()
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        response.parse(self.protocol_handler.work.buffer[0].tobytes())
+        assert response.body
         self.assertEqual(
-            self.protocol_handler.work.buffer[0].tobytes(),
-            build_http_response(
-                httpStatusCodes.OK,
-                reason=b'OK', body=b'Hello from man in the middle',
-            ),
+            gzip.decompress(response.body),
+            b'Hello from man in the middle',
         )
