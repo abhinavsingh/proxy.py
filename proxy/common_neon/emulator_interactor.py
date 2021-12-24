@@ -3,7 +3,7 @@ import logging
 
 from typing import Optional, Dict, Any
 from .errors import EthereumError
-from ..environment import neon_cli
+from ..environment import neon_cli, ETH_TOKEN_MINT_ID
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -63,4 +63,4 @@ def decode_revert_message(data: str) -> Optional[str]:
 def emulator(contract, sender, data, value):
     data = data or "none"
     value = value or ""
-    return neon_cli().call("emulate", sender, contract, data, value)
+    return neon_cli().call("emulate", "--token_mint", str(ETH_TOKEN_MINT_ID), sender, contract, data, value)
