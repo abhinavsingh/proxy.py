@@ -170,7 +170,7 @@ class TestHttpProxyPluginExamples(Assertions):
                 json.dumps(
                     ProposedRestApiPlugin.REST_API_SPEC[path],
                 ),
-            )
+            ),
         )
 
     @pytest.mark.asyncio    # type: ignore[misc]
