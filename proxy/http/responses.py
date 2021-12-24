@@ -86,12 +86,12 @@ BAD_GATEWAY_RESPONSE_PKT = memoryview(
 def okResponse(
         content: Optional[bytes] = None,
         headers: Optional[Dict[bytes, bytes]] = None,
+        compress: bool = True,
         **kwargs: Any,
 ) -> memoryview:
-    do_compress = flags.args and \
-        content and \
-        len(content) > flags.args.min_compression_limit
-    if do_compress:
+    do_compress: bool = False
+    if compress and flags.args and content and len(content) > flags.args.min_compression_limit:
+        do_compress = True
         if not headers:
             headers = {}
         headers.update({

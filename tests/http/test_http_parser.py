@@ -626,6 +626,7 @@ class TestHttpParser(unittest.TestCase):
                     b'Content-Type': b'application/json',
                 },
                 content=b'f\r\n{"key":"value"}\r\n0\r\n\r\n',
+                compress=False,
             ),
         )
 
