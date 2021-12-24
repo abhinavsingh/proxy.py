@@ -9,7 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import gzip
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from ..common.flag import flags
 from ..common.utils import build_http_response
@@ -86,7 +86,7 @@ BAD_GATEWAY_RESPONSE_PKT = memoryview(
 def okResponse(
         content: Optional[bytes] = None,
         headers: Optional[Dict[bytes, bytes]] = None,
-        conn_close: bool = False,
+        **kwargs: Any,
 ) -> memoryview:
     do_compress = flags.args and \
         content and \
@@ -105,7 +105,7 @@ def okResponse(
             body=gzip.compress(content)
             if do_compress and content
             else content,
-            conn_close=conn_close,
+            **kwargs,
         ),
     )
 

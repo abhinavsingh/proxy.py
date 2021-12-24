@@ -338,7 +338,8 @@ class TestHttpProxyPluginExamples(Assertions):
         server.recv.return_value = \
             build_http_response(
                 httpStatusCodes.OK,
-                reason=b'OK', body=b'Original Response From Upstream',
+                reason=b'OK',
+                body=b'Original Response From Upstream',
             )
         await self.protocol_handler._run_once()
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
