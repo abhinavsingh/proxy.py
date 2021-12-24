@@ -81,8 +81,8 @@ class ProposedRestApiPlugin(HttpProxyBasePlugin):
                         json.dumps(
                             self.REST_API_SPEC[request.path],
                         ),
-                    )
-                )
+                    ),
+                ),
             )
         else:
             self.client.queue(NOT_FOUND_RESPONSE_PKT)

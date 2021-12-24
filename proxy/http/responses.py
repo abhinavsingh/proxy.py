@@ -120,7 +120,7 @@ def permanentRedirectResponse(location: bytes) -> memoryview:
                 b'Content-Length': b'0',
             },
             conn_close=True,
-        )
+        ),
     )
 
 
