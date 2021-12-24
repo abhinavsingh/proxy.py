@@ -247,8 +247,10 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini') }}
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini')
+          }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
               steps.calc-cache-key-py.outputs.py-hash-key
@@ -370,8 +372,10 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini') }}
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini')
+          }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
               steps.calc-cache-key-py.outputs.py-hash-key
@@ -701,6 +705,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
       uses: actions/download-artifact@v2
       with:

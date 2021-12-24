@@ -24,8 +24,12 @@ from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, P
 from proxy.core.connection import TcpClientConnection
 from proxy.http.parser import HttpParser
 from proxy.http.proxy import HttpProxyPlugin
+from proxy.http.responses import (
+    BAD_GATEWAY_RESPONSE_PKT,
+    PROXY_AUTH_FAILED_RESPONSE_PKT,
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+)
 from proxy.http.parser import httpParserStates, httpParserTypes
-from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
 from proxy.http import HttpProtocolHandler, httpHeaders
 
 from ..test_assertions import Assertions
@@ -80,7 +84,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
         await self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
-            ProxyConnectionFailed.RESPONSE_PKT,
+            BAD_GATEWAY_RESPONSE_PKT,
         )
 
     @pytest.mark.asyncio    # type: ignore[misc]
@@ -108,7 +112,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
         await self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
-            ProxyAuthenticationFailed.RESPONSE_PKT,
+            PROXY_AUTH_FAILED_RESPONSE_PKT,
         )
 
 
@@ -191,7 +195,7 @@ class TestHttpProtocolHandler(Assertions):
         )
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
         self.mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
@@ -432,7 +436,7 @@ class TestHttpProtocolHandler(Assertions):
         assert self.http_server_port is not None
         self.assertEqual(
             self._conn.send.call_args[0][0],
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
 
         pkt = CRLF.join([

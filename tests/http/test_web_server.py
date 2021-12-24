@@ -25,7 +25,7 @@ from proxy.http import HttpProtocolHandler
 from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
 from proxy.common.utils import build_http_response, build_http_request, bytes_
 from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
-from proxy.http.server import HttpWebServerPlugin
+from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
 
 from ..test_assertions import Assertions
 
@@ -309,7 +309,7 @@ class TestStaticWebServerPlugin(Assertions):
         self.assertEqual(self._conn.send.call_count, 1)
         self.assertEqual(
             self._conn.send.call_args[0][0],
-            HttpWebServerPlugin.DEFAULT_404_RESPONSE,
+            NOT_FOUND_RESPONSE_PKT,
         )
 
 
@@ -368,5 +368,5 @@ class TestWebServerPlugin(Assertions):
         )
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
-            HttpWebServerPlugin.DEFAULT_404_RESPONSE,
+            NOT_FOUND_RESPONSE_PKT,
         )
