@@ -12,15 +12,17 @@
 [![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 [![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
-[![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
-[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
-[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
-[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![pypi version](https://img.shields.io/pypi/v/proxy.py?style=flat-square)](https://pypi.org/project/proxy.py/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue&style=flat-square)](https://www.python.org/)
+[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue&style=flat-square)](http://mypy-lang.org/)
 
-[![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/issues)
-[![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen)](https://twitter.com/imoracle)
-[![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen)](https://github.com/jaxl-innovations-private-limited)
+[![doc](https://img.shields.io/readthedocs/proxypy/latest?style=flat-square&color=darkgreen)](https://proxypy.readthedocs.io/)
+[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
+
+[![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen&style=flat-square)](https://github.com/abhinavsingh/proxy.py/issues)
+[![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen&style=flat-square)](https://twitter.com/imoracle)
+[![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen&style=flat-square)](https://github.com/jaxl-innovations-private-limited)
 
 # Table of Contents
 
@@ -93,6 +95,10 @@
   - [Inspect Traffic](#inspect-traffic)
 - [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
+  - [Deploying proxy.py in production](#deploying-proxypy-in-production)
+    - [What not to do?](#what-not-to-do)
+    - [Via Requirements](#via-requirements)
+    - [Via Docker Container](#via-docker-container)
   - [Stable vs Develop](#stable-vs-develop)
     - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
@@ -225,6 +231,8 @@
   - See `--pac-file` and `--pac-file-url-path` flags
 
 # Install
+
+Consult [Deploying proxy.py in production](#deploying-proxypy-in-production) when deploying production grade applications using `proxy.py`.
 
 ## Using PIP
 
@@ -1737,6 +1745,80 @@ start `proxy.py` as:
 Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
+
+## Deploying proxy.py in production
+
+Listed below are a few strategies for using `proxy.py` in your private/production/corporate projects.
+
+### What not to do?
+
+> You MUST `avoid forking` the repository *"just"* to put your plugin code in `proxy/plugin` directory.  Forking is recommended workflow for project contributors, NOT for project users.
+
+Instead, use one of the suggested approaches from below.  Then load your plugins using `--plugin`, `--plugins` flags or `plugin` kwargs.
+
+### Via Requirements
+
+It is *highly* recommended that you use `proxy.py` via `requirements.txt` or similar dependency management setups. This will allow you to take advantages of regular performance updates, bug fixes, security patches and other improvements happening in the `proxy.py` ecosystem.  Example:
+
+1. Use `--pre` option to depend upon last `pre-release`
+
+    ```console
+    ❯ pip install proxy.py --pre
+    ```
+
+    Pre-releases are similar to depending upon `develop` branch code, just that pre-releases may not point to the `HEAD`.  This could happen because pre-releases are NOT made available on `PyPi` after every PR merge.
+
+2. Use `TestPyPi` with `--pre` option to depend upon `develop` branch code
+
+    ```console
+    ❯ pip install -i https://test.pypi.org/simple/ proxy.py --pre
+    ```
+
+    A pre-release is made available on `TestPyPi` after every PR merge.
+
+3. Use last `stable` release code
+
+    As usual, simply use:
+
+    ```console
+    ❯ pip install proxy.py
+    ```
+
+### Via Docker Container
+
+If you are into deploying containers, then simply build your image from base `proxy.py` container images.
+
+1. Use `GHCR` to build from `develop` branch code:
+
+    ```console
+    FROM ghcr.io/abhinavsingh/proxy.py:latest as base
+    ```
+
+    *PS: I use GHCR latest for several production level projects*
+
+2. Use `DockerHub` to build from last `stable` release code:
+
+    ```console
+    FROM abhinavsingh/proxy.py:latest as base
+    ```
+
+PS: IMHO, container based strategy is *the best approach* and the only strategy that *I use myself*.
+
+### Integrate your CI/CI with proxy.py
+
+*Hey, but you keep making breaking changes in the develop branch.*
+
+I hear you.  And hence, for your production grade applications, you *MUST* integrate application CI/CD with `proxy.py`.  You must make sure that your application builds and passes its tests for every PR merge into the `proxy.py` upstream repo.  If your application repository is public, in certain scenarios, PR authors may send patch PRs for all dependents to maintain backward incompatibility and green CI/CD.
+
+This will ensure your app continues to build with latest `proxy.py` code.  Depending upon where you host your code, use the strategy listed below:
+
+- GitHub
+
+    TBD
+
+- Google Cloud Build
+
+    TBD
 
 ## Stable vs Develop
 
