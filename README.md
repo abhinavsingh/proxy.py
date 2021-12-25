@@ -190,7 +190,9 @@
 
 - Lightweight
   - Uses only `~5-20 MB` RAM
-  - Compressed containers size is `~25 MB`
+    - No memory leaks
+    - Start once and forget, no restarts required
+  - Compressed containers size is only `~25 MB`
   - No external dependency other than standard Python library
 
 - Programmable
@@ -2229,7 +2231,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0b4.dev12+g19e6881.d20211221
+proxy.py v2.4.0rc5.dev11+ga872675.d20211225
 
 options:
   -h, --help            show this help message and exit
@@ -2246,7 +2248,7 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
-  --local-executor      Default: False. Disabled by default. When enabled
+  --local-executor      Default: True. Disabled by default. When enabled
                         acceptors will make use of local (same process)
                         executor instead of distributing load across remote
                         (other process) executors. Enable this option to
@@ -2255,7 +2257,7 @@ options:
                         algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server
-  --hostname HOSTNAME   Default: ::1. Server IP address.
+  --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
   --port PORT           Default: 8899. Server port.
   --unix-socket-path UNIX_SOCKET_PATH
                         Default: None. Unix socket path to use. When provided

@@ -31,7 +31,7 @@ endif
 .PHONY: lib-release-test lib-release lib-profile lib-doc
 .PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope container-buildx-all-platforms
 .PHONY: container container-run container-release container-build container-buildx
-.PHONY: devtools dashboard dashboard-clean
+.PHONY: devtools dashboard dashboard-clean container-without-openssl
 
 all: lib-test
 
@@ -175,12 +175,15 @@ dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
 
 container: lib-package
-	$(MAKE) container-build -e PROXYPY_PKG_PATH=$$(ls dist/*.whl)
-
-container-build:
 	docker build \
 		-t $(PROXYPY_CONTAINER_TAG) \
-		--build-arg PROXYPY_PKG_PATH=$(PROXYPY_PKG_PATH) .
+		--build-arg PROXYPY_PKG_PATH=$$(ls dist/*.whl) .
+
+container-without-openssl: lib-package
+	docker build \
+		-t $(PROXYPY_CONTAINER_TAG) \
+		--build-arg SKIP_OPENSSL=1 \
+		--build-arg PROXYPY_PKG_PATH=$$(ls dist/*.whl) .
 
 # Usage:
 #
