@@ -40,13 +40,13 @@ class ProgramNamePlugin(HttpProxyBasePlugin):
             assert self.client.addr
             port = self.client.addr[1]
             ls = subprocess.Popen(
-                ("lsof", "-i", "-P", "-n"),
+                ('lsof', '-i', '-P', '-n'),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
             try:
                 output = subprocess.check_output(
-                    ("grep", "{0}".format(port)),
+                    ('grep', '{0}'.format(port)),
                     stdin=ls.stdout,
                 )
                 port_programs = output.splitlines()
