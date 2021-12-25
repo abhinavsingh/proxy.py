@@ -130,8 +130,12 @@
 # Features
 - Fast & Scalable
 
-  - Scales by using all available cores on the system
+  - Scale up by using all available cores on the system
+    - Use `--num-acceptors` flag to control number of cores
+
   - Threadless executions using asyncio
+    - Use `--threaded` for synchronous thread based execution mode
+
   - Made to handle `tens-of-thousands` connections / sec
 
     ```console
@@ -181,35 +185,38 @@
         [200] 100000 responses
     ```
 
-  - See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and how to run them locally.
+    See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and for how to run benchmarks locally.
 
 - Lightweight
-  - Uses `~5-20 MB` RAM
-  - Compressed containers size is `~18.04 MB`
+  - Uses only `~5-20 MB` RAM
+  - Compressed containers size is `~25 MB`
   - No external dependency other than standard Python library
+
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
     - `--plugins proxy.plugin.ProxyPoolPlugin`
-  - Optionally, enable builtin [Web Server Plugins](#http-web-server-plugins). Example:
-    - `--plugins proxy.plugin.ReverseProxyPlugin`
-  - Plugin API is currently in development phase, expect breaking changes
+  - Optionally, enable builtin [Web Server](#http-web-server-plugins). Example:
+    - `--enable-web-server --plugins proxy.plugin.ReverseProxyPlugin`
+  - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
 - Real-time Dashboard
   - Optionally, enable [proxy.py dashboard](#run-dashboard).
-    - Available at `http://localhost:8899/dashboard`.
+    - Use `--enable-dashboard`
+    - Then, visit `http://localhost:8899/dashboard`
   - [Inspect, Monitor, Control and Configure](#inspect-traffic) `proxy.py` at runtime
   - [Chrome DevTools Protocol](#chrome-devtools-protocol) support
-  - Extend dashboard using plugins
-  - Dashboard is currently in development phase, expect breaking changes
+  - Extend dashboard frontend using `typescript` based [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/dashboard/src/plugins)
+  - Dashboard is currently in *development phase*  Expect breaking changes.
 - Secure
   - Enable end-to-end encryption between clients and `proxy.py`
   - See [End-to-End Encryption](#end-to-end-encryption)
 - Private
-  - Everyone deserves privacy. Browse with malware and adult content protection
+  - Protection against DNS based traffic blockers
+  - Browse with malware and adult content protection enabled
   - See [DNS-over-HTTPS](#cloudflarednsresolverplugin)
 - Man-In-The-Middle
   - Can decrypt TLS traffic between clients and upstream servers
   - See [TLS Interception](#tls-interception)
-- Supported proxy protocols
+- Supported http protocols for proxy requests
   - `http(s)`
     - `http1`
     - `http1.1` with pipeline
