@@ -99,6 +99,7 @@
     - [What not to do?](#what-not-to-do)
     - [Via Requirements](#via-requirements)
     - [Via Docker Container](#via-docker-container)
+    - [Integrate your CI/CD with proxy.py](#integrate-your-cicd-with-proxypy)
   - [Stable vs Develop](#stable-vs-develop)
     - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
@@ -1811,13 +1812,15 @@ If you are into deploying containers, then simply build your image from base `pr
 
 PS: IMHO, container based strategy is *the best approach* and the only strategy that *I use myself*.
 
-### Integrate your CI/CI with proxy.py
+### Integrate your CI/CD with proxy.py
 
 *Hey, but you keep making breaking changes in the develop branch.*
 
-I hear you.  And hence, for your production grade applications, you *MUST* integrate application CI/CD with `proxy.py`.  You must make sure that your application builds and passes its tests for every PR merge into the `proxy.py` upstream repo.  If your application repository is public, in certain scenarios, PR authors may send patch PRs for all dependents to maintain backward incompatibility and green CI/CD.
+I hear you.  And hence, for your production grade applications, you *MUST* integrate application CI/CD with `proxy.py`.  You must make sure that your application builds and passes its tests for every PR merge into the `proxy.py` upstream repo.
 
-This will ensure your app continues to build with latest `proxy.py` code.  Depending upon where you host your code, use the strategy listed below:
+If your application repository is public, in certain scenarios, PR authors may send patch PRs for all dependents to maintain backward incompatibility and green CI/CD.
+
+CI/CD integration ensure your app continues to build with latest `proxy.py` code.  Depending upon where you host your code, use the strategy listed below:
 
 - GitHub
 
@@ -1826,6 +1829,20 @@ This will ensure your app continues to build with latest `proxy.py` code.  Depen
 - Google Cloud Build
 
     TBD
+
+- AWS
+
+    TBD
+
+- Azure
+
+    TBD
+
+- Others
+
+    TBD
+
+> At some stage, we'll deprecate `master` branch segregation and simply maintain a `develop` branch.  As dependents can maintain stability via CI/CD integrations. Currently, it's hard for a production grade project to blindly depend upon `develop` branch.
 
 ## Stable vs Develop
 
