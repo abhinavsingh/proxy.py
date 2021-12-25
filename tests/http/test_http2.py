@@ -8,10 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import pytest
 import httpx
+import pytest
 
-from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
+from proxy.common.constants import IS_WINDOWS
 from proxy import TestCase
 
 

@@ -148,7 +148,6 @@ extend-ignore =
   WPS420  # FIXME: pointless keyword like `pass`
   WPS421  # FIXME: call to `print()`
   WPS425  # FIXME: bool non-keyword arg
-  WPS427  # FIXME: unreachable code
   WPS428  # FIXME: pointless statement
   WPS430  # FIXME: nested func
   WPS431  # FIXME: nested class

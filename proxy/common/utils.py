@@ -23,8 +23,10 @@ import contextlib
 from types import TracebackType
 from typing import Optional, Dict, Any, List, Tuple, Type, Callable
 
-from ._compat import IS_WINDOWS  # noqa: WPS436
-from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT, DEFAULT_THREADLESS
+from .constants import (
+    HTTP_1_1, COLON, WHITESPACE, CRLF,
+    DEFAULT_TIMEOUT, DEFAULT_THREADLESS, IS_WINDOWS,
+)
 
 if not IS_WINDOWS:
     import resource

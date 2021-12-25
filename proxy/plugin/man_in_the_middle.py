@@ -15,5 +15,5 @@ from ..http.proxy import HttpProxyBasePlugin
 class ManInTheMiddlePlugin(HttpProxyBasePlugin):
     """Modifies upstream server responses."""
 
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+    def handle_upstream_chunk(self, _chunk: memoryview) -> memoryview:
         return okResponse(content=b'Hello from man in the middle')

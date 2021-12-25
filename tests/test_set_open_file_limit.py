@@ -13,7 +13,7 @@ from unittest import mock
 
 import pytest
 
-from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
+from proxy.common.constants import IS_WINDOWS
 from proxy.common.utils import set_open_file_limit
 
 if not IS_WINDOWS:
