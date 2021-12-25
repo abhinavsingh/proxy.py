@@ -228,7 +228,8 @@ class TestMain(unittest.TestCase):
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.enable_dashboard = True
-        main(enable_dashboard=True)
+        mock_args.local_executor = False
+        main(enable_dashboard=True, local_executor=False)
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -273,7 +274,8 @@ class TestMain(unittest.TestCase):
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.enable_devtools = True
-        main(enable_devtools=True)
+        mock_args.local_executor = False
+        main(enable_devtools=True, local_executor=False)
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [

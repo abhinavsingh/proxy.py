@@ -20,7 +20,7 @@ import argparse
 from typing import Optional, Any
 
 from ...common.flag import flags
-from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT
+from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT
 
 
 flags.add_argument(
@@ -33,8 +33,8 @@ flags.add_argument(
 flags.add_argument(
     '--hostname',
     type=str,
-    default=str(DEFAULT_IPV6_HOSTNAME),
-    help='Default: ::1. Server IP address.',
+    default=str(DEFAULT_IPV4_HOSTNAME),
+    help='Default: 127.0.0.1. Server IP address.',
 )
 
 flags.add_argument(

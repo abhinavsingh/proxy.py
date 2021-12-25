@@ -766,6 +766,7 @@ jobs:
         --platform ${{
           needs.pre-setup.outputs.container-platforms
         }}
+        --build-arg SKIP_OPENSSL=1
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
@@ -787,6 +788,43 @@ jobs:
         --platform ${{
           needs.pre-setup.outputs.container-platforms
         }}
+        --build-arg SKIP_OPENSSL=1
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $LATEST_TAG .
+    - name: Push openssl to GHCR
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        CONTAINER_TAG=$REGISTRY_URL:${{
+          needs.pre-setup.outputs.container-version
+        }}-openssl;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
+    - name: Tag openssl on GHCR
+      if: >-
+        github.event_name == 'push' &&
+        (
+          github.ref == format(
+            'refs/heads/{0}', github.event.repository.default_branch
+          ) ||
+          github.ref == 'refs/heads/master'
+        )
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        LATEST_TAG=$REGISTRY_URL:openssl;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
@@ -796,6 +834,7 @@ jobs:
       with:
         username: abhinavsingh
         password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+    # TODO: openssl image is not published on DockerHub
     - name: Push to DockerHub
       run: >-
         REGISTRY_URL="abhinavsingh/proxy.py";
@@ -807,6 +846,7 @@ jobs:
         --platform ${{
           needs.pre-setup.outputs.container-platforms
         }}
+        --build-arg SKIP_OPENSSL=1
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'

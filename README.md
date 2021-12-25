@@ -12,15 +12,17 @@
 [![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 [![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
-[![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
-[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
-[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
-[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![pypi version](https://img.shields.io/pypi/v/proxy.py?style=flat-square)](https://pypi.org/project/proxy.py/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue&style=flat-square)](https://www.python.org/)
+[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue&style=flat-square)](http://mypy-lang.org/)
 
-[![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/issues)
-[![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen)](https://twitter.com/imoracle)
-[![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen)](https://github.com/jaxl-innovations-private-limited)
+[![doc](https://img.shields.io/readthedocs/proxypy/latest?style=flat-square&color=darkgreen)](https://proxypy.readthedocs.io/)
+[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
+
+[![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen&style=flat-square)](https://github.com/abhinavsingh/proxy.py/issues)
+[![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen&style=flat-square)](https://twitter.com/imoracle)
+[![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen&style=flat-square)](https://github.com/jaxl-innovations-private-limited)
 
 # Table of Contents
 
@@ -93,6 +95,11 @@
   - [Inspect Traffic](#inspect-traffic)
 - [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
+  - [Deploying proxy.py in production](#deploying-proxypy-in-production)
+    - [What not to do?](#what-not-to-do)
+    - [Via Requirements](#via-requirements)
+    - [Via Docker Container](#via-docker-container)
+    - [Integrate your CI/CD with proxy.py](#integrate-your-cicd-with-proxypy)
   - [Stable vs Develop](#stable-vs-develop)
     - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
@@ -124,8 +131,12 @@
 # Features
 - Fast & Scalable
 
-  - Scales by using all available cores on the system
+  - Scale up by using all available cores on the system
+    - Use `--num-acceptors` flag to control number of cores
+
   - Threadless executions using asyncio
+    - Use `--threaded` for synchronous thread based execution mode
+
   - Made to handle `tens-of-thousands` connections / sec
 
     ```console
@@ -175,35 +186,40 @@
         [200] 100000 responses
     ```
 
-  - See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and how to run them locally.
+    See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and for how to run benchmarks locally.
 
 - Lightweight
-  - Uses `~5-20 MB` RAM
-  - Compressed containers size is `~18.04 MB`
+  - Uses only `~5-20 MB` RAM
+    - No memory leaks
+    - Start once and forget, no restarts required
+  - Compressed containers size is only `~25 MB`
   - No external dependency other than standard Python library
+
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
     - `--plugins proxy.plugin.ProxyPoolPlugin`
-  - Optionally, enable builtin [Web Server Plugins](#http-web-server-plugins). Example:
-    - `--plugins proxy.plugin.ReverseProxyPlugin`
-  - Plugin API is currently in development phase, expect breaking changes
+  - Optionally, enable builtin [Web Server](#http-web-server-plugins). Example:
+    - `--enable-web-server --plugins proxy.plugin.ReverseProxyPlugin`
+  - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
 - Real-time Dashboard
   - Optionally, enable [proxy.py dashboard](#run-dashboard).
-    - Available at `http://localhost:8899/dashboard`.
+    - Use `--enable-dashboard`
+    - Then, visit `http://localhost:8899/dashboard`
   - [Inspect, Monitor, Control and Configure](#inspect-traffic) `proxy.py` at runtime
   - [Chrome DevTools Protocol](#chrome-devtools-protocol) support
-  - Extend dashboard using plugins
-  - Dashboard is currently in development phase, expect breaking changes
+  - Extend dashboard frontend using `typescript` based [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/dashboard/src/plugins)
+  - Dashboard is currently in *development phase*  Expect breaking changes.
 - Secure
   - Enable end-to-end encryption between clients and `proxy.py`
   - See [End-to-End Encryption](#end-to-end-encryption)
 - Private
-  - Everyone deserves privacy. Browse with malware and adult content protection
+  - Protection against DNS based traffic blockers
+  - Browse with malware and adult content protection enabled
   - See [DNS-over-HTTPS](#cloudflarednsresolverplugin)
 - Man-In-The-Middle
   - Can decrypt TLS traffic between clients and upstream servers
   - See [TLS Interception](#tls-interception)
-- Supported proxy protocols
+- Supported http protocols for proxy requests
   - `http(s)`
     - `http1`
     - `http1.1` with pipeline
@@ -225,6 +241,8 @@
   - See `--pac-file` and `--pac-file-url-path` flags
 
 # Install
+
+Consult [Deploying proxy.py in production](#deploying-proxypy-in-production) when deploying production grade applications using `proxy.py`.
 
 ## Using PIP
 
@@ -1738,6 +1756,96 @@ Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
 
+## Deploying proxy.py in production
+
+Listed below are a few strategies for using `proxy.py` in your private/production/corporate projects.
+
+### What not to do?
+
+> You MUST `avoid forking` the repository *"just"* to put your plugin code in `proxy/plugin` directory.  Forking is recommended workflow for project contributors, NOT for project users.
+
+Instead, use one of the suggested approaches from below.  Then load your plugins using `--plugin`, `--plugins` flags or `plugin` kwargs.
+
+### Via Requirements
+
+It is *highly* recommended that you use `proxy.py` via `requirements.txt` or similar dependency management setups. This will allow you to take advantages of regular performance updates, bug fixes, security patches and other improvements happening in the `proxy.py` ecosystem.  Example:
+
+1. Use `--pre` option to depend upon last `pre-release`
+
+    ```console
+    ❯ pip install proxy.py --pre
+    ```
+
+    Pre-releases are similar to depending upon `develop` branch code, just that pre-releases may not point to the `HEAD`.  This could happen because pre-releases are NOT made available on `PyPi` after every PR merge.
+
+2. Use `TestPyPi` with `--pre` option to depend upon `develop` branch code
+
+    ```console
+    ❯ pip install -i https://test.pypi.org/simple/ proxy.py --pre
+    ```
+
+    A pre-release is made available on `TestPyPi` after every PR merge.
+
+3. Use last `stable` release code
+
+    As usual, simply use:
+
+    ```console
+    ❯ pip install proxy.py
+    ```
+
+### Via Docker Container
+
+If you are into deploying containers, then simply build your image from base `proxy.py` container images.
+
+1. Use `GHCR` to build from `develop` branch code:
+
+    ```console
+    FROM ghcr.io/abhinavsingh/proxy.py:latest as base
+    ```
+
+    *PS: I use GHCR latest for several production level projects*
+
+2. Use `DockerHub` to build from last `stable` release code:
+
+    ```console
+    FROM abhinavsingh/proxy.py:latest as base
+    ```
+
+PS: IMHO, container based strategy is *the best approach* and the only strategy that *I use myself*.
+
+### Integrate your CI/CD with proxy.py
+
+*Hey, but you keep making breaking changes in the develop branch.*
+
+I hear you.  And hence, for your production grade applications, you *MUST* integrate application CI/CD with `proxy.py`.  You must make sure that your application builds and passes its tests for every PR merge into the `proxy.py` upstream repo.
+
+If your application repository is public, in certain scenarios, PR authors may send patch PRs for all dependents to maintain backward incompatibility and green CI/CD.
+
+CI/CD integration ensure your app continues to build with latest `proxy.py` code.  Depending upon where you host your code, use the strategy listed below:
+
+- GitHub
+
+    TBD
+
+- Google Cloud Build
+
+    TBD
+
+- AWS
+
+    TBD
+
+- Azure
+
+    TBD
+
+- Others
+
+    TBD
+
+> At some stage, we'll deprecate `master` branch segregation and simply maintain a `develop` branch.  As dependents can maintain stability via CI/CD integrations. Currently, it's hard for a production grade project to blindly depend upon `develop` branch.
+
 ## Stable vs Develop
 
 - `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `docker.io` and `ghcr.io` registries.
@@ -2123,7 +2231,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0b4.dev12+g19e6881.d20211221
+proxy.py v2.4.0rc5.dev11+ga872675.d20211225
 
 options:
   -h, --help            show this help message and exit
@@ -2140,7 +2248,7 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
-  --local-executor      Default: False. Disabled by default. When enabled
+  --local-executor      Default: True. Disabled by default. When enabled
                         acceptors will make use of local (same process)
                         executor instead of distributing load across remote
                         (other process) executors. Enable this option to
@@ -2149,7 +2257,7 @@ options:
                         algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server
-  --hostname HOSTNAME   Default: ::1. Server IP address.
+  --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
   --port PORT           Default: 8899. Server port.
   --unix-socket-path UNIX_SOCKET_PATH
                         Default: None. Unix socket path to use. When provided
