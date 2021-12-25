@@ -47,7 +47,6 @@
 - [Plugin Examples](#plugin-examples)
   - [HTTP Proxy Plugins](#http-proxy-plugins)
     - [ShortLink Plugin](#shortlinkplugin)
-    - [Program Name Plugin](#programnameplugin)
     - [Modify Post Data Plugin](#modifypostdataplugin)
     - [Mock Api Plugin](#mockrestapiplugin)
     - [Redirect To Custom Server Plugin](#redirecttocustomserverplugin)
@@ -60,6 +59,7 @@
     - [Cloudflare DNS Resolver Plugin](#cloudflarednsresolverplugin)
     - [Custom DNS Resolver Plugin](#customdnsresolverplugin)
     - [Custom Network Interface](#customnetworkinterface)
+    - [Program Name Plugin](#programnameplugin)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
     - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
@@ -505,34 +505,6 @@ Following short links are enabled by default:
 |     y/     |   `youtube.com`    |
 |   proxy/   |  `localhost:8899`  |
 
-### ProgramNamePlugin
-
-Attempts to resolve program (application) name for proxy requests originating from local machine.
-If identified, client IP is replaced with program name in the access logs.
-
-Start `proxy.py` as:
-
-```console
-❯ proxy \
-    --plugins proxy.plugin.ProgramNamePlugin
-```
-
-Make a request using `curl`:
-
-```console
-❯ curl -v -x localhost:8899 https://httpbin.org/get
-```
-
-You must see log lines like this:
-
-```console
-... [redacted] ... - [I] server.access_log:419 - curl:58096 - CONNECT httpbin.org:443 - 6010 bytes - 1824.62ms
-```
-
-Notice `curl` in-place of `::1` or `127.0.0.1` as client IP.
-
-[![WARNING](https://img.shields.io/static/v1?label=Compatability&message=warning&color=red)](#programnameplugin) If `ProgramNamePlugin` doesn't work reliably on your operating system, kindly contribute by sending a pull request and/or open an issue.  Thank you!!!
-
 ### ModifyPostDataPlugin
 
 Modifies POST request body before sending request to upstream server.
@@ -915,6 +887,34 @@ for more details.
 
 PS: There is no plugin named, but [CustomDnsResolverPlugin](#customdnsresolverplugin)
 can be easily customized according to your needs.
+
+### ProgramNamePlugin
+
+Attempts to resolve program `(application)` name for proxy requests originating from the local machine.
+If identified, client IP in the access logs is replaced with program name.
+
+Start `proxy.py` as:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.ProgramNamePlugin
+```
+
+Make a request using `curl`:
+
+```console
+❯ curl -v -x localhost:8899 https://httpbin.org/get
+```
+
+You must see log lines like this:
+
+```console
+... [redacted] ... - [I] server.access_log:419 - curl:58096 - CONNECT httpbin.org:443 - 6010 bytes - 1824.62ms
+```
+
+Notice `curl` in-place of `::1` or `127.0.0.1` as client IP.
+
+[![WARNING](https://img.shields.io/static/v1?label=Compatability&message=warning&color=red)](#programnameplugin) If `ProgramNamePlugin` doesn't work reliably on your operating system, kindly contribute by sending a pull request and/or open an issue.  Thank you!!!
 
 ## HTTP Web Server Plugins
 
