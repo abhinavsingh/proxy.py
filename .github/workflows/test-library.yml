@@ -766,6 +766,7 @@ jobs:
         --platform ${{
           needs.pre-setup.outputs.container-platforms
         }}
+        --build-arg SKIP_OPENSSL=1
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
@@ -792,6 +793,21 @@ jobs:
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
         -t $LATEST_TAG .
+    - name: Push openssl to GHCR
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        CONTAINER_TAG=$REGISTRY_URL:${{
+          needs.pre-setup.outputs.container-version
+        }}-openssl;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
     - name: Tag openssl on GHCR
       if: >-
         github.event_name == 'push' &&
