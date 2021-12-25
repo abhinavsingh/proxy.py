@@ -27,6 +27,7 @@ from .filter_by_url_regex import FilterByURLRegexPlugin
 from .modify_chunk_response import ModifyChunkResponsePlugin
 from .custom_dns_resolver import CustomDnsResolverPlugin
 from .cloudflare_dns import CloudflareDnsResolverPlugin
+from .program_name import ProgramNamePlugin
 
 __all__ = [
     'CacheResponsesPlugin',
@@ -45,4 +46,5 @@ __all__ = [
     'FilterByURLRegexPlugin',
     'CustomDnsResolverPlugin',
     'CloudflareDnsResolverPlugin',
+    'ProgramNamePlugin',
 ]

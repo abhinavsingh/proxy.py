@@ -38,7 +38,7 @@ from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAU
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
-from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+from ...common.constants import DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT
 from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_PROXY_AUTH
 from ...common.utils import text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
@@ -413,9 +413,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             )
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
-        access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+        access_log_format = DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT
         if not self.request.is_https_tunnel:
-            access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
+            access_log_format = DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT
         logger.info(access_log_format.format_map(log_attrs))
 
     def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:

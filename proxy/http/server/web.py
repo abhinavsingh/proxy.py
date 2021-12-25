@@ -272,10 +272,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
             'request_bytes': self.request.total_size,
-            'request_ua': self.request.header(b'user-agent')
+            'request_ua': text_(self.request.header(b'user-agent'))
             if self.request.has_header(b'user-agent')
             else None,
-            'request_version': self.request.version,
+            'request_version': None if not self.request.version else text_(self.request.version),
             # Response
             #
             # TODO: Track and inject web server specific response attributes

@@ -47,6 +47,7 @@
 - [Plugin Examples](#plugin-examples)
   - [HTTP Proxy Plugins](#http-proxy-plugins)
     - [ShortLink Plugin](#shortlinkplugin)
+    - [Program Name Plugin](#programnameplugin)
     - [Modify Post Data Plugin](#modifypostdataplugin)
     - [Mock Api Plugin](#mockrestapiplugin)
     - [Redirect To Custom Server Plugin](#redirecttocustomserverplugin)
@@ -54,11 +55,11 @@
     - [Cache Responses Plugin](#cacheresponsesplugin)
     - [Man-In-The-Middle Plugin](#maninthemiddleplugin)
     - [Proxy Pool Plugin](#proxypoolplugin)
-    - [FilterByClientIpPlugin](#filterbyclientipplugin)
-    - [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
-    - [CloudflareDnsResolverPlugin](#cloudflarednsresolverplugin)
-    - [CustomDnsResolverPlugin](#customdnsresolverplugin)
-    - [CustomNetworkInterface](#customnetworkinterface)
+    - [Filter By Client IP Plugin](#filterbyclientipplugin)
+    - [Modify Chunk Response Plugin](#modifychunkresponseplugin)
+    - [Cloudflare DNS Resolver Plugin](#cloudflarednsresolverplugin)
+    - [Custom DNS Resolver Plugin](#customdnsresolverplugin)
+    - [Custom Network Interface](#customnetworkinterface)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
     - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
@@ -504,6 +505,34 @@ Following short links are enabled by default:
 |     y/     |   `youtube.com`    |
 |   proxy/   |  `localhost:8899`  |
 
+### ProgramNamePlugin
+
+Attempts to resolve program (application) name for proxy requests originating from local machine.
+If identified, client IP is replaced with program name in the access logs.
+
+Start `proxy.py` as:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.ProgramNamePlugin
+```
+
+Make a request using `curl`:
+
+```console
+❯ curl -v -x localhost:8899 https://httpbin.org/get
+```
+
+You must see log lines like this:
+
+```console
+... [redacted] ... - [I] server.access_log:419 - curl:58096 - CONNECT httpbin.org:443 - 6010 bytes - 1824.62ms
+```
+
+Notice `curl` in-place of `::1` or `127.0.0.1` as client IP.
+
+[![WARNING](https://img.shields.io/static/v1?label=Compatability&message=warning&color=red)](#programnameplugin) If `ProgramNamePlugin` doesn't work reliably on your operating system, kindly contribute by sending a pull request and/or open an issue.  Thank you!!!
+
 ### ModifyPostDataPlugin
 
 Modifies POST request body before sending request to upstream server.
@@ -578,7 +607,7 @@ Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1
 Verify the same by inspecting `proxy.py` logs:
 
 ```console
-2019-09-27 12:44:02,212 - INFO - pid:7077 - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
+... [redacted] ... - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
 ```
 
 Access log shows `None:None` as server `ip:port`. `None` simply means that
@@ -618,8 +647,8 @@ Verify the same by inspecting the logs for `proxy.py`.
 Along with the proxy request log, you must also see a http web server request log.
 
 ```
-2019-09-24 19:09:33,602 - INFO - pid:49996 - access_log:1241 - ::1:49525 - GET /
-2019-09-24 19:09:33,603 - INFO - pid:49995 - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
+... [redacted] ... - access_log:1241 - ::1:49525 - GET /
+... [redacted] ... - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
 ```
 
 ### FilterByUpstreamHostPlugin
@@ -650,10 +679,10 @@ Above `418 I'm a tea pot` is sent by our plugin.
 Verify the same by inspecting logs for `proxy.py`:
 
 ```console
-2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
+... [redacted] ... - handle_readables:1347 - HttpProtocolException type raised
 Traceback (most recent call last):
 ... [redacted] ...
-2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
+... [redacted] ... - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
 ```
 
 ### CacheResponsesPlugin
