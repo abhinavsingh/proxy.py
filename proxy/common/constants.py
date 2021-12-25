@@ -13,13 +13,16 @@ import sys
 import time
 import secrets
 import pathlib
+import platform
 import sysconfig
 import ipaddress
 
 from typing import Any, List
 
-from ._compat import IS_WINDOWS  # noqa: WPS436
 from .version import __version__
+
+SYS_PLATFORM = platform.system()
+IS_WINDOWS = SYS_PLATFORM == 'Windows'
 
 
 def _env_threadless_compliant() -> bool:

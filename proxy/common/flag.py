@@ -19,7 +19,6 @@ import multiprocessing
 
 from typing import Optional, List, Any, cast
 
-from ._compat import IS_WINDOWS  # noqa: WPS436
 from .plugins import Plugins
 from .types import IpAddress
 from .utils import bytes_, is_py2, is_threadless, set_open_file_limit
@@ -27,7 +26,7 @@ from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, DEFAULT_MIN_COMPRESSION_LIMIT
 from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
-from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
+from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH, IS_WINDOWS
 from .logger import Logger
 
 from .version import __version__

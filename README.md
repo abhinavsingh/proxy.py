@@ -914,7 +914,7 @@ You must see log lines like this:
 
 Notice `curl` in-place of `::1` or `127.0.0.1` as client IP.
 
-[![WARNING](https://img.shields.io/static/v1?label=Compatability&message=warning&color=red)](#programnameplugin) If `ProgramNamePlugin` doesn't work reliably on your operating system, kindly contribute by sending a pull request and/or open an issue.  Thank you!!!
+[![WARNING](https://img.shields.io/static/v1?label=Compatibility&message=warning&color=red)](#programnameplugin) If `ProgramNamePlugin` does not work reliably on your operating system, kindly contribute by sending a pull request and/or open an issue.  Thank you!!!
 
 ## HTTP Web Server Plugins
 

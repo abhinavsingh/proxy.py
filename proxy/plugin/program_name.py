@@ -13,8 +13,8 @@ import subprocess
 
 from typing import Any, Dict, Optional
 
-from ..common._compat import IS_WINDOWS
 from ..common.utils import text_
+from ..common.constants import IS_WINDOWS
 
 from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
