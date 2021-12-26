@@ -15,6 +15,8 @@ if [[ -z "$PROXY_PY_PORT" ]]; then
   exit 1
 fi
 
+PROXY_URL="127.0.0.1:$PROXY_PY_PORT"
+
 # Wait for server to come up
 WAIT_FOR_PROXY="lsof -i TCP:$PROXY_PY_PORT | wc -l | tr -d ' '"
 while true; do
@@ -31,8 +33,8 @@ while true; do
     curl -v \
         --max-time 1 \
         --connect-timeout 1 \
-        -x 127.0.0.1:$PROXY_PY_PORT \
-        http://127.0.0.1:$PROXY_PY_PORT/ 2>/dev/null
+        -x $PROXY_URL \
+        http://$PROXY_URL/ 2>/dev/null
     if [[ $? == 0 ]]; then
         break
     fi
@@ -48,7 +50,7 @@ done
 # detect if we have internet access.  If we do,
 # then use httpbin.org for integration testing.
 curl -v \
-    -x 127.0.0.1:$PROXY_PY_PORT \
+    -x $PROXY_URL \
     http://httpbin.org/get
 if [[ $? != 0 ]]; then
     echo "http request failed"
@@ -56,7 +58,7 @@ if [[ $? != 0 ]]; then
 fi
 
 curl -v \
-    -x 127.0.0.1:$PROXY_PY_PORT \
+    -x $PROXY_URL \
     https://httpbin.org/get
 if [[ $? != 0 ]]; then
     echo "https request failed"
@@ -64,8 +66,8 @@ if [[ $? != 0 ]]; then
 fi
 
 curl -v \
-    -x 127.0.0.1:$PROXY_PY_PORT \
-    http://127.0.0.1:$PROXY_PY_PORT/
+    -x $PROXY_URL \
+    http://$PROXY_URL/
 if [[ $? != 0 ]]; then
     echo "http request to built in webserver failed"
     exit 1

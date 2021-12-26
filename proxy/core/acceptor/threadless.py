@@ -18,7 +18,7 @@ import selectors
 import multiprocessing
 
 from abc import abstractmethod, ABC
-from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
+from typing import Any, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
@@ -55,6 +55,15 @@ class Threadless(ABC, Generic[T]):
     implements :class:`~proxy.core.acceptor.work.Work` protocol. It
     expects a client connection as work payload and hooks into the
     threadless event loop to handle the client connection.
+
+    Internally, each work handled by Threadless executors may need
+    to establish remote/upstream connections.  To assist upstream connection
+    management, Threadless executors also start a companion connection pool work.
+    Connection pool is responsible for maintaining pool of upstream connections.
+    Most importantly, connection pool ties into Threadless event loop to
+    detect when a connection in the pool has been dropped.  Among other
+    things, this strategy ensures that work classes have access to
+    connection objects initialized within the same CPU context.
     """
 
     def __init__(
@@ -71,7 +80,7 @@ class Threadless(ABC, Generic[T]):
         self.event_queue = event_queue
 
         self.running = multiprocessing.Event()
-        self.works: Dict[int, Work] = {}
+        self.works: Dict[int, Work[Any]] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         # If we remove single quotes for typing hint below,
         # runtime exceptions will occur for < Python 3.9.

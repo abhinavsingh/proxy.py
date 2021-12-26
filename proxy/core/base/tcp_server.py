@@ -19,12 +19,13 @@ from abc import abstractmethod
 from typing import Dict, Any, Optional
 
 from ...core.acceptor import Work
+from ...core.connection import TcpClientConnection
 from ...common.types import Readables, Writables
 
 logger = logging.getLogger(__name__)
 
 
-class BaseTcpServerHandler(Work):
+class BaseTcpServerHandler(Work[TcpClientConnection]):
     """BaseTcpServerHandler implements Work interface.
 
     BaseTcpServerHandler lifecycle is controlled by Threadless core

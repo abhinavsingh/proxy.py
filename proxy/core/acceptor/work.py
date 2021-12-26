@@ -16,19 +16,20 @@ import argparse
 
 from abc import ABC, abstractmethod
 from uuid import uuid4
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TypeVar, Generic
 
 from ..event import eventNames, EventQueue
-from ..connection import TcpClientConnection
 from ...common.types import Readables, Writables
 
+T = TypeVar('T')
 
-class Work(ABC):
+
+class Work(ABC, Generic[T]):
     """Implement Work to hook into the event loop provided by Threadless process."""
 
     def __init__(
             self,
-            work: TcpClientConnection,
+            work: T,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
             uid: Optional[str] = None,
