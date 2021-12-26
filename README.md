@@ -2204,8 +2204,9 @@ To run standalone benchmark for `proxy.py`, use the following command from repo 
 ```console
 ❯ proxy -h
 usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS] [--local-executor]
-          [--backlog BACKLOG] [--hostname HOSTNAME] [--port PORT]
+          [--threaded] [--num-workers NUM_WORKERS]
+          [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
+          [--hostname HOSTNAME] [--port PORT]
           [--unix-socket-path UNIX_SOCKET_PATH]
           [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
           [--log-file LOG_FILE] [--log-format LOG_FORMAT]
@@ -2248,13 +2249,14 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
-  --local-executor      Default: True. Disabled by default. When enabled
-                        acceptors will make use of local (same process)
-                        executor instead of distributing load across remote
-                        (other process) executors. Enable this option to
-                        achieve CPU affinity between acceptors and executors,
-                        instead of using underlying OS kernel scheduling
-                        algorithm.
+  --local-executor LOCAL_EXECUTOR
+                        Default: 1. Enabled by default. Use 0 to disable. When
+                        enabled acceptors will make use of local (same
+                        process) executor instead of distributing load across
+                        remote (other process) executors. Enable this option
+                        to achieve CPU affinity between acceptors and
+                        executors, instead of using underlying OS kernel
+                        scheduling algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server
   --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
