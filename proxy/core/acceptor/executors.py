@@ -125,7 +125,7 @@ class ThreadlessPool:
             addr: Optional[Tuple[str, int]],
             event_queue: Optional[EventQueue] = None,
             publisher_id: Optional[str] = None,
-    ) -> Tuple[Work, threading.Thread]:
+    ) -> Tuple[Work[TcpClientConnection], threading.Thread]:
         """Utility method to start a work in a new thread."""
         work = flags.work_klass(
             TcpClientConnection(conn, addr),

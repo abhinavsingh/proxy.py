@@ -293,6 +293,7 @@ nitpick_ignore = [
     (_py_class_role, 'proxy.core.pool.AcceptorPool'),
     (_py_class_role, 'proxy.core.executors.ThreadlessPool'),
     (_py_class_role, 'proxy.core.acceptor.threadless.T'),
+    (_py_class_role, 'proxy.core.acceptor.work.T'),
     (_py_class_role, 'queue.Queue[Any]'),
     (_py_class_role, 'TcpClientConnection'),
     (_py_class_role, 'TcpServerConnection'),
@@ -303,4 +304,5 @@ nitpick_ignore = [
     (_py_class_role, 'WebsocketFrame'),
     (_py_class_role, 'Work'),
     (_py_obj_role, 'proxy.core.acceptor.threadless.T'),
+    (_py_obj_role, 'proxy.core.acceptor.work.T'),
 ]

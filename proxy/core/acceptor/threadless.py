@@ -18,7 +18,7 @@ import selectors
 import multiprocessing
 
 from abc import abstractmethod, ABC
-from typing import Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
+from typing import Any, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, Writables
@@ -71,7 +71,7 @@ class Threadless(ABC, Generic[T]):
         self.event_queue = event_queue
 
         self.running = multiprocessing.Event()
-        self.works: Dict[int, Work] = {}
+        self.works: Dict[int, Work[Any]] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         # If we remove single quotes for typing hint below,
         # runtime exceptions will occur for < Python 3.9.

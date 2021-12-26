@@ -14,10 +14,11 @@ from typing import Dict
 
 from proxy import Proxy
 from proxy.core.acceptor import Work
+from proxy.core.connection import TcpClientConnection
 from proxy.common.types import Readables, Writables
 
 
-class WebScraper(Work):
+class WebScraper(Work[TcpClientConnection]):
     """Demonstrates how to orchestrate a generic work acceptors and executors
     workflow using proxy.py core.
 
