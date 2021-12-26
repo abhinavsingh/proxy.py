@@ -40,10 +40,10 @@ logger = logging.getLogger(__name__)
 
 flags.add_argument(
     '--local-executor',
-    action='store_true',
-    default=DEFAULT_LOCAL_EXECUTOR,
-    help='Default: ' + ('True' if DEFAULT_LOCAL_EXECUTOR else 'False') + '.  ' +
-    'Disabled by default.  When enabled acceptors will make use of ' +
+    type=int,
+    default=int(DEFAULT_LOCAL_EXECUTOR),
+    help='Default: ' + ('1' if DEFAULT_LOCAL_EXECUTOR else '0') + '.  ' +
+    'Enabled by default.  When enabled acceptors will make use of ' +
     'local (same process) executor instead of distributing load across ' +
     'remote (other process) executors.  Enable this option to achieve CPU affinity between ' +
     'acceptors and executors, instead of using underlying OS kernel scheduling algorithm.',
