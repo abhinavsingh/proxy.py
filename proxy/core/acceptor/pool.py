@@ -99,10 +99,10 @@ class AcceptorPool:
         """Setup acceptors."""
         self._start()
         execution_mode = (
-            "threadless (local)"
+            'threadless (local)'
             if self.flags.local_executor
-            else "threadless (remote)"
-        ) if self.flags.threadless else "threaded"
+            else 'threadless (remote)'
+        ) if self.flags.threadless else 'threaded'
         logger.info(
             'Started %d acceptors in %s mode' % (
                 self.flags.num_acceptors,
