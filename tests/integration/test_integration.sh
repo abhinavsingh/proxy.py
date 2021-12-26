@@ -94,7 +94,7 @@ touch downloaded.hash
 echo "3d1921aab49d3464a712c1c1397b6babf8b461a9873268480aa8064da99441bc -" > downloaded.hash
 curl -vL \
     -o downloaded.whl \
-    -x $PROXY_PY_ADDR \
+    -x $PROXY_URL \
     https://files.pythonhosted.org/packages/88/78/e642316313b1cd6396e4b85471a316e003eff968f29773e95ea191ea1d08/proxy.py-2.4.0rc4-py3-none-any.whl#sha256=3d1921aab49d3464a712c1c1397b6babf8b461a9873268480aa8064da99441bc
 cat downloaded.whl | sha256sum -c downloaded.hash
 VERIFIED4=$?
@@ -105,7 +105,7 @@ touch downloaded.hash
 echo "077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8 -" > downloaded.hash
 curl -vL \
     -o downloaded.whl \
-    -x $PROXY_PY_ADDR \
+    -x $PROXY_URL \
     https://files.pythonhosted.org/packages/20/9a/e5d9ec41927401e41aea8af6d16e78b5e612bca4699d417f646a9610a076/Jinja2-3.0.3-py3-none-any.whl#sha256=077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8
 cat downloaded.whl | sha256sum -c downloaded.hash
 VERIFIED5=$?
