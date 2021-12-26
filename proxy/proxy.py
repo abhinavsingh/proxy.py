@@ -222,7 +222,8 @@ class Proxy:
 
     @property
     def remote_executors_enabled(self) -> bool:
-        return self.flags.threadless and self.flags.local_executor != int(DEFAULT_LOCAL_EXECUTOR)
+        return self.flags.threadless \
+            and not (self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR))
 
 
 def main(**opts: Any) -> None:
