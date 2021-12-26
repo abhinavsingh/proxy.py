@@ -13,7 +13,6 @@ import sys
 import time
 import logging
 
-from pathlib import Path
 from typing import List, Optional, Any
 
 from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
@@ -206,20 +205,12 @@ class Proxy:
         self._delete_pid_file()
 
     def _write_pid_file(self) -> None:
-        if self.flags.pid_file is not None \
-                and type(self.flags.pid_file) == str:
-            if Path(self.flags.pid_file).exists():
-                raise ValueError(
-                    'pid file {0} already exists'.format(
-                        self.flags.pid_file,
-                    ),
-                )
+        if self.flags.pid_file:
             with open(self.flags.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
 
     def _delete_pid_file(self) -> None:
         if self.flags.pid_file \
-            and type(self.flags.pid_file) == str \
                 and os.path.exists(self.flags.pid_file):
             os.remove(self.flags.pid_file)
 
