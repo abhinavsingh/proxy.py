@@ -59,7 +59,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     'proxy_py_subprocess',
     (
         ('--threadless'),
-        ('--threadless --local-executor'),
+        ('--threadless --local-executor 0'),
         ('--threaded'),
     ),
     indirect=True,
