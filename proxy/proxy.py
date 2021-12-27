@@ -21,7 +21,7 @@ from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
 from .core.event import EventManager
 from .common.utils import bytes_
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
+from .common.constants import DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL, IS_WINDOWS
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
 from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
 
@@ -224,7 +224,8 @@ class Proxy:
 
     def _register_signals(self) -> None:
         signal.signal(signal.SIGINT, self._handle_exit_signal)
-        signal.signal(signal.SIGHUP, self._handle_exit_signal)
+        if not IS_WINDOWS:
+            signal.signal(signal.SIGHUP, self._handle_exit_signal)
         # TODO: SIGQUIT is ideally meant for terminate with core dumps
         signal.signal(signal.SIGQUIT, self._handle_exit_signal)
         signal.signal(signal.SIGTERM, self._handle_exit_signal)
