@@ -39,6 +39,8 @@ class WebServerPlugin(HttpWebServerBasePlugin):
             self.client.queue(HTTPS_RESPONSE)
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
-        self.client.queue(memoryview(
-            WebsocketFrame.text(b"Websocket route response"),
-        ))
+        self.client.queue(
+            memoryview(
+                WebsocketFrame.text(b'Websocket route response'),
+            ),
+        )

@@ -22,7 +22,9 @@ class ModifyWebsocketResponsePlugin(HttpProxyBasePlugin):
         while len(remaining) > 0:
             response = WebsocketFrame()
             remaining = response.parse(remaining)
-            self.client.queue(memoryview(
-                WebsocketFrame.text(b"modified websocket response")
-            ))
+            self.client.queue(
+                memoryview(
+                    WebsocketFrame.text(b'modified websocket response'),
+                ),
+            )
         return memoryview(b'')
