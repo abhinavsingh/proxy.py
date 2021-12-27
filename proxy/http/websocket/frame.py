@@ -115,7 +115,7 @@ class WebsocketFrame:
         payload length.  If 126, the following 2 bytes interpreted as a
         16-bit unsigned integer are the payload length.  If 127, the
         following 8 bytes interpreted as a 64-bit unsigned integer (the
-        most significant bit MUST be 0) are the payload length.  Multibyte
+        most significant bit MUST be 0) are the payload length.  Multi-byte
         length quantities are expressed in network byte order.  Note that
         in all cases, the minimal number of bytes MUST be used to encode
         the length, for example, the length of a 124-byte-long string
