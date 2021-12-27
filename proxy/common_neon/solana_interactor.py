@@ -54,7 +54,6 @@ class SolanaInteractor:
 
         return response_data
 
-
     def get_operator_key(self):
         return self.signer.public_key()
 
@@ -172,7 +171,6 @@ class SolanaInteractor:
         for transaction in transactions:
             transaction.recent_blockhash = blockhash
             transaction.sign(self.signer)
-
             base64_transaction = base64.b64encode(transaction.serialize()).decode("utf-8")
             request.append((base64_transaction, {"skipPreflight": skip_preflight, "encoding": "base64", "preflightCommitment": "confirmed"}))
 
