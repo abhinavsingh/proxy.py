@@ -4,33 +4,61 @@ import json
 import logging
 import re
 import time
+import requests
 
 from solana.blockhash import Blockhash
+from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
 from solana.rpc.api import SendTransactionError
 from solana.rpc.commitment import Confirmed
-from solana.rpc.types import TxOpts
+from solana.rpc.types import RPCResponse, TxOpts
 from solana.transaction import Transaction
+from urllib.parse import urlparse
+from itertools import zip_longest
 
 from .costs import update_transaction_cost
 from .utils import get_from_dict
 from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, LOG_SENDING_SOLANA_TRANSACTION, RETRY_ON_FAIL
 
+from typing import Any, List, NamedTuple, Union, cast
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+class AccountInfo(NamedTuple):
+    tag: int
+    lamports: int
+    owner: PublicKey
 
 class SolanaInteractor:
     def __init__(self, signer, client: SolanaClient) -> None:
         self.signer = signer
         self.client = client
 
+    def _send_rpc_batch_request(self, method: str, params_list: List[Any]) -> List[RPCResponse]:
+        request_data = []
+        for params in params_list:      
+            request_id = next(self.client._provider._request_counter) + 1
+            request = {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}
+            request_data.append(request)
+
+        response = requests.post(self.client._provider.endpoint_uri, headers={"Content-Type": "application/json"}, json=request_data)
+        response.raise_for_status()
+
+        response_data = cast(List[RPCResponse], response.json())
+        response_data.sort(key=lambda r: r["id"])
+
+        for request, response in zip_longest(request_data, response_data):
+            if request["id"] != response["id"]:
+                raise Exception("Invalid RPC response: request {} response {}", request, response)
+
+        return response_data
+    
 
     def get_operator_key(self):
         return self.signer.public_key()
 
-
-    def get_account_info(self, storage_account):
+    def get_account_info(self, storage_account) -> AccountInfo:
         opts = {
             "encoding": "base64",
             "commitment": "confirmed",
@@ -54,15 +82,39 @@ class SolanaInteractor:
         lamports = info['lamports']
         owner = info['owner']
 
-        return (account_tag, lamports, owner)
+        return AccountInfo(account_tag, lamports, owner)
 
+    def get_multiple_accounts_info(self, accounts: List[PublicKey]) -> List[AccountInfo]:
+        options = {
+            "encoding": "base64",
+            "commitment": "confirmed",
+            "dataSlice": { "offset": 0, "length": 16 }
+        }
+        result = self.client._provider.make_request("getMultipleAccounts", list(map(str, accounts)), options)
+        logger.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
+
+        if result['result']['value'] is None:
+            logger.debug("Can't get information about {}".format(accounts))
+            return None
+
+        accounts_info = []
+        for info in result['result']['value']:
+            if info is None:
+                accounts_info.append(None)
+            else:
+                data = base64.b64decode(info['data'][0])
+                accounts_info.append(AccountInfo(tag=data[0], lamports=info['lamports'], owner=info['owner']))
+
+        return accounts_info
 
     def get_sol_balance(self, account):
         return self.client.get_balance(account, commitment=Confirmed)['result']['value']
 
 
-    def get_rent_exempt_balance_for_size(self, size):
-        return self.client.get_minimum_balance_for_rent_exemption(size, commitment=Confirmed)["result"]
+    def get_multiple_rent_exempt_balances_for_size(self, size_list: List[int]) -> List[int]:
+        request = map(lambda size: (size, {"commitment": "confirmed"}), size_list)
+        response = self._send_rpc_batch_request("getMinimumBalanceForRentExemption", request)
+        return list(map(lambda r: r["result"], response))
 
 
     def _getAccountData(self, account, expected_length, owner=None):
@@ -109,12 +161,23 @@ class SolanaInteractor:
                 raise
         raise RuntimeError("Failed trying {} times to get Blockhash for transaction {}".format(RETRY_ON_FAIL, txn.__dict__))
 
+    def send_multiple_transactions_unconfirmed(self, transactions: List[Transaction], skip_preflight: bool = True) -> List[str]:
+        blockhash_resp = self.client.get_recent_blockhash() # commitment=Confirmed
+        if not blockhash_resp["result"]:
+            raise RuntimeError("failed to get recent blockhash")
 
-    def collect_result(self, reciept, eth_trx, reason=None):
-        self.confirm_transaction(reciept)
-        result = self.client.get_confirmed_transaction(reciept)
-        update_transaction_cost(result, eth_trx, reason)
-        return result
+        blockhash = blockhash_resp["result"]["value"]["blockhash"]
+
+        request = []
+        for transaction in transactions:
+            transaction.recent_blockhash = blockhash
+            transaction.sign(self.signer)
+        
+            base64_transaction = base64.b64encode(transaction.serialize()).decode("utf-8")
+            request.append((base64_transaction, {"skipPreflight": skip_preflight, "encoding": "base64", "preflightCommitment": "confirmed"}))
+
+        response = self._send_rpc_batch_request("sendTransaction", request)
+        return list(map(lambda r: r["result"], response))
 
 
     def send_measured_transaction(self, trx, eth_trx, reason):
@@ -134,30 +197,47 @@ class SolanaInteractor:
             logger.error("Can't get measurements %s"%err)
             logger.info("Failed result: %s"%json.dumps(result, indent=3))
 
-
-    def confirm_transaction(self, tx_sig, confirmations=0):
+    def confirm_multiple_transactions(self, signatures: List[Union[str, bytes]]):
         """Confirm a transaction."""
         TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
         elapsed_time = 0
         while elapsed_time < TIMEOUT:
-            logger.debug('confirm_transaction for %s', tx_sig)
-            resp = self.client.get_signature_statuses([tx_sig])
-            logger.debug('confirm_transaction: %s', resp)
-            if resp["result"]:
-                status = resp['result']['value'][0]
-                if status and (status['confirmationStatus'] == 'finalized' or \
-                status['confirmationStatus'] == 'confirmed' and status['confirmations'] >= confirmations):
-                    return
+            response = self.client.get_signature_statuses(signatures)
+            logger.debug('confirm_transactions: %s', response)
+            if response['result'] is None:
+                continue
+
+            for status in response['result']['value']:
+                if status is None:
+                    break
+                if status['confirmationStatus'] == 'processed':
+                    break
+            else:
+                return
+
             time.sleep(CONFIRMATION_CHECK_DELAY)
             elapsed_time += CONFIRMATION_CHECK_DELAY
-        raise RuntimeError("could not confirm transaction: ", tx_sig)
 
+        raise RuntimeError("could not confirm transactions: ", signatures)
 
-    def collect_results(self, receipts, eth_trx=None, reason=None):
-        results = []
-        for rcpt in receipts:
-            results.append(self.collect_result(rcpt, eth_trx, reason))
-        return results
+    def get_multiple_confirmed_transactions(self, signatures: List[str]) -> List[RPCResponse]:
+        request = map(lambda signature: (signature, {"encoding": "json", "commitment": "confirmed"}), signatures)
+        return self._send_rpc_batch_request("getTransaction", request)
+
+    def collect_results(self, receipts: List[str], eth_trx: Any = None, reason: str = None) -> List[RPCResponse]:
+        self.confirm_multiple_transactions(receipts)
+        transactions = self.get_multiple_confirmed_transactions(receipts)
+
+        for transaction in transactions:
+            update_transaction_cost(transaction, eth_trx, reason)
+
+        return transactions
+
+    def collect_result(self, reciept, eth_trx, reason=None):
+        self.confirm_multiple_transactions([reciept])
+        result = self.client.get_confirmed_transaction(reciept)
+        update_transaction_cost(result, eth_trx, reason)
+        return result
 
     @staticmethod
     def extract_measurements_from_receipt(receipt):
