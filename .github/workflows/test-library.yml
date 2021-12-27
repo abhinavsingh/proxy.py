@@ -754,7 +754,8 @@ jobs:
         $CONTAINER_TAG
         --hostname 0.0.0.0
         --enable-web-server
-        --local-executor && ./tests/integration/test_integration.sh 8899
+        &&
+        ./tests/integration/test_integration.sh 8899
     - name: Push to GHCR
       run: >-
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
