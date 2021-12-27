@@ -40,11 +40,11 @@ logger = logging.getLogger(__name__)
 
 flags.add_argument(
     '--local-executor',
-    action='store_true',
-    default=DEFAULT_LOCAL_EXECUTOR,
-    help='Default: ' + ('True' if DEFAULT_LOCAL_EXECUTOR else 'False') + '.  ' +
-    'Disabled by default.  When enabled acceptors will make use of ' +
-    'local (same process) executor instead of distributing load across ' +
+    type=int,
+    default=int(DEFAULT_LOCAL_EXECUTOR),
+    help='Default: ' + ('1' if DEFAULT_LOCAL_EXECUTOR else '0') + '.  ' +
+    'Enabled by default.  Use 0 to disable.  When enabled acceptors ' +
+    'will make use of local (same process) executor instead of distributing load across ' +
     'remote (other process) executors.  Enable this option to achieve CPU affinity between ' +
     'acceptors and executors, instead of using underlying OS kernel scheduling algorithm.',
 )
@@ -149,7 +149,7 @@ class Acceptor(multiprocessing.Process):
                 if locked:
                     self.lock.release()
             for work in works:
-                if self.flags.local_executor:
+                if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
                     assert self._local_work_queue
                     self._local_work_queue.put(work)
                 else:
@@ -172,7 +172,7 @@ class Acceptor(multiprocessing.Process):
             type=socket.SOCK_STREAM,
         )
         try:
-            if self.flags.local_executor:
+            if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
                 self._start_local()
             self.selector.register(self.sock, selectors.EVENT_READ)
             while not self.running.is_set():
@@ -181,7 +181,7 @@ class Acceptor(multiprocessing.Process):
             pass
         finally:
             self.selector.unregister(self.sock)
-            if self.flags.local_executor:
+            if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
                 self._stop_local()
             self.sock.close()
             logger.debug('Acceptor#%d shutdown', self.idd)

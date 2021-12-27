@@ -340,7 +340,7 @@ class FlagParser:
         )
         args.timeout = cast(int, opts.get('timeout', args.timeout))
         args.local_executor = cast(
-            bool,
+            int,
             opts.get(
                 'local_executor',
                 args.local_executor,

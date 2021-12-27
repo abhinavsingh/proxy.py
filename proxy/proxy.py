@@ -21,7 +21,7 @@ from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
 from .core.event import EventManager
 from .common.utils import bytes_
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
+from .common.constants import DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
 from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
 
@@ -209,17 +209,17 @@ class Proxy:
 
     @property
     def remote_executors_enabled(self) -> bool:
-        return self.flags.threadless and not self.flags.local_executor
+        return self.flags.threadless and \
+            not (self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR))
 
     def _write_pid_file(self) -> None:
-        if self.flags.pid_file is not None:
-            # NOTE: Multiple instances of proxy.py running on
-            # same host machine will currently result in overwriting the PID file
+        if self.flags.pid_file:
             with open(self.flags.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
 
     def _delete_pid_file(self) -> None:
-        if self.flags.pid_file and os.path.exists(self.flags.pid_file):
+        if self.flags.pid_file \
+                and os.path.exists(self.flags.pid_file):
             os.remove(self.flags.pid_file)
 
     def _register_signals(self) -> None:

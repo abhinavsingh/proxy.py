@@ -143,7 +143,6 @@ lib-profile:
 			--num-workers 1 \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
-			--local-executor \
 			--backlog 65536 \
 			--open-file-limit 65536 \
 			--log-file /dev/null
@@ -160,7 +159,6 @@ lib-speedscope:
 			--num-workers 1 \
 			--enable-web-server \
 			--plugin proxy.plugin.WebServerPlugin \
-			--local-executor \
 			--backlog 65536 \
 			--open-file-limit 65536 \
 			--log-file /dev/null
