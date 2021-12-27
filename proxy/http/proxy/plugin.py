@@ -152,8 +152,7 @@ class HttpProxyBasePlugin(ABC):
     def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
         """Handler called right after receiving raw response from upstream server.
 
-        For HTTPS connections, chunk will be encrypted unless
-        TLS interception is also enabled."""
+        For HTTPS connections, chunk will be encrypted unless TLS interception is also enabled."""
         return chunk  # pragma: no cover
 
     # No longer abstract since 2.4.0
