@@ -11,6 +11,7 @@
 import os
 import sys
 import time
+import signal
 import logging
 
 from typing import List, Optional, Any
@@ -19,7 +20,7 @@ from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
 from .core.event import EventManager
 from .common.utils import bytes_
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
+from .common.constants import DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL, IS_WINDOWS
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
 from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
 
@@ -190,6 +191,7 @@ class Proxy:
         )
         self.acceptors.setup()
         # TODO: May be close listener fd as we don't need it now
+        self._register_signals()
 
     def shutdown(self) -> None:
         assert self.acceptors
@@ -204,6 +206,11 @@ class Proxy:
         self.listener.shutdown()
         self._delete_pid_file()
 
+    @property
+    def remote_executors_enabled(self) -> bool:
+        return self.flags.threadless and \
+            not (self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR))
+
     def _write_pid_file(self) -> None:
         if self.flags.pid_file:
             with open(self.flags.pid_file, 'wb') as pid_file:
@@ -214,19 +221,32 @@ class Proxy:
                 and os.path.exists(self.flags.pid_file):
             os.remove(self.flags.pid_file)
 
-    @property
-    def remote_executors_enabled(self) -> bool:
-        return self.flags.threadless \
-            and not (self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR))
+    def _register_signals(self) -> None:
+        # TODO: Handle SIGINFO, SIGUSR1, SIGUSR2
+        signal.signal(signal.SIGINT, self._handle_exit_signal)
+        signal.signal(signal.SIGTERM, self._handle_exit_signal)
+        if not IS_WINDOWS:
+            signal.signal(signal.SIGHUP, self._handle_exit_signal)
+            # TODO: SIGQUIT is ideally meant for terminate with core dumps
+            signal.signal(signal.SIGQUIT, self._handle_exit_signal)
+
+    @staticmethod
+    def _handle_exit_signal(signum: int, _frame: Any) -> None:
+        logger.info('Received signal %d' % signum)
+        sys.exit(0)
+
+
+def sleep_loop() -> None:
+    while True:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            break
 
 
 def main(**opts: Any) -> None:
     with Proxy(sys.argv[1:], **opts):
-        while True:
-            try:
-                time.sleep(1)
-            except KeyboardInterrupt:
-                break
+        sleep_loop()
 
 
 def entry_point() -> None:
