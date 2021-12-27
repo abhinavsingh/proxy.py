@@ -207,6 +207,10 @@ class Proxy:
         self.listener.shutdown()
         self._delete_pid_file()
 
+    @property
+    def remote_executors_enabled(self) -> bool:
+        return self.flags.threadless and not self.flags.local_executor
+
     def _write_pid_file(self) -> None:
         if self.flags.pid_file is not None:
             # NOTE: Multiple instances of proxy.py running on
@@ -219,18 +223,17 @@ class Proxy:
             os.remove(self.flags.pid_file)
 
     def _register_signals(self) -> None:
-        signal.signal(signal.SIGINT, self._handle_signal)
-        signal.signal(signal.SIGHUP, self._handle_signal)
-        signal.signal(signal.SIGTERM, self._handle_signal)
+        signal.signal(signal.SIGINT, self._handle_exit_signal)
+        signal.signal(signal.SIGHUP, self._handle_exit_signal)
+        # TODO: SIGQUIT is ideally meant for terminate with core dumps
+        signal.signal(signal.SIGQUIT, self._handle_exit_signal)
+        signal.signal(signal.SIGTERM, self._handle_exit_signal)
+        # TODO: SIGINFO, SIGUSR1, SIGUSR2
 
     @staticmethod
-    def _handle_signal(signum: int, _frame: Optional[FrameType]) -> None:
+    def _handle_exit_signal(signum: int, _frame: Optional[FrameType]) -> None:
         logger.info('Received signal %d' % signum)
         sys.exit(0)
-
-    @property
-    def remote_executors_enabled(self) -> bool:
-        return self.flags.threadless and not self.flags.local_executor
 
 
 def sleep_loop() -> None:
