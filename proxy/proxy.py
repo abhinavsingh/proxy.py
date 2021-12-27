@@ -222,13 +222,13 @@ class Proxy:
             os.remove(self.flags.pid_file)
 
     def _register_signals(self) -> None:
+        # TODO: Handle SIGINFO, SIGUSR1, SIGUSR2
         signal.signal(signal.SIGINT, self._handle_exit_signal)
+        signal.signal(signal.SIGTERM, self._handle_exit_signal)
         if not IS_WINDOWS:
             signal.signal(signal.SIGHUP, self._handle_exit_signal)
-        # TODO: SIGQUIT is ideally meant for terminate with core dumps
-        signal.signal(signal.SIGQUIT, self._handle_exit_signal)
-        signal.signal(signal.SIGTERM, self._handle_exit_signal)
-        # TODO: SIGINFO, SIGUSR1, SIGUSR2
+            # TODO: SIGQUIT is ideally meant for terminate with core dumps
+            signal.signal(signal.SIGQUIT, self._handle_exit_signal)
 
     @staticmethod
     def _handle_exit_signal(signum: int, _frame: Any) -> None:
