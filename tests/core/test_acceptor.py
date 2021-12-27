@@ -26,7 +26,7 @@ class TestAcceptor(unittest.TestCase):
         self.flags = FlagParser.initialize(
             threaded=True,
             work_klass=mock.MagicMock(),
-            local_executor=False,
+            local_executor=0,
         )
         self.acceptor = Acceptor(
             idd=self.acceptor_id,
