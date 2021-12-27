@@ -11,7 +11,9 @@
 import os
 import sys
 import time
+import signal
 import logging
+from types import FrameType
 
 from typing import List, Optional, Any
 
@@ -190,6 +192,7 @@ class Proxy:
         )
         self.acceptors.setup()
         # TODO: May be close listener fd as we don't need it now
+        self._register_signals()
 
     def shutdown(self) -> None:
         assert self.acceptors
@@ -215,18 +218,32 @@ class Proxy:
         if self.flags.pid_file and os.path.exists(self.flags.pid_file):
             os.remove(self.flags.pid_file)
 
+    def _register_signals(self) -> None:
+        signal.signal(signal.SIGINT, self._handle_signal)
+        signal.signal(signal.SIGHUP, self._handle_signal)
+        signal.signal(signal.SIGTERM, self._handle_signal)
+
+    @staticmethod
+    def _handle_signal(signum: int, _frame: Optional[FrameType]) -> None:
+        logger.info('Received signal %d' % signum)
+        sys.exit(0)
+
     @property
     def remote_executors_enabled(self) -> bool:
         return self.flags.threadless and not self.flags.local_executor
 
 
+def sleep_loop() -> None:
+    while True:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            break
+
+
 def main(**opts: Any) -> None:
     with Proxy(sys.argv[1:], **opts):
-        while True:
-            try:
-                time.sleep(1)
-            except KeyboardInterrupt:
-                break
+        sleep_loop()
 
 
 def entry_point() -> None:
