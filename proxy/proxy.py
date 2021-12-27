@@ -13,7 +13,6 @@ import sys
 import time
 import signal
 import logging
-from types import FrameType
 
 from typing import List, Optional, Any
 
@@ -232,7 +231,7 @@ class Proxy:
         # TODO: SIGINFO, SIGUSR1, SIGUSR2
 
     @staticmethod
-    def _handle_exit_signal(signum: int, _frame: Optional[FrameType]) -> None:
+    def _handle_exit_signal(signum: int, _frame: Any) -> None:
         logger.info('Received signal %d' % signum)
         sys.exit(0)
 
