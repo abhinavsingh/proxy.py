@@ -89,7 +89,7 @@ class TestConnectionPoolAsync:
         events = await pool.get_events()
         print(events)
         assert events == {
-            mock_conn.connection.fileno.return_value: selectors.EVENT_READ
+            mock_conn.connection.fileno.return_value: selectors.EVENT_READ,
         }
         assert pool.pools[addr].pop() == mock_conn
         assert len(pool.pools[addr]) == 0
