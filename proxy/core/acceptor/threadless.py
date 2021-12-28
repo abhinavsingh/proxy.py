@@ -132,10 +132,10 @@ class Threadless(ABC, Generic[T]):
                 conn=conn,
                 addr=addr,
             ),
-            self._upstream_conn_pool,
             flags=self.flags,
             event_queue=self.event_queue,
             uid=uid,
+            upstream_conn_pool=self._upstream_conn_pool,
         )
         self.works[fileno].publish_event(
             event_name=eventNames.WORK_STARTED,

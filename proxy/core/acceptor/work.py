@@ -16,11 +16,13 @@ import argparse
 
 from abc import ABC, abstractmethod
 from uuid import uuid4
-from typing import Optional, Dict, Any, TypeVar, Generic
+from typing import Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
 
 from ..event import eventNames, EventQueue
-from ..connection import UpstreamConnectionPool
 from ...common.types import Readables, Writables
+
+if TYPE_CHECKING:
+    from ..connection import UpstreamConnectionPool
 
 T = TypeVar('T')
 
@@ -31,10 +33,10 @@ class Work(ABC, Generic[T]):
     def __init__(
             self,
             work: T,
-            upstream_conn_pool: UpstreamConnectionPool,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
             uid: Optional[str] = None,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:
         # Work uuid
         self.uid: str = uid if uid is not None else uuid4().hex

@@ -131,6 +131,7 @@ class ThreadlessPool:
             TcpClientConnection(conn, addr),
             flags=flags,
             event_queue=event_queue,
+            upstream_conn_pool=None,
         )
         # TODO: Keep reference to threads and join during shutdown.
         # This will ensure connections are not abruptly closed on shutdown

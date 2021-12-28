@@ -197,7 +197,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def _close_and_release(self) -> bool:
         if self.flags.enable_conn_pool:
-            assert self.upstream and not self.upstream.closed
+            assert self.upstream and not self.upstream.closed and self.upstream_conn_pool
             self.upstream.closed = True
             with self.lock:
                 self.upstream_conn_pool.release(self.upstream)
@@ -388,6 +388,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             return
 
         if self.flags.enable_conn_pool:
+            assert self.upstream_conn_pool
             # Release the connection for reusability
             with self.lock:
                 self.upstream_conn_pool.release(self.upstream)
@@ -586,6 +587,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         host, port = self.request.host, self.request.port
         if host and port:
             if self.flags.enable_conn_pool:
+                assert self.upstream_conn_pool
                 with self.lock:
                     created, self.upstream = self.upstream_conn_pool.acquire(
                         text_(host), port,
@@ -639,6 +641,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     ),
                 )
                 if self.flags.enable_conn_pool:
+                    assert self.upstream_conn_pool
                     with self.lock:
                         self.upstream_conn_pool.release(self.upstream)
                 raise ProxyConnectionFailed(

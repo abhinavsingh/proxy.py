@@ -50,7 +50,7 @@ class HttpProtocolHandlerPlugin(ABC):
             client: TcpClientConnection,
             request: HttpParser,
             event_queue: EventQueue,
-            upstream_conn_pool: UpstreamConnectionPool,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
         self.uid: str = uid
         self.flags: argparse.Namespace = flags
