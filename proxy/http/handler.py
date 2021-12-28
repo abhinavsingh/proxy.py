@@ -100,6 +100,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                     self.work,
                     self.request,
                     self.event_queue,
+                    self.upstream_conn_pool,
                 )
                 self.plugins[instance.name()] = instance
         logger.debug('Handling connection %r' % self.work.connection)

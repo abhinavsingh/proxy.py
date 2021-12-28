@@ -19,6 +19,7 @@ from uuid import uuid4
 from typing import Optional, Dict, Any, TypeVar, Generic
 
 from ..event import eventNames, EventQueue
+from ..connection import UpstreamConnectionPool
 from ...common.types import Readables, Writables
 
 T = TypeVar('T')
@@ -30,6 +31,7 @@ class Work(ABC, Generic[T]):
     def __init__(
             self,
             work: T,
+            upstream_conn_pool: UpstreamConnectionPool,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
             uid: Optional[str] = None,
@@ -41,6 +43,7 @@ class Work(ABC, Generic[T]):
         self.event_queue = event_queue
         # Accept work
         self.work = work
+        self.upstream_conn_pool = upstream_conn_pool
 
     @abstractmethod
     async def get_events(self) -> Dict[int, int]:

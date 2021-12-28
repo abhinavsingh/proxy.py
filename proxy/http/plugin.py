@@ -18,7 +18,7 @@ from .parser import HttpParser
 
 from ..common.types import Readables, Writables
 from ..core.event import EventQueue
-from ..core.connection import TcpClientConnection
+from ..core.connection import TcpClientConnection, UpstreamConnectionPool
 
 
 class HttpProtocolHandlerPlugin(ABC):
@@ -50,12 +50,14 @@ class HttpProtocolHandlerPlugin(ABC):
             client: TcpClientConnection,
             request: HttpParser,
             event_queue: EventQueue,
+            upstream_conn_pool: UpstreamConnectionPool,
     ):
         self.uid: str = uid
         self.flags: argparse.Namespace = flags
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
         self.event_queue = event_queue
+        self.upstream_conn_pool = upstream_conn_pool
         super().__init__()
 
     def name(self) -> str:

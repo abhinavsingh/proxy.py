@@ -25,7 +25,7 @@ from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
-from ..connection import TcpClientConnection
+from ..connection import TcpClientConnection, UpstreamConnectionPool
 from ..event import eventNames, EventQueue
 
 from .work import Work
@@ -87,6 +87,7 @@ class Threadless(ABC, Generic[T]):
         self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
         self._total: int = 0
+        self._upstream_conn_pool: UpstreamConnectionPool = UpstreamConnectionPool()
 
     @property
     @abstractmethod

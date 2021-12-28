@@ -44,7 +44,7 @@ from ...common.utils import text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
-from ...core.connection import TcpServerConnection, ConnectionPool
+from ...core.connection import TcpServerConnection
 from ...core.connection import TcpConnectionUninitializedException
 from ...common.flag import flags
 
@@ -140,9 +140,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     # connection pool operations.
     lock = threading.Lock()
 
-    # Shared connection pool
-    pool = ConnectionPool()
-
     def __init__(
             self,
             *args: Any, **kwargs: Any,
@@ -203,7 +200,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             assert self.upstream and not self.upstream.closed
             self.upstream.closed = True
             with self.lock:
-                self.pool.release(self.upstream)
+                self.upstream_conn_pool.release(self.upstream)
             self.upstream = None
         return True
 
@@ -393,7 +390,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.flags.enable_conn_pool:
             # Release the connection for reusability
             with self.lock:
-                self.pool.release(self.upstream)
+                self.upstream_conn_pool.release(self.upstream)
             return
 
         try:
@@ -590,7 +587,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if host and port:
             if self.flags.enable_conn_pool:
                 with self.lock:
-                    created, self.upstream = self.pool.acquire(
+                    created, self.upstream = self.upstream_conn_pool.acquire(
                         text_(host), port,
                     )
             else:
@@ -643,7 +640,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 )
                 if self.flags.enable_conn_pool:
                     with self.lock:
-                        self.pool.release(self.upstream)
+                        self.upstream_conn_pool.release(self.upstream)
                 raise ProxyConnectionFailed(
                     text_(host), port, repr(e),
                 ) from e

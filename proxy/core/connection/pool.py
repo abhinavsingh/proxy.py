@@ -17,6 +17,9 @@ import logging
 from typing import Set, Dict, Tuple
 
 from ...common.flag import flags
+from ...common.types import Readables, Writables
+
+from ..acceptor.work import Work
 
 from .server import TcpServerConnection
 
@@ -31,7 +34,7 @@ flags.add_argument(
 )
 
 
-class ConnectionPool:
+class UpstreamConnectionPool(Work[TcpServerConnection]):
     """Manages connection pool to upstream servers.
 
     `ConnectionPool` avoids need to reconnect with the upstream
@@ -113,3 +116,9 @@ class ConnectionPool:
             assert not conn.is_reusable()
             # Reset for reusability
             conn.reset()
+
+    async def get_events(self) -> Dict[int, int]:
+        return await super().get_events()
+
+    async def handle_events(self, readables: Readables, writables: Writables) -> bool:
+        return await super().handle_events(readables, writables)
