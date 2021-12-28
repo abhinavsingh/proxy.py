@@ -81,7 +81,8 @@ class TestConnectionPoolAsync:
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_get_events(self, mocker: MockerFixture) -> None:
         mock_tcp_server_connection = mocker.patch(
-            'proxy.core.connection.pool.TcpServerConnection')
+            'proxy.core.connection.pool.TcpServerConnection',
+        )
         pool = UpstreamConnectionPool()
         addr = ('localhost', 1234)
         mock_conn = mock_tcp_server_connection.return_value
@@ -100,7 +101,8 @@ class TestConnectionPoolAsync:
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_handle_events(self, mocker: MockerFixture) -> None:
         mock_tcp_server_connection = mocker.patch(
-            'proxy.core.connection.pool.TcpServerConnection')
+            'proxy.core.connection.pool.TcpServerConnection',
+        )
         pool = UpstreamConnectionPool()
         mock_conn = mock_tcp_server_connection.return_value
         addr = mock_conn.addr
