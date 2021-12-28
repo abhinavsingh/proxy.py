@@ -13,6 +13,7 @@ import unittest
 import selectors
 
 from unittest import mock
+from pytest_mock import MockerFixture
 
 from proxy.core.connection import UpstreamConnectionPool
 
@@ -78,8 +79,9 @@ class TestConnectionPool(unittest.TestCase):
 class TestConnectionPoolAsync:
 
     @pytest.mark.asyncio    # type: ignore[misc]
-    @mock.patch('proxy.core.connection.pool.TcpServerConnection')
-    async def test_get_events(self, mock_tcp_server_connection: mock.Mock) -> None:
+    async def test_get_events(self, mocker: MockerFixture) -> None:
+        mock_tcp_server_connection = mocker.patch(
+            'proxy.core.connection.pool.TcpServerConnection')
         pool = UpstreamConnectionPool()
         addr = ('localhost', 1234)
         mock_conn = mock_tcp_server_connection.return_value
@@ -96,8 +98,9 @@ class TestConnectionPoolAsync:
         assert pool.connections[mock_conn.connection.fileno.return_value] == mock_conn
 
     @pytest.mark.asyncio    # type: ignore[misc]
-    @mock.patch('proxy.core.connection.pool.TcpServerConnection')
-    async def test_handle_events(self, mock_tcp_server_connection: mock.Mock) -> None:
+    async def test_handle_events(self, mocker: MockerFixture) -> None:
+        mock_tcp_server_connection = mocker.patch(
+            'proxy.core.connection.pool.TcpServerConnection')
         pool = UpstreamConnectionPool()
         mock_conn = mock_tcp_server_connection.return_value
         addr = mock_conn.addr
