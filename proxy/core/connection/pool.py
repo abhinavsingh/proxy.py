@@ -37,7 +37,7 @@ flags.add_argument(
 class UpstreamConnectionPool(Work[TcpServerConnection]):
     """Manages connection pool to upstream servers.
 
-    `ConnectionPool` avoids need to reconnect with the upstream
+    `UpstreamConnectionPool` avoids need to reconnect with the upstream
     servers repeatedly when a reusable connection is available
     in the pool.
 
@@ -50,16 +50,16 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
     the pool users.  Example, if acquired connection
     is stale, reacquire.
 
-    TODO: Ideally, ConnectionPool must be shared across
+    TODO: Ideally, `UpstreamConnectionPool` must be shared across
     all cores to make SSL session cache to also work
     without additional out-of-bound synchronizations.
 
-    TODO: ConnectionPool currently WON'T work for
+    TODO: `UpstreamConnectionPool` currently WON'T work for
     HTTPS connection. This is because of missing support for
     session cache, session ticket, abbr TLS handshake
     and other necessary features to make it work.
 
-    NOTE: However, for all HTTP only connections, ConnectionPool
+    NOTE: However, for all HTTP only connections, `UpstreamConnectionPool`
     can be used to save upon connection setup time and
     speed-up performance of requests.
     """

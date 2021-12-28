@@ -87,7 +87,9 @@ class Threadless(ABC, Generic[T]):
         self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
         self._total: int = 0
-        self._upstream_conn_pool: UpstreamConnectionPool = UpstreamConnectionPool()
+        self._upstream_conn_pool: Optional[UpstreamConnectionPool] = None
+        if self.flags.enable_conn_pool:
+            self._upstream_conn_pool = UpstreamConnectionPool()
 
     @property
     @abstractmethod
