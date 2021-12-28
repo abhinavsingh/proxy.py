@@ -586,29 +586,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port
         if host and port:
-            if self.flags.enable_conn_pool:
-                assert self.upstream_conn_pool
-                with self.lock:
-                    created, self.upstream = self.upstream_conn_pool.acquire(
-                        text_(host), port,
-                    )
-            else:
-                created, self.upstream = True, TcpServerConnection(
-                    text_(host), port,
-                )
-            if not created:
-                # NOTE: Acquired connection might be in an unusable state.
-                #
-                # This can only be confirmed by reading from connection.
-                # For stale connections, we will receive None, indicating
-                # to drop the connection.
-                #
-                # If that happen, we must acquire a fresh connection.
-                logger.info(
-                    'Reusing connection to upstream %s:%d' %
-                    (text_(host), port),
-                )
-                return
             try:
                 logger.debug(
                     'Connecting to upstream %s:%d' %
@@ -622,14 +599,37 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     )
                     if upstream_ip or source_addr:
                         break
-                # Connect with overridden upstream IP and source address
-                # if any of the plugin returned a non-null value.
-                self.upstream.connect(
-                    addr=None if not upstream_ip else (
-                        upstream_ip, port,
-                    ), source_address=source_addr,
-                )
-                self.upstream.connection.setblocking(False)
+                if self.flags.enable_conn_pool:
+                    assert self.upstream_conn_pool
+                    with self.lock:
+                        created, self.upstream = self.upstream_conn_pool.acquire(
+                            (text_(host), port),
+                        )
+                else:
+                    created, self.upstream = True, TcpServerConnection(
+                        text_(host), port,
+                    )
+                    # Connect with overridden upstream IP and source address
+                    # if any of the plugin returned a non-null value.
+                    self.upstream.connect(
+                        addr=None if not upstream_ip else (
+                            upstream_ip, port,
+                        ), source_address=source_addr,
+                    )
+                    self.upstream.connection.setblocking(False)
+                if not created:
+                    # NOTE: Acquired connection might be in an unusable state.
+                    #
+                    # This can only be confirmed by reading from connection.
+                    # For stale connections, we will receive None, indicating
+                    # to drop the connection.
+                    #
+                    # If that happen, we must acquire a fresh connection.
+                    logger.info(
+                        'Reusing connection to upstream %s:%d' %
+                        (text_(host), port),
+                    )
+                    return
                 logger.debug(
                     'Connected to upstream %s:%s' %
                     (text_(host), port),
@@ -640,7 +640,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         text_(host), port, str(e),
                     ),
                 )
-                if self.flags.enable_conn_pool:
+                if self.flags.enable_conn_pool and self.upstream:
                     assert self.upstream_conn_pool
                     with self.lock:
                         self.upstream_conn_pool.release(self.upstream)

@@ -25,7 +25,7 @@ class TcpServerConnection(TcpConnection):
     def __init__(self, host: str, port: int) -> None:
         super().__init__(tcpConnectionTypes.SERVER)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
-        self.addr: Tuple[str, int] = (host, int(port))
+        self.addr: Tuple[str, int] = (host, port)
         self.closed = True
 
     @property
