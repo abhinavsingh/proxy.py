@@ -132,6 +132,7 @@ class Threadless(ABC, Generic[T]):
                 conn=conn,
                 addr=addr,
             ),
+            self._upstream_conn_pool,
             flags=self.flags,
             event_queue=self.event_queue,
             uid=uid,
