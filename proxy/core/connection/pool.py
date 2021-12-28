@@ -72,7 +72,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
 
     def add(self, addr: Tuple[str, int]) -> TcpServerConnection:
         # Create new connection
-        new_conn = TcpServerConnection(*addr)
+        new_conn = TcpServerConnection(addr[0], addr[1])
         new_conn.connect()
         if addr not in self.pools:
             self.pools[addr] = set()
@@ -134,7 +134,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
     async def handle_events(self, readables: Readables, _writables: Writables) -> bool:
         for r in readables:
             if TYPE_CHECKING:
-                assert type(r) == int
+                assert isinstance(r, int)
             conn = self.connections[r]
             self.pools[conn.addr].remove(conn)
             del self.connections[r]
