@@ -13,8 +13,9 @@
        reusability
 """
 import logging
+import selectors
 
-from typing import Set, Dict, Tuple
+from typing import TYPE_CHECKING, Set, Dict, Tuple
 
 from ...common.flag import flags
 from ...common.types import Readables, Writables
@@ -66,11 +67,21 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
 
     def __init__(self) -> None:
         # Pools of connection per upstream server
+        self.connections: Dict[int, TcpServerConnection] = {}
         self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
 
-    def acquire(self, host: str, port: int) -> Tuple[bool, TcpServerConnection]:
+    def add(self, addr: Tuple[str, int]) -> TcpServerConnection:
+        # Create new connection
+        new_conn = TcpServerConnection(addr[0], addr[1])
+        new_conn.connect()
+        if addr not in self.pools:
+            self.pools[addr] = set()
+        self.pools[addr].add(new_conn)
+        self.connections[new_conn.connection.fileno()] = new_conn
+        return new_conn
+
+    def acquire(self, addr: Tuple[str, int]) -> Tuple[bool, TcpServerConnection]:
         """Returns a connection for use with the server."""
-        addr = (host, port)
         # Return a reusable connection if available
         if addr in self.pools:
             for old_conn in self.pools[addr]:
@@ -78,18 +89,14 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
                     old_conn.mark_inuse()
                     logger.debug(
                         'Reusing connection#{2} for upstream {0}:{1}'.format(
-                            host, port, id(old_conn),
+                            addr[0], addr[1], id(old_conn),
                         ),
                     )
                     return False, old_conn
-        # Create new connection
-        new_conn = TcpServerConnection(*addr)
-        if addr not in self.pools:
-            self.pools[addr] = set()
-        self.pools[addr].add(new_conn)
+        new_conn = self.add(addr)
         logger.debug(
             'Created new connection#{2} for upstream {0}:{1}'.format(
-                host, port, id(new_conn),
+                addr[0], addr[1], id(new_conn),
             ),
         )
         return True, new_conn
@@ -118,7 +125,17 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
             conn.reset()
 
     async def get_events(self) -> Dict[int, int]:
-        return await super().get_events()
+        events = {}
+        for connections in self.pools.values():
+            for conn in connections:
+                events[conn.connection.fileno()] = selectors.EVENT_READ
+        return events
 
-    async def handle_events(self, readables: Readables, writables: Writables) -> bool:
-        return await super().handle_events(readables, writables)
+    async def handle_events(self, readables: Readables, _writables: Writables) -> bool:
+        for r in readables:
+            if TYPE_CHECKING:
+                assert isinstance(r, int)
+            conn = self.connections[r]
+            self.pools[conn.addr].remove(conn)
+            del self.connections[r]
+        return False
