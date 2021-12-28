@@ -12,14 +12,14 @@ import unittest
 
 from unittest import mock
 
-from proxy.core.connection import ConnectionPool
+from proxy.core.connection import UpstreamConnectionPool
 
 
 class TestConnectionPool(unittest.TestCase):
 
     @mock.patch('proxy.core.connection.pool.TcpServerConnection')
     def test_acquire_and_release_and_reacquire(self, mock_tcp_server_connection: mock.Mock) -> None:
-        pool = ConnectionPool()
+        pool = UpstreamConnectionPool()
         addr = ('localhost', 1234)
         # Mock
         mock_conn = mock_tcp_server_connection.return_value
@@ -50,7 +50,7 @@ class TestConnectionPool(unittest.TestCase):
     def test_closed_connections_are_removed_on_release(
             self, mock_tcp_server_connection: mock.Mock,
     ) -> None:
-        pool = ConnectionPool()
+        pool = UpstreamConnectionPool()
         addr = ('localhost', 1234)
         # Mock
         mock_conn = mock_tcp_server_connection.return_value

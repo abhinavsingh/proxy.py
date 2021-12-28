@@ -17,6 +17,9 @@ import logging
 from typing import Set, Dict, Tuple
 
 from ...common.flag import flags
+from ...common.types import Readables, Writables
+
+from ..acceptor.work import Work
 
 from .server import TcpServerConnection
 
@@ -31,10 +34,10 @@ flags.add_argument(
 )
 
 
-class ConnectionPool:
+class UpstreamConnectionPool(Work[TcpServerConnection]):
     """Manages connection pool to upstream servers.
 
-    `ConnectionPool` avoids need to reconnect with the upstream
+    `UpstreamConnectionPool` avoids need to reconnect with the upstream
     servers repeatedly when a reusable connection is available
     in the pool.
 
@@ -47,16 +50,16 @@ class ConnectionPool:
     the pool users.  Example, if acquired connection
     is stale, reacquire.
 
-    TODO: Ideally, ConnectionPool must be shared across
+    TODO: Ideally, `UpstreamConnectionPool` must be shared across
     all cores to make SSL session cache to also work
     without additional out-of-bound synchronizations.
 
-    TODO: ConnectionPool currently WON'T work for
+    TODO: `UpstreamConnectionPool` currently WON'T work for
     HTTPS connection. This is because of missing support for
     session cache, session ticket, abbr TLS handshake
     and other necessary features to make it work.
 
-    NOTE: However, for all HTTP only connections, ConnectionPool
+    NOTE: However, for all HTTP only connections, `UpstreamConnectionPool`
     can be used to save upon connection setup time and
     speed-up performance of requests.
     """
@@ -113,3 +116,9 @@ class ConnectionPool:
             assert not conn.is_reusable()
             # Reset for reusability
             conn.reset()
+
+    async def get_events(self) -> Dict[int, int]:
+        return await super().get_events()
+
+    async def handle_events(self, readables: Readables, writables: Writables) -> bool:
+        return await super().handle_events(readables, writables)

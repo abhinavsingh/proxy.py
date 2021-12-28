@@ -88,7 +88,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         must be bootstrapped within it's own re-usable and garbage collected pool,
         to avoid establishing a new upstream proxy connection for each client request.
 
-        See :class:`~proxy.core.connection.pool.ConnectionPool` which is a work
+        See :class:`~proxy.core.connection.pool.UpstreamConnectionPool` which is a work
         in progress for SSL cache handling.
         """
         # We don't want to send private IP requests to remote proxies
