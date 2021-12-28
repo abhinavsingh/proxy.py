@@ -41,6 +41,7 @@ class Airdropper(IndexerBase):
                                             price_upd_interval, # seconds
                                             mainnet_price_accounts)
         self.neon_decimals = neon_decimals
+        self.session = requests.Session()
 
 
     # helper function checking if given contract address is in whitelist
@@ -91,7 +92,7 @@ class Airdropper(IndexerBase):
         airdrop_galans = int(airdrop_amount_neon * pow(10, self.neon_decimals))
 
         json_data = { 'wallet': eth_address, 'amount': airdrop_galans }
-        resp = requests.post(self.faucet_url + '/request_neon_in_galans', json = json_data)
+        resp = self.session.post(self.faucet_url + '/request_neon_in_galans', json = json_data)
         if not resp.ok:
             logger.warning(f'Failed to airdrop: {resp.status_code}')
             return

@@ -1,3 +1,34 @@
+diff --git a/solana/rpc/providers/http.py b/solana/rpc/providers/http.py
+index 5fb68dd..e7ebafe 100644
+--- solana/rpc/providers/http.py
++++ solana/rpc/providers/http.py
+@@ -25,6 +25,7 @@ class HTTPProvider(BaseProvider, FriendlyJsonSerde):
+         """Init HTTPProvider."""
+         self._request_counter = itertools.count()
+         self.endpoint_uri = get_default_endpoint() if not endpoint else URI(endpoint)
++        self.session = requests.Session()
+ 
+     def __str__(self) -> str:
+         """String definition for HTTPProvider."""
+@@ -42,7 +43,7 @@ class HTTPProvider(BaseProvider, FriendlyJsonSerde):
+         )
+         headers = {"Content-Type": "application/json"}
+         data = self.json_encode({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
+-        raw_response = requests.post(self.endpoint_uri, headers=headers, data=data)
++        raw_response = self.session.post(self.endpoint_uri, headers=headers, data=data)
+         raw_response.raise_for_status()
+         self.logger.debug(
+             "Getting response HTTP. URI: %s, " "Method: %s, Response: %s", self.endpoint_uri, method, raw_response.text
+@@ -52,7 +53,7 @@ class HTTPProvider(BaseProvider, FriendlyJsonSerde):
+     def is_connected(self) -> bool:
+         """Health check."""
+         try:
+-            response = requests.get(f"{self.endpoint_uri}/health")
++            response = self.session.get(f"{self.endpoint_uri}/health")
+             response.raise_for_status()
+         except (IOError, requests.HTTPError) as err:
+             self.logger.error("Health check failed with error: %s", str(err))
+
 --- solana/rpc/api.py	2021-05-25 13:08:52.430148672 +0300
 +++ solana/rpc/api.py	2021-05-25 13:08:43.102202173 +0300
 @@ -14,7 +14,7 @@
