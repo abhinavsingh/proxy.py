@@ -80,7 +80,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
                 content=content,
                 headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                    b'Content-Encoding': b'gzip',
                 },
                 conn_close=True,
+                compress=False,
             )
