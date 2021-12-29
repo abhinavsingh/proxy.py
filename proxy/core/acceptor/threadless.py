@@ -205,7 +205,7 @@ class Threadless(ABC, Generic[T]):
             #
             # TODO: Also remove offending work from pool to avoid spin loop.
             elif fileno != -1:
-                self.selector.register(fileno, events=mask, data=work_id,)
+                self.selector.register(fileno, events=mask, data=work_id)
                 self.registered_events_by_work_ids[work_id][fileno] = mask
                 logger.debug(
                     'fd#{0} registered for mask#{1} by work#{2}'.format(
@@ -338,7 +338,8 @@ class Threadless(ABC, Generic[T]):
                 assert self._upstream_conn_pool
                 task = self.loop.create_task(
                     self._upstream_conn_pool.handle_events(
-                        *work_by_ids[work_id])
+                        *work_by_ids[work_id],
+                    ),
                 )
             else:
                 task = self.loop.create_task(
