@@ -58,7 +58,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
     When a borrowed connection is returned back to the pool,
     the connection is marked as reusable again.  However, if
     returned connection has already been closed, it is removed
-    from the internal datastructure.
+    from the internal data structure.
 
     TODO: Ideally, `UpstreamConnectionPool` must be shared across
     all cores to make SSL session cache to also work
@@ -160,7 +160,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         self.connections[conn.connection.fileno()] = conn
 
     def _remove(self, fileno: int) -> None:
-        """Remove a connection by fileno from internal data structure."""
+        """Remove a connection by descriptor from the internal data structure."""
         conn = self.connections[fileno]
         logger.debug('Removing conn#{0} from pool'.format(id(conn)))
         conn.connection.shutdown(socket.SHUT_WR)
