@@ -79,7 +79,7 @@ class TestTcpConnection(unittest.TestCase):
         )
 
     @mock.patch('proxy.core.connection.server.new_socket_connection')
-    def testTcpServerIgnoresDoubleConnectSilently(
+    def testTcpServerWillNotIgnoreDoubleConnectAttemptsSilently(
             self,
             mock_new_socket_connection: mock.Mock,
     ) -> None:
@@ -87,7 +87,8 @@ class TestTcpConnection(unittest.TestCase):
             str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT,
         )
         conn.connect()
-        conn.connect()
+        with self.assertRaises(AssertionError):
+            conn.connect()
         mock_new_socket_connection.assert_called_once()
 
     @mock.patch('socket.socket')

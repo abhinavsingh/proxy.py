@@ -148,6 +148,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         for fileno in readables:
             if TYPE_CHECKING:
                 assert isinstance(fileno, int)
+            logger.debug('Upstream fd#{0} is read ready'.format(fileno))
             self._remove(fileno)
         return False
 
