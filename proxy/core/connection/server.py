@@ -25,7 +25,7 @@ class TcpServerConnection(TcpConnection):
     def __init__(self, host: str, port: int) -> None:
         super().__init__(tcpConnectionTypes.SERVER)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
-        self.addr: Tuple[str, int] = (host, int(port))
+        self.addr: Tuple[str, int] = (host, port)
         self.closed = True
 
     @property
@@ -39,11 +39,11 @@ class TcpServerConnection(TcpConnection):
             addr: Optional[Tuple[str, int]] = None,
             source_address: Optional[Tuple[str, int]] = None,
     ) -> None:
-        if self._conn is None:
-            self._conn = new_socket_connection(
-                addr or self.addr, source_address=source_address,
-            )
-            self.closed = False
+        assert self._conn is None
+        self._conn = new_socket_connection(
+            addr or self.addr, source_address=source_address,
+        )
+        self.closed = False
 
     def wrap(self, hostname: str, ca_file: Optional[str]) -> None:
         ctx = ssl.create_default_context(

@@ -88,7 +88,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         must be bootstrapped within it's own re-usable and garbage collected pool,
         to avoid establishing a new upstream proxy connection for each client request.
 
-        See :class:`~proxy.core.connection.pool.ConnectionPool` which is a work
+        See :class:`~proxy.core.connection.pool.UpstreamConnectionPool` which is a work
         in progress for SSL cache handling.
         """
         # We don't want to send private IP requests to remote proxies
@@ -121,7 +121,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             #
             # Failing upstream proxies, must be removed from the pool temporarily.
             # A periodic health check must put them back in the pool.  This can be achieved
-            # using a datastructure without having to spawn separate thread/process for health
+            # using a data structure without having to spawn separate thread/process for health
             # check.
             raise HttpProtocolException(
                 'Connection refused by upstream proxy {0}:{1}'.format(

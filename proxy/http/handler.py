@@ -100,9 +100,10 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                     self.work,
                     self.request,
                     self.event_queue,
+                    self.upstream_conn_pool,
                 )
                 self.plugins[instance.name()] = instance
-        logger.debug('Handling connection %r' % self.work.connection)
+        logger.debug('Handling connection %s' % self.work.address)
 
     def is_inactive(self) -> bool:
         if not self.work.has_buffer() and \
@@ -122,9 +123,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             for plugin in self.plugins.values():
                 plugin.on_client_connection_close()
             logger.debug(
-                'Closing client connection %r '
-                'at address %s has buffer %s' %
-                (self.work.connection, self.work.address, self.work.has_buffer()),
+                'Closing client connection %s has buffer %s' %
+                (self.work.address, self.work.has_buffer()),
             )
             conn = self.work.connection
             # Unwrap if wrapped before shutdown.
@@ -246,7 +246,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     async def handle_writables(self, writables: Writables) -> bool:
         if self.work.connection.fileno() in writables and self.work.has_buffer():
-            logger.debug('Client is ready for writes, flushing buffer')
+            logger.debug('Client is write ready, flushing...')
             self.last_activity = time.time()
 
             # TODO(abhinavsingh): This hook could just reside within server recv block
@@ -276,7 +276,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     async def handle_readables(self, readables: Readables) -> bool:
         if self.work.connection.fileno() in readables:
-            logger.debug('Client is ready for reads, reading')
+            logger.debug('Client is read ready, receiving...')
             self.last_activity = time.time()
             try:
                 teardown = await super().handle_readables(readables)

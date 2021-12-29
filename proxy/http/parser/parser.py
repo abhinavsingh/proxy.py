@@ -77,7 +77,7 @@ class HttpParser:
         self.total_size: int = 0
         # Buffer to hold unprocessed bytes
         self.buffer: bytes = b''
-        # Internal headers datastructure:
+        # Internal headers data structure:
         # - Keys are lower case header names.
         # - Values are 2-tuple containing original
         #   header and it's value as received.

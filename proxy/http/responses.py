@@ -90,7 +90,7 @@ def okResponse(
         **kwargs: Any,
 ) -> memoryview:
     do_compress: bool = False
-    if compress and flags.args and content and len(content) > flags.args.min_compression_limit:
+    if flags.args and compress and content and len(content) > flags.args.min_compression_limit:
         do_compress = True
         if not headers:
             headers = {}

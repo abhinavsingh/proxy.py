@@ -52,8 +52,16 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
     def routes(self) -> List[Tuple[int, str]]:
         if self.flags.pac_file_url_path:
             return [
-                (httpProtocolTypes.HTTP, text_(self.flags.pac_file_url_path)),
-                (httpProtocolTypes.HTTPS, text_(self.flags.pac_file_url_path)),
+                (
+                    httpProtocolTypes.HTTP, r'{0}$'.format(
+                        text_(self.flags.pac_file_url_path),
+                    ),
+                ),
+                (
+                    httpProtocolTypes.HTTPS, r'{0}$'.format(
+                        text_(self.flags.pac_file_url_path),
+                    ),
+                ),
             ]
         return []   # pragma: no cover
 
@@ -72,7 +80,7 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
                 content=content,
                 headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                    b'Content-Encoding': b'gzip',
                 },
                 conn_close=True,
+                compress=False,
             )

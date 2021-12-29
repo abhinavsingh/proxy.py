@@ -101,6 +101,7 @@ class TestAcceptor(unittest.TestCase):
             mock_client.return_value,
             flags=self.flags,
             event_queue=None,
+            upstream_conn_pool=None,
         )
         mock_thread.assert_called_with(
             target=self.flags.work_klass.return_value.run,

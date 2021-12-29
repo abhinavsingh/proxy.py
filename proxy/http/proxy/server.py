@@ -44,7 +44,7 @@ from ...common.utils import text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
-from ...core.connection import TcpServerConnection, ConnectionPool
+from ...core.connection import TcpServerConnection
 from ...core.connection import TcpConnectionUninitializedException
 from ...common.flag import flags
 
@@ -140,9 +140,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     # connection pool operations.
     lock = threading.Lock()
 
-    # Shared connection pool
-    pool = ConnectionPool()
-
     def __init__(
             self,
             *args: Any, **kwargs: Any,
@@ -200,10 +197,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def _close_and_release(self) -> bool:
         if self.flags.enable_conn_pool:
-            assert self.upstream and not self.upstream.closed
+            assert self.upstream and not self.upstream.closed and self.upstream_conn_pool
             self.upstream.closed = True
             with self.lock:
-                self.pool.release(self.upstream)
+                self.upstream_conn_pool.release(self.upstream)
             self.upstream = None
         return True
 
@@ -220,7 +217,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 self.upstream and not self.upstream.closed and \
                 self.upstream.has_buffer() and \
                 self.upstream.connection.fileno() in w:
-            logger.debug('Server is write ready, flushing buffer')
+            logger.debug('Server is write ready, flushing...')
             try:
                 self.upstream.flush()
             except ssl.SSLWantWriteError:
@@ -257,7 +254,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 and self.upstream \
                 and not self.upstream.closed \
                 and self.upstream.connection.fileno() in r:
-            logger.debug('Server is ready for reads, reading...')
+            logger.debug('Server is read ready, receiving...')
             try:
                 raw = self.upstream.recv(self.flags.server_recvbuf_size)
             except TimeoutError as e:
@@ -391,9 +388,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             return
 
         if self.flags.enable_conn_pool:
+            assert self.upstream_conn_pool
             # Release the connection for reusability
             with self.lock:
-                self.pool.release(self.upstream)
+                self.upstream_conn_pool.release(self.upstream)
             return
 
         try:
@@ -403,7 +401,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 pass
             finally:
                 # TODO: Unwrap if wrapped before close?
-                self.upstream.connection.close()
+                self.upstream.close()
         except TcpConnectionUninitializedException:
             pass
         finally:
@@ -588,33 +586,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port
         if host and port:
-            if self.flags.enable_conn_pool:
-                with self.lock:
-                    created, self.upstream = self.pool.acquire(
-                        text_(host), port,
-                    )
-            else:
-                created, self.upstream = True, TcpServerConnection(
-                    text_(host), port,
-                )
-            if not created:
-                # NOTE: Acquired connection might be in an unusable state.
-                #
-                # This can only be confirmed by reading from connection.
-                # For stale connections, we will receive None, indicating
-                # to drop the connection.
-                #
-                # If that happen, we must acquire a fresh connection.
-                logger.info(
-                    'Reusing connection to upstream %s:%d' %
-                    (text_(host), port),
-                )
-                return
             try:
-                logger.debug(
-                    'Connecting to upstream %s:%d' %
-                    (text_(host), port),
-                )
                 # Invoke plugin.resolve_dns
                 upstream_ip, source_addr = None, None
                 for plugin in self.plugins.values():
@@ -623,14 +595,41 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     )
                     if upstream_ip or source_addr:
                         break
-                # Connect with overridden upstream IP and source address
-                # if any of the plugin returned a non-null value.
-                self.upstream.connect(
-                    addr=None if not upstream_ip else (
-                        upstream_ip, port,
-                    ), source_address=source_addr,
+                logger.debug(
+                    'Connecting to upstream %s:%d' %
+                    (text_(host), port),
                 )
-                self.upstream.connection.setblocking(False)
+                if self.flags.enable_conn_pool:
+                    assert self.upstream_conn_pool
+                    with self.lock:
+                        created, self.upstream = self.upstream_conn_pool.acquire(
+                            (text_(host), port),
+                        )
+                else:
+                    created, self.upstream = True, TcpServerConnection(
+                        text_(host), port,
+                    )
+                    # Connect with overridden upstream IP and source address
+                    # if any of the plugin returned a non-null value.
+                    self.upstream.connect(
+                        addr=None if not upstream_ip else (
+                            upstream_ip, port,
+                        ), source_address=source_addr,
+                    )
+                    self.upstream.connection.setblocking(False)
+                if not created:
+                    # NOTE: Acquired connection might be in an unusable state.
+                    #
+                    # This can only be confirmed by reading from connection.
+                    # For stale connections, we will receive None, indicating
+                    # to drop the connection.
+                    #
+                    # If that happen, we must acquire a fresh connection.
+                    logger.info(
+                        'Reusing connection to upstream %s:%d' %
+                        (text_(host), port),
+                    )
+                    return
                 logger.debug(
                     'Connected to upstream %s:%s' %
                     (text_(host), port),
@@ -641,9 +640,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         text_(host), port, str(e),
                     ),
                 )
-                if self.flags.enable_conn_pool:
+                if self.flags.enable_conn_pool and self.upstream:
+                    assert self.upstream_conn_pool
                     with self.lock:
-                        self.pool.release(self.upstream)
+                        self.upstream_conn_pool.release(self.upstream)
                 raise ProxyConnectionFailed(
                     text_(host), port, repr(e),
                 ) from e
