@@ -217,7 +217,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 self.upstream and not self.upstream.closed and \
                 self.upstream.has_buffer() and \
                 self.upstream.connection.fileno() in w:
-            logger.debug('Server is write ready, flushing buffer')
+            logger.debug('Server is write ready, flushing...')
             try:
                 self.upstream.flush()
             except ssl.SSLWantWriteError:
@@ -254,7 +254,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 and self.upstream \
                 and not self.upstream.closed \
                 and self.upstream.connection.fileno() in r:
-            logger.debug('Server is ready for reads, reading...')
+            logger.debug('Server is read ready, receiving...')
             try:
                 raw = self.upstream.recv(self.flags.server_recvbuf_size)
             except TimeoutError as e:
@@ -401,7 +401,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 pass
             finally:
                 # TODO: Unwrap if wrapped before close?
-                self.upstream.connection.close()
+                self.upstream.close()
         except TcpConnectionUninitializedException:
             pass
         finally:
@@ -587,10 +587,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         host, port = self.request.host, self.request.port
         if host and port:
             try:
-                logger.debug(
-                    'Connecting to upstream %s:%d' %
-                    (text_(host), port),
-                )
                 # Invoke plugin.resolve_dns
                 upstream_ip, source_addr = None, None
                 for plugin in self.plugins.values():
@@ -599,6 +595,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     )
                     if upstream_ip or source_addr:
                         break
+                logger.debug(
+                    'Connecting to upstream %s:%d' %
+                    (text_(host), port),
+                )
                 if self.flags.enable_conn_pool:
                     assert self.upstream_conn_pool
                     with self.lock:

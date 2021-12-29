@@ -23,9 +23,9 @@ class TestConnectionPool(unittest.TestCase):
     @mock.patch('proxy.core.connection.pool.TcpServerConnection')
     def test_acquire_and_release_and_reacquire(self, mock_tcp_server_connection: mock.Mock) -> None:
         pool = UpstreamConnectionPool()
-        addr = ('localhost', 1234)
         # Mock
         mock_conn = mock_tcp_server_connection.return_value
+        addr = mock_conn.addr
         mock_conn.is_reusable.side_effect = [
             False, True, True,
         ]
@@ -33,7 +33,7 @@ class TestConnectionPool(unittest.TestCase):
         # Acquire
         created, conn = pool.acquire(addr)
         self.assertTrue(created)
-        mock_tcp_server_connection.assert_called_once_with(*addr)
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
@@ -54,26 +54,25 @@ class TestConnectionPool(unittest.TestCase):
             self, mock_tcp_server_connection: mock.Mock,
     ) -> None:
         pool = UpstreamConnectionPool()
-        addr = ('localhost', 1234)
         # Mock
         mock_conn = mock_tcp_server_connection.return_value
         mock_conn.closed = True
-        mock_conn.addr = addr
+        addr = mock_conn.addr
         # Acquire
         created, conn = pool.acquire(addr)
         self.assertTrue(created)
-        mock_tcp_server_connection.assert_called_once_with(*addr)
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
         # Release
+        mock_conn.is_reusable.return_value = False
         pool.release(conn)
         self.assertEqual(len(pool.pools[addr]), 0)
         # Acquire
         created, conn = pool.acquire(addr)
         self.assertTrue(created)
         self.assertEqual(mock_tcp_server_connection.call_count, 2)
-        mock_conn.is_reusable.assert_not_called()
 
 
 class TestConnectionPoolAsync:
@@ -84,10 +83,10 @@ class TestConnectionPoolAsync:
             'proxy.core.connection.pool.TcpServerConnection',
         )
         pool = UpstreamConnectionPool()
-        addr = ('localhost', 1234)
         mock_conn = mock_tcp_server_connection.return_value
+        addr = mock_conn.addr
         pool.add(addr)
-        mock_tcp_server_connection.assert_called_once_with(*addr)
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
         mock_conn.connect.assert_called_once()
         events = await pool.get_events()
         print(events)

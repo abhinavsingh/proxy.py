@@ -88,6 +88,7 @@ class Threadless(ABC, Generic[T]):
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
         self._total: int = 0
         self._upstream_conn_pool: Optional[UpstreamConnectionPool] = None
+        self._upstream_conn_filenos: Set[int] = set()
         if self.flags.enable_conn_pool:
             self._upstream_conn_pool = UpstreamConnectionPool()
 
@@ -176,14 +177,25 @@ class Threadless(ABC, Generic[T]):
                         data=work_id,
                     )
                     self.registered_events_by_work_ids[work_id][fileno] = mask
-                    # logger.debug(
-                    #     'fd#{0} modified for mask#{1} by work#{2}'.format(
-                    #         fileno, mask, work_id,
-                    #     ),
-                    # )
+                    logger.debug(
+                        'fd#{0} modified for mask#{1} by work#{2}'.format(
+                            fileno, mask, work_id,
+                        ),
+                    )
                 # else:
                 #     logger.info(
                 #         'fd#{0} by work#{1} not modified'.format(fileno, work_id))
+            elif fileno in self._upstream_conn_filenos:
+                # Descriptor offered by work, but is already registered by connection pool
+                # Most likely because work has acquired a reusable connection.
+                self.selector.modify(fileno, events=mask, data=work_id)
+                self.registered_events_by_work_ids[work_id][fileno] = mask
+                self._upstream_conn_filenos.remove(fileno)
+                logger.debug(
+                    'fd#{0} borrowed with mask#{1} by work#{2}'.format(
+                        fileno, mask, work_id,
+                    ),
+                )
             # Can throw ValueError: Invalid file descriptor: -1
             #
             # A guard within Work classes may not help here due to
@@ -193,16 +205,33 @@ class Threadless(ABC, Generic[T]):
             #
             # TODO: Also remove offending work from pool to avoid spin loop.
             elif fileno != -1:
-                self.selector.register(
-                    fileno, events=mask,
-                    data=work_id,
-                )
+                self.selector.register(fileno, events=mask, data=work_id)
                 self.registered_events_by_work_ids[work_id][fileno] = mask
-                # logger.debug(
-                #     'fd#{0} registered for mask#{1} by work#{2}'.format(
-                #         fileno, mask, work_id,
-                #     ),
-                # )
+                logger.debug(
+                    'fd#{0} registered for mask#{1} by work#{2}'.format(
+                        fileno, mask, work_id,
+                    ),
+                )
+
+    async def _update_conn_pool_events(self) -> None:
+        if not self._upstream_conn_pool:
+            return
+        assert self.selector is not None
+        new_conn_pool_events = await self._upstream_conn_pool.get_events()
+        old_conn_pool_filenos = self._upstream_conn_filenos.copy()
+        self._upstream_conn_filenos.clear()
+        new_conn_pool_filenos = set(new_conn_pool_events.keys())
+        new_conn_pool_filenos.difference_update(old_conn_pool_filenos)
+        for fileno in new_conn_pool_filenos:
+            self.selector.register(
+                fileno,
+                events=new_conn_pool_events[fileno],
+                data=0,
+            )
+            self._upstream_conn_filenos.add(fileno)
+        old_conn_pool_filenos.difference_update(self._upstream_conn_filenos)
+        for fileno in old_conn_pool_filenos:
+            self.selector.unregister(fileno)
 
     async def _update_selector(self) -> None:
         assert self.selector is not None
@@ -215,6 +244,7 @@ class Threadless(ABC, Generic[T]):
             if work_id in unfinished_work_ids:
                 continue
             await self._update_work_events(work_id)
+        await self._update_conn_pool_events()
 
     async def _selected_events(self) -> Tuple[
             Dict[int, Tuple[Readables, Writables]],
@@ -235,9 +265,6 @@ class Threadless(ABC, Generic[T]):
         """
         assert self.selector is not None
         await self._update_selector()
-        events = self.selector.select(
-            timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT,
-        )
         # Keys are work_id and values are 2-tuple indicating
         # readables & writables that work_id is interested in
         # and are ready for IO.
@@ -248,6 +275,11 @@ class Threadless(ABC, Generic[T]):
             # When ``work_queue_fileno`` returns None,
             # always return True for the boolean value.
             new_work_available = True
+
+        events = self.selector.select(
+            timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT,
+        )
+
         for key, mask in events:
             if not new_work_available and wqfileno is not None and key.fileobj == wqfileno:
                 assert mask & selectors.EVENT_READ
@@ -302,9 +334,17 @@ class Threadless(ABC, Generic[T]):
         assert self.loop
         tasks: Set['asyncio.Task[bool]'] = set()
         for work_id in work_by_ids:
-            task = self.loop.create_task(
-                self.works[work_id].handle_events(*work_by_ids[work_id]),
-            )
+            if work_id == 0:
+                assert self._upstream_conn_pool
+                task = self.loop.create_task(
+                    self._upstream_conn_pool.handle_events(
+                        *work_by_ids[work_id],
+                    ),
+                )
+            else:
+                task = self.loop.create_task(
+                    self.works[work_id].handle_events(*work_by_ids[work_id]),
+                )
             task._work_id = work_id     # type: ignore[attr-defined]
             # task.set_name(work_id)
             tasks.add(task)
