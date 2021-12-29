@@ -12,6 +12,7 @@
 
        reusability
 """
+import socket
 import logging
 import selectors
 
@@ -45,11 +46,19 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
     A separate pool is maintained for each upstream server.
     So internally, it's a pool of pools.
 
-    TODO: Listen for read events from the connections
-    to remove them from the pool when peer closes the
-    connection.  This can also be achieved lazily by
-    the pool users.  Example, if acquired connection
-    is stale, reacquire.
+    Internal data structure maintains references to connection objects
+    that pool owns or has borrowed.  Borrowed connections are marked as
+    NOT reusable.
+
+    For reusable connections only, pool listens for read events
+    to detect broken connections.  This can happen if pool has opened
+    a connection, which was never used and eventually reaches
+    upstream server timeout limit.
+
+    When a borrowed connection is returned back to the pool,
+    the connection is marked as reusable again.  However, if
+    returned connection has already been closed, it is removed
+    from the internal datastructure.
 
     TODO: Ideally, `UpstreamConnectionPool` must be shared across
     all cores to make SSL session cache to also work
@@ -60,29 +69,25 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
     session cache, session ticket, abbr TLS handshake
     and other necessary features to make it work.
 
-    NOTE: However, for all HTTP only connections, `UpstreamConnectionPool`
-    can be used to save upon connection setup time and
-    speed-up performance of requests.
+    NOTE: However, currently for all HTTP only upstream connections,
+    `UpstreamConnectionPool` can be used to remove slow starts.
     """
 
     def __init__(self) -> None:
-        # Pools of connection per upstream server
         self.connections: Dict[int, TcpServerConnection] = {}
         self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
 
     def add(self, addr: Tuple[str, int]) -> TcpServerConnection:
-        # Create new connection
+        """Creates and add a new connection to the pool."""
         new_conn = TcpServerConnection(addr[0], addr[1])
         new_conn.connect()
-        if addr not in self.pools:
-            self.pools[addr] = set()
-        self.pools[addr].add(new_conn)
-        self.connections[new_conn.connection.fileno()] = new_conn
+        self._add(new_conn)
         return new_conn
 
     def acquire(self, addr: Tuple[str, int]) -> Tuple[bool, TcpServerConnection]:
-        """Returns a connection for use with the server."""
-        # Return a reusable connection if available
+        """Returns a reusable connection from the pool.
+
+        If none exists, will create and return a new connection."""
         if addr in self.pools:
             for old_conn in self.pools[addr]:
                 if old_conn.is_reusable():
@@ -102,40 +107,62 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         return True, new_conn
 
     def release(self, conn: TcpServerConnection) -> None:
-        """Release the connection.
+        """Release a previously acquired connection.
 
         If the connection has not been closed,
         then it will be retained in the pool for reusability.
         """
+        assert not conn.is_reusable()
         if conn.closed:
             logger.debug(
                 'Removing connection#{2} from pool from upstream {0}:{1}'.format(
                     conn.addr[0], conn.addr[1], id(conn),
                 ),
             )
-            self.pools[conn.addr].remove(conn)
+            self._remove(conn.connection.fileno())
         else:
             logger.debug(
                 'Retaining connection#{2} to upstream {0}:{1}'.format(
                     conn.addr[0], conn.addr[1], id(conn),
                 ),
             )
-            assert not conn.is_reusable()
             # Reset for reusability
             conn.reset()
 
     async def get_events(self) -> Dict[int, int]:
+        """Returns read event flag for all reusable connections in the pool."""
         events = {}
         for connections in self.pools.values():
             for conn in connections:
-                events[conn.connection.fileno()] = selectors.EVENT_READ
+                if conn.is_reusable():
+                    events[conn.connection.fileno()] = selectors.EVENT_READ
         return events
 
     async def handle_events(self, readables: Readables, _writables: Writables) -> bool:
-        for r in readables:
+        """Removes reusable connection from the pool.
+
+        When pool is the owner of connection, we don't expect a read event from upstream
+        server.  A read event means either upstream closed the connection or connection
+        has somehow reached an illegal state e.g. upstream sending data for previous
+        connection acquisition lifecycle."""
+        for fileno in readables:
             if TYPE_CHECKING:
-                assert isinstance(r, int)
-            conn = self.connections[r]
-            self.pools[conn.addr].remove(conn)
-            del self.connections[r]
+                assert isinstance(fileno, int)
+            self._remove(fileno)
         return False
+
+    def _add(self, conn: TcpServerConnection) -> None:
+        """Adds a new connection to internal data structure."""
+        if conn.addr not in self.pools:
+            self.pools[conn.addr] = set()
+        self.pools[conn.addr].add(conn)
+        self.connections[conn.connection.fileno()] = conn
+
+    def _remove(self, fileno: int) -> None:
+        """Remove a connection by fileno from internal data structure."""
+        conn = self.connections[fileno]
+        logger.debug('Removing conn#{0} from pool'.format(id(conn)))
+        conn.connection.shutdown(socket.SHUT_WR)
+        conn.close()
+        self.pools[conn.addr].remove(conn)
+        del self.connections[fileno]
