@@ -41,26 +41,23 @@ class TlsParser:
         if length < 5:
             logger.debug('invalid data, len(raw) = %s', length)
             return False, raw
-        else:
-            payload_length, = struct.unpack('!H', raw[3:5])
-            self.protocol_version
-            if length < 5 + payload_length:
-                logger.debug(
-                    'incomplete data, len(raw) = %s, len(payload) = %s', length, payload_length,
-                )
-                return False, raw
-            else:
-                # parse
-                self.content_type = raw[0]
-                # ???
-                self.protocol_version = raw[1:3]
-                self.length = raw[3:5]
-                payload = raw[5:5 + payload_length]
-                if self.content_type == tlsContentType.HANDSHAKE:
-                    # parse handshake
-                    self.handshake = TlsHandshake()
-                    self.handshake.parse(payload)
-                return True, raw[5 + payload_length:]
+        payload_length, = struct.unpack('!H', raw[3:5])
+        self.protocol_version
+        if length < 5 + payload_length:
+            logger.debug(
+                'incomplete data, len(raw) = %s, len(payload) = %s', length, payload_length,
+            )
+            return False, raw
+        # parse
+        self.content_type = raw[0]
+        self.protocol_version = raw[1:3]
+        self.length = raw[3:5]
+        payload = raw[5:5 + payload_length]
+        if self.content_type == tlsContentType.HANDSHAKE:
+            # parse handshake
+            self.handshake = TlsHandshake()
+            self.handshake.parse(payload)
+        return True, raw[5 + payload_length:]
 
     def build(self) -> bytes:
         data = b''

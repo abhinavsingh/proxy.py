@@ -45,60 +45,59 @@ class TlsHandshake:
         if length < 4:
             logger.debug('invalid data, len(raw) = %s', length)
             return False, raw
-        else:
-            payload_length, = struct.unpack('!I', b'\x00' + raw[1:4])
-            self.length = payload_length
-            if length < 4 + payload_length:
-                logger.debug(
-                    'incomplete data, len(raw) = %s, len(payload) = %s', length, payload_length,
-                )
-                return False, raw
-            # parse
-            self.msg_type = raw[0]
-            self.length = raw[1:4]
-            self.data = raw[: 4 + payload_length]
-            payload = raw[4: 4 + payload_length]
-            if self.msg_type == tlsHandshakeType.HELLO_REQUEST:
-                # parse hello request
-                self.hello_request = TlsHelloRequest()
-                self.hello_request.parse(payload)
-            elif self.msg_type == tlsHandshakeType.CLIENT_HELLO:
-                # parse client hello
-                self.client_hello = TlsClientHello()
-                self.client_hello.parse(payload)
-            elif self.msg_type == tlsHandshakeType.SERVER_HELLO:
-                # parse server hello
-                self.server_hello = TlsServerHello()
-                self.server_hello.parse(payload)
-            elif self.msg_type == tlsHandshakeType.CERTIFICATE:
-                # parse certificate
-                self.certificate = TlsCertificate()
-                self.certificate.parse(payload)
-            elif self.msg_type == tlsHandshakeType.SERVER_KEY_EXCHANGE:
-                # parse server key exchange
-                self.server_key_exchange = TlsServerKeyExchange()
-                self.server_key_exchange.parse(payload)
-            elif self.msg_type == tlsHandshakeType.CERTIFICATE_REQUEST:
-                # parse certificate request
-                self.certificate_request = TlsCertificateRequest()
-                self.certificate_request.parse(payload)
-            elif self.msg_type == tlsHandshakeType.SERVER_HELLO_DONE:
-                # parse server hello done
-                self.server_hello_done = TlsServerHelloDone()
-                self.server_hello_done.parse(payload)
-            elif self.msg_type == tlsHandshakeType.CERTIFICATE_VERIFY:
-                # parse certificate verify
-                self.certificate_verify = TlsCertificateVerify()
-                self.certificate_verify.parse(payload)
-            elif self.msg_type == tlsHandshakeType.CLIENT_KEY_EXCHANGE:
-                # parse client key exchange
-                self.client_key_exchange = TlsClientKeyExchange()
-                self.client_key_exchange.parse(payload)
-            elif self.msg_type == tlsHandshakeType.FINISHED:
-                # parse finished
-                self.finished = TlsFinished()
-                self.finished.parse(payload)
-            return True, raw[4 + payload_length:]
+        payload_length, = struct.unpack('!I', b'\x00' + raw[1:4])
+        self.length = payload_length
+        if length < 4 + payload_length:
+            logger.debug(
+                'incomplete data, len(raw) = %s, len(payload) = %s', length, payload_length,
+            )
+            return False, raw
+        # parse
+        self.msg_type = raw[0]
+        self.length = raw[1:4]
+        self.data = raw[: 4 + payload_length]
+        payload = raw[4: 4 + payload_length]
+        if self.msg_type == tlsHandshakeType.HELLO_REQUEST:
+            # parse hello request
+            self.hello_request = TlsHelloRequest()
+            self.hello_request.parse(payload)
+        elif self.msg_type == tlsHandshakeType.CLIENT_HELLO:
+            # parse client hello
+            self.client_hello = TlsClientHello()
+            self.client_hello.parse(payload)
+        elif self.msg_type == tlsHandshakeType.SERVER_HELLO:
+            # parse server hello
+            self.server_hello = TlsServerHello()
+            self.server_hello.parse(payload)
+        elif self.msg_type == tlsHandshakeType.CERTIFICATE:
+            # parse certificate
+            self.certificate = TlsCertificate()
+            self.certificate.parse(payload)
+        elif self.msg_type == tlsHandshakeType.SERVER_KEY_EXCHANGE:
+            # parse server key exchange
+            self.server_key_exchange = TlsServerKeyExchange()
+            self.server_key_exchange.parse(payload)
+        elif self.msg_type == tlsHandshakeType.CERTIFICATE_REQUEST:
+            # parse certificate request
+            self.certificate_request = TlsCertificateRequest()
+            self.certificate_request.parse(payload)
+        elif self.msg_type == tlsHandshakeType.SERVER_HELLO_DONE:
+            # parse server hello done
+            self.server_hello_done = TlsServerHelloDone()
+            self.server_hello_done.parse(payload)
+        elif self.msg_type == tlsHandshakeType.CERTIFICATE_VERIFY:
+            # parse certificate verify
+            self.certificate_verify = TlsCertificateVerify()
+            self.certificate_verify.parse(payload)
+        elif self.msg_type == tlsHandshakeType.CLIENT_KEY_EXCHANGE:
+            # parse client key exchange
+            self.client_key_exchange = TlsClientKeyExchange()
+            self.client_key_exchange.parse(payload)
+        elif self.msg_type == tlsHandshakeType.FINISHED:
+            # parse finished
+            self.finished = TlsFinished()
+            self.finished.parse(payload)
+        return True, raw[4 + payload_length:]
 
     def build(self) -> bytes:
         data = b''
