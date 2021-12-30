@@ -9,9 +9,10 @@
     :license: BSD, see LICENSE for more details.
 """
 import re
-import os
 import unittest
 import binascii
+
+from pathlib import Path
 
 from proxy.http.parser.tls import TlsParser, tlsContentType, tlsHandshakeType
 
@@ -50,19 +51,16 @@ class TestTlsParser(unittest.TestCase):
         )
 
     def test_parse_server_hello(self) -> None:
-        data = open(
-            os.path.join(
-                os.path.dirname(__file__),
-                'tls_server_hello.data',
-            ), 'r',
-        ).read()
-        tls = TlsParser()
-        tls.parse(self._unhexlify(data))
-        self.assertEqual(tls.content_type, tlsContentType.HANDSHAKE)
-        assert tls.handshake
-        self.assertEqual(tls.handshake.msg_type, tlsHandshakeType.SERVER_HELLO)
-        assert tls.handshake.server_hello
-        self.assertEqual(
-            tls.handshake.server_hello.protocol_version, b'\x03\x03',
-        )
-        print(tls.handshake.server_hello.format())
+        with open(Path(__file__).parent / 'tls_server_hello.data', 'rb') as f:
+            data = f.read()
+            tls = TlsParser()
+            tls.parse(self._unhexlify(data.decode("utf-8")))
+            self.assertEqual(tls.content_type, tlsContentType.HANDSHAKE)
+            assert tls.handshake
+            self.assertEqual(tls.handshake.msg_type,
+                             tlsHandshakeType.SERVER_HELLO)
+            assert tls.handshake.server_hello
+            self.assertEqual(
+                tls.handshake.server_hello.protocol_version, b'\x03\x03',
+            )
+            print(tls.handshake.server_hello.format())
