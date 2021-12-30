@@ -206,7 +206,7 @@ spelling_word_list_filename = [
     'spelling_wordlist.txt',
 ]
 spelling_exclude_patterns = [
-    'tests/http/tls_server_hello.data',
+    '**/tls_server_hello.data',
 ]
 
 # -- Options for extlinks extension ------------------------------------------
@@ -222,7 +222,10 @@ extlinks = {
 # -- Options for linkcheck builder -------------------------------------------
 
 linkcheck_ignore = [
-    r'http://localhost:\d+/',  # local URLs
+    # local URLs
+    r'http://localhost:\d+/',
+    # GHA sees "403 Client Error: Forbidden for url"
+    r'https://developers.cloudflare.com/',
 ]
 linkcheck_workers = 25
 
