@@ -32,10 +32,13 @@ class TlsParser:
         self.certificate: Optional[TlsCertificate]
 
     def parse(self, raw: bytes) -> Tuple[bool, bytes]:
-        """parse TLS fragmentation
-        Ref: https://datatracker.ietf.org/doc/html/rfc5246#page-15
-             https://datatracker.ietf.org/doc/html/rfc5077#page-3
-             https://datatracker.ietf.org/doc/html/rfc8446#page-10
+        """Parse TLS fragmentation.
+
+        References:
+
+        https://datatracker.ietf.org/doc/html/rfc5246#page-15
+        https://datatracker.ietf.org/doc/html/rfc5077#page-3
+        https://datatracker.ietf.org/doc/html/rfc8446#page-10
         """
         length = len(raw)
         if length < 5:
