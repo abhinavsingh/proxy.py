@@ -54,11 +54,13 @@ class TestTlsParser(unittest.TestCase):
         with open(Path(__file__).parent / 'tls_server_hello.data', 'rb') as f:
             data = f.read()
             tls = TlsParser()
-            tls.parse(self._unhexlify(data.decode("utf-8")))
+            tls.parse(self._unhexlify(data.decode('utf-8')))
             self.assertEqual(tls.content_type, tlsContentType.HANDSHAKE)
             assert tls.handshake
-            self.assertEqual(tls.handshake.msg_type,
-                             tlsHandshakeType.SERVER_HELLO)
+            self.assertEqual(
+                tls.handshake.msg_type,
+                tlsHandshakeType.SERVER_HELLO,
+            )
             assert tls.handshake.server_hello
             self.assertEqual(
                 tls.handshake.server_hello.protocol_version, b'\x03\x03',
