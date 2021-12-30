@@ -48,7 +48,6 @@ def get_trx_results(trx):
             evm_loader_instructions.append(idx)
 
     slot = trx['slot']
-    block_number = hex(slot)
     got_result = False
     logs = []
     status = "0x1"
@@ -77,7 +76,7 @@ def get_trx_results(trx):
                             'data': '0x'+data.hex(),
                             'transactionLogIndex': hex(0),
                             'transactionIndex': hex(inner['index']),
-                            'blockNumber': block_number,
+                            # 'blockNumber': block_number, # set when transaction found
                             # 'transactionHash': trxId, # set when transaction found
                             'logIndex': hex(log_index),
                             # 'blockHash': block_hash # set when transaction found
@@ -227,7 +226,7 @@ class LogDB:
             queries.append("blockHash = %s")
             params.append(blockHash)
 
-        if topics is not None:
+        if topics is not None and len(topics) > 0:
             topics = [item.lower() for item in topics]
             query_placeholder = ", ".join(["%s" for _ in range(len(topics))])
             topics_query = f"topic IN ({query_placeholder})"
@@ -240,7 +239,7 @@ class LogDB:
                 address = address.lower()
                 queries.append("address = %s")
                 params.append(address)
-            elif isinstance(address, list):
+            elif isinstance(address, list) and len(address) > 0:
                 address = [item.lower() for item in address]
                 query_placeholder = ", ".join(["%s" for _ in range(len(address))])
                 address_query = f"address IN ({query_placeholder})"

@@ -20,10 +20,11 @@ from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, A
 from .emulator_interactor import call_emulated
 from .layouts import ACCOUNT_INFO_LAYOUT
 from .neon_instruction import NeonInstruction
-from .solana_interactor import SolanaInteractor, check_if_continue_returned, \
+from .solana_interactor import SolanaInteractor, \
     check_if_program_exceeded_instructions, check_for_errors
 from ..environment import EVM_LOADER_ID
 from ..plugin.eth_proto import Trx as EthTrx
+from ..indexer.utils import get_trx_results
 
 
 logger = logging.getLogger(__name__)
@@ -320,7 +321,7 @@ class NoniterativeTransactionSender:
                 raise Exception("Program failed to complete")
             raise Exception(json.dumps(result['result']['meta']))
 
-        return result['result']['transaction']['signatures'][0]
+        return (get_trx_results(result["result"]), result['result']['transaction']['signatures'][0])
 
 
 class IterativeTransactionSender:
@@ -406,9 +407,9 @@ class IterativeTransactionSender:
         while True:
             logger.debug("Continue iterative step:")
             result = self.call_continue_step()
-            signature = check_if_continue_returned(result)
-            if signature is not None:
-                return signature
+            get_result = get_trx_results(result["result"])
+            if get_result is not None:
+                return (get_result, result['result']['transaction']['signatures'][0])
 
 
     def call_continue_step(self):
@@ -433,7 +434,7 @@ class IterativeTransactionSender:
 
         logger.debug("Cancel")
         result = self.sender.send_measured_transaction(trx, self.eth_trx, 'CancelWithNonce')
-        return result['result']['transaction']['signatures'][0]
+        return (([], "0x0", 0, [], result['result']['slot']), result['result']['transaction']['signatures'][0])
 
 
     def call_continue_bucked(self):
@@ -482,6 +483,6 @@ class IterativeTransactionSender:
         result_list = self.sender.collect_results(receipts, eth_trx=self.eth_trx, reason=reason)
         for result in result_list:
             self.sender.get_measurements(result)
-            signature = check_if_continue_returned(result)
-            if signature:
-                return signature
+            get_result = get_trx_results(result["result"])
+            if get_result:
+                return (get_result, result['result']['transaction']['signatures'][0])
