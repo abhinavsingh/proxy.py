@@ -2,12 +2,10 @@ import base58
 import logging
 
 try:
-    from indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
-    from utils import check_error, get_trx_results, get_trx_receipts, LogDB, Canceller
+    from utils import LogDB
     from sql_dict import SQLDict
 except ImportError:
-    from .indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
-    from .utils import check_error, get_trx_results, get_trx_receipts, LogDB, Canceller
+    from .utils import LogDB
     from .sql_dict import SQLDict
 
 logger = logging.getLogger(__name__)

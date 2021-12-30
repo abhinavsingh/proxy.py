@@ -86,9 +86,6 @@ class Indexer(IndexerBase):
             max_slot = max(max_slot, slot)
             counter += 1
 
-            if signature in self.db.sol_eth_trx:
-                continue
-
             if trx['transaction']['message']['instructions'] is not None:
                 for instruction in trx['transaction']['message']['instructions']:
 
@@ -416,6 +413,7 @@ class Indexer(IndexerBase):
                         pass
 
         for eth_signature, trx_struct in trx_table.items():
+            logger.debug(f"{eth_signature} {trx_struct.__dict__}")
             if trx_struct.got_result is not None:
                 seen_slots.difference_update(trx_struct.slot)
                 self.db.submit_transaction(
@@ -445,7 +443,6 @@ class Indexer(IndexerBase):
 
         process_receipts_ms = (time.time() - start_time)*1000  # convert this into milliseconds
         logger.debug(f"process_receipts_ms: {process_receipts_ms} transaction_receipts.len: {self.transaction_receipts.size()} from {self.processed_slot} to {self.current_slot} slots")
-
 
 
     def gather_blocks(self):
