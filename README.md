@@ -2232,7 +2232,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0rc5.dev11+ga872675.d20211225
+proxy.py v2.4.0rc5.dev26+gb2b1bdc.d20211230
 
 options:
   -h, --help            show this help message and exit

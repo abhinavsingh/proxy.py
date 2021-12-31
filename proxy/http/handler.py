@@ -307,7 +307,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # Discover which HTTP handler plugin is capable of
             # handling the current incoming request
             klass = self._discover_plugin_klass(
-                self.request.http_handler_protocol)
+                self.request.http_handler_protocol,
+            )
             if klass is None:
                 # No matching protocol class found.
                 # Return bad request response and
