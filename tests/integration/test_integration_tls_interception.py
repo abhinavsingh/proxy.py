@@ -40,6 +40,11 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--hostname', '127.0.0.1',
         '--port', str(port),
         '--enable-web-server',
+        '--plugins', 'proxy.plugin.CacheResponsesPlugin',
+        '--plugins', 'proxy.plugin.ModifyChunkResponsePlugin',
+        '--ca-key-file ca-key.pem',
+        '--ca-cert-file', 'ca-cert.pem',
+        '--ca-signing-key', 'ca-signing-key.pem'
     ) + tuple(request.param.split())
     proxy_proc = Popen(proxy_cmd)
     try:
@@ -70,7 +75,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     raises=OSError,
 )  # type: ignore[misc]
 def test_integration(proxy_py_subprocess: int) -> None:
-    """An acceptance test using ``curl`` through proxy.py."""
+    """An acceptance test using ``curl`` through proxy.py under TLS interception."""
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
     check_output([str(shell_script_test), str(proxy_py_subprocess)])
