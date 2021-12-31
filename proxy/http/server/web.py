@@ -27,6 +27,7 @@ from ..exception import HttpProtocolException
 from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..parser import HttpParser, httpParserTypes
+from ..protocols import httpProtocols
 from ..responses import NOT_FOUND_RESPONSE_PKT, NOT_IMPLEMENTED_RESPONSE_PKT, okResponse
 
 from .plugin import HttpWebServerBasePlugin
@@ -94,6 +95,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
             self._initialize_web_plugins()
 
+    @staticmethod
+    def protocols() -> List[int]:
+        return [httpProtocols.WEB_SERVER]
+
     def _initialize_web_plugins(self) -> None:
         for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
             instance: HttpWebServerBasePlugin = klass(
@@ -153,8 +158,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
-        if self.request.has_host():
-            return False
         path = self.request.path or b'/'
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
@@ -262,8 +265,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         return chunk
 
     def on_client_connection_close(self) -> None:
-        if self.request.has_host():
-            return
         context = {
             'client_ip': None if not self.client.addr else self.client.addr[0],
             'client_port': None if not self.client.addr else self.client.addr[1],

@@ -190,7 +190,7 @@ class TestHttpProtocolHandler(Assertions):
         self.assertTrue(
             cast(
                 HttpProxyPlugin,
-                self.protocol_handler.plugins['HttpProxyPlugin'],
+                self.protocol_handler.plugin,
             ).upstream is not None,
         )
         self.assertEqual(

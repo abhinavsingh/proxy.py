@@ -93,15 +93,8 @@ class TestHttpProxyTlsInterception(Assertions):
         )
         self.protocol_handler.initialize()
 
-        self.plugin.assert_called()
-        self.assertEqual(self.plugin.call_args[0][1], self.flags)
-        self.assertEqual(self.plugin.call_args[0][2].connection, self._conn)
-        self.proxy_plugin.assert_called()
-        self.assertEqual(self.proxy_plugin.call_args[0][1], self.flags)
-        self.assertEqual(
-            self.proxy_plugin.call_args[0][2].connection,
-            self._conn,
-        )
+        self.plugin.assert_not_called()
+        self.proxy_plugin.assert_not_called()
 
         connect_request = build_http_request(
             httpMethods.CONNECT, bytes_(netloc),
@@ -112,15 +105,15 @@ class TestHttpProxyTlsInterception(Assertions):
         self._conn.recv.return_value = connect_request
 
         # Prepare mocked HttpProtocolHandlerPlugin
-        async def asyncReturnBool(val: bool) -> bool:
-            return val
-        self.plugin.return_value.get_descriptors.return_value = ([], [])
-        self.plugin.return_value.write_to_descriptors.return_value = asyncReturnBool(False)
-        self.plugin.return_value.read_from_descriptors.return_value = asyncReturnBool(False)
-        self.plugin.return_value.on_client_data.side_effect = lambda raw: raw
-        self.plugin.return_value.on_request_complete.return_value = False
-        self.plugin.return_value.on_response_chunk.side_effect = lambda chunk: chunk
-        self.plugin.return_value.on_client_connection_close.return_value = None
+        # async def asyncReturnBool(val: bool) -> bool:
+        #     return val
+        # self.plugin.return_value.get_descriptors.return_value = ([], [])
+        # self.plugin.return_value.write_to_descriptors.return_value = asyncReturnBool(False)
+        # self.plugin.return_value.read_from_descriptors.return_value = asyncReturnBool(False)
+        # self.plugin.return_value.on_client_data.side_effect = lambda raw: raw
+        # self.plugin.return_value.on_request_complete.return_value = False
+        # self.plugin.return_value.on_response_chunk.side_effect = lambda chunk: chunk
+        # self.plugin.return_value.on_client_connection_close.return_value = None
 
         # Prepare mocked HttpProxyBasePlugin
         self.proxy_plugin.return_value.write_to_descriptors.return_value = False
@@ -143,15 +136,29 @@ class TestHttpProxyTlsInterception(Assertions):
 
         await self.protocol_handler._run_once()
 
+        # Assert correct plugin was initialized
+        self.plugin.assert_not_called()
+        self.proxy_plugin.assert_called_once()
+        self.assertEqual(self.proxy_plugin.call_args[0][1], self.flags)
+        # Actual call arg must be `_conn` object
+        # but because internally the reference is updated
+        # we assert it against `mock_ssl_wrap` which is
+        # called during proxy plugin initialization
+        # for interception
+        self.assertEqual(
+            self.proxy_plugin.call_args[0][2].connection,
+            self.mock_ssl_wrap.return_value,
+        )
+
         # Assert our mocked plugins invocations
-        self.plugin.return_value.get_descriptors.assert_called()
-        self.plugin.return_value.write_to_descriptors.assert_called_with([])
-        # on_client_data is only called after initial request has completed
-        self.plugin.return_value.on_client_data.assert_not_called()
-        self.plugin.return_value.on_request_complete.assert_called()
-        self.plugin.return_value.read_from_descriptors.assert_called_with([
-            self._conn.fileno(),
-        ])
+        # self.plugin.return_value.get_descriptors.assert_called()
+        # self.plugin.return_value.write_to_descriptors.assert_called_with([])
+        # # on_client_data is only called after initial request has completed
+        # self.plugin.return_value.on_client_data.assert_not_called()
+        # self.plugin.return_value.on_request_complete.assert_called()
+        # self.plugin.return_value.read_from_descriptors.assert_called_with([
+        #     self._conn.fileno(),
+        # ])
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
         self.proxy_plugin.return_value.handle_client_request.assert_called()
 
@@ -198,10 +205,10 @@ class TestHttpProxyTlsInterception(Assertions):
         )
 
         # Assert connection references for all other plugins is updated
-        self.assertEqual(
-            self.plugin.return_value.client._conn,
-            self.mock_ssl_wrap.return_value,
-        )
+        # self.assertEqual(
+        #     self.plugin.return_value.client._conn,
+        #     self.mock_ssl_wrap.return_value,
+        # )
         self.assertEqual(
             self.proxy_plugin.return_value.client._conn,
             self.mock_ssl_wrap.return_value,
