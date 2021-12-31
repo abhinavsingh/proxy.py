@@ -303,30 +303,30 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         # TODO(abhinavsingh): Remove .tobytes after parser is
         # memoryview compliant
         self.request.parse(data.tobytes())
-        if self.request.is_complete:
-            # Discover which HTTP handler plugin is capable of
-            # handling the current incoming request
-            klass = self._discover_plugin_klass(
-                self.request.http_handler_protocol,
-            )
-            if klass is None:
-                # No matching protocol class found.
-                # Return bad request response and
-                # close the connection.
-                self.work.queue(BAD_REQUEST_RESPONSE_PKT)
-                return True
-            assert klass is not None
-            self.plugin = self._initialize_plugin(klass)
-            # Invoke plugin.on_request_complete
-            upgraded_sock = self.plugin.on_request_complete()
-            if isinstance(upgraded_sock, ssl.SSLSocket):
-                logger.debug(
-                    'Updated client conn to %s', upgraded_sock,
-                )
-                self.work._conn = upgraded_sock
-            elif isinstance(upgraded_sock, bool) \
-                    and upgraded_sock is True:
-                return True
+        if not self.request.is_complete:
+            return False
+        # Discover which HTTP handler plugin is capable of
+        # handling the current incoming request
+        klass = self._discover_plugin_klass(
+            self.request.http_handler_protocol,
+        )
+        if klass is None:
+            # No matching protocol class found.
+            # Return bad request response and
+            # close the connection.
+            self.work.queue(BAD_REQUEST_RESPONSE_PKT)
+            return True
+        assert klass is not None
+        self.plugin = self._initialize_plugin(klass)
+        # Invoke plugin.on_request_complete
+        output = self.plugin.on_request_complete()
+        if isinstance(output, bool):
+            return output
+        assert isinstance(output, ssl.SSLSocket)
+        logger.debug(
+            'Updated client conn to %s', output,
+        )
+        self.work._conn = output
         return False
 
     def _encryption_enabled(self) -> bool:
