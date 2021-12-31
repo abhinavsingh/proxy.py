@@ -47,8 +47,8 @@ class TestHttpProxyPlugin:
         )
         self.protocol_handler.initialize()
 
-    def test_proxy_plugin_initialized(self) -> None:
-        self.plugin.assert_called()
+    def test_proxy_plugin_not_initialized_unless_first_request_completes(self) -> None:
+        self.plugin.assert_not_called()
 
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_plugin_on_and_before_upstream_connection(self) -> None:

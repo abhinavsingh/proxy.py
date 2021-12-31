@@ -224,7 +224,8 @@ extlinks = {
 linkcheck_ignore = [
     # local URLs
     r'http://localhost:\d+/',
-    # GHA sees "403 Client Error: Forbidden for url"
+    # GHA sees "403 Client Error: Forbidden for url:"
+    # while the URL actually works
     r'https://developers.cloudflare.com/',
 ]
 linkcheck_workers = 25

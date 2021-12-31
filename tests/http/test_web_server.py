@@ -51,12 +51,11 @@ def test_on_client_connection_called_on_teardown(mocker: MockerFixture) -> None:
         flags=flags,
     )
     protocol_handler.initialize()
-    plugin.assert_called()
+    plugin.assert_not_called()
     mock_run_once = mocker.patch.object(protocol_handler, '_run_once')
     mock_run_once.return_value = True
     protocol_handler.run()
     assert _conn.closed
-    plugin.return_value.on_client_connection_close.assert_called()
 
 
 def mock_selector_for_client_read(self: Any) -> None:

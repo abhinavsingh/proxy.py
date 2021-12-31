@@ -46,6 +46,18 @@ PROXY_AUTH_FAILED_RESPONSE_PKT = memoryview(
     ),
 )
 
+BAD_REQUEST_RESPONSE_PKT = memoryview(
+    build_http_response(
+        httpStatusCodes.BAD_REQUEST,
+        reason=b'BAD REQUEST',
+        headers={
+            b'Server': PROXY_AGENT_HEADER_VALUE,
+            b'Content-Length': b'0',
+        },
+        conn_close=True,
+    ),
+)
+
 NOT_FOUND_RESPONSE_PKT = memoryview(
     build_http_response(
         httpStatusCodes.NOT_FOUND,
