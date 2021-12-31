@@ -28,6 +28,7 @@ from .plugin import HttpProxyBasePlugin
 
 from ..headers import httpHeaders
 from ..methods import httpMethods
+from ..protocols import httpProtocols
 from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes
@@ -162,6 +163,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 )
                 self.plugins[instance.name()] = instance
 
+    @staticmethod
+    def protocols() -> List[int]:
+        return [httpProtocols.HTTP_PROXY]
+
     def tls_interception_enabled(self) -> bool:
         return self.flags.ca_key_file is not None and \
             self.flags.ca_cert_dir is not None and \
@@ -169,8 +174,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.flags.ca_cert_file is not None
 
     def get_descriptors(self) -> Tuple[List[int], List[int]]:
-        if not self.request.has_host():
-            return [], []
         r: List[int] = []
         w: List[int] = []
         if (
@@ -213,8 +216,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 teardown = plugin.write_to_descriptors(w)
                 if teardown:
                     return True
-        elif self.request.has_host() and \
-                self.upstream and not self.upstream.closed and \
+        elif self.upstream and not self.upstream.closed and \
                 self.upstream.has_buffer() and \
                 self.upstream.connection.fileno() in w:
             logger.debug('Server is write ready, flushing...')
@@ -250,8 +252,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 teardown = plugin.read_from_descriptors(r)
                 if teardown:
                     return True
-        elif self.request.has_host() \
-                and self.upstream \
+        elif self.upstream \
                 and not self.upstream.closed \
                 and self.upstream.connection.fileno() in r:
             logger.debug('Server is read ready, receiving...')
@@ -315,9 +316,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def on_client_connection_close(self) -> None:
-        if not self.request.has_host():
-            return
-
         context = {
             'client_ip': None if not self.client.addr else self.client.addr[0],
             'client_port': None if not self.client.addr else self.client.addr[1],
@@ -429,9 +427,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     # Can return None to tear down connection
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
-        if not self.request.has_host():
-            return raw
-
         # For scenarios when an upstream connection was never established,
         # let plugin do whatever they wish to.  These are special scenarios
         # where plugins are trying to do something magical.  Within the core
@@ -500,9 +495,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
-        if not self.request.has_host():
-            return False
-
         self.emit_request_complete()
 
         # Invoke plugin.before_upstream_connection
@@ -888,7 +880,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_request_complete(self) -> None:
         if not self.flags.enable_events:
             return
-        assert self.request.port
+        assert self.request.port and self.event_queue
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.REQUEST_COMPLETE,
@@ -923,6 +915,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_headers_complete(self) -> None:
         if not self.flags.enable_events:
             return
+        assert self.event_queue
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.RESPONSE_HEADERS_COMPLETE,
@@ -940,6 +933,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_chunk_received(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
+        assert self.event_queue
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.RESPONSE_CHUNK_RECEIVED,
@@ -953,6 +947,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_complete(self) -> None:
         if not self.flags.enable_events:
             return
+        assert self.event_queue
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.RESPONSE_COMPLETE,
