@@ -34,7 +34,7 @@ class TlsParser:
     def parse(self, raw: bytes) -> Tuple[bool, bytes]:
         """Parse TLS fragmentation.
 
-        References:
+        References
 
         https://datatracker.ietf.org/doc/html/rfc5246#page-15
         https://datatracker.ietf.org/doc/html/rfc5077#page-3
