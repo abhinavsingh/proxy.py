@@ -279,7 +279,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             self,
             klass: Type['HttpProtocolHandlerPlugin'],
     ) -> HttpProtocolHandlerPlugin:
-        """Initializes passed HTTP protocol handler plugin klass."""
+        """Initializes passed HTTP protocol handler plugin class."""
         return klass(
             self.uid,
             self.flags,
@@ -293,8 +293,9 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         """Discovers and return matching HTTP handler plugin matching protocol."""
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
-                if protocol in klass.protocols():
-                    return klass
+                k: Type['HttpProtocolHandlerPlugin'] = klass
+                if protocol in k.protocols():
+                    return k
         return None
 
     def _parse_first_request(self, data: memoryview) -> bool:
