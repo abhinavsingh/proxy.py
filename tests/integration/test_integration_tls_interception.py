@@ -44,7 +44,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--plugins', 'proxy.plugin.ModifyChunkResponsePlugin',
         '--ca-key-file ca-key.pem',
         '--ca-cert-file', 'ca-cert.pem',
-        '--ca-signing-key', 'ca-signing-key.pem'
+        '--ca-signing-key', 'ca-signing-key.pem',
     ) + tuple(request.param.split())
     proxy_proc = Popen(proxy_cmd)
     try:
