@@ -45,7 +45,6 @@ class TlsParser:
             logger.debug('invalid data, len(raw) = %s', length)
             return False, raw
         payload_length, = struct.unpack('!H', raw[3:5])
-        self.protocol_version
         if length < 5 + payload_length:
             logger.debug(
                 'incomplete data, len(raw) = %s, len(payload) = %s', length, payload_length,

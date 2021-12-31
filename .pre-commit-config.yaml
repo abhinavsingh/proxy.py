@@ -136,6 +136,7 @@ repos:
   - id: codespell
     exclude: >-
       ^.+\.min\.js$
+      ^.data$
 
 - repo: https://github.com/adrienverge/yamllint.git
   rev: v1.26.2
