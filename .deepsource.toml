@@ -7,7 +7,6 @@ test_patterns = [
 
 exclude_patterns = [
     "helper/**",
-    "menubar/**"
 ]
 
 [[analyzers]]
