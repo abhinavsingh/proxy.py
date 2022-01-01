@@ -39,10 +39,9 @@ flags.add_argument(
     '--client-recvbuf-size',
     type=int,
     default=DEFAULT_CLIENT_RECVBUF_SIZE,
-    help='Default: 1 MB. Maximum amount of data received from the '
-    'client in a single recv() operation. Bump this '
-    'value for faster uploads at the expense of '
-    'increased RAM.',
+    help='Default: ' + str(int(DEFAULT_CLIENT_RECVBUF_SIZE / 1024)) +
+    ' KB. Maximum amount of data received from the '
+    'client in a single recv() operation.',
 )
 flags.add_argument(
     '--key-file',

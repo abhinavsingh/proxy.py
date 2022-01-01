@@ -2232,7 +2232,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0rc5.dev26+gb2b1bdc.d20211230
+proxy.py v2.4.0rc5.dev31+gc998255
 
 options:
   -h, --help            show this help message and exit
@@ -2290,10 +2290,8 @@ options:
                         Default: False. If used, will enable proxy protocol.
                         Only version 1 is currently supported.
   --client-recvbuf-size CLIENT_RECVBUF_SIZE
-                        Default: 1 MB. Maximum amount of data received from
-                        the client in a single recv() operation. Bump this
-                        value for faster uploads at the expense of increased
-                        RAM.
+                        Default: 128 KB. Maximum amount of data received from
+                        the client in a single recv() operation.
   --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
                         TLS encryption with clients. If used, must also pass
                         --cert-file.
@@ -2301,10 +2299,8 @@ options:
                         inactive connection must be dropped. Inactivity is
                         defined by no data sent or received by the client.
   --server-recvbuf-size SERVER_RECVBUF_SIZE
-                        Default: 1 MB. Maximum amount of data received from
-                        the server in a single recv() operation. Bump this
-                        value for faster downloads at the expense of increased
-                        RAM.
+                        Default: 128 KB. Maximum amount of data received from
+                        the server in a single recv() operation.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
   --disable-headers DISABLE_HEADERS
@@ -2383,3 +2379,12 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
+ther "security" (for malware
+                        protection) or "family" (for malware and adult content
+                        protection)
+
+Proxy.py not working? Report at:
+https://github.com/abhinavsingh/proxy.py/issues/new
+```
+```
+`

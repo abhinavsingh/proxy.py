@@ -26,14 +26,17 @@ from proxy.common.utils import get_available_port
 # * https://github.com/pytest-dev/pytest/issues/7469#issuecomment-918345196
 # * https://github.com/pytest-dev/pytest/issues/3342
 @pytest.fixture  # type: ignore[misc]
-def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
-    """Instantiate proxy.py in a subprocess for testing.
+def proxy_py_with_tls_interception_subprocess(request: Any) -> Generator[int, None, None]:
+    """Generated CA certificates and Instantiate proxy.py in a subprocess for testing.
 
     NOTE: Doesn't waits for the proxy to startup.
     Ensure instance check in your tests.
 
     After the testing is over, tear it down.
     """
+    # Generate CA certificates
+    if not (Path(__file__).parent.parent.parent / 'ca-key.pem').exists():
+        print(check_output(['make', 'ca-certificates']))
     port = get_available_port()
     proxy_cmd = (
         'python', '-m', 'proxy',
@@ -74,8 +77,13 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
     raises=OSError,
 )  # type: ignore[misc]
-def test_integration(proxy_py_subprocess: int) -> None:
+def test_integration(proxy_py_with_tls_interception_subprocess: int) -> None:
     """An acceptance test using ``curl`` through proxy.py under TLS interception."""
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
-    check_output([str(shell_script_test), str(proxy_py_subprocess)])
+    check_output(
+        [
+            str(shell_script_test),
+            str(proxy_py_with_tls_interception_subprocess),
+        ],
+    )
