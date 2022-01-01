@@ -10,14 +10,14 @@
 
     Test the simplest proxy use scenario for smoke.
 """
+import pytest
+
 from pathlib import Path
 from subprocess import check_output, Popen
 from typing import Generator, Any
 
-import pytest
-
+from proxy.common.constants import IS_WINDOWS
 from proxy.common.utils import get_available_port
-from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
@@ -59,7 +59,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     'proxy_py_subprocess',
     (
         ('--threadless'),
-        ('--threadless --local-executor'),
+        ('--threadless --local-executor 0'),
         ('--threaded'),
     ),
     indirect=True,

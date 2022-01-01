@@ -16,19 +16,20 @@ import asyncio
 import logging
 import selectors
 
-from typing import Tuple, List, Union, Optional, Dict, Any
+from typing import Tuple, List, Type, Union, Optional, Dict, Any
 
-from .plugin import HttpProtocolHandlerPlugin
-from .parser import HttpParser, httpParserStates, httpParserTypes
-from .exception import HttpProtocolException
-
-from ..common.types import Readables, Writables
+from ..common.flag import flags
 from ..common.utils import wrap_socket
 from ..core.base import BaseTcpServerHandler
+from ..common.types import Readables, Writables
 from ..core.connection import TcpClientConnection
-from ..common.flag import flags
 from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE
 from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT, DEFAULT_TIMEOUT
+
+from .exception import HttpProtocolException
+from .plugin import HttpProtocolHandlerPlugin
+from .responses import BAD_REQUEST_RESPONSE_PKT
+from .parser import HttpParser, httpParserStates, httpParserTypes
 
 
 logger = logging.getLogger(__name__)
@@ -78,7 +79,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         self.selector: Optional[selectors.DefaultSelector] = None
         if not self.flags.threadless:
             self.selector = selectors.DefaultSelector()
-        self.plugins: Dict[str, HttpProtocolHandlerPlugin] = {}
+        self.plugin: Optional[HttpProtocolHandlerPlugin] = None
 
     ##
     # initialize, is_inactive, shutdown, get_events, handle_events
@@ -86,23 +87,17 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     ##
 
     def initialize(self) -> None:
-        """Optionally upgrades connection to HTTPS, set ``conn`` in non-blocking mode and initializes plugins."""
+        """Optionally upgrades connection to HTTPS,
+        sets ``conn`` in non-blocking mode and initializes
+        HTTP protocol plugins.
+        """
         conn = self._optionally_wrap_socket(self.work.connection)
         conn.setblocking(False)
         # Update client connection reference if connection was wrapped
         if self._encryption_enabled():
             self.work = TcpClientConnection(conn=conn, addr=self.work.addr)
-        if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
-            for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
-                instance: HttpProtocolHandlerPlugin = klass(
-                    self.uid,
-                    self.flags,
-                    self.work,
-                    self.request,
-                    self.event_queue,
-                )
-                self.plugins[instance.name()] = instance
-        logger.debug('Handling connection %r' % self.work.connection)
+        # self._initialize_plugins()
+        logger.debug('Handling connection %s' % self.work.address)
 
     def is_inactive(self) -> bool:
         if not self.work.has_buffer() and \
@@ -119,12 +114,11 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             if self.selector and self.work.has_buffer():
                 self._flush()
             # Invoke plugin.on_client_connection_close
-            for plugin in self.plugins.values():
-                plugin.on_client_connection_close()
+            if self.plugin:
+                self.plugin.on_client_connection_close()
             logger.debug(
-                'Closing client connection %r '
-                'at address %s has buffer %s' %
-                (self.work.connection, self.work.address, self.work.has_buffer()),
+                'Closing client connection %s has buffer %s' %
+                (self.work.address, self.work.has_buffer()),
             )
             conn = self.work.connection
             # Unwrap if wrapped before shutdown.
@@ -153,8 +147,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         # Get default client events
         events: Dict[int, int] = await super().get_events()
         # HttpProtocolHandlerPlugin.get_descriptors
-        for plugin in self.plugins.values():
-            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
+        if self.plugin:
+            plugin_read_desc, plugin_write_desc = self.plugin.get_descriptors()
             for rfileno in plugin_read_desc:
                 if rfileno not in events:
                     events[rfileno] = selectors.EVENT_READ
@@ -179,8 +173,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         if teardown:
             return True
         # Invoke plugin.write_to_descriptors
-        for plugin in self.plugins.values():
-            teardown = await plugin.write_to_descriptors(writables)
+        if self.plugin:
+            teardown = await self.plugin.write_to_descriptors(writables)
             if teardown:
                 return True
         # Read from ready to read sockets
@@ -188,8 +182,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         if teardown:
             return True
         # Invoke plugin.read_from_descriptors
-        for plugin in self.plugins.values():
-            teardown = await plugin.read_from_descriptors(readables)
+        if self.plugin:
+            teardown = await self.plugin.read_from_descriptors(readables)
             if teardown:
                 return True
         return False
@@ -209,35 +203,15 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             # apply custom logic to handle request data sent after 1st
             # valid request.
             if self.request.state != httpParserStates.COMPLETE:
-                # Parse http request
-                #
-                # TODO(abhinavsingh): Remove .tobytes after parser is
-                # memoryview compliant
-                self.request.parse(data.tobytes())
-                if self.request.is_complete:
-                    # Invoke plugin.on_request_complete
-                    for plugin in self.plugins.values():
-                        upgraded_sock = plugin.on_request_complete()
-                        if isinstance(upgraded_sock, ssl.SSLSocket):
-                            logger.debug(
-                                'Updated client conn to %s', upgraded_sock,
-                            )
-                            self.work._conn = upgraded_sock
-                            for plugin_ in self.plugins.values():
-                                if plugin_ != plugin:
-                                    plugin_.client._conn = upgraded_sock
-                        elif isinstance(upgraded_sock, bool) and upgraded_sock is True:
-                            return True
+                if self._parse_first_request(data):
+                    return True
             else:
                 # HttpProtocolHandlerPlugin.on_client_data
                 # Can raise HttpProtocolException to tear down the connection
-                for plugin in self.plugins.values():
-                    optional_data = plugin.on_client_data(data)
-                    if optional_data is None:
-                        break
-                    data = optional_data
+                if self.plugin:
+                    data = self.plugin.on_client_data(data) or data
         except HttpProtocolException as e:
-            logger.debug('HttpProtocolException raised')
+            logger.info('HttpProtocolException: %s' % e)
             response: Optional[memoryview] = e.response(self.request)
             if response:
                 self.work.queue(response)
@@ -246,19 +220,15 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     async def handle_writables(self, writables: Writables) -> bool:
         if self.work.connection.fileno() in writables and self.work.has_buffer():
-            logger.debug('Client is ready for writes, flushing buffer')
+            logger.debug('Client is write ready, flushing...')
             self.last_activity = time.time()
-
             # TODO(abhinavsingh): This hook could just reside within server recv block
             # instead of invoking when flushed to client.
             #
             # Invoke plugin.on_response_chunk
             chunk = self.work.buffer
-            for plugin in self.plugins.values():
-                chunk = plugin.on_response_chunk(chunk)
-                if chunk is None:
-                    break
-
+            if self.plugin:
+                chunk = self.plugin.on_response_chunk(chunk)
             try:
                 # Call super() for client flush
                 teardown = await super().handle_writables(writables)
@@ -276,7 +246,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
 
     async def handle_readables(self, readables: Readables) -> bool:
         if self.work.connection.fileno() in readables:
-            logger.debug('Client is ready for reads, reading')
+            logger.debug('Client is read ready, receiving...')
             self.last_activity = time.time()
             try:
                 teardown = await super().handle_readables(readables)
@@ -304,6 +274,61 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     ##
     # Internal methods
     ##
+
+    def _initialize_plugin(
+            self,
+            klass: Type['HttpProtocolHandlerPlugin'],
+    ) -> HttpProtocolHandlerPlugin:
+        """Initializes passed HTTP protocol handler plugin class."""
+        return klass(
+            self.uid,
+            self.flags,
+            self.work,
+            self.request,
+            self.event_queue,
+            self.upstream_conn_pool,
+        )
+
+    def _discover_plugin_klass(self, protocol: int) -> Optional[Type['HttpProtocolHandlerPlugin']]:
+        """Discovers and return matching HTTP handler plugin matching protocol."""
+        if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
+            for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
+                k: Type['HttpProtocolHandlerPlugin'] = klass
+                if protocol in k.protocols():
+                    return k
+        return None
+
+    def _parse_first_request(self, data: memoryview) -> bool:
+        # Parse http request
+        #
+        # TODO(abhinavsingh): Remove .tobytes after parser is
+        # memoryview compliant
+        self.request.parse(data.tobytes())
+        if not self.request.is_complete:
+            return False
+        # Discover which HTTP handler plugin is capable of
+        # handling the current incoming request
+        klass = self._discover_plugin_klass(
+            self.request.http_handler_protocol,
+        )
+        if klass is None:
+            # No matching protocol class found.
+            # Return bad request response and
+            # close the connection.
+            self.work.queue(BAD_REQUEST_RESPONSE_PKT)
+            return True
+        assert klass is not None
+        self.plugin = self._initialize_plugin(klass)
+        # Invoke plugin.on_request_complete
+        output = self.plugin.on_request_complete()
+        if isinstance(output, bool):
+            return output
+        assert isinstance(output, ssl.SSLSocket)
+        logger.debug(
+            'Updated client conn to %s', output,
+        )
+        self.work._conn = output
+        return False
 
     def _encryption_enabled(self) -> bool:
         return self.flags.keyfile is not None and \

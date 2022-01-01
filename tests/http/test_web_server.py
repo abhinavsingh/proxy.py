@@ -25,7 +25,7 @@ from proxy.http import HttpProtocolHandler
 from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
 from proxy.common.utils import build_http_response, build_http_request, bytes_
 from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
-from proxy.http.server import HttpWebServerPlugin
+from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
 
 from ..test_assertions import Assertions
 
@@ -51,12 +51,11 @@ def test_on_client_connection_called_on_teardown(mocker: MockerFixture) -> None:
         flags=flags,
     )
     protocol_handler.initialize()
-    plugin.assert_called()
+    plugin.assert_not_called()
     mock_run_once = mocker.patch.object(protocol_handler, '_run_once')
     mock_run_once.return_value = True
     protocol_handler.run()
     assert _conn.closed
-    plugin.return_value.on_client_connection_close.assert_called()
 
 
 def mock_selector_for_client_read(self: Any) -> None:
@@ -181,10 +180,13 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
         )
         self._conn.send.called_once_with(
             build_http_response(
-                200, reason=b'OK', headers={
+                200,
+                reason=b'OK',
+                headers={
                     b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                    b'Connection': b'close',
-                }, body=self.expected_response,
+                },
+                body=self.expected_response,
+                conn_close=True,
             ),
         )
 
@@ -306,7 +308,7 @@ class TestStaticWebServerPlugin(Assertions):
         self.assertEqual(self._conn.send.call_count, 1)
         self.assertEqual(
             self._conn.send.call_args[0][0],
-            HttpWebServerPlugin.DEFAULT_404_RESPONSE,
+            NOT_FOUND_RESPONSE_PKT,
         )
 
 
@@ -365,5 +367,5 @@ class TestWebServerPlugin(Assertions):
         )
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
-            HttpWebServerPlugin.DEFAULT_404_RESPONSE,
+            NOT_FOUND_RESPONSE_PKT,
         )

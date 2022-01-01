@@ -13,13 +13,16 @@ import sys
 import time
 import secrets
 import pathlib
+import platform
 import sysconfig
 import ipaddress
 
 from typing import Any, List
 
-from ._compat import IS_WINDOWS  # noqa: WPS436
 from .version import __version__
+
+SYS_PLATFORM = platform.system()
+IS_WINDOWS = SYS_PLATFORM == 'Windows'
 
 
 def _env_threadless_compliant() -> bool:
@@ -43,10 +46,24 @@ WHITESPACE = b' '
 COMMA = b','
 DOT = b'.'
 SLASH = b'/'
-HTTP_1_0 = b'HTTP/1.0'
-HTTP_1_1 = b'HTTP/1.1'
-HTTP_URL_PREFIX = b'http://'
-HTTPS_URL_PREFIX = b'https://'
+AT = b'@'
+HTTP_PROTO = b'http'
+HTTPS_PROTO = HTTP_PROTO + b's'
+HTTP_1_0 = HTTP_PROTO.upper() + SLASH + b'1.0'
+HTTP_1_1 = HTTP_PROTO.upper() + SLASH + b'1.1'
+HTTP_URL_PREFIX = HTTP_PROTO + COLON + SLASH + SLASH
+HTTPS_URL_PREFIX = HTTPS_PROTO + COLON + SLASH + SLASH
+
+LOCAL_INTERFACE_HOSTNAMES = (
+    b'localhost',
+    b'127.0.0.1',
+    b'::1',
+)
+
+ANY_INTERFACE_HOSTNAMES = (
+    b'0.0.0.0',
+    b'::',
+)
 
 PROXY_AGENT_HEADER_KEY = b'Proxy-agent'
 PROXY_AGENT_HEADER_VALUE = b'proxy.py v' + \
@@ -82,12 +99,13 @@ DEFAULT_KEY_FILE = None
 DEFAULT_LOG_FILE = None
 DEFAULT_LOG_FORMAT = '%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(module)s.%(funcName)s:%(lineno)d - %(message)s'
 DEFAULT_LOG_LEVEL = 'INFO'
-DEFAULT_WEB_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - {request_method} {request_path} - {connection_time_ms}ms'
-DEFAULT_HTTP_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
+DEFAULT_WEB_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' \
+    '{request_method} {request_path} - {request_ua} - {connection_time_ms}ms'
+DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port}{request_path} - ' + \
     '{response_code} {response_reason} - {response_bytes} bytes - ' + \
     '{connection_time_ms}ms'
-DEFAULT_HTTPS_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
+DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port} - ' + \
     '{response_bytes} bytes - {connection_time_ms}ms'
 DEFAULT_NUM_ACCEPTORS = 0
@@ -102,7 +120,7 @@ DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, "public")
 DEFAULT_MIN_COMPRESSION_LIMIT = 20  # In bytes
 DEFAULT_THREADLESS = _env_threadless_compliant()
-DEFAULT_LOCAL_EXECUTOR = False
+DEFAULT_LOCAL_EXECUTOR = True
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_VERSION = False
 DEFAULT_HTTP_PORT = 80

@@ -72,8 +72,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             request.path,
         )
         # check URL against list
-        rule_number = 1
-        for blocked_entry in self.filters:
+        for rule_number, blocked_entry in enumerate(self.filters, start=1):
             # if regex matches on URL
             if re.search(text_(blocked_entry['regex']), text_(url)):
                 # log that the request has been filtered
@@ -88,11 +87,6 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
                 # list
                 raise HttpRequestRejected(
                     status_code=httpStatusCodes.NOT_FOUND,
-                    headers={b'Connection': b'close'},
                     reason=b'Blocked',
                 )
-                # stop looping through filter list
-                break
-            # increment rule number
-            rule_number += 1
         return request

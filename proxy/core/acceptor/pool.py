@@ -98,7 +98,17 @@ class AcceptorPool:
     def setup(self) -> None:
         """Setup acceptors."""
         self._start()
-        logger.info('Started %d acceptors' % self.flags.num_acceptors)
+        execution_mode = (
+            'threadless (local)'
+            if self.flags.local_executor
+            else 'threadless (remote)'
+        ) if self.flags.threadless else 'threaded'
+        logger.info(
+            'Started %d acceptors in %s mode' % (
+                self.flags.num_acceptors,
+                execution_mode,
+            ),
+        )
         # Send file descriptor to all acceptor processes.
         fd = self.listener.fileno()
         for index in range(self.flags.num_acceptors):

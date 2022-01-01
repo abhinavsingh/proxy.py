@@ -11,11 +11,13 @@
 import unittest
 
 from proxy.common.constants import CRLF, HTTP_1_0
-from proxy.common.utils import build_http_request, build_http_response, build_http_header
+from proxy.common.utils import build_http_request, build_http_header
 from proxy.common.utils import find_http_line, bytes_
 
-from proxy.http import httpStatusCodes, httpMethods
+from proxy.http import httpMethods
+from proxy.http.exception import HttpProtocolException
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.http.responses import okResponse
 
 
 class TestHttpParser(unittest.TestCase):
@@ -24,10 +26,10 @@ class TestHttpParser(unittest.TestCase):
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
 
     def test_issue_127(self) -> None:
-        with self.assertRaises(ValueError):
+        with self.assertRaises(HttpProtocolException):
             self.parser.parse(CRLF)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(HttpProtocolException):
             raw = b'qwqrqw!@!#@!#ad adfad\r\n'
             while True:
                 self.parser.parse(raw)
@@ -140,18 +142,16 @@ class TestHttpParser(unittest.TestCase):
 
     def test_build_response(self) -> None:
         self.assertEqual(
-            build_http_response(
-                200, reason=b'OK', protocol_version=b'HTTP/1.1',
-            ),
+            okResponse(protocol_version=b'HTTP/1.1'),
             CRLF.join([
                 b'HTTP/1.1 200 OK',
                 CRLF,
             ]),
         )
         self.assertEqual(
-            build_http_response(
-                200, reason=b'OK', protocol_version=b'HTTP/1.1',
+            okResponse(
                 headers={b'key': b'value'},
+                protocol_version=b'HTTP/1.1',
             ),
             CRLF.join([
                 b'HTTP/1.1 200 OK',
@@ -163,10 +163,10 @@ class TestHttpParser(unittest.TestCase):
     def test_build_response_adds_content_length_header(self) -> None:
         body = b'Hello world!!!'
         self.assertEqual(
-            build_http_response(
-                200, reason=b'OK', protocol_version=b'HTTP/1.1',
+            okResponse(
                 headers={b'key': b'value'},
-                body=body,
+                content=body,
+                protocol_version=b'HTTP/1.1',
             ),
             CRLF.join([
                 b'HTTP/1.1 200 OK',
@@ -609,29 +609,30 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_pipelined_response_parse(self) -> None:
-        response = build_http_response(
-            httpStatusCodes.OK, reason=b'OK',
-            headers={
-                b'Content-Length': b'15',
-            },
-            body=b'{"key":"value"}',
+        self.assert_pipeline_response(
+            okResponse(
+                headers={
+                    b'Content-Length': b'15',
+                },
+                content=b'{"key":"value"}',
+            ),
         )
-        self.assert_pipeline_response(response)
 
     def test_pipelined_chunked_response_parse(self) -> None:
-        response = build_http_response(
-            httpStatusCodes.OK, reason=b'OK',
-            headers={
-                b'Transfer-Encoding': b'chunked',
-                b'Content-Type': b'application/json',
-            },
-            body=b'f\r\n{"key":"value"}\r\n0\r\n\r\n',
+        self.assert_pipeline_response(
+            okResponse(
+                headers={
+                    b'Transfer-Encoding': b'chunked',
+                    b'Content-Type': b'application/json',
+                },
+                content=b'f\r\n{"key":"value"}\r\n0\r\n\r\n',
+                compress=False,
+            ),
         )
-        self.assert_pipeline_response(response)
 
-    def assert_pipeline_response(self, response: bytes) -> None:
+    def assert_pipeline_response(self, response: memoryview) -> None:
         self.parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        self.parser.parse(response + response)
+        self.parser.parse(response.tobytes() + response.tobytes())
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
         self.assertEqual(self.parser.body, b'{"key":"value"}')
         self.assertEqual(self.parser.buffer, response)
@@ -694,9 +695,7 @@ class TestHttpParser(unittest.TestCase):
         self.parser.parse(
             build_http_request(
                 httpMethods.GET, b'/',
-                headers={
-                    b'Connection': b'close',
-                },
+                conn_close=True,
             ),
         )
         self.assertFalse(self.parser.is_http_1_1_keep_alive)

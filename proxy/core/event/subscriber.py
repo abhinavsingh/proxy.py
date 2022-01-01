@@ -103,9 +103,7 @@ class EventSubscriber:
             return
         try:
             self.event_queue.unsubscribe(self.relay_sub_id)
-        except BrokenPipeError:
-            pass
-        except EOFError:
+        except (BrokenPipeError, EOFError):
             pass
         finally:
             # self.relay_sub_id = None

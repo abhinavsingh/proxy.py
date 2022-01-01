@@ -26,6 +26,7 @@ class TestAcceptor(unittest.TestCase):
         self.flags = FlagParser.initialize(
             threaded=True,
             work_klass=mock.MagicMock(),
+            local_executor=0,
         )
         self.acceptor = Acceptor(
             idd=self.acceptor_id,
@@ -93,13 +94,14 @@ class TestAcceptor(unittest.TestCase):
         mock_recv_handle.assert_called_with(self.pipe[1])
         mock_fromfd.assert_called_with(
             fileno,
-            family=socket.AF_INET6,
+            family=socket.AF_INET,
             type=socket.SOCK_STREAM,
         )
         self.flags.work_klass.assert_called_with(
             mock_client.return_value,
             flags=self.flags,
             event_queue=None,
+            upstream_conn_pool=None,
         )
         mock_thread.assert_called_with(
             target=self.flags.work_klass.return_value.run,

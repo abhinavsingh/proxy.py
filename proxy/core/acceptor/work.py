@@ -16,22 +16,27 @@ import argparse
 
 from abc import ABC, abstractmethod
 from uuid import uuid4
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
 
 from ..event import eventNames, EventQueue
-from ..connection import TcpClientConnection
 from ...common.types import Readables, Writables
 
+if TYPE_CHECKING:
+    from ..connection import UpstreamConnectionPool
 
-class Work(ABC):
+T = TypeVar('T')
+
+
+class Work(ABC, Generic[T]):
     """Implement Work to hook into the event loop provided by Threadless process."""
 
     def __init__(
             self,
-            work: TcpClientConnection,
+            work: T,
             flags: argparse.Namespace,
             event_queue: Optional[EventQueue] = None,
             uid: Optional[str] = None,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:
         # Work uuid
         self.uid: str = uid if uid is not None else uuid4().hex
@@ -40,6 +45,7 @@ class Work(ABC):
         self.event_queue = event_queue
         # Accept work
         self.work = work
+        self.upstream_conn_pool = upstream_conn_pool
 
     @abstractmethod
     async def get_events(self) -> Dict[int, int]:

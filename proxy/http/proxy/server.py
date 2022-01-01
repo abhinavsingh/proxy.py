@@ -26,24 +26,26 @@ from typing import Optional, List, Union, Dict, cast, Any, Tuple
 
 from .plugin import HttpProxyBasePlugin
 
+from ..headers import httpHeaders
 from ..methods import httpMethods
-from ..codes import httpStatusCodes
+from ..protocols import httpProtocols
 from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
 from ...common.types import Readables, Writables
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
-from ...common.constants import DEFAULT_HTTP_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+from ...common.constants import DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT
 from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_PROXY_AUTH
-from ...common.utils import build_http_response, text_
+from ...common.utils import text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
 
 from ...core.event import eventNames
-from ...core.connection import TcpServerConnection, ConnectionPool
+from ...core.connection import TcpServerConnection
 from ...core.connection import TcpConnectionUninitializedException
 from ...common.flag import flags
 
@@ -135,19 +137,9 @@ flags.add_argument(
 class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     """HttpProtocolHandler plugin which implements HttpProxy specifications."""
 
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(
-        build_http_response(
-            httpStatusCodes.OK,
-            reason=b'Connection established',
-        ),
-    )
-
     # Used to synchronization during certificate generation and
     # connection pool operations.
     lock = threading.Lock()
-
-    # Shared connection pool
-    pool = ConnectionPool()
 
     def __init__(
             self,
@@ -171,6 +163,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 )
                 self.plugins[instance.name()] = instance
 
+    @staticmethod
+    def protocols() -> List[int]:
+        return [httpProtocols.HTTP_PROXY]
+
     def tls_interception_enabled(self) -> bool:
         return self.flags.ca_key_file is not None and \
             self.flags.ca_cert_dir is not None and \
@@ -178,8 +174,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.flags.ca_cert_file is not None
 
     def get_descriptors(self) -> Tuple[List[int], List[int]]:
-        if not self.request.has_host():
-            return [], []
         r: List[int] = []
         w: List[int] = []
         if (
@@ -206,10 +200,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def _close_and_release(self) -> bool:
         if self.flags.enable_conn_pool:
-            assert self.upstream and not self.upstream.closed
+            assert self.upstream and not self.upstream.closed and self.upstream_conn_pool
             self.upstream.closed = True
             with self.lock:
-                self.pool.release(self.upstream)
+                self.upstream_conn_pool.release(self.upstream)
             self.upstream = None
         return True
 
@@ -222,11 +216,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 teardown = plugin.write_to_descriptors(w)
                 if teardown:
                     return True
-        elif self.request.has_host() and \
-                self.upstream and not self.upstream.closed and \
+        elif self.upstream and not self.upstream.closed and \
                 self.upstream.has_buffer() and \
                 self.upstream.connection.fileno() in w:
-            logger.debug('Server is write ready, flushing buffer')
+            logger.debug('Server is write ready, flushing...')
             try:
                 self.upstream.flush()
             except ssl.SSLWantWriteError:
@@ -259,11 +252,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 teardown = plugin.read_from_descriptors(r)
                 if teardown:
                     return True
-        elif self.request.has_host() \
-                and self.upstream \
+        elif self.upstream \
                 and not self.upstream.closed \
                 and self.upstream.connection.fileno() in r:
-            logger.debug('Server is ready for reads, reading...')
+            logger.debug('Server is read ready, receiving...')
             try:
                 raw = self.upstream.recv(self.flags.server_recvbuf_size)
             except TimeoutError as e:
@@ -324,9 +316,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def on_client_connection_close(self) -> None:
-        if not self.request.has_host():
-            return
-
         context = {
             'client_ip': None if not self.client.addr else self.client.addr[0],
             'client_port': None if not self.client.addr else self.client.addr[1],
@@ -397,9 +386,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             return
 
         if self.flags.enable_conn_pool:
+            assert self.upstream_conn_pool
             # Release the connection for reusability
             with self.lock:
-                self.pool.release(self.upstream)
+                self.upstream_conn_pool.release(self.upstream)
             return
 
         try:
@@ -409,7 +399,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 pass
             finally:
                 # TODO: Unwrap if wrapped before close?
-                self.upstream.connection.close()
+                self.upstream.close()
         except TcpConnectionUninitializedException:
             pass
         finally:
@@ -419,9 +409,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             )
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
-        access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
+        access_log_format = DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT
         if not self.request.is_https_tunnel:
-            access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
+            access_log_format = DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT
         logger.info(access_log_format.format_map(log_attrs))
 
     def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
@@ -437,9 +427,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     # Can return None to tear down connection
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
-        if not self.request.has_host():
-            return raw
-
         # For scenarios when an upstream connection was never established,
         # let plugin do whatever they wish to.  These are special scenarios
         # where plugins are trying to do something magical.  Within the core
@@ -508,9 +495,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
-        if not self.request.has_host():
-            return False
-
         self.emit_request_complete()
 
         # Invoke plugin.before_upstream_connection
@@ -545,9 +529,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # Optionally, setup interceptor if TLS interception is enabled.
         if self.upstream:
             if self.request.is_https_tunnel:
-                self.client.queue(
-                    HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
-                )
+                self.client.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
                 if self.tls_interception_enabled():
                     return self.intercept()
             # If an upstream server connection was established for http request,
@@ -557,7 +539,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 #   officially documented in any specification, drop it.
                 # - proxy-authorization is of no use for upstream, remove it.
                 self.request.del_headers(
-                    [b'proxy-authorization', b'proxy-connection'],
+                    [
+                        httpHeaders.PROXY_AUTHORIZATION,
+                        httpHeaders.PROXY_CONNECTION,
+                    ],
                 )
                 # - For HTTP/1.0, connection header defaults to close
                 # - For HTTP/1.1, connection header defaults to keep-alive
@@ -593,33 +578,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def connect_upstream(self) -> None:
         host, port = self.request.host, self.request.port
         if host and port:
-            if self.flags.enable_conn_pool:
-                with self.lock:
-                    created, self.upstream = self.pool.acquire(
-                        text_(host), port,
-                    )
-            else:
-                created, self.upstream = True, TcpServerConnection(
-                    text_(host), port,
-                )
-            if not created:
-                # NOTE: Acquired connection might be in an unusable state.
-                #
-                # This can only be confirmed by reading from connection.
-                # For stale connections, we will receive None, indicating
-                # to drop the connection.
-                #
-                # If that happen, we must acquire a fresh connection.
-                logger.info(
-                    'Reusing connection to upstream %s:%d' %
-                    (text_(host), port),
-                )
-                return
             try:
-                logger.debug(
-                    'Connecting to upstream %s:%d' %
-                    (text_(host), port),
-                )
                 # Invoke plugin.resolve_dns
                 upstream_ip, source_addr = None, None
                 for plugin in self.plugins.values():
@@ -628,14 +587,41 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     )
                     if upstream_ip or source_addr:
                         break
-                # Connect with overridden upstream IP and source address
-                # if any of the plugin returned a non-null value.
-                self.upstream.connect(
-                    addr=None if not upstream_ip else (
-                        upstream_ip, port,
-                    ), source_address=source_addr,
+                logger.debug(
+                    'Connecting to upstream %s:%d' %
+                    (text_(host), port),
                 )
-                self.upstream.connection.setblocking(False)
+                if self.flags.enable_conn_pool:
+                    assert self.upstream_conn_pool
+                    with self.lock:
+                        created, self.upstream = self.upstream_conn_pool.acquire(
+                            (text_(host), port),
+                        )
+                else:
+                    created, self.upstream = True, TcpServerConnection(
+                        text_(host), port,
+                    )
+                    # Connect with overridden upstream IP and source address
+                    # if any of the plugin returned a non-null value.
+                    self.upstream.connect(
+                        addr=None if not upstream_ip else (
+                            upstream_ip, port,
+                        ), source_address=source_addr,
+                    )
+                    self.upstream.connection.setblocking(False)
+                if not created:
+                    # NOTE: Acquired connection might be in an unusable state.
+                    #
+                    # This can only be confirmed by reading from connection.
+                    # For stale connections, we will receive None, indicating
+                    # to drop the connection.
+                    #
+                    # If that happen, we must acquire a fresh connection.
+                    logger.info(
+                        'Reusing connection to upstream %s:%d' %
+                        (text_(host), port),
+                    )
+                    return
                 logger.debug(
                     'Connected to upstream %s:%s' %
                     (text_(host), port),
@@ -646,15 +632,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         text_(host), port, str(e),
                     ),
                 )
-                if self.flags.enable_conn_pool:
+                if self.flags.enable_conn_pool and self.upstream:
+                    assert self.upstream_conn_pool
                     with self.lock:
-                        self.pool.release(self.upstream)
+                        self.upstream_conn_pool.release(self.upstream)
                 raise ProxyConnectionFailed(
                     text_(host), port, repr(e),
                 ) from e
         else:
-            logger.exception('Both host and port must exist')
-            raise HttpProtocolException()
+            raise HttpProtocolException('Both host and port must exist')
 
     #
     # Interceptor related methods
@@ -770,11 +756,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     def intercept(self) -> Union[socket.socket, bool]:
         # Perform SSL/TLS handshake with upstream
-        self.wrap_server()
+        teardown = self.wrap_server()
+        if teardown:
+            return teardown
         # Generate certificate and perform handshake with client
         # wrap_client also flushes client data before wrapping
         # sending to client can raise, handle expected exceptions
-        self.wrap_client()
+        teardown = self.wrap_client()
+        if teardown:
+            return teardown
         # Update all plugin connection reference
         # TODO(abhinavsingh): Is this required?
         for plugin in self.plugins.values():
@@ -813,13 +803,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     ), exc_info=e,
                 )
             do_close = True
-        finally:
-            if do_close:
-                raise HttpProtocolException(
-                    'Exception when wrapping server for interception',
-                )
-        assert isinstance(self.upstream.connection, ssl.SSLSocket)
-        return False
+        if not do_close:
+            assert isinstance(self.upstream.connection, ssl.SSLSocket)
+        return do_close
 
     def wrap_client(self) -> bool:
         assert self.upstream is not None and self.flags.ca_signing_key_file is not None
@@ -883,13 +869,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 ), exc_info=e,
             )
             do_close = True
-        finally:
-            if do_close:
-                raise HttpProtocolException(
-                    'Exception when wrapping client for interception',
-                )
-        logger.debug('TLS intercepting using %s', generated_cert)
-        return False
+        if not do_close:
+            logger.debug('TLS intercepting using %s', generated_cert)
+        return do_close
 
     #
     # Event emitter callbacks
@@ -898,7 +880,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_request_complete(self) -> None:
         if not self.flags.enable_events:
             return
-        assert self.request.port
+        assert self.request.port and self.event_queue
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.REQUEST_COMPLETE,
@@ -933,6 +915,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_headers_complete(self) -> None:
         if not self.flags.enable_events:
             return
+        assert self.event_queue
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.RESPONSE_HEADERS_COMPLETE,
@@ -950,6 +933,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_chunk_received(self, chunk_size: int) -> None:
         if not self.flags.enable_events:
             return
+        assert self.event_queue
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.RESPONSE_CHUNK_RECEIVED,
@@ -963,6 +947,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def emit_response_complete(self) -> None:
         if not self.flags.enable_events:
             return
+        assert self.event_queue
         self.event_queue.publish(
             request_id=self.uid,
             event_name=eventNames.RESPONSE_COMPLETE,

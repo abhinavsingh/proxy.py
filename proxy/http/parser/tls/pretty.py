@@ -7,17 +7,10 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    Compatibility code for using Proxy.py across various versions of Python.
-
-    .. spelling::
-
-        compat
-        py
 """
+import binascii
 
-import platform
 
-
-SYS_PLATFORM = platform.system()
-IS_WINDOWS = SYS_PLATFORM == 'Windows'
+def pretty_hexlify(raw: bytes) -> str:
+    hexlified = binascii.hexlify(raw).decode('utf-8')
+    return ' '.join([hexlified[i: i+2] for i in range(0, len(hexlified), 2)])

@@ -15,11 +15,10 @@ import urllib.error
 import pytest
 
 from proxy import TestCase
-from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
-from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
+from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE, IS_WINDOWS
 from proxy.common.utils import socket_connection, build_http_request
 from proxy.http import httpMethods
-from proxy.http.server import HttpWebServerPlugin
+from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
 
 
 @pytest.mark.skipif(
@@ -49,7 +48,7 @@ class TestProxyPyEmbedded(TestCase):
             response = conn.recv(DEFAULT_CLIENT_RECVBUF_SIZE)
         self.assertEqual(
             response,
-            HttpWebServerPlugin.DEFAULT_404_RESPONSE.tobytes(),
+            NOT_FOUND_RESPONSE_PKT.tobytes(),
         )
 
     def test_proxy_vcr(self) -> None:

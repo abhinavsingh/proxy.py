@@ -13,28 +13,17 @@ import time
 from typing import Any, Optional
 
 from proxy import Proxy
-from proxy.common.utils import build_http_response
-from proxy.http import httpStatusCodes
+
+from proxy.http.responses import (
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+    PROXY_TUNNEL_UNSUPPORTED_SCHEME,
+)
+
 from proxy.core.base import BaseTcpTunnelHandler
 
 
 class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
     """A https CONNECT tunnel."""
-
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(
-        build_http_response(
-            httpStatusCodes.OK,
-            reason=b'Connection established',
-        ),
-    )
-
-    PROXY_TUNNEL_UNSUPPORTED_SCHEME = memoryview(
-        build_http_response(
-            httpStatusCodes.BAD_REQUEST,
-            headers={b'Connection': b'close'},
-            reason=b'Unsupported protocol scheme',
-        ),
-    )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -50,9 +39,7 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
 
         # Drop the request if not a CONNECT request
         if not self.request.is_https_tunnel:
-            self.work.queue(
-                HttpsConnectTunnelHandler.PROXY_TUNNEL_UNSUPPORTED_SCHEME,
-            )
+            self.work.queue(PROXY_TUNNEL_UNSUPPORTED_SCHEME)
             return True
 
         # CONNECT requests are short and we need not worry about
@@ -63,9 +50,7 @@ class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
         self.connect_upstream()
 
         # Queue tunnel established response to client
-        self.work.queue(
-            HttpsConnectTunnelHandler.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
-        )
+        self.work.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
 
         return None
 

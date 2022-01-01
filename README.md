@@ -12,15 +12,17 @@
 [![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 [![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
-[![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
-[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
-[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
-[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![pypi version](https://img.shields.io/pypi/v/proxy.py?style=flat-square)](https://pypi.org/project/proxy.py/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue&style=flat-square)](https://www.python.org/)
+[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue&style=flat-square)](http://mypy-lang.org/)
 
-[![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/issues)
-[![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen)](https://twitter.com/imoracle)
-[![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen)](https://github.com/jaxl-innovations-private-limited)
+[![doc](https://img.shields.io/readthedocs/proxypy/latest?style=flat-square&color=darkgreen)](https://proxypy.readthedocs.io/)
+[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
+
+[![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen&style=flat-square)](https://github.com/abhinavsingh/proxy.py/issues)
+[![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen&style=flat-square)](https://twitter.com/imoracle)
+[![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen&style=flat-square)](https://github.com/jaxl-innovations-private-limited)
 
 # Table of Contents
 
@@ -54,11 +56,12 @@
     - [Cache Responses Plugin](#cacheresponsesplugin)
     - [Man-In-The-Middle Plugin](#maninthemiddleplugin)
     - [Proxy Pool Plugin](#proxypoolplugin)
-    - [FilterByClientIpPlugin](#filterbyclientipplugin)
-    - [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
-    - [CloudflareDnsResolverPlugin](#cloudflarednsresolverplugin)
-    - [CustomDnsResolverPlugin](#customdnsresolverplugin)
-    - [CustomNetworkInterface](#customnetworkinterface)
+    - [Filter By Client IP Plugin](#filterbyclientipplugin)
+    - [Modify Chunk Response Plugin](#modifychunkresponseplugin)
+    - [Cloudflare DNS Resolver Plugin](#cloudflarednsresolverplugin)
+    - [Custom DNS Resolver Plugin](#customdnsresolverplugin)
+    - [Custom Network Interface](#customnetworkinterface)
+    - [Program Name Plugin](#programnameplugin)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
     - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
@@ -92,6 +95,11 @@
   - [Inspect Traffic](#inspect-traffic)
 - [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
+  - [Deploying proxy.py in production](#deploying-proxypy-in-production)
+    - [What not to do?](#what-not-to-do)
+    - [Via Requirements](#via-requirements)
+    - [Via Docker Container](#via-docker-container)
+    - [Integrate your CI/CD with proxy.py](#integrate-your-cicd-with-proxypy)
   - [Stable vs Develop](#stable-vs-develop)
     - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
@@ -123,8 +131,12 @@
 # Features
 - Fast & Scalable
 
-  - Scales by using all available cores on the system
+  - Scale up by using all available cores on the system
+    - Use `--num-acceptors` flag to control number of cores
+
   - Threadless executions using asyncio
+    - Use `--threaded` for synchronous thread based execution mode
+
   - Made to handle `tens-of-thousands` connections / sec
 
     ```console
@@ -174,35 +186,40 @@
         [200] 100000 responses
     ```
 
-  - See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and how to run them locally.
+    See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and for how to run benchmarks locally.
 
 - Lightweight
-  - Uses `~5-20 MB` RAM
-  - Compressed containers size is `~18.04 MB`
+  - Uses only `~5-20 MB` RAM
+    - No memory leaks
+    - Start once and forget, no restarts required
+  - Compressed containers size is only `~25 MB`
   - No external dependency other than standard Python library
+
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
     - `--plugins proxy.plugin.ProxyPoolPlugin`
-  - Optionally, enable builtin [Web Server Plugins](#http-web-server-plugins). Example:
-    - `--plugins proxy.plugin.ReverseProxyPlugin`
-  - Plugin API is currently in development phase, expect breaking changes
+  - Optionally, enable builtin [Web Server](#http-web-server-plugins). Example:
+    - `--enable-web-server --plugins proxy.plugin.ReverseProxyPlugin`
+  - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
 - Real-time Dashboard
   - Optionally, enable [proxy.py dashboard](#run-dashboard).
-    - Available at `http://localhost:8899/dashboard`.
+    - Use `--enable-dashboard`
+    - Then, visit `http://localhost:8899/dashboard`
   - [Inspect, Monitor, Control and Configure](#inspect-traffic) `proxy.py` at runtime
   - [Chrome DevTools Protocol](#chrome-devtools-protocol) support
-  - Extend dashboard using plugins
-  - Dashboard is currently in development phase, expect breaking changes
+  - Extend dashboard frontend using `typescript` based [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/dashboard/src/plugins)
+  - Dashboard is currently in *development phase*  Expect breaking changes.
 - Secure
   - Enable end-to-end encryption between clients and `proxy.py`
   - See [End-to-End Encryption](#end-to-end-encryption)
 - Private
-  - Everyone deserves privacy. Browse with malware and adult content protection
+  - Protection against DNS based traffic blockers
+  - Browse with malware and adult content protection enabled
   - See [DNS-over-HTTPS](#cloudflarednsresolverplugin)
 - Man-In-The-Middle
   - Can decrypt TLS traffic between clients and upstream servers
   - See [TLS Interception](#tls-interception)
-- Supported proxy protocols
+- Supported http protocols for proxy requests
   - `http(s)`
     - `http1`
     - `http1.1` with pipeline
@@ -224,6 +241,8 @@
   - See `--pac-file` and `--pac-file-url-path` flags
 
 # Install
+
+Consult [Deploying proxy.py in production](#deploying-proxypy-in-production) when deploying production grade applications using `proxy.py`.
 
 ## Using PIP
 
@@ -578,7 +597,7 @@ Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1
 Verify the same by inspecting `proxy.py` logs:
 
 ```console
-2019-09-27 12:44:02,212 - INFO - pid:7077 - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
+... [redacted] ... - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
 ```
 
 Access log shows `None:None` as server `ip:port`. `None` simply means that
@@ -618,8 +637,8 @@ Verify the same by inspecting the logs for `proxy.py`.
 Along with the proxy request log, you must also see a http web server request log.
 
 ```
-2019-09-24 19:09:33,602 - INFO - pid:49996 - access_log:1241 - ::1:49525 - GET /
-2019-09-24 19:09:33,603 - INFO - pid:49995 - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
+... [redacted] ... - access_log:1241 - ::1:49525 - GET /
+... [redacted] ... - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
 ```
 
 ### FilterByUpstreamHostPlugin
@@ -650,10 +669,10 @@ Above `418 I'm a tea pot` is sent by our plugin.
 Verify the same by inspecting logs for `proxy.py`:
 
 ```console
-2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
+... [redacted] ... - handle_readables:1347 - HttpProtocolException type raised
 Traceback (most recent call last):
 ... [redacted] ...
-2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
+... [redacted] ... - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
 ```
 
 ### CacheResponsesPlugin
@@ -760,9 +779,8 @@ Response body `Hello from man in the middle` is sent by our plugin.
 
 Forward incoming proxy requests to a set of upstream proxy servers.
 
-Let's start upstream proxies first.
-
-Start `proxy.py` on port `9000` and `9001`
+Let's start 2 upstream proxies first.  To simulate upstream proxies,
+start `proxy.py` on port `9000` and `9001`
 
 ```console
 ❯ proxy --port 9000
@@ -788,6 +806,10 @@ Make a curl request via `8899` proxy:
 
 Verify that `8899` proxy forwards requests to upstream proxies
 by checking respective logs.
+
+If an upstream proxy require credentials, pass them as arguments. Example:
+
+`--proxy-pool user:pass@upstream.proxy:port`
 
 ### FilterByClientIpPlugin
 
@@ -883,6 +905,34 @@ for more details.
 
 PS: There is no plugin named, but [CustomDnsResolverPlugin](#customdnsresolverplugin)
 can be easily customized according to your needs.
+
+### ProgramNamePlugin
+
+Attempts to resolve program `(application)` name for proxy requests originating from the local machine.
+If identified, client IP in the access logs is replaced with program name.
+
+Start `proxy.py` as:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.ProgramNamePlugin
+```
+
+Make a request using `curl`:
+
+```console
+❯ curl -v -x localhost:8899 https://httpbin.org/get
+```
+
+You must see log lines like this:
+
+```console
+... [redacted] ... - [I] server.access_log:419 - curl:58096 - CONNECT httpbin.org:443 - 6010 bytes - 1824.62ms
+```
+
+Notice `curl` in-place of `::1` or `127.0.0.1` as client IP.
+
+[![WARNING](https://img.shields.io/static/v1?label=Compatibility&message=warning&color=red)](#programnameplugin) If `ProgramNamePlugin` does not work reliably on your operating system, kindly contribute by sending a pull request and/or open an issue.  Thank you!!!
 
 ## HTTP Web Server Plugins
 
@@ -1509,8 +1559,7 @@ As a decorator:
 - Generate HTTP GET request with headers
 
   ```python
-  >>> build_http_request(b'GET', b'/',
-          headers={b'Connection': b'close'})
+  >>> build_http_request(b'GET', b'/', conn_close=True)
   b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
   ```
 
@@ -1706,6 +1755,96 @@ start `proxy.py` as:
 Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
+
+## Deploying proxy.py in production
+
+Listed below are a few strategies for using `proxy.py` in your private/production/corporate projects.
+
+### What not to do?
+
+> You MUST `avoid forking` the repository *"just"* to put your plugin code in `proxy/plugin` directory.  Forking is recommended workflow for project contributors, NOT for project users.
+
+Instead, use one of the suggested approaches from below.  Then load your plugins using `--plugin`, `--plugins` flags or `plugin` kwargs.
+
+### Via Requirements
+
+It is *highly* recommended that you use `proxy.py` via `requirements.txt` or similar dependency management setups. This will allow you to take advantages of regular performance updates, bug fixes, security patches and other improvements happening in the `proxy.py` ecosystem.  Example:
+
+1. Use `--pre` option to depend upon last `pre-release`
+
+    ```console
+    ❯ pip install proxy.py --pre
+    ```
+
+    Pre-releases are similar to depending upon `develop` branch code, just that pre-releases may not point to the `HEAD`.  This could happen because pre-releases are NOT made available on `PyPi` after every PR merge.
+
+2. Use `TestPyPi` with `--pre` option to depend upon `develop` branch code
+
+    ```console
+    ❯ pip install -i https://test.pypi.org/simple/ proxy.py --pre
+    ```
+
+    A pre-release is made available on `TestPyPi` after every PR merge.
+
+3. Use last `stable` release code
+
+    As usual, simply use:
+
+    ```console
+    ❯ pip install proxy.py
+    ```
+
+### Via Docker Container
+
+If you are into deploying containers, then simply build your image from base `proxy.py` container images.
+
+1. Use `GHCR` to build from `develop` branch code:
+
+    ```console
+    FROM ghcr.io/abhinavsingh/proxy.py:latest as base
+    ```
+
+    *PS: I use GHCR latest for several production level projects*
+
+2. Use `DockerHub` to build from last `stable` release code:
+
+    ```console
+    FROM abhinavsingh/proxy.py:latest as base
+    ```
+
+PS: IMHO, container based strategy is *the best approach* and the only strategy that *I use myself*.
+
+### Integrate your CI/CD with proxy.py
+
+*Hey, but you keep making breaking changes in the develop branch.*
+
+I hear you.  And hence, for your production grade applications, you *MUST* integrate application CI/CD with `proxy.py`.  You must make sure that your application builds and passes its tests for every PR merge into the `proxy.py` upstream repo.
+
+If your application repository is public, in certain scenarios, PR authors may send patch PRs for all dependents to maintain backward incompatibility and green CI/CD.
+
+CI/CD integration ensure your app continues to build with latest `proxy.py` code.  Depending upon where you host your code, use the strategy listed below:
+
+- GitHub
+
+    TBD
+
+- Google Cloud Build
+
+    TBD
+
+- AWS
+
+    TBD
+
+- Azure
+
+    TBD
+
+- Others
+
+    TBD
+
+> At some stage, we'll deprecate `master` branch segregation and simply maintain a `develop` branch.  As dependents can maintain stability via CI/CD integrations. Currently, it's hard for a production grade project to blindly depend upon `develop` branch.
 
 ## Stable vs Develop
 
@@ -2065,8 +2204,9 @@ To run standalone benchmark for `proxy.py`, use the following command from repo 
 ```console
 ❯ proxy -h
 usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS] [--local-executor]
-          [--backlog BACKLOG] [--hostname HOSTNAME] [--port PORT]
+          [--threaded] [--num-workers NUM_WORKERS]
+          [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
+          [--hostname HOSTNAME] [--port PORT]
           [--unix-socket-path UNIX_SOCKET_PATH]
           [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
           [--log-file LOG_FILE] [--log-format LOG_FORMAT]
@@ -2092,7 +2232,7 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0rc3.dev33+gc341594.d20211214
+proxy.py v2.4.0rc5.dev26+gb2b1bdc.d20211230
 
 options:
   -h, --help            show this help message and exit
@@ -2109,16 +2249,17 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
-  --local-executor      Default: False. Disabled by default. When enabled
-                        acceptors will make use of local (same process)
-                        executor instead of distributing load across remote
-                        (other process) executors. Enable this option to
-                        achieve CPU affinity between acceptors and executors,
-                        instead of using underlying OS kernel scheduling
-                        algorithm.
+  --local-executor LOCAL_EXECUTOR
+                        Default: 1. Enabled by default. Use 0 to disable. When
+                        enabled acceptors will make use of local (same
+                        process) executor instead of distributing load across
+                        remote (other process) executors. Enable this option
+                        to achieve CPU affinity between acceptors and
+                        executors, instead of using underlying OS kernel
+                        scheduling algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server
-  --hostname HOSTNAME   Default: ::1. Server IP address.
+  --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
   --port PORT           Default: 8899. Server port.
   --unix-socket-path UNIX_SOCKET_PATH
                         Default: None. Unix socket path to use. When provided
@@ -2175,9 +2316,9 @@ options:
                         generated HTTPS certificates. If used, must also pass
                         --ca-cert-file and --ca-signing-key-file
   --ca-cert-dir CA_CERT_DIR
-                        Default: ~/.proxy.py. Directory to store dynamically
-                        generated certificates. Also see --ca-key-file, --ca-
-                        cert-file and --ca-signing-key-file
+                        Default: ~/.proxy/certificates. Directory to store
+                        dynamically generated certificates. Also see --ca-key-
+                        file, --ca-cert-file and --ca-signing-key-file
   --ca-cert-file CA_CERT_FILE
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,

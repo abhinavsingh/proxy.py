@@ -247,8 +247,10 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini') }}
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini')
+          }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
               steps.calc-cache-key-py.outputs.py-hash-key
@@ -370,8 +372,10 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini') }}
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini')
+          }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
               steps.calc-cache-key-py.outputs.py-hash-key
@@ -485,12 +489,13 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini', 'requirements.txt', 'requirements-testing.txt')
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini', 'requirements**.txt')
           }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
-              steps.calc-cache-key-py.outputs.py-hash-key
+            steps.calc-cache-key-py.outputs.py-hash-key
           }}-
           ${{ runner.os }}-pip-
     - name: Install tox
@@ -667,12 +672,32 @@ jobs:
         make ca-certificates
         python3 -m proxy --version
 
+  check:  # This job does nothing and is only used for the branch protection
+    if: always()
+
+    needs:
+    - analyze
+    - test
+    - lint
+    - dashboard
+    - brew
+    - developer
+
+    runs-on: Ubuntu-latest
+
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
+
   docker:
     runs-on: Ubuntu-latest
     permissions:
       packages: write
+    if: success()
     needs:
-    - build
+    - check
     - pre-setup  # transitive, for accessing settings
     name: 🐳 containerize
     strategy:
@@ -680,6 +705,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
       uses: actions/download-artifact@v2
       with:
@@ -727,7 +754,8 @@ jobs:
         $CONTAINER_TAG
         --hostname 0.0.0.0
         --enable-web-server
-        --local-executor && ./tests/integration/test_integration.sh 8899
+        &&
+        ./tests/integration/test_integration.sh 8899
     - name: Push to GHCR
       run: >-
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
@@ -739,6 +767,7 @@ jobs:
         --platform ${{
           needs.pre-setup.outputs.container-platforms
         }}
+        --build-arg SKIP_OPENSSL=1
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
@@ -746,12 +775,52 @@ jobs:
     - name: Tag latest on GHCR
       if: >-
         github.event_name == 'push' &&
-        github.ref == format(
-          'refs/heads/{0}', github.event.repository.default_branch
+        (
+          github.ref == format(
+            'refs/heads/{0}', github.event.repository.default_branch
+          ) ||
+          github.ref == 'refs/heads/master'
         )
       run: >-
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
         LATEST_TAG=$REGISTRY_URL:latest;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg SKIP_OPENSSL=1
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $LATEST_TAG .
+    - name: Push openssl to GHCR
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        CONTAINER_TAG=$REGISTRY_URL:${{
+          needs.pre-setup.outputs.container-version
+        }}-openssl;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
+    - name: Tag openssl on GHCR
+      if: >-
+        github.event_name == 'push' &&
+        (
+          github.ref == format(
+            'refs/heads/{0}', github.event.repository.default_branch
+          ) ||
+          github.ref == 'refs/heads/master'
+        )
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        LATEST_TAG=$REGISTRY_URL:openssl;
         docker buildx build
         --push
         --platform ${{
@@ -766,6 +835,7 @@ jobs:
       with:
         username: abhinavsingh
         password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+    # TODO: openssl image is not published on DockerHub
     - name: Push to DockerHub
       run: >-
         REGISTRY_URL="abhinavsingh/proxy.py";
@@ -777,30 +847,11 @@ jobs:
         --platform ${{
           needs.pre-setup.outputs.container-platforms
         }}
+        --build-arg SKIP_OPENSSL=1
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
         -t $CONTAINER_TAG .
-
-  check:  # This job does nothing and is only used for the branch protection
-    if: always()
-
-    needs:
-    - analyze
-    - test
-    - lint
-    - docker
-    - dashboard
-    - brew
-    - developer
-
-    runs-on: Ubuntu-latest
-
-    steps:
-    - name: Decide whether the needed jobs succeeded or failed
-      uses: re-actors/alls-green@release/v1
-      with:
-        jobs: ${{ toJSON(needs) }}
 
   publish-pypi:
     name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI

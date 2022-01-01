@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import gzip
 import json
 import pytest
 import selectors
@@ -23,6 +24,7 @@ from proxy.core.connection import TcpClientConnection
 from proxy.http import HttpProtocolHandler
 from proxy.http import httpStatusCodes
 from proxy.http.proxy import HttpProxyPlugin
+from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.common.utils import build_http_request, bytes_, build_http_response
 from proxy.common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_HTTP_PORT
 from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
@@ -151,15 +153,22 @@ class TestHttpProxyPluginExamples(Assertions):
         await self.protocol_handler._run_once()
 
         self.mock_server_conn.assert_not_called()
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        response.parse(self.protocol_handler.work.buffer[0].tobytes())
+        assert response.body
         self.assertEqual(
-            self.protocol_handler.work.buffer[0].tobytes(),
-            build_http_response(
-                httpStatusCodes.OK, reason=b'OK',
-                headers={b'Content-Type': b'application/json'},
-                body=bytes_(
-                    json.dumps(
-                        ProposedRestApiPlugin.REST_API_SPEC[path],
-                    ),
+            response.header(b'content-type'),
+            b'application/json',
+        )
+        self.assertEqual(
+            response.header(b'content-encoding'),
+            b'gzip',
+        )
+        self.assertEqual(
+            gzip.decompress(response.body),
+            bytes_(
+                json.dumps(
+                    ProposedRestApiPlugin.REST_API_SPEC[path],
                 ),
             ),
         )
@@ -242,9 +251,7 @@ class TestHttpProxyPluginExamples(Assertions):
             build_http_response(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT,
                 reason=b'I\'m a tea pot',
-                headers={
-                    b'Connection': b'close',
-                },
+                conn_close=True,
             ),
         )
 
@@ -331,15 +338,16 @@ class TestHttpProxyPluginExamples(Assertions):
         server.recv.return_value = \
             build_http_response(
                 httpStatusCodes.OK,
-                reason=b'OK', body=b'Original Response From Upstream',
+                reason=b'OK',
+                body=b'Original Response From Upstream',
             )
         await self.protocol_handler._run_once()
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        response.parse(self.protocol_handler.work.buffer[0].tobytes())
+        assert response.body
         self.assertEqual(
-            self.protocol_handler.work.buffer[0].tobytes(),
-            build_http_response(
-                httpStatusCodes.OK,
-                reason=b'OK', body=b'Hello from man in the middle',
-            ),
+            gzip.decompress(response.body),
+            b'Hello from man in the middle',
         )
 
     @pytest.mark.asyncio    # type: ignore[misc]
@@ -376,6 +384,6 @@ class TestHttpProxyPluginExamples(Assertions):
             build_http_response(
                 status_code=httpStatusCodes.NOT_FOUND,
                 reason=b'Blocked',
-                headers={b'Connection': b'close'},
+                conn_close=True,
             ),
         )

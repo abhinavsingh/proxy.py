@@ -15,9 +15,9 @@ from typing import List, Tuple, Any, Dict
 
 from .plugin import ProxyDashboardWebsocketPlugin
 
-from ..common.utils import build_http_response, bytes_
+from ..common.utils import bytes_
 
-from ..http import httpStatusCodes
+from ..http.responses import permanentRedirectResponse
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
@@ -69,25 +69,13 @@ class ProxyDashboard(HttpWebServerBasePlugin):
                         self.flags.static_server_dir,
                         'dashboard', 'proxy.html',
                     ),
-                    self.flags.min_compression_limit,
                 ),
             )
         elif request.path in (
                 b'/dashboard',
                 b'/dashboard/proxy.html',
         ):
-            self.client.queue(
-                memoryview(
-                    build_http_response(
-                        httpStatusCodes.PERMANENT_REDIRECT, reason=b'Permanent Redirect',
-                        headers={
-                            b'Location': b'/dashboard/',
-                            b'Content-Length': b'0',
-                            b'Connection': b'close',
-                        },
-                    ),
-                ),
-            )
+            self.client.queue(permanentRedirectResponse(b'/dashboard/'))
 
     def on_websocket_open(self) -> None:
         logger.info('app ws opened')

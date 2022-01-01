@@ -23,7 +23,7 @@ if __name__ == '__main__':
             enable_web_server=True,
             disable_proxy_server=False,
             num_acceptors=10,
-            local_executor=True,
+            local_executor=1,
             log_file='/dev/null',
     ) as _:
         while True:

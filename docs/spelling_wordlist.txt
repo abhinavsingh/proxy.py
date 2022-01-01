@@ -13,7 +13,9 @@ faq
 html
 http
 https
+integrations
 iterable
+pre
 readables
 scm
 sexualized

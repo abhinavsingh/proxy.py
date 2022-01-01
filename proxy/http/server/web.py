@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import re
-import gzip
 import time
 import socket
 import logging
@@ -17,18 +16,19 @@ import mimetypes
 
 from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
 
-from ...common.constants import DEFAULT_STATIC_SERVER_DIR, PROXY_AGENT_HEADER_VALUE
+from ...common.constants import DEFAULT_STATIC_SERVER_DIR
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
-from ...common.utils import bytes_, text_, build_http_response, build_websocket_handshake_response
+from ...common.utils import bytes_, text_, build_websocket_handshake_response
 from ...common.types import Readables, Writables
 from ...common.flag import flags
 
-from ..codes import httpStatusCodes
 from ..exception import HttpProtocolException
 from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..parser import HttpParser, httpParserTypes
+from ..protocols import httpProtocols
+from ..responses import NOT_FOUND_RESPONSE_PKT, NOT_IMPLEMENTED_RESPONSE_PKT, okResponse
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
@@ -74,30 +74,6 @@ flags.add_argument(
 class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     """HttpProtocolHandler plugin which handles incoming requests to local web server."""
 
-    DEFAULT_404_RESPONSE = memoryview(
-        build_http_response(
-            httpStatusCodes.NOT_FOUND,
-            reason=b'NOT FOUND',
-            headers={
-                b'Server': PROXY_AGENT_HEADER_VALUE,
-                b'Content-Length': b'0',
-                b'Connection': b'close',
-            },
-        ),
-    )
-
-    DEFAULT_501_RESPONSE = memoryview(
-        build_http_response(
-            httpStatusCodes.NOT_IMPLEMENTED,
-            reason=b'NOT IMPLEMENTED',
-            headers={
-                b'Server': PROXY_AGENT_HEADER_VALUE,
-                b'Content-Length': b'0',
-                b'Connection': b'close',
-            },
-        ),
-    )
-
     def __init__(
             self,
             *args: Any, **kwargs: Any,
@@ -119,6 +95,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
             self._initialize_web_plugins()
 
+    @staticmethod
+    def protocols() -> List[int]:
+        return [httpProtocols.WEB_SERVER]
+
     def _initialize_web_plugins(self) -> None:
         for klass in self.flags.plugins[b'HttpWebServerBasePlugin']:
             instance: HttpWebServerBasePlugin = klass(
@@ -137,7 +117,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.flags.certfile is not None
 
     @staticmethod
-    def read_and_build_static_file_response(path: str, min_compression_limit: int) -> memoryview:
+    def read_and_build_static_file_response(path: str) -> memoryview:
         try:
             with open(path, 'rb') as f:
                 content = f.read()
@@ -147,23 +127,15 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             headers = {
                 b'Content-Type': bytes_(content_type),
                 b'Cache-Control': b'max-age=86400',
-                b'Connection': b'close',
             }
-            do_compress = len(content) > min_compression_limit
-            if do_compress:
-                headers.update({
-                    b'Content-Encoding': b'gzip',
-                })
-            return memoryview(
-                build_http_response(
-                    httpStatusCodes.OK,
-                    reason=b'OK',
-                    headers=headers,
-                    body=gzip.compress(content) if do_compress else content,
-                ),
+            return okResponse(
+                content=content,
+                headers=headers,
+                # TODO: Should we really close or take advantage of keep-alive?
+                conn_close=True,
             )
         except FileNotFoundError:
-            return HttpWebServerPlugin.DEFAULT_404_RESPONSE
+            return NOT_FOUND_RESPONSE_PKT
 
     def try_upgrade(self) -> bool:
         if self.request.has_header(b'connection') and \
@@ -181,13 +153,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 )
                 self.switched_protocol = httpProtocolTypes.WEBSOCKET
             else:
-                self.client.queue(self.DEFAULT_501_RESPONSE)
+                self.client.queue(NOT_IMPLEMENTED_RESPONSE_PKT)
                 return True
         return False
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
-        if self.request.has_host():
-            return False
         path = self.request.path or b'/'
         # Routing for Http(s) requests
         protocol = httpProtocolTypes.HTTPS \
@@ -223,12 +193,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.client.queue(
                 self.read_and_build_static_file_response(
                     self.flags.static_server_dir + path,
-                    self.flags.min_compression_limit,
                 ),
             )
             return True
         # Catch all unhandled web server requests, return 404
-        self.client.queue(self.DEFAULT_404_RESPONSE)
+        self.client.queue(NOT_FOUND_RESPONSE_PKT)
         return True
 
     def get_descriptors(self) -> Tuple[List[int], List[int]]:
@@ -263,10 +232,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 # TODO: Tear down if invalid protocol exception
                 remaining = frame.parse(remaining)
                 if frame.opcode == websocketOpcodes.CONNECTION_CLOSE:
-                    logger.warning(
+                    raise HttpProtocolException(
                         'Client sent connection close packet',
                     )
-                    raise HttpProtocolException()
                 else:
                     assert self.route
                     self.route.on_websocket_message(frame)
@@ -287,10 +255,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if self.pipeline_request.is_complete:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive:
-                    logger.error(
+                    raise HttpProtocolException(
                         'Pipelined request is not keep-alive, will tear down request...',
                     )
-                    raise HttpProtocolException()
                 self.pipeline_request = None
         return raw
 
@@ -298,8 +265,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         return chunk
 
     def on_client_connection_close(self) -> None:
-        if self.request.has_host():
-            return
         context = {
             'client_ip': None if not self.client.addr else self.client.addr[0],
             'client_port': None if not self.client.addr else self.client.addr[1],
@@ -308,10 +273,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
             'request_bytes': self.request.total_size,
-            'request_ua': self.request.header(b'user-agent')
+            'request_ua': text_(self.request.header(b'user-agent'))
             if self.request.has_header(b'user-agent')
             else None,
-            'request_version': self.request.version,
+            'request_version': None if not self.request.version else text_(self.request.version),
             # Response
             #
             # TODO: Track and inject web server specific response attributes

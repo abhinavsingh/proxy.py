@@ -68,7 +68,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_events = DEFAULT_ENABLE_EVENTS
         mock_args.enable_dashboard = DEFAULT_ENABLE_DASHBOARD
         mock_args.work_klass = DEFAULT_WORK_KLASS
-        mock_args.local_executor = DEFAULT_LOCAL_EXECUTOR
+        mock_args.local_executor = int(DEFAULT_LOCAL_EXECUTOR)
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -93,7 +93,7 @@ class TestMain(unittest.TestCase):
     ) -> None:
         pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         mock_sleep.side_effect = KeyboardInterrupt()
-        mock_initialize.return_value.local_executor = False
+        mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.pid_file = pid_file
         entry_point()
@@ -141,7 +141,7 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
-        mock_initialize.return_value.local_executor = False
+        mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
         main()
         mock_event_manager.assert_not_called()
@@ -181,7 +181,7 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
-        mock_initialize.return_value.local_executor = False
+        mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = True
         main()
         mock_event_manager.assert_called_once()
@@ -228,7 +228,8 @@ class TestMain(unittest.TestCase):
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.enable_dashboard = True
-        main(enable_dashboard=True)
+        mock_args.local_executor = 0
+        main(enable_dashboard=True, local_executor=0)
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -273,7 +274,8 @@ class TestMain(unittest.TestCase):
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.enable_devtools = True
-        main(enable_devtools=True)
+        mock_args.local_executor = 0
+        main(enable_devtools=True, local_executor=0)
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [

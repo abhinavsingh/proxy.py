@@ -22,6 +22,8 @@ proxy.py.iml
 *.crt
 *.key
 *.pem
+
+.venv*
 venv*
 
 cover
