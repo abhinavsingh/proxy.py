@@ -34,7 +34,6 @@
     "venv*/**/*.py",
     "docs/**/*.py",
     "helper/**/*.py",
-    "menubar/**/*.py"
   ],
   "python.linting.pylintEnabled": true,
   "python.linting.pylintArgs": ["--generate-members"],
