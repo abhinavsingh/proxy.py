@@ -33,7 +33,7 @@
     ".venv*/**/*.py",
     "venv*/**/*.py",
     "docs/**/*.py",
-    "helper/**/*.py",
+    "helper/**/*.py"
   ],
   "python.linting.pylintEnabled": true,
   "python.linting.pylintArgs": ["--generate-members"],
