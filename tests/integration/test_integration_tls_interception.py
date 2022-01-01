@@ -64,7 +64,7 @@ def proxy_py_with_tls_interception_subprocess(request: Any) -> Generator[int, No
 # * https://github.com/pytest-dev/pytest/issues/3342
 @pytest.mark.smoke  # type: ignore[misc]
 @pytest.mark.parametrize(
-    'proxy_py_subprocess',
+    'proxy_py_with_tls_interception_subprocess',
     (
         ('--threadless'),
         ('--threadless --local-executor 0'),

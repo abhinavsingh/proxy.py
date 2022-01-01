@@ -2379,12 +2379,3 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
-ther "security" (for malware
-                        protection) or "family" (for malware and adult content
-                        protection)
-
-Proxy.py not working? Report at:
-https://github.com/abhinavsingh/proxy.py/issues/new
-```
-```
-`
