@@ -11,6 +11,7 @@
     Test the simplest proxy use scenario for smoke.
 """
 import pytest
+import logging
 
 from pathlib import Path
 from subprocess import check_output, Popen
@@ -18,6 +19,8 @@ from typing import Generator, Any
 
 from proxy.common.constants import IS_WINDOWS
 from proxy.common.utils import get_available_port
+
+logger = logging.getLogger(__name__)
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
@@ -36,7 +39,7 @@ def proxy_py_with_tls_interception_subprocess(request: Any) -> Generator[int, No
     """
     # Generate CA certificates
     if not (Path(__file__).parent.parent.parent / 'ca-key.pem').exists():
-        print(check_output(['make', 'ca-certificates']))
+        logger.info(check_output(['make', 'ca-certificates']))
     port = get_available_port()
     proxy_cmd = (
         'python', '-m', 'proxy',
@@ -45,7 +48,7 @@ def proxy_py_with_tls_interception_subprocess(request: Any) -> Generator[int, No
         '--enable-web-server',
         '--plugins', 'proxy.plugin.CacheResponsesPlugin',
         '--plugins', 'proxy.plugin.ModifyChunkResponsePlugin',
-        '--ca-key-file ca-key.pem',
+        '--ca-key-file', 'ca-key.pem',
         '--ca-cert-file', 'ca-cert.pem',
         '--ca-signing-key', 'ca-signing-key.pem',
     ) + tuple(request.param.split())
