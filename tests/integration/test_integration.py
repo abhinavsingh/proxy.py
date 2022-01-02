@@ -69,8 +69,8 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
     raises=OSError,
 )  # type: ignore[misc]
-def test_curl(proxy_py_subprocess: int) -> None:
-    """An acceptance test with using ``curl`` through proxy.py."""
+def test_integration(proxy_py_subprocess: int) -> None:
+    """An acceptance test using ``curl`` through proxy.py."""
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
     check_output([str(shell_script_test), str(proxy_py_subprocess)])

@@ -56,10 +56,9 @@ flags.add_argument(
     '--server-recvbuf-size',
     type=int,
     default=DEFAULT_SERVER_RECVBUF_SIZE,
-    help='Default: 1 MB. Maximum amount of data received from the '
-    'server in a single recv() operation. Bump this '
-    'value for faster downloads at the expense of '
-    'increased RAM.',
+    help='Default: ' + str(int(DEFAULT_SERVER_RECVBUF_SIZE / 1024)) +
+    ' KB. Maximum amount of data received from the '
+    'server in a single recv() operation.',
 )
 
 flags.add_argument(
