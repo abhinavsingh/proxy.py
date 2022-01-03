@@ -38,7 +38,7 @@
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^5.0.0",
     "http-server": "^14.0.0",
-    "jasmine": "^3.10.0",
+    "jasmine": "^4.0.0",
     "jasmine-ts": "^0.3.0",
     "jquery": "^3.6.0",
     "js-cookie": "^3.0.1",
