@@ -1,4 +1,4 @@
-wheel==0.37.0
+wheel==0.37.1
 python-coveralls==2.9.3
 coverage==6.2
 flake8==4.0.1
