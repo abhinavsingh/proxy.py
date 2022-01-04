@@ -10,13 +10,16 @@
 """
 import argparse
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Optional
 
-from ..parser import HttpParser
-from ..websocket import WebsocketFrame
-from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
-from ...core.connection import TcpClientConnection
+
+
+if TYPE_CHECKING:
+    from ..parser import HttpParser
+    from ..websocket import WebsocketFrame
+    from ...core.event import EventQueue
+    from ...core.connection import TcpClientConnection
 
 
 class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
@@ -38,8 +41,8 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
             self,
             uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
-            event_queue: EventQueue,
+            client: 'TcpClientConnection',
+            event_queue: 'EventQueue',
     ):
         self.uid = uid
         self.flags = flags
@@ -59,7 +62,7 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
         raise NotImplementedError()     # pragma: no cover
 
     @abstractmethod
-    def handle_request(self, request: HttpParser) -> None:
+    def handle_request(self, request: 'HttpParser') -> None:
         """Handle the request and serve response."""
         raise NotImplementedError()     # pragma: no cover
 
@@ -77,7 +80,7 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
     # No longer abstract since v2.4.0
     #
     # @abstractmethod
-    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+    def on_websocket_message(self, frame: 'WebsocketFrame') -> None:
         """Handle websocket frame."""
         return None     # pragma: no cover
 

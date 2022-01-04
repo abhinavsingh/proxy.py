@@ -13,14 +13,13 @@ import argparse
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Union, Optional
 
-from .parser import HttpParser
-from ..core.event import EventQueue
 from .descriptors import DescriptorsHandlerMixin
-from ..core.connection import TcpClientConnection
 
 
 if TYPE_CHECKING:
-    from ..core.connection import UpstreamConnectionPool
+    from .parser import HttpParser
+    from ..core.event import EventQueue
+    from ..core.connection import TcpClientConnection, UpstreamConnectionPool
 
 
 class HttpProtocolHandlerPlugin(DescriptorsHandlerMixin, ABC):
@@ -49,15 +48,15 @@ class HttpProtocolHandlerPlugin(DescriptorsHandlerMixin, ABC):
             self,
             uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
-            request: HttpParser,
-            event_queue: Optional[EventQueue],
+            client: 'TcpClientConnection',
+            request: 'HttpParser',
+            event_queue: Optional['EventQueue'],
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
         self.uid: str = uid
         self.flags: argparse.Namespace = flags
-        self.client: TcpClientConnection = client
-        self.request: HttpParser = request
+        self.client: 'TcpClientConnection' = client
+        self.request: 'HttpParser' = request
         self.event_queue = event_queue
         self.upstream_conn_pool = upstream_conn_pool
         super().__init__()

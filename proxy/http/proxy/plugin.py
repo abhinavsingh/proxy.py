@@ -10,12 +10,15 @@
 """
 import argparse
 from abc import ABC
-from typing import Any, Dict, Tuple, Optional
+from typing import TYPE_CHECKING, Any, Dict, Tuple, Optional
 
-from ..parser import HttpParser
-from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
-from ...core.connection import TcpClientConnection
+
+
+if TYPE_CHECKING:
+    from ..parser import HttpParser
+    from ...core.event import EventQueue
+    from ...core.connection import TcpClientConnection
 
 
 class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
@@ -27,8 +30,8 @@ class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
             self,
             uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
-            event_queue: EventQueue,
+            client: 'TcpClientConnection',
+            event_queue: 'EventQueue',
     ) -> None:
         self.uid = uid                  # pragma: no cover
         self.flags = flags              # pragma: no cover
@@ -62,8 +65,8 @@ class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
     #
     # @abstractmethod
     def before_upstream_connection(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
+            self, request: 'HttpParser',
+    ) -> Optional['HttpParser']:
         """Handler called just before Proxy upstream connection is established.
 
         Return optionally modified request object.
@@ -95,8 +98,8 @@ class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
     #
     # @abstractmethod
     def handle_client_request(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
+            self, request: 'HttpParser',
+    ) -> Optional['HttpParser']:
         """Handler called before dispatching client request to upstream.
 
         Note: For pipelined (keep-alive) connections, this handler can be
