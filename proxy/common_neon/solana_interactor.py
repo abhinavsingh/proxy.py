@@ -37,7 +37,7 @@ class SolanaInteractor:
 
     def _send_rpc_batch_request(self, method: str, params_list: List[Any]) -> List[RPCResponse]:
         request_data = []
-        for params in params_list:      
+        for params in params_list:
             request_id = next(self.client._provider._request_counter) + 1
             request = {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}
             request_data.append(request)
@@ -53,7 +53,6 @@ class SolanaInteractor:
                 raise Exception("Invalid RPC response: request {} response {}", request, response)
 
         return response_data
-    
 
     def get_operator_key(self):
         return self.signer.public_key()
@@ -144,7 +143,7 @@ class SolanaInteractor:
     def send_transaction_unconfirmed(self, txn: Transaction):
         for _i in range(RETRY_ON_FAIL):
             # TODO: Cache recent blockhash
-            blockhash_resp = self.client.get_recent_blockhash() # commitment=Confirmed
+            blockhash_resp = self.client.get_recent_blockhash(commitment=Confirmed)
             if not blockhash_resp["result"]:
                 raise RuntimeError("failed to get recent blockhash")
             blockhash = blockhash_resp["result"]["value"]["blockhash"]
@@ -162,7 +161,7 @@ class SolanaInteractor:
         raise RuntimeError("Failed trying {} times to get Blockhash for transaction {}".format(RETRY_ON_FAIL, txn.__dict__))
 
     def send_multiple_transactions_unconfirmed(self, transactions: List[Transaction], skip_preflight: bool = True) -> List[str]:
-        blockhash_resp = self.client.get_recent_blockhash() # commitment=Confirmed
+        blockhash_resp = self.client.get_recent_blockhash(commitment=Confirmed)
         if not blockhash_resp["result"]:
             raise RuntimeError("failed to get recent blockhash")
 
@@ -172,7 +171,6 @@ class SolanaInteractor:
         for transaction in transactions:
             transaction.recent_blockhash = blockhash
             transaction.sign(self.signer)
-        
             base64_transaction = base64.b64encode(transaction.serialize()).decode("utf-8")
             request.append((base64_transaction, {"skipPreflight": skip_preflight, "encoding": "base64", "preflightCommitment": "confirmed"}))
 
