@@ -27,8 +27,8 @@ pgrep -P "$PROXY_PY_PID" | while read -r acceptorPid; do
   OPEN_FILES_BY_ACCEPTOR=$(lsof -p "$acceptorPid" | wc -l)
   echo "[$acceptorPid] Acceptor process: $OPEN_FILES_BY_ACCEPTOR"
 
-  pgrep -P "$acceptorPid" | while read -r threadlessPid; do
-    OPEN_FILES_BY_THREADLESS=$(lsof -p "$threadlessPid" | wc -l)
-    echo "  [$threadlessPid] Threadless process: $OPEN_FILES_BY_THREADLESS"
+  pgrep -P "$acceptorPid" | while read -r childPid; do
+    OPEN_FILES_BY_CHILD_PROC=$(lsof -p "$childPid" | wc -l)
+    echo "  [$childPid] child process: $OPEN_FILES_BY_CHILD_PROC"
   done
 done

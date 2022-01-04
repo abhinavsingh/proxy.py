@@ -12,9 +12,9 @@ import ssl
 import logging
 
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Optional, Any
+from typing import Optional, Any
 
-from ...common.types import Readables, Writables
+from ...common.types import Readables, Writables, Descriptors
 from ...core.connection import TcpServerConnection
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class TcpUpstreamConnectionHandler(ABC):
     def initialize_upstream(self, addr: str, port: int) -> None:
         self.upstream = TcpServerConnection(addr, port)
 
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
+    def get_descriptors(self) -> Descriptors:
         if not self.upstream:
             return [], []
         return [self.upstream.connection.fileno()], \

@@ -22,7 +22,7 @@ import logging
 import threading
 import subprocess
 
-from typing import Optional, List, Union, Dict, cast, Any, Tuple
+from typing import Optional, List, Union, Dict, cast, Any
 
 from .plugin import HttpProxyBasePlugin
 
@@ -34,7 +34,7 @@ from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
-from ...common.types import Readables, Writables
+from ...common.types import Readables, Writables, Descriptors
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
@@ -172,7 +172,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.flags.ca_signing_key_file is not None and \
             self.flags.ca_cert_file is not None
 
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
+    def get_descriptors(self) -> Descriptors:
         r: List[int] = []
         w: List[int] = []
         if (

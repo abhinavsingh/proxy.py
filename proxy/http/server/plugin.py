@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
 
-from ...common.types import Readables, Writables
+from ...common.types import Readables, Writables, Descriptors
 from ...core.connection import TcpClientConnection
 from ...core.event import EventQueue
 
@@ -54,7 +54,7 @@ class HttpWebServerBasePlugin(ABC):
     # Since 3.4.0
     #
     # @abstractmethod
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
+    def get_descriptors(self) -> Descriptors:
         return [], []  # pragma: no cover
 
     # @abstractmethod

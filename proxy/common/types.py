@@ -12,7 +12,7 @@ import queue
 import ipaddress
 import sys
 
-from typing import TYPE_CHECKING, Dict, Any, List, Union
+from typing import TYPE_CHECKING, Dict, Any, List, Tuple, Union
 
 # NOTE: Using try/except causes linting problems which is why it's necessary
 # NOTE: to use this mypy/pylint idiom for py36-py38 compatibility
@@ -37,3 +37,4 @@ class HasFileno(Protocol):
 Readables = List[Union[int, HasFileno]]
 Writables = List[Union[int, HasFileno]]
 IpAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+Descriptors = Tuple[List[int], List[int]]

@@ -12,9 +12,9 @@ import socket
 import argparse
 
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Union, Optional, TYPE_CHECKING
+from typing import List, Union, Optional, TYPE_CHECKING
 
-from ..common.types import Readables, Writables
+from ..common.types import Readables, Writables, Descriptors
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 
@@ -69,7 +69,7 @@ class HttpProtocolHandlerPlugin(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
+    def get_descriptors(self) -> Descriptors:
         """Implementations must return a list of descriptions that they wish to
         read from and write into."""
         return [], []  # pragma: no cover
