@@ -12,6 +12,6 @@ from abc import ABC
 
 
 class HttpWebServerBaseMiddleware(ABC):
-    """Web Server Middleware for customizations during request/response dispatch lifecycle."""
+    """Web Server Middle-ware for customization during request/response dispatch lifecycle."""
 
     pass
