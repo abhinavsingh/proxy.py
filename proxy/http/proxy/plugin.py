@@ -14,13 +14,13 @@ from abc import ABC
 from typing import Any, Dict, Optional, Tuple
 
 from ..parser import HttpParser
+from ..descriptors import DescriptorsHandlerMixin
 
-from ...common.types import Readables, Writables, Descriptors
 from ...core.event import EventQueue
 from ...core.connection import TcpClientConnection
 
 
-class HttpProxyBasePlugin(ABC):
+class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
     """Base HttpProxyPlugin Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
@@ -43,36 +43,6 @@ class HttpProxyBasePlugin(ABC):
         Defaults to name of the class. This helps plugin developers to directly
         access a specific plugin by its name."""
         return self.__class__.__name__      # pragma: no cover
-
-    # TODO(abhinavsingh): get_descriptors, write_to_descriptors, read_from_descriptors
-    # can be placed into their own abstract class which can then be shared by
-    # HttpProxyBasePlugin, HttpWebServerBasePlugin and HttpProtocolHandlerPlugin class.
-    #
-    # Currently code has been shamelessly copied.  Also these methods are not
-    # marked as abstract to avoid breaking custom plugins written by users for
-    # previous versions of proxy.py
-    #
-    # Since 3.4.0
-    #
-    # @abstractmethod
-    def get_descriptors(self) -> Descriptors:
-        return [], []  # pragma: no cover
-
-    # @abstractmethod
-    def write_to_descriptors(self, w: Writables) -> bool:
-        """Implementations must now write/flush data over the socket.
-
-        Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call
-        :meth:`~proxy.core.connection.connection.TcpConnection.flush`
-        here, to send any buffered data over the socket.
-        """
-        return False  # pragma: no cover
-
-    # @abstractmethod
-    def read_from_descriptors(self, r: Readables) -> bool:
-        """Implementations must now read data over the socket."""
-        return False  # pragma: no cover
 
     def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:
         """Resolve upstream server host to an IP address.

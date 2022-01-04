@@ -147,7 +147,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         events: Dict[int, int] = await super().get_events()
         # HttpProtocolHandlerPlugin.get_descriptors
         if self.plugin:
-            plugin_read_desc, plugin_write_desc = self.plugin.get_descriptors()
+            plugin_read_desc, plugin_write_desc = await self.plugin.get_descriptors()
             for rfileno in plugin_read_desc:
                 if rfileno not in events:
                     events[rfileno] = selectors.EVENT_READ

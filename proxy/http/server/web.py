@@ -200,10 +200,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(NOT_FOUND_RESPONSE_PKT)
         return True
 
-    def get_descriptors(self) -> Descriptors:
+    async def get_descriptors(self) -> Descriptors:
         r, w = [], []
         for plugin in self.plugins.values():
-            r1, w1 = plugin.get_descriptors()
+            r1, w1 = await plugin.get_descriptors()
             r.extend(r1)
             w.extend(w1)
         return r, w

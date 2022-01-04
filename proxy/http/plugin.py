@@ -14,17 +14,17 @@ import argparse
 from abc import ABC, abstractmethod
 from typing import List, Union, Optional, TYPE_CHECKING
 
-from ..common.types import Readables, Writables, Descriptors
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 
 from .parser import HttpParser
+from .descriptors import DescriptorsHandlerMixin
 
 if TYPE_CHECKING:
     from ..core.connection import UpstreamConnectionPool
 
 
-class HttpProtocolHandlerPlugin(ABC):
+class HttpProtocolHandlerPlugin(DescriptorsHandlerMixin, ABC):
     """Base HttpProtocolHandler Plugin class.
 
     NOTE: This is an internal plugin and in most cases only useful for core contributors.
@@ -67,28 +67,6 @@ class HttpProtocolHandlerPlugin(ABC):
     @abstractmethod
     def protocols() -> List[int]:
         raise NotImplementedError()
-
-    @abstractmethod
-    def get_descriptors(self) -> Descriptors:
-        """Implementations must return a list of descriptions that they wish to
-        read from and write into."""
-        return [], []  # pragma: no cover
-
-    @abstractmethod
-    async def write_to_descriptors(self, w: Writables) -> bool:
-        """Implementations must now write/flush data over the socket.
-
-        Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call
-        :meth:`~proxy.core.connection.TcpConnection.flush` here, to send
-        any buffered data over the socket.
-        """
-        return False  # pragma: no cover
-
-    @abstractmethod
-    async def read_from_descriptors(self, r: Readables) -> bool:
-        """Implementations must now read data over the socket."""
-        return False  # pragma: no cover
 
     @abstractmethod
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
