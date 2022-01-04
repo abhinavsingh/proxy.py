@@ -2332,7 +2332,7 @@ options:
                         TLS encryption with clients. If used, must also pass
                         --key-file.
   --auth-plugin AUTH_PLUGIN
-                        Default: proxy.http.proxy.AuthPlugin. Auth plugin to
+                        Default: proxy.http.proxy.auth.AuthPlugin. Auth plugin to
                         use instead of default basic auth plugin.
   --basic-auth BASIC_AUTH
                         Default: No authentication. Specify colon separated

@@ -12,16 +12,16 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional
 
 from .store.base import CacheStore
+from ...http.proxy import HttpProxyBasePlugin
 
 if TYPE_CHECKING:
-    from ...http.proxy import HttpProxyBasePlugin   # noqa: F401
     from ...http.parser import HttpParser
 
 
 logger = logging.getLogger(__name__)
 
 
-class BaseCacheResponsesPlugin('HttpProxyBasePlugin'):
+class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
     """Base cache plugin.
 
     It requires a storage backend to work with. Storage class

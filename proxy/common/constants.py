@@ -153,7 +153,7 @@ PLUGIN_PAC_FILE = 'proxy.http.server.HttpWebServerPacFilePlugin'
 PLUGIN_DEVTOOLS_PROTOCOL = 'proxy.http.inspector.DevtoolsProtocolPlugin'
 PLUGIN_DASHBOARD = 'proxy.dashboard.ProxyDashboard'
 PLUGIN_INSPECT_TRAFFIC = 'proxy.dashboard.InspectTrafficPlugin'
-PLUGIN_PROXY_AUTH = 'proxy.http.proxy.AuthPlugin'
+PLUGIN_PROXY_AUTH = 'proxy.http.proxy.auth.AuthPlugin'
 
 PY2_DEPRECATION_MESSAGE = '''DEPRECATION: proxy.py no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
                 'If for some reasons you cannot upgrade, use'
