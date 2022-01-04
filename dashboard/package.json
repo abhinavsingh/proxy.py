@@ -50,6 +50,6 @@
     "rollup-plugin-typescript": "^1.0.1",
     "ts-node": "^7.0.1",
     "typescript": "^3.9.7",
-    "ws": "^8.3.0"
+    "ws": "^8.4.0"
   }
 }
