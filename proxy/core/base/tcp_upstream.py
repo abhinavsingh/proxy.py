@@ -62,7 +62,7 @@ class TcpUpstreamConnectionHandler(ABC):
     def initialize_upstream(self, addr: str, port: int) -> None:
         self.upstream = TcpServerConnection(addr, port)
 
-    def get_descriptors(self) -> Descriptors:
+    async def get_descriptors(self) -> Descriptors:
         if not self.upstream:
             return [], []
         return [self.upstream.connection.fileno()], \
@@ -70,7 +70,7 @@ class TcpUpstreamConnectionHandler(ABC):
             if self.upstream.has_buffer() \
             else []
 
-    def read_from_descriptors(self, r: Readables) -> bool:
+    async def read_from_descriptors(self, r: Readables) -> bool:
         if self.upstream and \
                 self.upstream.connection.fileno() in r:
             try:
@@ -89,7 +89,7 @@ class TcpUpstreamConnectionHandler(ABC):
                 return True
         return False
 
-    def write_to_descriptors(self, w: Writables) -> bool:
+    async def write_to_descriptors(self, w: Writables) -> bool:
         if self.upstream and \
                 self.upstream.connection.fileno() in w and \
                 self.upstream.has_buffer():

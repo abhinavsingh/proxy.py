@@ -28,6 +28,8 @@ class DescriptorsHandlerMixin:
     #
     # @abstractmethod
     async def get_descriptors(self) -> Descriptors:
+        """Implementations must return a list of descriptions that they wish to
+        read from and write into."""
         return [], []  # pragma: no cover
 
     # @abstractmethod
