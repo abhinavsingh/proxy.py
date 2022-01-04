@@ -20,7 +20,9 @@ else:
     DictQueueType = queue.Queue
 
 
-Selectables = List[int]
+Selectable = int
+Selectables = List[Selectable]
+SelectableEvents = Dict[Selectable, int]    # Values are event masks
 Readables = Selectables
 Writables = Selectables
 Descriptors = Tuple[Readables, Writables]

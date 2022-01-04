@@ -21,7 +21,7 @@ from abc import abstractmethod, ABC
 from typing import Any, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
-from ...common.types import Readables, Writables
+from ...common.types import Readables, SelectableEvents, Writables
 from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
@@ -82,7 +82,7 @@ class Threadless(ABC, Generic[T]):
             # work_id
             int,
             # fileno, mask
-            Dict[int, int],
+            SelectableEvents,
         ] = {}
         self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
@@ -288,9 +288,9 @@ class Threadless(ABC, Generic[T]):
             if key.data not in work_by_ids:
                 work_by_ids[key.data] = ([], [])
             if mask & selectors.EVENT_READ:
-                work_by_ids[key.data][0].append(key.fileobj)
+                work_by_ids[key.data][0].append(key.fd)
             if mask & selectors.EVENT_WRITE:
-                work_by_ids[key.data][1].append(key.fileobj)
+                work_by_ids[key.data][1].append(key.fd)
         return (work_by_ids, new_work_available)
 
     async def _wait_for_tasks(self) -> Set['asyncio.Task[bool]']:
