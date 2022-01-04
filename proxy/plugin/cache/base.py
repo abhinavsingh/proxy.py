@@ -9,17 +9,19 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from .store.base import CacheStore
-from ...http.proxy import HttpProxyBasePlugin
-from ...http.parser import HttpParser
+
+if TYPE_CHECKING:
+    from ...http.proxy import HttpProxyBasePlugin   # noqa: F401
+    from ...http.parser import HttpParser
 
 
 logger = logging.getLogger(__name__)
 
 
-class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
+class BaseCacheResponsesPlugin('HttpProxyBasePlugin'):
     """Base cache plugin.
 
     It requires a storage backend to work with. Storage class
@@ -40,8 +42,8 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         self.store = store
 
     def before_upstream_connection(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
+            self, request: 'HttpParser',
+    ) -> Optional['HttpParser']:
         assert self.store
         try:
             self.store.open(request)
@@ -50,8 +52,8 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         return request
 
     def handle_client_request(
-            self, request: HttpParser,
-    ) -> Optional[HttpParser]:
+            self, request: 'HttpParser',
+    ) -> Optional['HttpParser']:
         assert self.store
         return self.store.cache_request(request)
 

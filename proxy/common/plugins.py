@@ -73,12 +73,12 @@ class Plugins:
             mro = list(inspect.getmro(klass))
             # Find the base plugin class that
             # this plugin_ is implementing
-            found = False
-            for base_klass in mro:
-                if bytes_(base_klass.__name__) in p:
-                    found = True
+            base_klass = None
+            for k in mro:
+                if bytes_(k.__name__) in p:
+                    base_klass = k
                     break
-            if not found:
+            if base_klass is None:
                 raise ValueError('%s is NOT a valid plugin' % text_(plugin_))
             if klass not in p[bytes_(base_klass.__name__)]:
                 p[bytes_(base_klass.__name__)].append(klass)
