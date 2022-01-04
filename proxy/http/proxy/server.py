@@ -203,7 +203,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered.
             for plugin in self.plugins.values():
-                teardown = plugin.write_to_descriptors(w)
+                teardown = await plugin.write_to_descriptors(w)
                 if teardown:
                     return True
         elif self.upstream and not self.upstream.closed and \
@@ -239,7 +239,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered for.
             for plugin in self.plugins.values():
-                teardown = plugin.read_from_descriptors(r)
+                teardown = await plugin.read_from_descriptors(r)
                 if teardown:
                     return True
         elif self.upstream \

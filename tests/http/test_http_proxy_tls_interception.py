@@ -104,9 +104,10 @@ class TestHttpProxyTlsInterception(Assertions):
         )
         self._conn.recv.return_value = connect_request
 
+        async def asyncReturnBool(val: bool) -> bool:
+            return val
+
         # Prepare mocked HttpProtocolHandlerPlugin
-        # async def asyncReturnBool(val: bool) -> bool:
-        #     return val
         # self.plugin.return_value.get_descriptors.return_value = ([], [])
         # self.plugin.return_value.write_to_descriptors.return_value = asyncReturnBool(False)
         # self.plugin.return_value.read_from_descriptors.return_value = asyncReturnBool(False)
@@ -116,8 +117,10 @@ class TestHttpProxyTlsInterception(Assertions):
         # self.plugin.return_value.on_client_connection_close.return_value = None
 
         # Prepare mocked HttpProxyBasePlugin
-        self.proxy_plugin.return_value.write_to_descriptors.return_value = False
-        self.proxy_plugin.return_value.read_from_descriptors.return_value = False
+        self.proxy_plugin.return_value.write_to_descriptors.return_value = \
+            asyncReturnBool(False)
+        self.proxy_plugin.return_value.read_from_descriptors.return_value = \
+            asyncReturnBool(False)
         self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
         self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
         self.proxy_plugin.return_value.resolve_dns.return_value = None, None
