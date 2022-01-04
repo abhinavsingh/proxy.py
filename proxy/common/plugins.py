@@ -70,11 +70,20 @@ class Plugins:
         for plugin_ in plugins:
             klass, module_name = Plugins.importer(plugin_)
             assert klass and module_name
-            base_klass = list(inspect.getmro(klass))[1]
+            mro = list(inspect.getmro(klass))
+            # Find the base plugin class that
+            # this plugin_ is implementing
+            found = False
+            for base_klass in mro:
+                if bytes_(base_klass.__name__) in p:
+                    found = True
+                    break
+            if not found:
+                raise ValueError('%s is NOT a valid plugin' % text_(plugin_))
             if klass not in p[bytes_(base_klass.__name__)]:
                 p[bytes_(base_klass.__name__)].append(klass)
             logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
-        print(p)
+        # print(p)
         return p
 
     @staticmethod
