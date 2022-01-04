@@ -98,7 +98,6 @@ lib-clean:
 lib-dep:
 	pip install --upgrade pip && \
 	pip install \
-		-r requirements.txt \
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
 		-r requirements-tunnel.txt && \

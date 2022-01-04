@@ -22,7 +22,7 @@ import logging
 import threading
 import subprocess
 
-from typing import Optional, List, Union, Dict, cast, Any, Tuple
+from typing import Optional, List, Union, Dict, cast, Any
 
 from .plugin import HttpProxyBasePlugin
 
@@ -34,7 +34,7 @@ from ..exception import HttpProtocolException, ProxyConnectionFailed
 from ..parser import HttpParser, httpParserStates, httpParserTypes
 from ..responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 
-from ...common.types import Readables, Writables
+from ...common.types import Readables, Writables, Descriptors
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
 from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
@@ -172,7 +172,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.flags.ca_signing_key_file is not None and \
             self.flags.ca_cert_file is not None
 
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
+    async def get_descriptors(self) -> Descriptors:
         r: List[int] = []
         w: List[int] = []
         if (
@@ -192,19 +192,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # descriptors registered by them, so that within write/read blocks
         # we can invoke the right plugin callbacks.
         for plugin in self.plugins.values():
-            plugin_read_desc, plugin_write_desc = plugin.get_descriptors()
+            plugin_read_desc, plugin_write_desc = await plugin.get_descriptors()
             r.extend(plugin_read_desc)
             w.extend(plugin_write_desc)
         return r, w
-
-    def _close_and_release(self) -> bool:
-        if self.flags.enable_conn_pool:
-            assert self.upstream and not self.upstream.closed and self.upstream_conn_pool
-            self.upstream.closed = True
-            with self.lock:
-                self.upstream_conn_pool.release(self.upstream)
-            self.upstream = None
-        return True
 
     async def write_to_descriptors(self, w: Writables) -> bool:
         if (self.upstream and self.upstream.connection.fileno() not in w) or not self.upstream:
@@ -212,7 +203,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered.
             for plugin in self.plugins.values():
-                teardown = plugin.write_to_descriptors(w)
+                teardown = await plugin.write_to_descriptors(w)
                 if teardown:
                     return True
         elif self.upstream and not self.upstream.closed and \
@@ -248,7 +239,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered for.
             for plugin in self.plugins.values():
-                teardown = plugin.read_from_descriptors(r)
+                teardown = await plugin.read_from_descriptors(r)
                 if teardown:
                     return True
         elif self.upstream \
@@ -955,3 +946,16 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             },
             publisher_id=self.__class__.__name__,
         )
+
+    #
+    # Internal methods
+    #
+
+    def _close_and_release(self) -> bool:
+        if self.flags.enable_conn_pool:
+            assert self.upstream and not self.upstream.closed and self.upstream_conn_pool
+            self.upstream.closed = True
+            with self.lock:
+                self.upstream_conn_pool.release(self.upstream)
+            self.upstream = None
+        return True

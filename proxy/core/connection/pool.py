@@ -19,7 +19,7 @@ import selectors
 from typing import TYPE_CHECKING, Set, Dict, Tuple
 
 from ...common.flag import flags
-from ...common.types import Readables, Writables
+from ...common.types import Readables, SelectableEvents, Writables
 
 from ..acceptor.work import Work
 
@@ -129,7 +129,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
             # Reset for reusability
             conn.reset()
 
-    async def get_events(self) -> Dict[int, int]:
+    async def get_events(self) -> SelectableEvents:
         """Returns read event flag for all reusable connections in the pool."""
         events = {}
         for connections in self.pools.values():

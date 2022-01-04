@@ -10,12 +10,10 @@
 """
 import time
 
-from typing import Dict
-
 from proxy import Proxy
 from proxy.core.acceptor import Work
 from proxy.core.connection import TcpClientConnection
-from proxy.common.types import Readables, Writables
+from proxy.common.types import Readables, SelectableEvents, Writables
 
 
 class WebScraper(Work[TcpClientConnection]):
@@ -40,7 +38,7 @@ class WebScraper(Work[TcpClientConnection]):
     only PUBSUB protocol.
     """
 
-    async def get_events(self) -> Dict[int, int]:
+    async def get_events(self) -> SelectableEvents:
         """Return sockets and events (read or write) that we are interested in."""
         return {}
 

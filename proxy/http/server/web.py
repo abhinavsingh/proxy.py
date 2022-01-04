@@ -14,13 +14,13 @@ import socket
 import logging
 import mimetypes
 
-from typing import List, Tuple, Optional, Dict, Union, Any, Pattern
+from typing import List, Optional, Dict, Union, Any, Pattern
 
 from ...common.constants import DEFAULT_STATIC_SERVER_DIR
 from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
 from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
 from ...common.utils import bytes_, text_, build_websocket_handshake_response
-from ...common.types import Readables, Writables
+from ...common.types import Readables, Writables, Descriptors
 from ...common.flag import flags
 
 from ..exception import HttpProtocolException
@@ -200,24 +200,24 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(NOT_FOUND_RESPONSE_PKT)
         return True
 
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
+    async def get_descriptors(self) -> Descriptors:
         r, w = [], []
         for plugin in self.plugins.values():
-            r1, w1 = plugin.get_descriptors()
+            r1, w1 = await plugin.get_descriptors()
             r.extend(r1)
             w.extend(w1)
         return r, w
 
     async def write_to_descriptors(self, w: Writables) -> bool:
         for plugin in self.plugins.values():
-            teardown = plugin.write_to_descriptors(w)
+            teardown = await plugin.write_to_descriptors(w)
             if teardown:
                 return True
         return False
 
     async def read_from_descriptors(self, r: Readables) -> bool:
         for plugin in self.plugins.values():
-            teardown = plugin.read_from_descriptors(r)
+            teardown = await plugin.read_from_descriptors(r)
             if teardown:
                 return True
         return False

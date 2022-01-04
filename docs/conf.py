@@ -299,6 +299,7 @@ nitpick_ignore = [
     (_py_class_role, 'proxy.core.acceptor.threadless.T'),
     (_py_class_role, 'proxy.core.acceptor.work.T'),
     (_py_class_role, 'queue.Queue[Any]'),
+    (_py_class_role, 'SelectableEvents'),
     (_py_class_role, 'TcpClientConnection'),
     (_py_class_role, 'TcpServerConnection'),
     (_py_class_role, 'unittest.case.TestCase'),

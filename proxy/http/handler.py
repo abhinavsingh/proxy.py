@@ -16,13 +16,13 @@ import asyncio
 import logging
 import selectors
 
-from typing import Tuple, List, Type, Union, Optional, Dict, Any
+from typing import Tuple, List, Type, Union, Optional, Any
 
 from ..common.flag import flags
 from ..common.utils import wrap_socket
 from ..core.base import BaseTcpServerHandler
-from ..common.types import Readables, Writables
 from ..core.connection import TcpClientConnection
+from ..common.types import Readables, SelectableEvents, Writables
 from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE
 from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT, DEFAULT_TIMEOUT
 
@@ -142,12 +142,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
             logger.debug('Client connection closed')
             super().shutdown()
 
-    async def get_events(self) -> Dict[int, int]:
+    async def get_events(self) -> SelectableEvents:
         # Get default client events
-        events: Dict[int, int] = await super().get_events()
+        events: SelectableEvents = await super().get_events()
         # HttpProtocolHandlerPlugin.get_descriptors
         if self.plugin:
-            plugin_read_desc, plugin_write_desc = self.plugin.get_descriptors()
+            plugin_read_desc, plugin_write_desc = await self.plugin.get_descriptors()
             for rfileno in plugin_read_desc:
                 if rfileno not in events:
                     events[rfileno] = selectors.EVENT_READ
@@ -400,7 +400,7 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     # FIXME: Returning events is only necessary because we cannot use async context manager
     # for < Python 3.8.  As a reason, this method is no longer a context manager and caller
     # is responsible for unregistering the descriptors.
-    async def _selected_events(self) -> Tuple[Dict[int, int], Readables, Writables]:
+    async def _selected_events(self) -> Tuple[SelectableEvents, Readables, Writables]:
         assert self.selector
         events = await self.get_events()
         for fd in events:
@@ -410,9 +410,9 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         writables = []
         for key, mask in ev:
             if mask & selectors.EVENT_READ:
-                readables.append(key.fileobj)
+                readables.append(key.fd)
             if mask & selectors.EVENT_WRITE:
-                writables.append(key.fileobj)
+                writables.append(key.fd)
         return (events, readables, writables)
 
     def _flush(self) -> None:
