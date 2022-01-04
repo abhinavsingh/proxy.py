@@ -42,7 +42,7 @@ class SolanaInteractor:
             request = {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}
             request_data.append(request)
 
-        response = requests.post(self.client._provider.endpoint_uri, headers={"Content-Type": "application/json"}, json=request_data)
+        response = self.client._provider.session.post(self.client._provider.endpoint_uri, headers={"Content-Type": "application/json"}, json=request_data)
         response.raise_for_status()
 
         response_data = cast(List[RPCResponse], response.json())
