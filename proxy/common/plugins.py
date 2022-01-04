@@ -78,7 +78,7 @@ class Plugins:
                 while next(iterator) is not abc.ABC:
                     pass
                 base_klass = next(iterator)
-                if klass not in p[bytes_(base_klass.__name__)]:
+                if base_klass.__name__ in p and klass not in p[bytes_(base_klass.__name__)]:
                     p[bytes_(base_klass.__name__)].append(klass)
                 logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
             except StopIteration:
