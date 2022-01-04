@@ -13,13 +13,12 @@ import queue
 import logging
 import threading
 import multiprocessing
-
+from typing import Any, Dict, Callable, Optional
 from multiprocessing import connection
 
-from typing import Dict, Optional, Any, Callable
-
-from .queue import EventQueue
 from .names import eventNames
+from .queue import EventQueue
+
 
 logger = logging.getLogger(__name__)
 

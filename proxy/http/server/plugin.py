@@ -9,20 +9,30 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
-from ..websocket import WebsocketFrame
 from ..parser import HttpParser
-from ..descriptors import DescriptorsHandlerMixin
-
-from ...core.connection import TcpClientConnection
+from ..websocket import WebsocketFrame
 from ...core.event import EventQueue
+from ..descriptors import DescriptorsHandlerMixin
+from ...core.connection import TcpClientConnection
 
 
 class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
-    """Web Server Plugin for routing of requests."""
+    """Web Server Plugin base.
+
+    Can be used for registering URL route handlers and
+    for managing custom middleware lifecycles.
+
+    Route handler are invoked for matching / registered routes.
+    While, middlewares are always invoked.  Notice that, middlewares
+    are invoked twice for each request.  Once for incoming
+    request and once for outgoing response.
+
+    A plugin without any registered route is considered
+    as a middleware.  Specify route to turn your plugin
+    into a web server route handler."""
 
     def __init__(
             self,

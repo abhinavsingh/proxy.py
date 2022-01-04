@@ -11,24 +11,26 @@
 import os
 import ssl
 import socket
-import logging
 import asyncio
+import logging
 import argparse
 import selectors
 import multiprocessing
-
-from abc import abstractmethod, ABC
-from typing import Any, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
-
-from ...common.logger import Logger
-from ...common.types import Readables, SelectableEvents, Writables
-from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
-from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
-
-from ..connection import TcpClientConnection, UpstreamConnectionPool
-from ..event import eventNames, EventQueue
+from abc import ABC, abstractmethod
+from typing import (
+    Any, Set, Dict, List, Tuple, Union, Generic, TypeVar, Optional,
+)
 
 from .work import Work
+from ..event import EventQueue, eventNames
+from ..connection import TcpClientConnection, UpstreamConnectionPool
+from ...common.types import Readables, Writables, SelectableEvents
+from ...common.logger import Logger
+from ...common.constants import (
+    DEFAULT_WAIT_FOR_TASKS_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT,
+    DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT,
+)
+
 
 T = TypeVar('T')
 

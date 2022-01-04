@@ -13,16 +13,18 @@ import sys
 import time
 import signal
 import logging
+from typing import Any, List, Optional
 
-from typing import List, Optional, Any
-
-from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
 from .core.event import EventManager
-from .common.utils import bytes_
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL, IS_WINDOWS
-from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
-from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
+from .common.utils import bytes_
+from .core.acceptor import Listener, AcceptorPool, ThreadlessPool
+from .common.constants import (
+    IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
+    DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FORMAT,
+    DEFAULT_WORK_KLASS, DEFAULT_LOCAL_EXECUTOR, DEFAULT_OPEN_FILE_LIMIT,
+    DEFAULT_ENABLE_DASHBOARD,
+)
 
 
 logger = logging.getLogger(__name__)

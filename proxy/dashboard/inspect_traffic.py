@@ -9,14 +9,13 @@
     :license: BSD, see LICENSE for more details.
 """
 import json
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 from .plugin import ProxyDashboardWebsocketPlugin
-
-from ..common.utils import bytes_
 from ..core.event import EventSubscriber
-from ..core.connection import TcpClientConnection
+from ..common.utils import bytes_
 from ..http.websocket import WebsocketFrame
+from ..core.connection import TcpClientConnection
 
 
 class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):

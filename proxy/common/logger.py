@@ -9,10 +9,10 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
+from typing import Any, Optional
 
-from typing import Optional, Any
+from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FORMAT
 
-from .constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
 
 SINGLE_CHAR_TO_LEVEL = {
     'D': 'DEBUG',

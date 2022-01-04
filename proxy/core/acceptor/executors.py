@@ -13,20 +13,17 @@ import logging
 import argparse
 import threading
 import multiprocessing
-
+from typing import Any, List, Tuple, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 
-from typing import Any, Optional, List, Tuple
-
 from .work import Work
-from .remote import RemoteExecutor
-
-from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
-
+from .remote import RemoteExecutor
+from ..connection import TcpClientConnection
 from ...common.flag import flags
-from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
+from ...common.constants import DEFAULT_THREADLESS, DEFAULT_NUM_WORKERS
+
 
 logger = logging.getLogger(__name__)
 

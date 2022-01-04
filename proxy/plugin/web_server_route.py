@@ -11,9 +11,10 @@
 import logging
 from typing import List, Tuple
 
-from ..http.responses import okResponse
 from ..http.parser import HttpParser
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
+from ..http.responses import okResponse
+
 
 logger = logging.getLogger(__name__)
 

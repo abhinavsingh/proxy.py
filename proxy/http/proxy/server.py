@@ -21,33 +21,33 @@ import socket
 import logging
 import threading
 import subprocess
-
-from typing import Optional, List, Union, Dict, cast, Any
+from typing import Any, Dict, List, Union, Optional, cast
 
 from .plugin import HttpProxyBasePlugin
-
+from ..parser import HttpParser, httpParserTypes, httpParserStates
+from ..plugin import HttpProtocolHandlerPlugin
 from ..headers import httpHeaders
 from ..methods import httpMethods
-from ..protocols import httpProtocols
-from ..plugin import HttpProtocolHandlerPlugin
 from ..exception import HttpProtocolException, ProxyConnectionFailed
-from ..parser import HttpParser, httpParserStates, httpParserTypes
+from ..protocols import httpProtocols
 from ..responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
-
-from ...common.types import Readables, Writables, Descriptors
-from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
-from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
-from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
-from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
-from ...common.constants import DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT
-from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_PROXY_AUTH
-from ...common.utils import text_
-from ...common.pki import gen_public_key, gen_csr, sign_csr
-
+from ...common.pki import gen_csr, sign_csr, gen_public_key
 from ...core.event import eventNames
-from ...core.connection import TcpServerConnection
-from ...core.connection import TcpConnectionUninitializedException
 from ...common.flag import flags
+from ...common.types import Readables, Writables, Descriptors
+from ...common.utils import text_
+from ...core.connection import (
+    TcpServerConnection, TcpConnectionUninitializedException,
+)
+from ...common.constants import (
+    COMMA, DEFAULT_CA_FILE, DEFAULT_CERT_FILE, PLUGIN_PROXY_AUTH,
+    DEFAULT_CA_CERT_DIR, DEFAULT_CA_KEY_FILE, DEFAULT_CA_CERT_FILE,
+    DEFAULT_DISABLE_HEADERS, PROXY_AGENT_HEADER_VALUE,
+    DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_CA_SIGNING_KEY_FILE,
+    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT,
+    DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT,
+)
+
 
 logger = logging.getLogger(__name__)
 

@@ -11,16 +11,17 @@
 import os
 import json
 import logging
-from typing import List, Tuple, Any, Dict
+from typing import Any, Dict, List, Tuple
 
 from .plugin import ProxyDashboardWebsocketPlugin
-
-from ..common.utils import bytes_
-
-from ..http.responses import permanentRedirectResponse
 from ..http.parser import HttpParser
+from ..http.server import (
+    HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes,
+)
+from ..common.utils import bytes_
+from ..http.responses import permanentRedirectResponse
 from ..http.websocket import WebsocketFrame
-from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
+
 
 logger = logging.getLogger(__name__)
 

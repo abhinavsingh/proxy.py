@@ -9,14 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-
 from abc import ABC
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple, Optional
 
 from ..parser import HttpParser
-from ..descriptors import DescriptorsHandlerMixin
-
 from ...core.event import EventQueue
+from ..descriptors import DescriptorsHandlerMixin
 from ...core.connection import TcpClientConnection
 
 

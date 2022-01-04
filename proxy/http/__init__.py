@@ -8,12 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .handler import HttpProtocolHandler
-from .plugin import HttpProtocolHandlerPlugin
-from .codes import httpStatusCodes
-from .methods import httpMethods
-from .headers import httpHeaders
 from .url import Url
+from .codes import httpStatusCodes
+from .plugin import HttpProtocolHandlerPlugin
+from .handler import HttpProtocolHandler
+from .headers import httpHeaders
+from .methods import httpMethods
+
 
 __all__ = [
     'HttpProtocolHandler',

@@ -15,15 +15,13 @@
 import socket
 import logging
 import selectors
-
 from typing import TYPE_CHECKING, Set, Dict, Tuple
 
+from .server import TcpServerConnection
 from ...common.flag import flags
-from ...common.types import Readables, SelectableEvents, Writables
-
+from ...common.types import Readables, Writables, SelectableEvents
 from ..acceptor.work import Work
 
-from .server import TcpServerConnection
 
 logger = logging.getLogger(__name__)
 

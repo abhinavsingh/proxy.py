@@ -12,20 +12,18 @@
 
        url
 """
+import re
 import json
 import logging
-
-from typing import Optional, List, Dict, Any
-
-from ..common.flag import flags
-from ..common.utils import text_
+from typing import Any, Dict, List, Optional
 
 from ..http import httpStatusCodes
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.flag import flags
+from ..http.parser import HttpParser
+from ..common.utils import text_
 from ..http.exception import HttpRequestRejected
 
-import re
 
 logger = logging.getLogger(__name__)
 

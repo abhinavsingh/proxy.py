@@ -15,6 +15,7 @@
 """
 from typing import NamedTuple
 
+
 HttpProtocolTypes = NamedTuple(
     'HttpProtocolTypes', [
         ('HTTP', int),

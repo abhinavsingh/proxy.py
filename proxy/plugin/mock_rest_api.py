@@ -15,11 +15,10 @@
 import json
 from typing import Optional
 
-from ..common.utils import bytes_, text_
-
-from ..http.responses import okResponse, NOT_FOUND_RESPONSE_PKT
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..http.parser import HttpParser
+from ..common.utils import text_, bytes_
+from ..http.responses import NOT_FOUND_RESPONSE_PKT, okResponse
 
 
 class ProposedRestApiPlugin(HttpProxyBasePlugin):

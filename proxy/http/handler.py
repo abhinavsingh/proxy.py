@@ -15,21 +15,21 @@ import socket
 import asyncio
 import logging
 import selectors
+from typing import Any, List, Type, Tuple, Union, Optional
 
-from typing import Tuple, List, Type, Union, Optional, Any
-
-from ..common.flag import flags
-from ..common.utils import wrap_socket
-from ..core.base import BaseTcpServerHandler
-from ..core.connection import TcpClientConnection
-from ..common.types import Readables, SelectableEvents, Writables
-from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE
-from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT, DEFAULT_TIMEOUT
-
-from .exception import HttpProtocolException
+from .parser import HttpParser, httpParserTypes, httpParserStates
 from .plugin import HttpProtocolHandlerPlugin
+from .exception import HttpProtocolException
 from .responses import BAD_REQUEST_RESPONSE_PKT
-from .parser import HttpParser, httpParserStates, httpParserTypes
+from ..core.base import BaseTcpServerHandler
+from ..common.flag import flags
+from ..common.types import Readables, Writables, SelectableEvents
+from ..common.utils import wrap_socket
+from ..core.connection import TcpClientConnection
+from ..common.constants import (
+    DEFAULT_TIMEOUT, DEFAULT_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
+    DEFAULT_SELECTOR_SELECT_TIMEOUT,
+)
 
 
 logger = logging.getLogger(__name__)

@@ -12,21 +12,21 @@
 
        utils
 """
-import sys
 import ssl
+import sys
 import socket
 import logging
 import functools
 import ipaddress
 import contextlib
-
 from types import TracebackType
-from typing import Optional, Dict, Any, List, Tuple, Type, Callable
+from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 
 from .constants import (
-    HTTP_1_1, COLON, WHITESPACE, CRLF,
-    DEFAULT_TIMEOUT, DEFAULT_THREADLESS, IS_WINDOWS,
+    CRLF, COLON, HTTP_1_1, IS_WINDOWS, WHITESPACE, DEFAULT_TIMEOUT,
+    DEFAULT_THREADLESS,
 )
+
 
 if not IS_WINDOWS:
     import resource
