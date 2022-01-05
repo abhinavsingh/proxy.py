@@ -31,9 +31,7 @@ charset-normalizer==2.0.7 \
 click==8.0.3 \
     --hash=sha256:353f466495adaeb40b6b5f592f9f91cb22372351c84caeb068132442a4518ef3 \
     --hash=sha256:410e932b050f5eed773c4cda94de75971c89cdb3155a72a0831139a79e5ecb5b
-    # via
-    #   click-default-group
-    #   towncrier
+    # via towncrier
 click-default-group==1.2.2 \
     --hash=sha256:d9560e8e8dfa44b3562fbc9425042a0fd6d21956fcc2db0077f63f34253ab904
     # via towncrier
@@ -55,10 +53,6 @@ imagesize==1.3.0 \
     --hash=sha256:1db2f82529e53c3e929e8926a1fa9235aa82d0bd0c580359c67ec31b2fddaa8c \
     --hash=sha256:cd1750d452385ca327479d45b64d9c7729ecf0b3969a58148298c77092261f9d
     # via sphinx
-importlib-metadata==4.10.0 \
-    --hash=sha256:92a8b58ce734b2a4494878e0ecf7d79ccd7a128b5fc6014c401e0b61f006f0f6 \
-    --hash=sha256:b7cf7d3fef75f1e4c80a96ca660efbd51473d7e8f39b5ab9210febc7809012a4
-    # via click
 incremental==21.3.0 \
     --hash=sha256:02f5de5aff48f6b9f665d99d48bfc7ec03b6e3943210de7cfc88856d755d6f57 \
     --hash=sha256:92014aebc6a20b78a8084cdd5645eeaa7f74b8933f70fa3ada2cfbd1e3b54321
@@ -271,9 +265,9 @@ sphinxcontrib-serializinghtml==1.1.5 \
     --hash=sha256:352a9a00ae864471d3a7ead8d7d79f5fc0b57e8b3f95e9867eb9eb28999b92fd \
     --hash=sha256:aa5f6de5dfdf809ef505c4895e51ef5c9eac17d0f287933eb49ec495280b6952
     # via sphinx
-sphinxcontrib-towncrier==0.2.0a0 \
-    --hash=sha256:31eed078e0a8b4c38dc30978dac8c53e2dfa7342ad8597d11816d1ea9ab0eabb \
-    --hash=sha256:3cd4295c0198e753d964e2c06ee4ecd91a73a8d103385d08af9b05487ae68dd0
+sphinxcontrib-towncrier==0.2.1a0 \
+    --hash=sha256:a6fac6091a8ee12664d9b1f50a1504cb662380bf8d3bd0f267ebbf4483aa9c18 \
+    --hash=sha256:b15ee84aa6288173487988514b589155ef38ac6c55ab014a774102f9dc884f41
     # via -r docs/requirements.in
 toml==0.10.2 \
     --hash=sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b \
@@ -287,12 +281,6 @@ towncrier==21.3.0 \
     --hash=sha256:6eed0bc924d72c98c000cb8a64de3bd566e5cb0d11032b73fcccf8a8f956ddfe \
     --hash=sha256:e6ccec65418bbcb8de5c908003e130e37fe0e9d6396cb77c1338241071edc082
     # via sphinxcontrib-towncrier
-typing-extensions==4.0.1 \
-    --hash=sha256:4ca091dea149f945ec56afb48dae714f21e8692ef22a395223bcd328961b6a0e \
-    --hash=sha256:7f001e5ac290a0c0401508864c7ec868be4e701886d5b573a9528ed3973d9d3b
-    # via
-    #   importlib-metadata
-    #   markdown-it-py
 uc-micro-py==1.0.1 \
     --hash=sha256:316cfb8b6862a0f1d03540f0ae6e7b033ff1fa0ddbe60c12cbe0d4cec846a69f \
     --hash=sha256:b7cdf4ea79433043ddfe2c82210208f26f7962c0cfbe3bacb05ee879a7fdb596
@@ -301,10 +289,6 @@ urllib3==1.26.7 \
     --hash=sha256:4987c65554f7a2dbf30c18fd48778ef124af6fab771a377103da0585e2336ece \
     --hash=sha256:c4fdf4019605b6e5423637e01bc9fe4daef873709a7973e195ceba0a62bbc844
     # via requests
-zipp==3.6.0 \
-    --hash=sha256:71c644c5369f4a6e07636f0aa966270449561fcea2e3d6747b8d23efaa9d7832 \
-    --hash=sha256:9fe5ea21568a0a70e50f273397638d39b03353731e6cbbb3fd8502a33fec40bc
-    # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 setuptools==59.0.1 \
