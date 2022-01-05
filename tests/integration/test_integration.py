@@ -10,6 +10,7 @@
 
     Test the simplest proxy use scenario for smoke.
 """
+import time
 import pytest
 import tempfile
 
@@ -42,10 +43,13 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--port-file', str(port_file),
         '--enable-web-server',
     ) + tuple(request.param.split())
+    print(' '.join(proxy_cmd))
     proxy_proc = Popen(proxy_cmd)
-    port = int(port_file.read_text())
+    # Needed because port file might not be available immediately
+    while not port_file.exists():
+        time.sleep(1)
     try:
-        yield port
+        yield int(port_file.read_text())
     finally:
         proxy_proc.terminate()
         proxy_proc.wait()
