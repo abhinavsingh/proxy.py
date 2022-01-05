@@ -24,9 +24,9 @@ def check_emulated_exit_status(result: Dict[str, Any]):
         logger.debug(f"Got revert call emulated result with data: {revert_data}")
         result_value = decode_revert_message(revert_data)
         if result_value is None:
-            raise EthereumError(code=3, message='')
+            raise EthereumError(code=3, message='execution reverted', data='0x' + revert_data)
         else:
-            raise EthereumError(code=3, message='execution reverted: ' + result_value, data='0x' + result_value)
+            raise EthereumError(code=3, message='execution reverted: ' + result_value, data='0x' + revert_data)
 
     if exit_status != "succeed":
         logger.debug(f"Got not succeed emulate exit_status: {exit_status}")
@@ -41,7 +41,10 @@ def decode_revert_message(data: str) -> Optional[str]:
     if data_len < 8:
         raise Exception(f"Too less bytes to decode revert signature: {data_len}, data: 0x{data}")
 
-    if data[:8] != '08c379a0':
+    if data[:8] == '4e487b71': # keccak256("Panic(uint256)")
+        return None
+
+    if data[:8] != '08c379a0': # keccak256("Error(string)")
         logger.debug(f"Failed to decode revert_message, unknown revert signature: {data[:8]}")
         return None
 

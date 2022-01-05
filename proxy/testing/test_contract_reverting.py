@@ -51,7 +51,7 @@ class TestContractReverting(unittest.TestCase):
         compiled_info = self._contract_deployer.compile_contract(self._CONTRACT_CONSTRUCTOR_REVERT)
         with self.assertRaises(web3_exceptions.ContractLogicError) as cm:
             compiled_info.contract.constructor([]).buildTransaction()
-        self.assertEqual("", str(cm.exception))
+        self.assertEqual("execution reverted", str(cm.exception))
 
     _CONTRACT_CONSTRUCTOR_REVERT = '''
         pragma solidity >=0.7.0 <0.9.0;
@@ -74,7 +74,7 @@ class TestContractReverting(unittest.TestCase):
         contract = self._contract_deployer.compile_and_deploy_contract(contract_owner, self._CONTRACT_METHOD_STRING_BASED_REVERT)
         with self.assertRaises(web3_exceptions.ContractLogicError) as cm:
             contract.functions.do_trivial_revert().call()
-        self.assertEqual("", str(cm.exception))
+        self.assertEqual("execution reverted", str(cm.exception))
 
     _CONTRACT_METHOD_STRING_BASED_REVERT = '''
         pragma solidity >=0.7.0 <0.9.0;
