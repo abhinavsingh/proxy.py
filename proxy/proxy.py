@@ -164,6 +164,7 @@ class Proxy:
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
         self.flags.port = self.listener._port
+        self._write_port_file()
         # Setup EventManager
         if self.flags.enable_events:
             logger.info('Core Event enabled')
@@ -204,6 +205,7 @@ class Proxy:
             self.event_manager.shutdown()
         assert self.listener
         self.listener.shutdown()
+        self._delete_port_file()
         self._delete_pid_file()
 
     @property
@@ -220,6 +222,16 @@ class Proxy:
         if self.flags.pid_file \
                 and os.path.exists(self.flags.pid_file):
             os.remove(self.flags.pid_file)
+
+    def _write_port_file(self) -> None:
+        if self.flags.port_file:
+            with open(self.flags.port_file, 'wb') as port_file:
+                port_file.write(bytes_(self.flags.port))
+
+    def _delete_port_file(self) -> None:
+        if self.flags.port_file \
+                and os.path.exists(self.flags.port_file):
+            os.remove(self.flags.port_file)
 
     def _register_signals(self) -> None:
         # TODO: Handle SIGINFO, SIGUSR1, SIGUSR2
