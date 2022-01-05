@@ -27,7 +27,11 @@ class IndexerDB:
 
     def submit_transaction(self, client, eth_trx, eth_signature, from_address, got_result, signatures):
         (logs, status, gas_used, return_value, slot) = got_result
-        block_hash, block_number, _ = self.get_block_info(client, slot)
+        block_info = self.get_block_info(client, slot)
+        if block_info is None:
+            logger.critical(f'Unable to submit transaction {eth_signature} because slot {slot} not found')
+            return
+        block_hash, block_number, _ = block_info
         if logs:
             for rec in logs:
                 rec['transactionHash'] = eth_signature
@@ -80,6 +84,7 @@ class IndexerDB:
                 return None
             block_hash = '0x' + base58.b58decode(block['blockhash']).hex()
             block_height = block['blockHeight']
+            self.blocks[slot] = block
             self.blocks_height_slot[block_height] = slot
             self.blocks_by_hash[block_hash] = slot
         else:

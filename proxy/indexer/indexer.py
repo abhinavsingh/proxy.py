@@ -464,7 +464,7 @@ class Indexer(IndexerBase):
                 self.db.fill_block_height(height_slot)
                 last_block_slot = max_slot
             else:
-                logger.debug(f"FAILED {max_height} {max_slot} {last_block}")
+                logger.warning(f"FAILED {max_height} {max_slot} {last_block}")
         gather_blocks_ms = (time.time() - start_time)*1000 # convert this into milliseconds
         logger.debug(f"gather_blocks_ms: {gather_blocks_ms} height_slot.len: {len(height_slot)} last_block_slot {last_block_slot}")
 
