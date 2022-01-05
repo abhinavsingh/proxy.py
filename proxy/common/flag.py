@@ -363,6 +363,13 @@ class FlagParser:
             ),
         )
 
+        args.port_file = cast(
+            Optional[str], opts.get(
+                'port_file',
+                args.port_file,
+            ),
+        )
+
         args.proxy_py_data_dir = DEFAULT_DATA_DIRECTORY_PATH
         os.makedirs(args.proxy_py_data_dir, exist_ok=True)
 

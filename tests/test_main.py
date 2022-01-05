@@ -15,7 +15,7 @@ import unittest
 from unittest import mock
 
 from proxy.proxy import main, entry_point
-from proxy.common.constants import _env_threadless_compliant    # noqa: WPS450
+from proxy.common.constants import DEFAULT_PORT_FILE, _env_threadless_compliant    # noqa: WPS450
 from proxy.common.utils import bytes_
 
 from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE
@@ -69,6 +69,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_dashboard = DEFAULT_ENABLE_DASHBOARD
         mock_args.work_klass = DEFAULT_WORK_KLASS
         mock_args.local_executor = int(DEFAULT_LOCAL_EXECUTOR)
+        mock_args.port_file = DEFAULT_PORT_FILE
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -96,6 +97,7 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.pid_file = pid_file
+        mock_initialize.return_value.port_file = None
         entry_point()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
@@ -143,6 +145,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
+        mock_initialize.return_value.port_file = None
         main()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
@@ -183,6 +186,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = True
+        mock_initialize.return_value.port_file = None
         main()
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()

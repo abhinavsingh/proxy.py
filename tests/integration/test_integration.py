@@ -10,14 +10,15 @@
 
     Test the simplest proxy use scenario for smoke.
 """
+import time
 import pytest
+import tempfile
 
 from pathlib import Path
 from subprocess import check_output, Popen
 from typing import Generator, Any
 
 from proxy.common.constants import IS_WINDOWS
-from proxy.common.utils import get_available_port
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
@@ -34,16 +35,20 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
 
     After the testing is over, tear it down.
     """
-    port = get_available_port()
+    port_file = Path(tempfile.gettempdir()) / 'proxy.port'
     proxy_cmd = (
         'python', '-m', 'proxy',
         '--hostname', '127.0.0.1',
-        '--port', str(port),
+        '--port', '0',
+        '--port-file', str(port_file),
         '--enable-web-server',
     ) + tuple(request.param.split())
     proxy_proc = Popen(proxy_cmd)
+    # Needed because port file might not be available immediately
+    while not port_file.exists():
+        time.sleep(1)
     try:
-        yield port
+        yield int(port_file.read_text())
     finally:
         proxy_proc.terminate()
         proxy_proc.wait()
@@ -64,10 +69,9 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     ),
     indirect=True,
 )   # type: ignore[misc]
-@pytest.mark.xfail(
+@pytest.mark.skipif(
     IS_WINDOWS,
     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
-    raises=OSError,
 )  # type: ignore[misc]
 def test_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test using ``curl`` through proxy.py."""
