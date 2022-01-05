@@ -51,7 +51,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         yield int(port_file.read_text())
     finally:
         proxy_proc.terminate()
-        proxy_proc.wait(timeout=10)
+        proxy_proc.wait()
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
@@ -69,10 +69,9 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     ),
     indirect=True,
 )   # type: ignore[misc]
-@pytest.mark.xfail(
+@pytest.mark.skipif(
     IS_WINDOWS,
     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
-    raises=OSError,
 )  # type: ignore[misc]
 def test_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test using ``curl`` through proxy.py."""
