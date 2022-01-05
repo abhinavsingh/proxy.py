@@ -11,6 +11,7 @@
     Test the simplest proxy use scenario for smoke.
 """
 import pytest
+import tempfile
 
 from pathlib import Path
 from subprocess import check_output, Popen
@@ -33,15 +34,16 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
 
     After the testing is over, tear it down.
     """
+    port_file = Path(tempfile.gettempdir()) / "proxy.port"
     proxy_cmd = (
         'python', '-m', 'proxy',
         '--hostname', '127.0.0.1',
         '--port', '0',
-        '--port-file', '/tmp/proxy.port',
+        '--port-file', str(port_file),
         '--enable-web-server',
     ) + tuple(request.param.split())
     proxy_proc = Popen(proxy_cmd)
-    port = int(Path('/tmp/proxy.port').read_text())
+    port = int(port_file.read_text())
     try:
         yield port
     finally:
