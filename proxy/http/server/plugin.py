@@ -26,15 +26,15 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
     """Web Server Plugin base.
 
     Can be used for registering URL route handlers and
-    for managing custom middleware lifecycles.
+    for managing custom middle-ware life cycles.
 
     Route handler are invoked for matching / registered routes.
-    While, middlewares are always invoked.  Notice that, middlewares
+    While, middle-ware are always invoked.  Notice that, middle-ware
     are invoked twice for each request.  Once for incoming
     request and once for outgoing response.
 
     A plugin without any registered route is considered
-    as a middleware.  Specify route to turn your plugin
+    as a middle-ware.  Specify route to turn your plugin
     into a web server route handler."""
 
     def __init__(

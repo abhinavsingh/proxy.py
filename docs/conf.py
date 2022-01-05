@@ -284,6 +284,7 @@ nitpick_ignore = [
     (_py_class_role, '_asyncio.Task'),
     (_py_class_role, 'asyncio.events.AbstractEventLoop'),
     (_py_class_role, 'CacheStore'),
+    (_py_class_role, 'EventQueue'),
     (_py_class_role, 'HttpParser'),
     (_py_class_role, 'HttpProtocolHandlerPlugin'),
     (_py_class_role, 'HttpProxyBasePlugin'),

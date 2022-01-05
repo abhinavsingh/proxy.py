@@ -15,7 +15,6 @@ from typing import Any, List, Optional, Generator
 import unittest
 
 from ..proxy import Proxy
-from ..plugin import CacheResponsesPlugin
 from ..common.utils import new_socket_connection
 from ..common.constants import DEFAULT_TIMEOUT
 
@@ -41,7 +40,7 @@ class TestCase(unittest.TestCase):
             else cls.DEFAULT_PROXY_PY_STARTUP_FLAGS
         cls.PROXY = Proxy(cls.INPUT_ARGS)
         cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(
-            CacheResponsesPlugin,
+            'proxy.plugin.CacheResponsesPlugin',
         )
         cls.PROXY.__enter__()
         assert cls.PROXY.acceptors
@@ -77,6 +76,7 @@ class TestCase(unittest.TestCase):
 
     @contextlib.contextmanager
     def vcr(self) -> Generator[None, None, None]:
+        from ..plugin import CacheResponsesPlugin
         try:
             CacheResponsesPlugin.ENABLED.set()
             yield
