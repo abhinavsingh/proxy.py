@@ -43,7 +43,6 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--port-file', str(port_file),
         '--enable-web-server',
     ) + tuple(request.param.split())
-    print(' '.join(proxy_cmd))
     proxy_proc = Popen(proxy_cmd)
     # Needed because port file might not be available immediately
     while not port_file.exists():
@@ -52,7 +51,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         yield int(port_file.read_text())
     finally:
         proxy_proc.terminate()
-        proxy_proc.wait()
+        proxy_proc.wait(timeout=10)
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
