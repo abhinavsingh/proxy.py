@@ -34,7 +34,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
 
     After the testing is over, tear it down.
     """
-    port_file = Path(tempfile.gettempdir()) / "proxy.port"
+    port_file = Path(tempfile.gettempdir()) / 'proxy.port'
     proxy_cmd = (
         'python', '-m', 'proxy',
         '--hostname', '127.0.0.1',
