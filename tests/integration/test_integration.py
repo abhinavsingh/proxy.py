@@ -17,7 +17,6 @@ from subprocess import check_output, Popen
 from typing import Generator, Any
 
 from proxy.common.constants import IS_WINDOWS
-from proxy.common.utils import get_available_port
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
@@ -34,14 +33,15 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
 
     After the testing is over, tear it down.
     """
-    port = get_available_port()
     proxy_cmd = (
         'python', '-m', 'proxy',
         '--hostname', '127.0.0.1',
-        '--port', str(port),
+        '--port', '0',
+        '--port-file', '/tmp/proxy.port',
         '--enable-web-server',
     ) + tuple(request.param.split())
     proxy_proc = Popen(proxy_cmd)
+    port = int(Path('/tmp/proxy.port').read_text())
     try:
         yield port
     finally:
