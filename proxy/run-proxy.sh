@@ -12,6 +12,7 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=0
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="postgres"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
+  [[ -z "$RETRY_ON_BLOCKED"             ]] && export RETRY_ON_BLOCKED=32
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
 elif [ "$CONFIG" == "local" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="http://localhost:8899"
@@ -20,6 +21,7 @@ elif [ "$CONFIG" == "local" ]; then
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=0
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
+  [[ -z "$RETRY_ON_BLOCKED"             ]] && export RETRY_ON_BLOCKED=32
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
 elif [ "$CONFIG" == "devnet" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="https://api.devnet.solana.com"
@@ -29,6 +31,7 @@ elif [ "$CONFIG" == "devnet" ]; then
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=1
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=60
+  [[ -z "$RETRY_ON_BLOCKED"             ]] && export RETRY_ON_BLOCKED=32
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
 elif [ "$CONFIG" == "testnet" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="https://api.testnet.solana.com"
@@ -38,6 +41,7 @@ elif [ "$CONFIG" == "testnet" ]; then
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE="1"
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=60
+  [[ -z "$RETRY_ON_BLOCKED"             ]] && export RETRY_ON_BLOCKED=32
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
 elif [ "$CONFIG" != "custom" ]; then
   exit 1
