@@ -3,12 +3,13 @@
 ##
 ## QueryAccount precompiled contract methods:
 ##------------------------------------------
-## owner(uint256)              => 0xa123c33e
-## length(uint256)             => 0xaa8b99d2
-## lamports(uint256)           => 0x748f2d8a
-## executable(uint256)         => 0xc219a785
-## rent_epoch(uint256)         => 0xc4d369b5
-## data(uint256,uint64,uint64) => 0x43ca5161
+## cache(uint256,uint64,uint64) => 0x2b3c8322
+## owner(uint256)               => 0xa123c33e
+## length(uint256)              => 0xaa8b99d2
+## lamports(uint256)            => 0x748f2d8a
+## executable(uint256)          => 0xc219a785
+## rent_epoch(uint256)          => 0xc4d369b5
+## data(uint256,uint64,uint64)  => 0x43ca5161
 ##------------------------------------------
 
 import unittest
@@ -38,52 +39,52 @@ contract QueryAccount {
     address constant precompiled = 0xff00000000000000000000000000000000000002;
 
     // Takes a Solana address, treats it as an address of an account.
+    // Puts the metadata and a chunk of data into the cache.
+    function cache(uint256 solana_address, uint64 offset, uint64 len) public returns (bool) {
+        (bool success, bytes memory _dummy) = precompiled.staticcall(abi.encodeWithSignature("cache(uint256,uint64,uint64)", solana_address, offset, len));
+        return success;
+    }
+
+    // Takes a Solana address, treats it as an address of an account.
     // Returns the account's owner Solana address (32 bytes).
-    function owner(uint256 solana_address) public view returns (uint256) {
+    function owner(uint256 solana_address) public view returns (bool, uint256) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("owner(uint256)", solana_address));
-        require(success, "QueryAccount.owner failed");
-        return to_uint256(result);
+        return (success, to_uint256(result));
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the length of the account's data (8 bytes).
-    function length(uint256 solana_address) public view returns (uint256) {
+    function length(uint256 solana_address) public view returns (bool, uint256) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("length(uint256)", solana_address));
-        require(success, "QueryAccount.length failed");
-        return to_uint256(result);
+        return (success, to_uint256(result));
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the funds in lamports of the account.
-    function lamports(uint256 solana_address) public view returns (uint256) {
+    function lamports(uint256 solana_address) public view returns (bool, uint256) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("lamports(uint256)", solana_address));
-        require(success, "QueryAccount.lamports failed");
-        return to_uint256(result);
+        return (success, to_uint256(result));
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the executable flag of the account.
-    function executable(uint256 solana_address) public view returns (bool) {
+    function executable(uint256 solana_address) public view returns (bool, bool) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("executable(uint256)", solana_address));
-        require(success, "QueryAccount.executable failed");
-        return to_bool(result);
+        return (success, to_bool(result));
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the rent epoch of the account.
-    function rent_epoch(uint256 solana_address) public view returns (uint256) {
+    function rent_epoch(uint256 solana_address) public view returns (bool, uint256) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("rent_epoch(uint256)", solana_address));
-        require(success, "QueryAccount.rent_epoch failed");
-        return to_uint256(result);
+        return (success, to_uint256(result));
     }
 
     // Takes a Solana address, treats it as an address of an account,
     // also takes an offset and length of the account's data.
     // Returns a chunk of the data (length bytes).
-    function data(uint256 solana_address, uint64 offset, uint64 len) public view returns (bytes memory) {
-        (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("data(uint256,uint64,uint64)", solana_address, offset, len));
-        require(success, "QueryAccount.data failed");
-        return result;
+    function data(uint256 solana_address, uint64 offset, uint64 len) public view returns (bool, bytes memory) {
+        return precompiled.staticcall(abi.encodeWithSignature("data(uint256,uint64,uint64)", solana_address, offset, len));
     }
 
     function to_uint256(bytes memory bb) private pure returns (uint256 result) {
@@ -99,136 +100,226 @@ contract QueryAccount {
     }
 }
 
-contract TestQueryAccount {
-    QueryAccount query;
+contract TestQueryAccount is QueryAccount {
+    uint256 constant solana_account = 110178555362476360822489549210862241441608066866019832842197691544474470948129;
+    uint256 constant missing_account = 90000;
+    uint64 constant golden_data_len = 82;
 
-    constructor() {
-        query = new QueryAccount();
+    function test_cache() public returns (bool) {
+        // Put
+        bool ok = super.cache(solana_account, 0, 64);
+        if (!ok) { return false; }
+
+        // Replace
+        ok = super.cache(solana_account, 0, golden_data_len);
+        if (!ok) { return false; }
+
+        // Zero length
+        ok = super.cache(solana_account, 0, 0);
+        if (ok) { return false; }
+
+        // Length more than maximal limit (8kB)
+        ok = super.cache(solana_account, 0, 10*1024);
+        if (ok) { return false; }
+
+        // Length more than length of the account data
+        ok = super.cache(solana_account, 0, 200);
+        if (ok) { return false; }
+
+        // Offset too big
+        ok = super.cache(solana_account, 200, 16);
+        if (ok) { return false; }
+
+        // Nonexistent account
+        ok = super.cache(missing_account, 0, 1);
+        if (ok) { return false; }
+
+        return true;
     }
 
-    function test_metadata_ok() public view returns (bool) {
-        uint256 solana_address = 110178555362476360822489549210862241441608066866019832842197691544474470948129;
+    function test_noncached() public returns (bool) {
+        bool ok;
+        uint256 _u;
+        bool _b;
+        bytes memory _m;
 
-        uint256 golden_ownr = 3106054211088883198575105191760876350940303353676611666299516346430146937001;
-        uint256 golden_len = 82;
+        (ok, _u) = super.owner(solana_account);
+        if (ok) { return false; }
+
+        (ok, _u) = super.length(solana_account);
+        if (ok) { return false; }
+
+        (ok, _u) = super.lamports(solana_account);
+        if (ok) { return false; }
+
+        (ok, _b) = super.executable(solana_account);
+        if (ok) { return false; }
+
+        (ok, _u) = super.rent_epoch(solana_account);
+        if (ok) { return false; }
+
+        (ok, _m) = super.data(solana_account, 0, 1);
+        if (ok) { return false; }
+
+        return true;
+    }
+
+    function test_metadata_ok() public returns (bool) {
+        bool ok = super.cache(solana_account, 0, 64);
+        if (!ok) { return false; }
+
+        uint256 golden_owner = 3106054211088883198575105191760876350940303353676611666299516346430146937001;
         uint256 golden_lamp = 1461600;
         bool golden_exec = false;
-        uint256 golden_repoch = 0;
 
-        uint256 ownr = query.owner(solana_address);
-        if (ownr != golden_ownr) {
+        uint256 ownr;
+        (ok, ownr) = super.owner(solana_account);
+        if (!ok || ownr != golden_owner) {
             return false;
         }
 
-        uint len = query.length(solana_address);
-        if (len != golden_len) {
+        uint len;
+        (ok, len) = super.length(solana_account);
+        if (!ok || len != golden_data_len) {
             return false;
         }
 
-        uint256 lamp = query.lamports(solana_address);
-        if (lamp != golden_lamp) {
+        uint256 lamp;
+        (ok, lamp) = super.lamports(solana_account);
+        if (!ok || lamp != golden_lamp) {
             return false;
         }
 
-        bool exec = query.executable(solana_address);
-        if (exec != golden_exec) {
+        bool exec;
+        (ok, exec) = super.executable(solana_account);
+        if (!ok || exec != golden_exec) {
             return false;
         }
 
-        uint256 repoch = query.rent_epoch(solana_address);
-        if (repoch != golden_repoch) {
+        uint256 _repoch; // epoch may change, so there is no golden value
+        (ok, _repoch) = super.rent_epoch(solana_account);
+        if (!ok) {
             return false;
         }
 
         return true;
     }
 
-    function test_metadata_nonexistent_account() public view returns (bool) {
-        uint256 solana_address = 90000; // should not exist
-        bool ok = false;
+    function test_data_ok() public returns (bool) {
+        bool ok = super.cache(solana_account, 0, golden_data_len);
+        if (!ok) { return false; }
 
-        try query.owner(solana_address) { ok = false; } catch { ok = true; /* expected exception */ }
-        if (!ok) { return ok; }
+        bytes1[golden_data_len] memory golden =
+            [to_byte(1), to_byte(0), to_byte(0), to_byte(0), to_byte(60), to_byte(0), to_byte(57), to_byte(43), to_byte(120), to_byte(125),
+             to_byte(56), to_byte(168), to_byte(83), to_byte(209), to_byte(36), to_byte(5), to_byte(118), to_byte(52), to_byte(196),
+             to_byte(60), to_byte(113), to_byte(51), to_byte(198), to_byte(18), to_byte(70), to_byte(29), to_byte(116), to_byte(254),
+             to_byte(177), to_byte(127), to_byte(66), to_byte(72), to_byte(21), to_byte(82), to_byte(134), to_byte(192), to_byte(0),
+             to_byte(160), to_byte(51), to_byte(190), to_byte(10), to_byte(144), to_byte(35), to_byte(0), to_byte(9), to_byte(1), to_byte(0),
+             to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0),
+             to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0),
+             to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0), to_byte(0),
+             to_byte(0), to_byte(0)];
 
-        try query.length(solana_address) { ok = false; } catch { ok = true; /* expected exception */ }
-        if (!ok) { return ok; }
+        uint64 len;
+        uint64 offset;
+        bytes memory result;
 
-        try query.lamports(solana_address) { ok = false; } catch { ok = true; /* expected exception */ }
-        if (!ok) { return ok; }
-
-        try query.executable(solana_address) { ok = false; } catch { ok = true; /* expected exception */ }
-        if (!ok) { return ok; }
-
-        try query.rent_epoch(solana_address) { ok = false; } catch { ok = true; /* expected exception */ }
-
-        return ok;
-    }
-
-    function test_data_ok() public view returns (bool) {
-        uint256 solana_address = 110178555362476360822489549210862241441608066866019832842197691544474470948129;
-        byte b0 = 0x71;
-        byte b1 = 0x33;
-        byte b2 = 0xc6;
-        byte b3 = 0x12;
-
-        // Test getting subset of data
-        uint64 offset = 20;
-        uint64 len = 4;
-        bytes memory result = query.data(solana_address, offset, len);
-        if (result.length != 4) {
-            return false;
-        }
-        if (result[0] != b0) {
-            return false;
-        }
-        if (result[1] != b1) {
-            return false;
-        }
-        if (result[2] != b2) {
-            return false;
-        }
-        if (result[3] != b3) {
-            return false;
-        }
-        // Test getting full data
+        // Get full data
+        len = golden_data_len;
         offset = 0;
-        len = 82;
-        result = query.data(solana_address, offset, len);
-        if (result.length != 82) {
+        (ok, result) = super.data(solana_account, offset, len);
+        if (!ok || !equals(result, golden, offset, len)) {
+            return false;
+        }
+
+        // Get mid-subset of data
+        len = 40;
+        offset = 20;
+        (ok, result) = super.data(solana_account, offset, len);
+        if (!ok || !equals(result, golden, offset, len)) {
+            return false;
+        }
+
+        // Get head of data
+        len = 40;
+        offset = 0;
+        (ok, result) = super.data(solana_account, offset, len);
+        if (!ok || !equals(result, golden, offset, len)) {
+            return false;
+        }
+
+        // Get tail of data
+        len = 40;
+        offset = golden_data_len - len;
+        (ok, result) = super.data(solana_account, offset, len);
+        if (!ok || !equals(result, golden, offset, len)) {
             return false;
         }
 
         return true;
     }
 
-    function test_data_nonexistent_account() public view returns (bool) {
-        uint256 solana_address = 90000; // hopefully does not exist
-        uint64 offset = 0;
-        uint64 len = 1;
-        try query.data(solana_address, offset, len) { } catch {
-            return true; // expected exception
-        }
-        return false;
+    function test_data_wrong_range() public returns (bool) {
+        bool ok = super.cache(solana_account, 30, 20);
+        if (!ok) { return false; }
+
+        uint64 len;
+        uint64 offset;
+        bytes memory _m;
+
+        // Query empty chunk
+        len = 0;
+        offset = 35;
+        (ok, _m) = super.data(solana_account, offset, len);
+        if (ok) { return false; }
+
+        // Query chunk wholly before the cached region
+        len = 10;
+        offset = 1;
+        (ok, _m) = super.data(solana_account, offset, len);
+        if (ok) { return false; }
+
+        // Query chunk wholly after the cached region
+        len = 10;
+        offset = 55;
+        (ok, _m) = super.data(solana_account, offset, len);
+        if (ok) { return false; }
+
+        // Query chunk overlapping the head of the cached region
+        len = 20;
+        offset = 20;
+        (ok, _m) = super.data(solana_account, offset, len);
+        if (ok) { return false; }
+
+        // Query chunk overlapping the tail of the cached region
+        len = 20;
+        offset = 40;
+        (ok, _m) = super.data(solana_account, offset, len);
+        if (ok) { return false; }
+
+        // Query big chunk overlapping entire cached region
+        len = 40;
+        offset = 20;
+        (ok, _m) = super.data(solana_account, offset, len);
+        if (ok) { return false; }
+
+        return true;
     }
 
-    function test_data_too_big_offset() public view returns (bool) {
-        uint256 solana_address = 110178555362476360822489549210862241441608066866019832842197691544474470948129;
-        uint64 offset = 200; // data len is 82
-        uint64 len = 1;
-        try query.data(solana_address, offset, len) { } catch {
-            return true; // expected exception
-        }
-        return false;
+    function to_byte(uint8 i) public pure returns (bytes1) {
+        return abi.encodePacked(i)[0];
     }
 
-    function test_data_too_big_length() public view returns (bool) {
-        uint256 solana_address = 110178555362476360822489549210862241441608066866019832842197691544474470948129;
-        uint64 offset = 0;
-        uint64 len = 200; // data len is 82
-        try query.data(solana_address, offset, len) { } catch {
-            return true; // expected exception
+    function equals(bytes memory data, bytes1[golden_data_len] memory golden, uint64 offset, uint64 length) private pure returns (bool) {
+        if (data.length != length) { return false; }
+
+        for (uint i = 0; i < length; i++) {
+            if (data[i] != golden[i+offset]) {
+                return false;
+            }
         }
-        return false;
+
+        return true;
     }
 }
 '''
@@ -254,47 +345,40 @@ class Test_Query_Account_Contract(unittest.TestCase):
         self.contract_address = tx_deploy_receipt.contractAddress
         print('contract address:', self.contract_address)
 
-    @unittest.skip("Temporatily")
+    # @unittest.skip("a.i.")
+    def test_cache(self):
+        print
+        query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
+        ok = query.functions.test_cache().call()
+        assert(ok)
+
+    # @unittest.skip("a.i.")
+    def test_noncached(self):
+        print
+        query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
+        ok = query.functions.test_noncached().call()
+        assert(ok)
+
+    # @unittest.skip("a.i.")
     def test_metadata_ok(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
-        get_metadata_ok = query.functions.test_metadata_ok().call()
-        assert(get_metadata_ok)
+        ok = query.functions.test_metadata_ok().call()
+        assert(ok)
 
-    @unittest.skip("Temporatily")
-    def test_metadata_nonexistent_account(self):
-        print
-        query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
-        get_metadata_nonexistent_account = query.functions.test_metadata_nonexistent_account().call()
-        assert(get_metadata_nonexistent_account)
-
-    @unittest.skip("Temporatily")
+    # @unittest.skip("a.i.")
     def test_data_ok(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
-        get_data_ok = query.functions.test_data_ok().call()
-        assert(get_data_ok)
+        ok = query.functions.test_data_ok().call()
+        assert(ok)
 
-    @unittest.skip("Temporatily")
-    def test_data_nonexistent_account(self):
+    # @unittest.skip("a.i.")
+    def test_data_wrong_range(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
-        get_data_nonexistent_account = query.functions.test_data_nonexistent_account().call()
-        assert(get_data_nonexistent_account)
-
-    @unittest.skip("Temporatily")
-    def test_data_too_big_offset(self):
-        print
-        query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
-        get_data_too_big_offset = query.functions.test_data_too_big_offset().call()
-        assert(get_data_too_big_offset)
-
-    @unittest.skip("Temporatily")
-    def test_data_too_big_length(self):
-        print
-        query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])
-        get_data_too_big_length = query.functions.test_data_too_big_length().call()
-        assert(get_data_too_big_length)
+        ok = query.functions.test_data_wrong_range().call()
+        assert(ok)
 
 if __name__ == '__main__':
     unittest.main()

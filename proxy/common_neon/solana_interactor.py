@@ -37,7 +37,7 @@ class SolanaInteractor:
 
     def _send_rpc_batch_request(self, method: str, params_list: List[Any]) -> List[RPCResponse]:
         request_data = []
-        for params in params_list:      
+        for params in params_list:
             request_id = next(self.client._provider._request_counter) + 1
             request = {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}
             request_data.append(request)
@@ -53,7 +53,6 @@ class SolanaInteractor:
                 raise Exception("Invalid RPC response: request {} response {}", request, response)
 
         return response_data
-    
 
     def get_operator_key(self):
         return self.signer.public_key()
@@ -131,27 +130,24 @@ class SolanaInteractor:
     def send_transaction(self, trx, eth_trx, reason=None):
         for _i in range(RETRY_ON_FAIL):
             reciept = self.send_transaction_unconfirmed(trx)
-            try:
-                return self.collect_result(reciept, eth_trx, reason)
-            except RuntimeError as err:
-                if str(err).find("could not confirm transaction") > 0:
-                    time.sleep(0.1)
-                    continue
-                raise
+            result = self.collect_result(reciept, eth_trx, reason)
+            if result is not None:
+                return result
+            time.sleep(0.1)
         RuntimeError("Failed {} times to send transaction or get confirmnation {}".format(RETRY_ON_FAIL, trx.__dict__))
 
 
     def send_transaction_unconfirmed(self, txn: Transaction):
         for _i in range(RETRY_ON_FAIL):
             # TODO: Cache recent blockhash
-            blockhash_resp = self.client.get_recent_blockhash() # commitment=Confirmed
+            blockhash_resp = self.client.get_recent_blockhash(commitment=Confirmed)
             if not blockhash_resp["result"]:
                 raise RuntimeError("failed to get recent blockhash")
             blockhash = blockhash_resp["result"]["value"]["blockhash"]
             txn.recent_blockhash = Blockhash(blockhash)
             txn.sign(self.signer)
             try:
-                return self.client.send_raw_transaction(txn.serialize(), opts=TxOpts(preflight_commitment=Confirmed))["result"]
+                return self.client.send_raw_transaction(txn.serialize(), opts=TxOpts(skip_preflight=True, preflight_commitment=Confirmed))["result"]
             except SendTransactionError as err:
                 err_type = get_from_dict(err.result, "data", "err")
                 if err_type is not None and isinstance(err_type, str) and err_type == "BlockhashNotFound":
@@ -162,7 +158,7 @@ class SolanaInteractor:
         raise RuntimeError("Failed trying {} times to get Blockhash for transaction {}".format(RETRY_ON_FAIL, txn.__dict__))
 
     def send_multiple_transactions_unconfirmed(self, transactions: List[Transaction], skip_preflight: bool = True) -> List[str]:
-        blockhash_resp = self.client.get_recent_blockhash() # commitment=Confirmed
+        blockhash_resp = self.client.get_recent_blockhash(commitment=Confirmed)
         if not blockhash_resp["result"]:
             raise RuntimeError("failed to get recent blockhash")
 
@@ -172,13 +168,11 @@ class SolanaInteractor:
         for transaction in transactions:
             transaction.recent_blockhash = blockhash
             transaction.sign(self.signer)
-        
             base64_transaction = base64.b64encode(transaction.serialize()).decode("utf-8")
             request.append((base64_transaction, {"skipPreflight": skip_preflight, "encoding": "base64", "preflightCommitment": "confirmed"}))
 
         response = self._send_rpc_batch_request("sendTransaction", request)
         return list(map(lambda r: r["result"], response))
-
 
     def send_measured_transaction(self, trx, eth_trx, reason):
         if LOG_SENDING_SOLANA_TRANSACTION:
@@ -199,7 +193,8 @@ class SolanaInteractor:
 
     def confirm_multiple_transactions(self, signatures: List[Union[str, bytes]]):
         """Confirm a transaction."""
-        TIMEOUT = 30  # 30 seconds  pylint: disable=invalid-name
+        # TODO should be set as predefined constant
+        TIMEOUT = 10  # 30 seconds  pylint: disable=invalid-name
         elapsed_time = 0
         while elapsed_time < TIMEOUT:
             response = self.client.get_signature_statuses(signatures)
@@ -218,13 +213,12 @@ class SolanaInteractor:
             time.sleep(CONFIRMATION_CHECK_DELAY)
             elapsed_time += CONFIRMATION_CHECK_DELAY
 
-        raise RuntimeError("could not confirm transactions: ", signatures)
-
-    def get_multiple_confirmed_transactions(self, signatures: List[str]) -> List[RPCResponse]:
+    def get_multiple_confirmed_transactions(self, signatures: List[str]) -> List[Any]:
         request = map(lambda signature: (signature, {"encoding": "json", "commitment": "confirmed"}), signatures)
-        return self._send_rpc_batch_request("getTransaction", request)
+        response = self._send_rpc_batch_request("getTransaction", request)
+        return list(map(lambda r: r["result"], response))
 
-    def collect_results(self, receipts: List[str], eth_trx: Any = None, reason: str = None) -> List[RPCResponse]:
+    def collect_results(self, receipts: List[str], eth_trx: Any = None, reason: str = None) -> List[Any]:
         self.confirm_multiple_transactions(receipts)
         transactions = self.get_multiple_confirmed_transactions(receipts)
 
@@ -235,7 +229,7 @@ class SolanaInteractor:
 
     def collect_result(self, reciept, eth_trx, reason=None):
         self.confirm_multiple_transactions([reciept])
-        result = self.client.get_confirmed_transaction(reciept)
+        result = self.client.get_confirmed_transaction(reciept)['result']
         update_transaction_cost(result, eth_trx, reason)
         return result
 
@@ -246,8 +240,8 @@ class SolanaInteractor:
             logger.info("Failed result: %s"%json.dumps(receipt, indent=3))
             return []
 
-        log_messages = receipt['result']['meta']['logMessages']
-        transaction = receipt['result']['transaction']
+        log_messages = receipt['meta']['logMessages']
+        transaction = receipt['transaction']
         accounts = transaction['message']['accountKeys']
         instructions = []
         for instr in transaction['message']['instructions']:
@@ -348,7 +342,7 @@ def check_if_storage_is_empty_error(receipt):
 
 
 def check_if_continue_returned(result):
-    tx_info = result['result']
+    tx_info = result
     accounts = tx_info["transaction"]["message"]["accountKeys"]
     evm_loader_instructions = []
 
@@ -365,3 +359,41 @@ def check_if_continue_returned(result):
                         return tx_info['transaction']['signatures'][0]
 
     return None
+
+
+def get_logs_from_reciept(receipt):
+    log_from_reciept = get_from_dict(receipt, 'result', 'meta', 'logMessages')
+    if log_from_reciept is not None:
+        return log_from_reciept
+
+    log_from_reciept_result = get_from_dict(receipt, 'meta', 'logMessages')
+    if log_from_reciept_result is not None:
+        return log_from_reciept_result
+
+    log_from_reciept_result_meta = get_from_dict(receipt, 'logMessages')
+    if log_from_reciept_result_meta is not None:
+        return log_from_reciept_result_meta
+
+    log_from_send_trx_error = get_from_dict(receipt, 'data', 'logs')
+    if log_from_send_trx_error is not None:
+        return log_from_send_trx_error
+
+    log_from_prepared_receipt = get_from_dict(receipt, 'logs')
+    if log_from_prepared_receipt is not None:
+        return log_from_prepared_receipt
+
+    return None
+
+
+def check_if_accounts_blocked(receipt):
+    logs = get_logs_from_reciept(receipt)
+    if logs is None:
+        logger.error("Can't get logs")
+        logger.info("Failed result: %s"%json.dumps(receipt, indent=3))
+
+    ro_blocked = "trying to execute transaction on ro locked account"
+    rw_blocked = "trying to execute transaction on rw locked account"
+    for log in logs:
+        if log.find(ro_blocked) >= 0 or log.find(rw_blocked) >= 0:
+            return True
+    return False
