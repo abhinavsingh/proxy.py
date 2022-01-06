@@ -341,26 +341,6 @@ def check_if_storage_is_empty_error(receipt):
     return False
 
 
-def check_if_continue_returned(result):
-    tx_info = result
-    accounts = tx_info["transaction"]["message"]["accountKeys"]
-    evm_loader_instructions = []
-
-    for idx, instruction in enumerate(tx_info["transaction"]["message"]["instructions"]):
-        if accounts[instruction["programIdIndex"]] == EVM_LOADER_ID:
-            evm_loader_instructions.append(idx)
-
-    for inner in (tx_info['meta']['innerInstructions']):
-        if inner["index"] in evm_loader_instructions:
-            for event in inner['instructions']:
-                if accounts[event['programIdIndex']] == EVM_LOADER_ID:
-                    instruction = base58.b58decode(event['data'])[:1]
-                    if int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
-                        return tx_info['transaction']['signatures'][0]
-
-    return None
-
-
 def get_logs_from_reciept(receipt):
     log_from_reciept = get_from_dict(receipt, 'result', 'meta', 'logMessages')
     if log_from_reciept is not None:
