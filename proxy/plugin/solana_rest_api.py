@@ -124,7 +124,7 @@ class EthereumModel:
 
     def process_block_tag(self, tag):
         if tag == "latest":
-            block_number = self.client._provider.make_request("getBlockHeight", {"commitment":"confirmed"})["result"]
+            block_number = self.db.get_last_block_height()
         elif tag in ('earliest', 'pending'):
             raise Exception("Invalid tag {}".format(tag))
         elif isinstance(tag, str):
