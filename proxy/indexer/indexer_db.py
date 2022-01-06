@@ -23,6 +23,7 @@ class IndexerDB:
         self.constants = SQLDict(tablename="constants")
         if 'last_block_slot' not in self.constants:
             self.constants['last_block_slot'] = 0
+            self.constants['last_block_height'] = 0
 
 
     def submit_transaction(self, client, eth_trx, eth_signature, from_address, got_result, signatures):
@@ -95,12 +96,17 @@ class IndexerDB:
     def get_last_block_slot(self):
         return self.constants['last_block_slot']
 
-    def set_last_block_slot(self, slot):
-        self.constants['last_block_slot'] = slot
+    def get_last_block_height(self):
+        return self.constants['last_block_height']
 
-    def fill_block_height(self, height_slot):
-        for height, slot in height_slot.items():
+    def fill_block_height(self, height, slots):
+        for slot in slots:
             self.blocks_height_slot[height] = slot
+            height += 1
+
+        if len(slots) > 0:
+            self.constants['last_block_slot'] = slots[len(slots) - 1]
+            self.constants['last_block_height'] = height - 1
 
     def get_logs(self, fromBlock, toBlock, address, topics, blockHash):
         return self.logs_db.get_logs(fromBlock, toBlock, address, topics, blockHash)

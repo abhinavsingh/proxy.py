@@ -448,25 +448,35 @@ class Indexer(IndexerBase):
     def gather_blocks(self):
         start_time = time.time()
         last_block_slot = self.db.get_last_block_slot()
-        confirmed_blocks = self.client.get_confirmed_blocks(last_block_slot)["result"]
-        if len(confirmed_blocks):
-            first_block = self.client._provider.make_request("getBlock", confirmed_blocks[0], {"commitment":"confirmed", "transactionDetails":"none", "rewards":False})['result']
-            height = first_block['blockHeight']
-            height_slot = {}
-            for slot in confirmed_blocks:
-                height_slot[height] = slot
-                height += 1
-            max_height = max(height_slot, key=height_slot.get)
-            max_slot = height_slot[max_height]
-            last_block = self.client._provider.make_request("getBlock", max_slot, {"commitment":"confirmed", "transactionDetails":"none", "rewards":False})['result']
-            if last_block['blockHeight'] == max_height:
-                self.db.set_last_block_slot(max_slot)
-                self.db.fill_block_height(height_slot)
-                last_block_slot = max_slot
-            else:
-                logger.warning(f"FAILED {max_height} {max_slot} {last_block}")
+        height = -1
+        confirmed_blocks_len = 10000
+        while confirmed_blocks_len == 10000:
+            confirmed_blocks = self.client._provider.make_request("getBlocksWithLimit", last_block_slot, confirmed_blocks_len, {"commitment": "confirmed"})['result']
+            confirmed_blocks_len = len(confirmed_blocks)
+            # No more blocks
+            if confirmed_blocks_len == 0:
+                break
+
+            # Intitialize start height
+            if height == -1:
+                first_block = self.client._provider.make_request("getBlock", confirmed_blocks[0], {"commitment": "confirmed", "transactionDetails": "none", "rewards": False})
+                height = first_block['result']['blockHeight']
+
+            # Validate last block height
+            max_height = height + confirmed_blocks_len - 1
+            last_block_slot = confirmed_blocks[confirmed_blocks_len - 1]
+            last_block = self.client._provider.make_request("getBlock", last_block_slot, {"commitment":"confirmed", "transactionDetails":"none", "rewards":False})
+            if not last_block['result'] or last_block['result']['blockHeight'] != max_height:
+                logger.warning(f"FAILED max_height {max_height} last_block_slot {last_block_slot} {last_block}")
+                break
+
+            # Everything is good
+            logger.debug(f"gather_blocks from {height} to {max_height}")
+            self.db.fill_block_height(height, confirmed_blocks)
+            height = max_height
+
         gather_blocks_ms = (time.time() - start_time)*1000 # convert this into milliseconds
-        logger.debug(f"gather_blocks_ms: {gather_blocks_ms} height_slot.len: {len(height_slot)} last_block_slot {last_block_slot}")
+        logger.debug(f"gather_blocks_ms: {gather_blocks_ms} last_height: {max_height} last_block_slot {last_block_slot}")
 
 
 def run_indexer(solana_url,
