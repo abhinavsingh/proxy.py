@@ -108,27 +108,24 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         return True, new_conn
 
     def release(self, conn: TcpServerConnection) -> None:
-        """Release a previously acquired connection.
-
-        If the connection has not been closed,
-        then it will be retained in the pool for reusability.
-        """
+        """Release a previously acquired connection."""
         assert not conn.is_reusable()
-        if conn.closed:
-            logger.debug(
-                'Removing connection#{2} from pool from upstream {0}:{1}'.format(
-                    conn.addr[0], conn.addr[1], id(conn),
-                ),
-            )
-            self._remove(conn.connection.fileno())
-        else:
-            logger.debug(
-                'Retaining connection#{2} to upstream {0}:{1}'.format(
-                    conn.addr[0], conn.addr[1], id(conn),
-                ),
-            )
-            # Reset for reusability
-            conn.reset()
+        logger.debug(
+            'Removing connection#{2} from pool from upstream {0}:{1}'.format(
+                conn.addr[0], conn.addr[1], id(conn),
+            ),
+        )
+        self._remove(conn.connection.fileno())
+
+    def retain(self, conn: TcpServerConnection) -> None:
+        """Retained the connection in the pool for reusability."""
+        logger.debug(
+            'Retaining connection#{2} to upstream {0}:{1}'.format(
+                conn.addr[0], conn.addr[1], id(conn),
+            ),
+        )
+        # Reset for reusability
+        conn.reset()
 
     async def get_events(self) -> SelectableEvents:
         """Returns read event flag for all reusable connections in the pool."""
