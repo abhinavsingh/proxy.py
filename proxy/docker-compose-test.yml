@@ -108,34 +108,14 @@ services:
       proxy:
         condition: service_started
 
-  airdropper-postgres:
-    container_name: airdropper-postgres
-    image: postgres:14.0
-    command: postgres -c 'max_connections=1000'
-    environment:
-      POSTGRES_DB: airdropper-db
-      POSTGRES_USER: neon-airdropper
-      POSTGRES_PASSWORD: neon-airdropper-pass
-    hostname: airdropper-postgres
-    expose:
-      - "5432"
-    networks:
-      - net
-    healthcheck:
-      test: [ CMD-SHELL, "pg_isready -h airdropper-postgres -p 5432" ]
-      interval: 5s
-      timeout: 10s
-      retries: 10
-      start_period: 5s
-
   airdropper:
     container_name: airdropper
     image: neonlabsorg/proxy:${REVISION}
     environment:
-      POSTGRES_DB: airdropper-db
-      POSTGRES_USER: neon-airdropper
-      POSTGRES_PASSWORD: neon-airdropper-pass
-      POSTGRES_HOST: airdropper-postgres
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
+      POSTGRES_HOST: postgres
       SOLANA_URL: http://solana:8899
       FAUCET_URL: http://faucet:3333
       NEON_CLI_TIMEOUT: 0.9
@@ -148,7 +128,7 @@ services:
     networks:
       - net
     depends_on:
-      airdropper-postgres:
+      postgres:
         condition: service_healthy
       faucet:
         condition: service_started
