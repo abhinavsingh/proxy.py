@@ -82,6 +82,11 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         new_conn = TcpServerConnection(addr[0], addr[1])
         new_conn.connect()
         self._add(new_conn)
+        logger.debug(
+            'Created new connection#{2} for upstream {0}:{1}'.format(
+                addr[0], addr[1], id(new_conn),
+            ),
+        )
         return new_conn
 
     def acquire(self, addr: Tuple[str, int]) -> Tuple[bool, TcpServerConnection]:
@@ -99,11 +104,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
                     )
                     return False, old_conn
         new_conn = self.add(addr)
-        logger.debug(
-            'Created new connection#{2} for upstream {0}:{1}'.format(
-                addr[0], addr[1], id(new_conn),
-            ),
-        )
+        new_conn.mark_inuse()
         return True, new_conn
 
     def release(self, conn: TcpServerConnection) -> None:
@@ -156,6 +157,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         """Adds a new connection to internal data structure."""
         if conn.addr not in self.pools:
             self.pools[conn.addr] = set()
+        conn._reusable = True
         self.pools[conn.addr].add(conn)
         self.connections[conn.connection.fileno()] = conn
 
