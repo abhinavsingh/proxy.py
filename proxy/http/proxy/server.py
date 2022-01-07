@@ -159,6 +159,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.flags,
                     self.client,
                     self.event_queue,
+                    self.upstream_conn_pool,
                 )
                 self.plugins[instance.name()] = instance
 
