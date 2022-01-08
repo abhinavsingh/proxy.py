@@ -21,7 +21,7 @@ from proxy.core.connection import UpstreamConnectionPool
 class TestConnectionPool(unittest.TestCase):
 
     @mock.patch('proxy.core.connection.pool.TcpServerConnection')
-    def test_acquire_and_release_and_reacquire(self, mock_tcp_server_connection: mock.Mock) -> None:
+    def test_acquire_and_retain_and_reacquire(self, mock_tcp_server_connection: mock.Mock) -> None:
         pool = UpstreamConnectionPool()
         # Mock
         mock_conn = mock_tcp_server_connection.return_value
@@ -38,7 +38,7 @@ class TestConnectionPool(unittest.TestCase):
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
         # Release (connection must be retained because not closed)
-        pool.release(conn)
+        pool.retain(conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
         # Reacquire
