@@ -9,16 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Optional
 
-from ..websocket import WebsocketFrame
 from ..parser import HttpParser
-from ..descriptors import DescriptorsHandlerMixin
-
-from ...core.connection import TcpClientConnection
+from ..websocket import WebsocketFrame
 from ...core.event import EventQueue
+from ..descriptors import DescriptorsHandlerMixin
+from ...core.connection import TcpClientConnection
+
 
 if TYPE_CHECKING:
     from ...core.connection import UpstreamConnectionPool

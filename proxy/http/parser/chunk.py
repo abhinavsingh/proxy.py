@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import NamedTuple, Tuple, List, Optional
+from typing import List, Tuple, Optional, NamedTuple
 
 from ...common.utils import bytes_, find_http_line
 from ...common.constants import CRLF, DEFAULT_BUFFER_SIZE

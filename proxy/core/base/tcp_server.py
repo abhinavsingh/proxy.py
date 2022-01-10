@@ -14,13 +14,13 @@
 """
 import logging
 import selectors
-
 from abc import abstractmethod
 from typing import Any, Optional
 
+from ...common.types import Readables, Writables, SelectableEvents
 from ...core.acceptor import Work
 from ...core.connection import TcpClientConnection
-from ...common.types import Readables, SelectableEvents, Writables
+
 
 logger = logging.getLogger(__name__)
 

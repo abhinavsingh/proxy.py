@@ -10,18 +10,16 @@
 """
 import random
 import logging
-
-from typing import List, Tuple, Any, Dict, Optional
-
-from ..common.utils import text_
-from ..common.constants import DEFAULT_HTTPS_PORT, DEFAULT_HTTP_PORT
+from typing import Any, Dict, List, Tuple, Optional
 
 from ..http import Url
-from ..http.exception import HttpProtocolException
+from ..core.base import TcpUpstreamConnectionHandler
 from ..http.parser import HttpParser
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
+from ..common.utils import text_
+from ..http.exception import HttpProtocolException
+from ..common.constants import DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT
 
-from ..core.base import TcpUpstreamConnectionHandler
 
 logger = logging.getLogger(__name__)
 

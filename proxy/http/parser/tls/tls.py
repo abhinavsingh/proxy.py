@@ -10,12 +10,12 @@
 """
 import struct
 import logging
-
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 
 from .types import tlsContentType
-from .certificate import TlsCertificate
 from .handshake import TlsHandshake
+from .certificate import TlsCertificate
+
 
 logger = logging.getLogger(__name__)
 

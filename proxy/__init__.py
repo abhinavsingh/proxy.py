@@ -8,8 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .proxy import entry_point, main, Proxy
+from .proxy import Proxy, main, entry_point
 from .testing import TestCase
+
 
 __all__ = [
     # PyPi package entry_point. See

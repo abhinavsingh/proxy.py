@@ -10,6 +10,7 @@
 """
 from typing import NamedTuple
 
+
 # Name of the events that eventing framework supports.
 #
 # Ideally this must be configurable via command line or

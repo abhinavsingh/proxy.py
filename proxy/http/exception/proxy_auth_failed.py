@@ -16,8 +16,8 @@
 from typing import TYPE_CHECKING, Any
 
 from .base import HttpProtocolException
-
 from ..responses import PROXY_AUTH_FAILED_RESPONSE_PKT
+
 
 if TYPE_CHECKING:
     from ..parser import HttpParser

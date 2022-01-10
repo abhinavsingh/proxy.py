@@ -14,18 +14,20 @@
 """
 import json
 import logging
-from typing import List, Tuple, Any, Dict
+from typing import Any, Dict, List, Tuple
 
-from .transformer import CoreEventsToDevtoolsProtocol
 from ..parser import HttpParser
-from ..websocket import WebsocketFrame, websocketOpcodes
 from ..server import HttpWebServerBasePlugin, httpProtocolTypes
-
-from ...common.utils import bytes_, text_
+from ..websocket import WebsocketFrame, websocketOpcodes
+from .transformer import CoreEventsToDevtoolsProtocol
 from ...core.event import EventSubscriber
 from ...common.flag import flags
-from ...common.constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DEVTOOLS_DOC_URL
-from ...common.constants import DEFAULT_ENABLE_DEVTOOLS
+from ...common.utils import text_, bytes_
+from ...common.constants import (
+    DEFAULT_ENABLE_DEVTOOLS, DEFAULT_DEVTOOLS_DOC_URL,
+    DEFAULT_DEVTOOLS_WS_PATH,
+)
+
 
 logger = logging.getLogger(__name__)
 

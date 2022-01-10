@@ -10,12 +10,12 @@
 """
 import ssl
 import logging
-
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Any, Optional
 
 from ...common.types import Readables, Writables, Descriptors
 from ...core.connection import TcpServerConnection
+
 
 logger = logging.getLogger(__name__)
 

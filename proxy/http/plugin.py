@@ -10,15 +10,14 @@
 """
 import socket
 import argparse
-
 from abc import ABC, abstractmethod
-from typing import List, Union, Optional, TYPE_CHECKING
-
-from ..core.event import EventQueue
-from ..core.connection import TcpClientConnection
+from typing import TYPE_CHECKING, List, Union, Optional
 
 from .parser import HttpParser
+from ..core.event import EventQueue
 from .descriptors import DescriptorsHandlerMixin
+from ..core.connection import TcpClientConnection
+
 
 if TYPE_CHECKING:
     from ..core.connection import UpstreamConnectionPool

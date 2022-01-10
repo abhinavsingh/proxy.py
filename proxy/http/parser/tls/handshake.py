@@ -10,14 +10,18 @@
 """
 import struct
 import logging
+from typing import Tuple, Optional
 
-from typing import Optional, Tuple
-
+from .hello import (
+    TlsClientHello, TlsServerHello, TlsHelloRequest, TlsServerHelloDone,
+)
 from .types import tlsHandshakeType
-from .hello import TlsHelloRequest, TlsClientHello, TlsServerHello, TlsServerHelloDone
-from .certificate import TlsCertificate, TlsCertificateRequest, TlsCertificateVerify
-from .key_exchange import TlsClientKeyExchange, TlsServerKeyExchange
 from .finished import TlsFinished
+from .certificate import (
+    TlsCertificate, TlsCertificateVerify, TlsCertificateRequest,
+)
+from .key_exchange import TlsClientKeyExchange, TlsServerKeyExchange
+
 
 logger = logging.getLogger(__name__)
 

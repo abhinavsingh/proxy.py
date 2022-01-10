@@ -8,15 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
 import json
+import argparse
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
+from ..core.event import EventQueue
 from ..common.utils import bytes_
 from ..http.websocket import WebsocketFrame
 from ..core.connection import TcpClientConnection
-from ..core.event import EventQueue
 
 
 class ProxyDashboardWebsocketPlugin(ABC):

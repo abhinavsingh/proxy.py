@@ -8,16 +8,16 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import logging
 import os
+import logging
 import tempfile
-from typing import Optional, BinaryIO
-
-from ....common.flag import flags
-from ....common.utils import text_
-from ....http.parser import HttpParser
+from typing import BinaryIO, Optional
 
 from .base import CacheStore
+from ....common.flag import flags
+from ....http.parser import HttpParser
+from ....common.utils import text_
+
 
 logger = logging.getLogger(__name__)
 

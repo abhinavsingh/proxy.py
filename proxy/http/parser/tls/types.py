@@ -10,6 +10,7 @@
 """
 from typing import NamedTuple
 
+
 TlsContentType = NamedTuple(
     'TlsContentType', [
         ('CHANGE_CIPHER_SPEC', int),

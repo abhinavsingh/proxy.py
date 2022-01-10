@@ -10,16 +10,15 @@
 """
 import logging
 import selectors
-
 from abc import abstractmethod
 from typing import Any, Optional
 
+from .tcp_server import BaseTcpServerHandler
+from ..connection import TcpServerConnection
 from ...http.parser import HttpParser, httpParserTypes
-from ...common.types import Readables, SelectableEvents, Writables
+from ...common.types import Readables, Writables, SelectableEvents
 from ...common.utils import text_
 
-from ..connection import TcpServerConnection
-from .tcp_server import BaseTcpServerHandler
 
 logger = logging.getLogger(__name__)
 

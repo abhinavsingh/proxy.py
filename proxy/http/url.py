@@ -13,10 +13,12 @@
        http
        url
 """
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 
-from ..common.constants import COLON, SLASH, HTTP_URL_PREFIX, HTTPS_URL_PREFIX, AT
 from ..common.utils import text_
+from ..common.constants import (
+    AT, COLON, SLASH, HTTP_URL_PREFIX, HTTPS_URL_PREFIX,
+)
 
 
 class Url:
