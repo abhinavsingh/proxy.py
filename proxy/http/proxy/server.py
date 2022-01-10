@@ -316,11 +316,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # Request
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
-            'request_bytes': self.request.total_size,
-            'request_ua': self.request.header(b'user-agent')
+            'request_bytes': text_(self.request.total_size),
+            'request_ua': text_(self.request.header(b'user-agent'))
             if self.request.has_header(b'user-agent')
             else None,
-            'request_version': self.request.version,
+            'request_version': text_(self.request.version),
             # Response
             'response_bytes': self.response.total_size,
             'response_code': text_(self.response.code),
