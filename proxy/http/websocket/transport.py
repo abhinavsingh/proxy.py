@@ -44,6 +44,7 @@ class WebSocketTransport(HttpWebServerBasePlugin):
         raise NotImplementedError()
 
     def on_websocket_open(self) -> None:
+        # TODO(abhinavsingh): Add connected callback invocation
         logger.info('app ws opened')
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
@@ -66,8 +67,8 @@ class WebSocketTransport(HttpWebServerBasePlugin):
             self.reply({'id': message['id'], 'response': 'not_implemented'})
 
     def on_client_connection_close(self) -> None:
+        # TODO(abhinavsingh): Add disconnected callback invocation
         logger.info('app ws closed')
-        # TODO(abhinavsingh): unsubscribe
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
