@@ -31,11 +31,6 @@ from proxy.common.constants import (
 from ..test_assertions import Assertions
 
 
-# from unittest import mock
-
-
-
-
 PAC_FILE_PATH = os.path.join(
     os.path.dirname(PROXY_PY_DIR),
     'helper',
