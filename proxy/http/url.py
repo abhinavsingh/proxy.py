@@ -74,14 +74,19 @@ class Url:
 
         We use heuristics based approach for our URL parser.
         """
-        if raw[0] == 47:    # SLASH == 47
+        # SLASH == 47, check if URL starts with single slash but not double slash
+        is_single_slash = raw[0] == 47
+        is_double_slash = is_single_slash and len(raw) >= 2 and raw[1] == 47
+        if is_single_slash and not is_double_slash:
             return cls(remainder=raw)
         is_http = raw.startswith(HTTP_URL_PREFIX)
         is_https = raw.startswith(HTTPS_URL_PREFIX)
-        if is_http or is_https:
+        if is_http or is_https or is_double_slash:
             rest = raw[len(b'https://'):] \
                 if is_https \
-                else raw[len(b'http://'):]
+                else raw[len(b'http://'):] \
+                if is_http \
+                else raw[len(SLASH + SLASH):]
             parts = rest.split(SLASH, 1)
             username, password, host, port = Url._parse(parts[0])
             return cls(

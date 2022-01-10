@@ -302,7 +302,13 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         #
         # TODO(abhinavsingh): Remove .tobytes after parser is
         # memoryview compliant
-        self.request.parse(data.tobytes())
+        try:
+            self.request.parse(data.tobytes())
+        except Exception as exc:
+            logger.exception('Error parsing the request', exc_info=exc)
+            raise HttpProtocolException(
+                'Error when parsing request: %s' % data.tobytes().decode('utf-8'),
+            )
         if not self.request.is_complete:
             return False
         # Discover which HTTP handler plugin is capable of

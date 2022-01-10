@@ -134,3 +134,12 @@ class TestUrl(unittest.TestCase):
         self.assertEqual(url.remainder, None)
         self.assertEqual(url.username, b'user')
         self.assertEqual(url.password, b'pass')
+
+    def test_no_scheme_suffix(self) -> None:
+        url = Url.from_bytes(b'//example-server.net/server?arg=87')
+        self.assertEqual(url.scheme, b'http')
+        self.assertEqual(url.hostname, b'example-server.net')
+        self.assertEqual(url.port, None)
+        self.assertEqual(url.remainder, b'/server?arg=87')
+        self.assertEqual(url.username, None)
+        self.assertEqual(url.password, None)
