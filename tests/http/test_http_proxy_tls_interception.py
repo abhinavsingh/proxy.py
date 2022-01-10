@@ -11,21 +11,21 @@
 import ssl
 import uuid
 import socket
-import pytest
 import selectors
-
 from typing import Any
-from pytest_mock import MockerFixture
-from unittest import mock
-from proxy.common.constants import DEFAULT_CA_FILE
 
-from proxy.common.utils import build_http_request, bytes_
-from proxy.common.flag import FlagParser
+import pytest
+from unittest import mock
+
+from pytest_mock import MockerFixture
+
 from proxy.http import HttpProtocolHandler, httpMethods
 from proxy.http.proxy import HttpProxyPlugin
+from proxy.common.flag import FlagParser
+from proxy.common.utils import bytes_, build_http_request
 from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
-
+from proxy.common.constants import DEFAULT_CA_FILE
 from ..test_assertions import Assertions
 
 

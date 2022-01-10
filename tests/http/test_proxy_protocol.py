@@ -10,7 +10,7 @@
 """
 import unittest
 
-from proxy.http.parser import ProxyProtocol, PROXY_PROTOCOL_V2_SIGNATURE
+from proxy.http.parser import PROXY_PROTOCOL_V2_SIGNATURE, ProxyProtocol
 from proxy.http.exception import HttpProtocolException
 
 

@@ -8,11 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import multiprocessing
 import os
 import threading
-import unittest
+import multiprocessing
 
+import unittest
 from unittest import mock
 
 from proxy.core.event import EventQueue, eventNames

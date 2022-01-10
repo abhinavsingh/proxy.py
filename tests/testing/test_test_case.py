@@ -9,8 +9,8 @@
     :license: BSD, see LICENSE for more details.
 """
 import unittest
-import proxy
 
+import proxy
 from proxy.common.utils import get_available_port
 
 

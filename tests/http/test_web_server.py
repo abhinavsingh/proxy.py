@@ -10,24 +10,30 @@
 """
 import os
 import gzip
-import pytest
 import tempfile
 import selectors
-
 from typing import Any
+
+import pytest
+
 from pytest_mock import MockerFixture
+
+from proxy.http import HttpProtocolHandler
+from proxy.common.flag import FlagParser
+from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.common.utils import bytes_, build_http_request, build_http_response
+from proxy.common.plugins import Plugins
+from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
+from proxy.core.connection import TcpClientConnection
+from proxy.common.constants import (
+    CRLF, PROXY_PY_DIR, PLUGIN_PAC_FILE, PLUGIN_HTTP_PROXY, PLUGIN_WEB_SERVER,
+)
+from ..test_assertions import Assertions
+
+
 # from unittest import mock
 
-from proxy.common.plugins import Plugins
-from proxy.common.flag import FlagParser
-from proxy.core.connection import TcpClientConnection
-from proxy.http import HttpProtocolHandler
-from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
-from proxy.common.utils import build_http_response, build_http_request, bytes_
-from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
-from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
 
-from ..test_assertions import Assertions
 
 
 PAC_FILE_PATH = os.path.join(

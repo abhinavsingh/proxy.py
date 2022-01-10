@@ -9,16 +9,18 @@
     :license: BSD, see LICENSE for more details.
 """
 import http.client
-import urllib.request
 import urllib.error
+import urllib.request
 
 import pytest
 
 from proxy import TestCase
-from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE, IS_WINDOWS
-from proxy.common.utils import socket_connection, build_http_request
 from proxy.http import httpMethods
+from proxy.common.utils import socket_connection, build_http_request
 from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
+from proxy.common.constants import (
+    IS_WINDOWS, PROXY_AGENT_HEADER_VALUE, DEFAULT_CLIENT_RECVBUF_SIZE,
+)
 
 
 @pytest.mark.skipif(

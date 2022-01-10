@@ -8,11 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import httpx
 import pytest
 
-from proxy.common.constants import IS_WINDOWS
+import httpx
+
 from proxy import TestCase
+from proxy.common.constants import IS_WINDOWS
 
 
 class TestHttp2WithProxy(TestCase):

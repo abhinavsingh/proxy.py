@@ -12,9 +12,9 @@ import unittest
 
 from proxy.http import httpStatusCodes
 from proxy.http.parser import HttpParser, httpParserTypes
+from proxy.common.utils import build_http_response
 from proxy.http.exception import HttpRequestRejected
 from proxy.common.constants import CRLF
-from proxy.common.utils import build_http_response
 
 
 class TestHttpRequestRejected(unittest.TestCase):
