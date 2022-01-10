@@ -22,9 +22,10 @@ from .names import eventNames
 
 
 class EventQueue:
-    """Global event queue.  Must be a multiprocessing.Manager queue because
-    subscribers need to dispatch their subscription queue over this global
-    queue.
+    """Global event queue.  Must be a multiprocess safe queue capable of
+    transporting other queues.  This is necessary because currently
+    subscribers use a separate subscription queue to consume events.
+    Subscription queue is exchanged over the global event queue.
 
     Each published event contains following schema::
 

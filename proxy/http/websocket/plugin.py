@@ -13,13 +13,13 @@ import json
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
-from ..common.utils import bytes_
-from ..http.websocket import WebsocketFrame
-from ..core.connection import TcpClientConnection
-from ..core.event import EventQueue
+from ...common.utils import bytes_
+from . import WebsocketFrame
+from ...core.connection import TcpClientConnection
+from ...core.event import EventQueue
 
 
-class ProxyDashboardWebsocketPlugin(ABC):
+class WebSocketTransportBasePlugin(ABC):
     """Abstract class for plugins extending dashboard websocket API."""
 
     def __init__(

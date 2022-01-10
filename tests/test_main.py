@@ -29,7 +29,7 @@ from proxy.common.constants import (  # noqa: WPS450
     DEFAULT_ENABLE_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL,
     DEFAULT_ENABLE_WEB_SERVER, DEFAULT_DISABLE_HTTP_PROXY,
     DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
-    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_ENABLE_STATIC_SERVER,
+    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_ENABLE_STATIC_SERVER, PLUGIN_WEBSOCKET_TRANSPORT,
     _env_threadless_compliant,
 )
 
@@ -243,6 +243,7 @@ class TestMain(unittest.TestCase):
             mock_load_plugins.call_args_list[0][0][0], [
                 bytes_(PLUGIN_WEB_SERVER),
                 bytes_(PLUGIN_DASHBOARD),
+                bytes_(PLUGIN_WEBSOCKET_TRANSPORT),
                 bytes_(PLUGIN_INSPECT_TRAFFIC),
                 bytes_(PLUGIN_DEVTOOLS_PROTOCOL),
                 bytes_(PLUGIN_HTTP_PROXY),
