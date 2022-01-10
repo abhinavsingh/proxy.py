@@ -28,12 +28,15 @@ class WebSocketTransport(HttpWebServerBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.plugins: Dict[str, WebSocketTransportBasePlugin] = {}
+        self.plugins: List[WebSocketTransportBasePlugin] = []
+        # Registered methods and handler plugin
+        self.methods: Dict[str, WebSocketTransportBasePlugin] = {}
         if b'WebSocketTransportBasePlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'WebSocketTransportBasePlugin']:
                 p = klass(self.flags, self.client, self.event_queue)
+                self.plugins.append(p)
                 for method in p.methods():
-                    self.plugins[method] = p
+                    self.methods[method] = p
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
@@ -44,8 +47,8 @@ class WebSocketTransport(HttpWebServerBasePlugin):
         raise NotImplementedError()
 
     def on_websocket_open(self) -> None:
-        # TODO(abhinavsingh): Add connected callback invocation
-        logger.info('app ws opened')
+        for plugin in self.plugins:
+            plugin.connected()
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         try:
@@ -59,16 +62,16 @@ class WebSocketTransport(HttpWebServerBasePlugin):
         method = message['method']
         if method == 'ping':
             self.reply({'id': message['id'], 'response': 'pong'})
-        elif method in self.plugins:
-            self.plugins[method].handle_message(message)
+        elif method in self.methods:
+            self.methods[method].handle_message(message)
         else:
             logger.info(frame.data)
             logger.info(frame.opcode)
             self.reply({'id': message['id'], 'response': 'not_implemented'})
 
     def on_client_connection_close(self) -> None:
-        # TODO(abhinavsingh): Add disconnected callback invocation
-        logger.info('app ws closed')
+        for plugin in self.plugins:
+            plugin.disconnected()
 
     def reply(self, data: Dict[str, Any]) -> None:
         self.client.queue(
