@@ -546,7 +546,6 @@ jobs:
       packages: write
     if: success()
     needs:
-    - check
     - pre-setup  # transitive, for accessing settings
     name: 🐳 containerize
     strategy:
