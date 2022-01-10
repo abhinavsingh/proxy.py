@@ -11,7 +11,10 @@
 import time
 import logging
 
-from proxy.http.websocket import WebsocketClient, WebsocketFrame, websocketOpcodes
+from proxy.http.websocket import (
+    WebsocketFrame, WebsocketClient, websocketOpcodes,
+)
+
 
 # globals
 client: WebsocketClient

@@ -20,7 +20,7 @@ import argparse
 from typing import Optional, Any
 
 from ...common.flag import flags
-from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT
+from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT, DEFAULT_PORT_FILE
 
 
 flags.add_argument(
@@ -38,8 +38,17 @@ flags.add_argument(
 )
 
 flags.add_argument(
-    '--port', type=int, default=DEFAULT_PORT,
+    '--port',
+    type=int,
+    default=DEFAULT_PORT,
     help='Default: 8899. Server port.',
+)
+
+flags.add_argument(
+    '--port-file',
+    type=str,
+    default=DEFAULT_PORT_FILE,
+    help='Default: None. Save server port numbers. Useful when using --port=0 ephemeral mode.',
 )
 
 flags.add_argument(

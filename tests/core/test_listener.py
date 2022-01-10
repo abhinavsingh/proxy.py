@@ -11,15 +11,14 @@
 import os
 import socket
 import tempfile
-import unittest
-
-from unittest import mock
 
 import pytest
+import unittest
+from unittest import mock
 
+from proxy.common.flag import FlagParser
 from proxy.core.acceptor import Listener
 from proxy.common.constants import IS_WINDOWS
-from proxy.common.flag import FlagParser
 
 
 class TestListener(unittest.TestCase):

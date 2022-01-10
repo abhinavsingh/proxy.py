@@ -121,7 +121,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             #
             # Failing upstream proxies, must be removed from the pool temporarily.
             # A periodic health check must put them back in the pool.  This can be achieved
-            # using a datastructure without having to spawn separate thread/process for health
+            # using a data structure without having to spawn separate thread/process for health
             # check.
             raise HttpProtocolException(
                 'Connection refused by upstream proxy {0}:{1}'.format(

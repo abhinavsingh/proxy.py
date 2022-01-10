@@ -28,7 +28,7 @@ endif
 
 .PHONY: all https-certificates sign-https-certificates ca-certificates
 .PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
-.PHONY: lib-release-test lib-release lib-profile lib-doc
+.PHONY: lib-release-test lib-release lib-profile lib-doc lib-pre-commit
 .PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope container-buildx-all-platforms
 .PHONY: container container-run container-release container-build container-buildx
 .PHONY: devtools dashboard dashboard-clean container-without-openssl
@@ -91,15 +91,20 @@ lib-clean:
 	rm -rf proxy.py.egg-info
 	rm -rf .pytest_cache
 	rm -rf .hypothesis
+	# Doc RST files are cached and can cause issues
+	# See https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-1003444578
+	rm docs/pkg/*.rst
 
 lib-dep:
 	pip install --upgrade pip && \
 	pip install \
-		-r requirements.txt \
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
 		-r requirements-tunnel.txt && \
 	pip install "setuptools>=42"
+
+lib-pre-commit:
+	python -m pre_commit run --hook-stage manual --all-files -v
 
 lib-lint:
 	python -m tox -e lint

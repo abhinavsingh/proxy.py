@@ -10,23 +10,24 @@
 """
 import os
 import gzip
-import pytest
 import tempfile
 import selectors
-
 from typing import Any
+
+import pytest
+
 from pytest_mock import MockerFixture
-# from unittest import mock
 
-from proxy.common.plugins import Plugins
-from proxy.common.flag import FlagParser
-from proxy.core.connection import TcpClientConnection
 from proxy.http import HttpProtocolHandler
-from proxy.http.parser import HttpParser, httpParserStates, httpParserTypes
-from proxy.common.utils import build_http_response, build_http_request, bytes_
-from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PAC_FILE, PLUGIN_WEB_SERVER, PROXY_PY_DIR
+from proxy.common.flag import FlagParser
+from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.common.utils import bytes_, build_http_request, build_http_response
+from proxy.common.plugins import Plugins
 from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
-
+from proxy.core.connection import TcpClientConnection
+from proxy.common.constants import (
+    CRLF, PROXY_PY_DIR, PLUGIN_PAC_FILE, PLUGIN_HTTP_PROXY, PLUGIN_WEB_SERVER,
+)
 from ..test_assertions import Assertions
 
 
@@ -51,12 +52,11 @@ def test_on_client_connection_called_on_teardown(mocker: MockerFixture) -> None:
         flags=flags,
     )
     protocol_handler.initialize()
-    plugin.assert_called()
+    plugin.assert_not_called()
     mock_run_once = mocker.patch.object(protocol_handler, '_run_once')
     mock_run_once.return_value = True
     protocol_handler.run()
     assert _conn.closed
-    plugin.return_value.on_client_connection_close.assert_called()
 
 
 def mock_selector_for_client_read(self: Any) -> None:

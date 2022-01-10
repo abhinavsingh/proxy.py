@@ -16,11 +16,11 @@ import logging
 import selectors
 
 from abc import abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
 from ...core.acceptor import Work
 from ...core.connection import TcpClientConnection
-from ...common.types import Readables, Writables
+from ...common.types import Readables, SelectableEvents, Writables
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class BaseTcpServerHandler(Work[TcpClientConnection]):
         """Optionally return True to close client connection."""
         pass    # pragma: no cover
 
-    async def get_events(self) -> Dict[int, int]:
+    async def get_events(self) -> SelectableEvents:
         events = {}
         # We always want to read from client
         # Register for EVENT_READ events

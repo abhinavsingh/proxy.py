@@ -14,12 +14,12 @@
 """
 import argparse
 
-from abc import ABC, abstractmethod
 from uuid import uuid4
+from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
 
 from ..event import eventNames, EventQueue
-from ...common.types import Readables, Writables
+from ...common.types import Readables, SelectableEvents, Writables
 
 if TYPE_CHECKING:
     from ..connection import UpstreamConnectionPool
@@ -48,7 +48,7 @@ class Work(ABC, Generic[T]):
         self.upstream_conn_pool = upstream_conn_pool
 
     @abstractmethod
-    async def get_events(self) -> Dict[int, int]:
+    async def get_events(self) -> SelectableEvents:
         """Return sockets and events (read or write) that we are interested in."""
         return {}   # pragma: no cover
 

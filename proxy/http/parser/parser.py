@@ -22,6 +22,7 @@ from ...common.flag import flags
 
 from ..url import Url
 from ..methods import httpMethods
+from ..protocols import httpProtocols
 from ..exception import HttpProtocolException
 
 from .protocol import ProxyProtocol
@@ -77,7 +78,7 @@ class HttpParser:
         self.total_size: int = 0
         # Buffer to hold unprocessed bytes
         self.buffer: bytes = b''
-        # Internal headers datastructure:
+        # Internal headers data structure:
         # - Keys are lower case header names.
         # - Values are 2-tuple containing original
         #   header and it's value as received.
@@ -153,11 +154,10 @@ class HttpParser:
         self._url = Url.from_bytes(url)
         self._set_line_attributes()
 
-    def has_host(self) -> bool:
-        """Returns whether host line attribute was parsed or set.
-
-        NOTE: Host field WILL be None for incoming local WebServer requests."""
-        return self.host is not None
+    @property
+    def http_handler_protocol(self) -> int:
+        """Returns `HttpProtocols` that this request belongs to."""
+        return httpProtocols.HTTP_PROXY if self.host is not None else httpProtocols.WEB_SERVER
 
     @property
     def is_complete(self) -> bool:

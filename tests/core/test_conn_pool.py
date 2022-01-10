@@ -8,11 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import pytest
-import unittest
 import selectors
 
+import pytest
+import unittest
 from unittest import mock
+
 from pytest_mock import MockerFixture
 
 from proxy.core.connection import UpstreamConnectionPool
@@ -21,30 +22,34 @@ from proxy.core.connection import UpstreamConnectionPool
 class TestConnectionPool(unittest.TestCase):
 
     @mock.patch('proxy.core.connection.pool.TcpServerConnection')
-    def test_acquire_and_release_and_reacquire(self, mock_tcp_server_connection: mock.Mock) -> None:
+    def test_acquire_and_retain_and_reacquire(self, mock_tcp_server_connection: mock.Mock) -> None:
         pool = UpstreamConnectionPool()
-        addr = ('localhost', 1234)
         # Mock
         mock_conn = mock_tcp_server_connection.return_value
+        addr = mock_conn.addr
         mock_conn.is_reusable.side_effect = [
-            False, True, True,
+            True,
         ]
         mock_conn.closed = False
         # Acquire
         created, conn = pool.acquire(addr)
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
+        mock_conn.mark_inuse.assert_called_once()
+        mock_conn.reset.assert_not_called()
         self.assertTrue(created)
-        mock_tcp_server_connection.assert_called_once_with(*addr)
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
-        # Release (connection must be retained because not closed)
-        pool.release(conn)
+        self.assertEqual(len(pool.connections), 1)
+        self.assertEqual(pool.connections[conn.connection.fileno()], mock_conn)
+        # Retail
+        pool.retain(conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
+        mock_conn.reset.assert_called_once()
         # Reacquire
         created, conn = pool.acquire(addr)
         self.assertFalse(created)
-        mock_conn.reset.assert_called_once()
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
@@ -54,26 +59,25 @@ class TestConnectionPool(unittest.TestCase):
             self, mock_tcp_server_connection: mock.Mock,
     ) -> None:
         pool = UpstreamConnectionPool()
-        addr = ('localhost', 1234)
         # Mock
         mock_conn = mock_tcp_server_connection.return_value
         mock_conn.closed = True
-        mock_conn.addr = addr
+        addr = mock_conn.addr
         # Acquire
         created, conn = pool.acquire(addr)
         self.assertTrue(created)
-        mock_tcp_server_connection.assert_called_once_with(*addr)
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
         # Release
+        mock_conn.is_reusable.return_value = False
         pool.release(conn)
         self.assertEqual(len(pool.pools[addr]), 0)
         # Acquire
         created, conn = pool.acquire(addr)
         self.assertTrue(created)
         self.assertEqual(mock_tcp_server_connection.call_count, 2)
-        mock_conn.is_reusable.assert_not_called()
 
 
 class TestConnectionPoolAsync:
@@ -84,10 +88,10 @@ class TestConnectionPoolAsync:
             'proxy.core.connection.pool.TcpServerConnection',
         )
         pool = UpstreamConnectionPool()
-        addr = ('localhost', 1234)
         mock_conn = mock_tcp_server_connection.return_value
+        addr = mock_conn.addr
         pool.add(addr)
-        mock_tcp_server_connection.assert_called_once_with(*addr)
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
         mock_conn.connect.assert_called_once()
         events = await pool.get_events()
         print(events)

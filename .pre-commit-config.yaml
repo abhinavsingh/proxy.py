@@ -8,7 +8,7 @@ repos:
     - --py36-plus
 
 # - repo: https://github.com/timothycrosley/isort.git
-#   rev: 5.4.2
+#   rev: 5.10.0
 #   hooks:
 #   - id: isort
 #     args:
@@ -63,13 +63,6 @@ repos:
         src/core/plugins/inspect_traffic\.json|
         static/bootstrap-4\.3\.1\.min\.(cs|j)s
       )|
-      menubar/proxy\.py/(
-        Assets\.xcassets/(
-          AppIcon\.appiconset/|
-          StatusBarButtonImage\.imageset/|
-        )|
-        Preview\sContent/Preview\sAssets\.xcassets/
-      )Contents\.json|
       requirements-release\.txt
       $
   - id: requirements-txt-fixer

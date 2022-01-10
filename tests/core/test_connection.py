@@ -8,15 +8,20 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import socket
 import ssl
-from unittest import mock
-from typing import Optional, Union
+import socket
+from typing import Union, Optional
 
-from proxy.core.connection import tcpConnectionTypes, TcpConnectionUninitializedException
-from proxy.core.connection import TcpServerConnection, TcpConnection, TcpClientConnection
-from proxy.common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME
+import unittest
+from unittest import mock
+
+from proxy.core.connection import (
+    TcpConnection, TcpClientConnection, TcpServerConnection,
+    TcpConnectionUninitializedException, tcpConnectionTypes,
+)
+from proxy.common.constants import (
+    DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME, DEFAULT_IPV6_HOSTNAME,
+)
 
 
 class TestTcpConnection(unittest.TestCase):
@@ -79,7 +84,7 @@ class TestTcpConnection(unittest.TestCase):
         )
 
     @mock.patch('proxy.core.connection.server.new_socket_connection')
-    def testTcpServerIgnoresDoubleConnectSilently(
+    def testTcpServerWillNotIgnoreDoubleConnectAttemptsSilently(
             self,
             mock_new_socket_connection: mock.Mock,
     ) -> None:
@@ -87,7 +92,8 @@ class TestTcpConnection(unittest.TestCase):
             str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT,
         )
         conn.connect()
-        conn.connect()
+        with self.assertRaises(AssertionError):
+            conn.connect()
         mock_new_socket_connection.assert_called_once()
 
     @mock.patch('socket.socket')

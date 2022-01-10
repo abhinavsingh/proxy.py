@@ -10,27 +10,25 @@
 """
 import gzip
 import json
-import pytest
 import selectors
-
-from pathlib import Path
-from unittest import mock
-from typing import cast, Any
+from typing import Any, cast
 from urllib import parse as urlparse
+from pathlib import Path
+
+import pytest
+from unittest import mock
+
 from pytest_mock import MockerFixture
 
-from proxy.common.flag import FlagParser
-from proxy.core.connection import TcpClientConnection
-from proxy.http import HttpProtocolHandler
-from proxy.http import httpStatusCodes
-from proxy.http.proxy import HttpProxyPlugin
-from proxy.http.parser import HttpParser, httpParserTypes
-from proxy.common.utils import build_http_request, bytes_, build_http_response
-from proxy.common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_HTTP_PORT
+from proxy.http import HttpProtocolHandler, httpStatusCodes
 from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
-
+from proxy.http.proxy import HttpProxyPlugin
+from proxy.common.flag import FlagParser
+from proxy.http.parser import HttpParser, httpParserTypes
+from proxy.common.utils import bytes_, build_http_request, build_http_response
+from proxy.core.connection import TcpClientConnection
+from proxy.common.constants import DEFAULT_HTTP_PORT, PROXY_AGENT_HEADER_VALUE
 from .utils import get_plugin_by_test_name
-
 from ..test_assertions import Assertions
 
 

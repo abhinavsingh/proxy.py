@@ -10,9 +10,10 @@
 """
 import sys
 import subprocess
-
 from pathlib import Path
+
 from proxy.common.version import __version__ as lib_version
+
 
 # This script ensures our versions never run out of sync.
 #

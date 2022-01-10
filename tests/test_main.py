@@ -10,24 +10,28 @@
 """
 import os
 import tempfile
-import unittest
 
+import unittest
 from unittest import mock
 
 from proxy.proxy import main, entry_point
-from proxy.common.constants import _env_threadless_compliant    # noqa: WPS450
 from proxy.common.utils import bytes_
-
-from proxy.common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FILE
-from proxy.common.constants import DEFAULT_TIMEOUT, DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HTTP_PROXY
-from proxy.common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_DEVTOOLS
-from proxy.common.constants import DEFAULT_ENABLE_WEB_SERVER, DEFAULT_THREADLESS, DEFAULT_CERT_FILE, DEFAULT_KEY_FILE
-from proxy.common.constants import DEFAULT_CA_CERT_FILE, DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
-from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PLUGINS, DEFAULT_PID_FILE, DEFAULT_PORT, DEFAULT_BASIC_AUTH
-from proxy.common.constants import DEFAULT_NUM_WORKERS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_IPV6_HOSTNAME
-from proxy.common.constants import DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_WORK_KLASS
-from proxy.common.constants import PLUGIN_INSPECT_TRAFFIC, PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEB_SERVER
-from proxy.common.constants import PLUGIN_HTTP_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_PROXY_AUTH, DEFAULT_LOG_FORMAT
+from proxy.common.constants import (  # noqa: WPS450
+    DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
+    DEFAULT_LOG_FILE, DEFAULT_PAC_FILE, DEFAULT_PID_FILE, PLUGIN_DASHBOARD,
+    DEFAULT_CERT_FILE, DEFAULT_LOG_LEVEL, DEFAULT_PORT_FILE, PLUGIN_HTTP_PROXY,
+    PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_BASIC_AUTH,
+    DEFAULT_LOG_FORMAT, DEFAULT_THREADLESS, DEFAULT_WORK_KLASS,
+    DEFAULT_CA_KEY_FILE, DEFAULT_NUM_WORKERS, DEFAULT_CA_CERT_FILE,
+    DEFAULT_ENABLE_EVENTS, DEFAULT_IPV6_HOSTNAME, DEFAULT_NUM_ACCEPTORS,
+    DEFAULT_LOCAL_EXECUTOR, PLUGIN_INSPECT_TRAFFIC, DEFAULT_ENABLE_DEVTOOLS,
+    DEFAULT_OPEN_FILE_LIMIT, DEFAULT_DEVTOOLS_WS_PATH,
+    DEFAULT_ENABLE_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL,
+    DEFAULT_ENABLE_WEB_SERVER, DEFAULT_DISABLE_HTTP_PROXY,
+    DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
+    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_ENABLE_STATIC_SERVER, PLUGIN_WEBSOCKET_TRANSPORT,
+    _env_threadless_compliant,
+)
 
 
 class TestMain(unittest.TestCase):
@@ -69,6 +73,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_dashboard = DEFAULT_ENABLE_DASHBOARD
         mock_args.work_klass = DEFAULT_WORK_KLASS
         mock_args.local_executor = int(DEFAULT_LOCAL_EXECUTOR)
+        mock_args.port_file = DEFAULT_PORT_FILE
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -96,6 +101,7 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.pid_file = pid_file
+        mock_initialize.return_value.port_file = None
         entry_point()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
@@ -143,6 +149,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
+        mock_initialize.return_value.port_file = None
         main()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
@@ -183,6 +190,7 @@ class TestMain(unittest.TestCase):
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = True
+        mock_initialize.return_value.port_file = None
         main()
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()
@@ -235,6 +243,7 @@ class TestMain(unittest.TestCase):
             mock_load_plugins.call_args_list[0][0][0], [
                 bytes_(PLUGIN_WEB_SERVER),
                 bytes_(PLUGIN_DASHBOARD),
+                bytes_(PLUGIN_WEBSOCKET_TRANSPORT),
                 bytes_(PLUGIN_INSPECT_TRAFFIC),
                 bytes_(PLUGIN_DEVTOOLS_PROTOCOL),
                 bytes_(PLUGIN_HTTP_PROXY),

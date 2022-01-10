@@ -8,18 +8,19 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import pytest
 import selectors
+
+import pytest
 
 from pytest_mock import MockerFixture
 
-from proxy.common.constants import DEFAULT_HTTP_PORT
-from proxy.common.flag import FlagParser
-from proxy.core.connection import TcpClientConnection
-from proxy.http.proxy import HttpProxyPlugin
 from proxy.http import HttpProtocolHandler
-from proxy.http.exception import HttpProtocolException
+from proxy.http.proxy import HttpProxyPlugin
+from proxy.common.flag import FlagParser
 from proxy.common.utils import build_http_request
+from proxy.http.exception import HttpProtocolException
+from proxy.core.connection import TcpClientConnection
+from proxy.common.constants import DEFAULT_HTTP_PORT
 
 
 class TestHttpProxyPlugin:
@@ -47,8 +48,8 @@ class TestHttpProxyPlugin:
         )
         self.protocol_handler.initialize()
 
-    def test_proxy_plugin_initialized(self) -> None:
-        self.plugin.assert_called()
+    def test_proxy_plugin_not_initialized_unless_first_request_completes(self) -> None:
+        self.plugin.assert_not_called()
 
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_plugin_on_and_before_upstream_connection(self) -> None:

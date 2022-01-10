@@ -9,17 +9,13 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
-
 from typing import Any, Optional
 
 from proxy import Proxy
-
-from proxy.http.responses import (
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
-    PROXY_TUNNEL_UNSUPPORTED_SCHEME,
-)
-
 from proxy.core.base import BaseTcpTunnelHandler
+from proxy.http.responses import (
+    PROXY_TUNNEL_UNSUPPORTED_SCHEME, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+)
 
 
 class HttpsConnectTunnelHandler(BaseTcpTunnelHandler):
