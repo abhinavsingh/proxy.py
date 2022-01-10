@@ -146,7 +146,7 @@ DEFAULT_ABC_PLUGINS = [
     'HttpProtocolHandlerPlugin',
     'HttpProxyBasePlugin',
     'HttpWebServerBasePlugin',
-    'ProxyDashboardWebsocketPlugin',
+    'WebSocketTransportBasePlugin',
 ]
 PLUGIN_HTTP_PROXY = 'proxy.http.proxy.HttpProxyPlugin'
 PLUGIN_WEB_SERVER = 'proxy.http.server.HttpWebServerPlugin'

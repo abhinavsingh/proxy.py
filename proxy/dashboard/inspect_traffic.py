@@ -11,15 +11,13 @@
 import json
 from typing import List, Dict, Any
 
-from .plugin import ProxyDashboardWebsocketPlugin
-
 from ..common.utils import bytes_
 from ..core.event import EventSubscriber
 from ..core.connection import TcpClientConnection
-from ..http.websocket import WebsocketFrame
+from ..http.websocket import WebsocketFrame, WebSocketTransportBasePlugin
 
 
-class InspectTrafficPlugin(ProxyDashboardWebsocketPlugin):
+class InspectTrafficPlugin(WebSocketTransportBasePlugin):
     """Websocket API for inspect_traffic.ts frontend plugin."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
