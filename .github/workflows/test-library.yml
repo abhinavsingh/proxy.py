@@ -540,6 +540,66 @@ jobs:
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
 
+  test-container:
+    runs-on: Ubuntu-latest
+    permissions:
+      packages: write
+    if: success()
+    needs:
+    - check
+    - pre-setup  # transitive, for accessing settings
+    name: 🐳 containerize
+    strategy:
+      fail-fast: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
+      with:
+        version: v0.7.0
+        buildkitd-flags: --debug
+        config: .github/buildkitd.toml
+        install: true
+    - name: Enable Multiarch    # This slows down arm build by 4-5x
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Create builder
+      run: |
+        docker buildx create --name proxypybuilder
+        docker buildx use proxypybuilder
+        docker buildx inspect
+        docker buildx ls
+    - name: Build, run & test container
+      run: >-
+        CONTAINER_TAG="abhinavsingh/proxy.py:${{
+          needs.pre-setup.outputs.container-version
+        }}";
+        docker buildx build
+        --load
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
+        &&
+        docker run
+        -d
+        -p 8899:8899
+        $CONTAINER_TAG
+        --hostname 0.0.0.0
+        --enable-web-server
+        &&
+        ./tests/integration/test_integration.sh 8899
+
   analyze:
     runs-on: ubuntu-latest
     name: 🛡️ Analyze
@@ -672,32 +732,13 @@ jobs:
         make ca-certificates
         python3 -m proxy --version
 
-  check:  # This job does nothing and is only used for the branch protection
-    if: always()
-
-    needs:
-    - analyze
-    - test
-    - lint
-    - dashboard
-    - brew
-    - developer
-
-    runs-on: Ubuntu-latest
-
-    steps:
-    - name: Decide whether the needed jobs succeeded or failed
-      uses: re-actors/alls-green@release/v1
-      with:
-        jobs: ${{ toJSON(needs) }}
-
-  docker:
+  ghcr-latest:
     runs-on: Ubuntu-latest
     permissions:
       packages: write
     if: success()
     needs:
-    - check
+    - test-container
     - pre-setup  # transitive, for accessing settings
     name: 🐳 containerize
     strategy:
@@ -736,26 +777,6 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Build, run & test container
-      run: >-
-        CONTAINER_TAG="abhinavsingh/proxy.py:${{
-          needs.pre-setup.outputs.container-version
-        }}";
-        docker buildx build
-        --load
-        --build-arg PROXYPY_PKG_PATH='dist/${{
-          needs.pre-setup.outputs.wheel-artifact-name
-        }}'
-        -t $CONTAINER_TAG .
-        &&
-        docker run
-        -d
-        -p 8899:8899
-        $CONTAINER_TAG
-        --hostname 0.0.0.0
-        --enable-web-server
-        &&
-        ./tests/integration/test_integration.sh 8899
     - name: Push to GHCR
       run: >-
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
@@ -794,6 +815,52 @@ jobs:
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
         -t $LATEST_TAG .
+
+  ghcr-openssl:
+    runs-on: Ubuntu-latest
+    permissions:
+      packages: write
+    if: success()
+    needs:
+    - test-container
+    - pre-setup  # transitive, for accessing settings
+    name: 🐳 containerize
+    strategy:
+      fail-fast: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Login to GHCR
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
+      with:
+        version: v0.7.0
+        buildkitd-flags: --debug
+        config: .github/buildkitd.toml
+        install: true
+    - name: Enable Multiarch    # This slows down arm build by 4-5x
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Create builder
+      run: |
+        docker buildx create --name proxypybuilder
+        docker buildx use proxypybuilder
+        docker buildx inspect
+        docker buildx ls
     - name: Push openssl to GHCR
       run: >-
         REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
@@ -830,6 +897,46 @@ jobs:
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
         -t $LATEST_TAG .
+
+  docker-latest:
+    runs-on: Ubuntu-latest
+    permissions:
+      packages: write
+    if: success()
+    needs:
+    - test-container
+    - pre-setup  # transitive, for accessing settings
+    name: 🐳 containerize
+    strategy:
+      fail-fast: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
+      with:
+        version: v0.7.0
+        buildkitd-flags: --debug
+        config: .github/buildkitd.toml
+        install: true
+    - name: Enable Multiarch    # This slows down arm build by 4-5x
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Create builder
+      run: |
+        docker buildx create --name proxypybuilder
+        docker buildx use proxypybuilder
+        docker buildx inspect
+        docker buildx ls
     - name: Login to DockerHub
       uses: docker/login-action@v1
       with:
@@ -852,6 +959,28 @@ jobs:
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
         -t $CONTAINER_TAG .
+
+  check:  # This job does nothing and is only used for the branch protection
+    if: always()
+
+    needs:
+    - analyze
+    - test
+    - lint
+    - dashboard
+    - brew
+    - developer
+    - ghcr-latest
+    - ghcr-openssl
+    - docker-latest
+
+    runs-on: Ubuntu-latest
+
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
 
   publish-pypi:
     name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI
