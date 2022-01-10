@@ -15,6 +15,7 @@ from typing import List, Tuple, Any, Dict
 from ...common.utils import bytes_
 
 from ..server import httpProtocolTypes, HttpWebServerBasePlugin
+from ..parser import HttpParser
 
 from .frame import WebsocketFrame
 from .plugin import WebSocketTransportBasePlugin
@@ -36,8 +37,11 @@ class WebSocketTransport(HttpWebServerBasePlugin):
 
     def routes(self) -> List[Tuple[int, str]]:
         return [
-            (httpProtocolTypes.WEBSOCKET, r'/dashboard$'),
+            (httpProtocolTypes.WEBSOCKET, r'/transport/$'),
         ]
+
+    def handle_request(self, request: HttpParser) -> None:
+        raise NotImplementedError()
 
     def on_websocket_open(self) -> None:
         logger.info('app ws opened')
