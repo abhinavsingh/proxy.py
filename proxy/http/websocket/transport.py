@@ -14,7 +14,7 @@ from typing import List, Tuple, Any, Dict
 
 from ...common.utils import bytes_
 
-from ..server import HttpWebServerBasePlugin, httpProtocolTypes
+from ..server import httpProtocolTypes, HttpWebServerBasePlugin
 
 from .frame import WebsocketFrame
 from .plugin import WebSocketTransportBasePlugin

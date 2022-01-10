@@ -7,16 +7,4 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
-       Submodules
 """
-from .devtools import DevtoolsProtocolPlugin
-from .inspect_traffic import InspectTrafficPlugin
-
-__all__ = [
-    'DevtoolsProtocolPlugin',
-    'InspectTrafficPlugin',
-]
