@@ -77,57 +77,50 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         self.connections: Dict[int, TcpServerConnection] = {}
         self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
 
-    def add(self, addr: Tuple[str, int]) -> TcpServerConnection:
-        """Creates and add a new connection to the pool."""
-        new_conn = TcpServerConnection(addr[0], addr[1])
-        new_conn.connect()
-        self._add(new_conn)
-        return new_conn
-
     def acquire(self, addr: Tuple[str, int]) -> Tuple[bool, TcpServerConnection]:
         """Returns a reusable connection from the pool.
 
         If none exists, will create and return a new connection."""
+        created, conn = False, None
         if addr in self.pools:
             for old_conn in self.pools[addr]:
                 if old_conn.is_reusable():
-                    old_conn.mark_inuse()
+                    conn = old_conn
                     logger.debug(
                         'Reusing connection#{2} for upstream {0}:{1}'.format(
                             addr[0], addr[1], id(old_conn),
                         ),
                     )
-                    return False, old_conn
-        new_conn = self.add(addr)
-        logger.debug(
-            'Created new connection#{2} for upstream {0}:{1}'.format(
-                addr[0], addr[1], id(new_conn),
-            ),
-        )
-        return True, new_conn
+                    break
+        if conn is None:
+            created, conn = True, self.add(addr)
+        conn.mark_inuse()
+        return created, conn
 
     def release(self, conn: TcpServerConnection) -> None:
         """Release a previously acquired connection.
 
-        If the connection has not been closed,
-        then it will be retained in the pool for reusability.
+        Releasing a connection will shutdown and close the socket
+        including internal pool cleanup.
         """
         assert not conn.is_reusable()
-        if conn.closed:
-            logger.debug(
-                'Removing connection#{2} from pool from upstream {0}:{1}'.format(
-                    conn.addr[0], conn.addr[1], id(conn),
-                ),
-            )
-            self._remove(conn.connection.fileno())
-        else:
-            logger.debug(
-                'Retaining connection#{2} to upstream {0}:{1}'.format(
-                    conn.addr[0], conn.addr[1], id(conn),
-                ),
-            )
-            # Reset for reusability
-            conn.reset()
+        logger.debug(
+            'Removing connection#{2} from pool from upstream {0}:{1}'.format(
+                conn.addr[0], conn.addr[1], id(conn),
+            ),
+        )
+        self._remove(conn.connection.fileno())
+
+    def retain(self, conn: TcpServerConnection) -> None:
+        """Retained previously acquired connection in the pool for reusability."""
+        assert not conn.closed
+        logger.debug(
+            'Retaining connection#{2} to upstream {0}:{1}'.format(
+                conn.addr[0], conn.addr[1], id(conn),
+            ),
+        )
+        # Reset for reusability
+        conn.reset()
 
     async def get_events(self) -> SelectableEvents:
         """Returns read event flag for all reusable connections in the pool."""
@@ -152,10 +145,28 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
             self._remove(fileno)
         return False
 
+    def add(self, addr: Tuple[str, int]) -> TcpServerConnection:
+        """Creates, connects and adds a new connection to the pool.
+
+        Returns newly created connection.
+
+        NOTE: You must not use the returned connection, instead use `acquire`.
+        """
+        new_conn = TcpServerConnection(addr[0], addr[1])
+        new_conn.connect()
+        self._add(new_conn)
+        logger.debug(
+            'Created new connection#{2} for upstream {0}:{1}'.format(
+                addr[0], addr[1], id(new_conn),
+            ),
+        )
+        return new_conn
+
     def _add(self, conn: TcpServerConnection) -> None:
         """Adds a new connection to internal data structure."""
         if conn.addr not in self.pools:
             self.pools[conn.addr] = set()
+        conn._reusable = True
         self.pools[conn.addr].add(conn)
         self.connections[conn.connection.fileno()] = conn
 

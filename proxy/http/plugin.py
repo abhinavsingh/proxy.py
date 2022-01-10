@@ -52,7 +52,7 @@ class HttpProtocolHandlerPlugin(DescriptorsHandlerMixin, ABC):
             flags: argparse.Namespace,
             client: TcpClientConnection,
             request: HttpParser,
-            event_queue: Optional[EventQueue],
+            event_queue: Optional[EventQueue] = None,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
         self.uid: str = uid

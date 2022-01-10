@@ -11,7 +11,7 @@
 import argparse
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from ..websocket import WebsocketFrame
 from ..parser import HttpParser
@@ -19,6 +19,9 @@ from ..descriptors import DescriptorsHandlerMixin
 
 from ...core.connection import TcpClientConnection
 from ...core.event import EventQueue
+
+if TYPE_CHECKING:
+    from ...core.connection import UpstreamConnectionPool
 
 
 class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
@@ -30,11 +33,13 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
             flags: argparse.Namespace,
             client: TcpClientConnection,
             event_queue: EventQueue,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
         self.uid = uid
         self.flags = flags
         self.client = client
         self.event_queue = event_queue
+        self.upstream_conn_pool = upstream_conn_pool
 
     def name(self) -> str:
         """A unique name for your plugin.

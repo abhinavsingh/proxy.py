@@ -11,13 +11,16 @@
 import argparse
 
 from abc import ABC
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
 from ..parser import HttpParser
 from ..descriptors import DescriptorsHandlerMixin
 
 from ...core.event import EventQueue
 from ...core.connection import TcpClientConnection
+
+if TYPE_CHECKING:
+    from ...core.connection import UpstreamConnectionPool
 
 
 class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
@@ -31,11 +34,13 @@ class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
             flags: argparse.Namespace,
             client: TcpClientConnection,
             event_queue: EventQueue,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:
         self.uid = uid                  # pragma: no cover
         self.flags = flags              # pragma: no cover
         self.client = client            # pragma: no cover
         self.event_queue = event_queue  # pragma: no cover
+        self.upstream_conn_pool = upstream_conn_pool
 
     def name(self) -> str:
         """A unique name for your plugin.
