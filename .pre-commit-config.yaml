@@ -1,7 +1,7 @@
 ---
 repos:
 - repo: https://github.com/asottile/add-trailing-comma.git
-  rev: v2.0.1
+  rev: v2.2.1
   hooks:
   - id: add-trailing-comma
     args:
@@ -15,7 +15,7 @@ repos:
 #     - --honor-noqa
 
 - repo: https://github.com/Lucas-C/pre-commit-hooks.git
-  rev: v1.1.7
+  rev: v1.1.10
   hooks:
   - id: remove-tabs
     exclude: |
@@ -29,7 +29,7 @@ repos:
       $
 
 - repo: https://github.com/pre-commit/pre-commit-hooks.git
-  rev: v4.0.1
+  rev: v4.1.0
   hooks:
   # Side-effects:
   - id: trailing-whitespace
@@ -131,7 +131,7 @@ repos:
       ^.+\.min\.js$
 
 - repo: https://github.com/adrienverge/yamllint.git
-  rev: v1.26.2
+  rev: v1.26.3
   hooks:
   - id: yamllint
     args:
@@ -139,7 +139,7 @@ repos:
     types: [file, yaml]
 
 - repo: https://github.com/PyCQA/flake8.git
-  rev: 3.9.2
+  rev: 4.0.1
   hooks:
   - id: flake8
     language_version: python3
@@ -150,7 +150,7 @@ repos:
     - wemake-python-styleguide ~= 0.15.0
 
 - repo: https://github.com/pre-commit/mirrors-mypy.git
-  rev: v0.910
+  rev: v0.931
   hooks:
   - id: mypy
     additional_dependencies:
