@@ -14,7 +14,9 @@
        Submodules
 """
 from .devtools import DevtoolsProtocolPlugin
+from .inspect_traffic import InspectTrafficPlugin
 
 __all__ = [
     'DevtoolsProtocolPlugin',
+    'InspectTrafficPlugin',
 ]

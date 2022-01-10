@@ -11,10 +11,10 @@
 import json
 from typing import List, Dict, Any
 
-from ..common.utils import bytes_
-from ..core.event import EventSubscriber
-from ..core.connection import TcpClientConnection
-from ..http.websocket import WebsocketFrame, WebSocketTransportBasePlugin
+from ...common.utils import bytes_
+from ...core.event import EventSubscriber
+from ...core.connection import TcpClientConnection
+from ..websocket import WebsocketFrame, WebSocketTransportBasePlugin
 
 
 class InspectTrafficPlugin(WebSocketTransportBasePlugin):

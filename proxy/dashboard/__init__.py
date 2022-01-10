@@ -9,9 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 from .dashboard import ProxyDashboard
-from .inspect_traffic import InspectTrafficPlugin
 
 __all__ = [
     'ProxyDashboard',
-    'InspectTrafficPlugin',
 ]
