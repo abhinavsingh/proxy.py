@@ -547,7 +547,8 @@ jobs:
     if: success()
     needs:
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 containerize
+    - build
+    name: 🐳 Build & Test
     strategy:
       fail-fast: false
     steps:
@@ -739,7 +740,7 @@ jobs:
     needs:
     - test-container
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 containerize
+    name: 🐳 ghcr:latest
     strategy:
       fail-fast: false
     steps:
@@ -823,7 +824,7 @@ jobs:
     needs:
     - test-container
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 containerize
+    name: 🐳 ghcr:openssl
     strategy:
       fail-fast: false
     steps:
@@ -905,7 +906,7 @@ jobs:
     needs:
     - test-container
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 containerize
+    name: 🐳 docker:latest
     strategy:
       fail-fast: false
     steps:
