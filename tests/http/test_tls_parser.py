@@ -9,10 +9,10 @@
     :license: BSD, see LICENSE for more details.
 """
 import re
-import unittest
 import binascii
-
 from pathlib import Path
+
+import unittest
 
 from proxy.http.parser.tls import TlsParser, tlsContentType, tlsHandshakeType
 

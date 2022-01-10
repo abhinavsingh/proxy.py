@@ -8,11 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import pytest
-import unittest
 import selectors
 
+import pytest
+import unittest
 from unittest import mock
+
 from pytest_mock import MockerFixture
 
 from proxy.core.connection import UpstreamConnectionPool

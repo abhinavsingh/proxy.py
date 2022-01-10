@@ -9,29 +9,29 @@
     :license: BSD, see LICENSE for more details.
 """
 import base64
-import pytest
 import selectors
+from typing import Any, cast
 
+import pytest
 from unittest import mock
-from pytest_mock import MockerFixture
-from typing import cast, Any
 
-from proxy.common.plugins import Plugins
-from proxy.common.flag import FlagParser
-from proxy.common.version import __version__
-from proxy.common.utils import bytes_
-from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER
-from proxy.core.connection import TcpClientConnection
-from proxy.http.parser import HttpParser
+from pytest_mock import MockerFixture
+
+from proxy.http import HttpProtocolHandler, httpHeaders
 from proxy.http.proxy import HttpProxyPlugin
+from proxy.common.flag import FlagParser
+from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.common.utils import bytes_
+from proxy.common.plugins import Plugins
+from proxy.common.version import __version__
 from proxy.http.responses import (
-    BAD_GATEWAY_RESPONSE_PKT,
-    PROXY_AUTH_FAILED_RESPONSE_PKT,
+    BAD_GATEWAY_RESPONSE_PKT, PROXY_AUTH_FAILED_RESPONSE_PKT,
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
 )
-from proxy.http.parser import httpParserStates, httpParserTypes
-from proxy.http import HttpProtocolHandler, httpHeaders
-
+from proxy.core.connection import TcpClientConnection
+from proxy.common.constants import (
+    CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER,
+)
 from ..test_assertions import Assertions
 
 

@@ -10,14 +10,14 @@
 """
 import unittest
 
-from proxy.common.constants import CRLF, HTTP_1_0
-from proxy.common.utils import build_http_request, build_http_header
-from proxy.common.utils import find_http_line, bytes_
-
 from proxy.http import httpMethods
-from proxy.http.exception import HttpProtocolException
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.common.utils import (
+    bytes_, find_http_line, build_http_header, build_http_request,
+)
+from proxy.http.exception import HttpProtocolException
 from proxy.http.responses import okResponse
+from proxy.common.constants import CRLF, HTTP_1_0
 
 
 class TestHttpParser(unittest.TestCase):

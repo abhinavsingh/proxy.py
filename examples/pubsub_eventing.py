@@ -9,13 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
-import multiprocessing
 import logging
+import multiprocessing
+from typing import Any, Dict, Optional
 
-from typing import Dict, Any, Optional
-
+from proxy.core.event import (
+    EventQueue, EventManager, EventSubscriber, eventNames,
+)
 from proxy.common.constants import DEFAULT_LOG_FORMAT
-from proxy.core.event import EventManager, EventQueue, EventSubscriber, eventNames
+
 
 logging.basicConfig(level=logging.DEBUG, format=DEFAULT_LOG_FORMAT)
 
