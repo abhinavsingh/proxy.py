@@ -39,20 +39,10 @@ class InspectTrafficPlugin(WebSocketTransportBasePlugin):
         if message['method'] == 'enable_inspection':
             # inspection can only be enabled if --enable-events is used
             if not self.flags.enable_events:
-                self.client.queue(
-                    memoryview(
-                        WebsocketFrame.text(
-                            bytes_(
-                                json.dumps(
-                                    {
-                                        'id': message['id'],
-                                        'response': 'not enabled',
-                                    },
-                                ),
-                            ),
-                        ),
-                    ),
-                )
+                self.reply({
+                    'id': message['id'],
+                    'response': 'not enabled',
+                })
             else:
                 self.subscriber.setup()
                 self.reply(
