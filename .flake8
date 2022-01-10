@@ -28,6 +28,7 @@ extend-exclude =
 # IMPORTANT: avoid using ignore option, always use extend-ignore instead
 # Completely and unconditionally ignore the following errors:
 extend-ignore =
+  I  # flake8-isort is drunk + we have isort integrated into pre-commit
   B009    # FIXME: `getattr()` called with a constant arg
   C812    # FIXME: missing trailing comma
   C819    # FIXME: inline trailing comma
