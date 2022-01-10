@@ -8,13 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import pytest
 import unittest
 from unittest import mock
 
-import pytest
-
-from proxy.common.constants import IS_WINDOWS
 from proxy.common.utils import set_open_file_limit
+from proxy.common.constants import IS_WINDOWS
+
 
 if not IS_WINDOWS:
     import resource

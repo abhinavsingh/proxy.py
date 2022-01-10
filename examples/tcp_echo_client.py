@@ -13,6 +13,7 @@ import logging
 from proxy.common.utils import socket_connection
 from proxy.common.constants import DEFAULT_BUFFER_SIZE
 
+
 logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':

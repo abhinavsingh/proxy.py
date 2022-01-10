@@ -8,17 +8,17 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import pytest
 import selectors
+
+import pytest
 
 from pytest_mock import MockerFixture
 
-from proxy.common.flag import FlagParser
 from proxy.http import HttpProtocolHandler, httpHeaders
+from proxy.common.flag import FlagParser
+from proxy.common.utils import build_http_request
 from proxy.http.responses import PROXY_AUTH_FAILED_RESPONSE_PKT
 from proxy.core.connection import TcpClientConnection
-from proxy.common.utils import build_http_request
-
 from ...test_assertions import Assertions
 
 

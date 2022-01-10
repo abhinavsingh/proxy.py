@@ -10,10 +10,11 @@
 """
 import os
 import tempfile
-import unittest
 import subprocess
-from unittest import mock
 from typing import Tuple
+
+import unittest
+from unittest import mock
 
 from proxy.common import pki
 

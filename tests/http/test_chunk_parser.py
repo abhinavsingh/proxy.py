@@ -10,7 +10,7 @@
 """
 import unittest
 
-from proxy.http.parser import chunkParserStates, ChunkParser
+from proxy.http.parser import ChunkParser, chunkParserStates
 
 
 class TestChunkParser(unittest.TestCase):

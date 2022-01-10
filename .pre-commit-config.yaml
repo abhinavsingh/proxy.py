@@ -8,7 +8,7 @@ repos:
     - --py36-plus
 
 # - repo: https://github.com/timothycrosley/isort.git
-#   rev: 5.4.2
+#   rev: 5.10.0
 #   hooks:
 #   - id: isort
 #     args:

@@ -8,15 +8,20 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
-import socket
 import ssl
-from unittest import mock
-from typing import Optional, Union
+import socket
+from typing import Union, Optional
 
-from proxy.core.connection import tcpConnectionTypes, TcpConnectionUninitializedException
-from proxy.core.connection import TcpServerConnection, TcpConnection, TcpClientConnection
-from proxy.common.constants import DEFAULT_IPV6_HOSTNAME, DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME
+import unittest
+from unittest import mock
+
+from proxy.core.connection import (
+    TcpConnection, TcpClientConnection, TcpServerConnection,
+    TcpConnectionUninitializedException, tcpConnectionTypes,
+)
+from proxy.common.constants import (
+    DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME, DEFAULT_IPV6_HOSTNAME,
+)
 
 
 class TestTcpConnection(unittest.TestCase):
