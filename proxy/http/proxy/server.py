@@ -167,12 +167,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     def protocols() -> List[int]:
         return [httpProtocols.HTTP_PROXY]
 
-    def tls_interception_enabled(self) -> bool:
-        return self.flags.ca_key_file is not None and \
-            self.flags.ca_cert_dir is not None and \
-            self.flags.ca_signing_key_file is not None and \
-            self.flags.ca_cert_file is not None
-
     async def get_descriptors(self) -> Descriptors:
         r: List[int] = []
         w: List[int] = []
@@ -291,7 +285,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # only for non-https requests and when
             # tls interception is enabled
             if not self.request.is_https_tunnel \
-                    or self.tls_interception_enabled():
+                    or self.tls_interception_enabled:
                 if self.response.is_complete:
                     self.handle_pipeline_response(raw)
                 else:
@@ -440,7 +434,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # requests is TLS interception is enabled.
             if self.request.is_complete and (
                     not self.request.is_https_tunnel or
-                    self.tls_interception_enabled()
+                    self.tls_interception_enabled
             ):
                 if self.pipeline_request is not None and \
                         self.pipeline_request.is_connection_upgrade:
@@ -521,7 +515,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         if self.upstream:
             if self.request.is_https_tunnel:
                 self.client.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
-                if self.tls_interception_enabled():
+                if self.tls_interception_enabled:
                     return self.intercept()
             # If an upstream server connection was established for http request,
             # queue the request for upstream server.

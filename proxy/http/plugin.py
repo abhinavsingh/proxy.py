@@ -19,12 +19,17 @@ from ..core.connection import TcpClientConnection
 
 from .parser import HttpParser
 from .descriptors import DescriptorsHandlerMixin
+from .mixins import TlsInterceptionPropertyMixin
 
 if TYPE_CHECKING:
     from ..core.connection import UpstreamConnectionPool
 
 
-class HttpProtocolHandlerPlugin(DescriptorsHandlerMixin, ABC):
+class HttpProtocolHandlerPlugin(
+        DescriptorsHandlerMixin,
+        TlsInterceptionPropertyMixin,
+        ABC,
+):
     """Base HttpProtocolHandler Plugin class.
 
     NOTE: This is an internal plugin and in most cases only useful for core contributors.

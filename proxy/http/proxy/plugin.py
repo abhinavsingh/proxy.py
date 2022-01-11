@@ -13,6 +13,8 @@ import argparse
 from abc import ABC
 from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
+from ..mixins import TlsInterceptionPropertyMixin
+
 from ..parser import HttpParser
 from ..descriptors import DescriptorsHandlerMixin
 
@@ -23,7 +25,11 @@ if TYPE_CHECKING:
     from ...core.connection import UpstreamConnectionPool
 
 
-class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
+class HttpProxyBasePlugin(
+        DescriptorsHandlerMixin,
+        TlsInterceptionPropertyMixin,
+        ABC
+):
     """Base HttpProxyPlugin Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
@@ -151,3 +157,6 @@ class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
         must return None to prevent other plugin.on_access_log invocation.
         """
         return context
+
+    def do_intercept(self) -> bool:
+        return self.tls_interception_enabled
