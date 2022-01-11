@@ -1,5 +1,6 @@
 import base58
 import logging
+import traceback
 
 try:
     from utils import LogDB
@@ -26,63 +27,52 @@ class IndexerDB:
             self.constants['last_block_height'] = 0
 
 
-    def submit_transaction(self, client, eth_trx, eth_signature, from_address, got_result, signatures):
-        (logs, status, gas_used, return_value, slot) = got_result
-        block_info = self.get_block_info(client, slot)
-        if block_info is None:
-            logger.critical(f'Unable to submit transaction {eth_signature} because slot {slot} not found')
-            return
-        block_hash, block_number, _ = block_info
-        if logs:
-            for rec in logs:
-                rec['transactionHash'] = eth_signature
-                rec['blockHash'] = block_hash
-                rec['blockNumber'] = hex(block_number)
-            self.logs_db.push_logs(logs)
-        self.ethereum_trx[eth_signature] = {
-            'eth_trx': eth_trx,
-            'slot': slot,
-            'blockNumber': hex(block_number),
-            'blockHash': block_hash,
-            'logs': logs,
-            'status': status,
-            'gas_used': gas_used,
-            'return_value': return_value,
-            'from_address': from_address,
-        }
-        self.eth_sol_trx[eth_signature] = signatures
-        for idx, sig in enumerate(signatures):
-            self.sol_eth_trx[sig] = {
-                'idx': idx,
-                'eth': eth_signature,
+    def submit_transaction(self, client, neon_tx, neon_res, used_ixs):
+        try:
+            block_info = self.get_block_info(client, neon_res.slot)
+            if block_info is None:
+                logger.critical(f'Unable to submit transaction {neon_tx.sign} because slot {neon_res.slot} not found')
+                return
+            block_hash, block_number, _ = block_info
+            if neon_res.logs:
+                for rec in neon_res.logs:
+                    rec['transactionHash'] = neon_tx.sign
+                    rec['blockHash'] = block_hash
+                    rec['blockNumber'] = hex(block_number)
+                self.logs_db.push_logs(neon_res.logs)
+            self.ethereum_trx[neon_tx.sign] = {
+                'eth_trx': neon_tx.rlp_tx,
+                'slot': neon_res.slot,
+                'blockNumber': hex(block_number),
+                'blockHash': block_hash,
+                'logs': neon_res.logs,
+                'status': neon_res.status,
+                'gas_used': neon_res.gas_used,
+                'return_value': neon_res.return_value,
+                'from_address': neon_tx.addr,
             }
-        self.blocks_by_hash[block_hash] = slot
 
-        logger.debug(f"{eth_signature} {status}")
-
-
-    def submit_transaction_part(self, eth_signature, signatures):
-        ''' Check if transaction was allready submitted by proxy. '''
-        eth_signature = eth_signature
-        ethereum_trx = self.ethereum_trx.get(eth_signature, None)
-        if ethereum_trx is not None:
-            signatures = self.eth_sol_trx.get(eth_signature, [])
-            signatures = signatures + signatures
-            self.eth_sol_trx[eth_signature] = signatures
-            for idx, sig in enumerate(signatures):
-                self.sol_eth_trx[sig] = {
-                    'idx': idx,
-                    'eth': eth_signature,
+            self.eth_sol_trx[neon_tx.sign] = used_ixs
+            for ix in used_ixs:
+                self.sol_eth_trx[ix.sign] = {
+                    'idx': ix.idx,
+                    'eth': neon_tx.sign,
                 }
-            return True
-        return False
+            self.blocks_by_hash[block_hash] = neon_res.slot
+
+            logger.debug(f"{neon_tx.sign} {neon_res.status}")
+        except Exception as err:
+            err_tb = "".join(traceback.format_tb(err.__traceback__))
+            logger.warning(
+                f'Got exception while indexing. Type(err): {type(err)}, Exception: {err}, Traceback: {err_tb}')
 
     def get_block_info(self, client, slot):
         block = self.blocks.get(slot, None)
         if block is None:
-            block = client._provider.make_request("getBlock", slot, {"commitment":"confirmed", "transactionDetails":"signatures", "rewards":False})['result']
+            block = client._provider.make_request("getBlock", slot, {"commitment":"confirmed", "transactionDetails":"signatures", "rewards":False})
             if block is None:
                 return None
+            block = block['result']
             block_hash = '0x' + base58.b58decode(block['blockhash']).hex()
             block_height = block['blockHeight']
             self.blocks[slot] = block
@@ -99,14 +89,14 @@ class IndexerDB:
     def get_last_block_height(self):
         return self.constants['last_block_height']
 
+    def set_last_slot_height(self, slot, height):
+        self.constants['last_block_slot'] = slot
+        self.constants['last_block_height'] = height
+
     def fill_block_height(self, height, slots):
         for slot in slots:
             self.blocks_height_slot[height] = slot
             height += 1
-
-        if len(slots) > 0:
-            self.constants['last_block_slot'] = slots[len(slots) - 1]
-            self.constants['last_block_height'] = height - 1
 
     def get_logs(self, fromBlock, toBlock, address, topics, blockHash):
         return self.logs_db.get_logs(fromBlock, toBlock, address, topics, blockHash)

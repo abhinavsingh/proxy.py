@@ -26,7 +26,6 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from solana.account import Account as sol_Account
 from solana.rpc.api import Client as SolanaClient, SendTransactionError as SolanaTrxError
-from solana.rpc.commitment import Confirmed
 from typing import List, Tuple, Optional
 from web3 import Web3
 
@@ -39,6 +38,7 @@ from ..common_neon.errors import EthereumError
 from ..core.acceptor.pool import proxy_id_glob
 from ..environment import neon_cli, solana_cli, SOLANA_URL, MINIMAL_GAS_PRICE
 from ..indexer.indexer_db import IndexerDB
+from ..indexer.utils import NeonTxAddrInfo, NeonIxSignInfo
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -401,9 +401,14 @@ class EthereumModel:
                                     ]
                                 })
         try:
-            got_result, signature = call_signed(self.signer, self.client, trx, steps=250)
+            neon_res, signature = call_signed(self.signer, self.client, trx, steps=250)
+            neon_ix = NeonIxSignInfo(sign=signature, slot=neon_res.slot, idx=0)
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
-            self.db.submit_transaction(self.client, rawTrx[2:], eth_signature, "0x" + sender, got_result, [signature])
+            neon_tx = NeonTxAddrInfo()
+            neon_tx.sign = eth_signature
+            neon_tx.addr = "0x" + sender
+            neon_tx.rlp_tx = rawTrx[2:]
+            self.db.submit_transaction(self.client, neon_tx, neon_res, [neon_ix])
             return eth_signature
 
         except SolanaTrxError as err:

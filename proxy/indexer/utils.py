@@ -8,7 +8,7 @@ import rlp
 import subprocess
 
 from eth_utils import big_endian_to_int
-from ethereum.transactions import Transaction as EthTrx
+from ethereum.transactions import Transaction as EthTx
 from ethereum.utils import sha3
 from solana.account import Account
 from solana.publickey import PublicKey
@@ -39,78 +39,153 @@ def check_error(trx):
     return False
 
 
-def get_trx_results(trx):
-    # init variables for instruction owner checks
-    accounts = trx["transaction"]["message"]["accountKeys"]
-    evm_loader_instructions = []
-    for idx, instruction in enumerate(trx["transaction"]["message"]["instructions"]):
-        if accounts[instruction["programIdIndex"]] == EVM_LOADER_ID:
-            evm_loader_instructions.append(idx)
+def str_fmt_object(obj):
+    name = f'{type(obj)}'
+    name = name[name.rfind('.') + 1:-2]
+    lookup = lambda o: o.__dict__ if hasattr(o, '__dict__') else None
+    members = {json.dumps(obj, default=lookup, sort_keys=True)}
+    return f'{name}: {members}'
 
-    slot = trx['slot']
-    got_result = False
-    logs = []
-    status = "0x1"
-    gas_used = 0
-    return_value = bytes
-    log_index = 0
-    for inner in (trx['meta']['innerInstructions']):
-        if inner["index"] in evm_loader_instructions:
-            for event in inner['instructions']:
-                if accounts[event['programIdIndex']] == EVM_LOADER_ID:
-                    log = base58.b58decode(event['data'])
-                    instruction = log[:1]
-                    if (int().from_bytes(instruction, "little") == 7):  # OnEvent evmInstruction code
-                        address = log[1:21]
-                        count_topics = int().from_bytes(log[21:29], 'little')
-                        topics = []
-                        pos = 29
-                        for _ in range(count_topics):
-                            topic_bin = log[pos:pos + 32]
-                            topics.append('0x'+topic_bin.hex())
-                            pos += 32
-                        data = log[pos:]
-                        rec = {
-                            'address': '0x'+address.hex(),
-                            'topics': topics,
-                            'data': '0x'+data.hex(),
-                            'transactionLogIndex': hex(0),
-                            'transactionIndex': hex(inner['index']),
-                            # 'blockNumber': block_number, # set when transaction found
-                            # 'transactionHash': trxId, # set when transaction found
-                            'logIndex': hex(log_index),
-                            # 'blockHash': block_hash # set when transaction found
-                        }
-                        logs.append(rec)
-                        log_index +=1
-                    elif int().from_bytes(instruction, "little") == 6:  # OnReturn evmInstruction code
-                        got_result = True
-                        if log[1] < 0xd0:
-                            status = "0x1"
-                        else:
-                            status = "0x0"
-                        gas_used = int.from_bytes(log[2:10], 'little')
-                        return_value = log[10:].hex()
 
-    if got_result:
-        return (logs, status, gas_used, return_value, slot)
-    else:
+class NeonIxSignInfo:
+    def __init__(self, sign: bytes, slot: int, idx: int):
+        self.sign = sign  # Solana transaction signature
+        self.slot = slot  # Solana block slot
+        self.idx  = idx   # Instruction index
+
+    def __str__(self):
+        return f'{self.slot} {self.sign} {self.idx}'
+
+    def __hash__(self):
+        return hash((self.sign, self.slot, self.idx))
+
+    def __eq__(self, other):
+        return (self.sign, self.slot, self.idx) == (other.sign, other.slot, other.idx)
+
+    def copy(self):
+        return NeonIxSignInfo(sign=self.sign, slot=self.slot, idx=self.idx)
+
+
+class NeonTxResultInfo:
+    def __init__(self, tx=None):
+        if not isinstance(tx, dict):
+            self._set_defaults()
+        else:
+            self.decode(tx)
+
+    def __str__(self):
+        return str_fmt_object(self)
+
+    def _set_defaults(self):
+        self.logs = []
+        self.status = "0x0"
+        self.gas_used = 0
+        self.return_value = bytes()
+        self.slot = -1
+        self.error = None
+
+    def _decode_event(self, log, tx_idx):
+        log_idx = len(self.logs)
+        address = log[1:21]
+        count_topics = int().from_bytes(log[21:29], 'little')
+        topics = []
+        pos = 29
+        for _ in range(count_topics):
+            topic_bin = log[pos:pos + 32]
+            topics.append('0x' + topic_bin.hex())
+            pos += 32
+        data = log[pos:]
+        rec = {
+            'address': '0x' + address.hex(),
+            'topics': topics,
+            'data': '0x' + data.hex(),
+            'transactionLogIndex': hex(0),
+            'transactionIndex': hex(tx_idx),
+            # 'blockNumber': block_number, # set when transaction found
+            # 'transactionHash': trxId, # set when transaction found
+            'logIndex': hex(log_idx),
+            # 'blockHash': block_hash # set when transaction found
+        }
+        self.logs.append(rec)
+
+    def _decode_return(self, log, slot):
+        self.status = '0x1' if log[1] < 0xd0 else '0x0'
+        self.gas_used = int.from_bytes(log[2:10], 'little')
+        self.return_value = log[10:].hex()
+        self.slot = slot
+
+    def decode(self, tx: {}):
+        self._set_defaults()
+        meta_ixs = tx['meta']['innerInstructions']
+        msg = tx['transaction']['message']
+        msg_ixs = msg["instructions"]
+        accounts = msg['accountKeys']
+
+        evm_ix_idxs = []
+        for idx, ix in enumerate(msg_ixs):
+            if accounts[ix["programIdIndex"]] == EVM_LOADER_ID:
+                evm_ix_idxs.append(idx)
+
+        for inner_ix in meta_ixs:
+            if inner_ix["index"] in evm_ix_idxs:
+                for event in inner_ix['instructions']:
+                    if accounts[event['programIdIndex']] == EVM_LOADER_ID:
+                        log = base58.b58decode(event['data'])
+                        evm_ix = int().from_bytes(log[:1], "little") # int(log[0])
+                        if evm_ix == 7:
+                            self._decode_event(log, inner_ix['index'])
+                        elif evm_ix == 6:
+                            self._decode_return(log, tx['slot'])
         return None
 
 
-def get_trx_receipts(unsigned_msg, signature):
-    unsigned_msg = bytes(unsigned_msg)
-    trx = rlp.decode(unsigned_msg, EthTrx)
+    def clear(self):
+        self._set_defaults()
 
-    v = int(signature[64]) + 35 + 2 * trx[6]
-    r = big_endian_to_int(signature[0:32])
-    s = big_endian_to_int(signature[32:64])
+    def is_valid(self):
+        return (self.slot != -1) and (not self.error)
 
-    trx_raw = rlp.encode(EthTrx(trx[0], trx[1], trx[2], trx[3], trx[4], trx[5], v, r, s), EthTrx)
-    eth_signature = '0x' + sha3(trx_raw).hex()
-    from_address = w3.eth.account.recover_transaction(trx_raw).lower()
 
-    return (trx_raw.hex(), eth_signature, from_address)
+class NeonTxAddrInfo:
+    def __init__(self, rlp_sign=None, rlp_data=None):
+        if not isinstance(rlp_sign, bytes) or not isinstance(rlp_data, bytes):
+            self._set_defaults()
+        else:
+            self.decode(rlp_sign, rlp_data)
+
+    def __str__(self):
+        return str_fmt_object(self)
+
+    def _set_defaults(self):
+        self.addr = None
+        self.sign = None
+        self.rlp_tx = None
+        self.error = None
+
+    def decode(self, rlp_sign: bytes, rlp_data: bytes):
+        self._set_defaults()
+        try:
+            tx = rlp.decode(rlp_data, EthTx)
+
+            v = int(rlp_sign[64]) + 35 + 2 * tx[6]
+            r = big_endian_to_int(rlp_sign[0:32])
+            s = big_endian_to_int(rlp_sign[32:64])
+
+            rlp_tx = rlp.encode(EthTx(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5], v, r, s), EthTx)
+            self.sign = '0x' + sha3(rlp_tx).hex()
+            self.addr = w3.eth.account.recover_transaction(rlp_tx).lower()
+            self.rlp_tx = rlp_tx.hex()
+            return None
+
+        except Exception as e:
+            self.error = e
+            return self.error
+
+    def clear(self):
+        self._set_defaults()
+
+    def is_valid(self):
+        return (self.addr is not None) and (not self.error)
 
 
 def get_account_list(client, storage_account):
