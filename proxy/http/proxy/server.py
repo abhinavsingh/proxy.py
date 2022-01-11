@@ -516,7 +516,18 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             if self.request.is_https_tunnel:
                 self.client.queue(PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT)
                 if self.tls_interception_enabled:
-                    return self.intercept()
+                    # Check if any plugin wants to
+                    # disable interception even
+                    # with flags available
+                    do_intercept = True
+                    for plugin in self.plugins.values():
+                        do_intercept = plugin.do_intercept(self.request)
+                        # A plugin requested to not intercept
+                        # the request
+                        if do_intercept is False:
+                            break
+                    if do_intercept:
+                        return self.intercept()
             # If an upstream server connection was established for http request,
             # queue the request for upstream server.
             else:

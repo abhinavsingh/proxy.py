@@ -158,5 +158,13 @@ class HttpProxyBasePlugin(
         """
         return context
 
-    def do_intercept(self) -> bool:
+    def do_intercept(self, _request: HttpParser) -> bool:
+        """By default returns True (only) when necessary flags
+        for TLS interception are passed.
+
+        When TLS interception is enabled, plugins can still disable
+        TLS interception by returning False explicitly.  This hook
+        will allow you to run `proxy.py` with TLS interception flags
+        BUT conditionally enable interception for certain requests only.
+        """
         return self.tls_interception_enabled
