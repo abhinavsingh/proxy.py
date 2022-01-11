@@ -136,9 +136,9 @@ class EthereumModel:
         return block_number
 
     def eth_blockNumber(self):
-        slot = self.client.get_slot(commitment=Confirmed)['result']
-        logger.debug("eth_blockNumber %s", hex(slot))
-        return hex(slot)
+        height = self.db.get_last_block_height()
+        logger.debug("eth_blockNumber %s", hex(height))
+        return hex(height)
 
     def eth_getBalance(self, account, tag):
         """account - address to check for balance.
