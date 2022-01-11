@@ -28,7 +28,7 @@ from ..plugin import HttpProtocolHandlerPlugin
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ..parser import HttpParser, httpParserTypes
 from ..protocols import httpProtocols
-from ..responses import NOT_FOUND_RESPONSE_PKT, NOT_IMPLEMENTED_RESPONSE_PKT, okResponse
+from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
 
 from .plugin import HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
@@ -138,25 +138,17 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         except FileNotFoundError:
             return NOT_FOUND_RESPONSE_PKT
 
-    def try_upgrade(self) -> bool:
-        if self.request.has_header(b'connection') and \
-                self.request.header(b'connection').lower() == b'upgrade':
-            if self.request.has_header(b'upgrade') and \
-                    self.request.header(b'upgrade').lower() == b'websocket':
-                self.client.queue(
-                    memoryview(
-                        build_websocket_handshake_response(
-                            WebsocketFrame.key_to_accept(
-                                self.request.header(b'Sec-WebSocket-Key'),
-                            ),
-                        ),
+    def switch_to_websocket(self) -> None:
+        self.client.queue(
+            memoryview(
+                build_websocket_handshake_response(
+                    WebsocketFrame.key_to_accept(
+                        self.request.header(b'Sec-WebSocket-Key'),
                     ),
-                )
-                self.switched_protocol = httpProtocolTypes.WEBSOCKET
-            else:
-                self.client.queue(NOT_IMPLEMENTED_RESPONSE_PKT)
-                return True
-        return False
+                ),
+            ),
+        )
+        self.switched_protocol = httpProtocolTypes.WEBSOCKET
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         path = self.request.path or b'/'
@@ -178,11 +170,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             if route.match(text_(path)):
                 self.route = self.routes[httpProtocolTypes.WEBSOCKET][route]
                 # Connection upgrade
-                teardown = self.try_upgrade()
-                if teardown:
-                    return True
-                # For upgraded connections, nothing more to do
-                if self.switched_protocol:
+                if self.request.is_websocket_upgrade:
+                    self.switch_to_websocket()
                     # Invoke plugin.on_websocket_open
                     assert self.route
                     self.route.on_websocket_open()
