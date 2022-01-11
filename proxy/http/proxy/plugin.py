@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 class HttpProxyBasePlugin(
         DescriptorsHandlerMixin,
         TlsInterceptionPropertyMixin,
-        ABC
+        ABC,
 ):
     """Base HttpProxyPlugin Plugin class.
 
