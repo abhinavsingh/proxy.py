@@ -173,16 +173,33 @@ class ReceiptsParserState:
         self._tx_table = {}
         self._done_tx_list = []
         self._used_ixs = set()
+        self._used_slots = {}
         self.ix = NeonIxInfo(sign=bytes(), slot=-1, tx=None)
 
     def set_ix(self, ix_info: NeonIxInfo):
         self.ix = ix_info
 
     def mark_ix_used(self):
+        if self.ix.sign in self._used_ixs:
+            return
+        if self.ix.sign.slot not in self._used_slots:
+            self._used_slots[self.ix.sign.slot] = 1
+        else:
+            self._used_slots[self.ix.sign.slot] += 1
         self._used_ixs.add(self.ix.sign.copy())
 
     def unmark_ix_used(self, obj: BaseEvmObject):
+        for ix in obj.used_ixs:
+            if ix.slot in self._used_slots:
+                self._used_slots[ix.slot] -= 1
+                if self._used_slots[ix.slot] == 0:
+                    del self._used_slots[ix.slot]
         self._used_ixs.difference_update(obj.used_ixs)
+
+    def find_min_used_slot(self, min_slot):
+        if len(self._used_slots) > 0:
+            min_slot = min(self._used_slots.keys())
+        return min_slot
 
     def get_holder(self, account: str) -> Optional[NeonHolderObject]:
         return self._holder_table.get(account)
@@ -644,7 +661,8 @@ class Indexer(IndexerBase):
         self.db = IndexerDB()
         self.canceller = Canceller()
         self.blocked_storages = {}
-        self.processed_slot = 0
+        self.processed_slot = self.db.get_min_receipt_slot()
+        logger.debug(f'Minimum receipt slot: {self.processed_slot}')
 
     def process_functions(self):
         IndexerBase.process_functions(self)
@@ -704,6 +722,8 @@ class Indexer(IndexerBase):
                 self.blocked_storages[tx.storage_account] = (tx.neon_tx.rlp_tx, tx.blocked_accounts)
 
         self.processed_slot = max(self.processed_slot, max_slot + 1)
+
+        self.db.set_min_receipt_slot(state.find_min_used_slot(self.processed_slot))
 
         process_receipts_ms = (time.time() - start_time) * 1000  # convert this into milliseconds
         logger.debug(f"process_receipts_ms: {process_receipts_ms} transaction_receipts.len: {self.transaction_receipts.size()} from {self.processed_slot} to {self.current_slot} slots")

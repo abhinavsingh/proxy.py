@@ -22,10 +22,9 @@ class IndexerDB:
         self.eth_sol_trx = SQLDict(tablename="ethereum_solana_transactions")
         self.sol_eth_trx = SQLDict(tablename="solana_ethereum_transactions")
         self.constants = SQLDict(tablename="constants")
-        if 'last_block_slot' not in self.constants:
-            self.constants['last_block_slot'] = 0
-            self.constants['last_block_height'] = 0
-
+        for k in ['last_block_slot', 'last_block_height', 'min_receipt_slot']:
+            if k not in self.constants:
+                self.constants[k] = 0
 
     def submit_transaction(self, client, neon_tx, neon_res, used_ixs):
         try:
@@ -70,7 +69,7 @@ class IndexerDB:
         block = self.blocks.get(slot, None)
         if block is None:
             block = client._provider.make_request("getBlock", slot, {"commitment":"confirmed", "transactionDetails":"signatures", "rewards":False})
-            if block is None:
+            if (not block) or ('result' not in block):
                 return None
             block = block['result']
             block_hash = '0x' + base58.b58decode(block['blockhash']).hex()
@@ -97,6 +96,12 @@ class IndexerDB:
         for slot in slots:
             self.blocks_height_slot[height] = slot
             height += 1
+
+    def get_min_receipt_slot(self):
+        return self.constants['min_receipt_slot']
+
+    def set_min_receipt_slot(self, slot):
+        self.constants['min_receipt_slot'] = slot
 
     def get_logs(self, fromBlock, toBlock, address, topics, blockHash):
         return self.logs_db.get_logs(fromBlock, toBlock, address, topics, blockHash)
