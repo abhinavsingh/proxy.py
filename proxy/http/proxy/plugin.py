@@ -42,6 +42,7 @@ class HttpProxyBasePlugin(
             event_queue: EventQueue,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:
+        super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
         self.uid = uid                  # pragma: no cover
         self.flags = flags              # pragma: no cover
         self.client = client            # pragma: no cover
@@ -164,7 +165,8 @@ class HttpProxyBasePlugin(
 
         When TLS interception is enabled, plugins can still disable
         TLS interception by returning False explicitly.  This hook
-        will allow you to run `proxy.py` with TLS interception flags
-        BUT conditionally enable interception for certain requests only.
+        will allow you to run proxy instance with TLS interception
+        flags BUT only conditionally enable interception for
+        certain requests.
         """
         return self.tls_interception_enabled
