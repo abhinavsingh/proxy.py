@@ -886,7 +886,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     text_(k): text_(v[1])
                     for k, v in self.request.headers.items()
                 },
-                'body': text_(self.request.body)
+                'body': text_(self.request.body, errors='ignore')
                 if self.request.method == httpMethods.POST
                 else None,
             },
