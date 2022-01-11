@@ -28,6 +28,7 @@ from .modify_chunk_response import ModifyChunkResponsePlugin
 from .custom_dns_resolver import CustomDnsResolverPlugin
 from .cloudflare_dns import CloudflareDnsResolverPlugin
 from .program_name import ProgramNamePlugin
+from .modify_websocket_response import ModifyWebsocketResponsePlugin
 
 __all__ = [
     'CacheResponsesPlugin',
@@ -47,4 +48,5 @@ __all__ = [
     'CustomDnsResolverPlugin',
     'CloudflareDnsResolverPlugin',
     'ProgramNamePlugin',
+    'ModifyWebsocketResponsePlugin',
 ]

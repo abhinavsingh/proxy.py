@@ -78,18 +78,55 @@ class WebsocketFrame:
         self.mask = None
         self.data = None
 
-    def parse_fin_and_rsv(self, byte: int) -> None:
-        self.fin = bool(byte & 1 << 7)
-        self.rsv1 = bool(byte & 1 << 6)
-        self.rsv2 = bool(byte & 1 << 5)
-        self.rsv3 = bool(byte & 1 << 4)
-        self.opcode = byte & 0b00001111
+    def parse(self, raw: bytes) -> bytes:
+        cur = 0
+        self._parse_fin_and_rsv(raw[cur])
+        cur += 1
 
-    def parse_mask_and_payload(self, byte: int) -> None:
-        self.masked = bool(byte & 0b10000000)
-        self.payload_length = byte & 0b01111111
+        self._parse_mask_and_payload(raw[cur])
+        cur += 1
+
+        if self.payload_length == 126:
+            data = raw[cur: cur + 2]
+            self.payload_length, = struct.unpack('!H', data)
+            cur += 2
+        elif self.payload_length == 127:
+            data = raw[cur: cur + 8]
+            self.payload_length, = struct.unpack('!Q', data)
+            cur += 8
+
+        if self.masked:
+            self.mask = raw[cur: cur + 4]
+            cur += 4
+
+        if self.payload_length and self.payload_length > 0:
+            self.data = raw[cur: cur + self.payload_length]
+            cur += self.payload_length
+            if self.masked:
+                assert self.mask is not None
+                self.data = self.apply_mask(self.data, self.mask)
+
+        return raw[cur:]
 
     def build(self) -> bytes:
+        """Payload length:  7 bits, 7+16 bits, or 7+64 bits
+
+        The length of the "Payload data", in bytes: if 0-125, that is the
+        payload length.  If 126, the following 2 bytes interpreted as a
+        16-bit unsigned integer are the payload length.  If 127, the
+        following 8 bytes interpreted as a 64-bit unsigned integer (the
+        most significant bit MUST be 0) are the payload length.  Multi-byte
+        length quantities are expressed in network byte order.  Note that
+        in all cases, the minimal number of bytes MUST be used to encode
+        the length, for example, the length of a 124-byte-long string
+        can't be encoded as the sequence 126, 0, 124.  The payload length
+        is the length of the "Extension data" + the length of the
+        "Application data".  The length of the "Extension data" may be
+        zero, in which case the payload length is the length of the
+        "Application data".
+
+        Ref https://datatracker.ietf.org/doc/html/rfc6455
+        """
         if self.payload_length is None and self.data:
             self.payload_length = len(self.data)
         raw = io.BytesIO()
@@ -122,7 +159,7 @@ class WebsocketFrame:
         elif self.payload_length < 1 << 64:
             raw.write(
                 struct.pack(
-                    '!BHQ',
+                    '!BQ',
                     (1 << 7 if self.masked else 0) | 127,
                     self.payload_length,
                 ),
@@ -140,35 +177,16 @@ class WebsocketFrame:
             raw.write(self.data)
         return raw.getvalue()
 
-    def parse(self, raw: bytes) -> bytes:
-        cur = 0
-        self.parse_fin_and_rsv(raw[cur])
-        cur += 1
+    def _parse_fin_and_rsv(self, byte: int) -> None:
+        self.fin = bool(byte & 1 << 7)
+        self.rsv1 = bool(byte & 1 << 6)
+        self.rsv2 = bool(byte & 1 << 5)
+        self.rsv3 = bool(byte & 1 << 4)
+        self.opcode = byte & 0b00001111
 
-        self.parse_mask_and_payload(raw[cur])
-        cur += 1
-
-        if self.payload_length == 126:
-            data = raw[cur: cur + 2]
-            self.payload_length, = struct.unpack('!H', data)
-            cur += 2
-        elif self.payload_length == 127:
-            data = raw[cur: cur + 8]
-            self.payload_length, = struct.unpack('!Q', data)
-            cur += 8
-
-        if self.masked:
-            self.mask = raw[cur: cur + 4]
-            cur += 4
-
-        assert self.payload_length
-        self.data = raw[cur: cur + self.payload_length]
-        cur += self.payload_length
-        if self.masked:
-            assert self.mask is not None
-            self.data = self.apply_mask(self.data, self.mask)
-
-        return raw[cur:]
+    def _parse_mask_and_payload(self, byte: int) -> None:
+        self.masked = bool(byte & 0b10000000)
+        self.payload_length = byte & 0b01111111
 
     @staticmethod
     def apply_mask(data: bytes, mask: bytes) -> bytes:
