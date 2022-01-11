@@ -19,7 +19,8 @@ class DescriptorsHandlerMixin:
     becomes complaint with core event loop."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        # FIXME: Required for multi-level inheritence to work
+        super().__init__(*args, **kwargs)   # type: ignore
 
     # @abstractmethod
     async def get_descriptors(self) -> Descriptors:
