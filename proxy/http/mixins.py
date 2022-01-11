@@ -19,7 +19,7 @@ class TlsInterceptionPropertyMixin:
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+        # super().__init__(*args, **kwargs)
         self.flags: argparse.Namespace = args[1]
 
     @property
