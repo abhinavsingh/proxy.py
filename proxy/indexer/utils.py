@@ -67,11 +67,11 @@ class NeonIxSignInfo:
 
 
 class NeonTxResultInfo:
-    def __init__(self, tx=None):
+    def __init__(self, tx=None, ix_idx=-1):
         if not isinstance(tx, dict):
             self._set_defaults()
         else:
-            self.decode(tx)
+            self.decode(tx, ix_idx)
 
     def __str__(self):
         return str_fmt_object(self)
@@ -114,7 +114,7 @@ class NeonTxResultInfo:
         self.return_value = log[10:].hex()
         self.slot = slot
 
-    def decode(self, tx: {}):
+    def decode(self, tx: {}, ix_idx = -1):
         self._set_defaults()
         meta_ixs = tx['meta']['innerInstructions']
         msg = tx['transaction']['message']
@@ -122,9 +122,12 @@ class NeonTxResultInfo:
         accounts = msg['accountKeys']
 
         evm_ix_idxs = []
-        for idx, ix in enumerate(msg_ixs):
-            if accounts[ix["programIdIndex"]] == EVM_LOADER_ID:
-                evm_ix_idxs.append(idx)
+        if ix_idx == -1:
+            for idx, ix in enumerate(msg_ixs):
+                if accounts[ix["programIdIndex"]] == EVM_LOADER_ID:
+                    evm_ix_idxs.append(idx)
+        else:
+            evm_ix_idxs.append(ix_idx)
 
         for inner_ix in meta_ixs:
             if inner_ix["index"] in evm_ix_idxs:

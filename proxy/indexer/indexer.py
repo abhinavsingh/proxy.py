@@ -337,7 +337,7 @@ class DummyIxDecoder:
         the parsing order can be other than the execution order
         """
         if not tx.neon_res.is_valid():
-            res_error = tx.neon_res.decode(self.ix.tx)
+            res_error = tx.neon_res.decode(self.ix.tx, self.ix.sign.idx)
             if res_error:
                 return self._decoding_fail(tx, f'Neon results error "{res_error}"')
             if tx.neon_res.is_valid():
@@ -458,7 +458,7 @@ class CallFromRawIxDecoder(DummyIxDecoder):
         if neon_tx.error:
             return self._decoding_skip(f'Neon tx rlp error "{neon_tx.error}"')
 
-        neon_res = NeonTxResultInfo(self.ix.tx)
+        neon_res = NeonTxResultInfo(self.ix.tx, self.ix.sign.idx)
         if neon_res.error:
             return self._decoding_skip(f'Neon results error "{neon_res.error}"')
 
