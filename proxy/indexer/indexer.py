@@ -402,80 +402,6 @@ class WriteIxDecoder(DummyIxDecoder):
         )
 
     def execute(self) -> bool:
-        # if instruction_data[0] == 0x00 or instruction_data[0] == 0x12:
-        # write_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-        #
-        # if write_account in holder_table:
-        #     storage_account = holder_table[write_account].storage_account
-        #     if storage_account in continue_table:
-        #         continue_table[storage_account].signatures.append(signature)
-        #
-        #     if instruction_data[0] == 0x00:
-        #         offset = int.from_bytes(instruction_data[4:8], "little")
-        #         length = int.from_bytes(instruction_data[8:16], "little")
-        #         data = instruction_data[16:]
-        #     if instruction_data[0] == 0x12:
-        #         offset = int.from_bytes(instruction_data[9:13], "little")
-        #         length = int.from_bytes(instruction_data[13:21], "little")
-        #         data = instruction_data[21:]
-        #
-        #     # logger.debug("WRITE offset {} length {}".format(offset, length))
-        #
-        #     if holder_table[write_account].max_written < (offset + length):
-        #         holder_table[write_account].max_written = offset + length
-        #
-        #     for index in range(length):
-        #         holder_table[write_account].data[1 + offset + index] = data[index]
-        #         holder_table[write_account].count_written += 1
-        #
-        #     if holder_table[write_account].max_written == holder_table[write_account].count_written:
-        #         # logger.debug("WRITE {} {}".format(holder_table[write_account].max_written, holder_table[write_account].count_written))
-        #         signature = holder_table[write_account].data[1:66]
-        #         length = int.from_bytes(holder_table[write_account].data[66:74], "little")
-        #         unsigned_msg = holder_table[write_account].data[74:74 + length]
-        #
-        #         try:
-        #             (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, signature)
-        #             if len(eth_trx) / 2 > holder_table[write_account].max_written:
-        #                 logger.debug(
-        #                     "WRITE got {} exp {}".format(len(eth_trx), holder_table[write_account].max_written))
-        #                 continue
-        #
-        #             if storage_account in continue_table:
-        #                 continue_result = continue_table[storage_account]
-        #
-        #                 # logger.debug(eth_signature)
-        #                 trx_table[eth_signature] = TransactionStruct(
-        #                     eth_trx,
-        #                     eth_signature,
-        #                     from_address,
-        #                     continue_result.results,
-        #                     continue_result.signatures,
-        #                     storage_account,
-        #                     continue_result.accounts,
-        #                     [slot] + continue_result.slot
-        #                 )
-        #
-        #                 del continue_table[storage_account]
-        #             else:
-        #                 logger.error("Storage not found")
-        #                 logger.error(f"{eth_signature} unknown")
-        #                 # raise
-        #
-        #             del holder_table[write_account]
-        #         except rlp.exceptions.RLPException:
-        #             # logger.debug("rlp.exceptions.RLPException")
-        #             pass
-        #         except Exception as err:
-        #             if str(err).startswith("nonhashable type"):
-        #                 # logger.debug("nonhashable type")
-        #                 pass
-        #             elif str(err).startswith("unsupported operand type"):
-        #                 # logger.debug("unsupported operand type")
-        #                 pass
-        #             else:
-        #                 logger.debug("could not parse trx {}".format(err))
-        #                 raise
         self._decoding_start()
 
         chunk = self._decode_datachunck(self.ix)
@@ -520,27 +446,6 @@ class CallFromRawIxDecoder(DummyIxDecoder):
         DummyIxDecoder.__init__(self, 'CallFromRaw', state)
 
     def execute(self) -> bool:
-        # elif instruction_data[0] == 0x05:
-        # sign = instruction_data[25:90]
-        # unsigned_msg = instruction_data[90:]
-        #
-        # (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, sign)
-        #
-        # got_result = get_trx_results(trx)
-        # if got_result is not None:
-        #     # self.submit_transaction(eth_trx, eth_signature, from_address, got_result, [signature])
-        #     trx_table[eth_signature] = TransactionStruct(
-        #         eth_trx,
-        #         eth_signature,
-        #         from_address,
-        #         got_result,
-        #         [signature],
-        #         None,
-        #         None,
-        #         [slot]
-        #     )
-        # else:
-        #     logger.error("RESULT NOT FOUND IN 05\n{}".format(json.dumps(trx, indent=4, sort_keys=True)))
         self._decoding_start()
 
         if len(self.ix.ix_data) < 92:
@@ -566,40 +471,6 @@ class PartialCallIxDecoder(DummyIxDecoder):
         DummyIxDecoder.__init__(self, 'PartialCallFromRawEthereumTX', state)
 
     def execute(self) -> bool:
-        # elif instruction_data[0] == 0x09 or instruction_data[0] == 0x13:  # PartialCallFromRawEthereumTX PartialCallFromRawEthereumTXv02
-        # storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-        # blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in
-        #                     instruction['accounts'][7:]]
-        #
-        # # collateral_pool_buf = instruction_data[1:5]
-        # # step_count = instruction_data[5:13]
-        # # from_addr = instruction_data[13:33]
-        #
-        # sign = instruction_data[33:98]
-        # unsigned_msg = instruction_data[98:]
-        #
-        # (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, sign)
-        #
-        # trx_table[eth_signature] = TransactionStruct(
-        #     eth_trx,
-        #     eth_signature,
-        #     from_address,
-        #     None,
-        #     [signature],
-        #     storage_account,
-        #     blocked_accounts,
-        #     [slot]
-        # )
-        #
-        # if storage_account in continue_table:
-        #     continue_result = continue_table[storage_account]
-        #     if continue_result.accounts != blocked_accounts:
-        #         logger.error("Strange behavior. Pay attention. BLOCKED ACCOUNTS NOT EQUAL")
-        #     trx_table[eth_signature].got_result = continue_result.results
-        #     trx_table[eth_signature].signatures += continue_result.signatures
-        #     trx_table[eth_signature].slot += continue_result.slot
-        #
-        #     del continue_table[storage_account]
         self._decoding_start()
 
         if self.ix.get_account_cnt() < 8:
@@ -633,36 +504,6 @@ class ContinueIxDecoder(DummyIxDecoder):
         self._blocked_accounts_start = 5
 
     def execute(self) -> bool:
-        # elif instruction_data[0] == 0x0a or instruction_data[0] == 0x14:  # Continue or ContinueV02
-        # seen_slots.add(slot)
-        #
-        # storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-        # if instruction_data[0] == 0x0a:
-        #     # logger.debug("{:>10} {:>6} Continue 0x{}".format(slot, counter, instruction_data.hex()))
-        #     blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in
-        #                         instruction['accounts'][5:]]
-        # if instruction_data[0] == 0x14:
-        #     # logger.debug("{:>10} {:>6} ContinueV02 0x{}".format(slot, counter, instruction_data.hex()))
-        #     blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in
-        #                         instruction['accounts'][6:]]
-        # got_result = get_trx_results(trx)
-        #
-        # if storage_account in continue_table:
-        #     continue_table[storage_account].signatures.append(signature)
-        #     continue_table[storage_account].slot.append(slot)
-        #
-        #     if got_result is not None:
-        #         if continue_table[storage_account].results is not None:
-        #             logger.error(
-        #                 "Strange behavior. Pay attention. RESULT ALREADY EXISTS IN CONTINUE TABLE")
-        #         if continue_table[storage_account].accounts != blocked_accounts:
-        #             logger.error("Strange behavior. Pay attention. BLOCKED ACCOUNTS NOT EQUAL")
-        #
-        #         continue_table[storage_account].results = got_result
-        # else:
-        #     continue_table[storage_account] = ContinueStruct(signature, got_result, [slot],
-        #                                                      blocked_accounts)
-        #
         self._decoding_start()
 
         if self.ix.get_account_cnt() < self._blocked_accounts_start + 1:
@@ -691,34 +532,6 @@ class ExecuteTrxFromAccountIxDecoder(DummyIxDecoder):
         self._blocked_accounts_start = 5
 
     def execute(self) -> bool:
-        # elif instruction_data[0] == 0x0b or instruction_data[0] == 0x16:  # ExecuteTrxFromAccountDataIterative ExecuteTrxFromAccountDataIterativeV02
-        # seen_slots.add(slot)
-        # if instruction_data[0] == 0x0b:
-        #     # logger.debug("{:>10} {:>6} ExecuteTrxFromAccountDataIterative 0x{}".format(slot, counter, instruction_data.hex()))
-        #     blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in
-        #                         instruction['accounts'][5:]]
-        # if instruction_data[0] == 0x16:
-        #     # logger.debug("{:>10} {:>6} ExecuteTrxFromAccountDataIterativeV02 0x{}".format(slot, counter, instruction_data.hex()))
-        #     blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in
-        #                         instruction['accounts'][7:]]
-        #
-        # holder_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-        # storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][1]]
-        #
-        # if storage_account in continue_table:
-        #     continue_table[storage_account].signatures.append(signature)
-        #     continue_table[storage_account].slot.append(slot)
-        #
-        #     if holder_account in holder_table:
-        #         if holder_table[holder_account].storage_account != storage_account:
-        #             logger.error("Strange behavior. Pay attention. STORAGE_ACCOUNT != STORAGE_ACCOUNT")
-        #             holder_table[holder_account] = HolderStruct(storage_account)
-        #     else:
-        #         holder_table[holder_account] = HolderStruct(storage_account)
-        # else:
-        #     continue_table[storage_account] = ContinueStruct(signature, None, [slot], blocked_accounts)
-        #     holder_table[holder_account] = HolderStruct(storage_account)
-        #
         self._decoding_start()
 
         if self.ix.get_account_cnt() < self._blocked_accounts_start + 1:
@@ -747,15 +560,6 @@ class CancelIxDecoder(DummyIxDecoder):
         DummyIxDecoder.__init__(self, 'Cancel', state)
 
     def execute(self) -> bool:
-        # elif instruction_data[0] == 0x0c or instruction_data[0] == 0x15:  # Cancel
-        # seen_slots.add(slot)
-        # # logger.debug("{:>10} {:>6} Cancel 0x{}".format(slot, counter, instruction_data.hex()))
-        #
-        # storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-        # blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in
-        #                     instruction['accounts'][6:]]
-        #
-        # continue_table[storage_account] = ContinueStruct(signature, ([], "0x0", 0, [], slot), [slot], blocked_accounts)
         self._decoding_start()
 
         blocked_accounts_start = 6
@@ -784,55 +588,6 @@ class PartialCallOrContinueIxDecoder(DummyIxDecoder):
         DummyIxDecoder.__init__(self, 'PartialCallOrContinueFromRawEthereumTX', state)
 
     def execute(self) -> bool:
-        # elif instruction_data[0] == 0x0d:
-        # seen_slots.add(slot)
-        # logger.debug("{:>10} {:>6} PartialCallOrContinueFromRawEthereumTX 0x{}".format(slot, counter,
-        #                                                                                instruction_data.hex()))
-        #
-        # storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-        # blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in
-        #                     instruction['accounts'][7:]]
-        # got_result = get_trx_results(trx)
-        #
-        # # collateral_pool_buf = instruction_data[1:5]
-        # # step_count = instruction_data[5:13]
-        # # from_addr = instruction_data[13:33]
-        #
-        # sign = instruction_data[33:98]
-        # unsigned_msg = instruction_data[98:]
-        #
-        # (eth_trx, eth_signature, from_address) = get_trx_receipts(unsigned_msg, sign)
-        #
-        # if eth_signature in trx_table:
-        #     trx_table[eth_signature].slot.append(slot)
-        #     if got_result is not None:
-        #         trx_table[eth_signature].got_result = got_result
-        #         trx_table[eth_signature].signatures.append(signature)
-        #     else:
-        #         trx_table[eth_signature].signatures.insert(0, signature)
-        # else:
-        #     trx_table[eth_signature] = TransactionStruct(
-        #         eth_trx,
-        #         eth_signature,
-        #         from_address,
-        #         got_result,
-        #         [signature],
-        #         storage_account,
-        #         blocked_accounts,
-        #         [slot]
-        #     )
-        #
-        # if storage_account in continue_table:
-        #     continue_result = continue_table[storage_account]
-        #     trx_table[eth_signature].signatures += continue_result.signatures
-        #     trx_table[eth_signature].slot += continue_result.slot
-        #     if continue_result.results is not None:
-        #         if trx_table[eth_signature].got_result is not None:
-        #             logger.error(
-        #                 "Strange behavior. Pay attention. RESULT ALREADY EXISTS IN CONTINUE TABLE")
-        #         trx_table[eth_signature].got_result = continue_result.results
-        #
-        #     del continue_table[storage_account]
         self._decoding_start()
 
         blocked_accounts_start = 7
@@ -862,42 +617,6 @@ class ExecuteOrContinueIxParser(DummyIxDecoder):
         DummyIxDecoder.__init__(self, 'ExecuteTrxFromAccountDataIterativeOrContinue', state)
 
     def execute(self) -> bool:
-        # elif instruction_data[0] == 0x0e:
-        # seen_slots.add(slot)
-        # # logger.debug("{:>10} {:>6} ExecuteTrxFromAccountDataIterativeOrContinue 0x{}".format(slot, counter, instruction_data.hex()))
-        #
-        # holder_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][0]]
-        # storage_account = trx['transaction']['message']['accountKeys'][instruction['accounts'][1]]
-        # blocked_accounts = [trx['transaction']['message']['accountKeys'][acc_idx] for acc_idx in
-        #                     instruction['accounts'][7:]]
-        # got_result = get_trx_results(trx)
-        #
-        # if storage_account in continue_table:
-        #     continue_table[storage_account].slot.append(slot)
-        #
-        #     if holder_account in holder_table:
-        #         if holder_table[holder_account].storage_account != storage_account:
-        #             logger.error("Strange behavior. Pay attention. STORAGE_ACCOUNT != STORAGE_ACCOUNT")
-        #             holder_table[holder_account] = HolderStruct(storage_account)
-        #     else:
-        #         logger.error("Strange behavior. Pay attention. HOLDER ACCOUNT NOT FOUND")
-        #         holder_table[holder_account] = HolderStruct(storage_account)
-        #
-        #     if got_result is not None:
-        #         if continue_table[storage_account].results is not None:
-        #             logger.error(
-        #                 "Strange behavior. Pay attention. RESULT ALREADY EXISTS IN CONTINUE TABLE")
-        #         if continue_table[storage_account].accounts != blocked_accounts:
-        #             logger.error("Strange behavior. Pay attention. BLOCKED ACCOUNTS NOT EQUAL")
-        #
-        #         continue_table[storage_account].results = got_result
-        #         continue_table[storage_account].signatures.append(signature)
-        #     else:
-        #         continue_table[storage_account].signatures.insert(0, signature)
-        # else:
-        #     continue_table[storage_account] = ContinueStruct(signature, got_result, [slot],
-        #                                                      blocked_accounts)
-        #     holder_table[holder_account] = HolderStruct(storage_account)
         self._decoding_start()
         blocked_accounts_start = 7
 
