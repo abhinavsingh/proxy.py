@@ -173,13 +173,6 @@ class HttpParser:
             )
 
     @property
-    def is_websocket_upgrade(self) -> bool:
-        return self.has_header(b'connection') and \
-            self.header(b'connection').lower() == b'upgrade' and \
-            self.has_header(b'upgrade') and \
-            self.header(b'upgrade').lower() == b'websocket'
-
-    @property
     def is_connection_upgrade(self) -> bool:
         """Returns true for websocket upgrade requests."""
         return self.version == HTTP_1_1 and \
