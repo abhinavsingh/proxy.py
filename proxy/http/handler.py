@@ -304,10 +304,9 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         # memoryview compliant
         try:
             self.request.parse(data.tobytes())
-        except Exception as exc:
-            logger.exception('Error parsing the request', exc_info=exc)
+        except Exception:
             raise HttpProtocolException(
-                'Error when parsing request: %s' % data.tobytes().decode('utf-8'),
+                'Error when parsing request: %r' % data.tobytes(),
             )
         if not self.request.is_complete:
             return False

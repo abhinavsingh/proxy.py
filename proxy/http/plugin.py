@@ -19,12 +19,17 @@ from ..core.connection import TcpClientConnection
 
 from .parser import HttpParser
 from .descriptors import DescriptorsHandlerMixin
+from .mixins import TlsInterceptionPropertyMixin
 
 if TYPE_CHECKING:
     from ..core.connection import UpstreamConnectionPool
 
 
-class HttpProtocolHandlerPlugin(DescriptorsHandlerMixin, ABC):
+class HttpProtocolHandlerPlugin(
+        DescriptorsHandlerMixin,
+        TlsInterceptionPropertyMixin,
+        ABC,
+):
     """Base HttpProtocolHandler Plugin class.
 
     NOTE: This is an internal plugin and in most cases only useful for core contributors.
@@ -55,13 +60,13 @@ class HttpProtocolHandlerPlugin(DescriptorsHandlerMixin, ABC):
             event_queue: Optional[EventQueue] = None,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
+        super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
         self.uid: str = uid
         self.flags: argparse.Namespace = flags
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
         self.event_queue = event_queue
         self.upstream_conn_pool = upstream_conn_pool
-        super().__init__()
 
     @staticmethod
     @abstractmethod
