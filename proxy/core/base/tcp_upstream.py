@@ -81,6 +81,9 @@ class TcpUpstreamConnectionHandler(ABC):
                 else:
                     # Tear down because upstream proxy closed the connection
                     return True
+            except TimeoutError:
+                logger.info('Upstream recv timeout error')
+                return True
             except ssl.SSLWantReadError:
                 logger.info('Upstream SSLWantReadError, will retry')
                 return False
