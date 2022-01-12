@@ -23,7 +23,7 @@ from ..common.utils import wrap_socket
 from ..core.base import BaseTcpServerHandler
 from ..core.connection import TcpClientConnection
 from ..common.types import Readables, SelectableEvents, Writables
-from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE
+from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE, HTTP_PROTO, HTTPS_PROTO
 from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT, DEFAULT_TIMEOUT
 
 from .exception import HttpProtocolException
@@ -309,6 +309,8 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 'Error when parsing request: %r' % data.tobytes(),
             )
         if not self.request.is_complete:
+            return False
+        if self.request._url is not None and self.request._url.scheme not in (HTTP_PROTO, HTTPS_PROTO):
             return False
         # Discover which HTTP handler plugin is capable of
         # handling the current incoming request

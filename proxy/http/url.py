@@ -15,7 +15,7 @@
 """
 from typing import Optional, Tuple
 
-from ..common.constants import COLON, SLASH, HTTP_URL_PREFIX, HTTPS_URL_PREFIX, AT
+from ..common.constants import COLON, SLASH, AT
 from ..common.utils import text_
 
 
@@ -68,29 +68,41 @@ class Url:
         For a HTTPS connect tunnel, url is like ``httpbin.org:443``
         For a HTTP proxy request, url is like ``http://httpbin.org/get``
 
+        proxy.py internally never expects a `https` scheme in the request line.
+        But `Url` class provides support for parsing any scheme present in the URLs.
+        e.g. ftp, icap etc.
+
+        If a url with no scheme is parsed, e.g. ``//host/abc.js``, then scheme
+        defaults to `http`.
+
         Further:
         1) URL may contain unicode characters
         2) URL may contain IPv4 and IPv6 format addresses instead of domain names
-
-        We use heuristics based approach for our URL parser.
         """
         # SLASH == 47, check if URL starts with single slash but not double slash
-        is_single_slash = raw[0] == 47
-        is_double_slash = is_single_slash and len(raw) >= 2 and raw[1] == 47
-        if is_single_slash and not is_double_slash:
+        starts_with_single_slash = raw[0] == 47
+        starts_with_double_slash = starts_with_single_slash and \
+            len(raw) >= 2 and \
+            raw[1] == 47
+        if starts_with_single_slash and \
+                not starts_with_double_slash:
             return cls(remainder=raw)
-        is_http = raw.startswith(HTTP_URL_PREFIX)
-        is_https = raw.startswith(HTTPS_URL_PREFIX)
-        if is_http or is_https or is_double_slash:
-            rest = raw[len(b'https://'):] \
-                if is_https \
-                else raw[len(b'http://'):] \
-                if is_http \
-                else raw[len(SLASH + SLASH):]
+        scheme = None
+        rest = None
+        if not starts_with_double_slash:
+            # Find scheme
+            parts = raw.split(b'://', 1)
+            if len(parts) == 2:
+                scheme = parts[0]
+                rest = parts[1]
+        else:
+            rest = raw[len(SLASH + SLASH):]
+        if scheme is not None or starts_with_double_slash:
+            assert rest is not None
             parts = rest.split(SLASH, 1)
             username, password, host, port = Url._parse(parts[0])
             return cls(
-                scheme=b'https' if is_https else b'http',
+                scheme=scheme if not starts_with_double_slash else b'http',
                 username=username,
                 password=password,
                 hostname=host,

