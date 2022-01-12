@@ -59,7 +59,9 @@ class NeonIxInfo:
         tx_ixs = enumerate(self._msg['instructions'])
 
         evm_ix_idx = -1
-        for self.sign.idx, self.ix in tx_ixs:
+        for ix_idx, self.ix in tx_ixs:
+            # Make a new object to keep values in existing
+            self.sign = NeonIxSignInfo(sign=self.sign.sign, slot=self.sign.slot, idx=ix_idx)
             if 'programIdIndex' not in self.ix:
                 logger.debug(f'{self} error: fail to get program id')
                 continue
@@ -97,15 +99,15 @@ class NeonIxInfo:
 
 class BaseEvmObject:
     def __init__(self):
-        self.used_ixs = set()
+        self.used_ixs = []
         self.slot = 0
 
     def mark_ix_used(self, ix_info: NeonIxInfo):
-        self.used_ixs.add(ix_info.sign.copy())
+        self.used_ixs.append(ix_info.sign)
         self.slot = max(self.slot, ix_info.sign.slot)
 
     def move_ix_used(self, obj):
-        self.used_ixs.update(obj.used_ixs)
+        self.used_ixs += obj.used_ixs
         obj.used_ixs.clear()
         self.slot = max(self.slot, obj.slot)
 
@@ -149,11 +151,11 @@ class ReceiptsParserState:
     - storing chunks of the Neon transaction into the holder account;
     - executing of the Neon transaction by passing the holder account to the Neon EVM program.
 
-    On parsing the instruction is stored into the intermediate object (holder, transaction) and in the _used_ixs set.
+    On parsing the instruction is stored into the intermediate object (holder, transaction) and in the _used_ixs.
     If an error occurs while decoding, the decoder can skip this instruction.
 
-    So, in the _used_ixs set the parser stores all instructions needed for assembling intermediate objects. After
-    each cycle the parser stores the number of the smallest slot from the _used_ixs set. That is why, the parser can be
+    So, in the _used_ixs the parser stores all instructions needed for assembling intermediate objects. After
+    each cycle the parser stores the number of the smallest slot from the _used_ixs. That is why, the parser can be
     restarted in any moment.
 
     After restarting the parser:
@@ -163,7 +165,7 @@ class ReceiptsParserState:
     When the whole Neon transaction is assembled:
     - Neon transaction is stored into the DB;
     - All instructions used for assembly the transaction are stored into the DB;
-    - All instructions are removed from the _used_ixs set;
+    - All instructions are removed from the _used_ixs;
     - If number of the smallest slot in the _used_ixs is changed, it's stored into the DB for the future restart.
     """
     def __init__(self, db: IndexerDB, client):
@@ -172,33 +174,27 @@ class ReceiptsParserState:
         self._holder_table = {}
         self._tx_table = {}
         self._done_tx_list = []
-        self._used_ixs = set()
-        self._used_slots = {}
+        self._used_ixs = {}
         self.ix = NeonIxInfo(sign=bytes(), slot=-1, tx=None)
 
     def set_ix(self, ix_info: NeonIxInfo):
         self.ix = ix_info
 
-    def mark_ix_used(self):
-        if self.ix.sign in self._used_ixs:
-            return
-        if self.ix.sign.slot not in self._used_slots:
-            self._used_slots[self.ix.sign.slot] = 1
-        else:
-            self._used_slots[self.ix.sign.slot] += 1
-        self._used_ixs.add(self.ix.sign.copy())
+    def mark_ix_used(self, obj: BaseEvmObject):
+        self._used_ixs.setdefault(self.ix.sign, 0)
+        self._used_ixs[self.ix.sign] += 1
+
+        obj.mark_ix_used(self.ix)
 
     def unmark_ix_used(self, obj: BaseEvmObject):
         for ix in obj.used_ixs:
-            if ix.slot in self._used_slots:
-                self._used_slots[ix.slot] -= 1
-                if self._used_slots[ix.slot] == 0:
-                    del self._used_slots[ix.slot]
-        self._used_ixs.difference_update(obj.used_ixs)
+            self._used_ixs[ix] -= 1
+            if self._used_ixs[ix] == 0:
+                del self._used_ixs[ix]
 
     def find_min_used_slot(self, min_slot):
-        if len(self._used_slots) > 0:
-            min_slot = min(self._used_slots.keys())
+        for ix in self._used_ixs:
+            min_slot = min(min_slot, ix.slot)
         return min_slot
 
     def get_holder(self, account: str) -> Optional[NeonHolderObject]:
@@ -215,8 +211,8 @@ class ReceiptsParserState:
     def del_holder(self, holder: NeonHolderObject):
         self._holder_table.pop(holder.account, None)
 
-    def get_tx(self, account: str) -> Optional[NeonTxObject]:
-        return self._tx_table.get(account)
+    def get_tx(self, storage_account: str) -> Optional[NeonTxObject]:
+        return self._tx_table.get(storage_account)
 
     def add_tx(self, storage_account: str, neon_tx=None, neon_res=None) -> NeonTxObject:
         if storage_account in self._tx_table:
@@ -230,20 +226,20 @@ class ReceiptsParserState:
         self._tx_table.pop(tx.storage_account, None)
 
     def done_tx(self, tx: NeonTxObject):
+        """
+        Continue waiting of ixs in the slot with the same neon tx,
+        because the parsing order can be other than the execution order.
+        """
         self._done_tx_list.append(tx)
 
-    def save_tx(self, tx: NeonTxObject):
-        self._db.submit_transaction(self._client, tx.neon_tx, tx.neon_res, tx.used_ixs)
-
-    def done_tx(self, obj: BaseEvmObject):
-        # Continue waiting of ixs with the same neon tx, because the parsing order can be other than the execution order
-        obj.mark_ix_used(self.ix)
-        self._done_tx_list.append(obj)
-
     def complete_done_txs(self):
+        """
+        Slot is done, store all done neon txs into the DB.
+        """
         for tx in self._done_tx_list:
             self.unmark_ix_used(tx)
-            self.save_tx(tx)
+            if tx.neon_tx.is_valid() and tx.neon_res.is_valid():
+                self._db.submit_transaction(self._client, tx.neon_tx, tx.neon_res, tx.used_ixs)
             self.del_tx(tx)
         self._done_tx_list.clear()
 
@@ -266,23 +262,21 @@ class DummyIxDecoder:
 
     def _getadd_tx(self, storage_account, neon_tx=None, blocked_accounts=[str]) -> NeonTxObject:
         tx = self.state.get_tx(storage_account)
-        if tx:
-            if neon_tx and tx.neon_tx and neon_tx.sign != tx.neon_tx.sign:
-                self._log_error(f'storage {storage_account}, tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx})')
-                self.state.unmark_ix_used(tx)
-                self.state.del_tx(tx)
-                tx = None
-            elif tx.blocked_accounts != blocked_accounts:
-                self._log_error('blocked accounts not equal')
+        if tx and neon_tx and tx.neon_tx and (neon_tx.sign != tx.neon_tx.sign):
+            self._log_warning(f'storage {storage_account}, tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx})')
+            self.state.unmark_ix_used(tx)
+            self.state.del_tx(tx)
+            tx = None
 
         if not tx:
-            tx = self.state.add_tx(storage_account, neon_tx)
+            tx = self.state.add_tx(storage_account=storage_account)
             tx.blocked_accounts = blocked_accounts
-
+        if neon_tx:
+            tx.neon_tx = neon_tx
         return tx
 
-    def _log_error(self, msg: str):
-        logger.error(f'{self} error: {msg}')
+    def _log_warning(self, msg: str):
+        logger.warning(f'{self}: {msg}')
 
     def _decoding_start(self):
         """
@@ -299,28 +293,23 @@ class DummyIxDecoder:
         - Mark the instruction as used;
         - log the success message.
         """
-        obj.mark_ix_used(self.ix)
-        logger.debug(f'{self}: {obj}')
-
-        self.state.mark_ix_used()
-        logger.debug(f'{self}: {msg}')
+        self.state.mark_ix_used(obj)
+        logger.debug(f'{self}: {msg} - {obj}')
         return True
 
     def _decoding_done(self, obj: BaseEvmObject, msg: str) -> bool:
         """
         Assembling of the object has been successfully finished.
         """
-        logger.debug(f'{self}: {obj}')
         if isinstance(obj, NeonTxObject):
-            obj.mark_ix_used(self.ix)
+            self.state.mark_ix_used(obj)
             self.state.done_tx(obj)
         elif isinstance(obj, NeonHolderObject):
             self.state.unmark_ix_used(obj)
             self.state.del_holder(obj)
-
         else:
             assert False, 'Unknown type of object'
-        logger.debug(f'{self}: {msg}')
+        logger.debug(f'{self}: {msg} - {obj}')
         return True
 
     def _decoding_skip(self, reason: str) -> bool:
@@ -333,11 +322,12 @@ class DummyIxDecoder:
         Assembling of objects has been failed:
         - destroy the intermediate objects;
         - unmark all instructions as unused.
+
+        Show errors in warning mode because it can be a result of restarting.
         """
-        logger.error(f'{self}: {reason}')
+        logger.warning(f'{self}: {reason} - {obj}')
         self.state.unmark_ix_used(obj)
 
-        logger.error(f'{self}: {obj}')
         if isinstance(obj, NeonTxObject):
             self.state.del_tx(obj)
         elif isinstance(obj, NeonHolderObject):
@@ -356,10 +346,10 @@ class DummyIxDecoder:
         if not tx.neon_res.is_valid():
             res_error = tx.neon_res.decode(self.ix.tx, self.ix.sign.idx)
             if res_error:
-                return self._decoding_fail(tx, f'Neon results error "{res_error}"')
+                return self._decoding_fail(tx, 'Neon results error')
             if tx.neon_res.is_valid():
-                return self._decoding_done(tx, f'storage {tx.storage_account}, {self.neon_addr_fmt(tx.neon_tx)}')
-        return self._decoding_success(tx, f'storage {tx.storage_account}, {self.neon_addr_fmt(tx.neon_tx)}')
+                return self._decoding_done(tx, 'found Neon results')
+        return self._decoding_success(tx, 'mark ix used')
 
     def _init_tx_from_holder(self, holder_account: str, storage_account: str, blocked_accounts: [str]) -> Optional[NeonTxObject]:
         tx = self._getadd_tx(storage_account, blocked_accounts=blocked_accounts)
@@ -378,11 +368,11 @@ class DummyIxDecoder:
 
         rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data))
         if rlp_error:
-            self._log_error(f'Neon tx rlp error "{rlp_error}"')
+            self._log_warning(f'Neon tx rlp error "{rlp_error}"')
 
         tx.holder_account = holder_account
         tx.move_ix_used(holder)
-        self._decoding_done(holder, f'holder {holder.account}, {self.neon_addr_fmt(tx.neon_tx)}')
+        self._decoding_done(holder, f'init {self.neon_addr_fmt(tx.neon_tx)} from holder')
         return tx
 
     def execute(self) -> bool:
@@ -423,9 +413,9 @@ class WriteIxDecoder(DummyIxDecoder):
 
         chunk = self._decode_datachunck(self.ix)
         if not chunk.is_valid():
-            return self._decoding_skip('bad data chunk')
+            return self._decoding_skip(f'bad data chunk {chunk}')
         if self.ix.get_account_cnt() < 1:
-            return self._decoding_skip('no enough accounts')
+            return self._decoding_skip(f'no enough accounts {self.ix.get_account_cnt()}')
 
         holder_account = self.ix.get_account(0)
         holder = self.state.get_holder(holder_account)
@@ -439,7 +429,7 @@ class WriteIxDecoder(DummyIxDecoder):
         holder.data = holder.data[:chunk.offset] + chunk.data + holder.data[chunk.endpos:]
         holder.count_written += chunk.length
 
-        return self._decoding_success(holder, f'holder {holder.account}')
+        return self._decoding_success(holder, f'add chunk {chunk}')
 
 
 class WriteWithHolderIxDecoder(WriteIxDecoder):
@@ -480,7 +470,7 @@ class CallFromRawIxDecoder(DummyIxDecoder):
             return self._decoding_skip(f'Neon results error "{neon_res.error}"')
 
         tx = NeonTxObject('', neon_tx=neon_tx, neon_res=neon_res)
-        return self._decoding_done(tx, self.neon_addr_fmt(neon_tx))
+        return self._decoding_done(tx, 'call success')
 
 
 class PartialCallIxDecoder(DummyIxDecoder):
@@ -490,13 +480,15 @@ class PartialCallIxDecoder(DummyIxDecoder):
     def execute(self) -> bool:
         self._decoding_start()
 
-        if self.ix.get_account_cnt() < 8:
+        blocked_accounts_start = 7
+
+        if self.ix.get_account_cnt() < blocked_accounts_start + 1:
             return self._decoding_skip('no enough accounts')
         if len(self.ix.ix_data) < 100:
-            return self._decoding_skip('no enough data to get the Neon tx')
+            return self._decoding_skip('no enough data to get arguments')
 
         storage_account = self.ix.get_account(0)
-        blocked_accounts = self.ix.get_account_list(7)
+        blocked_accounts = self.ix.get_account_list(blocked_accounts_start)
         step_count = int.from_bytes(self.ix.ix_data[5:13], 'little')
         rlp_sign = self.ix.ix_data[33:98]
         rlp_data = self.ix.ix_data[98:]
@@ -510,9 +502,14 @@ class PartialCallIxDecoder(DummyIxDecoder):
         return self._decode_tx(tx)
 
 
-class PartialCallV02IxDecoder(DummyIxDecoder):
+class PartialCallV02IxDecoder(PartialCallIxDecoder):
     def __init__(self, state: ReceiptsParserState):
         DummyIxDecoder.__init__(self, 'PartialCallFromRawEthereumTXv02', state)
+
+
+class PartialCallOrContinueIxDecoder(PartialCallIxDecoder):
+    def __init__(self, state: ReceiptsParserState):
+        DummyIxDecoder.__init__(self, 'PartialCallOrContinueFromRawEthereumTX', state)
 
 
 class ContinueIxDecoder(DummyIxDecoder):
@@ -537,7 +534,7 @@ class ContinueIxDecoder(DummyIxDecoder):
         return self._decode_tx(tx)
 
 
-class ContinueV02IxDecoder(DummyIxDecoder):
+class ContinueV02IxDecoder(ContinueIxDecoder):
     def __init__(self, state: ReceiptsParserState):
         DummyIxDecoder.__init__(self, 'ContinueV02', state)
         self._blocked_accounts_start = 6
@@ -566,7 +563,7 @@ class ExecuteTrxFromAccountIxDecoder(DummyIxDecoder):
         return self._decode_tx(tx)
 
 
-class ExecuteTrxFromAccountV02IxDecoder(DummyIxDecoder):
+class ExecuteTrxFromAccountV02IxDecoder(ExecuteTrxFromAccountIxDecoder):
     def __init__(self, state: ReceiptsParserState):
         DummyIxDecoder.__init__(self, 'ExecuteTrxFromAccountDataIterativeV02', state)
         self._blocked_accounts_start = 7
@@ -588,45 +585,16 @@ class CancelIxDecoder(DummyIxDecoder):
 
         tx = self._getadd_tx(storage_account, blocked_accounts=blocked_accounts)
         if not tx.neon_tx.is_valid():
-            return self._decoding_fail(tx, 'unknown Neon tx')
+            return self._decoding_fail(tx, f'cannot find storage {tx}')
 
         tx.neon_res.clear()
         tx.neon_res.slot = self.ix.sign.slot
-        return self._decoding_done(tx, f'storage {storage_account}, {self.neon_addr_fmt(tx.neon_tx)}')
+        return self._decoding_done(tx, f'cancel success')
 
 
-class CancelV02IxDecoder(DummyIxDecoder):
+class CancelV02IxDecoder(CancelIxDecoder):
     def __init__(self, state: ReceiptsParserState):
         DummyIxDecoder.__init__(self, 'CancelV02', state)
-
-
-class PartialCallOrContinueIxDecoder(DummyIxDecoder):
-    def __init__(self, state: ReceiptsParserState):
-        DummyIxDecoder.__init__(self, 'PartialCallOrContinueFromRawEthereumTX', state)
-
-    def execute(self) -> bool:
-        self._decoding_start()
-
-        blocked_accounts_start = 7
-
-        if self.ix.get_account_cnt() < blocked_accounts_start + 1:
-            return self._decoding_skip('no enough accounts')
-        if len(self.ix.ix_data) < 100:
-            return self._decoding_skip('no enough data to get arguments')
-
-        storage_account = self.ix.get_account(0)
-        blocked_accounts = self.ix.get_account_list(blocked_accounts_start)
-        step_count = int.from_bytes(self.ix.ix_data[5:13], 'little')
-        rlp_sign = self.ix.ix_data[33:98]
-        rlp_data = self.ix.ix_data[98:]
-
-        neon_tx = NeonTxAddrInfo(rlp_sign=rlp_sign, rlp_data=rlp_data)
-        if neon_tx.error:
-            return self._decoding_skip(f'Neon tx rlp error "{neon_tx.error}"')
-
-        tx = self._getadd_tx(storage_account, neon_tx=neon_tx, blocked_accounts=blocked_accounts)
-        tx.step_count.append(step_count)
-        return self._decode_tx(tx)
 
 
 class ExecuteOrContinueIxParser(DummyIxDecoder):
@@ -664,6 +632,30 @@ class Indexer(IndexerBase):
         self.processed_slot = self.db.get_min_receipt_slot()
         logger.debug(f'Minimum receipt slot: {self.processed_slot}')
 
+        self.state = ReceiptsParserState(db=self.db, client=self.client)
+        self.ix_decoder_map = {
+            0x00: WriteIxDecoder(self.state),
+            0x01: DummyIxDecoder('Finalize', self.state),
+            0x02: DummyIxDecoder('CreateAccount', self.state),
+            0x03: DummyIxDecoder('Call', self.state),
+            0x04: DummyIxDecoder('CreateAccountWithSeed', self.state),
+            0x05: CallFromRawIxDecoder(self.state),
+            0x06: DummyIxDecoder('OnEvent', self.state),
+            0x07: DummyIxDecoder('OnResult', self.state),
+            0x09: PartialCallIxDecoder(self.state),
+            0x0a: ContinueIxDecoder(self.state),
+            0x0b: ExecuteTrxFromAccountIxDecoder(self.state),
+            0x0c: CancelIxDecoder(self.state),
+            0x0d: PartialCallOrContinueIxDecoder(self.state),
+            0x0e: ExecuteOrContinueIxParser(self.state),
+            0x12: WriteWithHolderIxDecoder(self.state),
+            0x13: PartialCallV02IxDecoder(self.state),
+            0x14: ContinueV02IxDecoder(self.state),
+            0x15: CancelV02IxDecoder(self.state),
+            0x16: ExecuteTrxFromAccountV02IxDecoder(self.state)
+        }
+        self.def_decoder = DummyIxDecoder('Unknown', self.state)
+
     def process_functions(self):
         IndexerBase.process_functions(self)
         logger.debug("Process receipts")
@@ -677,53 +669,28 @@ class Indexer(IndexerBase):
     def process_receipts(self):
         start_time = time.time()
 
-        state = ReceiptsParserState(db=self.db, client=self.client)
-        ix_decoder_map = {
-            0x00: WriteIxDecoder(state),
-            0x01: DummyIxDecoder('Finalize', state),
-            0x02: DummyIxDecoder('CreateAccount', state),
-            0x03: DummyIxDecoder('Call', state),
-            0x04: DummyIxDecoder('CreateAccountWithSeed', state),
-            0x05: CallFromRawIxDecoder(state),
-            0x06: DummyIxDecoder('OnEvent', state),
-            0x07: DummyIxDecoder('OnResult', state),
-            0x09: PartialCallIxDecoder(state),
-            0x0a: ContinueIxDecoder(state),
-            0x0b: ExecuteTrxFromAccountIxDecoder(state),
-            0x0c: CancelIxDecoder(state),
-            0x0d: PartialCallOrContinueIxDecoder(state),
-            0x0e: ExecuteOrContinueIxParser(state),
-            0x12: WriteWithHolderIxDecoder(state),
-            0x13: PartialCallV02IxDecoder(state),
-            0x14: ContinueV02IxDecoder(state),
-            0x15: CancelV02IxDecoder(state),
-            0x16: ExecuteTrxFromAccountV02IxDecoder(state)
-        }
-        def_decoder = DummyIxDecoder('Unknown', state)
-
         max_slot = 0
         for slot, sign, tx in self.transaction_receipts.get_trxs(self.processed_slot, reverse=False):
             if max_slot != slot:
-                state.complete_done_txs()
+                self.state.complete_done_txs()
                 max_slot = max(max_slot, slot)
 
             ix_info = NeonIxInfo(slot=slot, sign=sign, tx=tx)
 
             for _ in ix_info.iter_ixs():
-                state.set_ix(ix_info)
-                (ix_decoder_map.get(ix_info.evm_ix) or def_decoder).execute()
+                self.state.set_ix(ix_info)
+                (self.ix_decoder_map.get(ix_info.evm_ix) or self.def_decoder).execute()
 
         # after last instruction and slot
-        state.complete_done_txs()
+        self.state.complete_done_txs()
 
-        for tx in state.iter_txs():
+        for tx in self.state.iter_txs():
             if tx.storage_account and abs(tx.slot - self.current_slot) > CANCEL_TIMEOUT:
                 logger.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
                 self.blocked_storages[tx.storage_account] = (tx.neon_tx.rlp_tx, tx.blocked_accounts)
 
         self.processed_slot = max(self.processed_slot, max_slot + 1)
-
-        self.db.set_min_receipt_slot(state.find_min_used_slot(self.processed_slot))
+        self.db.set_min_receipt_slot(self.state.find_min_used_slot(self.processed_slot))
 
         process_receipts_ms = (time.time() - start_time) * 1000  # convert this into milliseconds
         logger.debug(f"process_receipts_ms: {process_receipts_ms} transaction_receipts.len: {self.transaction_receipts.size()} from {self.processed_slot} to {self.current_slot} slots")

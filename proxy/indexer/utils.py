@@ -62,9 +62,6 @@ class NeonIxSignInfo:
     def __eq__(self, other):
         return (self.sign, self.slot, self.idx) == (other.sign, other.slot, other.idx)
 
-    def copy(self):
-        return NeonIxSignInfo(sign=self.sign, slot=self.slot, idx=self.idx)
-
 
 class NeonTxResultInfo:
     def __init__(self, tx=None, ix_idx=-1):
@@ -414,7 +411,7 @@ class Canceller:
                 logger.error(storage)
                 continue
 
-            eth_trx = rlp.decode(bytes.fromhex(eth_trx), EthTrx)
+            eth_trx = rlp.decode(bytes.fromhex(eth_trx), EthTx)
             if acc_list != blocked_accs:
                 logger.error("acc_list != blocked_accs")
                 continue
