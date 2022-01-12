@@ -28,7 +28,7 @@ from proxy.core.connection import TcpClientConnection
 from proxy.common.constants import (
     CRLF, PROXY_PY_DIR, PLUGIN_PAC_FILE, PLUGIN_HTTP_PROXY, PLUGIN_WEB_SERVER,
 )
-from ..test_assertions import Assertions
+from ...test_assertions import Assertions
 
 
 PAC_FILE_PATH = os.path.join(
@@ -72,65 +72,65 @@ def mock_selector_for_client_read(self: Any) -> None:
         ),
     ]
 
-    # @mock.patch('socket.fromfd')
-    # def test_on_client_connection_called_on_teardown(
-    #         self, mock_fromfd: mock.Mock,
-    # ) -> None:
-    #     flags = FlagParser.initialize(threaded=True)
-    #     plugin = mock.MagicMock()
-    #     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
-    #     self._conn = mock_fromfd.return_value
-    #     self.protocol_handler = HttpProtocolHandler(
-    #         TcpClientConnection(self._conn, self._addr),
-    #         flags=flags,
-    #     )
-    #     self.protocol_handler.initialize()
-    #     plugin.assert_called()
-    #     with mock.patch.object(self.protocol_handler, '_run_once') as mock_run_once:
-    #         mock_run_once.return_value = True
-    #         self.protocol_handler.run()
-    #     self.assertTrue(self._conn.closed)
-    #     plugin.return_value.on_client_connection_close.assert_called()
+# @mock.patch('socket.fromfd')
+# def test_on_client_connection_called_on_teardown(
+#         self, mock_fromfd: mock.Mock,
+# ) -> None:
+#     flags = FlagParser.initialize(threaded=True)
+#     plugin = mock.MagicMock()
+#     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
+#     self._conn = mock_fromfd.return_value
+#     self.protocol_handler = HttpProtocolHandler(
+#         TcpClientConnection(self._conn, self._addr),
+#         flags=flags,
+#     )
+#     self.protocol_handler.initialize()
+#     plugin.assert_called()
+#     with mock.patch.object(self.protocol_handler, '_run_once') as mock_run_once:
+#         mock_run_once.return_value = True
+#         self.protocol_handler.run()
+#     self.assertTrue(self._conn.closed)
+#     plugin.return_value.on_client_connection_close.assert_called()
 
-    # @mock.patch('socket.fromfd')
-    # def test_on_client_connection_called_on_teardown(
-    #         self, mock_fromfd: mock.Mock,
-    # ) -> None:
-    #     flags = FlagParser.initialize(threaded=True)
-    #     plugin = mock.MagicMock()
-    #     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
-    #     self._conn = mock_fromfd.return_value
-    #     self.protocol_handler = HttpProtocolHandler(
-    #         TcpClientConnection(self._conn, self._addr),
-    #         flags=flags,
-    #     )
-    #     self.protocol_handler.initialize()
-    #     plugin.assert_called()
-    #     with mock.patch.object(self.protocol_handler, '_run_once') as mock_run_once:
-    #         mock_run_once.return_value = True
-    #         self.protocol_handler.run()
-    #     self.assertTrue(self._conn.closed)
-    #     plugin.return_value.on_client_connection_close.assert_called()
+# @mock.patch('socket.fromfd')
+# def test_on_client_connection_called_on_teardown(
+#         self, mock_fromfd: mock.Mock,
+# ) -> None:
+#     flags = FlagParser.initialize(threaded=True)
+#     plugin = mock.MagicMock()
+#     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
+#     self._conn = mock_fromfd.return_value
+#     self.protocol_handler = HttpProtocolHandler(
+#         TcpClientConnection(self._conn, self._addr),
+#         flags=flags,
+#     )
+#     self.protocol_handler.initialize()
+#     plugin.assert_called()
+#     with mock.patch.object(self.protocol_handler, '_run_once') as mock_run_once:
+#         mock_run_once.return_value = True
+#         self.protocol_handler.run()
+#     self.assertTrue(self._conn.closed)
+#     plugin.return_value.on_client_connection_close.assert_called()
 
-    # @mock.patch('socket.fromfd')
-    # def test_on_client_connection_called_on_teardown(
-    #         self, mock_fromfd: mock.Mock,
-    # ) -> None:
-    #     flags = FlagParser.initialize(threaded=True)
-    #     plugin = mock.MagicMock()
-    #     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
-    #     self._conn = mock_fromfd.return_value
-    #     self.protocol_handler = HttpProtocolHandler(
-    #         TcpClientConnection(self._conn, self._addr),
-    #         flags=flags,
-    #     )
-    #     self.protocol_handler.initialize()
-    #     plugin.assert_called()
-    #     with mock.patch.object(self.protocol_handler, '_run_once') as mock_run_once:
-    #         mock_run_once.return_value = True
-    #         self.protocol_handler.run()
-    #     self.assertTrue(self._conn.closed)
-    #     plugin.return_value.on_client_connection_close.assert_called()
+# @mock.patch('socket.fromfd')
+# def test_on_client_connection_called_on_teardown(
+#         self, mock_fromfd: mock.Mock,
+# ) -> None:
+#     flags = FlagParser.initialize(threaded=True)
+#     plugin = mock.MagicMock()
+#     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
+#     self._conn = mock_fromfd.return_value
+#     self.protocol_handler = HttpProtocolHandler(
+#         TcpClientConnection(self._conn, self._addr),
+#         flags=flags,
+#     )
+#     self.protocol_handler.initialize()
+#     plugin.assert_called()
+#     with mock.patch.object(self.protocol_handler, '_run_once') as mock_run_once:
+#         mock_run_once.return_value = True
+#         self.protocol_handler.run()
+#     self.assertTrue(self._conn.closed)
+#     plugin.return_value.on_client_connection_close.assert_called()
 
 
 class TestWebServerPluginWithPacFilePlugin(Assertions):

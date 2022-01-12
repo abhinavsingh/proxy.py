@@ -26,7 +26,7 @@ from proxy.common.utils import bytes_, build_http_request
 from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from proxy.common.constants import DEFAULT_CA_FILE
-from ..test_assertions import Assertions
+from ...test_assertions import Assertions
 
 
 class TestHttpProxyTlsInterception(Assertions):
