@@ -109,7 +109,11 @@ class BaseTcpServerHandler(Work[TcpClientConnection]):
     async def handle_readables(self, readables: Readables) -> bool:
         teardown = False
         if self.work.connection.fileno() in readables:
-            data = self.work.recv(self.flags.client_recvbuf_size)
+            try:
+                data = self.work.recv(self.flags.client_recvbuf_size)
+            except TimeoutError:
+                logger.info('Client recv timeout error')
+                return True
             if data is None:
                 logger.debug(
                     'Connection closed by client {0}'.format(
