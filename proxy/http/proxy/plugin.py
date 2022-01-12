@@ -13,6 +13,8 @@ import argparse
 from abc import ABC
 from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
+from ..mixins import TlsInterceptionPropertyMixin
+
 from ..parser import HttpParser
 from ..descriptors import DescriptorsHandlerMixin
 
@@ -23,7 +25,11 @@ if TYPE_CHECKING:
     from ...core.connection import UpstreamConnectionPool
 
 
-class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
+class HttpProxyBasePlugin(
+        DescriptorsHandlerMixin,
+        TlsInterceptionPropertyMixin,
+        ABC,
+):
     """Base HttpProxyPlugin Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
@@ -36,6 +42,7 @@ class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
             event_queue: EventQueue,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:
+        super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
         self.uid = uid                  # pragma: no cover
         self.flags = flags              # pragma: no cover
         self.client = client            # pragma: no cover
@@ -151,3 +158,15 @@ class HttpProxyBasePlugin(DescriptorsHandlerMixin, ABC):
         must return None to prevent other plugin.on_access_log invocation.
         """
         return context
+
+    def do_intercept(self, _request: HttpParser) -> bool:
+        """By default returns True (only) when necessary flags
+        for TLS interception are passed.
+
+        When TLS interception is enabled, plugins can still disable
+        TLS interception by returning False explicitly.  This hook
+        will allow you to run proxy instance with TLS interception
+        flags BUT only conditionally enable interception for
+        certain requests.
+        """
+        return self.tls_interception_enabled
