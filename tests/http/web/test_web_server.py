@@ -28,7 +28,7 @@ from proxy.core.connection import TcpClientConnection
 from proxy.common.constants import (
     CRLF, PROXY_PY_DIR, PLUGIN_PAC_FILE, PLUGIN_HTTP_PROXY, PLUGIN_WEB_SERVER,
 )
-from ..test_assertions import Assertions
+from ...test_assertions import Assertions
 
 
 PAC_FILE_PATH = os.path.join(
