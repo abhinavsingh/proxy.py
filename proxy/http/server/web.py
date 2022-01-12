@@ -152,14 +152,15 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         path = self.request.path or b'/'
-        # Try route
         teardown = self._try_route(path)
-        if teardown:
+        # Try route signaled to teardown
+        # or if it did find a valid route
+        if teardown or self.route is not None:
             return teardown
         # No-route found, try static serving if enabled
-        teardown = self._try_static_file(path)
-        if teardown:
-            return teardown
+        if self.flags.enable_static_server:
+            self._try_static_or_404(path)
+            return True
         # Catch all unhandled web server requests, return 404
         self.client.queue(NOT_FOUND_RESPONSE_PKT)
         return True
@@ -299,13 +300,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                         return True
         return False
 
-    def _try_static_file(self, path: bytes) -> bool:
-        if self.flags.enable_static_server:
-            path = text_(path).split('?', 1)[0]
-            self.client.queue(
-                self.read_and_build_static_file_response(
-                    self.flags.static_server_dir + path,
-                ),
-            )
-            return True
-        return False
+    def _try_static_or_404(self, path: bytes) -> None:
+        path = text_(path).split('?', 1)[0]
+        self.client.queue(
+            self.read_and_build_static_file_response(
+                self.flags.static_server_dir + path,
+            ),
+        )
