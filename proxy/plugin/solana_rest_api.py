@@ -157,9 +157,9 @@ class EthereumModel:
         topics = None
         blockHash = None
 
-        if 'fromBlock' in obj:
+        if 'fromBlock' in obj and obj['fromBlock'] != '0':
             fromBlock = self.process_block_tag(obj['fromBlock'])
-        if 'toBlock' in obj:
+        if 'toBlock' in obj and obj['toBlock'] != 'latest':
             toBlock = self.process_block_tag(obj['toBlock'])
         if 'address' in obj:
            address = obj['address']
