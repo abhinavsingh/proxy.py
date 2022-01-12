@@ -157,6 +157,9 @@ class HttpParser:
     @property
     def http_handler_protocol(self) -> int:
         """Returns `HttpProtocols` that this request belongs to."""
+        # TODO(abhinavsingh): HTTP_PROXY is not only decided based upon
+        # presence of host field, but also if scheme is http or method
+        # is CONNECT
         return httpProtocols.HTTP_PROXY if self.host is not None else httpProtocols.WEB_SERVER
 
     @property
