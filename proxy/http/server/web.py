@@ -159,7 +159,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return teardown
         # No-route found, try static serving if enabled
         if self.flags.enable_static_server:
-            self._try_static_file(path)
+            self._try_static_or_404(path)
             return True
         # Catch all unhandled web server requests, return 404
         self.client.queue(NOT_FOUND_RESPONSE_PKT)
@@ -300,7 +300,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                         return True
         return False
 
-    def _try_static_file(self, path: bytes) -> bool:
+    def _try_static_or_404(self, path: bytes) -> None:
         path = text_(path).split('?', 1)[0]
         self.client.queue(
             self.read_and_build_static_file_response(
