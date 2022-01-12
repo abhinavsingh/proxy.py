@@ -174,7 +174,10 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         """Remove a connection by descriptor from the internal data structure."""
         conn = self.connections[fileno]
         logger.debug('Removing conn#{0} from pool'.format(id(conn)))
-        conn.connection.shutdown(socket.SHUT_WR)
+        try:
+            conn.connection.shutdown(socket.SHUT_WR)
+        except OSError:
+            pass
         conn.close()
         self.pools[conn.addr].remove(conn)
         del self.connections[fileno]
