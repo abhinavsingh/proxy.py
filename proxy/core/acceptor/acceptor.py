@@ -32,7 +32,7 @@ from ...common.constants import DEFAULT_LOCAL_EXECUTOR
 
 from ..event import EventQueue
 
-from ..work import LocalExecutor, ThreadlessPool
+from ..work import LocalExecutor, delegate_work_to_pool, start_threaded_work
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +213,7 @@ class Acceptor(multiprocessing.Process):
             # 1st workers.  To randomize, we offset index by idd.
             index = (self._total + self.idd) % self.flags.num_workers
             thread = threading.Thread(
-                target=ThreadlessPool.delegate,
+                target=delegate_work_to_pool,
                 args=(
                     self.executor_pids[index],
                     self.executor_queues[index],
@@ -230,7 +230,7 @@ class Acceptor(multiprocessing.Process):
                 ),
             )
         else:
-            _, thread = ThreadlessPool.start_threaded_work(
+            _, thread = start_threaded_work(
                 self.flags,
                 conn,
                 addr,
