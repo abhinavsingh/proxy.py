@@ -63,7 +63,7 @@ class TestAcceptor(unittest.TestCase):
         sock.accept.assert_not_called()
         self.flags.work_klass.assert_not_called()
 
-    @mock.patch('proxy.core.work.pool.TcpClientConnection')
+    @mock.patch('proxy.core.work.threaded.TcpClientConnection')
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
