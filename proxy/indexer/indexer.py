@@ -8,11 +8,11 @@ import logging
 try:
     from indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
     from indexer_db import IndexerDB
-    from utils import check_error, NeonIxSignInfo, NeonTxResultInfo, NeonTxSignInfo, Canceller, str_fmt_object
+    from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxSignInfo, Canceller, str_fmt_object
 except ImportError:
     from .indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
     from .indexer_db import IndexerDB
-    from .utils import check_error, NeonIxSignInfo, NeonTxResultInfo, NeonTxAddrInfo, Canceller, str_fmt_object
+    from .utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object
 
 from ..environment import EVM_LOADER_ID
 
@@ -20,9 +20,9 @@ CANCEL_TIMEOUT = int(os.environ.get("CANCEL_TIMEOUT", "60"))
 UPDATE_BLOCK_COUNT = PARALLEL_REQUESTS * 16
 
 
-class NeonIxInfo:
-    def __init__(self, sign: bytes, slot: int, tx: {}):
-        self.sign = NeonIxSignInfo(sign=sign, slot=slot, idx=-1)
+class SolanaIxInfo:
+    def __init__(self, sign: str, slot: int, tx: {}):
+        self.sign = SolanaIxSignInfo(sign=sign, slot=slot, idx=-1)
         self.tx = tx
         self._is_valid = isinstance(tx, dict)
         self._msg = self.tx['transaction']['message'] if self._is_valid else None
@@ -61,7 +61,7 @@ class NeonIxInfo:
         evm_ix_idx = -1
         for ix_idx, self.ix in tx_ixs:
             # Make a new object to keep values in existing
-            self.sign = NeonIxSignInfo(sign=self.sign.sign, slot=self.sign.slot, idx=ix_idx)
+            self.sign = SolanaIxSignInfo(sign=self.sign.sign, slot=self.sign.slot, idx=ix_idx)
             if 'programIdIndex' not in self.ix:
                 logger.debug(f'{self} error: fail to get program id')
                 continue
@@ -102,7 +102,7 @@ class BaseEvmObject:
         self.used_ixs = []
         self.slot = 0
 
-    def mark_ix_used(self, ix_info: NeonIxInfo):
+    def mark_ix_used(self, ix_info: SolanaIxInfo):
         self.used_ixs.append(ix_info.sign)
         self.slot = max(self.slot, ix_info.sign.slot)
 
@@ -125,10 +125,10 @@ class NeonHolderObject(BaseEvmObject):
 
 
 class NeonTxObject(BaseEvmObject):
-    def __init__(self, storage_account: str, neon_tx: NeonTxAddrInfo, neon_res: NeonTxResultInfo):
+    def __init__(self, storage_account: str, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo):
         BaseEvmObject.__init__(self)
         self.storage_account = storage_account
-        self.neon_tx = (neon_tx or NeonTxAddrInfo())
+        self.neon_tx = (neon_tx or NeonTxInfo())
         self.neon_res = (neon_res or NeonTxResultInfo())
         self.step_count = []
         self.holder_account = ''
@@ -175,9 +175,9 @@ class ReceiptsParserState:
         self._tx_table = {}
         self._done_tx_list = []
         self._used_ixs = {}
-        self.ix = NeonIxInfo(sign=bytes(), slot=-1, tx=None)
+        self.ix = SolanaIxInfo(sign='', slot=-1, tx=None)
 
-    def set_ix(self, ix_info: NeonIxInfo):
+    def set_ix(self, ix_info: SolanaIxInfo):
         self.ix = ix_info
 
     def mark_ix_used(self, obj: BaseEvmObject):
@@ -239,7 +239,7 @@ class ReceiptsParserState:
         for tx in self._done_tx_list:
             self.unmark_ix_used(tx)
             if tx.neon_tx.is_valid() and tx.neon_res.is_valid():
-                self._db.submit_transaction(self._client, tx.neon_tx, tx.neon_res, tx.used_ixs)
+                self._db.submit_transaction(tx.neon_tx, tx.neon_res, tx.used_ixs)
             self.del_tx(tx)
         self._done_tx_list.clear()
 
@@ -257,7 +257,7 @@ class DummyIxDecoder:
         return f'{self.name} {self.state.ix}'
 
     @staticmethod
-    def neon_addr_fmt(neon_tx: NeonTxAddrInfo):
+    def neon_addr_fmt(neon_tx: NeonTxInfo):
         return f'Neon tx {neon_tx.sign}, Neon addr {neon_tx.addr}'
 
     def _getadd_tx(self, storage_account, neon_tx=None, blocked_accounts=[str]) -> NeonTxObject:
@@ -344,9 +344,7 @@ class DummyIxDecoder:
         the parsing order can be other than the execution order
         """
         if not tx.neon_res.is_valid():
-            res_error = tx.neon_res.decode(self.ix.tx, self.ix.sign.idx)
-            if res_error:
-                return self._decoding_fail(tx, 'Neon results error')
+            tx.neon_res.decode(self.ix.tx, self.ix.sign.idx)
             if tx.neon_res.is_valid():
                 return self._decoding_done(tx, 'found Neon results')
         return self._decoding_success(tx, 'mark ix used')
@@ -397,7 +395,7 @@ class WriteIxDecoder(DummyIxDecoder):
         def is_valid(self) -> bool:
             return (self.length > 0) and (len(self.data) == self.length)
 
-    def _decode_datachunck(self, ix_info: NeonIxInfo) -> _DataChunk:
+    def _decode_datachunck(self, ix_info: SolanaIxInfo) -> _DataChunk:
         # No enough bytes to get length of chunk
         if len(ix_info.ix_data) < 17:
             return self._DataChunk()
@@ -436,7 +434,7 @@ class WriteWithHolderIxDecoder(WriteIxDecoder):
     def __init__(self, state: ReceiptsParserState):
         DummyIxDecoder.__init__(self, 'WriteWithHolder', state)
 
-    def _decode_datachunck(self, ix_info: NeonIxInfo) -> WriteIxDecoder._DataChunk:
+    def _decode_datachunck(self, ix_info: SolanaIxInfo) -> WriteIxDecoder._DataChunk:
         # No enough bytes to get length of chunk
         if len(ix_info.ix_data) < 22:
             return self._DataChunk()
@@ -461,15 +459,11 @@ class CallFromRawIxDecoder(DummyIxDecoder):
         rlp_sign = self.ix.ix_data[25:90]
         rlp_data = self.ix.ix_data[90:]
 
-        neon_tx = NeonTxAddrInfo(rlp_sign=rlp_sign, rlp_data=rlp_data)
+        neon_tx = NeonTxInfo(rlp_sign=rlp_sign, rlp_data=rlp_data)
         if neon_tx.error:
             return self._decoding_skip(f'Neon tx rlp error "{neon_tx.error}"')
 
-        neon_res = NeonTxResultInfo(self.ix.tx, self.ix.sign.idx)
-        if neon_res.error:
-            return self._decoding_skip(f'Neon results error "{neon_res.error}"')
-
-        tx = NeonTxObject('', neon_tx=neon_tx, neon_res=neon_res)
+        tx = NeonTxObject('', neon_tx=neon_tx, neon_res=NeonTxResultInfo(self.ix.tx, self.ix.sign.idx))
         return self._decoding_done(tx, 'call success')
 
 
@@ -493,7 +487,7 @@ class PartialCallIxDecoder(DummyIxDecoder):
         rlp_sign = self.ix.ix_data[33:98]
         rlp_data = self.ix.ix_data[98:]
 
-        neon_tx = NeonTxAddrInfo(rlp_sign=rlp_sign, rlp_data=rlp_data)
+        neon_tx = NeonTxInfo(rlp_sign=rlp_sign, rlp_data=rlp_data)
         if neon_tx.error:
             return self._decoding_skip(f'Neon tx rlp error "{neon_tx.error}"')
 
@@ -626,7 +620,7 @@ class Indexer(IndexerBase):
                  evm_loader_id,
                  log_level = 'INFO'):
         IndexerBase.__init__(self, solana_url, evm_loader_id, log_level, 0)
-        self.db = IndexerDB()
+        self.db = IndexerDB(self.client)
         self.canceller = Canceller()
         self.blocked_storages = {}
         self.processed_slot = self.db.get_min_receipt_slot()
@@ -658,10 +652,10 @@ class Indexer(IndexerBase):
 
     def process_functions(self):
         IndexerBase.process_functions(self)
-        logger.debug("Process receipts")
-        self.process_receipts()
         logger.debug("Start getting blocks")
         self.gather_blocks()
+        logger.debug("Process receipts")
+        self.process_receipts()
         logger.debug("Unlock accounts")
         self.canceller.unlock_accounts(self.blocked_storages)
         self.blocked_storages = {}
@@ -669,13 +663,18 @@ class Indexer(IndexerBase):
     def process_receipts(self):
         start_time = time.time()
 
-        max_slot = 0
+        max_slot = self.processed_slot - 1
+        last_block_slot = self.db.get_last_block_slot()
+
         for slot, sign, tx in self.transaction_receipts.get_trxs(self.processed_slot, reverse=False):
+            if slot > last_block_slot:
+                break
+
             if max_slot != slot:
                 self.state.complete_done_txs()
                 max_slot = max(max_slot, slot)
 
-            ix_info = NeonIxInfo(slot=slot, sign=sign, tx=tx)
+            ix_info = SolanaIxInfo(sign=sign, slot=slot,  tx=tx)
 
             for _ in ix_info.iter_ixs():
                 self.state.set_ix(ix_info)
@@ -687,7 +686,7 @@ class Indexer(IndexerBase):
         for tx in self.state.iter_txs():
             if tx.storage_account and abs(tx.slot - self.current_slot) > CANCEL_TIMEOUT:
                 logger.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
-                self.blocked_storages[tx.storage_account] = (tx.neon_tx.rlp_tx, tx.blocked_accounts)
+                self.blocked_storages[tx.storage_account] = (tx.neon_tx, tx.blocked_accounts)
 
         self.processed_slot = max(self.processed_slot, max_slot + 1)
         self.db.set_min_receipt_slot(self.state.find_min_used_slot(self.processed_slot))
@@ -699,6 +698,7 @@ class Indexer(IndexerBase):
         start_time = time.time()
         last_block_slot = self.db.get_last_block_slot()
         max_height = self.db.get_last_block_height()
+        start_block_slot = last_block_slot
         height = -1
         confirmed_blocks_len = 10000
         client = self.client._provider
@@ -725,6 +725,9 @@ class Indexer(IndexerBase):
                 break
 
             # Everything is good
+            logger.debug(f'remove not finalized data in range[{start_block_slot}..{last_block_slot}]')
+            self.db.del_not_finalized(from_slot=start_block_slot, to_slot=last_block_slot)
+            start_block_slot = last_block_slot
             logger.debug(f"gather_blocks from {height} to {max_height}")
             self.db.fill_block_height(height, confirmed_blocks)
             self.db.set_last_slot_height(last_block_slot, max_height)

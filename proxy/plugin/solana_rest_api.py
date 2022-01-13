@@ -8,12 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import base58
 import copy
 import eth_utils
 import json
 import logging
-import rlp
 import threading
 import traceback
 import unittest
@@ -29,16 +27,16 @@ from solana.rpc.api import Client as SolanaClient, SendTransactionError as Solan
 from typing import List, Tuple, Optional
 from web3 import Web3
 
-from .eth_proto import Trx as EthTrx
 from .solana_rest_api_tools import getAccountInfo, call_signed, neon_config_load, \
     get_token_balance_or_airdrop, estimate_gas
 from ..common_neon.address import EthereumAddress
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError
+from ..common_neon.eth_proto import Trx as EthTrx
 from ..core.acceptor.pool import proxy_id_glob
 from ..environment import neon_cli, solana_cli, SOLANA_URL, MINIMAL_GAS_PRICE
 from ..indexer.indexer_db import IndexerDB
-from ..indexer.utils import NeonTxAddrInfo, NeonIxSignInfo
+from ..indexer.utils import NeonTxInfo
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -55,7 +53,7 @@ class EthereumModel:
         self.signer = self.get_solana_account()
         self.client = SolanaClient(SOLANA_URL)
 
-        self.db = IndexerDB()
+        self.db = IndexerDB(self.client)
 
         with proxy_id_glob.get_lock():
             self.proxy_id = proxy_id_glob.value
@@ -171,36 +169,36 @@ class EthereumModel:
         return self.db.get_logs(fromBlock, toBlock, address, topics, blockHash)
 
     def getBlockBySlot(self, slot, full):
-        block = self.db.get_block_info(self.client, slot)
-        if block is None:
+        block = self.db.get_full_block_by_slot(slot)
+        if block.slot is None:
             return None
-        _, _, block_info = block
 
         transactions = []
         gasUsed = 0
         trx_index = 0
-        for signature in block_info['signatures']:
-            eth_trx = self.db.get_eth_trx_sig_by_signature(signature)
-            if eth_trx is not None:
-                if eth_trx['idx'] == 0:
-                    trx_receipt = self.eth_getTransactionReceipt(eth_trx['eth'])
-                    if trx_receipt is not None:
-                        gasUsed += int(trx_receipt['gasUsed'], 16)
-                    if full:
-                        trx = self.eth_getTransactionByHash(eth_trx['eth'])
-                        if trx is not None:
-                            trx['transactionIndex'] = hex(trx_index)
-                            trx_index += 1
-                            transactions.append(trx)
-                    else:
-                        transactions.append(eth_trx['eth'])
+        for signature in block.signs:
+            tx = self.db.get_tx_by_sol_sign(signature)
+            if not tx:
+                continue
+
+            trx_receipt = self._getTransactionReceipt(tx)
+            if trx_receipt is not None:
+                gasUsed += int(trx_receipt['gasUsed'], 16)
+            if full:
+                trx = self._getTransaction(tx)
+                if trx is not None:
+                    trx['transactionIndex'] = hex(trx_index)
+                    trx_index += 1
+                    transactions.append(trx)
+            else:
+                transactions.append(tx.neon_tx.sign)
 
         ret = {
             "gasUsed": hex(gasUsed),
-            "hash": '0x' + base58.b58decode(block_info['blockhash']).hex(),
+            "hash": block.hash,
             "number": hex(slot),
-            "parentHash": '0x' + base58.b58decode(block_info['previousBlockhash']).hex(),
-            "timestamp": hex(block_info['blockTime']),
+            "parentHash": block.parent_hash,
+            "timestamp": hex(block.time),
             "transactions": transactions,
             "logsBloom": '0x'+'0'*512,
             "gasLimit": '0x6691b7',
@@ -228,7 +226,7 @@ class EthereumModel:
             full - If true it returns the full transaction objects, if false only the hashes of the transactions.
         """
         block_hash = block_hash.lower()
-        slot = self.db.get_slot_by_hash(block_hash)
+        slot = self.db.get_block_by_hash(block_hash).slot
         if slot is None:
             logger.debug("Not found block by hash %s", block_hash)
             return None
@@ -245,7 +243,7 @@ class EthereumModel:
             full - If true it returns the full transaction objects, if false only the hashes of the transactions.
         """
         block_number = self.process_block_tag(tag)
-        slot = self.db.get_slot_by_number(block_number)
+        slot = self.db.get_block_by_height(block_number).slot
         if slot is None:
             logger.debug("Not found block by number %s", tag)
             return None
@@ -288,80 +286,66 @@ class EthereumModel:
             print("Can't get account info: %s"%err)
             return hex(0)
 
-    def eth_getTransactionReceipt(self, trxId):
-        logger.debug('getTransactionReceipt: %s', trxId)
-
-        trxId = trxId.lower()
-        trx_info = self.db.get_eth_trx(trxId)
-        if trx_info is None:
-            logger.debug ("Not found receipt")
-            return None
-
-        eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
-
-        addr_to = None
-        contract = None
-        if eth_trx[3]:
-            addr_to = '0x' + eth_trx[3].hex()
-        else:
-            contract = '0x' + bytes(Web3.keccak(rlp.encode((bytes.fromhex(trx_info['from_address'][2:]), eth_trx[0]))))[-20:].hex()
-
+    def _getTransactionReceipt(self, tx):
         result = {
-            "transactionHash": trxId,
+            "transactionHash": tx.neon_tx.sign,
             "transactionIndex": hex(0),
-            "blockHash": trx_info['blockHash'],
-            "blockNumber": trx_info['blockNumber'],
-            "from": trx_info['from_address'],
-            "to": addr_to,
-            "gasUsed": hex(trx_info['gas_used']),
-            "cumulativeGasUsed": hex(trx_info['gas_used']),
-            "contractAddress": contract,
-            "logs": trx_info['logs'],
-            "status": trx_info['status'],
+            "blockHash": tx.block.hash,
+            "blockNumber": hex(tx.block.height),
+            "from": tx.neon_tx.addr,
+            "to": tx.neon_tx.to_addr,
+            "gasUsed": hex(tx.neon_res.gas_used),
+            "cumulativeGasUsed": hex(tx.neon_res.gas_used),
+            "contractAddress": tx.neon_tx.contract,
+            "logs": tx.neon_res.logs,
+            "status": tx.neon_res.status,
             "logsBloom":"0x"+'0'*512
         }
 
         logger.debug('RESULT: %s', json.dumps(result, indent=3))
         return result
 
+    def eth_getTransactionReceipt(self, trxId):
+        logger.debug('eth_getTransactionReceipt: %s', trxId)
+
+        neon_sign = trxId.lower()
+        tx = self.db.get_tx_by_neon_sign(neon_sign)
+        if not tx:
+            logger.debug("Not found receipt")
+            return None
+        return self._getTransactionReceipt(tx)
+
+    def _getTransaction(self, tx):
+        t = tx.neon_tx
+        ret = {
+            "blockHash": tx.block.hash,
+            "blockNumber": hex(tx.block.height),
+            "hash": t.sign,
+            "transactionIndex": hex(0),
+            "from": t.addr,
+            "nonce":  hex(t.nonce),
+            "gasPrice": hex(t.gas_price),
+            "gas": hex(t.gas_limit),
+            "to": t.to_addr,
+            "value": hex(t.value),
+            "input": t.calldata,
+            "v": t.v,
+            "r": t.r,
+            "s": t.s,
+        }
+
+        logger.debug("_getTransaction: %s", json.dumps(ret, indent=3))
+        return ret
+
     def eth_getTransactionByHash(self, trxId):
         logger.debug('eth_getTransactionByHash: %s', trxId)
 
-        trxId = trxId.lower()
-        trx_info = self.db.get_eth_trx(trxId)
-        if trx_info is None:
+        neon_sign = trxId.lower()
+        tx = self.db.get_tx_by_neon_sign(neon_sign)
+        if tx is None:
             logger.debug ("Not found receipt")
             return None
-
-        eth_trx = rlp.decode(bytes.fromhex(trx_info['eth_trx']))
-        addr_to = None
-        if eth_trx[3]:
-            addr_to = '0x' + eth_trx[3].hex()
-        for i, eth_field in enumerate(eth_trx):
-            if len(eth_field) ==0:
-                eth_trx[i] = '0x0'
-            else:
-                eth_trx[i] = '0x'+eth_field.hex()
-
-        ret = {
-            "blockHash": trx_info['blockHash'],
-            "blockNumber": trx_info['blockNumber'],
-            "hash": trxId,
-            "transactionIndex": hex(0),
-            "from": trx_info['from_address'],
-            "nonce": eth_trx[0],
-            "gasPrice": eth_trx[1],
-            "gas": eth_trx[2],
-            "to": addr_to,
-            "value": eth_trx[4],
-            "input": eth_trx[5],
-            "v": eth_trx[6],
-            "r": eth_trx[7],
-            "s": eth_trx[8],
-        }
-
-        logger.debug("eth_getTransactionByHash: %s", json.dumps(ret, indent=3))
-        return ret
+        return self._getTransaction(tx)
 
     def eth_getCode(self, param,  param1):
         return "0x01"
@@ -402,13 +386,10 @@ class EthereumModel:
                                 })
         try:
             neon_res, signature = call_signed(self.signer, self.client, trx, steps=250)
-            neon_ix = NeonIxSignInfo(sign=signature, slot=neon_res.slot, idx=0)
             logger.debug('Transaction signature: %s %s', signature, eth_signature)
-            neon_tx = NeonTxAddrInfo()
-            neon_tx.sign = eth_signature
-            neon_tx.addr = "0x" + sender
-            neon_tx.rlp_tx = rawTrx[2:]
-            self.db.submit_transaction(self.client, neon_tx, neon_res, [neon_ix])
+            neon_tx = NeonTxInfo()
+            neon_tx.init_from_eth_tx(trx)
+            self.db.submit_transaction(neon_tx, neon_res, [])
             return eth_signature
 
         except SolanaTrxError as err:

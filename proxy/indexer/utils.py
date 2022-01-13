@@ -2,14 +2,11 @@ import base58
 import base64
 import json
 import logging
-import os
 import psycopg2
 import rlp
 import subprocess
 
 from eth_utils import big_endian_to_int
-from ethereum.transactions import Transaction as EthTx
-from ethereum.utils import sha3
 from solana.account import Account
 from solana.publickey import PublicKey
 from solana.rpc.api import Client
@@ -24,11 +21,15 @@ from web3.auto.gethdev import w3
 
 from ..common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PROGRAM
 from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT
+from ..common_neon.eth_proto import Trx as EthTx
 from ..environment import SOLANA_URL, EVM_LOADER_ID, ETH_TOKEN_MINT_ID
 
 
+from proxy.indexer.pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST
+
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 def check_error(trx):
@@ -47,8 +48,8 @@ def str_fmt_object(obj):
     return f'{name}: {members}'
 
 
-class NeonIxSignInfo:
-    def __init__(self, sign: bytes, slot: int, idx: int):
+class SolanaIxSignInfo:
+    def __init__(self, sign: str, slot: int, idx: int):
         self.sign = sign  # Solana transaction signature
         self.slot = slot  # Solana block slot
         self.idx  = idx   # Instruction index
@@ -78,8 +79,9 @@ class NeonTxResultInfo:
         self.status = "0x0"
         self.gas_used = 0
         self.return_value = bytes()
+        self.sol_sign = None
         self.slot = -1
-        self.error = None
+        self.idx = -1
 
     def _decode_event(self, log, tx_idx):
         log_idx = len(self.logs)
@@ -105,13 +107,15 @@ class NeonTxResultInfo:
         }
         self.logs.append(rec)
 
-    def _decode_return(self, log, slot):
+    def _decode_return(self, log: bytes(), ix_idx: int, tx: {}):
         self.status = '0x1' if log[1] < 0xd0 else '0x0'
         self.gas_used = int.from_bytes(log[2:10], 'little')
         self.return_value = log[10:].hex()
-        self.slot = slot
+        self.sol_sign = tx['transaction']['signatures'][0]
+        self.slot = tx['slot']
+        self.idx = ix_idx
 
-    def decode(self, tx: {}, ix_idx = -1):
+    def decode(self, tx: {}, ix_idx=-1):
         self._set_defaults()
         meta_ixs = tx['meta']['innerInstructions']
         msg = tx['transaction']['message']
@@ -127,30 +131,28 @@ class NeonTxResultInfo:
             evm_ix_idxs.append(ix_idx)
 
         for inner_ix in meta_ixs:
-            if inner_ix["index"] in evm_ix_idxs:
+            ix_idx = inner_ix['index']
+            if ix_idx in evm_ix_idxs:
                 for event in inner_ix['instructions']:
                     if accounts[event['programIdIndex']] == EVM_LOADER_ID:
                         log = base58.b58decode(event['data'])
-                        evm_ix = int().from_bytes(log[:1], "little") # int(log[0])
+                        evm_ix = int(log[0])
                         if evm_ix == 7:
-                            self._decode_event(log, inner_ix['index'])
+                            self._decode_event(log, ix_idx)
                         elif evm_ix == 6:
-                            self._decode_return(log, tx['slot'])
-        return None
-
+                            self._decode_return(log, ix_idx, tx)
 
     def clear(self):
         self._set_defaults()
 
     def is_valid(self):
-        return (self.slot != -1) and (not self.error)
+        return (self.slot != -1)
 
 
-class NeonTxAddrInfo:
+class NeonTxInfo:
     def __init__(self, rlp_sign=None, rlp_data=None):
-        if not isinstance(rlp_sign, bytes) or not isinstance(rlp_data, bytes):
-            self._set_defaults()
-        else:
+        self._set_defaults()
+        if isinstance(rlp_sign, bytes) and isinstance(rlp_data, bytes):
             self.decode(rlp_sign, rlp_data)
 
     def __str__(self):
@@ -159,25 +161,56 @@ class NeonTxAddrInfo:
     def _set_defaults(self):
         self.addr = None
         self.sign = None
-        self.rlp_tx = None
+        self.nonce = 0
+        self.gas_price = 0
+        self.gas_limit = 0
+        self.to_addr = None
+        self.contract = None
+        self.value = 0
+        self.calldata = None
+        self.v = 0
+        self.r = 0
+        self.s = 0
         self.error = None
+
+    def init_from_eth_tx(self, tx: EthTx):
+        self.v = hex(tx.v)
+        self.r = hex(tx.r)
+        self.s = hex(tx.s)
+
+        self.sign = '0x' + tx.hash_signed().hex()
+        self.addr = '0x' + tx.sender()
+
+        self.nonce = tx.nonce
+        self.gas_price = tx.gasPrice
+        self.gas_limit = tx.gasLimit
+        self.value = tx.value
+        self.calldata = '0x' + tx.callData.hex()
+
+        if not tx.toAddress:
+            contract = rlp.encode((bytes.fromhex(self.addr[2:]), tx.nonce))
+            self.contract = '0x' + bytes(w3.keccak(contract))[-20:].hex()
+            self.to_addr = None
+        else:
+            self.to_addr = '0x' + tx.toAddress.hex()
+            self.contract = None
 
     def decode(self, rlp_sign: bytes, rlp_data: bytes):
         self._set_defaults()
+
         try:
-            tx = rlp.decode(rlp_data, EthTx)
+            utx = EthTx.fromString(rlp_data)
 
-            v = int(rlp_sign[64]) + 35 + 2 * tx[6]
-            r = big_endian_to_int(rlp_sign[0:32])
-            s = big_endian_to_int(rlp_sign[32:64])
+            uv = int(rlp_sign[64]) + 35 + 2 * utx.v
+            ur = big_endian_to_int(rlp_sign[0:32])
+            us = big_endian_to_int(rlp_sign[32:64])
 
-            rlp_tx = rlp.encode(EthTx(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5], v, r, s), EthTx)
-            self.sign = '0x' + sha3(rlp_tx).hex()
-            self.addr = w3.eth.account.recover_transaction(rlp_tx).lower()
-            self.rlp_tx = rlp_tx.hex()
+            tx = EthTx(utx.nonce, utx.gasPrice, utx.gasLimit, utx.toAddress, utx.value, utx.callData, uv, ur, us)
+            self.init_from_eth_tx(tx)
+
             return None
-
         except Exception as e:
+            logger.warning(f'RLP decoding error: {e}')
             self.error = e
             return self.error
 
@@ -227,40 +260,64 @@ def get_account_list(client, storage_account):
         return None
 
 
-
-
-class LogDB:
+class BaseDB:
     def __init__(self):
-        POSTGRES_DB = os.environ.get("POSTGRES_DB", "neon-db")
-        POSTGRES_USER = os.environ.get("POSTGRES_USER", "neon-proxy")
-        POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "neon-proxy-pass")
-        POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
-
-        self.conn = psycopg2.connect(
+        self._conn = psycopg2.connect(
             dbname=POSTGRES_DB,
             user=POSTGRES_USER,
             password=POSTGRES_PASSWORD,
             host=POSTGRES_HOST
         )
+        self._conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = self._conn.cursor()
+        cursor.execute(self._create_table_sql())
 
-        cur = self.conn.cursor()
-        cur.execute("""CREATE TABLE IF NOT EXISTS
-        logs (
-            address TEXT,
-            blockHash TEXT,
-            blockNumber INT,
-            topic TEXT,
+    def _create_table_sql(self) -> str:
+        assert False, 'No script for the table'
 
-            transactionHash TEXT,
-            transactionLogIndex INT,
+    def _fetchone(self, values, keys) -> str:
+        cursor = self._conn.cursor()
 
-            json TEXT,
-            UNIQUE(transactionLogIndex, transactionHash, topic)
-        );""")
-        self.conn.commit()
+        where_cond = '1=1'
+        where_keys = []
+        for name, value in keys:
+            where_cond += f' AND {name} = %s'
+            where_keys.append(value)
+
+        logger.debug(f'SELECT {",".join(values)} FROM {self._table_name} WHERE {where_cond}')
+        cursor.execute(f'SELECT {",".join(values)} FROM {self._table_name} WHERE {where_cond}', where_keys)
+        return cursor.fetchone()
+
+    def __del__(self):
+        self._conn.close()
 
 
-    def push_logs(self, logs):
+class LogDB(BaseDB):
+    def __init__(self):
+        BaseDB.__init__(self)
+
+    def _create_table_sql(self) -> str:
+        self._table_name = 'logs'
+        return f"""
+            CREATE TABLE IF NOT EXISTS {self._table_name} (
+                address CHAR(42),
+                blockHash CHAR(66),
+                blockNumber BIGINT,
+                slot BIGINT,
+                finalized BOOLEAN,
+
+                transactionHash CHAR(66),
+                transactionLogIndex INT,
+                topic TEXT,
+
+                json TEXT,
+
+                UNIQUE(transactionLogIndex, transactionHash, topic)
+            );
+            CREATE INDEX IF NOT EXISTS {self._table_name}_finalized ON {self._table_name}(slot, finalized);
+            """
+
+    def push_logs(self, logs, block):
         rows = []
         for log in logs:
             for topic in log['topics']:
@@ -269,17 +326,21 @@ class LogDB:
                         log['address'],
                         log['blockHash'],
                         int(log['blockNumber'], 16),
-                        topic,
+                        block.slot,
+                        block.finalized,
                         log['transactionHash'],
                         int(log['transactionLogIndex'], 16),
+                        topic,
                         json.dumps(log)
                     )
                 )
         if len(rows):
             # logger.debug(rows)
-            cur = self.conn.cursor()
-            cur.executemany('INSERT INTO logs VALUES (%s, %s, %s, %s,  %s, %s,  %s) ON CONFLICT DO NOTHING', rows)
-            self.conn.commit()
+            cur = self._conn.cursor()
+            cur.executemany('''
+                            INSERT INTO logs(address, blockHash, blockNumber, slot, finalized,
+                                            transactionHash, transactionLogIndex, topic, json)
+                            VALUES (%s, %s, %s, %s,  %s, %s,  %s, %s, %s) ON CONFLICT DO NOTHING''', rows)
         else:
             logger.debug("NO LOGS")
 
@@ -331,7 +392,7 @@ class LogDB:
         logger.debug(query_string)
         logger.debug(params)
 
-        cur = self.conn.cursor()
+        cur = self._conn.cursor()
         cur.execute(query_string, tuple(params))
 
         rows = cur.fetchall()
@@ -344,8 +405,10 @@ class LogDB:
             return_list.append(json.loads(log))
         return return_list
 
-    def __del__(self):
-        self.conn.close()
+    def del_not_finalized(self, from_slot: int, to_slot: int):
+        cursor = self._conn.cursor()
+        cursor.execute(f'DELETE FROM {self._table_name} WHERE slot >= %s AND slot <= %s AND finalized = false',
+                       (from_slot, to_slot))
 
 
 class Canceller:
@@ -398,11 +461,8 @@ class Canceller:
             PublicKey(SYS_PROGRAM_ID),
         ]
         for storage, trx_accs in blocked_storages.items():
-            (eth_trx, blocked_accs) = trx_accs
+            (neon_tx, blocked_accs) = trx_accs
             acc_list = get_account_list(self.client, storage)
-            if eth_trx is None:
-                logger.error("trx is None")
-                continue
             if blocked_accs is None:
                 logger.error("blocked_accs is None")
                 continue
@@ -411,7 +471,6 @@ class Canceller:
                 logger.error(storage)
                 continue
 
-            eth_trx = rlp.decode(bytes.fromhex(eth_trx), EthTx)
             if acc_list != blocked_accs:
                 logger.error("acc_list != blocked_accs")
                 continue
@@ -431,7 +490,7 @@ class Canceller:
                 trx = Transaction()
                 trx.add(TransactionInstruction(
                     program_id=EVM_LOADER_ID,
-                    data=bytearray.fromhex("15") + eth_trx[0].to_bytes(8, 'little'),
+                    data=bytearray.fromhex("15") + neon_tx.nonce.to_bytes(8, 'little'),
                     keys=keys
                 ))
 

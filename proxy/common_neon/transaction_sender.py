@@ -23,9 +23,8 @@ from .neon_instruction import NeonInstruction
 from .solana_interactor import SolanaInteractor, check_for_errors,\
     check_if_program_exceeded_instructions, check_if_accounts_blocked, get_logs_from_reciept
 from ..environment import EVM_LOADER_ID, RETRY_ON_BLOCKED
-from ..plugin.eth_proto import Trx as EthTrx
 from ..indexer.utils import NeonTxResultInfo
-
+from ..common_neon.eth_proto import Trx as EthTrx
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

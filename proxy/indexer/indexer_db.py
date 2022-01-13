@@ -4,60 +4,45 @@ import traceback
 
 try:
     from utils import LogDB
+    from blocks_db import SolanaBlocksDB, SolanaBlockDBInfo
+    from transactions_db import NeonTxsDB, NeonTxDBInfo
     from sql_dict import SQLDict
 except ImportError:
     from .utils import LogDB
+    from .blocks_db import SolanaBlocksDB, SolanaBlockDBInfo
+    from .transactions_db import NeonTxsDB, NeonTxDBInfo
     from .sql_dict import SQLDict
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-class IndexerDB:
-    def __init__(self):
-        self.logs_db = LogDB()
-        self.blocks = SQLDict(tablename="solana_blocks_by_slot", bin_key=True)
-        self.blocks_by_hash = SQLDict(tablename="solana_blocks_by_hash")
-        self.blocks_height_slot = SQLDict(tablename="solana_block_height_to_slot", bin_key=True)
-        self.ethereum_trx = SQLDict(tablename="ethereum_transactions")
-        self.eth_sol_trx = SQLDict(tablename="ethereum_solana_transactions")
-        self.sol_eth_trx = SQLDict(tablename="solana_ethereum_transactions")
-        self.constants = SQLDict(tablename="constants")
-        for k in ['last_block_slot', 'last_block_height', 'min_receipt_slot']:
-            if k not in self.constants:
-                self.constants[k] = 0
 
-    def submit_transaction(self, client, neon_tx, neon_res, used_ixs):
+class IndexerDB:
+    def __init__(self, client):
+        self._logs_db = LogDB()
+        self._blocks_db = SolanaBlocksDB()
+        self._txs_db = NeonTxsDB()
+        self._client = client
+
+        self._constants = SQLDict(tablename="constants")
+        for k in ['last_block_slot', 'last_block_height', 'min_receipt_slot']:
+            if k not in self._constants:
+                self._constants[k] = 0
+
+    def submit_transaction(self, neon_tx, neon_res, used_ixs):
         try:
-            block_info = self.get_block_info(client, neon_res.slot)
-            if block_info is None:
+            block = self.get_block_by_slot(neon_res.slot)
+            if block.hash is None:
                 logger.critical(f'Unable to submit transaction {neon_tx.sign} because slot {neon_res.slot} not found')
                 return
-            block_hash, block_number, _ = block_info
             if neon_res.logs:
                 for rec in neon_res.logs:
                     rec['transactionHash'] = neon_tx.sign
-                    rec['blockHash'] = block_hash
-                    rec['blockNumber'] = hex(block_number)
-                self.logs_db.push_logs(neon_res.logs)
-            self.ethereum_trx[neon_tx.sign] = {
-                'eth_trx': neon_tx.rlp_tx,
-                'slot': neon_res.slot,
-                'blockNumber': hex(block_number),
-                'blockHash': block_hash,
-                'logs': neon_res.logs,
-                'status': neon_res.status,
-                'gas_used': neon_res.gas_used,
-                'return_value': neon_res.return_value,
-                'from_address': neon_tx.addr,
-            }
-
-            self.eth_sol_trx[neon_tx.sign] = used_ixs
-            for ix in used_ixs:
-                self.sol_eth_trx[ix.sign] = {
-                    'idx': ix.idx,
-                    'eth': neon_tx.sign,
-                }
-            self.blocks_by_hash[block_hash] = neon_res.slot
+                    rec['blockHash'] = block.hash
+                    rec['blockNumber'] = hex(block.height)
+                self._logs_db.push_logs(neon_res.logs, block)
+            tx = NeonTxDBInfo(neon_tx=neon_tx, neon_res=neon_res, block=block, used_ixs=used_ixs)
+            self._txs_db.set_tx(tx)
 
             logger.debug(f"{neon_tx.sign} {neon_res.status}")
         except Exception as err:
@@ -65,55 +50,73 @@ class IndexerDB:
             logger.warning(
                 f'Got exception while indexing. Type(err): {type(err)}, Exception: {err}, Traceback: {err_tb}')
 
-    def get_block_info(self, client, slot):
-        block = self.blocks.get(slot, None)
-        if block is None:
-            block = client._provider.make_request("getBlock", slot, {"commitment":"confirmed", "transactionDetails":"signatures", "rewards":False})
-            if (not block) or ('result' not in block):
-                return None
-            block = block['result']
-            block_hash = '0x' + base58.b58decode(block['blockhash']).hex()
-            block_height = block['blockHeight']
-            self.blocks[slot] = block
-            self.blocks_height_slot[block_height] = slot
-            self.blocks_by_hash[block_hash] = slot
-        else:
-            block_hash = '0x' + base58.b58decode(block['blockhash']).hex()
-            block_height = block['blockHeight']
-        return block_hash, block_height, block
+    def _fill_block_from_net(self, block) -> SolanaBlockDBInfo:
+        opts = {"commitment": "confirmed", "transactionDetails": "signatures", "rewards": False}
+        net_block = self._client._provider.make_request("getBlock", block.slot, opts)
+        if (not net_block) or ('result' not in net_block):
+            return block
+
+        net_block = net_block['result']
+        block.hash = '0x' + base58.b58decode(net_block['blockhash']).hex()
+        block.height = net_block['blockHeight']
+        block.signs = net_block['signatures']
+        block.parent_hash = '0x' + base58.b58decode(net_block['previousBlockhash']).hex()
+        block.time = net_block['blockTime']
+        self._blocks_db.set_block(block)
+        return block
+
+    def get_block_by_slot(self, slot) -> SolanaBlockDBInfo:
+        block = self._blocks_db.get_block_by_slot(slot)
+        if not block.hash:
+            self._fill_block_from_net(block)
+        return block
+
+    def get_full_block_by_slot(self, slot) -> SolanaBlockDBInfo:
+        block = self._blocks_db.get_full_block_by_slot(slot)
+        if not block.parent_hash:
+            self._fill_block_from_net(block)
+        return block
 
     def get_last_block_slot(self):
-        return self.constants['last_block_slot']
+        return self._constants['last_block_slot']
 
     def get_last_block_height(self):
-        return self.constants['last_block_height']
+        return self._constants['last_block_height']
 
     def set_last_slot_height(self, slot, height):
-        self.constants['last_block_slot'] = slot
-        self.constants['last_block_height'] = height
+        self._constants['last_block_slot'] = slot
+        self._constants['last_block_height'] = height
 
-    def fill_block_height(self, height, slots):
-        for slot in slots:
-            self.blocks_height_slot[height] = slot
-            height += 1
+    def fill_block_height(self, number, slots):
+        self._blocks_db.fill_block_height(number, slots)
 
     def get_min_receipt_slot(self):
-        return self.constants['min_receipt_slot']
+        return self._constants['min_receipt_slot']
 
     def set_min_receipt_slot(self, slot):
-        self.constants['min_receipt_slot'] = slot
+        self._constants['min_receipt_slot'] = slot
 
     def get_logs(self, fromBlock, toBlock, address, topics, blockHash):
-        return self.logs_db.get_logs(fromBlock, toBlock, address, topics, blockHash)
+        return self._logs_db.get_logs(fromBlock, toBlock, address, topics, blockHash)
 
-    def get_slot_by_hash(self, block_hash):
-        return self.blocks_by_hash.get(block_hash, None)
+    def get_block_by_hash(self, block_hash):
+        return self._blocks_db.get_block_by_hash(block_hash)
 
-    def get_slot_by_number(self, block_number):
-        return self.blocks_height_slot.get(block_number, None)
+    def get_block_by_height(self, block_height):
+        return self._blocks_db.get_block_by_height(block_height)
 
-    def get_eth_trx_sig_by_signature(self, signature):
-        return self.sol_eth_trx.get(signature, None)
+    def get_tx_by_sol_sign(self, sol_sign):
+        tx = self._txs_db.get_tx_by_sol_sign(sol_sign)
+        if tx:
+            tx.block = self.get_block_by_slot(tx.neon_res.slot)
+        return tx
 
-    def get_eth_trx(self, trx_hash):
-        return self.ethereum_trx.get(trx_hash, None)
+    def get_tx_by_neon_sign(self, neon_sign) -> NeonTxDBInfo:
+        tx = self._txs_db.get_tx_by_neon_sign(neon_sign)
+        if tx:
+            tx.block = self.get_block_by_slot(tx.neon_res.slot)
+        return tx
+
+    def del_not_finalized(self, from_slot: int, to_slot: int):
+        for d in [self._logs_db, self._blocks_db, self._txs_db]:
+            d.del_not_finalized(from_slot=from_slot, to_slot=to_slot)

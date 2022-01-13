@@ -17,7 +17,7 @@ except ImportError:
 PARALLEL_REQUESTS = int(os.environ.get("PARALLEL_REQUESTS", "2"))
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 DEVNET_HISTORY_START = "7BdwyUQ61RUZP63HABJkbW66beLk22tdXnP69KsvQBJekCPVaHoJY47Rw68b3VV1UbQNHxX3uxUSLfiJrfy2bTn"
 HISTORY_START = [DEVNET_HISTORY_START]
