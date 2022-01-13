@@ -260,7 +260,7 @@ class Threadless(ABC, Generic[T]):
         Returned boolean value indicates whether there is
         a newly accepted work waiting to be received and
         queued for processing.  This is only applicable when
-        :class:`~proxy.core.acceptor.threadless.Threadless.work_queue_fileno`
+        :class:`~proxy.core.work.threadless.Threadless.work_queue_fileno`
         returns a valid fd.
         """
         assert self.selector is not None

@@ -59,7 +59,7 @@ class AcceptorPool:
             while True:
                 time.sleep(1)
 
-    `flags.work_klass` must implement `work.Work` class.
+    `flags.work_klass` must implement :py:class:`~proxy.core.work.Work` class.
     """
 
     def __init__(
