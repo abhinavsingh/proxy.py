@@ -40,21 +40,33 @@ PROXY_PY_FLAGS_TLS_INTERCEPTION = (
 )
 
 PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = (
-    ('--threadless --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-     TLS_INTERCEPTION_FLAGS),
-    ('--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-     TLS_INTERCEPTION_FLAGS),
-    ('--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-     TLS_INTERCEPTION_FLAGS),
+    (
+        '--threadless --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
+        TLS_INTERCEPTION_FLAGS
+    ),
+    (
+        '--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
+        TLS_INTERCEPTION_FLAGS
+    ),
+    (
+        '--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
+        TLS_INTERCEPTION_FLAGS
+    ),
 )
 
 PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
-    ('--threadless --plugin proxy.plugin.ModifyPostDataPlugin ' +
-     TLS_INTERCEPTION_FLAGS),
-    ('--threadless --local-executor 0 --plugin proxy.plugin.ModifyPostDataPlugin ' +
-     TLS_INTERCEPTION_FLAGS),
-    ('--threaded --plugin proxy.plugin.ModifyPostDataPlugin ' +
-     TLS_INTERCEPTION_FLAGS),
+    (
+        '--threadless --plugin proxy.plugin.ModifyPostDataPlugin ' +
+        TLS_INTERCEPTION_FLAGS
+    ),
+    (
+        '--threadless --local-executor 0 --plugin proxy.plugin.ModifyPostDataPlugin ' +
+        TLS_INTERCEPTION_FLAGS
+    ),
+    (
+        '--threaded --plugin proxy.plugin.ModifyPostDataPlugin ' +
+        TLS_INTERCEPTION_FLAGS
+    ),
 )
 
 
@@ -125,7 +137,7 @@ def test_integration(proxy_py_subprocess: int) -> None:
 )  # type: ignore[misc]
 def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
     """An acceptance test for TLS interception using ``curl`` through proxy.py."""
-    shell_script_test = Path(__file__).parent / "test_interception.sh"
+    shell_script_test = Path(__file__).parent / 'test_interception.sh'
     check_output([str(shell_script_test), str(proxy_py_subprocess)])
 
 
@@ -142,7 +154,7 @@ def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
 def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test for :py:class:`~proxy.plugin.ModifyChunkResponsePlugin`
     interception using ``curl`` through proxy.py."""
-    shell_script_test = Path(__file__).parent / "test_modify_chunk_response.sh"
+    shell_script_test = Path(__file__).parent / 'test_modify_chunk_response.sh'
     check_output([str(shell_script_test), str(proxy_py_subprocess)])
 
 
@@ -159,5 +171,5 @@ def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
 def test_modify_post_response_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test for :py:class:`~proxy.plugin.ModifyPostDataPlugin`
     interception using ``curl`` through proxy.py."""
-    shell_script_test = Path(__file__).parent / "test_modify_post_data.sh"
+    shell_script_test = Path(__file__).parent / 'test_modify_post_data.sh'
     check_output([str(shell_script_test), str(proxy_py_subprocess)])
