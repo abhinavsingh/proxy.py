@@ -31,5 +31,4 @@ htmlcov
 dist
 build
 
-proxy/public
 profile.svg
