@@ -35,47 +35,47 @@ CONTRACT_SOURCE = '''
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.0;
 
-contract QueryAccount {
+library QueryAccount {
     address constant precompiled = 0xff00000000000000000000000000000000000002;
 
     // Takes a Solana address, treats it as an address of an account.
     // Puts the metadata and a chunk of data into the cache.
-    function cache(uint256 solana_address, uint64 offset, uint64 len) public returns (bool) {
+    function cache(uint256 solana_address, uint64 offset, uint64 len) internal returns (bool) {
         (bool success, bytes memory _dummy) = precompiled.staticcall(abi.encodeWithSignature("cache(uint256,uint64,uint64)", solana_address, offset, len));
         return success;
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the account's owner Solana address (32 bytes).
-    function owner(uint256 solana_address) public view returns (bool, uint256) {
+    function owner(uint256 solana_address) internal view returns (bool, uint256) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("owner(uint256)", solana_address));
         return (success, to_uint256(result));
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the length of the account's data (8 bytes).
-    function length(uint256 solana_address) public view returns (bool, uint256) {
+    function length(uint256 solana_address) internal view returns (bool, uint256) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("length(uint256)", solana_address));
         return (success, to_uint256(result));
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the funds in lamports of the account.
-    function lamports(uint256 solana_address) public view returns (bool, uint256) {
+    function lamports(uint256 solana_address) internal view returns (bool, uint256) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("lamports(uint256)", solana_address));
         return (success, to_uint256(result));
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the executable flag of the account.
-    function executable(uint256 solana_address) public view returns (bool, bool) {
+    function executable(uint256 solana_address) internal view returns (bool, bool) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("executable(uint256)", solana_address));
         return (success, to_bool(result));
     }
 
     // Takes a Solana address, treats it as an address of an account.
     // Returns the rent epoch of the account.
-    function rent_epoch(uint256 solana_address) public view returns (bool, uint256) {
+    function rent_epoch(uint256 solana_address) internal view returns (bool, uint256) {
         (bool success, bytes memory result) = precompiled.staticcall(abi.encodeWithSignature("rent_epoch(uint256)", solana_address));
         return (success, to_uint256(result));
     }
@@ -83,7 +83,7 @@ contract QueryAccount {
     // Takes a Solana address, treats it as an address of an account,
     // also takes an offset and length of the account's data.
     // Returns a chunk of the data (length bytes).
-    function data(uint256 solana_address, uint64 offset, uint64 len) public view returns (bool, bytes memory) {
+    function data(uint256 solana_address, uint64 offset, uint64 len) internal view returns (bool, bytes memory) {
         return precompiled.staticcall(abi.encodeWithSignature("data(uint256,uint64,uint64)", solana_address, offset, len));
     }
 
@@ -100,38 +100,38 @@ contract QueryAccount {
     }
 }
 
-contract TestQueryAccount is QueryAccount {
+contract TestQueryAccount {
     uint256 constant solana_account = 110178555362476360822489549210862241441608066866019832842197691544474470948129;
     uint256 constant missing_account = 90000;
     uint64 constant golden_data_len = 82;
 
     function test_cache() public returns (bool) {
         // Put
-        bool ok = super.cache(solana_account, 0, 64);
+        bool ok = QueryAccount.cache(solana_account, 0, 64);
         if (!ok) { return false; }
 
         // Replace
-        ok = super.cache(solana_account, 0, golden_data_len);
+        ok = QueryAccount.cache(solana_account, 0, golden_data_len);
         if (!ok) { return false; }
 
         // Zero length
-        ok = super.cache(solana_account, 0, 0);
+        ok = QueryAccount.cache(solana_account, 0, 0);
         if (ok) { return false; }
 
         // Length more than maximal limit (8kB)
-        ok = super.cache(solana_account, 0, 10*1024);
+        ok = QueryAccount.cache(solana_account, 0, 10*1024);
         if (ok) { return false; }
 
         // Length more than length of the account data
-        ok = super.cache(solana_account, 0, 200);
+        ok = QueryAccount.cache(solana_account, 0, 200);
         if (ok) { return false; }
 
         // Offset too big
-        ok = super.cache(solana_account, 200, 16);
+        ok = QueryAccount.cache(solana_account, 200, 16);
         if (ok) { return false; }
 
         // Nonexistent account
-        ok = super.cache(missing_account, 0, 1);
+        ok = QueryAccount.cache(missing_account, 0, 1);
         if (ok) { return false; }
 
         return true;
@@ -143,29 +143,29 @@ contract TestQueryAccount is QueryAccount {
         bool _b;
         bytes memory _m;
 
-        (ok, _u) = super.owner(solana_account);
+        (ok, _u) = QueryAccount.owner(solana_account);
         if (ok) { return false; }
 
-        (ok, _u) = super.length(solana_account);
+        (ok, _u) = QueryAccount.length(solana_account);
         if (ok) { return false; }
 
-        (ok, _u) = super.lamports(solana_account);
+        (ok, _u) = QueryAccount.lamports(solana_account);
         if (ok) { return false; }
 
-        (ok, _b) = super.executable(solana_account);
+        (ok, _b) = QueryAccount.executable(solana_account);
         if (ok) { return false; }
 
-        (ok, _u) = super.rent_epoch(solana_account);
+        (ok, _u) = QueryAccount.rent_epoch(solana_account);
         if (ok) { return false; }
 
-        (ok, _m) = super.data(solana_account, 0, 1);
+        (ok, _m) = QueryAccount.data(solana_account, 0, 1);
         if (ok) { return false; }
 
         return true;
     }
 
     function test_metadata_ok() public returns (bool) {
-        bool ok = super.cache(solana_account, 0, 64);
+        bool ok = QueryAccount.cache(solana_account, 0, 64);
         if (!ok) { return false; }
 
         uint256 golden_owner = 3106054211088883198575105191760876350940303353676611666299516346430146937001;
@@ -173,31 +173,31 @@ contract TestQueryAccount is QueryAccount {
         bool golden_exec = false;
 
         uint256 ownr;
-        (ok, ownr) = super.owner(solana_account);
+        (ok, ownr) = QueryAccount.owner(solana_account);
         if (!ok || ownr != golden_owner) {
             return false;
         }
 
         uint len;
-        (ok, len) = super.length(solana_account);
+        (ok, len) = QueryAccount.length(solana_account);
         if (!ok || len != golden_data_len) {
             return false;
         }
 
         uint256 lamp;
-        (ok, lamp) = super.lamports(solana_account);
+        (ok, lamp) = QueryAccount.lamports(solana_account);
         if (!ok || lamp != golden_lamp) {
             return false;
         }
 
         bool exec;
-        (ok, exec) = super.executable(solana_account);
+        (ok, exec) = QueryAccount.executable(solana_account);
         if (!ok || exec != golden_exec) {
             return false;
         }
 
         uint256 _repoch; // epoch may change, so there is no golden value
-        (ok, _repoch) = super.rent_epoch(solana_account);
+        (ok, _repoch) = QueryAccount.rent_epoch(solana_account);
         if (!ok) {
             return false;
         }
@@ -206,7 +206,7 @@ contract TestQueryAccount is QueryAccount {
     }
 
     function test_data_ok() public returns (bool) {
-        bool ok = super.cache(solana_account, 0, golden_data_len);
+        bool ok = QueryAccount.cache(solana_account, 0, golden_data_len);
         if (!ok) { return false; }
 
         bytes1[golden_data_len] memory golden =
@@ -227,7 +227,7 @@ contract TestQueryAccount is QueryAccount {
         // Get full data
         len = golden_data_len;
         offset = 0;
-        (ok, result) = super.data(solana_account, offset, len);
+        (ok, result) = QueryAccount.data(solana_account, offset, len);
         if (!ok || !equals(result, golden, offset, len)) {
             return false;
         }
@@ -235,7 +235,7 @@ contract TestQueryAccount is QueryAccount {
         // Get mid-subset of data
         len = 40;
         offset = 20;
-        (ok, result) = super.data(solana_account, offset, len);
+        (ok, result) = QueryAccount.data(solana_account, offset, len);
         if (!ok || !equals(result, golden, offset, len)) {
             return false;
         }
@@ -243,7 +243,7 @@ contract TestQueryAccount is QueryAccount {
         // Get head of data
         len = 40;
         offset = 0;
-        (ok, result) = super.data(solana_account, offset, len);
+        (ok, result) = QueryAccount.data(solana_account, offset, len);
         if (!ok || !equals(result, golden, offset, len)) {
             return false;
         }
@@ -251,7 +251,7 @@ contract TestQueryAccount is QueryAccount {
         // Get tail of data
         len = 40;
         offset = golden_data_len - len;
-        (ok, result) = super.data(solana_account, offset, len);
+        (ok, result) = QueryAccount.data(solana_account, offset, len);
         if (!ok || !equals(result, golden, offset, len)) {
             return false;
         }
@@ -260,7 +260,7 @@ contract TestQueryAccount is QueryAccount {
     }
 
     function test_data_wrong_range() public returns (bool) {
-        bool ok = super.cache(solana_account, 30, 20);
+        bool ok = QueryAccount.cache(solana_account, 30, 20);
         if (!ok) { return false; }
 
         uint64 len;
@@ -270,37 +270,37 @@ contract TestQueryAccount is QueryAccount {
         // Query empty chunk
         len = 0;
         offset = 35;
-        (ok, _m) = super.data(solana_account, offset, len);
+        (ok, _m) = QueryAccount.data(solana_account, offset, len);
         if (ok) { return false; }
 
         // Query chunk wholly before the cached region
         len = 10;
         offset = 1;
-        (ok, _m) = super.data(solana_account, offset, len);
+        (ok, _m) = QueryAccount.data(solana_account, offset, len);
         if (ok) { return false; }
 
         // Query chunk wholly after the cached region
         len = 10;
         offset = 55;
-        (ok, _m) = super.data(solana_account, offset, len);
+        (ok, _m) = QueryAccount.data(solana_account, offset, len);
         if (ok) { return false; }
 
         // Query chunk overlapping the head of the cached region
         len = 20;
         offset = 20;
-        (ok, _m) = super.data(solana_account, offset, len);
+        (ok, _m) = QueryAccount.data(solana_account, offset, len);
         if (ok) { return false; }
 
         // Query chunk overlapping the tail of the cached region
         len = 20;
         offset = 40;
-        (ok, _m) = super.data(solana_account, offset, len);
+        (ok, _m) = QueryAccount.data(solana_account, offset, len);
         if (ok) { return false; }
 
         // Query big chunk overlapping entire cached region
         len = 40;
         offset = 20;
-        (ok, _m) = super.data(solana_account, offset, len);
+        (ok, _m) = QueryAccount.data(solana_account, offset, len);
         if (ok) { return false; }
 
         return true;
