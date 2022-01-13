@@ -26,7 +26,7 @@
   "homepage": "https://github.com/abhinavsingh/proxy.py#readme",
   "devDependencies": {
     "@types/jasmine": "^3.10.2",
-    "@types/jquery": "^3.5.4",
+    "@types/jquery": "^3.5.13",
     "@types/js-cookie": "^3.0.1",
     "@typescript-eslint/eslint-plugin": "^2.34.0",
     "@typescript-eslint/parser": "^2.34.0",
