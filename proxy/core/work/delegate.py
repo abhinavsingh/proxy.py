@@ -19,7 +19,7 @@ from typing import Optional, Tuple
 def delegate_work_to_pool(
         worker_pid: int,
         work_queue: connection.Connection,
-        work_lock: 'multiprocessing.synchronize.Lock',
+        work_lock: multiprocessing.synchronize.Lock,
         conn: socket.socket,
         addr: Optional[Tuple[str, int]],
         unix_socket_path: Optional[str] = None,
