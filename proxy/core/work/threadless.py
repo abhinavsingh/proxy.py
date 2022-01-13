@@ -64,7 +64,7 @@ class Threadless(ABC, Generic[T]):
             iid: str,
             work_queue: T,
             flags: argparse.Namespace,
-            event_queue: Optional[EventQueue] = None,
+            event_queue: Optional['EventQueue'] = None,
     ) -> None:
         super().__init__()
         self.iid = iid
