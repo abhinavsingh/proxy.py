@@ -70,7 +70,7 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
 )
 
 
-@pytest.fixture(scope='module', autouse=True)  # type: ignore[misc]
+@pytest.fixture(scope='session', autouse=True)  # type: ignore[misc]
 def _gen_ca_certificates() -> None:
     check_output(['make', 'ca-certificates'])
 
@@ -96,6 +96,8 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--port', '0',
         '--port-file', str(port_file),
         '--enable-web-server',
+        '--num-acceptors', '3',
+        '--num-workers', '3',
     ) + tuple(request.param.split())
     proxy_proc = Popen(proxy_cmd)
     # Needed because port file might not be available immediately
