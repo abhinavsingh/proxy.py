@@ -18,7 +18,7 @@ import selectors
 from abc import abstractmethod
 from typing import Any, Optional
 
-from ...core.acceptor import Work
+from ...core.work import Work
 from ...core.connection import TcpClientConnection
 from ...common.types import Readables, SelectableEvents, Writables
 

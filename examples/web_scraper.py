@@ -12,7 +12,7 @@ import time
 
 from proxy import Proxy
 from proxy.common.types import Readables, Writables, SelectableEvents
-from proxy.core.acceptor import Work
+from proxy.core.work import Work
 from proxy.core.connection import TcpClientConnection
 
 
