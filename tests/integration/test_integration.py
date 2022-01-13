@@ -70,9 +70,9 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
 )
 
 
-@pytest.fixture(scope="module", autouse=True)  # type: ignore[misc]
+@pytest.fixture(scope='module', autouse=True)  # type: ignore[misc]
 def gen_ca_certificates() -> None:
-    check_output(["make", "ca-certificates"])
+    check_output(['make', 'ca-certificates'])
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
