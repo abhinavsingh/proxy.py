@@ -83,7 +83,7 @@ class ThreadlessPool:
         # Threadless worker communication states
         self.work_queues: List[connection.Connection] = []
         self.work_pids: List[int] = []
-        self.work_locks: List[multiprocessing.synchronize.Lock] = []
+        self.work_locks: List['multiprocessing.synchronize.Lock'] = []
         # List of threadless workers
         self._workers: List[RemoteExecutor] = []
         self._processes: List[multiprocessing.Process] = []
@@ -99,7 +99,7 @@ class ThreadlessPool:
     def delegate(
             worker_pid: int,
             work_queue: connection.Connection,
-            work_lock: multiprocessing.synchronize.Lock,
+            work_lock: 'multiprocessing.synchronize.Lock',
             conn: socket.socket,
             addr: Optional[Tuple[str, int]],
             unix_socket_path: Optional[str] = None,

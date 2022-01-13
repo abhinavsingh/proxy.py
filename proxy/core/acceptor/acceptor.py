@@ -71,11 +71,11 @@ class Acceptor(multiprocessing.Process):
             idd: int,
             fd_queue: connection.Connection,
             flags: argparse.Namespace,
-            lock: multiprocessing.synchronize.Lock,
+            lock: 'multiprocessing.synchronize.Lock',
             # semaphore: multiprocessing.synchronize.Semaphore,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
-            executor_locks: List[multiprocessing.synchronize.Lock],
+            executor_locks: List['multiprocessing.synchronize.Lock'],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
