@@ -18,7 +18,7 @@ import selectors
 import multiprocessing
 
 from abc import abstractmethod, ABC
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, SelectableEvents, Writables
@@ -29,6 +29,8 @@ from ..connection import TcpClientConnection, UpstreamConnectionPool
 from ..event import eventNames
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from ..event import EventQueue
     from .work import Work
 
