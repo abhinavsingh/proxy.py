@@ -16,8 +16,10 @@ import logging
 
 from typing import List, Optional, Any
 
-from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
+from .core.work import ThreadlessPool
 from .core.event import EventManager
+from .core.acceptor import AcceptorPool, Listener
+
 from .common.utils import bytes_
 from .common.flag import FlagParser, flags
 from .common.constants import DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL, IS_WINDOWS
