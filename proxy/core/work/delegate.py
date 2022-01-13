@@ -8,19 +8,20 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import socket
-import multiprocessing
+from typing import TYPE_CHECKING, Optional, Tuple
 
-from multiprocessing import connection
+if TYPE_CHECKING:
+    import socket
+    import multiprocessing
+    from multiprocessing import connection
 from multiprocessing.reduction import send_handle
-from typing import Optional, Tuple
 
 
 def delegate_work_to_pool(
         worker_pid: int,
-        work_queue: connection.Connection,
-        work_lock: multiprocessing.synchronize.Lock,
-        conn: socket.socket,
+        work_queue: 'connection.Connection',
+        work_lock: 'multiprocessing.synchronize.Lock',
+        conn: 'socket.socket',
         addr: Optional[Tuple[str, int]],
         unix_socket_path: Optional[str] = None,
 ) -> None:
