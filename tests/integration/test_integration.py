@@ -71,7 +71,7 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
 
 
 @pytest.fixture(scope='module', autouse=True)  # type: ignore[misc]
-def gen_ca_certificates() -> None:
+def _gen_ca_certificates() -> None:
     check_output(['make', 'ca-certificates'])
 
 

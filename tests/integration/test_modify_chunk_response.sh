@@ -76,7 +76,7 @@ plugin
 EOM
 
 echo "[Test ModifyChunkResponsePlugin]"
-CMD="curl -v -x $PROXY_URL --cacert ca-cert.pem http://httpbin.org/stream/5"
+CMD="curl -v -x $PROXY_URL --cacert ca-cert.pem https://httpbin.org/stream/5"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$MODIFIED_CHUNK_RESPONSE"
 VERIFIED1=$?

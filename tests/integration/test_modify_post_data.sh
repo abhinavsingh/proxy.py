@@ -90,7 +90,7 @@ read -r -d '' MODIFIED_POST_DATA << EOM
 EOM
 
 echo "[Test ModifyPostDataPlugin]"
-CMD="curl -v -x $PROXY_URL --cacert ca-cert.pem -d '{\"key\": \"value\"}' http://httpbin.org/post"
+CMD="curl -v -x $PROXY_URL --cacert ca-cert.pem -d '{\"key\": \"value\"}' https://httpbin.org/post"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$MODIFIED_POST_DATA"
 VERIFIED1=$?
