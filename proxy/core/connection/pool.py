@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Set, Dict, Tuple
 from ...common.flag import flags
 from ...common.types import Readables, SelectableEvents, Writables
 
-from ..acceptor.work import Work
+from ..work import Work
 
 from .server import TcpServerConnection
 

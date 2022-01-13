@@ -32,8 +32,7 @@ from ...common.constants import DEFAULT_LOCAL_EXECUTOR
 
 from ..event import EventQueue
 
-from .local import LocalExecutor
-from .executors import ThreadlessPool
+from ..work import LocalExecutor, ThreadlessPool
 
 logger = logging.getLogger(__name__)
 
