@@ -12,8 +12,8 @@ import socket
 import multiprocessing
 
 from multiprocessing import connection
-from typing import Optional, Tuple
 from multiprocessing.reduction import send_handle
+from typing import Optional, Tuple
 
 
 def delegate_work_to_pool(
