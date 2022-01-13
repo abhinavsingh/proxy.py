@@ -9,12 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 from typing import TYPE_CHECKING, Optional, Tuple
+from multiprocessing.reduction import send_handle
 
 if TYPE_CHECKING:
     import socket
     import multiprocessing
     from multiprocessing import connection
-from multiprocessing.reduction import send_handle
 
 
 def delegate_work_to_pool(
