@@ -526,9 +526,6 @@ jobs:
         --installpkg 'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
         --notest
       shell: bash
-    - name: Generate CA certificates
-      run: >-
-        make ca-certificates
     - name: Run the testing
       run: >-
         python -m

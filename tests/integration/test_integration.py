@@ -11,12 +11,12 @@
     Test the simplest proxy use scenario for smoke.
 """
 import time
-import tempfile
-from typing import Any, Generator
-from pathlib import Path
-from subprocess import Popen, check_output
-
 import pytest
+import tempfile
+
+from pathlib import Path
+from typing import Any, Generator
+from subprocess import Popen, check_output
 
 from proxy.common.constants import IS_WINDOWS
 
@@ -56,6 +56,11 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
     ('--threaded --plugin proxy.plugin.ModifyPostDataPlugin ' +
      TLS_INTERCEPTION_FLAGS),
 )
+
+
+@pytest.fixture(scope="module", autouse=True)  # type: ignore[misc]
+def gen_ca_certificates() -> None:
+    check_output(["make", "ca-certificates"])
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
