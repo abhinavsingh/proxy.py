@@ -1,5 +1,4 @@
 from unittest import TestCase
-
 from solana.rpc.api import Client as SolanaClient
 from solana.account import Account as SolanaAccount
 from spl.token.client import Token as SplToken
@@ -18,6 +17,7 @@ from time import sleep
 from web3 import Web3
 import os
 import json
+
 
 MAX_AIRDROP_WAIT_TIME = 45
 EVM_LOADER_ID = PublicKey(EVM_LOADER_ID)
@@ -201,3 +201,25 @@ class TestAirdropperIntegration(TestCase):
         print("NEON balance 2 is: ", eth_balance2)
         self.assertTrue(eth_balance1 > 0 and eth_balance1 < 10 * pow(10, 18))  # 10 NEON is a max airdrop amount
         self.assertTrue(eth_balance2 > 0 and eth_balance2 < 10 * pow(10, 18))  # 10 NEON is a max airdrop amount
+
+    def test_no_airdrop(self):
+        from_owner = self.create_sol_account()
+        mint_amount = 1000_000_000_000
+        from_spl_token_acc = self.create_token_account(from_owner.public_key(), mint_amount)
+        to_neon_acc = self.create_eth_account().address
+        sleep(15)
+        self.assertEqual(self.wrapper.get_balance(from_spl_token_acc), mint_amount)
+        self.assertEqual(self.wrapper.get_balance(to_neon_acc), 0)
+
+        trx = Transaction()
+        trx.add(self.create_account_instruction(to_neon_acc, from_owner.public_key()))
+        trx.add(self.wrapper.create_neon_erc20_account_instruction(from_owner.public_key(), to_neon_acc))
+        # No input liquidity
+
+        opts = TxOpts(skip_preflight=True, skip_confirmation=False)
+        print(self.solana_client.send_transaction(trx, from_owner, opts=opts))
+
+        sleep(15)
+        eth_balance = proxy.eth.get_balance(to_neon_acc)
+        print("NEON balance is: ", eth_balance)
+        self.assertEqual(eth_balance, 0)
