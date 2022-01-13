@@ -68,31 +68,30 @@ verify_response() {
     fi;
 }
 
-read -r -d '' MODIFIED_POST_DATA << EOM
-{
-  "args": {},
-  "data": "{\"key\": \"modified\"}",
-  "files": {},
-  "form": {},
-  "headers": {
-    "Accept": "*/*",
-    "Content-Length": "19",
-    "Content-Type": "application/json",
-    "Host": "httpbin.org",
-    "User-Agent": "curl/7.54.0"
-  },
-  "json": {
-    "key": "modified"
-  },
-  "origin": "1.2.3.4, 5.6.7.8",
-  "url": "https://httpbin.org/post"
+verify_contains() {
+    if [ "$1" == "" ];
+    then
+        echo "Empty response";
+        return 1;
+    else
+        if [[ "$1" == *"$2"* ]];
+        then
+            echo "Ok";
+            return 0;
+        else
+            echo "Invalid response: '$1', expected: '$2'";
+            return 1;
+        fi
+    fi;
 }
+
+read -r -d '' MODIFIED_POST_DATA << EOM
+"key": "modified"
 EOM
 
 echo "[Test ModifyPostDataPlugin]"
-CMD="curl -v -x $PROXY_URL --cacert ca-cert.pem -d '{\"key\": \"value\"}' https://httpbin.org/post"
-RESPONSE=$($CMD 2> /dev/null)
-verify_response "$RESPONSE" "$MODIFIED_POST_DATA"
+RESPONSE=$(curl -v -x $PROXY_URL --cacert ca-cert.pem -d '{"key": "value"}' https://httpbin.org/post 2> /dev/null)
+verify_contains "$RESPONSE" "$MODIFIED_POST_DATA"
 VERIFIED1=$?
 
 EXIT_CODE=$(( $VERIFIED1 ))
