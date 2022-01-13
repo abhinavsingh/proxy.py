@@ -312,6 +312,7 @@ nitpick_ignore = [
     (_py_class_role, 'Work'),
     (_py_class_role, 'proxy.core.acceptor.work.Work'),
     (_py_class_role, 'connection.Connection'),
+    (_py_class_role, 'EventQueue'),
     (_py_obj_role, 'proxy.core.work.threadless.T'),
     (_py_obj_role, 'proxy.core.work.work.T'),
 ]
