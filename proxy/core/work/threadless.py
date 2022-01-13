@@ -18,7 +18,7 @@ import selectors
 import multiprocessing
 
 from abc import abstractmethod, ABC
-from typing import Any, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, SelectableEvents, Writables
@@ -26,9 +26,13 @@ from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_S
 from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
 from ..connection import TcpClientConnection, UpstreamConnectionPool
-from ..event import eventNames, EventQueue
+from ..event import eventNames
 
-from .work import Work
+if TYPE_CHECKING:
+    from typing import Any
+
+    from ..event import EventQueue
+    from .work import Work
 
 T = TypeVar('T')
 
@@ -62,7 +66,7 @@ class Threadless(ABC, Generic[T]):
             iid: str,
             work_queue: T,
             flags: argparse.Namespace,
-            event_queue: Optional[EventQueue] = None,
+            event_queue: Optional['EventQueue'] = None,
     ) -> None:
         super().__init__()
         self.iid = iid
@@ -71,7 +75,7 @@ class Threadless(ABC, Generic[T]):
         self.event_queue = event_queue
 
         self.running = multiprocessing.Event()
-        self.works: Dict[int, Work[Any]] = {}
+        self.works: Dict[int, 'Work[Any]'] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         # If we remove single quotes for typing hint below,
         # runtime exceptions will occur for < Python 3.9.

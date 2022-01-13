@@ -13,15 +13,15 @@ import argparse
 import multiprocessing
 
 from multiprocessing import connection
-
-from typing import Any, Optional, List
+from typing import TYPE_CHECKING, Any, Optional, List
 
 from .remote import RemoteExecutor
 
-from ..event import EventQueue
-
 from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
+
+if TYPE_CHECKING:
+    from ..event import EventQueue
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class ThreadlessPool:
     def __init__(
         self,
         flags: argparse.Namespace,
-        event_queue: Optional[EventQueue] = None,
+        event_queue: Optional['EventQueue'] = None,
     ) -> None:
         self.flags = flags
         self.event_queue = event_queue

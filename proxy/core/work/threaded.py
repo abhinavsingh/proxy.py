@@ -11,12 +11,14 @@
 import socket
 import argparse
 import threading
-from typing import Optional, Tuple
 
-from .work import Work
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
+
+if TYPE_CHECKING:
+    from .work import Work
 
 
 def start_threaded_work(
@@ -25,7 +27,7 @@ def start_threaded_work(
         addr: Optional[Tuple[str, int]],
         event_queue: Optional[EventQueue] = None,
         publisher_id: Optional[str] = None,
-) -> Tuple[Work[TcpClientConnection], threading.Thread]:
+) -> Tuple['Work[TcpClientConnection]', threading.Thread]:
     """Utility method to start a work in a new thread."""
     work = flags.work_klass(
         TcpClientConnection(conn, addr),
