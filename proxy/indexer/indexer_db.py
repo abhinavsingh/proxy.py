@@ -47,8 +47,8 @@ class IndexerDB:
             logger.debug(f"{neon_tx.sign} {neon_res.status}")
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
-            logger.warning(
-                f'Got exception while indexing. Type(err): {type(err)}, Exception: {err}, Traceback: {err_tb}')
+            logger.warning('Exception on submitting transaction. ' +
+                           f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
     def _fill_block_from_net(self, block) -> SolanaBlockDBInfo:
         opts = {"commitment": "confirmed", "transactionDetails": "signatures", "rewards": False}

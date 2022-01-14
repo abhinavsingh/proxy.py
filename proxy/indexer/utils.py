@@ -210,7 +210,7 @@ class NeonTxInfo:
 
             return None
         except Exception as e:
-            logger.warning(f'RLP decoding error: {e}')
+            logger.warning(f'Exception on RLP decoding: {e}')
             self.error = e
             return self.error
 
