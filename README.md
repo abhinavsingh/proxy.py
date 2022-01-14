@@ -1326,19 +1326,7 @@ if __name__ == '__main__':
   proxy.main()
 ```
 
-Customize startup flags by passing list of input arguments:
-
-```python
-import proxy
-
-if __name__ == '__main__':
-  proxy.main([
-    '--hostname', '::1',
-    '--port', '8899'
-  ])
-```
-
-or, customize startup flags by passing them as kwargs:
+Customize startup flags by passing them as kwargs:
 
 ```python
 import ipaddress
@@ -1354,7 +1342,8 @@ if __name__ == '__main__':
 Note that:
 
 1. Calling `main` is simply equivalent to starting `proxy.py` from command line.
-2. `main` will block until `proxy.py` shuts down.
+2. `main` doesn't accept any `*args`. It will automatically parse any available `sys.argv`.
+3. `main` will block until `proxy.py` shuts down.
 
 ## Non-blocking Mode
 
@@ -1365,7 +1354,7 @@ by using `Proxy` context manager: Example:
 import proxy
 
 if __name__ == '__main__':
-  with proxy.Proxy([]) as p:
+  with proxy.Proxy() as p:
     # ... your logic here ...
 ```
 
@@ -1375,8 +1364,8 @@ Note that:
 2. Internally `Proxy` is a context manager.
 3. It will start `proxy.py` when called and will shut it down
    once the scope ends.
-4. Just like `main`, startup flags with `Proxy`
-   can be customized by either passing flags as list of
+4. However, unlike `main`, startup flags with `Proxy`
+   can also be customized by either passing flags as list of
    input arguments e.g. `Proxy(['--port', '8899'])` or
    by using passing flags as kwargs e.g. `Proxy(port=8899)`.
 
@@ -1390,7 +1379,7 @@ In embedded mode, you can access this port.  Example:
 import proxy
 
 if __name__ == '__main__':
-  with proxy.Proxy([]) as p:
+  with proxy.Proxy() as p:
     print(p.flags.port)
 ```
 
@@ -1412,9 +1401,7 @@ Example, load a single plugin using `--plugins` flag:
 import proxy
 
 if __name__ == '__main__':
-  proxy.main([
-    '--plugins', 'proxy.plugin.CacheResponsesPlugin',
-  ])
+  proxy.main(plugins=['proxy.plugin.CacheResponsesPlugin'])
 ```
 
 For simplicity, you can also pass the list of plugins as a keyword argument to `proxy.main` or the `Proxy` constructor.
@@ -1426,7 +1413,7 @@ import proxy
 from proxy.plugin import FilterByUpstreamHostPlugin
 
 if __name__ == '__main__':
-  proxy.main([], plugins=[
+  proxy.main(plugins=[
     b'proxy.plugin.CacheResponsesPlugin',
     FilterByUpstreamHostPlugin,
   ])
@@ -1436,8 +1423,7 @@ if __name__ == '__main__':
 
 ## `proxy.TestCase`
 
-To setup and tear down `proxy.py` for your Python `unittest` classes,
-simply use `proxy.TestCase` instead of `unittest.TestCase`.
+To setup and tear down `proxy.py` for your Python `unittest` classes, simply use `proxy.TestCase` instead of `unittest.TestCase`.
 Example:
 
 ```python
