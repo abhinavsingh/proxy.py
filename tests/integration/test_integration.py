@@ -49,10 +49,10 @@ PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = (
         '--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
         TLS_INTERCEPTION_FLAGS
     ),
-    # (
-    #     '--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-    #     TLS_INTERCEPTION_FLAGS
-    # ),
+    (
+        '--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
+        TLS_INTERCEPTION_FLAGS
+    ),
 )
 
 PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
@@ -164,7 +164,7 @@ def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
 )  # type: ignore[misc]
 @pytest.mark.skipif(
-    sys.version_info >= (3, 10),
+    sys.version_info < (3, 10),
     reason='For version < 3.10, GHA integration run into OSError when flushing to clients',
 )  # type: ignore[misc]
 def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
