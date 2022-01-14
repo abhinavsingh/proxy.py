@@ -42,7 +42,7 @@ while true; do
         --max-time 1 \
         --connect-timeout 1 \
         -x $PROXY_URL \
-        --cacert ca-cert.pem \
+        --cacert ca-cert-post.pem \
         http://$PROXY_URL/ 2>/dev/null
     if [[ $? == 0 ]]; then
         break
@@ -73,7 +73,7 @@ read -r -d '' MODIFIED_POST_DATA << EOM
 EOM
 
 echo "[Test ModifyPostDataPlugin]"
-RESPONSE=$(curl -v -x $PROXY_URL --cacert ca-cert.pem -d '{"key": "value"}' https://httpbin.org/post 2> /dev/null)
+RESPONSE=$(curl -v -x $PROXY_URL --cacert ca-cert-post.pem -d '{"key": "value"}' https://httpbin.org/post 2> /dev/null)
 verify_contains "$RESPONSE" "$MODIFIED_POST_DATA"
 VERIFIED1=$?
 

@@ -280,24 +280,29 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
             for plugin in self.plugins.values():
                 raw = plugin.handle_upstream_chunk(raw)
+                if raw is None:
+                    break
 
             # parse incoming response packet
             # only for non-https requests and when
             # tls interception is enabled
-            if not self.request.is_https_tunnel \
-                    or self.tls_interception_enabled:
-                if self.response.is_complete:
-                    self.handle_pipeline_response(raw)
+            if raw is not None:
+                if (
+                    not self.request.is_https_tunnel
+                    or self.tls_interception_enabled
+                ):
+                    if self.response.is_complete:
+                        self.handle_pipeline_response(raw)
+                    else:
+                        # TODO(abhinavsingh): Remove .tobytes after parser is
+                        # memoryview compliant
+                        chunk = raw.tobytes()
+                        self.response.parse(chunk)
+                        self.emit_response_events(len(chunk))
                 else:
-                    # TODO(abhinavsingh): Remove .tobytes after parser is
-                    # memoryview compliant
-                    chunk = raw.tobytes()
-                    self.response.parse(chunk)
-                    self.emit_response_events(len(chunk))
-            else:
-                self.response.total_size += len(raw)
-            # queue raw data for client
-            self.client.queue(raw)
+                    self.response.total_size += len(raw)
+                # queue raw data for client
+                self.client.queue(raw)
         return False
 
     def on_client_connection_close(self) -> None:

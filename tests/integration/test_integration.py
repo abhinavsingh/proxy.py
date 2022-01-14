@@ -10,10 +10,10 @@
 
     Test the simplest proxy use scenario for smoke.
 """
-import sys
 import time
 import pytest
 import tempfile
+import subprocess
 
 from pathlib import Path
 from typing import Any, Generator
@@ -22,11 +22,13 @@ from subprocess import Popen, check_output
 from proxy.common.constants import IS_WINDOWS
 
 
-TLS_INTERCEPTION_FLAGS = ' '.join((
-    '--ca-cert-file', 'ca-cert.pem',
-    '--ca-key-file', 'ca-key.pem',
-    '--ca-signing-key', 'ca-signing-key.pem',
-))
+def _tls_interception_flags(ca_cert_suffix: str = '') -> str:
+    return ' '.join((
+        '--ca-cert-file', 'ca-cert%s.pem' % ca_cert_suffix,
+        '--ca-key-file', 'ca-key%s.pem' % ca_cert_suffix,
+        '--ca-signing-key', 'ca-signing-key%s.pem' % ca_cert_suffix,
+    ))
+
 
 PROXY_PY_FLAGS_INTEGRATION = (
     ('--threadless'),
@@ -35,45 +37,55 @@ PROXY_PY_FLAGS_INTEGRATION = (
 )
 
 PROXY_PY_FLAGS_TLS_INTERCEPTION = (
-    ('--threadless ' + TLS_INTERCEPTION_FLAGS),
-    ('--threadless --local-executor 0 ' + TLS_INTERCEPTION_FLAGS),
-    ('--threaded ' + TLS_INTERCEPTION_FLAGS),
+    ('--threadless ' + _tls_interception_flags()),
+    ('--threadless --local-executor 0 ' + _tls_interception_flags()),
+    ('--threaded ' + _tls_interception_flags()),
 )
 
 PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = (
     (
         '--threadless --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-        TLS_INTERCEPTION_FLAGS
+        _tls_interception_flags('-chunk')
     ),
     (
         '--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-        TLS_INTERCEPTION_FLAGS
+        _tls_interception_flags('-chunk')
     ),
     (
         '--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-        TLS_INTERCEPTION_FLAGS
+        _tls_interception_flags('-chunk')
     ),
 )
 
 PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
     (
         '--threadless --plugin proxy.plugin.ModifyPostDataPlugin ' +
-        TLS_INTERCEPTION_FLAGS
+        _tls_interception_flags('-post')
     ),
     (
         '--threadless --local-executor 0 --plugin proxy.plugin.ModifyPostDataPlugin ' +
-        TLS_INTERCEPTION_FLAGS
+        _tls_interception_flags('-post')
     ),
     (
         '--threaded --plugin proxy.plugin.ModifyPostDataPlugin ' +
-        TLS_INTERCEPTION_FLAGS
+        _tls_interception_flags('-post')
     ),
 )
 
 
 @pytest.fixture(scope='session', autouse=True)  # type: ignore[misc]
-def _gen_ca_certificates() -> None:
-    check_output(['make', 'ca-certificates'])
+def _gen_ca_certificates(request: Any) -> None:
+    check_output([
+        'make', 'ca-certificates',
+    ])
+    check_output([
+        'make', 'ca-certificates',
+        '-e', 'CA_CERT_SUFFIX=-chunk',
+    ])
+    check_output([
+        'make', 'ca-certificates',
+        '-e', 'CA_CERT_SUFFIX=-post',
+    ])
 
 
 # FIXME: Ignore is necessary for as long as pytest hasn't figured out
@@ -104,7 +116,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--ca-cert-dir', str(ca_cert_dir),
         '--log-level', 'd',
     ) + tuple(request.param.split())
-    proxy_proc = Popen(proxy_cmd)
+    proxy_proc = Popen(proxy_cmd, stderr=subprocess.STDOUT)
     # Needed because port file might not be available immediately
     while not port_file.exists():
         time.sleep(1)
@@ -162,10 +174,6 @@ def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
 @pytest.mark.skipif(
     IS_WINDOWS,
     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
-)  # type: ignore[misc]
-@pytest.mark.skipif(
-    sys.version_info < (3, 10),
-    reason='For version < 3.10, GHA integration run into OSError when flushing to clients',
 )  # type: ignore[misc]
 def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test for :py:class:`~proxy.plugin.ModifyChunkResponsePlugin`

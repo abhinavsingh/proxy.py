@@ -42,7 +42,7 @@ while true; do
         --max-time 1 \
         --connect-timeout 1 \
         -x $PROXY_URL \
-        --cacert ca-cert.pem \
+        --cacert ca-cert-chunk.pem \
         http://$PROXY_URL/ 2>/dev/null
     if [[ $? == 0 ]]; then
         break
@@ -76,7 +76,7 @@ plugin
 EOM
 
 echo "[Test ModifyChunkResponsePlugin]"
-RESPONSE=$(curl -v -x $PROXY_URL --cacert ca-cert.pem https://httpbin.org/stream/5 2> /dev/null)
+RESPONSE=$(curl -v -x $PROXY_URL --cacert ca-cert-chunk.pem https://httpbin.org/stream/5 2> /dev/null)
 verify_response "$RESPONSE" "$MODIFIED_CHUNK_RESPONSE"
 VERIFIED1=$?
 

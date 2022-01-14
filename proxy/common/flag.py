@@ -242,12 +242,14 @@ class FlagParser:
             ),
         )
         args.disable_headers = disabled_headers if disabled_headers is not None else DEFAULT_DISABLE_HEADERS
+
         args.certfile = cast(
             Optional[str], opts.get(
                 'cert_file', args.cert_file,
             ),
         )
         args.keyfile = cast(Optional[str], opts.get('key_file', args.key_file))
+
         args.ca_key_file = cast(
             Optional[str], opts.get(
                 'ca_key_file', args.ca_key_file,
@@ -272,6 +274,7 @@ class FlagParser:
                 args.ca_file,
             ),
         )
+
         args.hostname = cast(
             IpAddress,
             opts.get('hostname', ipaddress.ip_address(args.hostname)),
