@@ -250,10 +250,6 @@ class FlagParser:
             ),
         )
         args.keyfile = cast(Optional[str], opts.get('key_file', args.key_file))
-        if args.certfile is not None:
-            assert Path(args.certfile).exists()
-        if args.keyfile is not None:
-            assert Path(args.keyfile).exists()
 
         args.ca_key_file = cast(
             Optional[str], opts.get(
@@ -279,14 +275,6 @@ class FlagParser:
                 args.ca_file,
             ),
         )
-        if args.ca_key_file is not None:
-            assert Path(args.ca_key_file).exists()
-        if args.ca_cert_file is not None:
-            assert Path(args.ca_cert_file).exists()
-        if args.ca_signing_key_file is not None:
-            assert Path(args.ca_signing_key_file).exists()
-        if args.ca_file is not None:
-            assert Path(args.ca_file).exists()
 
         args.hostname = cast(
             IpAddress,

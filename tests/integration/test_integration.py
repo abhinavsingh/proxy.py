@@ -21,7 +21,7 @@ from subprocess import Popen, check_output
 from proxy.common.constants import IS_WINDOWS
 
 
-def _tls_interception_flags(ca_cert_suffix: str = ''):
+def _tls_interception_flags(ca_cert_suffix: str = '') -> str:
     return ' '.join((
         '--ca-cert-file', 'ca-cert%s.pem' % ca_cert_suffix,
         '--ca-key-file', 'ca-key%s.pem' % ca_cert_suffix,
