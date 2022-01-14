@@ -287,8 +287,10 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # only for non-https requests and when
             # tls interception is enabled
             if raw is not None:
-                if (not self.request.is_https_tunnel
-                        or self.tls_interception_enabled):
+                if (
+                    not self.request.is_https_tunnel
+                    or self.tls_interception_enabled
+                ):
                     if self.response.is_complete:
                         self.handle_pipeline_response(raw)
                     else:
