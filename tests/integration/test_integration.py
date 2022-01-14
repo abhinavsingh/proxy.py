@@ -48,10 +48,10 @@ PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = (
         '--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
         TLS_INTERCEPTION_FLAGS
     ),
-    (
-        '--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-        TLS_INTERCEPTION_FLAGS
-    ),
+    # (
+    #     '--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
+    #     TLS_INTERCEPTION_FLAGS
+    # ),
 )
 
 PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
@@ -101,6 +101,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--num-acceptors', '3',
         '--num-workers', '3',
         '--ca-cert-dir', str(ca_cert_dir),
+        '--log-level', 'd',
     ) + tuple(request.param.split())
     proxy_proc = Popen(proxy_cmd)
     # Needed because port file might not be available immediately
@@ -168,18 +169,18 @@ def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
     check_output([str(shell_script_test), str(proxy_py_subprocess)])
 
 
-# @pytest.mark.smoke  # type: ignore[misc]
-# @pytest.mark.parametrize(
-#     'proxy_py_subprocess',
-#     PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN,
-#     indirect=True,
-# )   # type: ignore[misc]
-# @pytest.mark.skipif(
-#     IS_WINDOWS,
-#     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
-# )  # type: ignore[misc]
-# def test_modify_post_response_integration(proxy_py_subprocess: int) -> None:
-#     """An acceptance test for :py:class:`~proxy.plugin.ModifyPostDataPlugin`
-#     interception using ``curl`` through proxy.py."""
-#     shell_script_test = Path(__file__).parent / 'test_modify_post_data.sh'
-#     check_output([str(shell_script_test), str(proxy_py_subprocess)])
+@pytest.mark.smoke  # type: ignore[misc]
+@pytest.mark.parametrize(
+    'proxy_py_subprocess',
+    PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN,
+    indirect=True,
+)   # type: ignore[misc]
+@pytest.mark.skipif(
+    IS_WINDOWS,
+    reason='OSError: [WinError 193] %1 is not a valid Win32 application',
+)  # type: ignore[misc]
+def test_modify_post_response_integration(proxy_py_subprocess: int) -> None:
+    """An acceptance test for :py:class:`~proxy.plugin.ModifyPostDataPlugin`
+    interception using ``curl`` through proxy.py."""
+    shell_script_test = Path(__file__).parent / 'test_modify_post_data.sh'
+    check_output([str(shell_script_test), str(proxy_py_subprocess)])
