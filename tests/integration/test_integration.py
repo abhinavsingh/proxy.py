@@ -127,42 +127,42 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         proxy_proc.wait()
 
 
-# # FIXME: Ignore is necessary for as long as pytest hasn't figured out
-# # FIXME: typing for their fixtures.
-# # Refs:
-# # * https://github.com/pytest-dev/pytest/issues/7469#issuecomment-918345196
-# # * https://github.com/pytest-dev/pytest/issues/3342
-# @pytest.mark.smoke  # type: ignore[misc]
-# @pytest.mark.parametrize(
-#     'proxy_py_subprocess',
-#     PROXY_PY_FLAGS_INTEGRATION,
-#     indirect=True,
-# )   # type: ignore[misc]
-# @pytest.mark.skipif(
-#     IS_WINDOWS,
-#     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
-# )  # type: ignore[misc]
-# def test_integration(proxy_py_subprocess: int) -> None:
-#     """An acceptance test using ``curl`` through proxy.py."""
-#     this_test_module = Path(__file__)
-#     shell_script_test = this_test_module.with_suffix('.sh')
-#     check_output([str(shell_script_test), str(proxy_py_subprocess)])
+# FIXME: Ignore is necessary for as long as pytest hasn't figured out
+# FIXME: typing for their fixtures.
+# Refs:
+# * https://github.com/pytest-dev/pytest/issues/7469#issuecomment-918345196
+# * https://github.com/pytest-dev/pytest/issues/3342
+@pytest.mark.smoke  # type: ignore[misc]
+@pytest.mark.parametrize(
+    'proxy_py_subprocess',
+    PROXY_PY_FLAGS_INTEGRATION,
+    indirect=True,
+)   # type: ignore[misc]
+@pytest.mark.skipif(
+    IS_WINDOWS,
+    reason='OSError: [WinError 193] %1 is not a valid Win32 application',
+)  # type: ignore[misc]
+def test_integration(proxy_py_subprocess: int) -> None:
+    """An acceptance test using ``curl`` through proxy.py."""
+    this_test_module = Path(__file__)
+    shell_script_test = this_test_module.with_suffix('.sh')
+    check_output([str(shell_script_test), str(proxy_py_subprocess)])
 
 
-# @pytest.mark.smoke  # type: ignore[misc]
-# @pytest.mark.parametrize(
-#     'proxy_py_subprocess',
-#     PROXY_PY_FLAGS_TLS_INTERCEPTION,
-#     indirect=True,
-# )   # type: ignore[misc]
-# @pytest.mark.skipif(
-#     IS_WINDOWS,
-#     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
-# )  # type: ignore[misc]
-# def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
-#     """An acceptance test for TLS interception using ``curl`` through proxy.py."""
-#     shell_script_test = Path(__file__).parent / 'test_interception.sh'
-#     check_output([str(shell_script_test), str(proxy_py_subprocess)])
+@pytest.mark.smoke  # type: ignore[misc]
+@pytest.mark.parametrize(
+    'proxy_py_subprocess',
+    PROXY_PY_FLAGS_TLS_INTERCEPTION,
+    indirect=True,
+)   # type: ignore[misc]
+@pytest.mark.skipif(
+    IS_WINDOWS,
+    reason='OSError: [WinError 193] %1 is not a valid Win32 application',
+)  # type: ignore[misc]
+def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
+    """An acceptance test for TLS interception using ``curl`` through proxy.py."""
+    shell_script_test = Path(__file__).parent / 'test_interception.sh'
+    check_output([str(shell_script_test), str(proxy_py_subprocess)])
 
 
 @pytest.mark.smoke  # type: ignore[misc]
