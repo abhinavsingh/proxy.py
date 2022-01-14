@@ -79,11 +79,11 @@ def _gen_ca_certificates(request: Any) -> None:
     ])
     check_output([
         'make', 'ca-certificates',
-        '-e', 'CA_CERT_SUFFIX=-chunk'
+        '-e', 'CA_CERT_SUFFIX=-chunk',
     ])
     check_output([
         'make', 'ca-certificates',
-        '-e', 'CA_CERT_SUFFIX=-post'
+        '-e', 'CA_CERT_SUFFIX=-post',
     ])
 
 
