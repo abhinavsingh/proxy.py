@@ -28,7 +28,7 @@ from .constants import (
     DEFAULT_TIMEOUT, DEFAULT_THREADLESS, IS_WINDOWS,
 )
 
-if not IS_WINDOWS:
+if not IS_WINDOWS:  # pragma: no cover
     import resource
 
 logger = logging.getLogger(__name__)
@@ -282,7 +282,8 @@ def get_available_port() -> int:
 
 def set_open_file_limit(soft_limit: int) -> None:
     """Configure open file description soft limit on supported OS."""
-    if IS_WINDOWS:  # resource module not available on Windows OS
+    # resource module not available on Windows OS
+    if IS_WINDOWS:  # pragma: no cover
         return
 
     curr_soft_limit, curr_hard_limit = resource.getrlimit(

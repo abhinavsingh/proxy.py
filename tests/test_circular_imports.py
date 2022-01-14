@@ -18,15 +18,15 @@
     * https://github.com/pytest-dev/pytest/blob/d18c75b/testing/test_meta.py
     * https://twitter.com/codewithanthony/status/1229445110510735361
 """
-from itertools import chain
-from pathlib import Path
-from types import ModuleType
-from typing import Generator, List
-
 import os
+import sys
 import pkgutil
 import subprocess
-import sys
+from types import ModuleType
+from typing import List, Generator
+from pathlib import Path
+from itertools import chain
+
 import pytest
 
 import proxy

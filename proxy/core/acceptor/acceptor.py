@@ -32,8 +32,7 @@ from ...common.constants import DEFAULT_LOCAL_EXECUTOR
 
 from ..event import EventQueue
 
-from .local import LocalExecutor
-from .executors import ThreadlessPool
+from ..work import LocalExecutor, delegate_work_to_pool, start_threaded_work
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +71,11 @@ class Acceptor(multiprocessing.Process):
             idd: int,
             fd_queue: connection.Connection,
             flags: argparse.Namespace,
-            lock: multiprocessing.synchronize.Lock,
+            lock: 'multiprocessing.synchronize.Lock',
             # semaphore: multiprocessing.synchronize.Semaphore,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
-            executor_locks: List[multiprocessing.synchronize.Lock],
+            executor_locks: List['multiprocessing.synchronize.Lock'],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
@@ -214,7 +213,7 @@ class Acceptor(multiprocessing.Process):
             # 1st workers.  To randomize, we offset index by idd.
             index = (self._total + self.idd) % self.flags.num_workers
             thread = threading.Thread(
-                target=ThreadlessPool.delegate,
+                target=delegate_work_to_pool,
                 args=(
                     self.executor_pids[index],
                     self.executor_queues[index],
@@ -231,14 +230,14 @@ class Acceptor(multiprocessing.Process):
                 ),
             )
         else:
-            _, thread = ThreadlessPool.start_threaded_work(
+            _, thread = start_threaded_work(
                 self.flags,
                 conn,
                 addr,
                 event_queue=self.event_queue,
                 publisher_id=self.__class__.__name__,
             )
-            logger.debug(
+            logger.debug(   # pragma: no cover
                 'Started work#{0}.{1}.{2} in thread#{3}'.format(
                     conn.fileno(), self.idd, self._total, thread.ident,
                 ),

@@ -1,5 +1,13 @@
 #!/bin/bash
-
+#
+# proxy.py
+# ~~~~~~~~
+# ⚡⚡⚡ Fast, Lightweight, Programmable, TLS interception capable
+#     proxy server for Application debugging, testing and development.
+#
+# :copyright: (c) 2013-present by Abhinav Singh and contributors.
+# :license: BSD, see LICENSE for more details.
+#
 # TODO: Option to also shutdown proxy.py after
 # integration testing is done.  At least on
 # macOS and ubuntu, pkill and kill commands

@@ -8,14 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
 import socket
 import selectors
 import multiprocessing
+
+import unittest
 from unittest import mock
 
-from proxy.core.acceptor import Acceptor
 from proxy.common.flag import FlagParser
+from proxy.core.acceptor import Acceptor
 
 
 class TestAcceptor(unittest.TestCase):
@@ -62,7 +63,7 @@ class TestAcceptor(unittest.TestCase):
         sock.accept.assert_not_called()
         self.flags.work_klass.assert_not_called()
 
-    @mock.patch('proxy.core.acceptor.executors.TcpClientConnection')
+    @mock.patch('proxy.core.work.threaded.TcpClientConnection')
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')

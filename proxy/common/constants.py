@@ -74,7 +74,7 @@ PROXY_AGENT_HEADER = PROXY_AGENT_HEADER_KEY + \
 # Defaults
 DEFAULT_BACKLOG = 100
 DEFAULT_BASIC_AUTH = None
-DEFAULT_BUFFER_SIZE = 1024 * 1024
+DEFAULT_BUFFER_SIZE = 128 * 1024
 DEFAULT_CA_CERT_DIR = None
 DEFAULT_CA_CERT_FILE = None
 DEFAULT_CA_KEY_FILE = None
@@ -114,6 +114,7 @@ DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
 DEFAULT_PAC_FILE_URL_PATH = b'/'
 DEFAULT_PID_FILE = None
+DEFAULT_PORT_FILE = None
 DEFAULT_PLUGINS: List[Any] = []
 DEFAULT_PORT = 8899
 DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
@@ -145,15 +146,16 @@ DEFAULT_ABC_PLUGINS = [
     'HttpProtocolHandlerPlugin',
     'HttpProxyBasePlugin',
     'HttpWebServerBasePlugin',
-    'ProxyDashboardWebsocketPlugin',
+    'WebSocketTransportBasePlugin',
 ]
+PLUGIN_PROXY_AUTH = 'proxy.http.proxy.AuthPlugin'
+PLUGIN_DASHBOARD = 'proxy.dashboard.ProxyDashboard'
 PLUGIN_HTTP_PROXY = 'proxy.http.proxy.HttpProxyPlugin'
 PLUGIN_WEB_SERVER = 'proxy.http.server.HttpWebServerPlugin'
 PLUGIN_PAC_FILE = 'proxy.http.server.HttpWebServerPacFilePlugin'
-PLUGIN_DEVTOOLS_PROTOCOL = 'proxy.http.inspector.DevtoolsProtocolPlugin'
-PLUGIN_DASHBOARD = 'proxy.dashboard.ProxyDashboard'
-PLUGIN_INSPECT_TRAFFIC = 'proxy.dashboard.InspectTrafficPlugin'
-PLUGIN_PROXY_AUTH = 'proxy.http.proxy.AuthPlugin'
+PLUGIN_DEVTOOLS_PROTOCOL = 'proxy.http.inspector.devtools.DevtoolsProtocolPlugin'
+PLUGIN_INSPECT_TRAFFIC = 'proxy.http.inspector.inspect_traffic.InspectTrafficPlugin'
+PLUGIN_WEBSOCKET_TRANSPORT = 'proxy.http.websocket.transport.WebSocketTransport'
 
 PY2_DEPRECATION_MESSAGE = '''DEPRECATION: proxy.py no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
                 'If for some reasons you cannot upgrade, use'

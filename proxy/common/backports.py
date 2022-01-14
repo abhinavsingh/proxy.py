@@ -16,7 +16,7 @@ from queue import Empty
 from collections import deque
 
 
-class cached_property:
+class cached_property:      # pragma: no cover
     """Decorator for read-only properties evaluated only once within TTL period.
     It can be used to create a cached property like this::
 
@@ -111,8 +111,8 @@ class NonBlockingQueue:
 
     def empty(self) -> bool:
         '''Return True if the queue is empty, False otherwise (not reliable!).'''
-        return len(self._queue) == 0
+        return len(self._queue) == 0    # pragma: no cover
 
     def qsize(self) -> int:
         '''Return the approximate size of the queue (not reliable!).'''
-        return len(self._queue)
+        return len(self._queue)     # pragma: no cover

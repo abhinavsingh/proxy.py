@@ -12,19 +12,24 @@ import socket
 import argparse
 
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Union, Optional, TYPE_CHECKING
+from typing import List, Union, Optional, TYPE_CHECKING
 
-from ..common.types import Readables, Writables
 from ..core.event import EventQueue
 from ..core.connection import TcpClientConnection
 
 from .parser import HttpParser
+from .descriptors import DescriptorsHandlerMixin
+from .mixins import TlsInterceptionPropertyMixin
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..core.connection import UpstreamConnectionPool
 
 
-class HttpProtocolHandlerPlugin(ABC):
+class HttpProtocolHandlerPlugin(
+        DescriptorsHandlerMixin,
+        TlsInterceptionPropertyMixin,
+        ABC,
+):
     """Base HttpProtocolHandler Plugin class.
 
     NOTE: This is an internal plugin and in most cases only useful for core contributors.
@@ -52,43 +57,21 @@ class HttpProtocolHandlerPlugin(ABC):
             flags: argparse.Namespace,
             client: TcpClientConnection,
             request: HttpParser,
-            event_queue: Optional[EventQueue],
+            event_queue: Optional[EventQueue] = None,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
+        super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
         self.uid: str = uid
         self.flags: argparse.Namespace = flags
         self.client: TcpClientConnection = client
         self.request: HttpParser = request
         self.event_queue = event_queue
         self.upstream_conn_pool = upstream_conn_pool
-        super().__init__()
 
     @staticmethod
     @abstractmethod
     def protocols() -> List[int]:
         raise NotImplementedError()
-
-    @abstractmethod
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
-        """Implementations must return a list of descriptions that they wish to
-        read from and write into."""
-        return [], []  # pragma: no cover
-
-    @abstractmethod
-    async def write_to_descriptors(self, w: Writables) -> bool:
-        """Implementations must now write/flush data over the socket.
-
-        Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call
-        :meth:`~proxy.core.connection.TcpConnection.flush` here, to send
-        any buffered data over the socket.
-        """
-        return False  # pragma: no cover
-
-    @abstractmethod
-    async def read_from_descriptors(self, r: Readables) -> bool:
-        """Implementations must now read data over the socket."""
-        return False  # pragma: no cover
 
     @abstractmethod
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:

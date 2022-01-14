@@ -26,7 +26,7 @@ from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS
 from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
 from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, DEFAULT_MIN_COMPRESSION_LIMIT
 from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
-from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH, IS_WINDOWS
+from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH, IS_WINDOWS, PLUGIN_WEBSOCKET_TRANSPORT
 from .logger import Logger
 
 from .version import __version__
@@ -242,12 +242,14 @@ class FlagParser:
             ),
         )
         args.disable_headers = disabled_headers if disabled_headers is not None else DEFAULT_DISABLE_HEADERS
+
         args.certfile = cast(
             Optional[str], opts.get(
                 'cert_file', args.cert_file,
             ),
         )
         args.keyfile = cast(Optional[str], opts.get('key_file', args.key_file))
+
         args.ca_key_file = cast(
             Optional[str], opts.get(
                 'ca_key_file', args.ca_key_file,
@@ -272,6 +274,7 @@ class FlagParser:
                 args.ca_file,
             ),
         )
+
         args.hostname = cast(
             IpAddress,
             opts.get('hostname', ipaddress.ip_address(args.hostname)),
@@ -363,6 +366,13 @@ class FlagParser:
             ),
         )
 
+        args.port_file = cast(
+            Optional[str], opts.get(
+                'port_file',
+                args.port_file,
+            ),
+        )
+
         args.proxy_py_data_dir = DEFAULT_DATA_DIRECTORY_PATH
         os.makedirs(args.proxy_py_data_dir, exist_ok=True)
 
@@ -372,7 +382,7 @@ class FlagParser:
             args.ca_cert_dir = os.path.join(
                 args.proxy_py_data_dir, 'certificates',
             )
-            os.makedirs(args.ca_cert_dir, exist_ok=True)
+        os.makedirs(args.ca_cert_dir, exist_ok=True)
 
         return args
 
@@ -388,6 +398,7 @@ class FlagParser:
             default_plugins.append(PLUGIN_WEB_SERVER)
             args.enable_static_server = True
             default_plugins.append(PLUGIN_DASHBOARD)
+            default_plugins.append(PLUGIN_WEBSOCKET_TRANSPORT)
             default_plugins.append(PLUGIN_INSPECT_TRAFFIC)
             args.enable_events = True
             args.enable_devtools = True

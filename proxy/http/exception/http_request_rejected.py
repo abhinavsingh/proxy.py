@@ -14,7 +14,7 @@ from .base import HttpProtocolException
 
 from ...common.utils import build_http_response
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..parser import HttpParser
 
 

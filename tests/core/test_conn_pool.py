@@ -8,11 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import pytest
-import unittest
 import selectors
 
+import pytest
+import unittest
 from unittest import mock
+
 from pytest_mock import MockerFixture
 
 from proxy.core.connection import UpstreamConnectionPool
@@ -21,30 +22,34 @@ from proxy.core.connection import UpstreamConnectionPool
 class TestConnectionPool(unittest.TestCase):
 
     @mock.patch('proxy.core.connection.pool.TcpServerConnection')
-    def test_acquire_and_release_and_reacquire(self, mock_tcp_server_connection: mock.Mock) -> None:
+    def test_acquire_and_retain_and_reacquire(self, mock_tcp_server_connection: mock.Mock) -> None:
         pool = UpstreamConnectionPool()
         # Mock
         mock_conn = mock_tcp_server_connection.return_value
         addr = mock_conn.addr
         mock_conn.is_reusable.side_effect = [
-            False, True, True,
+            True,
         ]
         mock_conn.closed = False
         # Acquire
         created, conn = pool.acquire(addr)
-        self.assertTrue(created)
         mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
+        mock_conn.mark_inuse.assert_called_once()
+        mock_conn.reset.assert_not_called()
+        self.assertTrue(created)
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
-        # Release (connection must be retained because not closed)
-        pool.release(conn)
+        self.assertEqual(len(pool.connections), 1)
+        self.assertEqual(pool.connections[conn.connection.fileno()], mock_conn)
+        # Retail
+        pool.retain(conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
+        mock_conn.reset.assert_called_once()
         # Reacquire
         created, conn = pool.acquire(addr)
         self.assertFalse(created)
-        mock_conn.reset.assert_called_once()
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])

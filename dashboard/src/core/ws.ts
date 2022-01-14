@@ -14,7 +14,7 @@ export class WebsocketApi {
   private hostname: string = window.location.hostname ? window.location.hostname : 'localhost';
   private port: number = window.location.port ? Number(window.location.port) : 8899;
   // TODO: Must map to route registered by dashboard.py, don't hardcode
-  private wsPrefix: string = '/dashboard';
+  private wsPrefix: string = '/transport/';
   private wsScheme: string = window.location.protocol === 'http:' ? 'ws' : 'wss';
   private ws: WebSocket;
   private wsPath: string = this.wsScheme + '://' + this.hostname + ':' + this.port + this.wsPrefix;

@@ -11,23 +11,23 @@
 import ssl
 import gzip
 import socket
-import pytest
 import selectors
-
-from pytest_mock import MockerFixture
 from typing import Any, cast
 
-from proxy.common.flag import FlagParser
-from proxy.common.utils import bytes_, build_http_request
-from proxy.core.connection import TcpClientConnection, TcpServerConnection
+import pytest
 
-from proxy.http import httpMethods, HttpProtocolHandler
+from pytest_mock import MockerFixture
+
+from proxy.http import HttpProtocolHandler, httpMethods
 from proxy.http.proxy import HttpProxyPlugin
+from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes
-from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT, okResponse
-
+from proxy.common.utils import bytes_, build_http_request
+from proxy.http.responses import (
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT, okResponse,
+)
+from proxy.core.connection import TcpClientConnection, TcpServerConnection
 from .utils import get_plugin_by_test_name
-
 from ..test_assertions import Assertions
 
 

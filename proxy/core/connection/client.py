@@ -46,7 +46,6 @@ class TcpClientConnection(TcpConnection):
         self._conn = ssl.wrap_socket(
             self.connection,
             server_side=True,
-            # ca_certs=self.flags.ca_cert_file,
             certfile=certfile,
             keyfile=keyfile,
             ssl_version=ssl.PROTOCOL_TLS,

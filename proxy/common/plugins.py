@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import abc
 import logging
 import inspect
 import itertools
@@ -72,20 +71,19 @@ class Plugins:
             klass, module_name = Plugins.importer(plugin_)
             assert klass and module_name
             mro = list(inspect.getmro(klass))
-            mro.reverse()
-            iterator = iter(mro)
-            try:
-                while next(iterator) is not abc.ABC:
-                    pass
-                base_klass = next(iterator)
-                if klass not in p[bytes_(base_klass.__name__)]:
-                    p[bytes_(base_klass.__name__)].append(klass)
-                logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
-            except StopIteration:
-                logger.warn(
-                    '%s is NOT a valid plugin',
-                    text_(plugin_),
-                )
+            # Find the base plugin class that
+            # this plugin_ is implementing
+            base_klass = None
+            for k in mro:
+                if bytes_(k.__name__) in p:
+                    base_klass = k
+                    break
+            if base_klass is None:
+                raise ValueError('%s is NOT a valid plugin' % text_(plugin_))
+            if klass not in p[bytes_(base_klass.__name__)]:
+                p[bytes_(base_klass.__name__)].append(klass)
+            logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
+        # print(p)
         return p
 
     @staticmethod

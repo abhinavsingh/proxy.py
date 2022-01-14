@@ -182,7 +182,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         self.upstream.queue(raw)
         return raw
 
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+    def handle_upstream_chunk(self, chunk: memoryview) -> Optional[memoryview]:
         """Will never be called since we didn't establish an upstream connection."""
         if not self.upstream:
             return chunk

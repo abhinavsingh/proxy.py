@@ -54,7 +54,7 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         assert self.store
         return self.store.cache_request(request)
 
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+    def handle_upstream_chunk(self, chunk: memoryview) -> Optional[memoryview]:
         assert self.store
         return self.store.cache_response_chunk(chunk)
 
