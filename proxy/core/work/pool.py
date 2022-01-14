@@ -20,7 +20,7 @@ from .remote import RemoteExecutor
 from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..event import EventQueue
 
 logger = logging.getLogger(__name__)

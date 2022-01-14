@@ -20,7 +20,7 @@ from ..descriptors import DescriptorsHandlerMixin
 from ...core.connection import TcpClientConnection
 from ...core.event import EventQueue
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ...core.connection import UpstreamConnectionPool
 
 

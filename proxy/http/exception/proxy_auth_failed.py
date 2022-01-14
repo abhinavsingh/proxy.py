@@ -19,7 +19,7 @@ from .base import HttpProtocolException
 
 from ..responses import PROXY_AUTH_FAILED_RESPONSE_PKT
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..parser import HttpParser
 
 

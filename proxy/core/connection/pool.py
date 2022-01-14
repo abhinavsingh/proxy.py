@@ -139,7 +139,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         has somehow reached an illegal state e.g. upstream sending data for previous
         connection acquisition lifecycle."""
         for fileno in readables:
-            if TYPE_CHECKING:
+            if TYPE_CHECKING:   # pragma: no cover
                 assert isinstance(fileno, int)
             logger.debug('Upstream fd#{0} is read ready'.format(fileno))
             self._remove(fileno)

@@ -237,7 +237,7 @@ class Acceptor(multiprocessing.Process):
                 event_queue=self.event_queue,
                 publisher_id=self.__class__.__name__,
             )
-            logger.debug(
+            logger.debug(   # pragma: no cover
                 'Started work#{0}.{1}.{2} in thread#{3}'.format(
                     conn.fileno(), self.idd, self._total, thread.ident,
                 ),
