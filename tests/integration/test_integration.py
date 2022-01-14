@@ -10,6 +10,7 @@
 
     Test the simplest proxy use scenario for smoke.
 """
+import sys
 import time
 import pytest
 import tempfile
@@ -161,6 +162,10 @@ def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
 @pytest.mark.skipif(
     IS_WINDOWS,
     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
+)  # type: ignore[misc]
+@pytest.mark.skipif(
+    sys.version_info >= (3, 10),
+    reason='For version < 3.10, GHA integration run into OSError when flushing to clients',
 )  # type: ignore[misc]
 def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test for :py:class:`~proxy.plugin.ModifyChunkResponsePlugin`
