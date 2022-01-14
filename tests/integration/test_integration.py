@@ -13,6 +13,7 @@
 import time
 import pytest
 import tempfile
+import subprocess
 
 from pathlib import Path
 from typing import Any, Generator
@@ -115,7 +116,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--ca-cert-dir', str(ca_cert_dir),
         '--log-level', 'd',
     ) + tuple(request.param.split())
-    proxy_proc = Popen(proxy_cmd)
+    proxy_proc = Popen(proxy_cmd, stderr=subprocess.STDOUT)
     # Needed because port file might not be available immediately
     while not port_file.exists():
         time.sleep(1)
