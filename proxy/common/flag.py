@@ -17,7 +17,6 @@ import ipaddress
 import collections
 import multiprocessing
 
-from pathlib import Path
 from typing import Optional, List, Any, cast
 
 from .plugins import Plugins
