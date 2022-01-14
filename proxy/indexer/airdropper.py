@@ -1,13 +1,13 @@
-from web3 import eth
+from time import time
+from solana.publickey import PublicKey
 from proxy.indexer.indexer_base import IndexerBase, logger
-from proxy.indexer.price_provider import PriceProvider, mainnet_solana, mainnet_price_accounts
-from typing import List, Dict
-import os
+from proxy.indexer.pythnetwork import PythNetworkClient
+from solana.rpc.api import Client as SolanaClient
 import requests
 import base58
-import json
 import logging
-from datetime import date, datetime
+from datetime import datetime
+from decimal import Decimal
 
 try:
     from utils import check_error
@@ -16,21 +16,24 @@ except ImportError:
     from .utils import check_error
     from .sql_dict import SQLDict
 
-ACCOUNT_CREATION_PRICE_SOL = 0.00472692
+ACCOUNT_CREATION_PRICE_SOL = Decimal('0.00472692')
 AIRDROP_AMOUNT_SOL = ACCOUNT_CREATION_PRICE_SOL / 2
-NEON_PRICE_USD = 0.25
+NEON_PRICE_USD = Decimal('0.25')
+
 
 
 class Airdropper(IndexerBase):
     def __init__(self,
                  solana_url,
                  evm_loader_id,
+                 pyth_mapping_account: PublicKey,
                  faucet_url = '',
                  wrapper_whitelist = 'ANY',
                  log_level = 'INFO',
-                 price_upd_interval=60,
                  neon_decimals = 9,
-                 start_slot = 0):
+                 start_slot = 0,
+                 pp_solana_url = None,
+                 max_conf = 0.1): # maximum confidence interval deviation related to price
         IndexerBase.__init__(self, solana_url, evm_loader_id, log_level, start_slot)
         self.latest_processed_slot = 0
 
@@ -40,19 +43,43 @@ class Airdropper(IndexerBase):
         self.airdrop_scheduled = SQLDict(tablename="airdrop_scheduled")
         self.wrapper_whitelist = wrapper_whitelist
         self.faucet_url = faucet_url
+        self.recent_price = None
 
-        # Price provider need pyth.network be deployed onto solana
-        # so using mainnet solana for simplicity
-        self.price_provider = PriceProvider(mainnet_solana,
-                                            price_upd_interval, # seconds
-                                            mainnet_price_accounts)
+        # Configure price provider
+        if pp_solana_url is None:
+            pp_solana_url = solana_url
+
+        # It is possible to use different networks to obtain SOL price
+        # but there will be different slot numbers so price should be updated every time
+        self.always_reload_price = (pp_solana_url != solana_url)
+        self.pyth_mapping_account = pyth_mapping_account
+        self.pyth_client = PythNetworkClient(SolanaClient(pp_solana_url))
         self.neon_decimals = neon_decimals
+        self.max_conf = Decimal(max_conf)
         self.session = requests.Session()
 
         self.sol_price_usd = None
         self.airdrop_amount_usd = None
         self.airdrop_amount_neon = None
+        self.last_update_pyth_mapping = None
+        self.max_update_pyth_mapping_int = 60 * 60 # update once an hour
 
+
+    def get_current_time(self):
+        return datetime.now().timestamp()
+
+
+    def try_update_pyth_mapping(self):
+        current_time = self.get_current_time()
+        if self.last_update_pyth_mapping is None or self.last_update_pyth_mapping - current_time > self.max_update_pyth_mapping_int:
+            try:
+                self.pyth_client.update_mapping(self.pyth_mapping_account)
+                self.last_update_pyth_mapping = current_time
+            except Exception as err:
+                logger.warning(f'Failed to update pyth.network mapping account data: {err}')
+                return False
+        
+        return True
 
     # helper function checking if given contract address is in whitelist
     def is_allowed_wrapper_contract(self, contract_addr):
@@ -131,21 +158,40 @@ class Airdropper(IndexerBase):
                     self.schedule_airdrop(create_acc)
 
 
+    def get_sol_usd_price(self):
+        should_reload = self.always_reload_price
+        if not should_reload:
+            if self.recent_price == None or self.recent_price['valid_slot'] < self.latest_processed_slot:
+                should_reload = True
+
+        if should_reload:
+            try:
+                self.recent_price = self.pyth_client.get_price('SOL/USD')
+            except Exception as err:
+                logger.warning(f'Exception occured when reading price: {err}')
+                return None
+
+        return self.recent_price
+
+
     def get_airdrop_amount_galans(self):
-        new_sol_price_usd = self.price_provider.get_price('SOL/USD')
-        if new_sol_price_usd is None:
+        self.sol_price_usd = self.get_sol_usd_price()
+        if self.sol_price_usd is None:
             logger.warning("Failed to get SOL/USD price")
             return None
 
-        if new_sol_price_usd != self.sol_price_usd:
-            self.sol_price_usd = new_sol_price_usd
-            logger.info(f"NEON price: ${NEON_PRICE_USD}")
-            logger.info(f'SOL/USD = ${self.sol_price_usd}')
-            self.airdrop_amount_usd = AIRDROP_AMOUNT_SOL * self.sol_price_usd
-            self.airdrop_amount_neon = self.airdrop_amount_usd / NEON_PRICE_USD
-            logger.info(f"Airdrop amount: ${self.airdrop_amount_usd} ({self.airdrop_amount_neon} NEONs)\n")
+        logger.info(f"NEON price: ${NEON_PRICE_USD}")
+        logger.info(f"Price valid slot: {self.sol_price_usd['valid_slot']}")
+        logger.info(f"Price confidence interval: ${self.sol_price_usd['conf']}")
+        logger.info(f"SOL/USD = ${self.sol_price_usd['price']}")
+        if self.sol_price_usd['conf'] / self.sol_price_usd['price'] > self.max_conf:
+            logger.warning(f"Confidence interval too large. Airdrops will deferred.")
+            return None
 
-        return int(self.airdrop_amount_neon * pow(10, self.neon_decimals))
+        self.airdrop_amount_usd = AIRDROP_AMOUNT_SOL * self.sol_price_usd['price']
+        self.airdrop_amount_neon = self.airdrop_amount_usd / NEON_PRICE_USD
+        logger.info(f"Airdrop amount: ${self.airdrop_amount_usd} ({self.airdrop_amount_neon} NEONs)\n")
+        return int(self.airdrop_amount_neon * pow(Decimal(10), self.neon_decimals))
 
 
     def schedule_airdrop(self, create_acc):
@@ -158,6 +204,10 @@ class Airdropper(IndexerBase):
 
 
     def process_scheduled_trxs(self):
+        # Pyth.network mapping account was never updated 
+        if not self.try_update_pyth_mapping() and self.last_update_pyth_mapping is None:
+            return
+
         airdrop_galans = self.get_airdrop_amount_galans()
         if airdrop_galans is None:
             logger.warning('Failed to estimate airdrop amount. Defer scheduled airdrops.')
@@ -197,30 +247,36 @@ class Airdropper(IndexerBase):
 
 def run_airdropper(solana_url,
                    evm_loader_id,
-                   faucet_url = '',
+                   pyth_mapping_account: PublicKey,
+                   faucet_url,
                    wrapper_whitelist = 'ANY',
                    log_level = 'INFO',
-                   price_update_interval = 60,
                    neon_decimals = 9,
-                   start_slot = 0):
+                   start_slot = 0,
+                   pp_solana_url = None,
+                   max_conf = 0.1):
     logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
     logger.setLevel(logging.DEBUG)
     logger.info(f"""Running indexer with params:
         solana_url: {solana_url},
         evm_loader_id: {evm_loader_id},
+        pyth.network mapping account: {pyth_mapping_account},
         log_level: {log_level},
         faucet_url: {faucet_url},
         wrapper_whitelist: {wrapper_whitelist},
-        price update interval: {price_update_interval},
         NEON decimals: {neon_decimals},
-        Start slot: {start_slot}""")
+        Start slot: {start_slot},
+        Price provider solana: {pp_solana_url},
+        Max confidence interval: {max_conf}""")
 
     airdropper = Airdropper(solana_url,
                             evm_loader_id,
+                            pyth_mapping_account,
                             faucet_url,
                             wrapper_whitelist,
                             log_level,
-                            price_update_interval,
                             neon_decimals,
-                            start_slot)
+                            start_slot,
+                            pp_solana_url,
+                            max_conf)
     airdropper.run()

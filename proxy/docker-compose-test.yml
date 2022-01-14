@@ -123,6 +123,9 @@ services:
       LOG_LEVEL: INFO
       PRICE_UPDATE_INTERVAL: 10
       START_SLOT: LATEST
+      PP_SOLANA_URL: https://api.mainnet-beta.solana.com
+      PYTH_MAPPING_ACCOUNT: AHtgzX45WTKfkPG53L6WYhGEXwQkN1BVknET3sVsLL8J
+      MAX_CONFIDENCE_INTERVAL: 0.01
     hostname: airdropper
     entrypoint: ./run-airdropper.sh
     networks:

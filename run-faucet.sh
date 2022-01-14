@@ -20,4 +20,4 @@ if [ "$(spl-token balance "$NEON_TOKEN_MINT" || echo 0)" -eq 0 ]; then
     exit 1
 fi
 
-faucet run --workers 1
+faucet run
