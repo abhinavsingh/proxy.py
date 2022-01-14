@@ -26,6 +26,7 @@ from ..environment import SOLANA_URL, EVM_LOADER_ID, ETH_TOKEN_MINT_ID
 
 
 from proxy.indexer.pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST
+from proxy.indexer.pg_common import encode, decode
 
 
 logger = logging.getLogger(__name__)
@@ -290,6 +291,12 @@ class BaseDB:
 
     def __del__(self):
         self._conn.close()
+
+    def decode_list(self, v):
+        return [] if not v else decode(v)
+
+    def encode_list(self, v: []):
+        return None if (not v) or (len(v) == 0) else encode(v)
 
 
 class LogDB(BaseDB):

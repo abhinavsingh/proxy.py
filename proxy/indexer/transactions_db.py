@@ -1,4 +1,3 @@
-from proxy.indexer.pg_common import encode, decode
 from .utils import BaseDB, SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, str_fmt_object
 from .blocks_db import SolanaBlockDBInfo
 
@@ -113,7 +112,7 @@ class NeonTxsDB(BaseDB):
         neon_tx.sign = value[0]
         neon_tx.addr = value[1]
         neon_res.sol_sign = value[2]
-        neon_res.logs = decode(value[len(self._column_lst) - 1])
+        neon_res.logs = self.decode_list(value[len(self._column_lst) - 1])
 
         block.slot = neon_res.slot
 
@@ -133,7 +132,7 @@ class NeonTxsDB(BaseDB):
             else:
                 assert False, f'Wrong usage {idx} -> {column}!'
 
-        row.append(encode(tx.neon_res.logs))
+        row.append(self.encode_list(tx.neon_res.logs))
 
         cursor = self._conn.cursor()
         cursor.execute(f'''

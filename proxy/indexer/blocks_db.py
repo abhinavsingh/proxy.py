@@ -1,4 +1,3 @@
-from proxy.indexer.pg_common import encode, decode
 from .utils import BaseDB, str_fmt_object
 
 
@@ -63,7 +62,7 @@ class SolanaBlocksDB(BaseDB):
             hash=value[3],
             parent_hash=value[4],
             time=value[5],
-            signs=decode(value[6]),
+            signs=self.decode_list(value[6])
         )
 
     def get_block_by_slot(self, block_slot) -> SolanaBlockDBInfo:
@@ -93,7 +92,7 @@ class SolanaBlocksDB(BaseDB):
                 signatures=EXCLUDED.signatures
             ''',
             (block.slot, block.finalized, block.height, block.hash,
-             block.parent_hash, block.time, encode(block.signs)))
+             block.parent_hash, block.time, self.encode_list(block.signs)))
 
     def fill_block_height(self, height, slots):
         rows = []
