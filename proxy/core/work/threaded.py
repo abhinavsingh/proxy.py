@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Optional, Tuple
 from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from .work import Work
 
 

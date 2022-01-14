@@ -21,7 +21,7 @@ from .parser import HttpParser
 from .descriptors import DescriptorsHandlerMixin
 from .mixins import TlsInterceptionPropertyMixin
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..core.connection import UpstreamConnectionPool
 
 

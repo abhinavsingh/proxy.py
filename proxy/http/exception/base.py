@@ -14,7 +14,7 @@
 """
 from typing import Any, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..parser import HttpParser
 
 

@@ -14,8 +14,8 @@ import ipaddress
 from typing import TYPE_CHECKING, Dict, Any, List, Tuple, Union
 
 
-if TYPE_CHECKING:
-    DictQueueType = queue.Queue[Dict[str, Any]]    # pragma: no cover
+if TYPE_CHECKING:   # pragma: no cover
+    DictQueueType = queue.Queue[Dict[str, Any]]
 else:
     DictQueueType = queue.Queue
 

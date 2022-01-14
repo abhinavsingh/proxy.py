@@ -21,7 +21,7 @@ from typing import Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
 from ..event import eventNames, EventQueue
 from ...common.types import Readables, SelectableEvents, Writables
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..connection import UpstreamConnectionPool
 
 T = TypeVar('T')

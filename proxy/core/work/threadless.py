@@ -28,7 +28,7 @@ from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 from ..connection import TcpClientConnection, UpstreamConnectionPool
 from ..event import eventNames
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from typing import Any
 
     from ..event import EventQueue

@@ -36,7 +36,7 @@ class Logger:
             log_level: str = DEFAULT_LOG_LEVEL,
             log_format: str = DEFAULT_LOG_FORMAT,
     ) -> None:
-        if log_file:
+        if log_file:    # pragma: no cover
             logging.basicConfig(
                 filename=log_file,
                 filemode='a',
