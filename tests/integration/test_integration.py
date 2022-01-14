@@ -168,18 +168,18 @@ def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
     check_output([str(shell_script_test), str(proxy_py_subprocess)])
 
 
-@pytest.mark.smoke  # type: ignore[misc]
-@pytest.mark.parametrize(
-    'proxy_py_subprocess',
-    PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN,
-    indirect=True,
-)   # type: ignore[misc]
-@pytest.mark.skipif(
-    IS_WINDOWS,
-    reason='OSError: [WinError 193] %1 is not a valid Win32 application',
-)  # type: ignore[misc]
-def test_modify_post_response_integration(proxy_py_subprocess: int) -> None:
-    """An acceptance test for :py:class:`~proxy.plugin.ModifyPostDataPlugin`
-    interception using ``curl`` through proxy.py."""
-    shell_script_test = Path(__file__).parent / 'test_modify_post_data.sh'
-    check_output([str(shell_script_test), str(proxy_py_subprocess)])
+# @pytest.mark.smoke  # type: ignore[misc]
+# @pytest.mark.parametrize(
+#     'proxy_py_subprocess',
+#     PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN,
+#     indirect=True,
+# )   # type: ignore[misc]
+# @pytest.mark.skipif(
+#     IS_WINDOWS,
+#     reason='OSError: [WinError 193] %1 is not a valid Win32 application',
+# )  # type: ignore[misc]
+# def test_modify_post_response_integration(proxy_py_subprocess: int) -> None:
+#     """An acceptance test for :py:class:`~proxy.plugin.ModifyPostDataPlugin`
+#     interception using ``curl`` through proxy.py."""
+#     shell_script_test = Path(__file__).parent / 'test_modify_post_data.sh'
+#     check_output([str(shell_script_test), str(proxy_py_subprocess)])
