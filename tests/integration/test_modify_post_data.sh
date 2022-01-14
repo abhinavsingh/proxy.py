@@ -51,23 +51,6 @@ while true; do
     sleep 1
 done
 
-verify_response() {
-    if [ "$1" == "" ];
-    then
-        echo "Empty response";
-        return 1;
-    else
-        if [ "$1" == "$2" ];
-        then
-            echo "Ok";
-            return 0;
-        else
-            echo "Invalid response: '$1', expected: '$2'";
-            return 1;
-        fi
-    fi;
-}
-
 verify_contains() {
     if [ "$1" == "" ];
     then

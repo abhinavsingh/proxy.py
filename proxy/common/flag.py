@@ -379,7 +379,7 @@ class FlagParser:
             args.ca_cert_dir = os.path.join(
                 args.proxy_py_data_dir, 'certificates',
             )
-            os.makedirs(args.ca_cert_dir, exist_ok=True)
+        os.makedirs(args.ca_cert_dir, exist_ok=True)
 
         return args
 
