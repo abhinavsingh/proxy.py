@@ -18,13 +18,13 @@ from ...http.parser import HttpParser, httpParserTypes
 from ...common.types import Readables, SelectableEvents, Writables
 from ...common.utils import text_
 
-from ..connection import TcpServerConnection
+from ..connection import TcpServerConnection, TcpClientConnection
 from .tcp_server import BaseTcpServerHandler
 
 logger = logging.getLogger(__name__)
 
 
-class BaseTcpTunnelHandler(BaseTcpServerHandler):
+class BaseTcpTunnelHandler(BaseTcpServerHandler[TcpClientConnection]):
     """BaseTcpTunnelHandler build on-top of BaseTcpServerHandler work class.
 
     On-top of BaseTcpServerHandler implementation,

@@ -13,9 +13,10 @@ from typing import Optional
 
 from proxy import Proxy
 from proxy.core.base import BaseTcpServerHandler
+from proxy.core.connection import TcpClientConnection
 
 
-class EchoServerHandler(BaseTcpServerHandler):
+class EchoServerHandler(BaseTcpServerHandler[TcpClientConnection]):
     """Sets client socket to non-blocking during initialization."""
 
     def initialize(self) -> None:
