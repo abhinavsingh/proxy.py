@@ -12,7 +12,10 @@ import argparse
 
 from typing import Tuple
 
-from paramiko.channel import Channel
+try:
+    from paramiko.channel import Channel
+except ImportError:
+    pass
 
 
 class SshHttpProtocolHandler:
@@ -23,7 +26,7 @@ class SshHttpProtocolHandler:
 
     def on_connection(
             self,
-            chan: Channel,
+            chan: 'Channel',
             origin: Tuple[str, int],
             server: Tuple[str, int],
     ) -> None:

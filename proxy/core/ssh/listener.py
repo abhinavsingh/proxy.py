@@ -13,9 +13,12 @@ import logging
 
 from typing import Any, Callable, Optional, Set, Tuple
 
-from paramiko import SSHClient, AutoAddPolicy
-from paramiko.transport import Transport
-from paramiko.channel import Channel
+try:
+    from paramiko import SSHClient, AutoAddPolicy
+    from paramiko.transport import Transport
+    from paramiko.channel import Channel
+except ImportError:
+    pass
 
 from ...common.flag import flags
 
@@ -73,7 +76,7 @@ class SshTunnelListener:
     def __init__(
             self,
             flags: argparse.Namespace,
-            on_connection_callback: Callable[[Channel, Tuple[str, int], Tuple[str, int]], None],
+            on_connection_callback: Callable[['Channel', Tuple[str, int], Tuple[str, int]], None],
     ) -> None:
         self.flags = flags
         self.on_connection_callback = on_connection_callback
