@@ -66,7 +66,7 @@ flags.add_argument(
 
 
 class SshTunnelListener:
-    """Connects over SSH and forwards a remote port to localhost.
+    """Connects over SSH and forwards a remote port to local host.
 
     Incoming connections are delegated to provided callback."""
 
