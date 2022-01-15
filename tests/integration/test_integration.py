@@ -22,6 +22,13 @@ from subprocess import Popen, check_output
 from proxy.common.constants import IS_WINDOWS
 
 
+def _https_server_flags() -> str:
+    return ' '.join((
+        '--key-file', 'https-key.pem',
+        '--cert-file', 'https-signed-cert.pem',
+    ))
+
+
 def _tls_interception_flags(ca_cert_suffix: str = '') -> str:
     return ' '.join((
         '--ca-cert-file', 'ca-cert%s.pem' % ca_cert_suffix,
@@ -34,6 +41,12 @@ PROXY_PY_FLAGS_INTEGRATION = (
     ('--threadless'),
     ('--threadless --local-executor 0'),
     ('--threaded'),
+)
+
+PROXY_PY_HTTPS = (
+    ('--threadless ' + _https_server_flags()),
+    ('--threadless --local-executor 0 ' + _https_server_flags()),
+    ('--threaded ' + _https_server_flags()),
 )
 
 PROXY_PY_FLAGS_TLS_INTERCEPTION = (
@@ -71,6 +84,16 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
         _tls_interception_flags('-post')
     ),
 )
+
+
+@pytest.fixture(scope='session', autouse=True)  # type: ignore[misc]
+def _gen_https_certificates(request: Any) -> None:
+    check_output([
+        'make', 'https-certificates',
+    ])
+    check_output([
+        'make', 'sign-https-certificates',
+    ])
 
 
 @pytest.fixture(scope='session', autouse=True)  # type: ignore[misc]
@@ -147,6 +170,24 @@ def test_integration(proxy_py_subprocess: int) -> None:
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
     check_output([str(shell_script_test), str(proxy_py_subprocess)])
+
+
+@pytest.mark.smoke  # type: ignore[misc]
+@pytest.mark.parametrize(
+    'proxy_py_subprocess',
+    PROXY_PY_HTTPS,
+    indirect=True,
+)   # type: ignore[misc]
+@pytest.mark.skipif(
+    IS_WINDOWS,
+    reason='OSError: [WinError 193] %1 is not a valid Win32 application',
+)  # type: ignore[misc]
+def test_https_integration(proxy_py_subprocess: int) -> None:
+    """An acceptance test for HTTPS web and proxy server using ``curl`` through proxy.py."""
+    this_test_module = Path(__file__)
+    shell_script_test = this_test_module.with_suffix('.sh')
+    # "1" means use-https scheme for requests to instance
+    check_output([str(shell_script_test), str(proxy_py_subprocess), "1"])
 
 
 @pytest.mark.smoke  # type: ignore[misc]
