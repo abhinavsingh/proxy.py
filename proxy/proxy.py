@@ -209,7 +209,8 @@ class Proxy:
         # Start SSH tunnel acceptor if enabled
         if self.flags.enable_ssh_tunnel:
             self.ssh_http_protocol_handler = SshHttpProtocolHandler(
-                flags=self.flags)
+                flags=self.flags,
+            )
             self.ssh_tunnel_listener = SshTunnelListener(
                 flags=self.flags,
                 on_connection_callback=self.ssh_http_protocol_handler.on_connection,

@@ -113,10 +113,12 @@ class SshTunnelListener:
             key_filename=self.flags.tunnel_ssh_key,
             passphrase=self.flags.tunnel_ssh_key_passphrase,
         )
-        logger.info('SSH connection established to %s:%d...' % (
-            self.flags.tunnel_hostname,
-            self.flags.tunnel_port,
-        ))
+        logger.info(
+            'SSH connection established to %s:%d...' % (
+                self.flags.tunnel_hostname,
+                self.flags.tunnel_port,
+            ),
+        )
         self.transport = self.ssh.get_transport()
 
     def shutdown(self) -> None:
