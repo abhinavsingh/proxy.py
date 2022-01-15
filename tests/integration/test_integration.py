@@ -187,7 +187,7 @@ def test_https_integration(proxy_py_subprocess: int) -> None:
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
     # "1" means use-https scheme for requests to instance
-    check_output([str(shell_script_test), str(proxy_py_subprocess), "1"])
+    check_output([str(shell_script_test), str(proxy_py_subprocess), '1'])
 
 
 @pytest.mark.smoke  # type: ignore[misc]
