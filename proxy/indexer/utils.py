@@ -78,7 +78,7 @@ class NeonTxResultInfo:
     def _set_defaults(self):
         self.logs = []
         self.status = "0x0"
-        self.gas_used = 0
+        self.gas_used = '0x0'
         self.return_value = bytes()
         self.sol_sign = None
         self.slot = -1
@@ -110,7 +110,7 @@ class NeonTxResultInfo:
 
     def _decode_return(self, log: bytes(), ix_idx: int, tx: {}):
         self.status = '0x1' if log[1] < 0xd0 else '0x0'
-        self.gas_used = int.from_bytes(log[2:10], 'little')
+        self.gas_used = hex(int.from_bytes(log[2:10], 'little'))
         self.return_value = log[10:].hex()
         self.sol_sign = tx['transaction']['signatures'][0]
         self.slot = tx['slot']
@@ -162,16 +162,16 @@ class NeonTxInfo:
     def _set_defaults(self):
         self.addr = None
         self.sign = None
-        self.nonce = 0
-        self.gas_price = 0
-        self.gas_limit = 0
+        self.nonce = None
+        self.gas_price = None
+        self.gas_limit = None
         self.to_addr = None
         self.contract = None
-        self.value = 0
+        self.value = None
         self.calldata = None
-        self.v = 0
-        self.r = 0
-        self.s = 0
+        self.v = None
+        self.r = None
+        self.s = None
         self.error = None
 
     def init_from_eth_tx(self, tx: EthTx):
@@ -182,10 +182,10 @@ class NeonTxInfo:
         self.sign = '0x' + tx.hash_signed().hex()
         self.addr = '0x' + tx.sender()
 
-        self.nonce = tx.nonce
-        self.gas_price = tx.gasPrice
-        self.gas_limit = tx.gasLimit
-        self.value = tx.value
+        self.nonce = hex(tx.nonce)
+        self.gas_price = hex(tx.gasPrice)
+        self.gas_limit = hex(tx.gasLimit)
+        self.value = hex(tx.value)
         self.calldata = '0x' + tx.callData.hex()
 
         if not tx.toAddress:
@@ -495,9 +495,10 @@ class Canceller:
                     keys.append(AccountMeta(pubkey=acc, is_signer=False, is_writable=(False if acc in readonly_accs else True)))
 
                 trx = Transaction()
+                nonce = int(neon_tx.nonce, 16)
                 trx.add(TransactionInstruction(
                     program_id=EVM_LOADER_ID,
-                    data=bytearray.fromhex("15") + neon_tx.nonce.to_bytes(8, 'little'),
+                    data=bytearray.fromhex("15") + nonce.to_bytes(8, 'little'),
                     keys=keys
                 ))
 

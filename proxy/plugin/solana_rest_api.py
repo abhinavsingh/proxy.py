@@ -294,8 +294,8 @@ class EthereumModel:
             "blockNumber": hex(tx.block.height),
             "from": tx.neon_tx.addr,
             "to": tx.neon_tx.to_addr,
-            "gasUsed": hex(tx.neon_res.gas_used),
-            "cumulativeGasUsed": hex(tx.neon_res.gas_used),
+            "gasUsed": tx.neon_res.gas_used,
+            "cumulativeGasUsed": tx.neon_res.gas_used,
             "contractAddress": tx.neon_tx.contract,
             "logs": tx.neon_res.logs,
             "status": tx.neon_res.status,
@@ -323,11 +323,11 @@ class EthereumModel:
             "hash": t.sign,
             "transactionIndex": hex(0),
             "from": t.addr,
-            "nonce":  hex(t.nonce),
-            "gasPrice": hex(t.gas_price),
-            "gas": hex(t.gas_limit),
+            "nonce":  t.nonce,
+            "gasPrice": t.gas_price,
+            "gas": t.gas_limit,
             "to": t.to_addr,
-            "value": hex(t.value),
+            "value": t.value,
             "input": t.calldata,
             "v": t.v,
             "r": t.r,
@@ -512,17 +512,22 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             'id': request.get('id', None),
         }
         try:
-            method = getattr(self.model, request['method'])
-            params = request.get('params', [])
-            response['result'] = method(*params)
+            if not hasattr(self.model, request['method']):
+                response['error'] = {'code': -32000, 'message': f'method {request["method"]} is not supported'}
+            else:
+                method = getattr(self.model, request['method'])
+                params = request.get('params', [])
+                response['result'] = method(*params)
         except SolanaTrxError as err:
-            traceback.print_exc()
+            # traceback.print_exc()
             response['error'] = err.result
         except EthereumError as err:
-            traceback.print_exc()
+            # traceback.print_exc()
             response['error'] = err.getError()
         except Exception as err:
-            traceback.print_exc()
+            err_tb = "".join(traceback.format_tb(err.__traceback__))
+            logger.warning('Exception on process request. ' +
+                           f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
             response['error'] = {'code': -32000, 'message': str(err)}
 
         return response

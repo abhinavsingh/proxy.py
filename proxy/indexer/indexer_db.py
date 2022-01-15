@@ -3,18 +3,18 @@ import logging
 import traceback
 
 try:
-    from utils import LogDB
+    from utils import LogDB, NeonTxInfo, NeonTxResultInfo, SolanaIxSignInfo
     from blocks_db import SolanaBlocksDB, SolanaBlockDBInfo
     from transactions_db import NeonTxsDB, NeonTxDBInfo
     from sql_dict import SQLDict
 except ImportError:
-    from .utils import LogDB
+    from .utils import LogDB, NeonTxInfo, NeonTxResultInfo, SolanaIxSignInfo
     from .blocks_db import SolanaBlocksDB, SolanaBlockDBInfo
     from .transactions_db import NeonTxsDB, NeonTxDBInfo
     from .sql_dict import SQLDict
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 class IndexerDB:
@@ -29,12 +29,13 @@ class IndexerDB:
             if k not in self._constants:
                 self._constants[k] = 0
 
-    def submit_transaction(self, neon_tx, neon_res, used_ixs):
+    def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo, used_ixs: [SolanaIxSignInfo]):
         try:
             block = self.get_block_by_slot(neon_res.slot)
             if block.hash is None:
                 logger.critical(f'Unable to submit transaction {neon_tx.sign} because slot {neon_res.slot} not found')
                 return
+            logger.debug(f'{neon_tx} {neon_res} {block}')
             if neon_res.logs:
                 for rec in neon_res.logs:
                     rec['transactionHash'] = neon_tx.sign
@@ -43,14 +44,12 @@ class IndexerDB:
                 self._logs_db.push_logs(neon_res.logs, block)
             tx = NeonTxDBInfo(neon_tx=neon_tx, neon_res=neon_res, block=block, used_ixs=used_ixs)
             self._txs_db.set_tx(tx)
-
-            logger.debug(f"{neon_tx.sign} {neon_res.status}")
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
             logger.warning('Exception on submitting transaction. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
-    def _fill_block_from_net(self, block) -> SolanaBlockDBInfo:
+    def _fill_block_from_net(self, block: SolanaBlockDBInfo):
         opts = {"commitment": "confirmed", "transactionDetails": "signatures", "rewards": False}
         net_block = self._client._provider.make_request("getBlock", block.slot, opts)
         if (not net_block) or ('result' not in net_block):
@@ -62,6 +61,7 @@ class IndexerDB:
         block.signs = net_block['signatures']
         block.parent_hash = '0x' + base58.b58decode(net_block['previousBlockhash']).hex()
         block.time = net_block['blockTime']
+        logger.debug(f'{block}')
         self._blocks_db.set_block(block)
         return block
 

@@ -63,11 +63,11 @@ class NeonTxsDB(BaseDB):
                 finalized BOOLEAN,
                 idx INT,
 
-                nonce BIGINT,
-                gas_price BIGINT,
-                gas_limit BIGINT,
-                value BIGINT,
-                gas_used BIGINT,
+                nonce VARCHAR,
+                gas_price VARCHAR,
+                gas_limit VARCHAR ,
+                value VARCHAR,
+                gas_used VARCHAR,
 
                 to_addr CHAR(42),
                 contract CHAR(42),
