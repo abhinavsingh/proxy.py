@@ -11,12 +11,13 @@
 import argparse
 import logging
 
-from typing import Any, Callable, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional, Set, Tuple
 
 try:
     from paramiko import SSHClient, AutoAddPolicy
     from paramiko.transport import Transport
-    from paramiko.channel import Channel
+    if TYPE_CHECKING:
+        from paramiko.channel import Channel
 except ImportError:
     pass
 

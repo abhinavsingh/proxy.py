@@ -10,12 +10,13 @@
 """
 import argparse
 
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
 
-try:
-    from paramiko.channel import Channel
-except ImportError:
-    pass
+if TYPE_CHECKING:
+    try:
+        from paramiko.channel import Channel
+    except ImportError:
+        pass
 
 
 class SshHttpProtocolHandler:
