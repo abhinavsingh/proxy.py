@@ -204,12 +204,12 @@ class HttpProtocolHandler(BaseTcpServerHandler[TcpClientConnection]):
                 if teardown:
                     return True
             except BrokenPipeError:
-                logger.error(
+                logger.warning(
                     'BrokenPipeError when flushing buffer for client',
                 )
                 return True
             except OSError:
-                logger.error('OSError when flushing buffer to client')
+                logger.warning('OSError when flushing buffer to client')
                 return True
         return False
 

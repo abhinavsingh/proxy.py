@@ -196,7 +196,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 )
                 return False
             except BrokenPipeError:
-                logger.error(
+                logger.warning(
                     'BrokenPipeError when flushing buffer for server',
                 )
                 return self._close_and_release()
@@ -840,7 +840,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 )
             do_close = True
         except BrokenPipeError:
-            logger.error(
+            logger.warning(
                 'BrokenPipeError when wrapping client for upstream: {0}'.format(
                     self.upstream.addr[0],
                 ),
