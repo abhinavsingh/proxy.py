@@ -18,7 +18,7 @@ import logging
 import selectors
 
 from abc import abstractmethod
-from typing import Any, Optional, Union
+from typing import Any, Optional, TypeVar, Union
 
 from ...common.flag import flags
 from ...common.utils import wrap_socket
@@ -77,7 +77,10 @@ flags.add_argument(
 )
 
 
-class BaseTcpServerHandler(Work[TcpClientConnection]):
+T = TypeVar('T', bound=TcpClientConnection)
+
+
+class BaseTcpServerHandler(Work[T]):
     """BaseTcpServerHandler implements Work interface.
 
     BaseTcpServerHandler lifecycle is controlled by Threadless core
@@ -114,9 +117,6 @@ class BaseTcpServerHandler(Work[TcpClientConnection]):
         HTTP protocol plugins."""
         conn = self._optionally_wrap_socket(self.work.connection)
         conn.setblocking(False)
-        # Update client connection reference if connection was wrapped
-        if self._encryption_enabled():
-            self.work = TcpClientConnection(conn=conn, addr=self.work.addr)
         logger.debug('Handling connection %s' % self.work.address)
 
     @abstractmethod
@@ -218,4 +218,5 @@ class BaseTcpServerHandler(Work[TcpClientConnection]):
             assert self.flags.keyfile and self.flags.certfile
             # TODO(abhinavsingh): Insecure TLS versions must not be accepted by default
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
+            self.work._conn = conn
         return conn

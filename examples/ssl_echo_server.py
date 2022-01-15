@@ -17,7 +17,7 @@ from proxy.common.utils import wrap_socket
 from proxy.core.connection import TcpClientConnection
 
 
-class EchoSSLServerHandler(BaseTcpServerHandler):
+class EchoSSLServerHandler(BaseTcpServerHandler[TcpClientConnection]):
     """Wraps client socket during initialization."""
 
     def initialize(self) -> None:

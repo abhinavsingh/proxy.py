@@ -19,6 +19,7 @@ import selectors
 from typing import Tuple, List, Type, Optional, Any
 
 from ..core.base import BaseTcpServerHandler
+from ..core.connection import TcpClientConnection
 from ..common.types import Readables, SelectableEvents, Writables
 from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
@@ -31,7 +32,7 @@ from .parser import HttpParser, httpParserStates, httpParserTypes
 logger = logging.getLogger(__name__)
 
 
-class HttpProtocolHandler(BaseTcpServerHandler):
+class HttpProtocolHandler(BaseTcpServerHandler[TcpClientConnection]):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection and delegates to HttpProtocolHandlerPlugin.
@@ -54,6 +55,18 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     # initialize, is_inactive, shutdown, get_events, handle_events
     # overrides Work class definitions.
     ##
+
+    def initialize(self) -> None:
+        super().initialize()
+        # Update client connection reference if connection was wrapped
+        # This is here in `handler` and not `tcp_server` because
+        # `tcp_server` is agnostic to constructing TcpClientConnection
+        # objects.
+        if self._encryption_enabled():
+            self.work = TcpClientConnection(
+                conn=self.work.connection,
+                addr=self.work.addr,
+            )
 
     def is_inactive(self) -> bool:
         if not self.work.has_buffer() and \
