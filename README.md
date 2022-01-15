@@ -1355,8 +1355,9 @@ if __name__ == '__main__':
 
 Note that:
 
-1. Calling `main` is simply equivalent to starting `proxy.py` from command line.
-2. `main` doesn't accept any `*args`. It will automatically parse any available `sys.argv`.
+1. `main` is equivalent to starting `proxy.py` from command line.
+2. `main` does not accept any `args` (only `kwargs`).
+3. `main` will automatically consume any available `sys.argv` as `args`.
 3. `main` will block until `proxy.py` shuts down.
 
 ## Non-blocking Mode
@@ -1369,19 +1370,20 @@ import proxy
 
 if __name__ == '__main__':
   with proxy.Proxy() as p:
-    # ... your logic here ...
+    # Uncomment the line below and
+    # implement your app your logic here
+    proxy.sleep_loop()
 ```
 
 Note that:
 
-1. `Proxy` is similar to `main`, except `Proxy` does not block.
-2. Internally `Proxy` is a context manager.
-3. It will start `proxy.py` when called and will shut it down
-   once the scope ends.
-4. However, unlike `main`, startup flags with `Proxy`
-   can also be customized by either passing flags as list of
-   input arguments e.g. `Proxy(['--port', '8899'])` or
+1. `Proxy` is similar to `main`, except `Proxy` will not block.
+2. Internally, `Proxy` is a context manager which will start
+   `proxy.py` when called and will shut it down once the scope ends.
+3. Unlike `main`, startup flags with `Proxy` can also be customized
+   by using `args` and `kwargs`. e.g. `Proxy(['--port', '8899'])` or
    by using passing flags as kwargs e.g. `Proxy(port=8899)`.
+4. Unlike `main`, `Proxy` will not inspect `sys.argv`.
 
 ## Ephemeral Port
 
@@ -1395,6 +1397,7 @@ import proxy
 if __name__ == '__main__':
   with proxy.Proxy() as p:
     print(p.flags.port)
+    proxy.sleep_loop()
 ```
 
 `flags.port` will give you access to the random port allocated by the kernel.
