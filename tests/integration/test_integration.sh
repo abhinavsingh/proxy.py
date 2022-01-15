@@ -28,9 +28,8 @@ CURL_EXTRA_FLAGS=""
 USE_HTTPS=$2
 if [[ ! -z "$USE_HTTPS" ]]; then
     PROXY_URL="https://localhost:$PROXY_PY_PORT"
-    CURL_EXTRA_FLAGS="-k --proxy-insecure"
+    CURL_EXTRA_FLAGS=" -k --proxy-insecure "
 fi
-
 
 # Wait for server to come up
 WAIT_FOR_PROXY="lsof -i TCP:$PROXY_PY_PORT | wc -l | tr -d ' '"
@@ -44,13 +43,9 @@ while true; do
 done
 
 # Wait for http proxy and web server to start
+CMD="curl -v --max-time 1 --connect-timeout 1 $CURL_EXTRA_FLAGS -x $PROXY_URL $PROXY_URL"
 while true; do
-    curl -v \
-        --max-time 1 \
-        --connect-timeout 1 \
-        -x "$PROXY_URL" \
-        "$CURL_EXTRA_FLAGS" \
-        "$PROXY_URL" 2>/dev/null
+    RESPONSE=$($CMD 2> /dev/null)
     if [[ $? == 0 ]]; then
         break
     fi
@@ -88,21 +83,21 @@ Disallow: /deny
 EOM
 
 echo "[Test HTTP Request via Proxy]"
-CMD="curl -v -x $PROXY_URL $CURL_EXTRA_FLAGS http://httpbin.org/robots.txt"
+CMD="curl -v $CURL_EXTRA_FLAGS -x $PROXY_URL http://httpbin.org/robots.txt"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED1=$?
 
 echo "[Test HTTPS Request via Proxy]"
-CMD="curl -v -x $PROXY_URL $CURL_EXTRA_FLAGS https://httpbin.org/robots.txt"
+CMD="curl -v $CURL_EXTRA_FLAGS -x $PROXY_URL https://httpbin.org/robots.txt"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED2=$?
 
 echo "[Test Internal Web Server via Proxy]"
 curl -v \
-    -x $PROXY_URL \
     $CURL_EXTRA_FLAGS \
+    -x $PROXY_URL \
     "$PROXY_URL"
 VERIFIED3=$?
 
@@ -116,9 +111,9 @@ echo "[Test Download File Hash Verifies 1]"
 touch downloaded.hash
 echo "3d1921aab49d3464a712c1c1397b6babf8b461a9873268480aa8064da99441bc  -" > downloaded.hash
 curl -vL \
+    $CURL_EXTRA_FLAGS \
     -o downloaded.whl \
     -x $PROXY_URL \
-    $CURL_EXTRA_FLAGS \
     https://files.pythonhosted.org/packages/88/78/e642316313b1cd6396e4b85471a316e003eff968f29773e95ea191ea1d08/proxy.py-2.4.0rc4-py3-none-any.whl#sha256=3d1921aab49d3464a712c1c1397b6babf8b461a9873268480aa8064da99441bc
 cat downloaded.whl | $SHASUM -c downloaded.hash
 VERIFIED4=$?
@@ -128,9 +123,9 @@ echo "[Test Download File Hash Verifies 2]"
 touch downloaded.hash
 echo "077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8  -" > downloaded.hash
 curl -vL \
+    $CURL_EXTRA_FLAGS \
     -o downloaded.whl \
     -x $PROXY_URL \
-    $CURL_EXTRA_FLAGS \
     https://files.pythonhosted.org/packages/20/9a/e5d9ec41927401e41aea8af6d16e78b5e612bca4699d417f646a9610a076/Jinja2-3.0.3-py3-none-any.whl#sha256=077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8
 cat downloaded.whl | $SHASUM -c downloaded.hash
 VERIFIED5=$?

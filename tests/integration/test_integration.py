@@ -134,6 +134,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--port', '0',
         '--port-file', str(port_file),
         '--enable-web-server',
+        '--plugin', 'proxy.plugin.WebServerPlugin',
         '--num-acceptors', '3',
         '--num-workers', '3',
         '--ca-cert-dir', str(ca_cert_dir),
