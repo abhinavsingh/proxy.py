@@ -1272,8 +1272,15 @@ Start `proxy.py` as:
     --tunnel-username username \
     --tunnel-hostname ip.address.or.domain.name \
     --tunnel-port 22 \
-    --tunnel-remote-host 127.0.0.1
-    --tunnel-remote-port 8899
+    --tunnel-remote-port 8899 \
+    --tunnel-ssh-key /path/to/ssh/private.key \
+    --tunnel-ssh-key-passphrase XXXXX
+...[redacted]... [I] listener.setup:97 - Listening on 127.0.0.1:8899
+...[redacted]... [I] pool.setup:106 - Started 16 acceptors in threadless (local) mode
+...[redacted]... [I] transport._log:1873 - Connected (version 2.0, client OpenSSH_7.6p1)
+...[redacted]... [I] transport._log:1873 - Authentication (publickey) successful!
+...[redacted]... [I] listener.setup:116 - SSH connection established to ip.address.or.domain.name:22...
+...[redacted]... [I] listener.start_port_forward:91 - :8899 forwarding successful...
 ```
 
 Make a HTTP proxy request on `remote` server and
@@ -1311,6 +1318,13 @@ access_log:328 - remote:52067 - GET httpbin.org:80
                             |
                         FIREWALL
                      (allow tcp/22)
+
+Not planned.
+
+If you have a valid use case, kindly open an issue.  You are always welcome to send
+contributions via pull-requests to add this functionality :)
+
+> To proxy local requests remotely, make use of [Proxy Pool Plugin](#proxypoolplugin).
 
 # Embed proxy.py
 

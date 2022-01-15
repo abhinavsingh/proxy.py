@@ -12,10 +12,11 @@
 
        Submodules
 """
-from .client import SshClient
-from .tunnel import Tunnel
+from .handler import SshHttpProtocolHandler
+from .listener import SshTunnelListener
 
 __all__ = [
-    'SshClient',
-    'Tunnel',
+    'SshTunnelClientConnection',
+    'SshHttpProtocolHandler',
+    'SshTunnelListener',
 ]
