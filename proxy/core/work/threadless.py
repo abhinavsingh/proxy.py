@@ -25,7 +25,7 @@ from ...common.types import Readables, SelectableEvents, Writables
 from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
-from ..connection import TcpClientConnection, UpstreamConnectionPool
+from ..connection import TcpClientConnection
 from ..event import eventNames
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -91,7 +91,10 @@ class Threadless(ABC, Generic[T]):
         self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
         self._total: int = 0
-        self._upstream_conn_pool: Optional[UpstreamConnectionPool] = None
+        # When put at the top, causes circular import error
+        # since integrated ssh tunnel was introduced.
+        from ..connection import UpstreamConnectionPool     # pylint: disable=C0415
+        self._upstream_conn_pool: Optional['UpstreamConnectionPool'] = None
         self._upstream_conn_filenos: Set[int] = set()
         if self.flags.enable_conn_pool:
             self._upstream_conn_pool = UpstreamConnectionPool()
