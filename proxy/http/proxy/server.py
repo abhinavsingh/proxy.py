@@ -37,9 +37,9 @@ from ..responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 from ...common.types import Readables, Writables, Descriptors
 from ...common.constants import DEFAULT_CA_CERT_DIR, DEFAULT_CA_CERT_FILE, DEFAULT_CA_FILE
 from ...common.constants import DEFAULT_CA_KEY_FILE, DEFAULT_CA_SIGNING_KEY_FILE
-from ...common.constants import COMMA, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CERT_FILE
+from ...common.constants import COMMA, DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT
 from ...common.constants import PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HEADERS
-from ...common.constants import DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT, DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT
+from ...common.constants import DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT
 from ...common.constants import DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_PROXY_AUTH
 from ...common.utils import text_
 from ...common.pki import gen_public_key, gen_csr, sign_csr
@@ -51,15 +51,6 @@ from ...common.flag import flags
 
 logger = logging.getLogger(__name__)
 
-
-flags.add_argument(
-    '--server-recvbuf-size',
-    type=int,
-    default=DEFAULT_SERVER_RECVBUF_SIZE,
-    help='Default: ' + str(int(DEFAULT_SERVER_RECVBUF_SIZE / 1024)) +
-    ' KB. Maximum amount of data received from the '
-    'server in a single recv() operation.',
-)
 
 flags.add_argument(
     '--disable-http-proxy',
@@ -114,14 +105,6 @@ flags.add_argument(
     default=DEFAULT_CA_SIGNING_KEY_FILE,
     help='Default: None. CA signing key to use for dynamic generation of '
     'HTTPS certificates.  If used, must also pass --ca-key-file and --ca-cert-file',
-)
-
-flags.add_argument(
-    '--cert-file',
-    type=str,
-    default=DEFAULT_CERT_FILE,
-    help='Default: None. Server certificate to enable end-to-end TLS encryption with clients. '
-    'If used, must also pass --key-file.',
 )
 
 flags.add_argument(
