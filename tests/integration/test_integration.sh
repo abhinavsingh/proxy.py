@@ -24,11 +24,18 @@ if [[ -z "$PROXY_PY_PORT" ]]; then
 fi
 
 PROXY_URL="http://localhost:$PROXY_PY_PORT"
+TEST_URL="$PROXY_URL/http-route-example"
 CURL_EXTRA_FLAGS=""
 USE_HTTPS=$2
 if [[ ! -z "$USE_HTTPS" ]]; then
     PROXY_URL="https://localhost:$PROXY_PY_PORT"
     CURL_EXTRA_FLAGS=" -k --proxy-insecure "
+    # For https instances we don't use internal https web server
+    # See https://github.com/abhinavsingh/proxy.py/issues/994
+    TEST_URL="http://google.com"
+    USE_HTTPS=true
+else
+    USE_HTTPS=false
 fi
 
 # Wait for server to come up
@@ -43,7 +50,7 @@ while true; do
 done
 
 # Wait for http proxy and web server to start
-CMD="curl -v --max-time 1 --connect-timeout 1 $CURL_EXTRA_FLAGS -x $PROXY_URL $PROXY_URL"
+CMD="curl -v $CURL_EXTRA_FLAGS -x $PROXY_URL $TEST_URL"
 while true; do
     RESPONSE=$($CMD 2> /dev/null)
     if [[ $? == 0 ]]; then
@@ -94,12 +101,16 @@ RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED2=$?
 
-echo "[Test Internal Web Server via Proxy]"
-curl -v \
-    $CURL_EXTRA_FLAGS \
-    -x $PROXY_URL \
-    "$PROXY_URL"
-VERIFIED3=$?
+if $USE_HTTPS; then
+    VERIFIED3=0
+else
+    echo "[Test Internal Web Server via Proxy]"
+    curl -v \
+        $CURL_EXTRA_FLAGS \
+        -x $PROXY_URL \
+        "$PROXY_URL"
+    VERIFIED3=$?
+fi
 
 SHASUM=sha256sum
 if [ "$(uname)" = "Darwin" ];
