@@ -71,4 +71,4 @@ class TrxReceiptsStorage:
         cur.execute(f'SELECT slot, signature, trx FROM {self.table_name} WHERE slot >= {start_slot} ORDER BY slot {order}')
         rows = cur.fetchall()
         for row in rows:
-            yield row[0], row[1], decode(row[2])
+            yield int(row[0]), row[1], decode(row[2])

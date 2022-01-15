@@ -8,8 +8,6 @@ import time
 
 from base58 import b58encode
 from sha3 import keccak_256
-from solana.publickey import PublicKey
-from solana.rpc.api import SendTransactionError
 from solana.sysvar import *
 from solana.transaction import AccountMeta, Transaction
 
@@ -22,11 +20,11 @@ from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, A
 from .emulator_interactor import call_emulated
 from .layouts import ACCOUNT_INFO_LAYOUT
 from .neon_instruction import NeonInstruction
-from .solana_interactor import SolanaInteractor, check_if_continue_returned, check_for_errors,\
+from .solana_interactor import SolanaInteractor, check_for_errors,\
     check_if_program_exceeded_instructions, check_if_accounts_blocked, get_logs_from_reciept
 from ..environment import EVM_LOADER_ID, RETRY_ON_BLOCKED
-from ..plugin.eth_proto import Trx as EthTrx
-
+from ..indexer.utils import NeonTxResultInfo
+from ..common_neon.eth_proto import Trx as EthTrx
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -335,7 +333,7 @@ class NoniterativeTransactionSender:
                 else:
                     raise Exception(json.dumps(result['meta']))
             else:
-                return result['transaction']['signatures'][0]
+                return (NeonTxResultInfo(result), result['transaction']['signatures'][0])
 
 
 class IterativeTransactionSender:
@@ -344,8 +342,9 @@ class IterativeTransactionSender:
     CONTINUE_HOLDER_COMB = 'ExecuteTrxFromAccountDataIterativeOrContinue'
 
     class ContinueReturn:
-        def __init__(self, success_signature, none_receipts, logs, found_errors, try_one_step, retry_on_blocked, step_count):
+        def __init__(self, success_signature, neon_res, none_receipts, logs, found_errors, try_one_step, retry_on_blocked, step_count):
             self.success_signature = success_signature
+            self.neon_res = neon_res
             self.none_receipts = none_receipts
             self.logs = logs
             self.found_errors = found_errors
@@ -432,7 +431,7 @@ class IterativeTransactionSender:
             continue_result = self.send_and_confirm_continue(trxs, none_receipts)
 
             if continue_result.success_signature is not None:
-                return continue_result.success_signature
+                return (continue_result.neon_res, continue_result.success_signature)
             none_receipts = continue_result.none_receipts
             logs += continue_result.logs
             found_errors = continue_result.found_errors or found_errors
@@ -448,7 +447,7 @@ class IterativeTransactionSender:
                 continue_result = self.send_and_confirm_continue([trx], none_receipts, retry_on_blocked, step_count)
 
                 if continue_result.success_signature is not None:
-                    return continue_result.success_signature
+                    return (continue_result.neon_res, continue_result.success_signature)
                 none_receipts = continue_result.none_receipts
                 logs += continue_result.logs
                 found_errors = continue_result.found_errors or found_errors
@@ -477,7 +476,9 @@ class IterativeTransactionSender:
 
         logger.debug("Cancel")
         result = self.sender.send_measured_transaction(trx, self.eth_trx, 'CancelWithNonce')
-        return result['transaction']['signatures'][0]
+        neon_res = NeonTxResultInfo()
+        neon_res.slot = result['slot']
+        return (neon_res, result['transaction']['signatures'][0])
 
 
     def send_and_confirm_continue(self, trxs: List[Transaction], none_receipts: List[str], retry_on_blocked: int = 1, step_count: int = 1) -> ContinueReturn:
@@ -485,6 +486,7 @@ class IterativeTransactionSender:
         try_one_step = False
         logs = []
         success_signature = None
+        success_neon_res = None
 
         receipts = self.sender.send_multiple_transactions_unconfirmed(trxs)
         receipts += none_receipts
@@ -497,9 +499,10 @@ class IterativeTransactionSender:
                 if not check_error(result):
                     self.success_steps += 1
                     self.sender.get_measurements(result)
-                    signature = check_if_continue_returned(result)
-                    if signature is not None:
-                        success_signature = signature
+                    neon_res = NeonTxResultInfo(result)
+                    if neon_res.is_valid():
+                        success_signature = result['transaction']['signatures'][0]
+                        success_neon_res = neon_res
                 elif check_if_accounts_blocked(result):
                     logger.debug("Blocked account")
                     retry_on_blocked -= 1
@@ -514,8 +517,7 @@ class IterativeTransactionSender:
                     found_errors = True
             else:
                 none_receipts.append(receipt)
-
-        return self.ContinueReturn(success_signature, none_receipts, logs, found_errors, try_one_step, retry_on_blocked, step_count)
+        return self.ContinueReturn(success_signature, success_neon_res, none_receipts, logs, found_errors, try_one_step, retry_on_blocked, step_count)
 
 
     def steps_count(self):
@@ -551,3 +553,4 @@ class IterativeTransactionSender:
             return self.instruction.make_partial_call_or_continue_from_account_data(steps, index)
         else:
             raise Exception("Unknown continue type: {}".format(self.instruction_type))
+
