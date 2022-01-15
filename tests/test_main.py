@@ -17,7 +17,7 @@ from unittest import mock
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
 from proxy.common.constants import (  # noqa: WPS450
-    DEFAULT_CA_CERT_DIR, DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
+    DEFAULT_CA_CERT_DIR, DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
     DEFAULT_LOG_FILE, DEFAULT_PAC_FILE, DEFAULT_PID_FILE, PLUGIN_DASHBOARD,
     DEFAULT_CERT_FILE, DEFAULT_LOG_LEVEL, DEFAULT_PORT_FILE, PLUGIN_HTTP_PROXY,
     PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_BASIC_AUTH,
@@ -75,6 +75,7 @@ class TestMain(unittest.TestCase):
         mock_args.work_klass = DEFAULT_WORK_KLASS
         mock_args.local_executor = int(DEFAULT_LOCAL_EXECUTOR)
         mock_args.port_file = DEFAULT_PORT_FILE
+        mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -103,6 +104,7 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.pid_file = pid_file
         mock_initialize.return_value.port_file = None
+        mock_initialize.return_value.enable_ssh_tunnel = False
         entry_point()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
@@ -151,6 +153,7 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.port_file = None
+        mock_initialize.return_value.enable_ssh_tunnel = False
         main()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
@@ -192,6 +195,7 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = True
         mock_initialize.return_value.port_file = None
+        mock_initialize.return_value.enable_ssh_tunnel = False
         main()
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()
