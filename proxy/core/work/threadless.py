@@ -91,7 +91,9 @@ class Threadless(ABC, Generic[T]):
         self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
         self._total: int = 0
-        from ..connection import UpstreamConnectionPool
+        # When put at the top, causes circular import error
+        # since integrated ssh tunnel was introduced.
+        from ..connection import UpstreamConnectionPool     # noqa: C0415
         self._upstream_conn_pool: Optional['UpstreamConnectionPool'] = None
         self._upstream_conn_filenos: Set[int] = set()
         if self.flags.enable_conn_pool:
