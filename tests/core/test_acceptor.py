@@ -24,9 +24,10 @@ class TestAcceptor(unittest.TestCase):
     def setUp(self) -> None:
         self.acceptor_id = 1
         self.pipe = multiprocessing.Pipe()
+        self.work_klass = mock.MagicMock()
         self.flags = FlagParser.initialize(
             threaded=True,
-            work_klass=mock.MagicMock(),
+            work_klass=self.work_klass,
             local_executor=0,
         )
         self.acceptor = Acceptor(
@@ -63,7 +64,6 @@ class TestAcceptor(unittest.TestCase):
         sock.accept.assert_not_called()
         self.flags.work_klass.assert_not_called()
 
-    @mock.patch('proxy.core.work.threaded.TcpClientConnection')
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -74,7 +74,6 @@ class TestAcceptor(unittest.TestCase):
             mock_fromfd: mock.Mock,
             mock_selector: mock.Mock,
             mock_thread: mock.Mock,
-            mock_client: mock.Mock,
     ) -> None:
         fileno = 10
         conn = mock.MagicMock()
@@ -99,7 +98,7 @@ class TestAcceptor(unittest.TestCase):
             type=socket.SOCK_STREAM,
         )
         self.flags.work_klass.assert_called_with(
-            mock_client.return_value,
+            self.work_klass.create.return_value,
             flags=self.flags,
             event_queue=None,
             upstream_conn_pool=None,
