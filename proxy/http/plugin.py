@@ -15,9 +15,9 @@ from abc import ABC, abstractmethod
 from typing import List, Union, Optional, TYPE_CHECKING
 
 from ..core.event import EventQueue
-from ..core.connection import TcpClientConnection
 
 from .parser import HttpParser
+from .connection import HttpClientConnection
 from .descriptors import DescriptorsHandlerMixin
 from .mixins import TlsInterceptionPropertyMixin
 
@@ -55,7 +55,7 @@ class HttpProtocolHandlerPlugin(
             self,
             uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: HttpClientConnection,
             request: HttpParser,
             event_queue: Optional[EventQueue] = None,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
@@ -63,7 +63,7 @@ class HttpProtocolHandlerPlugin(
         super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
         self.uid: str = uid
         self.flags: argparse.Namespace = flags
-        self.client: TcpClientConnection = client
+        self.client: HttpClientConnection = client
         self.request: HttpParser = request
         self.event_queue = event_queue
         self.upstream_conn_pool = upstream_conn_pool

@@ -19,10 +19,10 @@ import selectors
 from typing import Tuple, List, Type, Optional, Any
 
 from ..core.base import BaseTcpServerHandler
-from ..core.connection import TcpClientConnection
 from ..common.types import Readables, SelectableEvents, Writables
 from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
+from .connection import HttpClientConnection
 from .exception import HttpProtocolException
 from .plugin import HttpProtocolHandlerPlugin
 from .responses import BAD_REQUEST_RESPONSE_PKT
@@ -32,7 +32,7 @@ from .parser import HttpParser, httpParserStates, httpParserTypes
 logger = logging.getLogger(__name__)
 
 
-class HttpProtocolHandler(BaseTcpServerHandler[TcpClientConnection]):
+class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection and delegates to HttpProtocolHandlerPlugin.
@@ -58,12 +58,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[TcpClientConnection]):
 
     def initialize(self) -> None:
         super().initialize()
-        # Update client connection reference if connection was wrapped
-        # This is here in `handler` and not `tcp_server` because
-        # `tcp_server` is agnostic to constructing TcpClientConnection
-        # objects.
         if self._encryption_enabled():
-            self.work = TcpClientConnection(
+            self.work = HttpClientConnection(
                 conn=self.work.connection,
                 addr=self.work.addr,
             )

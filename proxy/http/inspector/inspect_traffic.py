@@ -9,12 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import json
-from typing import List, Dict, Any
+from typing import TYPE_CHECKING, List, Dict, Any
 
 from ...common.utils import bytes_
 from ...core.event import EventSubscriber
-from ...core.connection import TcpClientConnection
+
 from ..websocket import WebsocketFrame, WebSocketTransportBasePlugin
+
+if TYPE_CHECKING:
+    from ..connection import HttpClientConnection
 
 
 class InspectTrafficPlugin(WebSocketTransportBasePlugin):
@@ -58,7 +61,7 @@ class InspectTrafficPlugin(WebSocketTransportBasePlugin):
             raise NotImplementedError()
 
     @staticmethod
-    def callback(client: TcpClientConnection, event: Dict[str, Any]) -> None:
+    def callback(client: 'HttpClientConnection', event: Dict[str, Any]) -> None:
         event['push'] = 'inspect_traffic'
         client.queue(
             memoryview(
