@@ -831,3 +831,20 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.method, b'REQMOD')
         assert self.parser._url is not None
         self.assertEqual(self.parser._url.scheme, b'icap')
+
+    def test_cannot_parse_sip_protocol(self) -> None:
+        # Will fail to parse because of invalid host and port in the request line
+        # Our Url parser expects an integer port.
+        with self.assertRaises(ValueError):
+            self.parser.parse(
+                b'OPTIONS sip:nm SIP/2.0\r\n' +
+                b'Via: SIP/2.0/TCP nm;branch=foo\r\n' +
+                b'From: <sip:nm@nm>;tag=root\r\nTo: <sip:nm2@nm2>\r\n' +
+                b'Call-ID: 50000\r\n' +
+                b'CSeq: 42 OPTIONS\r\n' +
+                b'Max-Forwards: 70\r\n' +
+                b'Content-Length: 0\r\n' +
+                b'Contact: <sip:nm@nm>\r\n' +
+                b'Accept: application/sdp\r\n' +
+                b'\r\n',
+            )

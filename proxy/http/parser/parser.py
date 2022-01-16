@@ -157,10 +157,10 @@ class HttpParser:
     @property
     def http_handler_protocol(self) -> int:
         """Returns `HttpProtocols` that this request belongs to."""
-        if self.version in (HTTP_1_1, HTTP_1_0):
+        if self.version in (HTTP_1_1, HTTP_1_0) and self._url is not None:
             if self.host is not None:
                 return httpProtocols.HTTP_PROXY
-            if self._url is None:
+            if self._url.hostname is None:
                 return httpProtocols.WEB_SERVER
         return httpProtocols.UNKNOWN
 
