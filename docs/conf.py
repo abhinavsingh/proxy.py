@@ -308,6 +308,7 @@ nitpick_ignore = [
     (_py_class_role, 'unittest.result.TestResult'),
     (_py_class_role, 'UUID'),
     (_py_class_role, 'UpstreamConnectionPool'),
+    (_py_class_role, 'HttpClientConnection'),
     (_py_class_role, 'Url'),
     (_py_class_role, 'WebsocketFrame'),
     (_py_class_role, 'Work'),
