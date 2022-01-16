@@ -25,7 +25,6 @@ from ...common.types import Readables, SelectableEvents, Writables
 from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
-from ..connection import TcpClientConnection
 from ..event import eventNames
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -138,7 +137,7 @@ class Threadless(ABC, Generic[T]):
         )
         uid = '%s-%s-%s' % (self.iid, self._total, fileno)
         self.works[fileno] = self.flags.work_klass(
-            TcpClientConnection(
+            self.flags.work_klass.create(
                 conn=conn,
                 addr=addr,
             ),

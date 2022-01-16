@@ -14,11 +14,10 @@ import pytest
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpHeaders
+from proxy.http import HttpProtocolHandler, httpHeaders, HttpClientConnection
 from proxy.common.flag import FlagParser
 from proxy.common.utils import build_http_request
 from proxy.http.responses import PROXY_AUTH_FAILED_RESPONSE_PKT
-from proxy.core.connection import TcpClientConnection
 from ...test_assertions import Assertions
 
 
@@ -39,7 +38,7 @@ class TestHttpProxyAuthFailed(Assertions):
         )
         self._conn = self.mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()

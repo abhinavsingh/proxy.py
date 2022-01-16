@@ -17,9 +17,9 @@ from ..mixins import TlsInterceptionPropertyMixin
 
 from ..parser import HttpParser
 from ..descriptors import DescriptorsHandlerMixin
+from ..connection import HttpClientConnection
 
 from ...core.event import EventQueue
-from ...core.connection import TcpClientConnection
 
 if TYPE_CHECKING:   # pragma: no cover
     from ...core.connection import UpstreamConnectionPool
@@ -38,7 +38,7 @@ class HttpProxyBasePlugin(
             self,
             uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: HttpClientConnection,
             event_queue: EventQueue,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:

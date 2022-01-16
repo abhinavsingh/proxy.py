@@ -14,12 +14,11 @@ import pytest
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler, HttpClientConnection
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
 from proxy.common.utils import build_http_request
 from proxy.http.exception import HttpProtocolException
-from proxy.core.connection import TcpClientConnection
 from proxy.common.constants import DEFAULT_HTTP_PORT
 
 
@@ -43,7 +42,7 @@ class TestHttpProxyPlugin:
         }
         self._conn = self.mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()

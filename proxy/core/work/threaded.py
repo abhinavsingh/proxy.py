@@ -12,25 +12,27 @@ import socket
 import argparse
 import threading
 
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple, TypeVar
 
-from ..connection import TcpClientConnection
 from ..event import EventQueue, eventNames
 
 if TYPE_CHECKING:   # pragma: no cover
     from .work import Work
 
+T = TypeVar('T')
 
+
+# TODO: Add generic T
 def start_threaded_work(
         flags: argparse.Namespace,
         conn: socket.socket,
         addr: Optional[Tuple[str, int]],
         event_queue: Optional[EventQueue] = None,
         publisher_id: Optional[str] = None,
-) -> Tuple['Work[TcpClientConnection]', threading.Thread]:
+) -> Tuple['Work[T]', threading.Thread]:
     """Utility method to start a work in a new thread."""
     work = flags.work_klass(
-        TcpClientConnection(conn, addr),
+        flags.work_klass.create(conn=conn, addr=addr),
         flags=flags,
         event_queue=event_queue,
         upstream_conn_pool=None,

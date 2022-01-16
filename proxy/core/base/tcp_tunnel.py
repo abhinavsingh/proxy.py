@@ -47,6 +47,10 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler[TcpClientConnection]):
     def handle_data(self, data: memoryview) -> Optional[bool]:
         pass    # pragma: no cover
 
+    @staticmethod
+    def create(**kwargs: Any) -> TcpClientConnection:
+        return TcpClientConnection(**kwargs)
+
     def initialize(self) -> None:
         self.work.connection.setblocking(False)
 

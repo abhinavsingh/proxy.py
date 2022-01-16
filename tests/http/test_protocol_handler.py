@@ -17,7 +17,7 @@ from unittest import mock
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpHeaders
+from proxy.http import HttpProtocolHandler, httpHeaders, HttpClientConnection
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
@@ -28,7 +28,6 @@ from proxy.http.responses import (
     BAD_GATEWAY_RESPONSE_PKT, PROXY_AUTH_FAILED_RESPONSE_PKT,
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
 )
-from proxy.core.connection import TcpClientConnection
 from proxy.common.constants import (
     CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER,
 )
@@ -68,7 +67,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
         ])
 
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()
@@ -101,7 +100,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
             bytes_(PLUGIN_PROXY_AUTH),
         ])
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr), flags=flags,
+            HttpClientConnection(self._conn, self._addr), flags=flags,
         )
         self.protocol_handler.initialize()
         self._conn.recv.return_value = CRLF.join([
@@ -138,7 +137,7 @@ class TestHttpProtocolHandler(Assertions):
         ])
 
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()
@@ -301,7 +300,7 @@ class TestHttpProtocolHandler(Assertions):
         ])
 
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr), flags=flags,
+            HttpClientConnection(self._conn, self._addr), flags=flags,
         )
         self.protocol_handler.initialize()
         assert self.http_server_port is not None
@@ -349,7 +348,7 @@ class TestHttpProtocolHandler(Assertions):
         ])
 
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr), flags=flags,
+            HttpClientConnection(self._conn, self._addr), flags=flags,
         )
         self.protocol_handler.initialize()
 
