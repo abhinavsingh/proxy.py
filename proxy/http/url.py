@@ -68,7 +68,7 @@ class Url:
         For a HTTPS connect tunnel, url is like ``httpbin.org:443``
         For a HTTP proxy request, url is like ``http://httpbin.org/get``
 
-        proxy.py internally never expects a `https` scheme in the request line.
+        proxy.py internally never expects a https scheme in the request line.
         But `Url` class provides support for parsing any scheme present in the URLs.
         e.g. ftp, icap etc.
 
