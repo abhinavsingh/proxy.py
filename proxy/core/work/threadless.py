@@ -18,7 +18,7 @@ import selectors
 import multiprocessing
 
 from abc import abstractmethod, ABC
-from typing import TYPE_CHECKING, Dict, Optional, Tuple, List, Set, Generic, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, SelectableEvents, Writables
@@ -136,9 +136,8 @@ class Threadless(ABC, Generic[T]):
             type=socket.SOCK_STREAM,
         )
         uid = '%s-%s-%s' % (self.iid, self._total, fileno)
-        work_klass: Type['Work'] = self.flags.work_klass
-        self.works[fileno] = work_klass(
-            work_klass.create(
+        self.works[fileno] = self.flags.work_klass(
+            self.flags.work_klass.create(
                 conn=conn,
                 addr=addr,
             ),
