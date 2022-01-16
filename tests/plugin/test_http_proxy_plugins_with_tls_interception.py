@@ -18,7 +18,7 @@ import pytest
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpMethods
+from proxy.http import HttpProtocolHandler, httpMethods, HttpClientConnection
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes
@@ -26,7 +26,7 @@ from proxy.common.utils import bytes_, build_http_request
 from proxy.http.responses import (
     PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT, okResponse,
 )
-from proxy.core.connection import TcpClientConnection, TcpServerConnection
+from proxy.core.connection import TcpServerConnection
 from .utils import get_plugin_by_test_name
 from ..test_assertions import Assertions
 
@@ -71,7 +71,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         self._conn = mocker.MagicMock(spec=socket.socket)
         self.mock_fromfd.return_value = self._conn
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr), flags=self.flags,
+            HttpClientConnection(self._conn, self._addr), flags=self.flags,
         )
         self.protocol_handler.initialize()
 
