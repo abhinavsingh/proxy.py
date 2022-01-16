@@ -5,6 +5,7 @@ import logging
 import psycopg2
 import rlp
 import subprocess
+import os
 
 from eth_utils import big_endian_to_int
 from solana.account import Account
@@ -28,6 +29,8 @@ from ..environment import SOLANA_URL, EVM_LOADER_ID, ETH_TOKEN_MINT_ID
 from proxy.indexer.pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST
 from proxy.indexer.pg_common import encode, decode
 
+
+FINALIZED = os.environ.get('FINALIZED', 'finalized')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -276,7 +279,7 @@ class BaseDB:
     def _create_table_sql(self) -> str:
         assert False, 'No script for the table'
 
-    def _fetchone(self, values, keys) -> str:
+    def _fetchone(self, values, keys, order_list=None) -> str:
         cursor = self._conn.cursor()
 
         where_cond = '1=1'
@@ -285,8 +288,11 @@ class BaseDB:
             where_cond += f' AND {name} = %s'
             where_keys.append(value)
 
-        logger.debug(f'SELECT {",".join(values)} FROM {self._table_name} WHERE {where_cond}')
-        cursor.execute(f'SELECT {",".join(values)} FROM {self._table_name} WHERE {where_cond}', where_keys)
+        order_cond = ''
+        if order_list:
+            order_cond = 'ORDER BY ' + ', '.join(order_list)
+
+        cursor.execute(f'SELECT {",".join(values)} FROM {self._table_name} WHERE {where_cond} {order_cond}', where_keys)
         return cursor.fetchone()
 
     def __del__(self):
@@ -319,7 +325,7 @@ class LogDB(BaseDB):
 
                 json TEXT,
 
-                UNIQUE(transactionLogIndex, transactionHash, topic)
+                UNIQUE(transactionLogIndex, transactionHash, topic, slot, finalized)
             );
             CREATE INDEX IF NOT EXISTS {self._table_name}_finalized ON {self._table_name}(slot, finalized);
             """

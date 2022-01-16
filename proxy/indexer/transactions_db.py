@@ -83,7 +83,7 @@ class NeonTxsDB(BaseDB):
                 calldata TEXT,
                 logs BYTEA,
 
-                UNIQUE(neon_sign),
+                UNIQUE(neon_sign, finalized),
                 UNIQUE(sol_sign, idx)
             );
             CREATE INDEX IF NOT EXISTS {self._table_name}_finalized ON {self._table_name}(slot, finalized);
@@ -152,7 +152,9 @@ class NeonTxsDB(BaseDB):
                        (from_slot, to_slot))
 
     def get_tx_by_neon_sign(self, neon_sign) -> NeonTxDBInfo:
-        return self._tx_from_value(self._fetchone(self._column_lst, [('neon_sign', neon_sign)]))
+        return self._tx_from_value(
+            self._fetchone(self._column_lst, [('neon_sign', neon_sign)], ['finalized desc']))
 
     def get_tx_by_sol_sign(self, sol_sign) -> NeonTxDBInfo:
-        return self._tx_from_value(self._fetchone(self._column_lst, [('sol_sign', sol_sign)]))
+        return self._tx_from_value(
+            self._fetchone(self._column_lst, [('sol_sign', sol_sign)], ['finalized desc']))

@@ -34,10 +34,10 @@ class SolanaBlocksDB(BaseDB):
                 blocktime BIGINT,
                 signatures BYTEA,
 
-                UNIQUE(slot)
+                UNIQUE(slot, finalized)
             );
-            CREATE INDEX IF NOT EXISTS {self._table_name}_hash ON {self._table_name}(hash);
-            CREATE INDEX IF NOT EXISTS {self._table_name}_height ON {self._table_name}(height);
+            CREATE INDEX IF NOT EXISTS {self._table_name}_hash ON {self._table_name}(hash, finalized);
+            CREATE INDEX IF NOT EXISTS {self._table_name}_height ON {self._table_name}(height, finalized);
             """
 
     def _block_from_value(self, value, slot=None) -> SolanaBlockDBInfo:
@@ -66,16 +66,22 @@ class SolanaBlocksDB(BaseDB):
         )
 
     def get_block_by_slot(self, block_slot) -> SolanaBlockDBInfo:
-        return self._block_from_value(self._fetchone(self._column_lst, [('slot', block_slot)]), block_slot)
+        return self._block_from_value(
+            self._fetchone(self._column_lst, [('slot', block_slot)], ['finalized desc']),
+            block_slot)
 
     def get_full_block_by_slot(self, block_slot) -> SolanaBlockDBInfo:
-        return self._full_block_from_value(self._fetchone(self._full_column_lst, [('slot', block_slot)]), block_slot)
+        return self._full_block_from_value(
+            self._fetchone(self._full_column_lst, [('slot', block_slot)], ['finalized desc']),
+            block_slot)
 
     def get_block_by_hash(self, block_hash) -> SolanaBlockDBInfo:
-        return self._block_from_value(self._fetchone(self._column_lst, [('hash', block_hash)]))
+        return self._block_from_value(
+            self._fetchone(self._column_lst, [('hash', block_hash)], ['finalized desc']))
 
     def get_block_by_height(self, block_num) -> SolanaBlockDBInfo:
-        return self._block_from_value(self._fetchone(self._column_lst, [('height', block_num)]))
+        return self._block_from_value(
+            self._fetchone(self._column_lst, [('height', block_num)], ['finalized desc']))
 
     def set_block(self, block: SolanaBlockDBInfo):
         cursor = self._conn.cursor()
@@ -84,7 +90,7 @@ class SolanaBlocksDB(BaseDB):
             ({', '.join(self._full_column_lst)})
             VALUES
             ({', '.join(['%s' for _ in range(len(self._full_column_lst))])})
-            ON CONFLICT (slot) DO UPDATE SET
+            ON CONFLICT (slot, finalized) DO UPDATE SET
                 hash=EXCLUDED.hash,
                 height=EXCLUDED.height,
                 parent_hash=EXCLUDED.parent_hash,

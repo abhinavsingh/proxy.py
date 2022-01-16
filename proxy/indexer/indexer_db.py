@@ -3,12 +3,12 @@ import logging
 import traceback
 
 try:
-    from utils import LogDB, NeonTxInfo, NeonTxResultInfo, SolanaIxSignInfo
+    from utils import LogDB, NeonTxInfo, NeonTxResultInfo, SolanaIxSignInfo, FINALIZED
     from blocks_db import SolanaBlocksDB, SolanaBlockDBInfo
     from transactions_db import NeonTxsDB, NeonTxDBInfo
     from sql_dict import SQLDict
 except ImportError:
-    from .utils import LogDB, NeonTxInfo, NeonTxResultInfo, SolanaIxSignInfo
+    from .utils import LogDB, NeonTxInfo, NeonTxResultInfo, SolanaIxSignInfo, FINALIZED
     from .blocks_db import SolanaBlocksDB, SolanaBlockDBInfo
     from .transactions_db import NeonTxsDB, NeonTxDBInfo
     from .sql_dict import SQLDict
@@ -61,6 +61,7 @@ class IndexerDB:
         block.signs = net_block['signatures']
         block.parent_hash = '0x' + base58.b58decode(net_block['previousBlockhash']).hex()
         block.time = net_block['blockTime']
+        block.finalized = ("confirmed" == FINALIZED)
         logger.debug(f'{block}')
         self._blocks_db.set_block(block)
         return block

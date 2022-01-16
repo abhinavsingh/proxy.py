@@ -30,9 +30,10 @@ if __name__ == '__main__':
         neon_decimals = int(os.environ.get('NEON_DECIMALS', '9'))
 
         start_slot = os.environ.get('START_SLOT', None)
+        finalized = os.environ.get('FINALIZED', 'finalized')
         if start_slot == 'LATEST':
             client = Client(solana_url)
-            start_slot = client.get_slot(commitment="confirmed")["result"]
+            start_slot = client.get_slot(commitment=finalized)["result"]
         if start_slot is None: # by default
             start_slot = 0
         else: # try to convert into integer
