@@ -12,7 +12,7 @@ import argparse
 
 from typing import TYPE_CHECKING, Tuple
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     try:
         from paramiko.channel import Channel
     except ImportError:

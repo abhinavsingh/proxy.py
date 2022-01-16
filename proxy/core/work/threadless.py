@@ -18,14 +18,13 @@ import selectors
 import multiprocessing
 
 from abc import abstractmethod, ABC
-from typing import TYPE_CHECKING, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, List, Set, Generic, Type, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, SelectableEvents, Writables
 from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
-from ..connection import TcpClientConnection
 from ..event import eventNames
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -137,8 +136,9 @@ class Threadless(ABC, Generic[T]):
             type=socket.SOCK_STREAM,
         )
         uid = '%s-%s-%s' % (self.iid, self._total, fileno)
-        self.works[fileno] = self.flags.work_klass(
-            TcpClientConnection(
+        work_klass: Type['Work'] = self.flags.work_klass
+        self.works[fileno] = work_klass(
+            work_klass.create(
                 conn=conn,
                 addr=addr,
             ),

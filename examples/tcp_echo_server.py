@@ -9,7 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
-from typing import Optional
+from typing import Any, Optional
 
 from proxy import Proxy
 from proxy.core.base import BaseTcpServerHandler
@@ -18,6 +18,10 @@ from proxy.core.connection import TcpClientConnection
 
 class EchoServerHandler(BaseTcpServerHandler[TcpClientConnection]):
     """Sets client socket to non-blocking during initialization."""
+
+    @staticmethod
+    def create(**kwargs: Any) -> TcpClientConnection:
+        return TcpClientConnection(**kwargs)
 
     def initialize(self) -> None:
         self.work.connection.setblocking(False)

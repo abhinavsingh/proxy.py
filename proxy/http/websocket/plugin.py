@@ -18,7 +18,7 @@ from ...core.event import EventQueue
 
 from . import WebsocketFrame
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..connection import HttpClientConnection
 
 

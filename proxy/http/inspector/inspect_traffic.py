@@ -16,7 +16,7 @@ from ...core.event import EventSubscriber
 
 from ..websocket import WebsocketFrame, WebSocketTransportBasePlugin
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ..connection import HttpClientConnection
 
 

@@ -16,7 +16,7 @@ import socket
 import logging
 import selectors
 
-from typing import TYPE_CHECKING, Set, Dict, Tuple
+from typing import TYPE_CHECKING, Any, Set, Dict, Tuple
 
 from ...common.flag import flags
 from ...common.types import Readables, SelectableEvents, Writables
@@ -76,6 +76,10 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
     def __init__(self) -> None:
         self.connections: Dict[int, TcpServerConnection] = {}
         self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
+
+    @staticmethod
+    def create(**kwargs: Any) -> TcpServerConnection:
+        return TcpServerConnection(**kwargs)
 
     def acquire(self, addr: Tuple[str, int]) -> Tuple[bool, TcpServerConnection]:
         """Returns a reusable connection from the pool.
@@ -152,7 +156,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
 
         NOTE: You must not use the returned connection, instead use `acquire`.
         """
-        new_conn = TcpServerConnection(addr[0], addr[1])
+        new_conn = self.create(host=addr[0], port=addr[1])
         new_conn.connect()
         self._add(new_conn)
         logger.debug(

@@ -56,6 +56,10 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     # overrides Work class definitions.
     ##
 
+    @staticmethod
+    def create(**kwargs: Any) -> HttpClientConnection:
+        return HttpClientConnection(**kwargs)
+
     def initialize(self) -> None:
         super().initialize()
         if self._encryption_enabled():

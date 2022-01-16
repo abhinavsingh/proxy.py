@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Set, Tuple
 try:
     from paramiko import SSHClient, AutoAddPolicy
     from paramiko.transport import Transport
-    if TYPE_CHECKING:
+    if TYPE_CHECKING:   # pragma: no cover
         from paramiko.channel import Channel
 except ImportError:
     pass
