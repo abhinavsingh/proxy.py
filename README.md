@@ -1272,8 +1272,15 @@ Start `proxy.py` as:
     --tunnel-username username \
     --tunnel-hostname ip.address.or.domain.name \
     --tunnel-port 22 \
-    --tunnel-remote-host 127.0.0.1
-    --tunnel-remote-port 8899
+    --tunnel-remote-port 8899 \
+    --tunnel-ssh-key /path/to/ssh/private.key \
+    --tunnel-ssh-key-passphrase XXXXX
+...[redacted]... [I] listener.setup:97 - Listening on 127.0.0.1:8899
+...[redacted]... [I] pool.setup:106 - Started 16 acceptors in threadless (local) mode
+...[redacted]... [I] transport._log:1873 - Connected (version 2.0, client OpenSSH_7.6p1)
+...[redacted]... [I] transport._log:1873 - Authentication (publickey) successful!
+...[redacted]... [I] listener.setup:116 - SSH connection established to ip.address.or.domain.name:22...
+...[redacted]... [I] listener.start_port_forward:91 - :8899 forwarding successful...
 ```
 
 Make a HTTP proxy request on `remote` server and
@@ -1312,6 +1319,13 @@ access_log:328 - remote:52067 - GET httpbin.org:80
                         FIREWALL
                      (allow tcp/22)
 
+Not planned.
+
+If you have a valid use case, kindly open an issue.  You are always welcome to send
+contributions via pull-requests to add this functionality :)
+
+> To proxy local requests remotely, make use of [Proxy Pool Plugin](#proxypoolplugin).
+
 # Embed proxy.py
 
 ## Blocking Mode
@@ -1326,19 +1340,7 @@ if __name__ == '__main__':
   proxy.main()
 ```
 
-Customize startup flags by passing list of input arguments:
-
-```python
-import proxy
-
-if __name__ == '__main__':
-  proxy.main([
-    '--hostname', '::1',
-    '--port', '8899'
-  ])
-```
-
-or, customize startup flags by passing them as kwargs:
+Customize startup flags by passing them as kwargs:
 
 ```python
 import ipaddress
@@ -1353,8 +1355,10 @@ if __name__ == '__main__':
 
 Note that:
 
-1. Calling `main` is simply equivalent to starting `proxy.py` from command line.
-2. `main` will block until `proxy.py` shuts down.
+1. `main` is equivalent to starting `proxy.py` from command line.
+2. `main` does not accept any `args` (only `kwargs`).
+3. `main` will automatically consume any available `sys.argv` as `args`.
+3. `main` will block until `proxy.py` shuts down.
 
 ## Non-blocking Mode
 
@@ -1365,20 +1369,21 @@ by using `Proxy` context manager: Example:
 import proxy
 
 if __name__ == '__main__':
-  with proxy.Proxy([]) as p:
-    # ... your logic here ...
+  with proxy.Proxy() as p:
+    # Uncomment the line below and
+    # implement your app your logic here
+    proxy.sleep_loop()
 ```
 
 Note that:
 
-1. `Proxy` is similar to `main`, except `Proxy` does not block.
-2. Internally `Proxy` is a context manager.
-3. It will start `proxy.py` when called and will shut it down
-   once the scope ends.
-4. Just like `main`, startup flags with `Proxy`
-   can be customized by either passing flags as list of
-   input arguments e.g. `Proxy(['--port', '8899'])` or
+1. `Proxy` is similar to `main`, except `Proxy` will not block.
+2. Internally, `Proxy` is a context manager which will start
+   `proxy.py` when called and will shut it down once the scope ends.
+3. Unlike `main`, startup flags with `Proxy` can also be customized
+   by using `args` and `kwargs`. e.g. `Proxy(['--port', '8899'])` or
    by using passing flags as kwargs e.g. `Proxy(port=8899)`.
+4. Unlike `main`, `Proxy` will not inspect `sys.argv`.
 
 ## Ephemeral Port
 
@@ -1390,8 +1395,9 @@ In embedded mode, you can access this port.  Example:
 import proxy
 
 if __name__ == '__main__':
-  with proxy.Proxy([]) as p:
+  with proxy.Proxy() as p:
     print(p.flags.port)
+    proxy.sleep_loop()
 ```
 
 `flags.port` will give you access to the random port allocated by the kernel.
@@ -1412,9 +1418,7 @@ Example, load a single plugin using `--plugins` flag:
 import proxy
 
 if __name__ == '__main__':
-  proxy.main([
-    '--plugins', 'proxy.plugin.CacheResponsesPlugin',
-  ])
+  proxy.main(plugins=['proxy.plugin.CacheResponsesPlugin'])
 ```
 
 For simplicity, you can also pass the list of plugins as a keyword argument to `proxy.main` or the `Proxy` constructor.
@@ -1426,7 +1430,7 @@ import proxy
 from proxy.plugin import FilterByUpstreamHostPlugin
 
 if __name__ == '__main__':
-  proxy.main([], plugins=[
+  proxy.main(plugins=[
     b'proxy.plugin.CacheResponsesPlugin',
     FilterByUpstreamHostPlugin,
   ])
@@ -1436,8 +1440,7 @@ if __name__ == '__main__':
 
 ## `proxy.TestCase`
 
-To setup and tear down `proxy.py` for your Python `unittest` classes,
-simply use `proxy.TestCase` instead of `unittest.TestCase`.
+To setup and tear down `proxy.py` for your Python `unittest` classes, simply use `proxy.TestCase` instead of `unittest.TestCase`.
 Example:
 
 ```python

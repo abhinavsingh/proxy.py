@@ -16,12 +16,12 @@ import socket
 import logging
 import selectors
 
-from typing import TYPE_CHECKING, Set, Dict, Tuple
+from typing import TYPE_CHECKING, Any, Set, Dict, Tuple
 
 from ...common.flag import flags
 from ...common.types import Readables, SelectableEvents, Writables
 
-from ..acceptor.work import Work
+from ..work import Work
 
 from .server import TcpServerConnection
 
@@ -76,6 +76,10 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
     def __init__(self) -> None:
         self.connections: Dict[int, TcpServerConnection] = {}
         self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
+
+    @staticmethod
+    def create(**kwargs: Any) -> TcpServerConnection:
+        return TcpServerConnection(**kwargs)
 
     def acquire(self, addr: Tuple[str, int]) -> Tuple[bool, TcpServerConnection]:
         """Returns a reusable connection from the pool.
@@ -139,7 +143,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         has somehow reached an illegal state e.g. upstream sending data for previous
         connection acquisition lifecycle."""
         for fileno in readables:
-            if TYPE_CHECKING:
+            if TYPE_CHECKING:   # pragma: no cover
                 assert isinstance(fileno, int)
             logger.debug('Upstream fd#{0} is read ready'.format(fileno))
             self._remove(fileno)
@@ -152,7 +156,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
 
         NOTE: You must not use the returned connection, instead use `acquire`.
         """
-        new_conn = TcpServerConnection(addr[0], addr[1])
+        new_conn = self.create(host=addr[0], port=addr[1])
         new_conn.connect()
         self._add(new_conn)
         logger.debug(
@@ -174,7 +178,10 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         """Remove a connection by descriptor from the internal data structure."""
         conn = self.connections[fileno]
         logger.debug('Removing conn#{0} from pool'.format(id(conn)))
-        conn.connection.shutdown(socket.SHUT_WR)
+        try:
+            conn.connection.shutdown(socket.SHUT_WR)
+        except OSError:
+            pass
         conn.close()
         self.pools[conn.addr].remove(conn)
         del self.connections[fileno]

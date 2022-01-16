@@ -18,17 +18,20 @@ import selectors
 import multiprocessing
 
 from abc import abstractmethod, ABC
-from typing import Any, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
 
 from ...common.logger import Logger
 from ...common.types import Readables, SelectableEvents, Writables
 from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
 from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
 
-from ..connection import TcpClientConnection, UpstreamConnectionPool
-from ..event import eventNames, EventQueue
+from ..event import eventNames
 
-from .work import Work
+if TYPE_CHECKING:   # pragma: no cover
+    from typing import Any
+
+    from ..event import EventQueue
+    from .work import Work
 
 T = TypeVar('T')
 
@@ -62,7 +65,7 @@ class Threadless(ABC, Generic[T]):
             iid: str,
             work_queue: T,
             flags: argparse.Namespace,
-            event_queue: Optional[EventQueue] = None,
+            event_queue: Optional['EventQueue'] = None,
     ) -> None:
         super().__init__()
         self.iid = iid
@@ -71,7 +74,7 @@ class Threadless(ABC, Generic[T]):
         self.event_queue = event_queue
 
         self.running = multiprocessing.Event()
-        self.works: Dict[int, Work[Any]] = {}
+        self.works: Dict[int, 'Work[Any]'] = {}
         self.selector: Optional[selectors.DefaultSelector] = None
         # If we remove single quotes for typing hint below,
         # runtime exceptions will occur for < Python 3.9.
@@ -87,7 +90,10 @@ class Threadless(ABC, Generic[T]):
         self.wait_timeout: float = DEFAULT_WAIT_FOR_TASKS_TIMEOUT
         self.cleanup_inactive_timeout: float = DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT
         self._total: int = 0
-        self._upstream_conn_pool: Optional[UpstreamConnectionPool] = None
+        # When put at the top, causes circular import error
+        # since integrated ssh tunnel was introduced.
+        from ..connection import UpstreamConnectionPool     # pylint: disable=C0415
+        self._upstream_conn_pool: Optional['UpstreamConnectionPool'] = None
         self._upstream_conn_filenos: Set[int] = set()
         if self.flags.enable_conn_pool:
             self._upstream_conn_pool = UpstreamConnectionPool()
@@ -131,7 +137,7 @@ class Threadless(ABC, Generic[T]):
         )
         uid = '%s-%s-%s' % (self.iid, self._total, fileno)
         self.works[fileno] = self.flags.work_klass(
-            TcpClientConnection(
+            self.flags.work_klass.create(
                 conn=conn,
                 addr=addr,
             ),
@@ -260,7 +266,7 @@ class Threadless(ABC, Generic[T]):
         Returned boolean value indicates whether there is
         a newly accepted work waiting to be received and
         queued for processing.  This is only applicable when
-        :class:`~proxy.core.acceptor.threadless.Threadless.work_queue_fileno`
+        :class:`~proxy.core.work.threadless.Threadless.work_queue_fileno`
         returns a valid fd.
         """
         assert self.selector is not None

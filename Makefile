@@ -12,9 +12,10 @@ HTTPS_CERT_FILE_PATH := https-cert.pem
 HTTPS_CSR_FILE_PATH := https-csr.pem
 HTTPS_SIGNED_CERT_FILE_PATH := https-signed-cert.pem
 
-CA_KEY_FILE_PATH := ca-key.pem
-CA_CERT_FILE_PATH := ca-cert.pem
-CA_SIGNING_KEY_FILE_PATH := ca-signing-key.pem
+CA_CERT_SUFFIX :=
+CA_KEY_FILE_PATH := ca-key$(CA_CERT_SUFFIX).pem
+CA_CERT_FILE_PATH := ca-cert$(CA_CERT_SUFFIX).pem
+CA_SIGNING_KEY_FILE_PATH := ca-signing-key$(CA_CERT_SUFFIX).pem
 
 # Dummy invalid hardcoded value
 PROXYPY_PKG_PATH := dist/proxy.py.whl
@@ -56,7 +57,7 @@ sign-https-certificates:
 	python -m proxy.common.pki sign_csr \
 		--csr-path $(HTTPS_CSR_FILE_PATH) \
 		--crt-path $(HTTPS_SIGNED_CERT_FILE_PATH) \
-		--hostname example.com \
+		--hostname localhost \
 		--private-key-path $(CA_KEY_FILE_PATH) \
 		--public-key-path $(CA_CERT_FILE_PATH)
 

@@ -8,25 +8,20 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import socket
 import logging
 import argparse
-import threading
 import multiprocessing
 
 from multiprocessing import connection
-from multiprocessing.reduction import send_handle
+from typing import TYPE_CHECKING, Any, Optional, List
 
-from typing import Any, Optional, List, Tuple
-
-from .work import Work
 from .remote import RemoteExecutor
-
-from ..connection import TcpClientConnection
-from ..event import EventQueue, eventNames
 
 from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
+
+if TYPE_CHECKING:   # pragma: no cover
+    from ..event import EventQueue
 
 logger = logging.getLogger(__name__)
 
@@ -76,14 +71,14 @@ class ThreadlessPool:
     def __init__(
         self,
         flags: argparse.Namespace,
-        event_queue: Optional[EventQueue] = None,
+        event_queue: Optional['EventQueue'] = None,
     ) -> None:
         self.flags = flags
         self.event_queue = event_queue
         # Threadless worker communication states
         self.work_queues: List[connection.Connection] = []
         self.work_pids: List[int] = []
-        self.work_locks: List[multiprocessing.synchronize.Lock] = []
+        self.work_locks: List['multiprocessing.synchronize.Lock'] = []
         # List of threadless workers
         self._workers: List[RemoteExecutor] = []
         self._processes: List[multiprocessing.Process] = []
@@ -94,59 +89,6 @@ class ThreadlessPool:
 
     def __exit__(self, *args: Any) -> None:
         self.shutdown()
-
-    @staticmethod
-    def delegate(
-            worker_pid: int,
-            work_queue: connection.Connection,
-            work_lock: multiprocessing.synchronize.Lock,
-            conn: socket.socket,
-            addr: Optional[Tuple[str, int]],
-            unix_socket_path: Optional[str] = None,
-    ) -> None:
-        """Utility method to delegate a work to threadless executor pool."""
-        with work_lock:
-            # Accepted client address is empty string for
-            # unix socket domain, avoid sending empty string
-            # for optimization.
-            if not unix_socket_path:
-                work_queue.send(addr)
-            send_handle(
-                work_queue,
-                conn.fileno(),
-                worker_pid,
-            )
-            conn.close()
-
-    @staticmethod
-    def start_threaded_work(
-            flags: argparse.Namespace,
-            conn: socket.socket,
-            addr: Optional[Tuple[str, int]],
-            event_queue: Optional[EventQueue] = None,
-            publisher_id: Optional[str] = None,
-    ) -> Tuple[Work[TcpClientConnection], threading.Thread]:
-        """Utility method to start a work in a new thread."""
-        work = flags.work_klass(
-            TcpClientConnection(conn, addr),
-            flags=flags,
-            event_queue=event_queue,
-            upstream_conn_pool=None,
-        )
-        # TODO: Keep reference to threads and join during shutdown.
-        # This will ensure connections are not abruptly closed on shutdown
-        # for threaded execution mode.
-        thread = threading.Thread(target=work.run)
-        thread.daemon = True
-        thread.start()
-        work.publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'fileno': conn.fileno(), 'addr': addr},
-            publisher_id=publisher_id or 'thread#{0}'.format(
-                thread.ident,
-            ),
-        )
-        return (work, thread)
 
     def setup(self) -> None:
         """Setup threadless processes."""

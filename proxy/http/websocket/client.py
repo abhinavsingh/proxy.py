@@ -115,5 +115,8 @@ class WebsocketClient(TcpConnection):
         finally:
             if not self.closed:
                 self.selector.unregister(self.sock)
-                self.sock.shutdown(socket.SHUT_WR)
+                try:
+                    self.sock.shutdown(socket.SHUT_WR)
+                except OSError:
+                    pass
             self.sock.close()

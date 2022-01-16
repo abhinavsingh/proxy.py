@@ -19,12 +19,12 @@ from unittest import mock
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpMethods
+from proxy.http import HttpProtocolHandler, httpMethods, HttpClientConnection
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
 from proxy.common.utils import bytes_, build_http_request
 from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
-from proxy.core.connection import TcpClientConnection, TcpServerConnection
+from proxy.core.connection import TcpServerConnection
 from proxy.common.constants import DEFAULT_CA_FILE
 from ...test_assertions import Assertions
 
@@ -88,7 +88,7 @@ class TestHttpProxyTlsInterception(Assertions):
         }
         self._conn = self.mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()

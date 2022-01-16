@@ -12,20 +12,75 @@
 
        tcp
 """
+import ssl
+import socket
 import logging
 import selectors
 
 from abc import abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar, Union
 
-from ...core.acceptor import Work
-from ...core.connection import TcpClientConnection
+from ...common.flag import flags
+from ...common.utils import wrap_socket
 from ...common.types import Readables, SelectableEvents, Writables
+from ...common.constants import DEFAULT_CERT_FILE, DEFAULT_CLIENT_RECVBUF_SIZE
+from ...common.constants import DEFAULT_KEY_FILE, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_TIMEOUT
+
+from ...core.work import Work
+from ...core.connection import TcpClientConnection
 
 logger = logging.getLogger(__name__)
 
 
-class BaseTcpServerHandler(Work[TcpClientConnection]):
+flags.add_argument(
+    '--key-file',
+    type=str,
+    default=DEFAULT_KEY_FILE,
+    help='Default: None. Server key file to enable end-to-end TLS encryption with clients. '
+    'If used, must also pass --cert-file.',
+)
+
+flags.add_argument(
+    '--cert-file',
+    type=str,
+    default=DEFAULT_CERT_FILE,
+    help='Default: None. Server certificate to enable end-to-end TLS encryption with clients. '
+    'If used, must also pass --key-file.',
+)
+
+flags.add_argument(
+    '--client-recvbuf-size',
+    type=int,
+    default=DEFAULT_CLIENT_RECVBUF_SIZE,
+    help='Default: ' + str(int(DEFAULT_CLIENT_RECVBUF_SIZE / 1024)) +
+    ' KB. Maximum amount of data received from the '
+    'client in a single recv() operation.',
+)
+
+flags.add_argument(
+    '--server-recvbuf-size',
+    type=int,
+    default=DEFAULT_SERVER_RECVBUF_SIZE,
+    help='Default: ' + str(int(DEFAULT_SERVER_RECVBUF_SIZE / 1024)) +
+    ' KB. Maximum amount of data received from the '
+    'server in a single recv() operation.',
+)
+
+flags.add_argument(
+    '--timeout',
+    type=int,
+    default=DEFAULT_TIMEOUT,
+    help='Default: ' + str(DEFAULT_TIMEOUT) +
+    '.  Number of seconds after which '
+    'an inactive connection must be dropped.  Inactivity is defined by no '
+    'data sent or received by the client.',
+)
+
+
+T = TypeVar('T', bound=TcpClientConnection)
+
+
+class BaseTcpServerHandler(Work[T]):
     """BaseTcpServerHandler implements Work interface.
 
     BaseTcpServerHandler lifecycle is controlled by Threadless core
@@ -55,6 +110,14 @@ class BaseTcpServerHandler(Work[TcpClientConnection]):
             self.work.connection.fileno(),
             self.work.address,
         )
+
+    def initialize(self) -> None:
+        """Optionally upgrades connection to HTTPS,
+        sets ``conn`` in non-blocking mode and initializes
+        HTTP protocol plugins."""
+        conn = self._optionally_wrap_socket(self.work.connection)
+        conn.setblocking(False)
+        logger.debug('Handling connection %s' % self.work.address)
 
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
@@ -109,7 +172,11 @@ class BaseTcpServerHandler(Work[TcpClientConnection]):
     async def handle_readables(self, readables: Readables) -> bool:
         teardown = False
         if self.work.connection.fileno() in readables:
-            data = self.work.recv(self.flags.client_recvbuf_size)
+            try:
+                data = self.work.recv(self.flags.client_recvbuf_size)
+            except TimeoutError:
+                logger.info('Client recv timeout error')
+                return True
             if data is None:
                 logger.debug(
                     'Connection closed by client {0}'.format(
@@ -135,3 +202,21 @@ class BaseTcpServerHandler(Work[TcpClientConnection]):
                     else:
                         teardown = True
         return teardown
+
+    def _encryption_enabled(self) -> bool:
+        return self.flags.keyfile is not None and \
+            self.flags.certfile is not None
+
+    def _optionally_wrap_socket(
+            self, conn: socket.socket,
+    ) -> Union[ssl.SSLSocket, socket.socket]:
+        """Attempts to wrap accepted client connection using provided certificates.
+
+        Shutdown and closes client connection upon error.
+        """
+        if self._encryption_enabled():
+            assert self.flags.keyfile and self.flags.certfile
+            # TODO(abhinavsingh): Insecure TLS versions must not be accepted by default
+            conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
+            self.work._conn = conn
+        return conn

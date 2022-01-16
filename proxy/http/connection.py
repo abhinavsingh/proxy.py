@@ -10,12 +10,11 @@
 
     .. spelling::
 
-       Submodules
+       http
+       iterable
 """
-from .handler import SshHttpProtocolHandler
-from .listener import SshTunnelListener
+from ..core.connection import TcpClientConnection
 
-__all__ = [
-    'SshHttpProtocolHandler',
-    'SshTunnelListener',
-]
+
+class HttpClientConnection(TcpClientConnection):
+    pass

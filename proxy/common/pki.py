@@ -268,8 +268,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--subject',
         type=str,
-        default='/CN=example.com',
-        help='Subject to use for public key generation. Default: /CN=example.com',
+        default='/CN=localhost',
+        help='Subject to use for public key generation. Default: /CN=localhost',
     )
     parser.add_argument(
         '--csr-path',

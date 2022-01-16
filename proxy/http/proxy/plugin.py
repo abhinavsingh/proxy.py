@@ -17,11 +17,11 @@ from ..mixins import TlsInterceptionPropertyMixin
 
 from ..parser import HttpParser
 from ..descriptors import DescriptorsHandlerMixin
+from ..connection import HttpClientConnection
 
 from ...core.event import EventQueue
-from ...core.connection import TcpClientConnection
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from ...core.connection import UpstreamConnectionPool
 
 
@@ -38,7 +38,7 @@ class HttpProxyBasePlugin(
             self,
             uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: HttpClientConnection,
             event_queue: EventQueue,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:
@@ -131,11 +131,14 @@ class HttpProxyBasePlugin(
     # No longer abstract since 2.4.0
     #
     # @abstractmethod
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+    def handle_upstream_chunk(self, chunk: memoryview) -> Optional[memoryview]:
         """Handler called right after receiving raw response from upstream server.
 
         For HTTPS connections, chunk will be encrypted unless
-        TLS interception is also enabled."""
+        TLS interception is also enabled.
+
+        Return None if you don't want to sent this chunk to the client.
+        """
         return chunk  # pragma: no cover
 
     # No longer abstract since 2.4.0

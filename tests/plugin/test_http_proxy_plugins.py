@@ -20,13 +20,12 @@ from unittest import mock
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpStatusCodes
+from proxy.http import HttpProtocolHandler, httpStatusCodes, HttpClientConnection
 from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.common.utils import bytes_, build_http_request, build_http_response
-from proxy.core.connection import TcpClientConnection
 from proxy.common.constants import DEFAULT_HTTP_PORT, PROXY_AGENT_HEADER_VALUE
 from .utils import get_plugin_by_test_name
 from ..test_assertions import Assertions
@@ -64,7 +63,7 @@ class TestHttpProxyPluginExamples(Assertions):
         }
         self._conn = self.mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()

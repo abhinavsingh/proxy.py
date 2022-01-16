@@ -11,12 +11,15 @@
 import argparse
 import json
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import TYPE_CHECKING, List, Dict, Any
 
 from ...common.utils import bytes_
-from . import WebsocketFrame
-from ...core.connection import TcpClientConnection
 from ...core.event import EventQueue
+
+from . import WebsocketFrame
+
+if TYPE_CHECKING:   # pragma: no cover
+    from ..connection import HttpClientConnection
 
 
 class WebSocketTransportBasePlugin(ABC):
@@ -25,7 +28,7 @@ class WebSocketTransportBasePlugin(ABC):
     def __init__(
             self,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: 'HttpClientConnection',
             event_queue: EventQueue,
     ) -> None:
         self.flags = flags

@@ -18,7 +18,7 @@ from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 logger = logging.getLogger(__name__)
 
 HTTP_RESPONSE = okResponse(content=b'HTTP route response')
-HTTPS_RESPONSE = okResponse(content=b'HTTP route response')
+HTTPS_RESPONSE = okResponse(content=b'HTTPS route response')
 
 
 class WebServerPlugin(HttpWebServerBasePlugin):

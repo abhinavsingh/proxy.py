@@ -16,16 +16,13 @@ import asyncio
 import logging
 import selectors
 
-from typing import Tuple, List, Type, Union, Optional, Any
+from typing import Tuple, List, Type, Optional, Any
 
-from ..common.flag import flags
-from ..common.utils import wrap_socket
 from ..core.base import BaseTcpServerHandler
-from ..core.connection import TcpClientConnection
 from ..common.types import Readables, SelectableEvents, Writables
-from ..common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_KEY_FILE
-from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT, DEFAULT_TIMEOUT
+from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
+from .connection import HttpClientConnection
 from .exception import HttpProtocolException
 from .plugin import HttpProtocolHandlerPlugin
 from .responses import BAD_REQUEST_RESPONSE_PKT
@@ -35,33 +32,7 @@ from .parser import HttpParser, httpParserStates, httpParserTypes
 logger = logging.getLogger(__name__)
 
 
-flags.add_argument(
-    '--client-recvbuf-size',
-    type=int,
-    default=DEFAULT_CLIENT_RECVBUF_SIZE,
-    help='Default: ' + str(int(DEFAULT_CLIENT_RECVBUF_SIZE / 1024)) +
-    ' KB. Maximum amount of data received from the '
-    'client in a single recv() operation.',
-)
-flags.add_argument(
-    '--key-file',
-    type=str,
-    default=DEFAULT_KEY_FILE,
-    help='Default: None. Server key file to enable end-to-end TLS encryption with clients. '
-    'If used, must also pass --cert-file.',
-)
-flags.add_argument(
-    '--timeout',
-    type=int,
-    default=DEFAULT_TIMEOUT,
-    help='Default: ' + str(DEFAULT_TIMEOUT) +
-    '.  Number of seconds after which '
-    'an inactive connection must be dropped.  Inactivity is defined by no '
-    'data sent or received by the client.',
-)
-
-
-class HttpProtocolHandler(BaseTcpServerHandler):
+class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     """HTTP, HTTPS, HTTP2, WebSockets protocol handler.
 
     Accepts `Client` connection and delegates to HttpProtocolHandlerPlugin.
@@ -85,18 +56,17 @@ class HttpProtocolHandler(BaseTcpServerHandler):
     # overrides Work class definitions.
     ##
 
+    @staticmethod
+    def create(**kwargs: Any) -> HttpClientConnection:
+        return HttpClientConnection(**kwargs)
+
     def initialize(self) -> None:
-        """Optionally upgrades connection to HTTPS,
-        sets ``conn`` in non-blocking mode and initializes
-        HTTP protocol plugins.
-        """
-        conn = self._optionally_wrap_socket(self.work.connection)
-        conn.setblocking(False)
-        # Update client connection reference if connection was wrapped
+        super().initialize()
         if self._encryption_enabled():
-            self.work = TcpClientConnection(conn=conn, addr=self.work.addr)
-        # self._initialize_plugins()
-        logger.debug('Handling connection %s' % self.work.address)
+            self.work = HttpClientConnection(
+                conn=self.work.connection,
+                addr=self.work.addr,
+            )
 
     def is_inactive(self) -> bool:
         if not self.work.has_buffer() and \
@@ -234,12 +204,12 @@ class HttpProtocolHandler(BaseTcpServerHandler):
                 if teardown:
                     return True
             except BrokenPipeError:
-                logger.error(
+                logger.warning(
                     'BrokenPipeError when flushing buffer for client',
                 )
                 return True
             except OSError:
-                logger.error('OSError when flushing buffer to client')
+                logger.warning('OSError when flushing buffer to client')
                 return True
         return False
 
@@ -340,23 +310,6 @@ class HttpProtocolHandler(BaseTcpServerHandler):
         )
         self.work._conn = output
         return False
-
-    def _encryption_enabled(self) -> bool:
-        return self.flags.keyfile is not None and \
-            self.flags.certfile is not None
-
-    def _optionally_wrap_socket(
-            self, conn: socket.socket,
-    ) -> Union[ssl.SSLSocket, socket.socket]:
-        """Attempts to wrap accepted client connection using provided certificates.
-
-        Shutdown and closes client connection upon error.
-        """
-        if self._encryption_enabled():
-            assert self.flags.keyfile and self.flags.certfile
-            # TODO(abhinavsingh): Insecure TLS versions must not be accepted by default
-            conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
-        return conn
 
     def _connection_inactive_for(self) -> float:
         return time.time() - self.last_activity

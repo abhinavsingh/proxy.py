@@ -59,7 +59,7 @@ class AcceptorPool:
             while True:
                 time.sleep(1)
 
-    `flags.work_klass` must implement `work.Work` class.
+    `flags.work_klass` must implement :py:class:`~proxy.core.work.Work` class.
     """
 
     def __init__(
@@ -68,7 +68,7 @@ class AcceptorPool:
             listener: Listener,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
-            executor_locks: List[multiprocessing.synchronize.Lock],
+            executor_locks: List['multiprocessing.synchronize.Lock'],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         self.flags = flags
@@ -77,7 +77,7 @@ class AcceptorPool:
         # Available executors
         self.executor_queues: List[connection.Connection] = executor_queues
         self.executor_pids: List[int] = executor_pids
-        self.executor_locks: List[multiprocessing.synchronize.Lock] = executor_locks
+        self.executor_locks: List['multiprocessing.synchronize.Lock'] = executor_locks
         # Eventing core queue
         self.event_queue: Optional[EventQueue] = event_queue
         # Acceptor process instances

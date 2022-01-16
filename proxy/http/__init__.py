@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 from .handler import HttpProtocolHandler
+from .connection import HttpClientConnection
 from .plugin import HttpProtocolHandlerPlugin
 from .codes import httpStatusCodes
 from .methods import httpMethods
@@ -17,6 +18,7 @@ from .url import Url
 
 __all__ = [
     'HttpProtocolHandler',
+    'HttpClientConnection',
     'HttpProtocolHandlerPlugin',
     'httpStatusCodes',
     'httpMethods',

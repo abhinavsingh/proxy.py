@@ -12,22 +12,12 @@
 
        pre
 """
+from .listener import Listener
 from .acceptor import Acceptor
 from .pool import AcceptorPool
-from .work import Work
-from .threadless import Threadless
-from .remote import RemoteExecutor
-from .local import LocalExecutor
-from .executors import ThreadlessPool
-from .listener import Listener
 
 __all__ = [
+    'Listener',
     'Acceptor',
     'AcceptorPool',
-    'Work',
-    'Threadless',
-    'RemoteExecutor',
-    'LocalExecutor',
-    'ThreadlessPool',
-    'Listener',
 ]
