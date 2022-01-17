@@ -22,6 +22,7 @@ from ..core.base import BaseTcpServerHandler
 from ..common.types import Readables, SelectableEvents, Writables
 from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
+from .protocols import httpProtocols
 from .connection import HttpClientConnection
 from .exception import HttpProtocolException
 from .plugin import HttpProtocolHandlerPlugin
@@ -260,6 +261,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
 
     def _discover_plugin_klass(self, protocol: int) -> Optional[Type['HttpProtocolHandlerPlugin']]:
         """Discovers and return matching HTTP handler plugin matching protocol."""
+        if protocol == httpProtocols.UNKNOWN:
+            return None
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
                 k: Type['HttpProtocolHandlerPlugin'] = klass

@@ -14,7 +14,7 @@
 """
 from typing import TypeVar, Optional, Dict, Type, Tuple, List
 
-from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_ENABLE_PROXY_PROTOCOL
+from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_ENABLE_PROXY_PROTOCOL, HTTP_1_0
 from ...common.constants import HTTP_1_1, SLASH, CRLF
 from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
 from ...common.utils import build_http_request, build_http_response, text_
@@ -157,7 +157,12 @@ class HttpParser:
     @property
     def http_handler_protocol(self) -> int:
         """Returns `HttpProtocols` that this request belongs to."""
-        return httpProtocols.HTTP_PROXY if self.host is not None else httpProtocols.WEB_SERVER
+        if self.version in (HTTP_1_1, HTTP_1_0) and self._url is not None:
+            if self.host is not None:
+                return httpProtocols.HTTP_PROXY
+            if self._url.hostname is None:
+                return httpProtocols.WEB_SERVER
+        return httpProtocols.UNKNOWN
 
     @property
     def is_complete(self) -> bool:

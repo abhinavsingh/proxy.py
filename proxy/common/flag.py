@@ -307,8 +307,8 @@ class FlagParser:
         # See https://github.com/abhinavsingh/proxy.py/pull/714 description
         # to understand rationale behind the following logic.
         #
-        # --num-workers flag or option was found. We will use
-        # the same value for num_acceptors when --num-acceptors flag
+        # Num workers flag or option was found. We will use
+        # the same value for num_acceptors when num acceptors flag
         # is absent.
         if num_workers != DEFAULT_NUM_WORKERS and num_acceptors == DEFAULT_NUM_ACCEPTORS:
             args.num_acceptors = args.num_workers

@@ -2206,23 +2206,26 @@ To run standalone benchmark for `proxy.py`, use the following command from repo 
 
 ```console
 ❯ proxy -h
-usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS]
-          [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
-          [--hostname HOSTNAME] [--port PORT] [--port-file PORT_FILE]
-          [--unix-socket-path UNIX_SOCKET_PATH]
-          [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
-          [--log-file LOG_FILE] [--log-format LOG_FORMAT]
-          [--open-file-limit OPEN_FILE_LIMIT]
+usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
+          [--tunnel-username TUNNEL_USERNAME]
+          [--tunnel-ssh-key TUNNEL_SSH_KEY]
+          [--tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE]
+          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--enable-events]
+          [--threadless] [--threaded] [--num-workers NUM_WORKERS]
+          [--backlog BACKLOG] [--hostname HOSTNAME] [--port PORT]
+          [--port-file PORT_FILE] [--unix-socket-path UNIX_SOCKET_PATH]
+          [--local-executor LOCAL_EXECUTOR] [--num-acceptors NUM_ACCEPTORS]
+          [--version] [--log-level LOG_LEVEL] [--log-file LOG_FILE]
+          [--log-format LOG_FORMAT] [--open-file-limit OPEN_FILE_LIMIT]
           [--plugins PLUGINS [PLUGINS ...]] [--enable-dashboard]
-          [--work-klass WORK_KLASS] [--pid-file PID_FILE]
-          [--enable-proxy-protocol]
-          [--client-recvbuf-size CLIENT_RECVBUF_SIZE] [--key-file KEY_FILE]
-          [--timeout TIMEOUT] [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-          [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
-          [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
-          [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
-          [--ca-signing-key-file CA_SIGNING_KEY_FILE] [--cert-file CERT_FILE]
+          [--enable-ssh-tunnel] [--work-klass WORK_KLASS]
+          [--pid-file PID_FILE] [--enable-conn-pool] [--key-file KEY_FILE]
+          [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+          [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--timeout TIMEOUT]
+          [--enable-proxy-protocol] [--disable-http-proxy]
+          [--disable-headers DISABLE_HEADERS] [--ca-key-file CA_KEY_FILE]
+          [--ca-cert-dir CA_CERT_DIR] [--ca-cert-file CA_CERT_FILE]
+          [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE]
           [--auth-plugin AUTH_PLUGIN] [--basic-auth BASIC_AUTH]
           [--cache-dir CACHE_DIR]
           [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
@@ -2235,15 +2238,28 @@ usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0rc6.dev13+ga9b8034.d20220104
+proxy.py v2.4.0rc7.dev12+gd234339.d20220116
 
 options:
   -h, --help            show this help message and exit
+  --tunnel-hostname TUNNEL_HOSTNAME
+                        Default: None. Remote hostname or IP address to which
+                        SSH tunnel will be established.
+  --tunnel-port TUNNEL_PORT
+                        Default: 22. SSH port of the remote host.
+  --tunnel-username TUNNEL_USERNAME
+                        Default: None. Username to use for establishing SSH
+                        tunnel.
+  --tunnel-ssh-key TUNNEL_SSH_KEY
+                        Default: None. Private key path in pem format
+  --tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE
+                        Default: None. Private key passphrase
+  --tunnel-remote-port TUNNEL_REMOTE_PORT
+                        Default: 8899. Remote port which will be forwarded
+                        locally for proxy.
   --enable-events       Default: False. Enables core to dispatch lifecycle
                         events. Plugins can be used to subscribe for core
                         events.
-  --enable-conn-pool    Default: False. (WIP) Enable upstream connection
-                        pooling.
   --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
                         linux). When disabled a new thread is spawned to
                         handle each client connection.
@@ -2252,14 +2268,6 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
-  --local-executor LOCAL_EXECUTOR
-                        Default: 1. Enabled by default. Use 0 to disable. When
-                        enabled acceptors will make use of local (same
-                        process) executor instead of distributing load across
-                        remote (other process) executors. Enable this option
-                        to achieve CPU affinity between acceptors and
-                        executors, instead of using underlying OS kernel
-                        scheduling algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server
   --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
@@ -2270,6 +2278,14 @@ options:
   --unix-socket-path UNIX_SOCKET_PATH
                         Default: None. Unix socket path to use. When provided
                         --host and --port flags are ignored
+  --local-executor LOCAL_EXECUTOR
+                        Default: 1. Enabled by default. Use 0 to disable. When
+                        enabled acceptors will make use of local (same
+                        process) executor instead of distributing load across
+                        remote (other process) executors. Enable this option
+                        to achieve CPU affinity between acceptors and
+                        executors, instead of using underlying OS kernel
+                        scheduling algorithm.
   --num-acceptors NUM_ACCEPTORS
                         Defaults to number of CPU cores.
   --version, -v         Prints proxy.py version.
@@ -2288,25 +2304,32 @@ options:
                         Comma separated plugins. You may use --plugins flag
                         multiple times.
   --enable-dashboard    Default: False. Enables proxy.py dashboard.
+  --enable-ssh-tunnel   Default: False. Enable SSH tunnel.
   --work-klass WORK_KLASS
                         Default: proxy.http.HttpProtocolHandler. Work klass to
                         use for work execution.
   --pid-file PID_FILE   Default: None. Save "parent" process ID to a file.
-  --enable-proxy-protocol
-                        Default: False. If used, will enable proxy protocol.
-                        Only version 1 is currently supported.
-  --client-recvbuf-size CLIENT_RECVBUF_SIZE
-                        Default: 128 KB. Maximum amount of data received from
-                        the client in a single recv() operation.
+  --enable-conn-pool    Default: False. (WIP) Enable upstream connection
+                        pooling.
   --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
                         TLS encryption with clients. If used, must also pass
                         --cert-file.
-  --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
-                        inactive connection must be dropped. Inactivity is
-                        defined by no data sent or received by the client.
+  --cert-file CERT_FILE
+                        Default: None. Server certificate to enable end-to-end
+                        TLS encryption with clients. If used, must also pass
+                        --key-file.
+  --client-recvbuf-size CLIENT_RECVBUF_SIZE
+                        Default: 128 KB. Maximum amount of data received from
+                        the client in a single recv() operation.
   --server-recvbuf-size SERVER_RECVBUF_SIZE
                         Default: 128 KB. Maximum amount of data received from
                         the server in a single recv() operation.
+  --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
+                        inactive connection must be dropped. Inactivity is
+                        defined by no data sent or received by the client.
+  --enable-proxy-protocol
+                        Default: False. If used, will enable proxy protocol.
+                        Only version 1 is currently supported.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
   --disable-headers DISABLE_HEADERS
@@ -2333,10 +2356,6 @@ options:
                         Default: None. CA signing key to use for dynamic
                         generation of HTTPS certificates. If used, must also
                         pass --ca-key-file and --ca-cert-file
-  --cert-file CERT_FILE
-                        Default: None. Server certificate to enable end-to-end
-                        TLS encryption with clients. If used, must also pass
-                        --key-file.
   --auth-plugin AUTH_PLUGIN
                         Default: proxy.http.proxy.AuthPlugin. Auth plugin to
                         use instead of default basic auth plugin.
