@@ -6,5 +6,6 @@ if [ -z "$EVM_LOADER" ]; then
     echo "EVM_LOADER=$EVM_LOADER"
 fi
 export AIRDROPPER_MODE='true'
+[[ -z "$FINALIZED" ]] && export FINALIZED="confirmed"
 
 python3 -m proxy

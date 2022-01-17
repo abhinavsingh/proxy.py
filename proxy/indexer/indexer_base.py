@@ -9,9 +9,11 @@ from typing import Dict, Union
 try:
     from sql_dict import SQLDict
     from trx_receipts_storage import TrxReceiptsStorage
+    from utils import FINALIZED
 except ImportError:
     from .sql_dict import SQLDict
     from .trx_receipts_storage import TrxReceiptsStorage
+    from .utils import FINALIZED
 
 
 PARALLEL_REQUESTS = int(os.environ.get("PARALLEL_REQUESTS", "2"))
@@ -79,7 +81,7 @@ class IndexerBase:
 
         minimal_tx = None
         continue_flag = True
-        current_slot = self.client.get_slot(commitment="finalized")["result"]
+        current_slot = self.client.get_slot(commitment=FINALIZED)["result"]
 
         max_known_tx = self.max_known_tx
 
@@ -129,7 +131,7 @@ class IndexerBase:
             opts["until"] = until
         if before is not None:
             opts["before"] = before
-        opts["commitment"] = "finalized"
+        opts["commitment"] = FINALIZED
         result = self.client._provider.make_request("getSignaturesForAddress", self.evm_loader_id, opts)
         return result['result']
 

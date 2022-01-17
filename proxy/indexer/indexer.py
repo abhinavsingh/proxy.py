@@ -8,11 +8,11 @@ import logging
 try:
     from indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
     from indexer_db import IndexerDB
-    from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxSignInfo, Canceller, str_fmt_object
+    from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxSignInfo, Canceller, str_fmt_object, FINALIZED
 except ImportError:
     from .indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
-    from .indexer_db import IndexerDB
-    from .utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object
+    from .indexer_db import IndexerDB, FINALIZED
+    from .utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object, FINALIZED
 
 from ..environment import EVM_LOADER_ID
 
@@ -625,6 +625,7 @@ class Indexer(IndexerBase):
         self.blocked_storages = {}
         self.processed_slot = self.db.get_min_receipt_slot()
         logger.debug(f'Minimum receipt slot: {self.processed_slot}')
+        logger.debug(f'Finalized commitment: {FINALIZED}')
 
         self.state = ReceiptsParserState(db=self.db, client=self.client)
         self.ix_decoder_map = {
@@ -653,9 +654,11 @@ class Indexer(IndexerBase):
     def process_functions(self):
         IndexerBase.process_functions(self)
         logger.debug("Start getting blocks")
-        self.gather_blocks()
+        (start_block_slot, last_block_slot) = self.gather_blocks()
         logger.debug("Process receipts")
         self.process_receipts()
+        logger.debug(f'remove not finalized data in range[{start_block_slot}..{last_block_slot}]')
+        self.db.del_not_finalized(from_slot=start_block_slot, to_slot=last_block_slot)
         logger.debug("Unlock accounts")
         self.canceller.unlock_accounts(self.blocked_storages)
         self.blocked_storages = {}
@@ -702,8 +705,8 @@ class Indexer(IndexerBase):
         height = -1
         confirmed_blocks_len = 10000
         client = self.client._provider
-        list_opts = {"commitment": "finalized"}
-        block_opts = {"commitment": "finalized", "transactionDetails": "none", "rewards": False}
+        list_opts = {"commitment": FINALIZED}
+        block_opts = {"commitment": FINALIZED, "transactionDetails": "none", "rewards": False}
         while confirmed_blocks_len == 10000:
             confirmed_blocks = client.make_request("getBlocksWithLimit", last_block_slot, confirmed_blocks_len, list_opts)['result']
             confirmed_blocks_len = len(confirmed_blocks)
@@ -725,9 +728,6 @@ class Indexer(IndexerBase):
                 break
 
             # Everything is good
-            logger.debug(f'remove not finalized data in range[{start_block_slot}..{last_block_slot}]')
-            self.db.del_not_finalized(from_slot=start_block_slot, to_slot=last_block_slot)
-            start_block_slot = last_block_slot
             logger.debug(f"gather_blocks from {height} to {max_height}")
             self.db.fill_block_height(height, confirmed_blocks)
             self.db.set_last_slot_height(last_block_slot, max_height)
@@ -735,6 +735,7 @@ class Indexer(IndexerBase):
 
         gather_blocks_ms = (time.time() - start_time) * 1000  # convert this into milliseconds
         logger.debug(f"gather_blocks_ms: {gather_blocks_ms} last_height: {max_height} last_block_slot {last_block_slot}")
+        return start_block_slot, last_block_slot
 
 
 def run_indexer(solana_url,
