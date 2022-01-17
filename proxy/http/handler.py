@@ -277,7 +277,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
         # memoryview compliant
         try:
             self.request.parse(data.tobytes())
-        except HttpProtocolException as e:
+        except HttpProtocolException as e:  # noqa: WPS329
             raise e
         except Exception as e:
             raise HttpProtocolException(
