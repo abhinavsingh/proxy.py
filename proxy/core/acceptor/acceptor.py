@@ -42,7 +42,7 @@ flags.add_argument(
     type=int,
     default=int(DEFAULT_LOCAL_EXECUTOR),
     help='Default: ' + ('1' if DEFAULT_LOCAL_EXECUTOR else '0') + '.  ' +
-    'Enabled by default.  Use 0 to disable.  When enabled acceptors ' +
+    'Enabled by default (except on Windows).  Use 0 to disable.  When enabled acceptors ' +
     'will make use of local (same process) executor instead of distributing load across ' +
     'remote (other process) executors.  Enable this option to achieve CPU affinity between ' +
     'acceptors and executors, instead of using underlying OS kernel scheduling algorithm.',
