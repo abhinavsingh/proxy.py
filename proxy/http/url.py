@@ -15,8 +15,10 @@
 """
 from typing import Optional, Tuple
 
-from ..common.constants import COLON, SLASH, AT
+from ..common.constants import COLON, DEFAULT_ALLOWED_URL_SCHEMES, SLASH, AT
 from ..common.utils import text_
+
+from .exception import HttpProtocolException
 
 
 class Url:
@@ -95,6 +97,10 @@ class Url:
             if len(parts) == 2:
                 scheme = parts[0]
                 rest = parts[1]
+                if scheme not in DEFAULT_ALLOWED_URL_SCHEMES:
+                    raise HttpProtocolException(
+                        'Invalid scheme received in the request line %r' % raw,
+                    )
         else:
             rest = raw[len(SLASH + SLASH):]
         if scheme is not None or starts_with_double_slash:

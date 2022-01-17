@@ -277,10 +277,12 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
         # memoryview compliant
         try:
             self.request.parse(data.tobytes())
-        except Exception:
+        except HttpProtocolException as e:
+            raise e
+        except Exception as e:
             raise HttpProtocolException(
                 'Error when parsing request: %r' % data.tobytes(),
-            )
+            ) from e
         if not self.request.is_complete:
             return False
         # Discover which HTTP handler plugin is capable of
