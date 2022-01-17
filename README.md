@@ -2238,7 +2238,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0rc7.dev12+gd234339.d20220116
+proxy.py v2.4.0rc7.dev15+gc4ea34e
 
 options:
   -h, --help            show this help message and exit
@@ -2279,13 +2279,13 @@ options:
                         Default: None. Unix socket path to use. When provided
                         --host and --port flags are ignored
   --local-executor LOCAL_EXECUTOR
-                        Default: 1. Enabled by default. Use 0 to disable. When
-                        enabled acceptors will make use of local (same
-                        process) executor instead of distributing load across
-                        remote (other process) executors. Enable this option
-                        to achieve CPU affinity between acceptors and
-                        executors, instead of using underlying OS kernel
-                        scheduling algorithm.
+                        Default: 1. Enabled by default (except on Windows).
+                        Use 0 to disable. When enabled acceptors will make use
+                        of local (same process) executor instead of
+                        distributing load across remote (other process)
+                        executors. Enable this option to achieve CPU affinity
+                        between acceptors and executors, instead of using
+                        underlying OS kernel scheduling algorithm.
   --num-acceptors NUM_ACCEPTORS
                         Defaults to number of CPU cores.
   --version, -v         Prints proxy.py version.
