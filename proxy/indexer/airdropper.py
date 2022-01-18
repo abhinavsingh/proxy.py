@@ -1,4 +1,3 @@
-from time import time
 from solana.publickey import PublicKey
 from proxy.indexer.indexer_base import IndexerBase, logger
 from proxy.indexer.pythnetwork import PythNetworkClient
@@ -8,6 +7,7 @@ import base58
 import logging
 from datetime import datetime
 from decimal import Decimal
+import os
 
 try:
     from utils import check_error
@@ -20,7 +20,7 @@ ACCOUNT_CREATION_PRICE_SOL = Decimal('0.00472692')
 AIRDROP_AMOUNT_SOL = ACCOUNT_CREATION_PRICE_SOL / 2
 NEON_PRICE_USD = Decimal('0.25')
 
-
+FINALIZED = os.environ.get('FINALIZED', 'finalized')
 
 class Airdropper(IndexerBase):
     def __init__(self,
@@ -34,8 +34,26 @@ class Airdropper(IndexerBase):
                  start_slot = 0,
                  pp_solana_url = None,
                  max_conf = 0.1): # maximum confidence interval deviation related to price
+        self._constants = SQLDict(tablename="constants")
+        if start_slot == 'CONTINUE':
+            logger.info('Trying to use latest processed slot from previous run')
+            start_slot = self._constants.get('latest_processed_slot', 0)
+        elif start_slot == 'LATEST':
+            logger.info('Airdropper will start at latest blockchain slot')
+            client = SolanaClient(solana_url)
+            start_slot = client.get_slot(commitment=FINALIZED)["result"]
+        else:
+            try:
+                start_slot = int(start_slot)
+            except Exception as err:
+                logger.warning(f'''Unsupported value for start_slot: {start_slot}. 
+                Must be either integer value or one of [CONTINUE,LATEST]''')
+                raise
+        logger.info(f'Start slot is {start_slot}')
+
+
         IndexerBase.__init__(self, solana_url, evm_loader_id, log_level, start_slot)
-        self.latest_processed_slot = 0
+        self.latest_processed_slot = start_slot
 
         # collection of eth-address-to-create-accout-trx mappings
         # for every addresses that was already funded with airdrop
@@ -161,7 +179,7 @@ class Airdropper(IndexerBase):
     def get_sol_usd_price(self):
         should_reload = self.always_reload_price
         if not should_reload:
-            if self.recent_price == None or self.recent_price['valid_slot'] < self.latest_processed_slot:
+            if self.recent_price == None or self.recent_price['valid_slot'] < self.current_slot:
                 should_reload = True
 
         if should_reload:
@@ -238,11 +256,12 @@ class Airdropper(IndexerBase):
 
     def process_receipts(self):
         max_slot = 0
-        for slot, _, trx in self.transaction_receipts.get_trxs(self.latest_processed_slot, reverse=True):
+        for slot, _, trx in self.transaction_receipts.get_trxs(self.latest_processed_slot):
             max_slot = max(max_slot, slot)
             if trx['transaction']['message']['instructions'] is not None:
                 self.process_trx_airdropper_mode(trx)
         self.latest_processed_slot = max(self.latest_processed_slot, max_slot)
+        self._constants['latest_processed_slot'] = self.latest_processed_slot
 
 
 def run_airdropper(solana_url,

@@ -1,7 +1,8 @@
+from multiprocessing.connection import Client
 import unittest
 
+from solana.rpc.api import Client as SolanaClient
 from solana.publickey import PublicKey
-from proxy.indexer.pythnetwork import PythNetworkClient
 from proxy.testing.mock_server import MockServer
 from proxy.indexer.airdropper import Airdropper, AIRDROP_AMOUNT_SOL, NEON_PRICE_USD
 from proxy.indexer.sql_dict import SQLDict
@@ -51,8 +52,20 @@ def create_price_info(valid_slot: int, price: Decimal, conf: Decimal):
 
 
 class Test_Airdropper(unittest.TestCase):
+    def create_airdropper(self, start_slot):
+        return Airdropper(solana_url         =f'http://{self.address}:8899',
+                          evm_loader_id       =self.evm_loader_id,
+                          pyth_mapping_account=self.pyth_mapping_account,
+                          faucet_url          =f'http://{self.address}:{self.faucet_port}',
+                          wrapper_whitelist   =self.wrapper_whitelist,
+                          log_level           ='INFO',
+                          neon_decimals       =self.neon_decimals,
+                          start_slot          =start_slot)
+
     @classmethod
-    def setUpClass(cls) -> None:
+    @patch.object(SQLDict, 'get')
+    @patch.object(SolanaClient, 'get_slot')
+    def setUpClass(cls, mock_get_slot, mock_dict_get) -> None:
         print("testing indexer in airdropper mode")
         cls.address = 'localhost'
         cls.faucet_port = 3333
@@ -60,13 +73,9 @@ class Test_Airdropper(unittest.TestCase):
         cls.pyth_mapping_account = PublicKey(b'TestMappingAccount')
         cls.wrapper_whitelist = wrapper_whitelist
         cls.neon_decimals = 9
-        cls.airdropper = Airdropper(solana_url          =f'http://{cls.address}:8899',
-                                    evm_loader_id       =cls.evm_loader_id,
-                                    pyth_mapping_account=cls.pyth_mapping_account,
-                                    faucet_url          =f'http://{cls.address}:{cls.faucet_port}',
-                                    wrapper_whitelist   =cls.wrapper_whitelist,
-                                    log_level           ='INFO',
-                                    neon_decimals       =cls.neon_decimals)
+        cls.airdropper = cls.create_airdropper(cls, 0)
+        mock_get_slot.assert_not_called()
+        mock_dict_get.assert_not_called()
 
         cls.airdropper.always_reload_price = True
         cls.mock_airdrop_ready = Mock()
@@ -225,3 +234,24 @@ class Test_Airdropper(unittest.TestCase):
             self.mock_pyth_client.get_price.assert_called_once_with('SOL/USD')
         except Exception as err:
             self.fail(f'Excpected not throws exception but it does: {err}')
+
+    @patch.object(SQLDict, 'get')
+    @patch.object(SolanaClient, 'get_slot')
+    def test_init_airdropper_slot_continue(self, mock_get_slot, mock_dict_get):
+        start_slot = 1234
+        mock_dict_get.side_effect = [start_slot]
+        new_airdropper = self.create_airdropper('CONTINUE')
+        self.assertEqual(new_airdropper.latest_processed_slot, start_slot)
+        mock_dict_get.assert_called_once_with('latest_processed_slot', ANY)
+        mock_get_slot.assert_not_called()
+
+
+    @patch.object(SQLDict, 'get')
+    @patch.object(SolanaClient, 'get_slot')
+    def test_init_airdropper_slot_latest(self, mock_get_slot, mock_dict_get):
+        start_slot = 1234
+        mock_get_slot.side_effect = [{'result': start_slot}]
+        new_airdropper = self.create_airdropper('LATEST')
+        self.assertEqual(new_airdropper.latest_processed_slot, start_slot)
+        mock_get_slot.assert_called_once_with(commitment='finalized')
+        mock_dict_get.assert_not_called()
