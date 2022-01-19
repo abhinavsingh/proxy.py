@@ -25,7 +25,7 @@ from .core.acceptor import AcceptorPool, Listener
 
 from .common.utils import bytes_
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE
+from .common.constants import DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_LOG_FILE
 from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
 from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
 from .common.constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL, IS_WINDOWS
@@ -242,7 +242,7 @@ class Proxy:
     @property
     def remote_executors_enabled(self) -> bool:
         return self.flags.threadless and \
-            not (self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR))
+            not self.flags.local_executor
 
     def _write_pid_file(self) -> None:
         if self.flags.pid_file:
