@@ -152,7 +152,8 @@ class HttpParser:
     def set_url(self, url: bytes, allowed_url_schemes: Optional[List[bytes]] = None) -> None:
         """Given a request line, parses it and sets line attributes a.k.a. host, port, path."""
         self._url = Url.from_bytes(
-            url, allowed_url_schemes=allowed_url_schemes)
+            url, allowed_url_schemes=allowed_url_schemes,
+        )
         self._set_line_attributes()
 
     @property
@@ -372,7 +373,8 @@ class HttpParser:
                     if self.method == httpMethods.CONNECT:
                         self._is_https_tunnel = True
                     self.set_url(
-                        parts[1], allowed_url_schemes=allowed_url_schemes)
+                        parts[1], allowed_url_schemes=allowed_url_schemes,
+                    )
                     self.version = parts[2]
                     self.state = httpParserStates.LINE_RCVD
                     break
