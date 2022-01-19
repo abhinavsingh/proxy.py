@@ -16,10 +16,15 @@ import tempfile
 import subprocess
 
 from pathlib import Path
-from typing import Any, Generator
-from subprocess import Popen, check_output
+from typing import Any, Generator, List
+from subprocess import Popen, check_output as _check_output
 
 from proxy.common.constants import IS_WINDOWS
+
+
+def check_output(args: List[Any]) -> bytes:
+    args = args if not IS_WINDOWS else ['powershell'] + args
+    return _check_output(args)
 
 
 def _https_server_flags() -> str:
@@ -37,56 +42,80 @@ def _tls_interception_flags(ca_cert_suffix: str = '') -> str:
     ))
 
 
-PROXY_PY_FLAGS_INTEGRATION = (
-    ('--threadless'),
-    ('--threadless --local-executor 0'),
+_PROXY_PY_FLAGS_INTEGRATION = [
     ('--threaded'),
-)
+]
+if not IS_WINDOWS:
+    _PROXY_PY_FLAGS_INTEGRATION += [
+        ('--threadless --local-executor 0'),
+        ('--threadless'),
+    ]
+PROXY_PY_FLAGS_INTEGRATION = tuple(_PROXY_PY_FLAGS_INTEGRATION)
 
-PROXY_PY_HTTPS = (
-    ('--threadless ' + _https_server_flags()),
-    ('--threadless --local-executor 0 ' + _https_server_flags()),
+_PROXY_PY_HTTPS = [
     ('--threaded ' + _https_server_flags()),
-)
+]
+if not IS_WINDOWS:
+    _PROXY_PY_HTTPS += [
+        ('--threadless --local-executor 0 ' + _https_server_flags()),
+        ('--threadless ' + _https_server_flags()),
+    ]
+PROXY_PY_HTTPS = tuple(_PROXY_PY_HTTPS)
 
-PROXY_PY_FLAGS_TLS_INTERCEPTION = (
-    ('--threadless ' + _tls_interception_flags()),
-    ('--threadless --local-executor 0 ' + _tls_interception_flags()),
+_PROXY_PY_FLAGS_TLS_INTERCEPTION = [
     ('--threaded ' + _tls_interception_flags()),
-)
+]
+if not IS_WINDOWS:
+    _PROXY_PY_FLAGS_TLS_INTERCEPTION += [
+        ('--threadless --local-executor 0 ' + _tls_interception_flags()),
+        ('--threadless ' + _tls_interception_flags()),
+    ]
+PROXY_PY_FLAGS_TLS_INTERCEPTION = tuple(_PROXY_PY_FLAGS_TLS_INTERCEPTION)
 
-PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = (
-    (
-        '--threadless --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-        _tls_interception_flags('-chunk')
-    ),
-    (
-        '--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-        _tls_interception_flags('-chunk')
-    ),
+_PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = [
     (
         '--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
         _tls_interception_flags('-chunk')
     ),
+]
+if not IS_WINDOWS:
+    _PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN += [
+        (
+            '--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
+            _tls_interception_flags('-chunk')
+        ),
+        (
+            '--threadless --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
+            _tls_interception_flags('-chunk')
+        ),
+    ]
+PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = tuple(
+    _PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN,
 )
 
-PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = (
-    (
-        '--threadless --plugin proxy.plugin.ModifyPostDataPlugin ' +
-        _tls_interception_flags('-post')
-    ),
-    (
-        '--threadless --local-executor 0 --plugin proxy.plugin.ModifyPostDataPlugin ' +
-        _tls_interception_flags('-post')
-    ),
+_PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = [
     (
         '--threaded --plugin proxy.plugin.ModifyPostDataPlugin ' +
         _tls_interception_flags('-post')
     ),
+]
+if not IS_WINDOWS:
+    _PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN += [
+        (
+            '--threadless --local-executor 0 --plugin proxy.plugin.ModifyPostDataPlugin ' +
+            _tls_interception_flags('-post')
+        ),
+        (
+            '--threadless --plugin proxy.plugin.ModifyPostDataPlugin ' +
+            _tls_interception_flags('-post')
+        ),
+    ]
+PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = tuple(
+    _PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN,
 )
 
 
-@pytest.fixture(scope='session', autouse=True)  # type: ignore[misc]
+@pytest.fixture(scope='session', autouse=not IS_WINDOWS)  # type: ignore[misc]
 def _gen_https_certificates(request: Any) -> None:
     check_output([
         'make', 'https-certificates',
@@ -96,7 +125,7 @@ def _gen_https_certificates(request: Any) -> None:
     ])
 
 
-@pytest.fixture(scope='session', autouse=True)  # type: ignore[misc]
+@pytest.fixture(scope='session', autouse=not IS_WINDOWS)  # type: ignore[misc]
 def _gen_ca_certificates(request: Any) -> None:
     check_output([
         'make', 'ca-certificates',
