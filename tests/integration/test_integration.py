@@ -191,6 +191,10 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     PROXY_PY_FLAGS_INTEGRATION,
     indirect=True,
 )   # type: ignore[misc]
+@pytest.mark.skipif(
+    IS_WINDOWS,
+    reason='OSError: [WinError 193] %1 is not a valid Win32 application',
+)  # type: ignore[misc]
 def test_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test using ``curl`` through proxy.py."""
     this_test_module = Path(__file__)
