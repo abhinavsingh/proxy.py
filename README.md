@@ -1914,7 +1914,7 @@ If threadless works for you, consider sending a PR by editing `_env_threadless_c
 
 Original threadless implementation used `remote` execution mode.  This is also depicted under [High level architecture](#high-level-architecture) as ASCII art.
 
-Under `remote` execution mode, acceptors delegate incoming client connection processing to a remote worker process.  By default, acceptors delegate connections in round-robin fashion.  Worker processing the request may or may not be running on the same CPU core as the acceptor.  This architecture scales well for high throughput, but results in spawning 2xCPU processes.
+Under `remote` execution mode, acceptors delegate incoming client connection processing to a remote worker process.  By default, acceptors delegate connections in round-robin fashion.  Worker processing the request may or may not be running on the same CPU core as the acceptor.  This architecture scales well for high throughput, but results in spawning two process per CPU core.
 
 Example, if there are N-CPUs on the machine, by default, N acceptors and N worker processes are started.  You can tune number of processes using `--num-acceptors` and `--num-workers` flag.  You might want more workers than acceptors or vice versa depending upon your use case.
 
