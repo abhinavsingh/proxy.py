@@ -103,6 +103,7 @@
   - [Stable vs Develop](#stable-vs-develop)
     - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
+  - [Threadless Remote vs Local Execution Mode](#threadless-remote-vs-local-execution-mode)
   - [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
   - [Unable to load plugins](#unable-to-load-plugins)
   - [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
@@ -115,6 +116,9 @@
   - [High level architecture](#high-level-architecture)
   - [Everything is a plugin](#everything-is-a-plugin)
   - [Internal Documentation](#internal-documentation)
+    - [Read The Doc](#read-the-doc)
+    - [pydoc](#pydoc)
+    - [pyreverse](#pyreverse)
   - [Development Guide](#development-guide)
     - [Setup Local Environment](#setup-local-environment)
     - [Setup Git Hooks](#setup-git-hooks)
@@ -132,10 +136,8 @@
 - Fast & Scalable
 
   - Scale up by using all available cores on the system
-    - Use `--num-acceptors` flag to control number of cores
 
   - Threadless executions using asyncio
-    - Use `--threaded` for synchronous thread based execution mode
 
   - Made to handle `tens-of-thousands` connections / sec
 
@@ -185,6 +187,8 @@
       Status code distribution:
         [200] 100000 responses
     ```
+
+    Consult [Threads vs Threadless](#threads-vs-threadless) and [Threadless Remote vs Local Execution Mode](#threadless-remote-vs-local-execution-mode) to control number of CPU cores utilized.
 
     See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and for how to run benchmarks locally.
 
@@ -1689,11 +1693,24 @@ optional arguments:
 
 ## Internal Documentation
 
-Code is well documented. You have a few options to browse the internal class hierarchy and documentation:
+### Read The Doc
 
-1. Visit [proxypy.readthedocs.io](https://proxypy.readthedocs.io/)
-2. Build and open docs locally using `make lib-doc`
-2. Use `pydoc3` locally using `pydoc3 proxy`
+- Visit [proxypy.readthedocs.io](https://proxypy.readthedocs.io/)
+- Build locally using:
+
+`make lib-doc`
+
+### pydoc
+
+Code is well documented.  Grab the source code and run:
+
+`pydoc3 proxy`
+
+### pyreverse
+
+Generate class level hierarchy UML diagrams for in-depth analysis:
+
+`make lib-pyreverse`
 
 # Run Dashboard
 
@@ -1892,6 +1909,20 @@ Threadless execution was turned ON by default for `Python 3.8+` on `mac` and `li
 For `windows` and `Python < 3.8`, you can still try out threadless mode by starting `proxy.py` with `--threadless` flag.
 
 If threadless works for you, consider sending a PR by editing `_env_threadless_compliant` method in the `proxy/common/constants.py` file.
+
+## Threadless Remote vs Local execution mode
+
+Original threadless implementation used `remote` execution mode.  This is also depicted under [High level architecture](#high-level-architecture) as ASCII art.
+
+Under `remote` execution mode, acceptors delegate incoming client connection processing to a remote worker process.  By default, acceptors delegate connections in round-robin fashion.  Worker processing the request may or may not be running on the same CPU core as the acceptor.  This architecture scales well for high throughput, but results in spawning 2xCPU processes.
+
+Example, if there are N-CPUs on the machine, by default, N acceptors and N worker processes are started.  You can tune number of processes using `--num-acceptors` and `--num-workers` flag.  You might want more workers than acceptors or vice versa depending upon your use case.
+
+In v2.4.x, `local` execution mode was added, mainly to reduce number of processes spawned by default.  This model serves well for day-to-day single user use cases and for developer testing scenarios.  Under `local` execution mode, acceptors delegate client connections to a companion thread, instead of a remote process.  `local` execution mode ensure CPU affinity, unlike in the `remote` mode where acceptor and worker might be running on different CPU cores.
+
+`--local-executor 1` was made default in v2.4.x series.  Under `local` execution mode, `--num-workers` flag has no effect, as no remote workers are started.
+
+To use `remote` execution mode, use `--local-executor 0` flag.  Then use `--num-workers` to tune number of worker processes.
 
 ## SyntaxError: invalid syntax
 
