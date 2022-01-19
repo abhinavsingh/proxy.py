@@ -61,7 +61,7 @@ class EventDispatcher:
             })
         elif ev['event_name'] == eventNames.UNSUBSCRIBE:
             # send ack
-            print('unsubscription request ack sent')
+            logger.info('unsubscription request ack sent')
             self.subscribers[ev['event_payload']['sub_id']].send({
                 'event_name': eventNames.UNSUBSCRIBED,
             })

@@ -827,6 +827,7 @@ class TestHttpParser(unittest.TestCase):
             b'I am posting this information.\r\n' +
             b'0\r\n' +
             b'\r\n',
+            allowed_url_schemes=[b'icap'],
         )
         self.assertEqual(self.parser.method, b'REQMOD')
         assert self.parser._url is not None
