@@ -429,7 +429,7 @@ class Threadless(ABC, Generic[T]):
                     data=wqfileno,
                 )
             assert self.loop
-            # logger.debug('Working on {0} works'.format(len(self.works)))
+            logger.debug('Working on {0} works'.format(len(self.works)))
             self.loop.create_task(self._run_forever())
             self.loop.run_forever()
         except KeyboardInterrupt:

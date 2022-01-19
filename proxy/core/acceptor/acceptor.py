@@ -148,7 +148,8 @@ class Acceptor(multiprocessing.Process):
                 if locked:
                     self.lock.release()
             for work in works:
-                if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
+                if self.flags.threadless and \
+                        self.flags.local_executor:
                     assert self._local_work_queue
                     self._local_work_queue.put(work)
                 else:
@@ -171,7 +172,7 @@ class Acceptor(multiprocessing.Process):
             type=socket.SOCK_STREAM,
         )
         try:
-            if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
+            if self.flags.threadless and self.flags.local_executor:
                 self._start_local()
             self.selector.register(self.sock, selectors.EVENT_READ)
             while not self.running.is_set():
@@ -180,7 +181,7 @@ class Acceptor(multiprocessing.Process):
             pass
         finally:
             self.selector.unregister(self.sock)
-            if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
+            if self.flags.threadless and self.flags.local_executor:
                 self._stop_local()
             self.sock.close()
             logger.debug('Acceptor#%d shutdown', self.idd)
