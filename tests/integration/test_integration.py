@@ -16,10 +16,15 @@ import tempfile
 import subprocess
 
 from pathlib import Path
-from typing import Any, Generator
-from subprocess import Popen, check_output
+from typing import Any, Generator, List
+from subprocess import Popen, check_output as _check_output
 
 from proxy.common.constants import IS_WINDOWS
+
+
+def check_output(args: List[Any]) -> str:
+    args = args if not IS_WINDOWS else ['powershell'] + args
+    return _check_output(args)
 
 
 def _https_server_flags() -> str:
@@ -110,7 +115,7 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = tuple(
 )
 
 
-@pytest.fixture(scope='session', autouse=True)  # type: ignore[misc]
+@pytest.fixture(scope='session', autouse=not IS_WINDOWS)  # type: ignore[misc]
 def _gen_https_certificates(request: Any) -> None:
     check_output([
         'make', 'https-certificates',
@@ -120,7 +125,7 @@ def _gen_https_certificates(request: Any) -> None:
     ])
 
 
-@pytest.fixture(scope='session', autouse=True)  # type: ignore[misc]
+@pytest.fixture(scope='session', autouse=not IS_WINDOWS)  # type: ignore[misc]
 def _gen_ca_certificates(request: Any) -> None:
     check_output([
         'make', 'ca-certificates',
