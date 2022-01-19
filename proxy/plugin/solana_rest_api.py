@@ -122,7 +122,7 @@ class EthereumModel:
 
     def process_block_tag(self, tag):
         if tag == "latest":
-            block_number = self.db.get_last_block_height()
+            block_number = self.db.get_latest_block_height()
         elif tag in ('earliest', 'pending'):
             raise Exception("Invalid tag {}".format(tag))
         elif isinstance(tag, str):
@@ -134,7 +134,7 @@ class EthereumModel:
         return block_number
 
     def eth_blockNumber(self):
-        height = self.db.get_last_block_height()
+        height = self.db.get_latest_block_height()
         logger.debug("eth_blockNumber %s", hex(height))
         return hex(height)
 

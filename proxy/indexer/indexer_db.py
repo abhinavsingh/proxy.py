@@ -84,6 +84,9 @@ class IndexerDB:
     def get_last_block_height(self):
         return self._constants['last_block_height']
 
+    def get_latest_block_height(self):
+        return self._blocks_db.get_latest_block_height()
+
     def set_last_slot_height(self, slot, height):
         self._constants['last_block_slot'] = slot
         self._constants['last_block_height'] = height
