@@ -11,6 +11,7 @@
 import unittest
 
 from proxy.http import Url
+from proxy.http.exception import HttpProtocolException
 
 
 class TestUrl(unittest.TestCase):
@@ -155,3 +156,7 @@ class TestUrl(unittest.TestCase):
         self.assertEqual(url.remainder, b'/server?arg=87')
         self.assertEqual(url.username, None)
         self.assertEqual(url.password, None)
+
+    def test_assert_raises_for_unknown_schemes(self) -> None:
+        with self.assertRaises(HttpProtocolException):
+            Url.from_bytes(b'icap://example-server.net/server?arg=87')

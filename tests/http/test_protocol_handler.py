@@ -26,7 +26,7 @@ from proxy.common.plugins import Plugins
 from proxy.common.version import __version__
 from proxy.http.responses import (
     BAD_GATEWAY_RESPONSE_PKT, PROXY_AUTH_FAILED_RESPONSE_PKT,
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT, BAD_REQUEST_RESPONSE_PKT,
 )
 from proxy.common.constants import (
     CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER,
@@ -112,6 +112,34 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
             PROXY_AUTH_FAILED_RESPONSE_PKT,
+        )
+
+    @pytest.mark.asyncio
+    async def test_proxy_bails_out_for_unknown_schemes(self) -> None:
+        mock_selector_for_client_read(self)
+        self._conn.recv.return_value = CRLF.join([
+            b'REQMOD icap://icap-server.net/server?arg=87 ICAP/1.0',
+            b'Host: icap-server.net',
+            CRLF,
+        ])
+        await self.protocol_handler._run_once()
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0],
+            BAD_REQUEST_RESPONSE_PKT,
+        )
+
+    @pytest.mark.asyncio
+    async def test_proxy_bails_out_for_sip_request_lines(self) -> None:
+        mock_selector_for_client_read(self)
+        self._conn.recv.return_value = CRLF.join([
+            b'OPTIONS sip:nm SIP/2.0',
+            b'Accept: application/sdp',
+            CRLF,
+        ])
+        await self.protocol_handler._run_once()
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0],
+            BAD_REQUEST_RESPONSE_PKT,
         )
 
 

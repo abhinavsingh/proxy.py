@@ -278,8 +278,10 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
         try:
             self.request.parse(data.tobytes())
         except HttpProtocolException as e:  # noqa: WPS329
+            self.work.queue(BAD_REQUEST_RESPONSE_PKT)
             raise e
         except Exception as e:
+            self.work.queue(BAD_REQUEST_RESPONSE_PKT)
             raise HttpProtocolException(
                 'Error when parsing request: %r' % data.tobytes(),
             ) from e
