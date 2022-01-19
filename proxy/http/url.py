@@ -13,7 +13,7 @@
        http
        url
 """
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from ..common.constants import COLON, DEFAULT_ALLOWED_URL_SCHEMES, SLASH, AT
 from ..common.utils import text_
@@ -61,7 +61,7 @@ class Url:
         return url
 
     @classmethod
-    def from_bytes(cls, raw: bytes) -> 'Url':
+    def from_bytes(cls, raw: bytes, allowed_url_schemes: Optional[List[bytes]] = None) -> 'Url':
         """A URL within proxy.py core can have several styles,
         because proxy.py supports both proxy and web server use cases.
 
@@ -97,7 +97,7 @@ class Url:
             if len(parts) == 2:
                 scheme = parts[0]
                 rest = parts[1]
-                if scheme not in DEFAULT_ALLOWED_URL_SCHEMES:
+                if scheme not in (allowed_url_schemes or DEFAULT_ALLOWED_URL_SCHEMES):
                     raise HttpProtocolException(
                         'Invalid scheme received in the request line %r' % raw,
                     )

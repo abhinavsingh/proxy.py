@@ -149,9 +149,10 @@ class HttpParser:
         for key in headers:
             self.del_header(key.lower())
 
-    def set_url(self, url: bytes) -> None:
+    def set_url(self, url: bytes, allowed_url_schemes: Optional[List[bytes]] = None) -> None:
         """Given a request line, parses it and sets line attributes a.k.a. host, port, path."""
-        self._url = Url.from_bytes(url)
+        self._url = Url.from_bytes(
+            url, allowed_url_schemes=allowed_url_schemes)
         self._set_line_attributes()
 
     @property
@@ -204,7 +205,7 @@ class HttpParser:
         """Returns true if content or chunked response is expected."""
         return self._content_expected or self._is_chunked_encoded
 
-    def parse(self, raw: bytes) -> None:
+    def parse(self, raw: bytes, allowed_url_schemes: Optional[List[bytes]] = None) -> None:
         """Parses HTTP request out of raw bytes.
 
         Check for `HttpParser.state` after `parse` has successfully returned."""
@@ -217,7 +218,10 @@ class HttpParser:
             if self.state >= httpParserStates.HEADERS_COMPLETE:
                 more, raw = self._process_body(raw)
             elif self.state == httpParserStates.INITIALIZED:
-                more, raw = self._process_line(raw)
+                more, raw = self._process_line(
+                    raw,
+                    allowed_url_schemes=allowed_url_schemes,
+                )
             else:
                 more, raw = self._process_headers(raw)
             # When server sends a response line without any header or body e.g.
@@ -345,7 +349,11 @@ class HttpParser:
                 break
         return len(raw) > 0, raw
 
-    def _process_line(self, raw: bytes) -> Tuple[bool, bytes]:
+    def _process_line(
+            self,
+            raw: bytes,
+            allowed_url_schemes: Optional[List[bytes]] = None,
+    ) -> Tuple[bool, bytes]:
         while True:
             parts = raw.split(CRLF, 1)
             if len(parts) == 1:
@@ -363,7 +371,8 @@ class HttpParser:
                     self.method = parts[0]
                     if self.method == httpMethods.CONNECT:
                         self._is_https_tunnel = True
-                    self.set_url(parts[1])
+                    self.set_url(
+                        parts[1], allowed_url_schemes=allowed_url_schemes)
                     self.version = parts[2]
                     self.state = httpParserStates.LINE_RCVD
                     break
