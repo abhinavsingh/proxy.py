@@ -114,7 +114,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
             PROXY_AUTH_FAILED_RESPONSE_PKT,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_bails_out_for_unknown_schemes(self) -> None:
         mock_selector_for_client_read(self)
         self._conn.recv.return_value = CRLF.join([
@@ -128,7 +128,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
             BAD_REQUEST_RESPONSE_PKT,
         )
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_bails_out_for_sip_request_lines(self) -> None:
         mock_selector_for_client_read(self)
         self._conn.recv.return_value = CRLF.join([
