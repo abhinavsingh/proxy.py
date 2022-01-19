@@ -22,7 +22,7 @@ from subprocess import Popen, check_output as _check_output
 from proxy.common.constants import IS_WINDOWS
 
 
-def check_output(args: List[Any]) -> str:
+def check_output(args: List[Any]) -> bytes:
     args = args if not IS_WINDOWS else ['powershell'] + args
     return _check_output(args)
 
