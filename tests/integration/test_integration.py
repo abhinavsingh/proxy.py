@@ -38,40 +38,36 @@ def _tls_interception_flags(ca_cert_suffix: str = '') -> str:
 
 
 _PROXY_PY_FLAGS_INTEGRATION = [
-    ('--threadless --local-executor 0'),
     ('--threaded'),
 ]
 if not IS_WINDOWS:
     _PROXY_PY_FLAGS_INTEGRATION += [
+        ('--threadless --local-executor 0'),
         ('--threadless'),
     ]
 PROXY_PY_FLAGS_INTEGRATION = tuple(_PROXY_PY_FLAGS_INTEGRATION)
 
 _PROXY_PY_HTTPS = [
-    ('--threadless --local-executor 0 ' + _https_server_flags()),
     ('--threaded ' + _https_server_flags()),
 ]
 if not IS_WINDOWS:
     _PROXY_PY_HTTPS += [
+        ('--threadless --local-executor 0 ' + _https_server_flags()),
         ('--threadless ' + _https_server_flags()),
     ]
 PROXY_PY_HTTPS = tuple(_PROXY_PY_HTTPS)
 
 _PROXY_PY_FLAGS_TLS_INTERCEPTION = [
-    ('--threadless --local-executor 0 ' + _tls_interception_flags()),
     ('--threaded ' + _tls_interception_flags()),
 ]
 if not IS_WINDOWS:
     _PROXY_PY_FLAGS_TLS_INTERCEPTION += [
+        ('--threadless --local-executor 0 ' + _tls_interception_flags()),
         ('--threadless ' + _tls_interception_flags()),
     ]
 PROXY_PY_FLAGS_TLS_INTERCEPTION = tuple(_PROXY_PY_FLAGS_TLS_INTERCEPTION)
 
 _PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = [
-    (
-        '--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
-        _tls_interception_flags('-chunk')
-    ),
     (
         '--threaded --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
         _tls_interception_flags('-chunk')
@@ -79,6 +75,10 @@ _PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = [
 ]
 if not IS_WINDOWS:
     _PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN += [
+        (
+            '--threadless --local-executor 0 --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
+            _tls_interception_flags('-chunk')
+        ),
         (
             '--threadless --plugin proxy.plugin.ModifyChunkResponsePlugin ' +
             _tls_interception_flags('-chunk')
@@ -90,18 +90,18 @@ PROXY_PY_FLAGS_MODIFY_CHUNK_RESPONSE_PLUGIN = tuple(
 
 _PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = [
     (
-        '--threadless --local-executor 0 --plugin proxy.plugin.ModifyPostDataPlugin ' +
-        _tls_interception_flags('-post')
-    ),
-    (
-        '--threadless --plugin proxy.plugin.ModifyPostDataPlugin ' +
+        '--threaded --plugin proxy.plugin.ModifyPostDataPlugin ' +
         _tls_interception_flags('-post')
     ),
 ]
 if not IS_WINDOWS:
     _PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN += [
         (
-            '--threaded --plugin proxy.plugin.ModifyPostDataPlugin ' +
+            '--threadless --local-executor 0 --plugin proxy.plugin.ModifyPostDataPlugin ' +
+            _tls_interception_flags('-post')
+        ),
+        (
+            '--threadless --plugin proxy.plugin.ModifyPostDataPlugin ' +
             _tls_interception_flags('-post')
         ),
     ]
