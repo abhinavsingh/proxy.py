@@ -23,8 +23,7 @@ if [[ -z "$PROXY_PY_PORT" ]]; then
   exit 1
 fi
 
-# CURL="curl -v --connect-timeout 20 --max-time 120 --retry-connrefused --retry-delay 5 --retry 3"
-CURL="curl -v"
+CURL="curl -v --connect-timeout 20 --max-time 120 --retry-connrefused --retry-delay 5 --retry 3"
 
 PROXY_URL="http://localhost:$PROXY_PY_PORT"
 TEST_URL="$PROXY_URL/http-route-example"

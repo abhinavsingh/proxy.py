@@ -280,10 +280,11 @@ class Proxy:
         signal.signal(signal.SIGINT, self._handle_exit_signal)
         signal.signal(signal.SIGTERM, self._handle_exit_signal)
         if not IS_WINDOWS:
-            signal.signal(      # pragma: no cover
-                signal.SIGINFO,       # pylint: disable=E1101
-                self._handle_siginfo,
-            )
+            if hasattr(signal, 'SIGINFO'):
+                signal.signal(      # pragma: no cover
+                    signal.SIGINFO,       # pylint: disable=E1101
+                    self._handle_siginfo,
+                )
             signal.signal(signal.SIGHUP, self._handle_exit_signal)
             # TODO: SIGQUIT is ideally meant to terminate with core dumps
             signal.signal(signal.SIGQUIT, self._handle_exit_signal)
