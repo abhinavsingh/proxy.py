@@ -280,7 +280,7 @@ class Proxy:
         signal.signal(signal.SIGINT, self._handle_exit_signal)
         signal.signal(signal.SIGTERM, self._handle_exit_signal)
         if not IS_WINDOWS:
-            signal.signal(
+            signal.signal(      # pragma: no cover
                 signal.SIGINFO,       # pylint: disable=E1101
                 self._handle_siginfo,
             )
