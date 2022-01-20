@@ -527,7 +527,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             response['error'] = err.getError()
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
-            self.warning('Exception on process request. ' +
+            self.error('Exception on process request. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
             response['error'] = {'code': -32000, 'message': str(err)}
 
