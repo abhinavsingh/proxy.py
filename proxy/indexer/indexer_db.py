@@ -44,7 +44,7 @@ class IndexerDB:
             self._txs_db.set_tx(tx)
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
-            self.warning('Exception on submitting transaction. ' +
+            self.error('Exception on submitting transaction. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
     def _fill_block_from_net(self, block: SolanaBlockDBInfo):
