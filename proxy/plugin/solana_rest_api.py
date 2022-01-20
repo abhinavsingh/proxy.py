@@ -395,10 +395,10 @@ class EthereumModel:
             self._log_transaction_error(err)
             raise
         except EthereumError as err:
-            self.debug("eth_sendRawTransaction EthereumError:%s", err)
+            self.error("eth_sendRawTransaction EthereumError:%s", err)
             raise
         except Exception as err:
-            self.debug("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
+            self.error("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
             raise
 
     def _log_transaction_error(self, error: SolanaTrxError):
