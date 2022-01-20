@@ -10,16 +10,15 @@
 """
 import socket
 import argparse
-
 from abc import ABC, abstractmethod
-from typing import List, Union, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Union, Optional
 
-from ..core.event import EventQueue
-
+from .mixins import TlsInterceptionPropertyMixin
 from .parser import HttpParser
 from .connection import HttpClientConnection
+from ..core.event import EventQueue
 from .descriptors import DescriptorsHandlerMixin
-from .mixins import TlsInterceptionPropertyMixin
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from ..core.connection import UpstreamConnectionPool

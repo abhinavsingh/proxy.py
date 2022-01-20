@@ -95,8 +95,8 @@ class Threadless(ABC, Generic[T]):
         self._total: int = 0
         # When put at the top, causes circular import error
         # since integrated ssh tunnel was introduced.
-        from ..connection import (
-            UpstreamConnectionPool,  # pylint: disable=C0415
+        from ..connection import (  # pylint: disable=C0415
+            UpstreamConnectionPool,
         )
         self._upstream_conn_pool: Optional['UpstreamConnectionPool'] = None
         self._upstream_conn_filenos: Set[int] = set()
