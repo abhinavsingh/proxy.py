@@ -280,8 +280,8 @@ class Proxy:
         signal.signal(signal.SIGINT, self._handle_exit_signal)
         signal.signal(signal.SIGTERM, self._handle_exit_signal)
         if not IS_WINDOWS:
-            signal.signal(      # pylint: disable=E1101
-                signal.SIGINFO,
+            signal.signal(
+                signal.SIGINFO,       # pylint: disable=E1101
                 self._handle_siginfo,
             )
             signal.signal(signal.SIGHUP, self._handle_exit_signal)

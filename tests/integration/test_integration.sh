@@ -23,6 +23,8 @@ if [[ -z "$PROXY_PY_PORT" ]]; then
   exit 1
 fi
 
+CURL="curl -v --connect-timeout 20 --max-time 120 --retry-all-errors --retry 3"
+
 PROXY_URL="http://localhost:$PROXY_PY_PORT"
 TEST_URL="$PROXY_URL/http-route-example"
 CURL_EXTRA_FLAGS=""
@@ -50,7 +52,7 @@ while true; do
 done
 
 # Wait for http proxy and web server to start
-CMD="curl -v $CURL_EXTRA_FLAGS -x $PROXY_URL $TEST_URL"
+CMD="$CURL $CURL_EXTRA_FLAGS -x $PROXY_URL $TEST_URL"
 while true; do
     RESPONSE=$($CMD 2> /dev/null)
     if [[ $? == 0 ]]; then
@@ -90,13 +92,13 @@ Disallow: /deny
 EOM
 
 echo "[Test HTTP Request via Proxy]"
-CMD="curl -v $CURL_EXTRA_FLAGS -x $PROXY_URL http://httpbin.org/robots.txt"
+CMD="$CURL $CURL_EXTRA_FLAGS -x $PROXY_URL http://httpbin.org/robots.txt"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED1=$?
 
 echo "[Test HTTPS Request via Proxy]"
-CMD="curl -v $CURL_EXTRA_FLAGS -x $PROXY_URL https://httpbin.org/robots.txt"
+CMD="$CURL $CURL_EXTRA_FLAGS -x $PROXY_URL https://httpbin.org/robots.txt"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED2=$?
@@ -105,7 +107,7 @@ if $USE_HTTPS; then
     VERIFIED3=0
 else
     echo "[Test Internal Web Server via Proxy]"
-    curl -v \
+    $CURL \
         $CURL_EXTRA_FLAGS \
         -x $PROXY_URL \
         "$PROXY_URL"
@@ -121,7 +123,7 @@ fi
 echo "[Test Download File Hash Verifies 1]"
 touch downloaded.hash
 echo "3d1921aab49d3464a712c1c1397b6babf8b461a9873268480aa8064da99441bc  -" > downloaded.hash
-curl -vL \
+$CURL -L \
     $CURL_EXTRA_FLAGS \
     -o downloaded.whl \
     -x $PROXY_URL \
@@ -133,7 +135,7 @@ rm downloaded.whl downloaded.hash
 echo "[Test Download File Hash Verifies 2]"
 touch downloaded.hash
 echo "077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8  -" > downloaded.hash
-curl -vL \
+$CURL -L \
     $CURL_EXTRA_FLAGS \
     -o downloaded.whl \
     -x $PROXY_URL \
