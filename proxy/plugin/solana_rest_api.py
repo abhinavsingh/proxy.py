@@ -282,7 +282,7 @@ class EthereumModel:
             acc_info = getAccountInfo(self.client, EthereumAddress(account))
             return hex(int.from_bytes(acc_info.trx_count, 'little'))
         except Exception as err:
-            print("Can't get account info: %s"%err)
+            self.error("eth_getTransactionCount: Can't get account info: %s", err)
             return hex(0)
 
     def _getTransactionReceipt(self, tx):
