@@ -12,6 +12,7 @@ import os
 import sys
 import time
 import signal
+import pprint
 import logging
 from typing import Any, List, Optional
 
@@ -276,10 +277,10 @@ class Proxy:
 
     def _register_signals(self) -> None:
         # TODO: Define SIGUSR1, SIGUSR2
-        signal.signal(signal.SIGINFO, self._handle_siginfo)
         signal.signal(signal.SIGINT, self._handle_exit_signal)
         signal.signal(signal.SIGTERM, self._handle_exit_signal)
         if not IS_WINDOWS:
+            signal.signal(signal.SIGINFO, self._handle_siginfo)
             signal.signal(signal.SIGHUP, self._handle_exit_signal)
             # TODO: SIGQUIT is ideally meant to terminate with core dumps
             signal.signal(signal.SIGQUIT, self._handle_exit_signal)
@@ -290,7 +291,7 @@ class Proxy:
         sys.exit(0)
 
     def _handle_siginfo(self, _signum: int, _frame: Any) -> None:
-        print(self.flags.__dict__)
+        pprint.pprint(self.flags.__dict__)
 
 
 def sleep_loop() -> None:
