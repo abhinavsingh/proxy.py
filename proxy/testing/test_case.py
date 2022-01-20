@@ -28,7 +28,6 @@ class TestCase(unittest.TestCase):
         '--port', '0',
         '--num-workers', '1',
         '--num-acceptors', '1',
-        '--threadless',
     ]
 
     PROXY: Optional[Proxy] = None
