@@ -17,6 +17,7 @@ from proxy.common.utils import (
 )
 from proxy.http.exception import HttpProtocolException
 from proxy.http.responses import okResponse
+from proxy.http.protocols import httpProtocols
 from proxy.common.constants import CRLF, HTTP_1_0
 
 
@@ -832,6 +833,10 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.method, b'REQMOD')
         assert self.parser._url is not None
         self.assertEqual(self.parser._url.scheme, b'icap')
+        self.assertEqual(
+            self.parser.http_handler_protocol,
+            httpProtocols.UNKNOWN,
+        )
 
     def test_cannot_parse_sip_protocol(self) -> None:
         # Will fail to parse because of invalid host and port in the request line

@@ -20,7 +20,7 @@ class EchoServerHandler(BaseTcpServerHandler[TcpClientConnection]):
     """Sets client socket to non-blocking during initialization."""
 
     @staticmethod
-    def create(**kwargs: Any) -> TcpClientConnection:
+    def create(**kwargs: Any) -> TcpClientConnection:   # pragma: no cover
         return TcpClientConnection(**kwargs)
 
     def initialize(self) -> None:
