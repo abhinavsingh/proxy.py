@@ -354,5 +354,5 @@ class TestMain(unittest.TestCase):
         mock_ssh_tunnel_listener.return_value.setup.assert_called_once()
         mock_ssh_tunnel_listener.return_value.start_port_forward.assert_called_once()
         mock_ssh_tunnel_listener.return_value.shutdown.assert_called_once()
-        # shutdown will automatically internall call stop port forward
+        # shutdown will internally call stop port forward
         mock_ssh_tunnel_listener.return_value.stop_port_forward.assert_not_called()
