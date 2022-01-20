@@ -27,9 +27,9 @@ class IndexerDB:
             if k not in self._constants:
                 self._constants[k] = 0
 
-    def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo, used_ixs: [SolanaIxSignInfo]):
+    def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo, used_ixs: [SolanaIxSignInfo], commitment):
         try:
-            block = self.get_block_by_slot(neon_res.slot)
+            block = self.get_block_by_slot(neon_res.slot, commitment)
             if block.hash is None:
                 self.critical(f'Unable to submit transaction {neon_tx.sign} because slot {neon_res.slot} not found')
                 return
@@ -41,14 +41,15 @@ class IndexerDB:
                     rec['blockNumber'] = hex(block.height)
                 self._logs_db.push_logs(neon_res.logs, block)
             tx = NeonTxDBInfo(neon_tx=neon_tx, neon_res=neon_res, block=block, used_ixs=used_ixs)
+            self.debug(f'submit_transaction NeonTxDBInfo {tx}')
             self._txs_db.set_tx(tx)
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
             self.warning('Exception on submitting transaction. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
-    def _fill_block_from_net(self, block: SolanaBlockDBInfo):
-        opts = {"commitment": "confirmed", "transactionDetails": "signatures", "rewards": False}
+    def _fill_block_from_net(self, block: SolanaBlockDBInfo, commitment):
+        opts = {"commitment": commitment, "transactionDetails": "signatures", "rewards": False}
         net_block = self._client._provider.make_request("getBlock", block.slot, opts)
         if (not net_block) or ('result' not in net_block):
             return block
@@ -59,21 +60,21 @@ class IndexerDB:
         block.signs = net_block['signatures']
         block.parent_hash = '0x' + base58.b58decode(net_block['previousBlockhash']).hex()
         block.time = net_block['blockTime']
-        block.finalized = ("confirmed" == FINALIZED)
+        block.finalized = (commitment == FINALIZED)
         self.debug(f'{block}')
         self._blocks_db.set_block(block)
         return block
 
-    def get_block_by_slot(self, slot) -> SolanaBlockDBInfo:
+    def get_block_by_slot(self, slot, commitment) -> SolanaBlockDBInfo:
         block = self._blocks_db.get_block_by_slot(slot)
         if not block.hash:
-            self._fill_block_from_net(block)
+            self._fill_block_from_net(block, commitment)
         return block
 
-    def get_full_block_by_slot(self, slot) -> SolanaBlockDBInfo:
+    def get_full_block_by_slot(self, slot, commitment) -> SolanaBlockDBInfo:
         block = self._blocks_db.get_full_block_by_slot(slot)
         if not block.parent_hash:
-            self._fill_block_from_net(block)
+            self._fill_block_from_net(block, commitment)
         return block
 
     def get_last_block_slot(self):
@@ -107,16 +108,16 @@ class IndexerDB:
     def get_block_by_height(self, block_height):
         return self._blocks_db.get_block_by_height(block_height)
 
-    def get_tx_by_sol_sign(self, sol_sign):
+    def get_tx_by_sol_sign(self, sol_sign, commitment):
         tx = self._txs_db.get_tx_by_sol_sign(sol_sign)
         if tx:
-            tx.block = self.get_block_by_slot(tx.neon_res.slot)
+            tx.block = self.get_block_by_slot(tx.neon_res.slot, commitment)
         return tx
 
-    def get_tx_by_neon_sign(self, neon_sign) -> NeonTxDBInfo:
+    def get_tx_by_neon_sign(self, neon_sign, commitment) -> NeonTxDBInfo:
         tx = self._txs_db.get_tx_by_neon_sign(neon_sign)
         if tx:
-            tx.block = self.get_block_by_slot(tx.neon_res.slot)
+            tx.block = self.get_block_by_slot(tx.neon_res.slot, commitment)
         return tx
 
     def del_not_finalized(self, from_slot: int, to_slot: int):

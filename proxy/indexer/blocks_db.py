@@ -99,6 +99,7 @@ class SolanaBlocksDB(BaseDB):
                 parent_hash=EXCLUDED.parent_hash,
                 blocktime=EXCLUDED.blocktime,
                 signatures=EXCLUDED.signatures
+            WHERE {self._table_name}.finalized=False AND EXCLUDED.finalized=True;
             ''',
             (block.slot, block.finalized, block.height, block.hash,
              block.parent_hash, block.time, self.encode_list(block.signs)))

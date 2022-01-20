@@ -241,7 +241,7 @@ class ReceiptsParserState:
         for tx in self._done_tx_list:
             self.unmark_ix_used(tx)
             if tx.neon_tx.is_valid() and tx.neon_res.is_valid():
-                self._db.submit_transaction(tx.neon_tx, tx.neon_res, tx.used_ixs)
+                self._db.submit_transaction(tx.neon_tx, tx.neon_res, tx.used_ixs, commitment=FINALIZED)
             self.del_tx(tx)
         self._done_tx_list.clear()
 
