@@ -10,8 +10,7 @@
 """
 import queue
 import ipaddress
-
-from typing import TYPE_CHECKING, Dict, Any, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 
 if TYPE_CHECKING:   # pragma: no cover

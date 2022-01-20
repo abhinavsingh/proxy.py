@@ -15,8 +15,7 @@ import signal
 import logging
 from typing import Any, List, Optional
 
-from proxy.core.ssh.listener import SshTunnelListener
-from .core.ssh import SshHttpProtocolHandler
+from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
 from .core.work import ThreadlessPool
 from .core.event import EventManager
 from .common.flag import FlagParser, flags

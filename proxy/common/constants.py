@@ -11,15 +11,15 @@
 import os
 import sys
 import time
-import secrets
 import pathlib
+import secrets
 import platform
-import sysconfig
 import ipaddress
-
+import sysconfig
 from typing import Any, List
 
 from .version import __version__
+
 
 SYS_PLATFORM = platform.system()
 IS_WINDOWS = SYS_PLATFORM == 'Windows'

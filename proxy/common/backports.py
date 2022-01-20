@@ -10,9 +10,8 @@
 """
 import time
 import threading
-
-from typing import Any, Deque
 from queue import Empty
+from typing import Any, Deque
 from collections import deque
 
 
