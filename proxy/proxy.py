@@ -291,7 +291,7 @@ class Proxy:
         sys.exit(0)
 
     def _handle_siginfo(self, _signum: int, _frame: Any) -> None:
-        pprint.pprint(self.flags.__dict__)
+        pprint.pprint(self.flags.__dict__)  # pragma: no cover
 
 
 def sleep_loop() -> None:
