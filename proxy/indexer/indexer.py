@@ -266,7 +266,7 @@ class DummyIxDecoder:
     def _getadd_tx(self, storage_account, neon_tx=None, blocked_accounts=[str]) -> NeonTxObject:
         tx = self.state.get_tx(storage_account)
         if tx and neon_tx and tx.neon_tx and (neon_tx.sign != tx.neon_tx.sign):
-            self.warning(f'storage {storage_account}, tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx})')
+            self.warning(f'tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx});  current parsed instruction {self.str()}, storage {storage_account}')
             self.state.unmark_ix_used(tx)
             self.state.del_tx(tx)
             tx = None
