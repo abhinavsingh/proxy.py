@@ -9,17 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-
 from abc import ABC
-from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Tuple, Optional
 
 from ..mixins import TlsInterceptionPropertyMixin
-
 from ..parser import HttpParser
+from ..connection import HttpClientConnection
+from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
 
-from ...core.event import EventQueue
-from ...core.connection import TcpClientConnection
 
 if TYPE_CHECKING:   # pragma: no cover
     from ...core.connection import UpstreamConnectionPool
@@ -38,7 +36,7 @@ class HttpProxyBasePlugin(
             self,
             uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: HttpClientConnection,
             event_queue: EventQueue,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:

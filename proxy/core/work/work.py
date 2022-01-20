@@ -13,13 +13,13 @@
        acceptor
 """
 import argparse
-
-from uuid import uuid4
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, TypeVar, Generic, TYPE_CHECKING
+from uuid import uuid4
+from typing import TYPE_CHECKING, Any, Dict, Generic, TypeVar, Optional
 
-from ..event import eventNames, EventQueue
-from ...common.types import Readables, SelectableEvents, Writables
+from ..event import EventQueue, eventNames
+from ...common.types import Readables, Writables, SelectableEvents
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from ..connection import UpstreamConnectionPool
@@ -46,6 +46,14 @@ class Work(ABC, Generic[T]):
         # Accept work
         self.work = work
         self.upstream_conn_pool = upstream_conn_pool
+
+    @staticmethod
+    @abstractmethod
+    def create(**kwargs: Any) -> T:
+        """Implementations are responsible for creation of work objects
+        from incoming args.  This helps keep work core agnostic to
+        creation of externally defined work class objects."""
+        raise NotImplementedError()
 
     @abstractmethod
     async def get_events(self) -> SelectableEvents:

@@ -18,13 +18,12 @@ import pytest
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler
+from proxy.http import HttpProtocolHandler, HttpClientConnection
 from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
 from proxy.common.utils import bytes_, build_http_request, build_http_response
 from proxy.common.plugins import Plugins
 from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
-from proxy.core.connection import TcpClientConnection
 from proxy.common.constants import (
     CRLF, PROXY_PY_DIR, PLUGIN_PAC_FILE, PLUGIN_HTTP_PROXY, PLUGIN_WEB_SERVER,
 )
@@ -48,7 +47,7 @@ def test_on_client_connection_called_on_teardown(mocker: MockerFixture) -> None:
     _conn = mock_fromfd.return_value
     _addr = ('127.0.0.1', 54382)
     protocol_handler = HttpProtocolHandler(
-        TcpClientConnection(_conn, _addr),
+        HttpClientConnection(_conn, _addr),
         flags=flags,
     )
     protocol_handler.initialize()
@@ -81,7 +80,7 @@ def mock_selector_for_client_read(self: Any) -> None:
 #     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
 #     self._conn = mock_fromfd.return_value
 #     self.protocol_handler = HttpProtocolHandler(
-#         TcpClientConnection(self._conn, self._addr),
+#         HttpClientConnection(self._conn, self._addr),
 #         flags=flags,
 #     )
 #     self.protocol_handler.initialize()
@@ -101,7 +100,7 @@ def mock_selector_for_client_read(self: Any) -> None:
 #     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
 #     self._conn = mock_fromfd.return_value
 #     self.protocol_handler = HttpProtocolHandler(
-#         TcpClientConnection(self._conn, self._addr),
+#         HttpClientConnection(self._conn, self._addr),
 #         flags=flags,
 #     )
 #     self.protocol_handler.initialize()
@@ -121,7 +120,7 @@ def mock_selector_for_client_read(self: Any) -> None:
 #     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
 #     self._conn = mock_fromfd.return_value
 #     self.protocol_handler = HttpProtocolHandler(
-#         TcpClientConnection(self._conn, self._addr),
+#         HttpClientConnection(self._conn, self._addr),
 #         flags=flags,
 #     )
 #     self.protocol_handler.initialize()
@@ -162,7 +161,7 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
             bytes_(PLUGIN_PAC_FILE),
         ])
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()
@@ -221,7 +220,7 @@ class TestStaticWebServerPlugin(Assertions):
             bytes_(PLUGIN_WEB_SERVER),
         ])
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=flags,
         )
         self.protocol_handler.initialize()
@@ -328,7 +327,7 @@ class TestWebServerPlugin(Assertions):
             bytes_(PLUGIN_WEB_SERVER),
         ])
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()
@@ -353,7 +352,7 @@ class TestWebServerPlugin(Assertions):
             bytes_(PLUGIN_WEB_SERVER),
         ])
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=flags,
         )
         self.protocol_handler.initialize()

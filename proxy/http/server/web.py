@@ -13,25 +13,25 @@ import time
 import socket
 import logging
 import mimetypes
-
-from typing import List, Optional, Dict, Tuple, Union, Any, Pattern
-
-from ...common.constants import DEFAULT_STATIC_SERVER_DIR
-from ...common.constants import DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_ENABLE_WEB_SERVER
-from ...common.constants import DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT
-from ...common.utils import bytes_, text_, build_websocket_handshake_response
-from ...common.types import Readables, Writables, Descriptors
-from ...common.flag import flags
-
-from ..exception import HttpProtocolException
-from ..plugin import HttpProtocolHandlerPlugin
-from ..websocket import WebsocketFrame, websocketOpcodes
-from ..parser import HttpParser, httpParserTypes
-from ..protocols import httpProtocols
-from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
+from typing import Any, Dict, List, Tuple, Union, Pattern, Optional
 
 from .plugin import HttpWebServerBasePlugin
+from ..parser import HttpParser, httpParserTypes
+from ..plugin import HttpProtocolHandlerPlugin
 from .protocols import httpProtocolTypes
+from ..exception import HttpProtocolException
+from ..protocols import httpProtocols
+from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
+from ..websocket import WebsocketFrame, websocketOpcodes
+from ...common.flag import flags
+from ...common.types import Readables, Writables, Descriptors
+from ...common.utils import text_, bytes_, build_websocket_handshake_response
+from ...common.constants import (
+    DEFAULT_ENABLE_WEB_SERVER, DEFAULT_STATIC_SERVER_DIR,
+    DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_MIN_COMPRESSION_LIMIT,
+    DEFAULT_WEB_ACCESS_LOG_FORMAT,
+)
+
 
 logger = logging.getLogger(__name__)
 

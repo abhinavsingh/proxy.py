@@ -17,20 +17,21 @@ from unittest import mock
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
 from proxy.common.constants import (  # noqa: WPS450
-    DEFAULT_CA_CERT_DIR, DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
+    DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
     DEFAULT_LOG_FILE, DEFAULT_PAC_FILE, DEFAULT_PID_FILE, PLUGIN_DASHBOARD,
     DEFAULT_CERT_FILE, DEFAULT_LOG_LEVEL, DEFAULT_PORT_FILE, PLUGIN_HTTP_PROXY,
     PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_BASIC_AUTH,
     DEFAULT_LOG_FORMAT, DEFAULT_THREADLESS, DEFAULT_WORK_KLASS,
-    DEFAULT_CA_KEY_FILE, DEFAULT_NUM_WORKERS, DEFAULT_CA_CERT_FILE,
-    DEFAULT_ENABLE_EVENTS, DEFAULT_IPV6_HOSTNAME, DEFAULT_NUM_ACCEPTORS,
-    DEFAULT_LOCAL_EXECUTOR, PLUGIN_INSPECT_TRAFFIC, DEFAULT_ENABLE_DEVTOOLS,
-    DEFAULT_OPEN_FILE_LIMIT, DEFAULT_DEVTOOLS_WS_PATH,
+    DEFAULT_CA_CERT_DIR, DEFAULT_CA_KEY_FILE, DEFAULT_NUM_WORKERS,
+    DEFAULT_CA_CERT_FILE, DEFAULT_ENABLE_EVENTS, DEFAULT_IPV6_HOSTNAME,
+    DEFAULT_NUM_ACCEPTORS, DEFAULT_LOCAL_EXECUTOR, PLUGIN_INSPECT_TRAFFIC,
+    DEFAULT_ENABLE_DEVTOOLS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_DEVTOOLS_WS_PATH,
     DEFAULT_ENABLE_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL,
-    DEFAULT_ENABLE_WEB_SERVER, DEFAULT_DISABLE_HTTP_PROXY,
-    PLUGIN_WEBSOCKET_TRANSPORT, DEFAULT_CA_SIGNING_KEY_FILE,
-    DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_SERVER_RECVBUF_SIZE,
-    DEFAULT_ENABLE_STATIC_SERVER, _env_threadless_compliant,
+    DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_ENABLE_WEB_SERVER,
+    DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_WEBSOCKET_TRANSPORT,
+    DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
+    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_ENABLE_STATIC_SERVER,
+    _env_threadless_compliant,
 )
 
 
@@ -75,6 +76,7 @@ class TestMain(unittest.TestCase):
         mock_args.work_klass = DEFAULT_WORK_KLASS
         mock_args.local_executor = int(DEFAULT_LOCAL_EXECUTOR)
         mock_args.port_file = DEFAULT_PORT_FILE
+        mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -103,6 +105,7 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.pid_file = pid_file
         mock_initialize.return_value.port_file = None
+        mock_initialize.return_value.enable_ssh_tunnel = False
         entry_point()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
@@ -151,6 +154,7 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.port_file = None
+        mock_initialize.return_value.enable_ssh_tunnel = False
         main()
         mock_event_manager.assert_not_called()
         mock_listener.assert_called_once_with(
@@ -192,6 +196,7 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = True
         mock_initialize.return_value.port_file = None
+        mock_initialize.return_value.enable_ssh_tunnel = False
         main()
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()
@@ -304,11 +309,51 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called_once()
         mock_listener.return_value.setup.assert_called_once()
 
-    # def test_pac_file(self) -> None:
-    #     pass
-
-    # def test_imports_plugin(self) -> None:
-    #     pass
-
-    # def test_cannot_enable_https_proxy_and_tls_interception_mutually(self) -> None:
-    #     pass
+    @mock.patch('time.sleep')
+    @mock.patch('proxy.common.plugins.Plugins.load')
+    @mock.patch('proxy.common.flag.FlagParser.parse_args')
+    @mock.patch('proxy.proxy.EventManager')
+    @mock.patch('proxy.proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.ThreadlessPool')
+    @mock.patch('proxy.proxy.Listener')
+    @mock.patch('proxy.proxy.SshHttpProtocolHandler')
+    @mock.patch('proxy.proxy.SshTunnelListener')
+    def test_enable_ssh_tunnel(
+            self,
+            mock_ssh_tunnel_listener: mock.Mock,
+            mock_ssh_http_proto_handler: mock.Mock,
+            mock_listener: mock.Mock,
+            mock_executor_pool: mock.Mock,
+            mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
+            mock_parse_args: mock.Mock,
+            mock_load_plugins: mock.Mock,
+            mock_sleep: mock.Mock,
+    ) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_args = mock_parse_args.return_value
+        self.mock_default_args(mock_args)
+        mock_args.enable_ssh_tunnel = True
+        mock_args.local_executor = 0
+        main(enable_ssh_tunnel=True, local_executor=0)
+        mock_load_plugins.assert_called()
+        self.assertEqual(
+            mock_load_plugins.call_args_list[0][0][0], [
+                bytes_(PLUGIN_HTTP_PROXY),
+            ],
+        )
+        mock_parse_args.assert_called_once()
+        mock_event_manager.assert_not_called()
+        if _env_threadless_compliant():
+            mock_executor_pool.assert_called_once()
+            mock_executor_pool.return_value.setup.assert_called_once()
+        mock_acceptor_pool.assert_called_once()
+        mock_acceptor_pool.return_value.setup.assert_called_once()
+        mock_listener.return_value.setup.assert_called_once()
+        mock_ssh_http_proto_handler.assert_called_once()
+        mock_ssh_tunnel_listener.assert_called_once()
+        mock_ssh_tunnel_listener.return_value.setup.assert_called_once()
+        mock_ssh_tunnel_listener.return_value.start_port_forward.assert_called_once()
+        mock_ssh_tunnel_listener.return_value.shutdown.assert_called_once()
+        # shutdown will internally call stop port forward
+        mock_ssh_tunnel_listener.return_value.stop_port_forward.assert_not_called()

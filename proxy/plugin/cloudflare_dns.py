@@ -16,15 +16,17 @@
 """
 import logging
 
+
 try:
     import httpx
 except ImportError:     # pragma: no cover
     pass
 
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 
-from ..common.flag import flags
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.flag import flags
+
 
 logger = logging.getLogger(__name__)
 

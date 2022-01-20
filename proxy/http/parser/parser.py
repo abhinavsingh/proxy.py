@@ -12,22 +12,22 @@
 
        http
 """
-from typing import TypeVar, Optional, Dict, Type, Tuple, List
-
-from ...common.constants import DEFAULT_DISABLE_HEADERS, COLON, DEFAULT_ENABLE_PROXY_PROTOCOL
-from ...common.constants import HTTP_1_1, SLASH, CRLF
-from ...common.constants import WHITESPACE, DEFAULT_HTTP_PORT
-from ...common.utils import build_http_request, build_http_response, text_
-from ...common.flag import flags
+from typing import Dict, List, Type, Tuple, TypeVar, Optional
 
 from ..url import Url
-from ..methods import httpMethods
-from ..protocols import httpProtocols
-from ..exception import HttpProtocolException
-
-from .protocol import ProxyProtocol
 from .chunk import ChunkParser, chunkParserStates
 from .types import httpParserTypes, httpParserStates
+from ..methods import httpMethods
+from .protocol import ProxyProtocol
+from ..exception import HttpProtocolException
+from ..protocols import httpProtocols
+from ...common.flag import flags
+from ...common.utils import text_, build_http_request, build_http_response
+from ...common.constants import (
+    CRLF, COLON, SLASH, HTTP_1_0, HTTP_1_1, WHITESPACE, DEFAULT_HTTP_PORT,
+    DEFAULT_DISABLE_HEADERS, DEFAULT_ENABLE_PROXY_PROTOCOL,
+)
+
 
 flags.add_argument(
     '--enable-proxy-protocol',
@@ -149,15 +149,22 @@ class HttpParser:
         for key in headers:
             self.del_header(key.lower())
 
-    def set_url(self, url: bytes) -> None:
+    def set_url(self, url: bytes, allowed_url_schemes: Optional[List[bytes]] = None) -> None:
         """Given a request line, parses it and sets line attributes a.k.a. host, port, path."""
-        self._url = Url.from_bytes(url)
+        self._url = Url.from_bytes(
+            url, allowed_url_schemes=allowed_url_schemes,
+        )
         self._set_line_attributes()
 
     @property
     def http_handler_protocol(self) -> int:
         """Returns `HttpProtocols` that this request belongs to."""
-        return httpProtocols.HTTP_PROXY if self.host is not None else httpProtocols.WEB_SERVER
+        if self.version in (HTTP_1_1, HTTP_1_0) and self._url is not None:
+            if self.host is not None:
+                return httpProtocols.HTTP_PROXY
+            if self._url.hostname is None:
+                return httpProtocols.WEB_SERVER
+        return httpProtocols.UNKNOWN
 
     @property
     def is_complete(self) -> bool:
@@ -199,7 +206,7 @@ class HttpParser:
         """Returns true if content or chunked response is expected."""
         return self._content_expected or self._is_chunked_encoded
 
-    def parse(self, raw: bytes) -> None:
+    def parse(self, raw: bytes, allowed_url_schemes: Optional[List[bytes]] = None) -> None:
         """Parses HTTP request out of raw bytes.
 
         Check for `HttpParser.state` after `parse` has successfully returned."""
@@ -212,7 +219,10 @@ class HttpParser:
             if self.state >= httpParserStates.HEADERS_COMPLETE:
                 more, raw = self._process_body(raw)
             elif self.state == httpParserStates.INITIALIZED:
-                more, raw = self._process_line(raw)
+                more, raw = self._process_line(
+                    raw,
+                    allowed_url_schemes=allowed_url_schemes,
+                )
             else:
                 more, raw = self._process_headers(raw)
             # When server sends a response line without any header or body e.g.
@@ -340,7 +350,11 @@ class HttpParser:
                 break
         return len(raw) > 0, raw
 
-    def _process_line(self, raw: bytes) -> Tuple[bool, bytes]:
+    def _process_line(
+            self,
+            raw: bytes,
+            allowed_url_schemes: Optional[List[bytes]] = None,
+    ) -> Tuple[bool, bytes]:
         while True:
             parts = raw.split(CRLF, 1)
             if len(parts) == 1:
@@ -358,7 +372,9 @@ class HttpParser:
                     self.method = parts[0]
                     if self.method == httpMethods.CONNECT:
                         self._is_https_tunnel = True
-                    self.set_url(parts[1])
+                    self.set_url(
+                        parts[1], allowed_url_schemes=allowed_url_schemes,
+                    )
                     self.version = parts[2]
                     self.state = httpParserStates.LINE_RCVD
                     break

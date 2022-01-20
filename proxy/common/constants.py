@@ -11,15 +11,15 @@
 import os
 import sys
 import time
-import secrets
 import pathlib
+import secrets
 import platform
-import sysconfig
 import ipaddress
-
+import sysconfig
 from typing import Any, List
 
 from .version import __version__
+
 
 SYS_PLATFORM = platform.system()
 IS_WINDOWS = SYS_PLATFORM == 'Windows'
@@ -88,11 +88,13 @@ DEFAULT_DEVTOOLS_WS_PATH = b'/devtools'
 DEFAULT_DISABLE_HEADERS: List[bytes] = []
 DEFAULT_DISABLE_HTTP_PROXY = False
 DEFAULT_ENABLE_DASHBOARD = False
+DEFAULT_ENABLE_SSH_TUNNEL = False
 DEFAULT_ENABLE_DEVTOOLS = False
 DEFAULT_ENABLE_EVENTS = False
 DEFAULT_EVENTS_QUEUE = None
 DEFAULT_ENABLE_STATIC_SERVER = False
 DEFAULT_ENABLE_WEB_SERVER = False
+DEFAULT_ALLOWED_URL_SCHEMES = [HTTP_PROTO, HTTPS_PROTO]
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
 DEFAULT_KEY_FILE = None
@@ -148,9 +150,9 @@ DEFAULT_ABC_PLUGINS = [
     'HttpWebServerBasePlugin',
     'WebSocketTransportBasePlugin',
 ]
-PLUGIN_PROXY_AUTH = 'proxy.http.proxy.AuthPlugin'
 PLUGIN_DASHBOARD = 'proxy.dashboard.ProxyDashboard'
 PLUGIN_HTTP_PROXY = 'proxy.http.proxy.HttpProxyPlugin'
+PLUGIN_PROXY_AUTH = 'proxy.http.proxy.auth.AuthPlugin'
 PLUGIN_WEB_SERVER = 'proxy.http.server.HttpWebServerPlugin'
 PLUGIN_PAC_FILE = 'proxy.http.server.HttpWebServerPacFilePlugin'
 PLUGIN_DEVTOOLS_PROTOCOL = 'proxy.http.inspector.devtools.DevtoolsProtocolPlugin'

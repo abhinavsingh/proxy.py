@@ -14,19 +14,18 @@
 """
 import os
 import sys
-import uuid
 import time
+import uuid
 import logging
-import tempfile
 import argparse
+import tempfile
 import contextlib
 import subprocess
-
-from typing import List, Generator, Optional, Tuple
+from typing import List, Tuple, Optional, Generator
 
 from .utils import bytes_
-from .constants import COMMA
 from .version import __version__
+from .constants import COMMA
 
 
 logger = logging.getLogger(__name__)
@@ -268,8 +267,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--subject',
         type=str,
-        default='/CN=example.com',
-        help='Subject to use for public key generation. Default: /CN=example.com',
+        default='/CN=localhost',
+        help='Subject to use for public key generation. Default: /CN=localhost',
     )
     parser.add_argument(
         '--csr-path',

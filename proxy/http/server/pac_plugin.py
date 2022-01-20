@@ -12,16 +12,14 @@
 
        pac
 """
-from typing import List, Tuple, Optional, Any
+from typing import Any, List, Tuple, Optional
 
 from .plugin import HttpWebServerBasePlugin
-from .protocols import httpProtocolTypes
-
 from ..parser import HttpParser
+from .protocols import httpProtocolTypes
 from ..responses import okResponse
-
-from ...common.utils import bytes_, text_
 from ...common.flag import flags
+from ...common.utils import text_, bytes_
 from ...common.constants import DEFAULT_PAC_FILE, DEFAULT_PAC_FILE_URL_PATH
 
 

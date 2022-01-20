@@ -8,11 +8,11 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import Any, Optional, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from .base import HttpProtocolException
-
 from ...common.utils import build_http_response
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from ..parser import HttpParser

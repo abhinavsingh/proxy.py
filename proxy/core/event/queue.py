@@ -11,14 +11,11 @@
 import os
 import time
 import threading
-
+from typing import Any, Dict, Optional
 from multiprocessing import connection
 
-from typing import Dict, Optional, Any
-
-from ...common.types import DictQueueType
-
 from .names import eventNames
+from ...common.types import DictQueueType
 
 
 class EventQueue:

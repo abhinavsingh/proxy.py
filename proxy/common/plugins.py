@@ -9,15 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import logging
 import inspect
-import itertools
+import logging
 import importlib
+import itertools
+from typing import Any, Dict, List, Tuple, Union, Optional
 
-from typing import Any, List, Dict, Optional, Tuple, Union
+from .utils import text_, bytes_
+from .constants import DOT, COMMA, DEFAULT_ABC_PLUGINS
 
-from .utils import bytes_, text_
-from .constants import DOT, DEFAULT_ABC_PLUGINS, COMMA
 
 logger = logging.getLogger(__name__)
 

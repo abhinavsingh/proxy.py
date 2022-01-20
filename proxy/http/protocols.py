@@ -18,6 +18,7 @@ from typing import NamedTuple
 
 HttpProtocols = NamedTuple(
     'HttpProtocols', [
+        ('UNKNOWN', int),
         # Web server handling HTTP/1.0, HTTP/1.1, HTTP/2, HTTP/3
         # over plain Text or encrypted connection with clients
         ('WEB_SERVER', int),
@@ -30,4 +31,4 @@ HttpProtocols = NamedTuple(
     ],
 )
 
-httpProtocols = HttpProtocols(1, 2, 3)
+httpProtocols = HttpProtocols(1, 2, 3, 4)

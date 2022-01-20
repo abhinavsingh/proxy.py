@@ -17,19 +17,18 @@
 import logging
 import argparse
 import multiprocessing
-
+from typing import TYPE_CHECKING, Any, List, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 
-from typing import Any, List, Optional
-
-from .listener import Listener
 from .acceptor import Acceptor
-
-from ..event import EventQueue
-
+from .listener import Listener
 from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_ACCEPTORS
+
+
+if TYPE_CHECKING:   # pragma: no cover
+    from ..event import EventQueue
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +68,7 @@ class AcceptorPool:
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
             executor_locks: List['multiprocessing.synchronize.Lock'],
-            event_queue: Optional[EventQueue] = None,
+            event_queue: Optional['EventQueue'] = None,
     ) -> None:
         self.flags = flags
         # File descriptor to use for accepting new work
@@ -79,7 +78,7 @@ class AcceptorPool:
         self.executor_pids: List[int] = executor_pids
         self.executor_locks: List['multiprocessing.synchronize.Lock'] = executor_locks
         # Eventing core queue
-        self.event_queue: Optional[EventQueue] = event_queue
+        self.event_queue: Optional['EventQueue'] = event_queue
         # Acceptor process instances
         self.acceptors: List[Acceptor] = []
         # Fd queues used to share file descriptor with acceptor processes

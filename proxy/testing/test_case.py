@@ -8,15 +8,16 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import contextlib
 import time
+import contextlib
+from typing import Any, List, Optional, Generator
+
 import unittest
-from typing import Optional, List, Generator, Any
 
 from ..proxy import Proxy
-from ..common.constants import DEFAULT_TIMEOUT
-from ..common.utils import new_socket_connection
 from ..plugin import CacheResponsesPlugin
+from ..common.utils import new_socket_connection
+from ..common.constants import DEFAULT_TIMEOUT
 
 
 class TestCase(unittest.TestCase):

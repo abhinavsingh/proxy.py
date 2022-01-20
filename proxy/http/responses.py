@@ -11,11 +11,10 @@
 import gzip
 from typing import Any, Dict, Optional
 
+from .codes import httpStatusCodes
 from ..common.flag import flags
 from ..common.utils import build_http_response
-from ..common.constants import PROXY_AGENT_HEADER_VALUE, PROXY_AGENT_HEADER_KEY
-
-from .codes import httpStatusCodes
+from ..common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
 
 
 PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(

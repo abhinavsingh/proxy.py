@@ -10,21 +10,20 @@
 """
 import logging
 import selectors
-
 from abc import abstractmethod
 from typing import Any, Optional
 
+from .tcp_server import BaseTcpServerHandler
+from ..connection import TcpClientConnection, TcpServerConnection
 from ...http.parser import HttpParser, httpParserTypes
-from ...common.types import Readables, SelectableEvents, Writables
+from ...common.types import Readables, Writables, SelectableEvents
 from ...common.utils import text_
 
-from ..connection import TcpServerConnection
-from .tcp_server import BaseTcpServerHandler
 
 logger = logging.getLogger(__name__)
 
 
-class BaseTcpTunnelHandler(BaseTcpServerHandler):
+class BaseTcpTunnelHandler(BaseTcpServerHandler[TcpClientConnection]):
     """BaseTcpTunnelHandler build on-top of BaseTcpServerHandler work class.
 
     On-top of BaseTcpServerHandler implementation,
@@ -46,6 +45,10 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
     @abstractmethod
     def handle_data(self, data: memoryview) -> Optional[bool]:
         pass    # pragma: no cover
+
+    @staticmethod
+    def create(**kwargs: Any) -> TcpClientConnection:   # pragma: no cover
+        return TcpClientConnection(**kwargs)
 
     def initialize(self) -> None:
         self.work.connection.setblocking(False)

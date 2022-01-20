@@ -8,8 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .proxy import entry_point, main, Proxy
+from .proxy import Proxy, main, sleep_loop, entry_point
 from .testing import TestCase
+
 
 __all__ = [
     # PyPi package entry_point. See
@@ -22,4 +23,6 @@ __all__ = [
     # https://github.com/abhinavsingh/proxy.py#unit-testing-with-proxypy
     'TestCase',
     'Proxy',
+    # Utility exposed for demos
+    'sleep_loop',
 ]

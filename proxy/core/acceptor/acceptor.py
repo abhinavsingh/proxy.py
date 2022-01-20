@@ -19,20 +19,17 @@ import selectors
 import threading
 import multiprocessing
 import multiprocessing.synchronize
-
+from typing import List, Tuple, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from typing import List, Optional, Tuple
-
+from ..work import LocalExecutor, start_threaded_work, delegate_work_to_pool
+from ..event import EventQueue
 from ...common.flag import flags
 from ...common.logger import Logger
 from ...common.backports import NonBlockingQueue
 from ...common.constants import DEFAULT_LOCAL_EXECUTOR
 
-from ..event import EventQueue
-
-from ..work import LocalExecutor, delegate_work_to_pool, start_threaded_work
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +145,8 @@ class Acceptor(multiprocessing.Process):
                 if locked:
                     self.lock.release()
             for work in works:
-                if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
+                if self.flags.threadless and \
+                        self.flags.local_executor:
                     assert self._local_work_queue
                     self._local_work_queue.put(work)
                 else:
@@ -171,7 +169,7 @@ class Acceptor(multiprocessing.Process):
             type=socket.SOCK_STREAM,
         )
         try:
-            if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
+            if self.flags.threadless and self.flags.local_executor:
                 self._start_local()
             self.selector.register(self.sock, selectors.EVENT_READ)
             while not self.running.is_set():
@@ -180,7 +178,7 @@ class Acceptor(multiprocessing.Process):
             pass
         finally:
             self.selector.unregister(self.sock)
-            if self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR):
+            if self.flags.threadless and self.flags.local_executor:
                 self._stop_local()
             self.sock.close()
             logger.debug('Acceptor#%d shutdown', self.idd)
@@ -224,7 +222,8 @@ class Acceptor(multiprocessing.Process):
                 ),
             )
             thread.start()
-            logger.debug(
+            # TODO: Move me into target method
+            logger.debug(   # pragma: no cover
                 'Dispatched work#{0}.{1}.{2} to worker#{3}'.format(
                     conn.fileno(), self.idd, self._total, index,
                 ),
@@ -237,6 +236,7 @@ class Acceptor(multiprocessing.Process):
                 event_queue=self.event_queue,
                 publisher_id=self.__class__.__name__,
             )
+            # TODO: Move me into target method
             logger.debug(   # pragma: no cover
                 'Started work#{0}.{1}.{2} in thread#{3}'.format(
                     conn.fileno(), self.idd, self._total, thread.ident,

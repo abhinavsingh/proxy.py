@@ -13,18 +13,20 @@ import sys
 import time
 import signal
 import logging
+from typing import Any, List, Optional
 
-from typing import List, Optional, Any
-
+from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
 from .core.work import ThreadlessPool
 from .core.event import EventManager
-from .core.acceptor import AcceptorPool, Listener
-
-from .common.utils import bytes_
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_LOCAL_EXECUTOR, DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL, IS_WINDOWS
-from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
-from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
+from .common.utils import bytes_
+from .core.acceptor import Listener, AcceptorPool
+from .common.constants import (
+    IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
+    DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FORMAT,
+    DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_ENABLE_DASHBOARD,
+    DEFAULT_ENABLE_SSH_TUNNEL,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -97,6 +99,13 @@ flags.add_argument(
 )
 
 flags.add_argument(
+    '--enable-ssh-tunnel',
+    action='store_true',
+    default=DEFAULT_ENABLE_SSH_TUNNEL,
+    help='Default: False.  Enable SSH tunnel.',
+)
+
+flags.add_argument(
     '--work-klass',
     type=str,
     default=DEFAULT_WORK_KLASS,
@@ -135,6 +144,8 @@ class Proxy:
         self.executors: Optional[ThreadlessPool] = None
         self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
+        self.ssh_http_protocol_handler: Optional[SshHttpProtocolHandler] = None
+        self.ssh_tunnel_listener: Optional[SshTunnelListener] = None
 
     def __enter__(self) -> 'Proxy':
         self.setup()
@@ -193,10 +204,26 @@ class Proxy:
             event_queue=event_queue,
         )
         self.acceptors.setup()
+        # Start SSH tunnel acceptor if enabled
+        if self.flags.enable_ssh_tunnel:
+            self.ssh_http_protocol_handler = SshHttpProtocolHandler(
+                flags=self.flags,
+            )
+            self.ssh_tunnel_listener = SshTunnelListener(
+                flags=self.flags,
+                on_connection_callback=self.ssh_http_protocol_handler.on_connection,
+            )
+            self.ssh_tunnel_listener.setup()
+            self.ssh_tunnel_listener.start_port_forward(
+                ('', self.flags.tunnel_remote_port),
+            )
         # TODO: May be close listener fd as we don't need it now
         self._register_signals()
 
     def shutdown(self) -> None:
+        if self.flags.enable_ssh_tunnel:
+            assert self.ssh_tunnel_listener is not None
+            self.ssh_tunnel_listener.shutdown()
         assert self.acceptors
         self.acceptors.shutdown()
         if self.remote_executors_enabled:
@@ -213,7 +240,7 @@ class Proxy:
     @property
     def remote_executors_enabled(self) -> bool:
         return self.flags.threadless and \
-            not (self.flags.local_executor == int(DEFAULT_LOCAL_EXECUTOR))
+            not self.flags.local_executor
 
     def _write_pid_file(self) -> None:
         if self.flags.pid_file:

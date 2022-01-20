@@ -11,10 +11,10 @@
 import os
 import struct
 import logging
-
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 
 from .pretty import pretty_hexlify
+
 
 logger = logging.getLogger(__name__)
 

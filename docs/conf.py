@@ -4,8 +4,8 @@
 """Configuration for the Sphinx documentation generator."""
 
 import sys
-from functools import partial
 from pathlib import Path
+from functools import partial
 
 from setuptools_scm import get_version
 
@@ -284,6 +284,7 @@ nitpick_ignore = [
     (_py_class_role, '_asyncio.Task'),
     (_py_class_role, 'asyncio.events.AbstractEventLoop'),
     (_py_class_role, 'CacheStore'),
+    (_py_class_role, 'Channel'),
     (_py_class_role, 'HttpParser'),
     (_py_class_role, 'HttpProtocolHandlerPlugin'),
     (_py_class_role, 'HttpProxyBasePlugin'),
@@ -307,12 +308,15 @@ nitpick_ignore = [
     (_py_class_role, 'unittest.result.TestResult'),
     (_py_class_role, 'UUID'),
     (_py_class_role, 'UpstreamConnectionPool'),
+    (_py_class_role, 'HttpClientConnection'),
     (_py_class_role, 'Url'),
     (_py_class_role, 'WebsocketFrame'),
     (_py_class_role, 'Work'),
     (_py_class_role, 'proxy.core.acceptor.work.Work'),
     (_py_class_role, 'connection.Connection'),
     (_py_class_role, 'EventQueue'),
+    (_py_class_role, 'T'),
     (_py_obj_role, 'proxy.core.work.threadless.T'),
     (_py_obj_role, 'proxy.core.work.work.T'),
+    (_py_obj_role, 'proxy.core.base.tcp_server.T'),
 ]

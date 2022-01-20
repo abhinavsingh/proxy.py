@@ -10,8 +10,8 @@
 """
 from typing import Any, Optional
 
-from ..http.parser import HttpParser, httpParserTypes
 from ..http.proxy import HttpProxyBasePlugin
+from ..http.parser import HttpParser, httpParserTypes
 
 
 class ModifyChunkResponsePlugin(HttpProxyBasePlugin):

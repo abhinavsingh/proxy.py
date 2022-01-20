@@ -8,15 +8,18 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
 import json
+import argparse
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict, List
 
-from ...common.utils import bytes_
 from . import WebsocketFrame
-from ...core.connection import TcpClientConnection
 from ...core.event import EventQueue
+from ...common.utils import bytes_
+
+
+if TYPE_CHECKING:   # pragma: no cover
+    from ..connection import HttpClientConnection
 
 
 class WebSocketTransportBasePlugin(ABC):
@@ -25,7 +28,7 @@ class WebSocketTransportBasePlugin(ABC):
     def __init__(
             self,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: 'HttpClientConnection',
             event_queue: EventQueue,
     ) -> None:
         self.flags = flags

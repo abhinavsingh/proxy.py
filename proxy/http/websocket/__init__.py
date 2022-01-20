@@ -19,6 +19,7 @@ from .frame import WebsocketFrame, websocketOpcodes
 from .client import WebsocketClient
 from .plugin import WebSocketTransportBasePlugin
 
+
 __all__ = [
     'websocketOpcodes',
     'WebsocketFrame',

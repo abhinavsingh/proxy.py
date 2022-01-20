@@ -9,16 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Optional
 
-from ..websocket import WebsocketFrame
 from ..parser import HttpParser
+from ..websocket import WebsocketFrame
+from ..connection import HttpClientConnection
+from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
 
-from ...core.connection import TcpClientConnection
-from ...core.event import EventQueue
 
 if TYPE_CHECKING:   # pragma: no cover
     from ...core.connection import UpstreamConnectionPool
@@ -31,7 +30,7 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
             self,
             uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: HttpClientConnection,
             event_queue: EventQueue,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):

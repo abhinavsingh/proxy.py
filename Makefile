@@ -57,7 +57,7 @@ sign-https-certificates:
 	python -m proxy.common.pki sign_csr \
 		--csr-path $(HTTPS_CSR_FILE_PATH) \
 		--crt-path $(HTTPS_SIGNED_CERT_FILE_PATH) \
-		--hostname example.com \
+		--hostname localhost \
 		--private-key-path $(CA_KEY_FILE_PATH) \
 		--public-key-path $(CA_CERT_FILE_PATH)
 
@@ -169,11 +169,17 @@ lib-speedscope:
 			--open-file-limit 65536 \
 			--log-file /dev/null
 
+lib-pyreverse:
+	rm -f proxy.proxy.Proxy.dot pyreverse.png
+	pyreverse -ASmy -c proxy.proxy.Proxy proxy
+	dot -Tpng proxy.proxy.Proxy.dot > pyreverse.png
+	open pyreverse.png
+
 devtools:
-	pushd dashboard && npm run devtools && popd
+	pushd dashboard && npm install && npm run devtools && popd
 
 dashboard:
-	pushd dashboard && npm run build && popd
+	pushd dashboard && npm install && npm run build && popd
 
 dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi
