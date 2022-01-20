@@ -31,7 +31,7 @@ function setUpDevTools () {
   }
 
   const chromeDevTools = path.dirname(
-    require.resolve('chrome-devtools-frontend/front_end/inspector.json')
+    require.resolve('chrome-devtools-frontend/front_end/visibility.gni')
   )
 
   console.log('Destination folder: ' + destinationFolderPath)

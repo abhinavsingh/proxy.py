@@ -176,10 +176,10 @@ lib-pyreverse:
 	open pyreverse.png
 
 devtools:
-	pushd dashboard && npm run devtools && popd
+	pushd dashboard && npm install && npm run devtools && popd
 
 dashboard:
-	pushd dashboard && npm run build && popd
+	pushd dashboard && npm install && npm run build && popd
 
 dashboard-clean:
 	if [[ -d dashboard/public ]]; then rm -rf dashboard/public; fi

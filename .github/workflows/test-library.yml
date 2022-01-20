@@ -703,6 +703,11 @@ jobs:
         cd dashboard
         npm run build
         cd ..
+    - name: Build Devtools
+      run: |
+        cd dashboard
+        npm run devtools
+        cd ..
 
   developer:
     runs-on: ${{ matrix.os }}-latest
