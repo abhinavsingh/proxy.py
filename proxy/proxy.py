@@ -11,8 +11,8 @@
 import os
 import sys
 import time
-import signal
 import pprint
+import signal
 import logging
 from typing import Any, List, Optional
 
