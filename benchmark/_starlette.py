@@ -9,10 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 import uvicorn
-
-from starlette.applications import Starlette
-from starlette.responses import Response
 from starlette.routing import Route
+from starlette.responses import Response
+from starlette.applications import Starlette
 
 
 async def homepage(request):    # type: ignore[no-untyped-def]

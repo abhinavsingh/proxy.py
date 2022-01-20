@@ -4,8 +4,8 @@
 """Configuration for the Sphinx documentation generator."""
 
 import sys
-from functools import partial
 from pathlib import Path
+from functools import partial
 
 from setuptools_scm import get_version
 
