@@ -11,6 +11,7 @@
 from .tls import TlsParser
 from .types import tlsContentType, tlsHandshakeType
 
+
 __all__ = [
     'TlsParser',
     'tlsContentType',

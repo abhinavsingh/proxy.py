@@ -11,14 +11,13 @@
 import logging
 import argparse
 import multiprocessing
-
+from typing import TYPE_CHECKING, Any, List, Optional
 from multiprocessing import connection
-from typing import TYPE_CHECKING, Any, Optional, List
 
 from .remote import RemoteExecutor
-
 from ...common.flag import flags
-from ...common.constants import DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS
+from ...common.constants import DEFAULT_THREADLESS, DEFAULT_NUM_WORKERS
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from ..event import EventQueue

@@ -19,20 +19,17 @@ import selectors
 import threading
 import multiprocessing
 import multiprocessing.synchronize
-
+from typing import List, Tuple, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from typing import List, Optional, Tuple
-
+from ..work import LocalExecutor, start_threaded_work, delegate_work_to_pool
+from ..event import EventQueue
 from ...common.flag import flags
 from ...common.logger import Logger
 from ...common.backports import NonBlockingQueue
 from ...common.constants import DEFAULT_LOCAL_EXECUTOR
 
-from ..event import EventQueue
-
-from ..work import LocalExecutor, delegate_work_to_pool, start_threaded_work
 
 logger = logging.getLogger(__name__)
 

@@ -10,15 +10,14 @@
 """
 import json
 import logging
-from typing import List, Tuple, Any, Dict
-
-from ...common.utils import bytes_
-
-from ..server import httpProtocolTypes, HttpWebServerBasePlugin
-from ..parser import HttpParser
+from typing import Any, Dict, List, Tuple
 
 from .frame import WebsocketFrame
 from .plugin import WebSocketTransportBasePlugin
+from ..parser import HttpParser
+from ..server import HttpWebServerBasePlugin, httpProtocolTypes
+from ...common.utils import bytes_
+
 
 logger = logging.getLogger(__name__)
 

@@ -17,7 +17,7 @@ from unittest import mock
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpHeaders, HttpClientConnection
+from proxy.http import HttpProtocolHandler, HttpClientConnection, httpHeaders
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
@@ -25,8 +25,8 @@ from proxy.common.utils import bytes_
 from proxy.common.plugins import Plugins
 from proxy.common.version import __version__
 from proxy.http.responses import (
-    BAD_GATEWAY_RESPONSE_PKT, PROXY_AUTH_FAILED_RESPONSE_PKT,
-    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT, BAD_REQUEST_RESPONSE_PKT,
+    BAD_GATEWAY_RESPONSE_PKT, BAD_REQUEST_RESPONSE_PKT,
+    PROXY_AUTH_FAILED_RESPONSE_PKT, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
 )
 from proxy.common.constants import (
     CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER,

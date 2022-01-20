@@ -9,11 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-from typing import Optional, Any
+from typing import Any, Optional
 
-from ...http.parser import HttpParser
-from ...http.proxy import HttpProxyBasePlugin
 from .store.base import CacheStore
+from ...http.proxy import HttpProxyBasePlugin
+from ...http.parser import HttpParser
+
 
 logger = logging.getLogger(__name__)
 

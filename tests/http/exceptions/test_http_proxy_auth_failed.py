@@ -14,7 +14,7 @@ import pytest
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpHeaders, HttpClientConnection
+from proxy.http import HttpProtocolHandler, HttpClientConnection, httpHeaders
 from proxy.common.flag import FlagParser
 from proxy.common.utils import build_http_request
 from proxy.http.responses import PROXY_AUTH_FAILED_RESPONSE_PKT

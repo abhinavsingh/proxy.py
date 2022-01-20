@@ -13,12 +13,11 @@
        http
        url
 """
-from typing import List, Optional, Tuple
-
-from ..common.constants import COLON, DEFAULT_ALLOWED_URL_SCHEMES, SLASH, AT
-from ..common.utils import text_
+from typing import List, Tuple, Optional
 
 from .exception import HttpProtocolException
+from ..common.utils import text_
+from ..common.constants import AT, COLON, SLASH, DEFAULT_ALLOWED_URL_SCHEMES
 
 
 class Url:

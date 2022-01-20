@@ -8,10 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
 import logging
+import argparse
+from typing import TYPE_CHECKING, Any, Set, Tuple, Callable, Optional
 
-from typing import TYPE_CHECKING, Any, Callable, Optional, Set, Tuple
 
 try:
     from paramiko import SSHClient, AutoAddPolicy
@@ -22,6 +22,7 @@ except ImportError:     # pragma: no cover
     pass
 
 from ...common.flag import flags
+
 
 logger = logging.getLogger(__name__)
 

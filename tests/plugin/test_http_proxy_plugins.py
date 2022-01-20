@@ -20,7 +20,9 @@ from unittest import mock
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpStatusCodes, HttpClientConnection
+from proxy.http import (
+    HttpProtocolHandler, HttpClientConnection, httpStatusCodes,
+)
 from proxy.plugin import ProposedRestApiPlugin, RedirectToCustomServerPlugin
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser

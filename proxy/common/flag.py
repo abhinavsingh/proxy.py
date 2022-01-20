@@ -16,20 +16,22 @@ import argparse
 import ipaddress
 import collections
 import multiprocessing
+from typing import Any, List, Optional, cast
 
-from typing import Optional, List, Any, cast
-
-from .plugins import Plugins
 from .types import IpAddress
 from .utils import bytes_, is_py2, is_threadless, set_open_file_limit
-from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS
-from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
-from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, DEFAULT_MIN_COMPRESSION_LIMIT
-from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
-from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH, IS_WINDOWS, PLUGIN_WEBSOCKET_TRANSPORT
 from .logger import Logger
-
+from .plugins import Plugins
 from .version import __version__
+from .constants import (
+    COMMA, IS_WINDOWS, PLUGIN_PAC_FILE, PLUGIN_DASHBOARD, PLUGIN_HTTP_PROXY,
+    PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_NUM_WORKERS,
+    DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC, DEFAULT_DISABLE_HEADERS,
+    PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
+    PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEBSOCKET_TRANSPORT,
+    DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_MIN_COMPRESSION_LIMIT,
+)
+
 
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 
@@ -96,13 +98,17 @@ class FlagParser:
             print(PY2_DEPRECATION_MESSAGE)
             sys.exit(1)
 
+        # Dirty hack to always discover --basic-auth flag
+        # defined by proxy auth plugin.
+        in_args = input_args + ['--plugin', PLUGIN_PROXY_AUTH]
+
         # Discover flags from requested plugin.
         # This will also surface external plugin flags
         # under --help.
-        Plugins.discover(input_args)
+        Plugins.discover(in_args)
 
         # Parse flags
-        args = flags.parse_args(input_args)
+        args = flags.parse_args(in_args)
 
         # Print version and exit
         if args.version:
@@ -135,9 +141,11 @@ class FlagParser:
             if isinstance(work_klass, str) \
             else work_klass
 
+        # TODO: Plugin flag initialization logic must be moved within plugins.
+        #
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
-        basic_auth = opts.get('basic_auth', args.basic_auth)
+        basic_auth = opts.get('basic_auth', getattr(args, 'basic_auth', None))
         # Destroy passed credentials via flags or options
         args.basic_auth = None
         if 'basic_auth' in opts:

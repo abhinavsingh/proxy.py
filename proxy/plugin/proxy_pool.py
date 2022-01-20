@@ -12,19 +12,19 @@ import base64
 import random
 import logging
 import ipaddress
+from typing import Any, Dict, List, Optional
 
-from typing import Dict, List, Optional, Any
-
-from ..common.flag import flags
-from ..common.utils import text_, bytes_
-from ..common.constants import COLON, LOCAL_INTERFACE_HOSTNAMES, ANY_INTERFACE_HOSTNAMES
-
-from ..http import Url, httpMethods, httpHeaders
-from ..http.parser import HttpParser
-from ..http.exception import HttpProtocolException
-from ..http.proxy import HttpProxyBasePlugin
-
+from ..http import Url, httpHeaders, httpMethods
 from ..core.base import TcpUpstreamConnectionHandler
+from ..http.proxy import HttpProxyBasePlugin
+from ..common.flag import flags
+from ..http.parser import HttpParser
+from ..common.utils import text_, bytes_
+from ..http.exception import HttpProtocolException
+from ..common.constants import (
+    COLON, ANY_INTERFACE_HOSTNAMES, LOCAL_INTERFACE_HOSTNAMES,
+)
+
 
 logger = logging.getLogger(__name__)
 

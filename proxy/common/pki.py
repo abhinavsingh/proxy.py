@@ -14,19 +14,18 @@
 """
 import os
 import sys
-import uuid
 import time
+import uuid
 import logging
-import tempfile
 import argparse
+import tempfile
 import contextlib
 import subprocess
-
-from typing import List, Generator, Optional, Tuple
+from typing import List, Tuple, Optional, Generator
 
 from .utils import bytes_
-from .constants import COMMA
 from .version import __version__
+from .constants import COMMA
 
 
 logger = logging.getLogger(__name__)

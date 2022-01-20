@@ -14,11 +14,10 @@
 """
 from typing import Optional
 
-from ..common.flag import flags
-
 from ..http import httpStatusCodes
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.flag import flags
+from ..http.parser import HttpParser
 from ..http.exception import HttpRequestRejected
 
 

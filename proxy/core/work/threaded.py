@@ -11,10 +11,10 @@
 import socket
 import argparse
 import threading
-
-from typing import TYPE_CHECKING, Optional, Tuple, TypeVar
+from typing import TYPE_CHECKING, Tuple, TypeVar, Optional
 
 from ..event import EventQueue, eventNames
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from .work import Work

@@ -10,6 +10,7 @@
 """
 from .dashboard import ProxyDashboard
 
+
 __all__ = [
     'ProxyDashboard',
 ]

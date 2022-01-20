@@ -8,8 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import tornado.ioloop
 import tornado.web
+import tornado.ioloop
 
 
 # pylint: disable=W0223

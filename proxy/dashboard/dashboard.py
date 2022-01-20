@@ -12,9 +12,12 @@ import os
 import logging
 from typing import List, Tuple
 
-from ..http.responses import permanentRedirectResponse
 from ..http.parser import HttpParser
-from ..http.server import HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes
+from ..http.server import (
+    HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes,
+)
+from ..http.responses import permanentRedirectResponse
+
 
 logger = logging.getLogger(__name__)
 

@@ -9,17 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-
 from abc import ABC
-from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Tuple, Optional
 
 from ..mixins import TlsInterceptionPropertyMixin
-
 from ..parser import HttpParser
-from ..descriptors import DescriptorsHandlerMixin
 from ..connection import HttpClientConnection
-
 from ...core.event import EventQueue
+from ..descriptors import DescriptorsHandlerMixin
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from ...core.connection import UpstreamConnectionPool

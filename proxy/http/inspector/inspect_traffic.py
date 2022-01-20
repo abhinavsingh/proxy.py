@@ -9,12 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import json
-from typing import TYPE_CHECKING, List, Dict, Any
-
-from ...common.utils import bytes_
-from ...core.event import EventSubscriber
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from ..websocket import WebsocketFrame, WebSocketTransportBasePlugin
+from ...core.event import EventSubscriber
+from ...common.utils import bytes_
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from ..connection import HttpClientConnection

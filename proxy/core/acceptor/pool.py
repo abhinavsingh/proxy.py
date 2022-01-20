@@ -17,17 +17,15 @@
 import logging
 import argparse
 import multiprocessing
-
+from typing import TYPE_CHECKING, Any, List, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 
-from typing import TYPE_CHECKING, Any, List, Optional
-
-from .listener import Listener
 from .acceptor import Acceptor
-
+from .listener import Listener
 from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_ACCEPTORS
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from ..event import EventQueue

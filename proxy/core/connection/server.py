@@ -10,13 +10,11 @@
 """
 import ssl
 import socket
+from typing import Tuple, Union, Optional
 
-from typing import Optional, Union, Tuple
-
-from ...common.utils import new_socket_connection
-
-from .connection import TcpConnection, TcpConnectionUninitializedException
 from .types import tcpConnectionTypes
+from .connection import TcpConnection, TcpConnectionUninitializedException
+from ...common.utils import new_socket_connection
 
 
 class TcpServerConnection(TcpConnection):
