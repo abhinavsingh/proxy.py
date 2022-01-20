@@ -161,7 +161,7 @@ class PythNetworkClient:
                 self.info(f'Product account {prod_acc}: {symbol}')
                 self.price_accounts[symbol] = product['price_acc']
             except Exception as err:
-                self.warning(f'Failed to read product account {prod_acc}: {err}')
+                self.error(f'Failed to read product account {prod_acc}: {err}')
                 continue
 
     def get_price(self, symbol):
