@@ -308,11 +308,51 @@ class TestMain(unittest.TestCase):
         mock_acceptor_pool.return_value.setup.assert_called_once()
         mock_listener.return_value.setup.assert_called_once()
 
-    # def test_pac_file(self) -> None:
-    #     pass
-
-    # def test_imports_plugin(self) -> None:
-    #     pass
-
-    # def test_cannot_enable_https_proxy_and_tls_interception_mutually(self) -> None:
-    #     pass
+    @mock.patch('time.sleep')
+    @mock.patch('proxy.common.plugins.Plugins.load')
+    @mock.patch('proxy.common.flag.FlagParser.parse_args')
+    @mock.patch('proxy.proxy.EventManager')
+    @mock.patch('proxy.proxy.AcceptorPool')
+    @mock.patch('proxy.proxy.ThreadlessPool')
+    @mock.patch('proxy.proxy.Listener')
+    @mock.patch('proxy.proxy.SshHttpProtocolHandler')
+    @mock.patch('proxy.proxy.SshTunnelListener')
+    def test_enable_ssh_tunnel(
+            self,
+            mock_ssh_tunnel_listener: mock.Mock,
+            mock_ssh_http_proto_handler: mock.Mock,
+            mock_listener: mock.Mock,
+            mock_executor_pool: mock.Mock,
+            mock_acceptor_pool: mock.Mock,
+            mock_event_manager: mock.Mock,
+            mock_parse_args: mock.Mock,
+            mock_load_plugins: mock.Mock,
+            mock_sleep: mock.Mock,
+    ) -> None:
+        mock_sleep.side_effect = KeyboardInterrupt()
+        mock_args = mock_parse_args.return_value
+        self.mock_default_args(mock_args)
+        mock_args.enable_ssh_tunnel = True
+        mock_args.local_executor = 0
+        main(enable_ssh_tunnel=True, local_executor=0)
+        mock_load_plugins.assert_called()
+        self.assertEqual(
+            mock_load_plugins.call_args_list[0][0][0], [
+                bytes_(PLUGIN_HTTP_PROXY),
+            ],
+        )
+        mock_parse_args.assert_called_once()
+        mock_event_manager.assert_not_called()
+        if _env_threadless_compliant():
+            mock_executor_pool.assert_called_once()
+            mock_executor_pool.return_value.setup.assert_called_once()
+        mock_acceptor_pool.assert_called_once()
+        mock_acceptor_pool.return_value.setup.assert_called_once()
+        mock_listener.return_value.setup.assert_called_once()
+        mock_ssh_http_proto_handler.assert_called_once()
+        mock_ssh_tunnel_listener.assert_called_once()
+        mock_ssh_tunnel_listener.return_value.setup.assert_called_once()
+        mock_ssh_tunnel_listener.return_value.start_port_forward.assert_called_once()
+        mock_ssh_tunnel_listener.return_value.shutdown.assert_called_once()
+        # shutdown will automatically internall call stop port forward
+        mock_ssh_tunnel_listener.return_value.stop_port_forward.assert_not_called()

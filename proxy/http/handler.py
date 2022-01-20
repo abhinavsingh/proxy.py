@@ -58,7 +58,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     ##
 
     @staticmethod
-    def create(**kwargs: Any) -> HttpClientConnection:
+    def create(**kwargs: Any) -> HttpClientConnection:  # pragma: no cover
         return HttpClientConnection(**kwargs)
 
     def initialize(self) -> None:
@@ -205,12 +205,14 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
                 if teardown:
                     return True
             except BrokenPipeError:
-                logger.warning(
+                logger.warning(     # pragma: no cover
                     'BrokenPipeError when flushing buffer for client',
                 )
                 return True
             except OSError:
-                logger.warning('OSError when flushing buffer to client')
+                logger.warning(     # pragma: no cover
+                    'OSError when flushing buffer to client',
+                )
                 return True
         return False
 
@@ -261,8 +263,6 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
 
     def _discover_plugin_klass(self, protocol: int) -> Optional[Type['HttpProtocolHandlerPlugin']]:
         """Discovers and return matching HTTP handler plugin matching protocol."""
-        if protocol == httpProtocols.UNKNOWN:
-            return None
         if b'HttpProtocolHandlerPlugin' in self.flags.plugins:
             for klass in self.flags.plugins[b'HttpProtocolHandlerPlugin']:
                 k: Type['HttpProtocolHandlerPlugin'] = klass
@@ -287,6 +287,10 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             ) from e
         if not self.request.is_complete:
             return False
+        # Bail out if http protocol is unknown
+        if self.request.http_handler_protocol == httpProtocols.UNKNOWN:
+            self.work.queue(BAD_REQUEST_RESPONSE_PKT)
+            return True
         # Discover which HTTP handler plugin is capable of
         # handling the current incoming request
         klass = self._discover_plugin_klass(
