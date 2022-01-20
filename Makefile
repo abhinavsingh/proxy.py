@@ -169,6 +169,12 @@ lib-speedscope:
 			--open-file-limit 65536 \
 			--log-file /dev/null
 
+lib-pyreverse:
+	rm -f proxy.proxy.Proxy.dot pyreverse.png
+	pyreverse -ASmy -c proxy.proxy.Proxy proxy
+	dot -Tpng proxy.proxy.Proxy.dot > pyreverse.png
+	open pyreverse.png
+
 devtools:
 	pushd dashboard && npm run devtools && popd
 

@@ -16,6 +16,7 @@ proxy.py.iml
 .vscode/*
 !.vscode/settings.json
 
+*.dot
 *.pyc
 *.egg-info
 *.csr
@@ -31,4 +32,5 @@ htmlcov
 dist
 build
 
+pyreverse.png
 profile.svg
