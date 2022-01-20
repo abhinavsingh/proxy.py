@@ -8,15 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import argparse
 import json
+import argparse
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, Dict, Any
-
-from ...common.utils import bytes_
-from ...core.event import EventQueue
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from . import WebsocketFrame
+from ...core.event import EventQueue
+from ...common.utils import bytes_
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from ..connection import HttpClientConnection
