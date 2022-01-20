@@ -216,7 +216,7 @@ class EthereumModel:
             value = neon_cli().call('get-storage-at', account, position)
             return value
         except Exception as err:
-            self.debug(f"Neon-cli failed to execute: {err}")
+            self.error(f"eth_getStorageAt: Neon-cli failed to execute: {err}")
             return '0x00'
 
     def eth_getBlockByHash(self, block_hash, full):
