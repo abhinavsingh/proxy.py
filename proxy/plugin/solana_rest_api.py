@@ -273,7 +273,7 @@ class EthereumModel:
             value = obj.get('value', '')
             return "0x"+call_emulated(contract_id, caller_id, data, value)['result']
         except Exception as err:
-            self.debug("eth_call %s", err)
+            self.error("eth_call Exception %s", err)
             raise
 
     def eth_getTransactionCount(self, account, tag):
