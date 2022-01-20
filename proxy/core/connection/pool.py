@@ -78,7 +78,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
 
     @staticmethod
-    def create(**kwargs: Any) -> TcpServerConnection:
+    def create(**kwargs: Any) -> TcpServerConnection:   # pragma: no cover
         return TcpServerConnection(**kwargs)
 
     def acquire(self, addr: Tuple[str, int]) -> Tuple[bool, TcpServerConnection]:

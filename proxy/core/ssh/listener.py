@@ -18,7 +18,7 @@ try:
     from paramiko.transport import Transport
     if TYPE_CHECKING:   # pragma: no cover
         from paramiko.channel import Channel
-except ImportError:
+except ImportError:     # pragma: no cover
     pass
 
 from ...common.flag import flags
