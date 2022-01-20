@@ -266,7 +266,7 @@ class DummyIxDecoder:
     def _getadd_tx(self, storage_account, neon_tx=None, blocked_accounts=[str]) -> NeonTxObject:
         tx = self.state.get_tx(storage_account)
         if tx and neon_tx and tx.neon_tx and (neon_tx.sign != tx.neon_tx.sign):
-            self._log_warning(f'storage {storage_account}, tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx})')
+            self.warning(f'storage {storage_account}, tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx})')
             self.state.unmark_ix_used(tx)
             self.state.del_tx(tx)
             tx = None
@@ -277,9 +277,6 @@ class DummyIxDecoder:
         if neon_tx:
             tx.neon_tx = neon_tx
         return tx
-
-    def _log_warning(self, msg: str):
-        self.warning(f'{self}: {msg}')
 
     def _decoding_start(self):
         """
@@ -369,7 +366,7 @@ class DummyIxDecoder:
 
         rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data))
         if rlp_error:
-            self._log_warning(f'Neon tx rlp error "{rlp_error}"')
+            self.error(f'Neon tx rlp error "{rlp_error}"')
 
         tx.holder_account = holder_account
         tx.move_ix_used(holder)
