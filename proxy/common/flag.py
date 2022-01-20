@@ -98,13 +98,17 @@ class FlagParser:
             print(PY2_DEPRECATION_MESSAGE)
             sys.exit(1)
 
+        # Dirty hack to always discover --basic-auth flag
+        # defined by proxy auth plugin.
+        in_args = input_args + ['--plugin', PLUGIN_PROXY_AUTH]
+
         # Discover flags from requested plugin.
         # This will also surface external plugin flags
         # under --help.
-        Plugins.discover(input_args)
+        Plugins.discover(in_args)
 
         # Parse flags
-        args = flags.parse_args(input_args)
+        args = flags.parse_args(in_args)
 
         # Print version and exit
         if args.version:
@@ -137,11 +141,13 @@ class FlagParser:
             if isinstance(work_klass, str) \
             else work_klass
 
+        # TODO: Plugin flag initialization logic must be moved within plugins.
+        #
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
-        basic_auth = opts.get('basic_auth', args.basic_auth)
+        basic_auth = opts.get('basic_auth', getattr(args, 'basic_auth', None))
         # Destroy passed credentials via flags or options
-        args.basic_auth = None
+        setattr(args, 'basic_auth', None)
         if 'basic_auth' in opts:
             del opts['basic_auth']
 

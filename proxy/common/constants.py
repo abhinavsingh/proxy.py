@@ -150,9 +150,9 @@ DEFAULT_ABC_PLUGINS = [
     'HttpWebServerBasePlugin',
     'WebSocketTransportBasePlugin',
 ]
-PLUGIN_PROXY_AUTH = 'proxy.http.proxy.AuthPlugin'
 PLUGIN_DASHBOARD = 'proxy.dashboard.ProxyDashboard'
 PLUGIN_HTTP_PROXY = 'proxy.http.proxy.HttpProxyPlugin'
+PLUGIN_PROXY_AUTH = 'proxy.http.proxy.auth.AuthPlugin'
 PLUGIN_WEB_SERVER = 'proxy.http.server.HttpWebServerPlugin'
 PLUGIN_PAC_FILE = 'proxy.http.server.HttpWebServerPacFilePlugin'
 PLUGIN_DEVTOOLS_PROTOCOL = 'proxy.http.inspector.devtools.DevtoolsProtocolPlugin'
