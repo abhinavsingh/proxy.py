@@ -7,12 +7,12 @@ repos:
     args:
     - --py36-plus
 
-# - repo: https://github.com/timothycrosley/isort.git
-#   rev: 5.10.0
-#   hooks:
-#   - id: isort
-#     args:
-#     - --honor-noqa
+- repo: https://github.com/timothycrosley/isort.git
+  rev: 5.10.0
+  hooks:
+  - id: isort
+    args:
+    - --honor-noqa
 
 - repo: https://github.com/Lucas-C/pre-commit-hooks.git
   rev: v1.1.7
@@ -24,8 +24,7 @@ repos:
         helper/proxy\.pac|
         Makefile|
         proxy/common/pki\.py|
-        README\.md|
-        .+\.(plist|pbxproj)
+        README\.md
       $
 
 - repo: https://github.com/pre-commit/pre-commit-hooks.git
@@ -36,7 +35,6 @@ repos:
     exclude: |
       (?x)
       ^
-        \.github/workflows/codeql-analysis\.yml|
         dashboard/src/core/plugins/inspect_traffic\.json
       $
   - id: check-merge-conflict
