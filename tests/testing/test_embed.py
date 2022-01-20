@@ -12,21 +12,15 @@ import http.client
 import urllib.error
 import urllib.request
 
-import pytest
-
 from proxy import TestCase
 from proxy.http import httpMethods
 from proxy.common.utils import socket_connection, build_http_request
 from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
 from proxy.common.constants import (
-    IS_WINDOWS, PROXY_AGENT_HEADER_VALUE, DEFAULT_CLIENT_RECVBUF_SIZE,
+    PROXY_AGENT_HEADER_VALUE, DEFAULT_CLIENT_RECVBUF_SIZE,
 )
 
 
-@pytest.mark.skipif(
-    IS_WINDOWS,
-    reason='Disabled for Windows due to weird permission issues.',
-)
 class TestProxyPyEmbedded(TestCase):
     """This test case is a demonstration of proxy.TestCase and also serves as
     integration test suite for proxy.py."""
