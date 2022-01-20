@@ -11,6 +11,7 @@
 import os
 import sys
 import time
+import pprint
 import signal
 import logging
 from typing import Any, List, Optional
@@ -23,9 +24,9 @@ from .common.utils import bytes_
 from .core.acceptor import Listener, AcceptorPool
 from .common.constants import (
     IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
-    DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FORMAT,
-    DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_ENABLE_DASHBOARD,
-    DEFAULT_ENABLE_SSH_TUNNEL,
+    DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_BASIC_AUTH,
+    DEFAULT_LOG_FORMAT, DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT,
+    DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
 )
 
 
@@ -40,7 +41,6 @@ flags.add_argument(
     help='Prints proxy.py version.',
 )
 
-# TODO: Convert me into 1-letter choices
 # TODO: Add --verbose option which also
 # starts to log traffic flowing between
 # clients and upstream servers.
@@ -98,6 +98,16 @@ flags.add_argument(
     help='Default: False.  Enables proxy.py dashboard.',
 )
 
+# NOTE: Same reason as mention above.
+# Ideally this flag belongs to proxy auth plugin.
+flags.add_argument(
+    '--basic-auth',
+    type=str,
+    default=DEFAULT_BASIC_AUTH,
+    help='Default: No authentication. Specify colon separated user:password '
+    'to enable basic authentication.',
+)
+
 flags.add_argument(
     '--enable-ssh-tunnel',
     action='store_true',
@@ -133,6 +143,10 @@ class Proxy:
     Executor pool receives newly accepted work by :class:`~proxy.core.acceptor.Acceptor`
     and creates an instance of work class for processing the received work.
 
+    In ``--threadless`` mode and with ``--local-executor 0``,
+    acceptors will start a companion thread to handle accepted
+    client connections.
+
     Optionally, Proxy class also initializes the EventManager.
     A multi-process safe pubsub system which can be used to build various
     patterns for message sharing and/or signaling.
@@ -156,18 +170,17 @@ class Proxy:
 
     def setup(self) -> None:
         # TODO: Introduce cron feature
-        # https://github.com/abhinavsingh/proxy.py/issues/392
+        # https://github.com/abhinavsingh/proxy.py/discussions/808
         #
-        # TODO: Introduce ability to publish
-        # adhoc events which can modify behaviour of server
-        # at runtime.  Example, updating flags, plugin
-        # configuration etc.
+        # TODO: Introduce ability to change flags dynamically
+        # https://github.com/abhinavsingh/proxy.py/discussions/1020
         #
-        # TODO: Python shell within running proxy.py environment?
+        # TODO: Python shell within running proxy.py environment
+        # https://github.com/abhinavsingh/proxy.py/discussions/1021
         #
-        # TODO: Pid watcher which watches for processes started
-        # by proxy.py core.  May be alert or restart those processes
-        # on failure.
+        # TODO: Near realtime resource / stats monitoring
+        # https://github.com/abhinavsingh/proxy.py/discussions/1023
+        #
         self._write_pid_file()
         # We setup listeners first because of flags.port override
         # in case of ephemeral port being used
@@ -263,10 +276,15 @@ class Proxy:
             os.remove(self.flags.port_file)
 
     def _register_signals(self) -> None:
-        # TODO: Handle SIGINFO, SIGUSR1, SIGUSR2
+        # TODO: Define SIGUSR1, SIGUSR2
         signal.signal(signal.SIGINT, self._handle_exit_signal)
         signal.signal(signal.SIGTERM, self._handle_exit_signal)
         if not IS_WINDOWS:
+            if hasattr(signal, 'SIGINFO'):
+                signal.signal(      # pragma: no cover
+                    signal.SIGINFO,       # pylint: disable=E1101
+                    self._handle_siginfo,
+                )
             signal.signal(signal.SIGHUP, self._handle_exit_signal)
             # TODO: SIGQUIT is ideally meant to terminate with core dumps
             signal.signal(signal.SIGQUIT, self._handle_exit_signal)
@@ -275,6 +293,9 @@ class Proxy:
     def _handle_exit_signal(signum: int, _frame: Any) -> None:
         logger.info('Received signal %d' % signum)
         sys.exit(0)
+
+    def _handle_siginfo(self, _signum: int, _frame: Any) -> None:
+        pprint.pprint(self.flags.__dict__)  # pragma: no cover
 
 
 def sleep_loop() -> None:

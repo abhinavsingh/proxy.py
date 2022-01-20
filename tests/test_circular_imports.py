@@ -85,7 +85,15 @@ def _discover_path_importables(
     'import_path',
     _find_all_importables(proxy),
 )
-def test_no_warnings(import_path: str) -> None:
+# Marked as disabled_ because:
+# 1. This test case was added when isort integration was problematic
+# 2. This test case never found a real circular import scenario
+# 3. This test case consumes 60% of test suite runtime
+# 4. Kept in the repo because we might still want to enable
+#    this in future, conditionally.  Example, we can run
+#    this only on a single OS and Python version combination
+#    instead of running it across entire matrix.
+def disabled_test_no_warnings(import_path: str) -> None:
     """Verify that exploding importables doesn't explode.
 
     This is seeking for any import errors including ones caused
