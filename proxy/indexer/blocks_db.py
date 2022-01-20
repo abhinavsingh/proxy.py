@@ -83,6 +83,9 @@ class SolanaBlocksDB(BaseDB):
         return self._block_from_value(
             self._fetchone(self._column_lst, [('height', block_num)], ['finalized desc']))
 
+    def get_latest_block_height(self) -> int:
+        return self._fetchone(['height'], [], ['height desc'])[0]
+
     def set_block(self, block: SolanaBlockDBInfo):
         cursor = self._conn.cursor()
         cursor.execute(f'''
