@@ -113,7 +113,7 @@ class EthereumModel:
             value = param.get('value', "")
             return estimate_gas(self.client, self.signer, contract_id, EthereumAddress(caller_id), data, value)
         except Exception as err:
-            self.error(f'Exception on eth_estimateGas: {err}')
+            self.error("Exception on eth_estimateGas: {}".format(err))
             raise
 
     def __repr__(self):
@@ -545,7 +545,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 })))
             return
         start_time = time.time()
-        self.info('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
+        self.info('handle_request <<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
         response = None
 
         try:
@@ -566,7 +566,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             response = {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': str(err)}}
 
         resp_time_ms = (time.time() - start_time)*1000  # convert this into milliseconds
-        self.info('>>> %s 0x%0x %s %s resp_time_ms= %s', threading.get_ident(), id(self.model), json.dumps(response),
+        self.info('handle_request >>> %s 0x%0x %s %s resp_time_ms= %s', threading.get_ident(), id(self.model), json.dumps(response),
                      request.get('method', '---'),
                      resp_time_ms)
 
