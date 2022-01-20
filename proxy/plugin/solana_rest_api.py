@@ -113,7 +113,7 @@ class EthereumModel:
             value = param.get('value', "")
             return estimate_gas(self.client, self.signer, contract_id, EthereumAddress(caller_id), data, value)
         except Exception as err:
-            self.error("Exception on eth_estimateGas: %s", err)
+            self.error(f'Exception on eth_estimateGas: {err}')
             raise
 
     def __repr__(self):
