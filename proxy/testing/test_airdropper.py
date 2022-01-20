@@ -58,7 +58,6 @@ class Test_Airdropper(unittest.TestCase):
                           pyth_mapping_account=self.pyth_mapping_account,
                           faucet_url          =f'http://{self.address}:{self.faucet_port}',
                           wrapper_whitelist   =self.wrapper_whitelist,
-                          log_level           ='INFO',
                           neon_decimals       =self.neon_decimals,
                           start_slot          =start_slot)
 
@@ -150,7 +149,7 @@ class Test_Airdropper(unittest.TestCase):
         self.mock_airdrop_ready.__contains__.assert_not_called()
         self.mock_airdrop_ready.__setitem__.assert_not_called()
         self.faucet.request_neon_in_galans_mock.assert_not_called()
-    
+
 
     def test_faucet_failure(self):
         """
@@ -178,7 +177,7 @@ class Test_Airdropper(unittest.TestCase):
         self.mock_airdrop_ready.__setitem__.assert_not_called()
         json_req = {'wallet': token_airdrop_address, 'amount': airdrop_amount}
         self.faucet.request_neon_in_galans_mock.assert_called_once_with(json_req)
-    
+
 
     def test_process_trx_with_one_airdrop_for_already_processed_address(self):
         """
@@ -192,7 +191,7 @@ class Test_Airdropper(unittest.TestCase):
         self.mock_airdrop_ready.__contains__.assert_called_once_with(token_airdrop_address)
         self.mock_airdrop_ready.__setitem__.assert_not_called()
         self.faucet.request_neon_in_galans_mock.assert_not_called()
-    
+
 
     def test_failed_airdrop_confidence_interval_too_large(self):
         """

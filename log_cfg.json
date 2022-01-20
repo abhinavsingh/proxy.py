@@ -1,0 +1,37 @@
+{
+    "version": 1,
+    "handlers": {
+        "standard": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "standard"
+        },
+        "root": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "root"
+        }
+    },
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-10s %(name)15s:%(class)-30s %(message)s",
+            "style": "%"
+        },
+        "root": {
+            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-10s %(name)15s:undefined                      %(message)s",
+            "style": "%"
+        }
+    },
+    "loggers": {
+        "neon": {
+            "level": "DEBUG",
+            "handlers": ["standard"],
+            "propagate": false
+        },
+        "": {
+            "level": "DEBUG",
+            "handlers": ["root"],
+            "propagate": false
+        }
+    }
+}

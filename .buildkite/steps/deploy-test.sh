@@ -52,7 +52,7 @@ function cleanup_docker {
     echo "\nRemoving temporary data volumes..."
     docker volume prune -f
 
-    if grep '\[E\] get_measurements' <measurements.log; then
+    if grep 'ERROR.*get_measurements' <measurements.log; then
         echo 'Failed to get measurements'
         exit 1
     fi

@@ -12,10 +12,8 @@ from solana.rpc.types import TxOpts, RPCResponse, Commitment
 from solana.transaction import Transaction
 import spl.token.instructions as spl_token
 from typing import Union, Dict
-from logging import getLogger
 import struct
-
-logger = getLogger('__name__')
+from logged_groups import logged_group
 
 install_solc(version='0.7.6')
 from solcx import compile_source
@@ -78,6 +76,8 @@ pragma solidity >=0.5.12;
 }
 '''
 
+
+@logged_group("neon.proxy")
 class ERC20Wrapper:
     proxy: Web3
     name: str
@@ -124,10 +124,10 @@ class ERC20Wrapper:
         tx_constructor = erc20.constructor(self.name, self.symbol, bytes(self.token.pubkey)).buildTransaction(tx)
         tx_deploy = self.proxy.eth.account.sign_transaction(tx_constructor, self.admin.key)
         tx_deploy_hash = self.proxy.eth.send_raw_transaction(tx_deploy.rawTransaction)
-        logger.debug(f'tx_deploy_hash: {tx_deploy_hash.hex()}')
+        self.debug(f'tx_deploy_hash: {tx_deploy_hash.hex()}')
         tx_deploy_receipt = self.proxy.eth.wait_for_transaction_receipt(tx_deploy_hash)
-        logger.debug(f'tx_deploy_receipt: {tx_deploy_receipt}')
-        logger.debug(f'deploy status: {tx_deploy_receipt.status}')
+        self.debug(f'tx_deploy_receipt: {tx_deploy_receipt}')
+        self.debug(f'deploy status: {tx_deploy_receipt.status}')
         self.neon_contract_address = tx_deploy_receipt.contractAddress
         self.solana_contract_address = self.get_neon_account_address(self.neon_contract_address)
 

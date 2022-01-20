@@ -1,15 +1,13 @@
 import json
-import logging
+from logged_groups import logged_group
 
 from typing import Optional, Dict, Any
 from .errors import EthereumError
 from ..environment import neon_cli, ETH_TOKEN_MINT_ID
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
-
-def call_emulated(contract_id, caller_id, data=None, value=None):
+@logged_group("neon.proxy")
+def call_emulated(contract_id, caller_id, data=None, value=None, *, logger):
     output = emulator(contract_id, caller_id, data, value)
     logger.debug(f"Call emulated. contract_id: {contract_id}, caller_id: {caller_id}, data: {data}, value: {value}, return: {output}")
     result = json.loads(output)
@@ -17,7 +15,8 @@ def call_emulated(contract_id, caller_id, data=None, value=None):
     return result
 
 
-def check_emulated_exit_status(result: Dict[str, Any]):
+@logged_group("neon.proxy")
+def check_emulated_exit_status(result: Dict[str, Any], *, logger):
     exit_status = result['exit_status']
     if exit_status == 'revert':
         revert_data = result['result']
@@ -33,7 +32,8 @@ def check_emulated_exit_status(result: Dict[str, Any]):
         raise Exception("evm emulator error ", result)
 
 
-def decode_revert_message(data: str) -> Optional[str]:
+@logged_group("neon.proxy")
+def decode_revert_message(data: str, *, logger) -> Optional[str]:
     data_len = len(data)
     if data_len == 0:
         return None

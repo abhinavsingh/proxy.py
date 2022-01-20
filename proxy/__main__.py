@@ -26,7 +26,6 @@ if __name__ == '__main__':
         wrapper_whitelist = os.environ['INDEXER_ERC20_WRAPPER_WHITELIST']
         if wrapper_whitelist != 'ANY':
             wrapper_whitelist = wrapper_whitelist.split(',')
-        log_level = os.environ['LOG_LEVEL']
         neon_decimals = int(os.environ.get('NEON_DECIMALS', '9'))
 
         start_slot = os.environ.get('START_SLOT', 0)
@@ -38,7 +37,6 @@ if __name__ == '__main__':
                        pyth_mapping_account,
                        faucet_url,
                        wrapper_whitelist,
-                       log_level,
                        neon_decimals,
                        start_slot,
                        pp_solana_url,
