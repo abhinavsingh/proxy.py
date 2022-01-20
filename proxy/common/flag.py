@@ -147,7 +147,7 @@ class FlagParser:
         auth_code = None
         basic_auth = opts.get('basic_auth', getattr(args, 'basic_auth', None))
         # Destroy passed credentials via flags or options
-        setattr(args, 'basic_auth', None)
+        args.basic_auth = None
         if 'basic_auth' in opts:
             del opts['basic_auth']
 
