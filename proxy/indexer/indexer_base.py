@@ -131,6 +131,7 @@ class IndexerBase:
             except Exception as err:
                 self.debug(err)
                 time.sleep(1)
+                # TODO: recheck this endless cycle
 
         self.counter_ += 1
         if self.counter_ % 100 == 0:
