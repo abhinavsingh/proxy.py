@@ -8,8 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Tuple, Optional
 from multiprocessing.reduction import send_handle
+
 
 if TYPE_CHECKING:   # pragma: no cover
     import socket

@@ -11,27 +11,30 @@
 import os
 import ssl
 import socket
-import logging
 import asyncio
+import logging
 import argparse
 import selectors
 import multiprocessing
-
-from abc import abstractmethod, ABC
-from typing import TYPE_CHECKING, Dict, Optional, Tuple, List, Set, Generic, TypeVar, Union
-
-from ...common.logger import Logger
-from ...common.types import Readables, SelectableEvents, Writables
-from ...common.constants import DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT
-from ...common.constants import DEFAULT_WAIT_FOR_TASKS_TIMEOUT
+from abc import ABC, abstractmethod
+from typing import (
+    TYPE_CHECKING, Set, Dict, List, Tuple, Union, Generic, TypeVar, Optional,
+)
 
 from ..event import eventNames
+from ...common.types import Readables, Writables, SelectableEvents
+from ...common.logger import Logger
+from ...common.constants import (
+    DEFAULT_WAIT_FOR_TASKS_TIMEOUT, DEFAULT_SELECTOR_SELECT_TIMEOUT,
+    DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT,
+)
+
 
 if TYPE_CHECKING:   # pragma: no cover
     from typing import Any
 
-    from ..event import EventQueue
     from .work import Work
+    from ..event import EventQueue
 
 T = TypeVar('T')
 
@@ -92,7 +95,9 @@ class Threadless(ABC, Generic[T]):
         self._total: int = 0
         # When put at the top, causes circular import error
         # since integrated ssh tunnel was introduced.
-        from ..connection import UpstreamConnectionPool     # pylint: disable=C0415
+        from ..connection import (
+            UpstreamConnectionPool,  # pylint: disable=C0415
+        )
         self._upstream_conn_pool: Optional['UpstreamConnectionPool'] = None
         self._upstream_conn_filenos: Set[int] = set()
         if self.flags.enable_conn_pool:

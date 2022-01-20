@@ -9,16 +9,16 @@
     :license: BSD, see LICENSE for more details.
 """
 import queue
-import logging
 import asyncio
+import logging
 import contextlib
-
-from typing import Optional
-from typing import Any
-
-from ...common.backports import NonBlockingQueue    # noqa: W0611, F401   pylint: disable=unused-import
+from typing import Any, Optional
 
 from .threadless import Threadless
+from ...common.backports import (  # noqa: W0611, F401   pylint: disable=unused-import
+    NonBlockingQueue,
+)
+
 
 logger = logging.getLogger(__name__)
 

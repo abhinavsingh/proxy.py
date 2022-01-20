@@ -9,8 +9,8 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-
 from typing import TYPE_CHECKING, Tuple
+
 
 if TYPE_CHECKING:   # pragma: no cover
     try:

@@ -16,11 +16,12 @@ import os
 import socket
 import logging
 import argparse
-
-from typing import Optional, Any
+from typing import Any, Optional
 
 from ...common.flag import flags
-from ...common.constants import DEFAULT_BACKLOG, DEFAULT_IPV4_HOSTNAME, DEFAULT_PORT, DEFAULT_PORT_FILE
+from ...common.constants import (
+    DEFAULT_PORT, DEFAULT_BACKLOG, DEFAULT_PORT_FILE, DEFAULT_IPV4_HOSTNAME,
+)
 
 
 flags.add_argument(

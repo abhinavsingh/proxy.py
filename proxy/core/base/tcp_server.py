@@ -16,18 +16,19 @@ import ssl
 import socket
 import logging
 import selectors
-
 from abc import abstractmethod
-from typing import Any, Optional, TypeVar, Union
-
-from ...common.flag import flags
-from ...common.utils import wrap_socket
-from ...common.types import Readables, SelectableEvents, Writables
-from ...common.constants import DEFAULT_CERT_FILE, DEFAULT_CLIENT_RECVBUF_SIZE
-from ...common.constants import DEFAULT_KEY_FILE, DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_TIMEOUT
+from typing import Any, Union, TypeVar, Optional
 
 from ...core.work import Work
+from ...common.flag import flags
+from ...common.types import Readables, Writables, SelectableEvents
+from ...common.utils import wrap_socket
 from ...core.connection import TcpClientConnection
+from ...common.constants import (
+    DEFAULT_TIMEOUT, DEFAULT_KEY_FILE, DEFAULT_CERT_FILE,
+    DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_SERVER_RECVBUF_SIZE,
+)
+
 
 logger = logging.getLogger(__name__)
 
