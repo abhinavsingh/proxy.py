@@ -25,7 +25,7 @@ from proxy.common.constants import IS_WINDOWS
 
 def check_output(args: List[Any]) -> bytes:
     args = args if not IS_WINDOWS else ['powershell'] + args
-    return _check_output(args, timeout=120)
+    return _check_output(args, timeout=None)
 
 
 def _https_server_flags() -> str:
