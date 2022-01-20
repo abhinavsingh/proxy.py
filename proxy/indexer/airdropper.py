@@ -1,13 +1,13 @@
 from solana.publickey import PublicKey
-from proxy.indexer.indexer_base import IndexerBase, logger
+from proxy.indexer.indexer_base import IndexerBase
 from proxy.indexer.pythnetwork import PythNetworkClient
 from solana.rpc.api import Client as SolanaClient
 import requests
 import base58
-import logging
 from datetime import datetime
 from decimal import Decimal
 import os
+from logged_groups import logged_group
 
 try:
     from utils import check_error
@@ -22,6 +22,8 @@ NEON_PRICE_USD = Decimal('0.25')
 
 FINALIZED = os.environ.get('FINALIZED', 'finalized')
 
+
+@logged_group("neon.airdropper")
 class Airdropper(IndexerBase):
     def __init__(self,
                  solana_url,
@@ -29,30 +31,28 @@ class Airdropper(IndexerBase):
                  pyth_mapping_account: PublicKey,
                  faucet_url = '',
                  wrapper_whitelist = 'ANY',
-                 log_level = 'INFO',
                  neon_decimals = 9,
                  start_slot = 0,
                  pp_solana_url = None,
                  max_conf = 0.1): # maximum confidence interval deviation related to price
         self._constants = SQLDict(tablename="constants")
         if start_slot == 'CONTINUE':
-            logger.info('Trying to use latest processed slot from previous run')
+            self.info('Trying to use latest processed slot from previous run')
             start_slot = self._constants.get('latest_processed_slot', 0)
         elif start_slot == 'LATEST':
-            logger.info('Airdropper will start at latest blockchain slot')
+            self.info('Airdropper will start at latest blockchain slot')
             client = SolanaClient(solana_url)
             start_slot = client.get_slot(commitment=FINALIZED)["result"]
         else:
             try:
                 start_slot = int(start_slot)
             except Exception as err:
-                logger.warning(f'''Unsupported value for start_slot: {start_slot}. 
+                self.warning(f'''Unsupported value for start_slot: {start_slot}.
                 Must be either integer value or one of [CONTINUE,LATEST]''')
                 raise
-        logger.info(f'Start slot is {start_slot}')
+        self.info(f'Start slot is {start_slot}')
 
-
-        IndexerBase.__init__(self, solana_url, evm_loader_id, log_level, start_slot)
+        IndexerBase.__init__(self, solana_url, evm_loader_id, start_slot)
         self.latest_processed_slot = start_slot
 
         # collection of eth-address-to-create-accout-trx mappings
@@ -94,9 +94,9 @@ class Airdropper(IndexerBase):
                 self.pyth_client.update_mapping(self.pyth_mapping_account)
                 self.last_update_pyth_mapping = current_time
             except Exception as err:
-                logger.warning(f'Failed to update pyth.network mapping account data: {err}')
+                self.warning(f'Failed to update pyth.network mapping account data: {err}')
                 return False
-        
+
         return True
 
     # helper function checking if given contract address is in whitelist
@@ -129,11 +129,11 @@ class Airdropper(IndexerBase):
 
 
     def airdrop_to(self, eth_address, airdrop_galans):
-        logger.info(f"Airdrop {airdrop_galans} Galans to address: {eth_address}")
+        self.info(f"Airdrop {airdrop_galans} Galans to address: {eth_address}")
         json_data = { 'wallet': eth_address, 'amount': airdrop_galans }
         resp = self.session.post(self.faucet_url + '/request_neon_in_galans', json = json_data)
         if not resp.ok:
-            logger.warning(f'Failed to airdrop: {resp.status_code}')
+            self.warning(f'Failed to airdrop: {resp.status_code}')
             return False
 
         return True
@@ -186,29 +186,28 @@ class Airdropper(IndexerBase):
             try:
                 self.recent_price = self.pyth_client.get_price('SOL/USD')
             except Exception as err:
-                logger.warning(f'Exception occured when reading price: {err}')
+                self.warning(f'Exception occured when reading price: {err}')
                 return None
 
         return self.recent_price
 
-
     def get_airdrop_amount_galans(self):
         self.sol_price_usd = self.get_sol_usd_price()
         if self.sol_price_usd is None:
-            logger.warning("Failed to get SOL/USD price")
+            self.warning("Failed to get SOL/USD price")
             return None
 
-        logger.info(f"NEON price: ${NEON_PRICE_USD}")
-        logger.info(f"Price valid slot: {self.sol_price_usd['valid_slot']}")
-        logger.info(f"Price confidence interval: ${self.sol_price_usd['conf']}")
-        logger.info(f"SOL/USD = ${self.sol_price_usd['price']}")
+        self.info(f"NEON price: ${NEON_PRICE_USD}")
+        self.info(f"Price valid slot: {self.sol_price_usd['valid_slot']}")
+        self.info(f"Price confidence interval: ${self.sol_price_usd['conf']}")
+        self.info(f"SOL/USD = ${self.sol_price_usd['price']}")
         if self.sol_price_usd['conf'] / self.sol_price_usd['price'] > self.max_conf:
-            logger.warning(f"Confidence interval too large. Airdrops will deferred.")
+            self.warning(f"Confidence interval too large. Airdrops will deferred.")
             return None
 
         self.airdrop_amount_usd = AIRDROP_AMOUNT_SOL * self.sol_price_usd['price']
         self.airdrop_amount_neon = self.airdrop_amount_usd / NEON_PRICE_USD
-        logger.info(f"Airdrop amount: ${self.airdrop_amount_usd} ({self.airdrop_amount_neon} NEONs)\n")
+        self.info(f"Airdrop amount: ${self.airdrop_amount_usd} ({self.airdrop_amount_neon} NEONs)\n")
         return int(self.airdrop_amount_neon * pow(Decimal(10), self.neon_decimals))
 
 
@@ -217,18 +216,18 @@ class Airdropper(IndexerBase):
         if eth_address in self.airdrop_ready or eth_address in self.airdrop_scheduled:
             # Target account already supplied with airdrop or airdrop already scheduled
             return
-        logger.info(f'Scheduling airdrop for {eth_address}')
+        self.info(f'Scheduling airdrop for {eth_address}')
         self.airdrop_scheduled[eth_address] = { 'scheduled': datetime.now().timestamp() }
 
 
     def process_scheduled_trxs(self):
-        # Pyth.network mapping account was never updated 
+        # Pyth.network mapping account was never updated
         if not self.try_update_pyth_mapping() and self.last_update_pyth_mapping is None:
             return
 
         airdrop_galans = self.get_airdrop_amount_galans()
         if airdrop_galans is None:
-            logger.warning('Failed to estimate airdrop amount. Defer scheduled airdrops.')
+            self.warning('Failed to estimate airdrop amount. Defer scheduled airdrops.')
             return
 
         success_addresses = set()
@@ -236,7 +235,7 @@ class Airdropper(IndexerBase):
             if not self.airdrop_to(eth_address, airdrop_galans):
                 continue
             success_addresses.add(eth_address)
-            self.airdrop_ready[eth_address] = { 'amount': airdrop_galans, 
+            self.airdrop_ready[eth_address] = { 'amount': airdrop_galans,
                                                 'scheduled': sched_info['scheduled'],
                                                 'finished': datetime.now().timestamp() }
 
@@ -249,7 +248,7 @@ class Airdropper(IndexerBase):
         Overrides IndexerBase.process_functions
         """
         IndexerBase.process_functions(self)
-        logger.debug("Process receipts")
+        self.debug("Process receipts")
         self.process_receipts()
         self.process_scheduled_trxs()
 
@@ -264,23 +263,20 @@ class Airdropper(IndexerBase):
         self._constants['latest_processed_slot'] = self.latest_processed_slot
 
 
+@logged_group("neon.airdropper")
 def run_airdropper(solana_url,
                    evm_loader_id,
                    pyth_mapping_account: PublicKey,
                    faucet_url,
                    wrapper_whitelist = 'ANY',
-                   log_level = 'INFO',
                    neon_decimals = 9,
                    start_slot = 0,
                    pp_solana_url = None,
-                   max_conf = 0.1):
-    logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
-    logger.setLevel(logging.DEBUG)
+                   max_conf = 0.1, *, logger):
     logger.info(f"""Running indexer with params:
         solana_url: {solana_url},
         evm_loader_id: {evm_loader_id},
         pyth.network mapping account: {pyth_mapping_account},
-        log_level: {log_level},
         faucet_url: {faucet_url},
         wrapper_whitelist: {wrapper_whitelist},
         NEON decimals: {neon_decimals},
@@ -293,7 +289,6 @@ def run_airdropper(solana_url,
                             pyth_mapping_account,
                             faucet_url,
                             wrapper_whitelist,
-                            log_level,
                             neon_decimals,
                             start_slot,
                             pp_solana_url,

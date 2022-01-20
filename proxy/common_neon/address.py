@@ -1,4 +1,3 @@
-import logging
 import random
 
 from eth_keys import keys as eth_keys
@@ -10,10 +9,6 @@ from typing import NamedTuple
 from .layouts import ACCOUNT_INFO_LAYOUT
 from ..environment import neon_cli, ETH_TOKEN_MINT_ID, EVM_LOADER_ID
 from .constants import ACCOUNT_SEED_VERSION
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 class EthereumAddress:
     def __init__(self, data, private=None):

@@ -1,5 +1,4 @@
 import eth_utils
-import logging
 import struct
 
 from sha3 import keccak_256
@@ -11,15 +10,12 @@ from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from spl.token.constants import ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
 from spl.token.instructions import transfer2, Transfer2Params
 from typing import Tuple
+from logged_groups import logged_group
 
 from .address import accountWithSeed, ether2program, getTokenAddr, EthereumAddress
 from .constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PROGRAM, COLLATERALL_POOL_MAX
 from .layouts import CREATE_ACCOUNT_LAYOUT
 from ..environment import EVM_LOADER_ID, ETH_TOKEN_MINT_ID , COLLATERAL_POOL_BASE, NEW_USER_AIRDROP_AMOUNT
-
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 obligatory_accounts = [
@@ -83,11 +79,11 @@ def make_keccak_instruction_data(check_instruction_index, msg_len, data_start):
     return data
 
 
+@logged_group("neon.proxy")
 class NeonInstruction:
     def __init__(self, operator):
         self.operator_account = operator
         self.operator_neon_address = getTokenAddr(self.operator_account)
-
 
     def init_eth_trx(self, eth_trx, eth_accounts, caller_token):
         self.eth_accounts = eth_accounts
@@ -104,7 +100,6 @@ class NeonInstruction:
 
         return self
 
-
     def init_iterative(self, storage, holder, perm_accs_id):
         self.storage = storage
         self.holder = holder
@@ -118,10 +113,9 @@ class NeonInstruction:
         seed = COLLATERAL_SEED_PREFIX + str(collateral_pool_index)
         return accountWithSeed(PublicKey(COLLATERAL_POOL_BASE), str.encode(seed))
 
-
     def create_account_with_seed_trx(self, account, seed, lamports, space):
         seed_str = str(seed, 'utf8')
-        logger.debug("createAccountWithSeedTrx base(%s) account(%s) seed(%s)", type(self.operator_account),account, seed_str)
+        self.debug("createAccountWithSeedTrx base(%s) account(%s) seed(%s)", type(self.operator_account),account, seed_str)
         return TransactionInstruction(
             keys=[
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
@@ -132,11 +126,10 @@ class NeonInstruction:
             data=create_account_with_seed_layout(self.operator_account, seed_str, lamports, space)
         )
 
-
     def make_create_eth_account_trx(self, eth_address: EthereumAddress, code_acc=None) -> Tuple[Transaction, PublicKey]:
         pda_account, nonce = ether2program(eth_address)
         neon_token_account = getTokenAddr(PublicKey(pda_account))
-        logger.debug(f'Create eth account: {eth_address}, sol account: {pda_account}, neon_token_account: {neon_token_account}, nonce: {nonce}')
+        self.debug(f'Create eth account: {eth_address}, sol account: {pda_account}, neon_token_account: {neon_token_account}, nonce: {nonce}')
 
         base = self.operator_account
         data = create_account_layout(0, 0, bytes(eth_address), nonce)
@@ -172,7 +165,6 @@ class NeonInstruction:
                 ]))
         return trx, neon_token_account
 
-
     def createERC20TokenAccountTrx(self, token_info) -> Transaction:
         trx = Transaction()
         trx.add(TransactionInstruction(
@@ -192,7 +184,6 @@ class NeonInstruction:
 
         return trx
 
-
     def make_transfer_instruction(self, associated_token_account: PublicKey) -> TransactionInstruction:
         transfer_instruction = transfer2(Transfer2Params(
             source=self.operator_neon_address,
@@ -203,10 +194,9 @@ class NeonInstruction:
             mint=ETH_TOKEN_MINT_ID,
             program_id=TOKEN_PROGRAM_ID
         ))
-        logger.debug(f"Token transfer from token: {self.operator_neon_address}, owned by: {self.operator_account}, to token: "
+        self.debug(f"Token transfer from token: {self.operator_neon_address}, owned by: {self.operator_account}, to token: "
                     f"{associated_token_account}, owned by: {associated_token_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
         return transfer_instruction
-
 
     def make_trx_with_create_and_airdrop(self, eth_account, code_acc=None) -> Transaction:
         trx = Transaction()
@@ -218,7 +208,6 @@ class NeonInstruction:
         trx.add(transfer_instruction)
 
         return trx
-
 
     def make_resize_instruction(self, acc_desc, code_account_new, seed) -> TransactionInstruction:
         return TransactionInstruction(
@@ -236,7 +225,6 @@ class NeonInstruction:
             ],
         )
 
-
     def make_write_transaction(self, offset: int, data: bytes) -> Transaction:
         return Transaction().add(TransactionInstruction(
             program_id=EVM_LOADER_ID,
@@ -247,7 +235,6 @@ class NeonInstruction:
             ]
         ))
 
-
     def make_keccak_instruction(self, check_instruction_index, msg_len, data_start) -> TransactionInstruction:
         return TransactionInstruction(
             program_id=KECCAK_PROGRAM,
@@ -256,7 +243,6 @@ class NeonInstruction:
                 AccountMeta(pubkey=KECCAK_PROGRAM, is_signer=False, is_writable=False),
             ]
         )
-
 
     def make_05_call_instruction(self) -> TransactionInstruction:
         return TransactionInstruction(
@@ -273,13 +259,11 @@ class NeonInstruction:
             ] + self.eth_accounts + obligatory_accounts
         )
 
-
     def make_noniterative_call_transaction(self, length_before: int = 0) -> Transaction:
         trx = Transaction()
         trx.add(self.make_keccak_instruction(length_before + 1, len(self.eth_trx.unsigned_msg()), 5))
         trx.add(self.make_05_call_instruction())
         return trx
-
 
     def make_cancel_transaction(self) -> Transaction:
         return Transaction().add(TransactionInstruction(
@@ -298,7 +282,6 @@ class NeonInstruction:
                 AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
             ] + obligatory_accounts
         ))
-
 
     def make_partial_call_or_continue_instruction(self, steps: int = 0) -> TransactionInstruction:
         data = bytearray.fromhex("0D") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder="little") + self.msg
@@ -321,13 +304,11 @@ class NeonInstruction:
             ] + obligatory_accounts
         )
 
-
     def make_partial_call_or_continue_transaction(self, steps: int = 0, length_before: int = 0) -> Transaction:
         trx = Transaction()
         trx.add(self.make_keccak_instruction(length_before + 1, len(self.eth_trx.unsigned_msg()), 13))
         trx.add(self.make_partial_call_or_continue_instruction(steps))
         return trx
-
 
     def make_partial_call_or_continue_from_account_data(self, steps, index=None) -> Transaction:
         data = bytearray.fromhex("0E") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder='little')

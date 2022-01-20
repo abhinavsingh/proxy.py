@@ -1,5 +1,4 @@
 import json
-import logging
 import math
 import os
 from typing import List
@@ -10,6 +9,7 @@ from base58 import b58encode
 from sha3 import keccak_256
 from solana.sysvar import *
 from solana.transaction import AccountMeta, Transaction
+from logged_groups import logged_group
 
 from proxy.indexer.utils import check_error
 
@@ -26,10 +26,7 @@ from ..environment import EVM_LOADER_ID, RETRY_ON_BLOCKED
 from ..indexer.utils import NeonTxResultInfo
 from ..common_neon.eth_proto import Trx as EthTrx
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-
+@logged_group("neon.proxy")
 class TransactionSender:
     def __init__(self, solana_interactor: SolanaInteractor, eth_trx: EthTrx, steps: int) -> None:
         self.sender = solana_interactor
@@ -37,7 +34,6 @@ class TransactionSender:
         self.steps = steps
 
         self.instruction = NeonInstruction(self.sender.get_operator_key())
-
 
     def execute(self):
         self.create_account_list_by_emulate()
@@ -51,13 +47,13 @@ class TransactionSender:
             call_from_holder = True
         else:
             try:
-                logger.debug("Try single trx call")
+                self.debug("Try single trx call")
                 return noniterative_executor.call_signed_noniterative()
             except Exception as err:
-                logger.debug(str(err))
+                self.debug(str(err))
                 errStr = str(err)
                 if "Program failed to complete" in errStr or "Computational budget exceeded" in errStr:
-                    logger.debug("Program exceeded instructions")
+                    self.debug("Program exceeded instructions")
                     if self.steps_emulated / self.steps > self.steps / 2:
                         """
                             An iterative call from instruction data can be performed in batches only
@@ -71,7 +67,7 @@ class TransactionSender:
                     else:
                         call_iterative = True
                 elif str(err).startswith("transaction too large:"):
-                    logger.debug("Transaction too large, call call_signed_with_holder_acc():")
+                    self.debug("Transaction too large, call call_signed_with_holder_acc():")
                     call_from_holder = True
                 else:
                     raise
@@ -83,9 +79,9 @@ class TransactionSender:
                 try:
                     return iterative_executor.call_signed_iterative_combined()
                 except Exception as err:
-                    logger.debug(str(err))
+                    self.debug(str(err))
                     if str(err).startswith("transaction too large:"):
-                        logger.debug("Transaction too large, call call_signed_with_holder_acc():")
+                        self.debug("Transaction too large, call call_signed_with_holder_acc():")
                         call_from_holder = True
                     else:
                         raise
@@ -95,16 +91,13 @@ class TransactionSender:
         finally:
             self.free_perm_accs()
 
-
     def create_noniterative_executor(self):
         self.instruction.init_eth_trx(self.eth_trx, self.eth_accounts, self.caller_token)
         return NoniterativeTransactionSender(self.sender, self.instruction, self.create_acc_trx, self.eth_trx)
 
-
     def create_iterative_executor(self):
         self.instruction.init_iterative(self.storage, self.holder, self.perm_accs_id)
         return IterativeTransactionSender(self.sender, self.instruction, self.create_acc_trx, self.eth_trx, self.steps, self.steps_emulated)
-
 
     def init_perm_accs(self):
         while True:
@@ -115,7 +108,7 @@ class TransactionSender:
                     self.perm_accs_id = new_acc_id_glob.value
                     new_acc_id_glob.value += 1
 
-            logger.debug("LOCK RESOURCES {}".format(self.perm_accs_id))
+            self.debug("LOCK RESOURCES {}".format(self.perm_accs_id))
 
             acc_id_bytes = self.perm_accs_id.to_bytes((self.perm_accs_id.bit_length() + 7) // 8, 'big')
 
@@ -131,30 +124,27 @@ class TransactionSender:
                         sizes=[STORAGE_SIZE, STORAGE_SIZE]
                     )
             except Exception as err:
-                logger.warn("Account is locked err({}) id({}) owner({})".format(str(err), self.perm_accs_id, self.sender.get_operator_key()))
+                self.warn("Account is locked err({}) id({}) owner({})".format(str(err), self.perm_accs_id, self.sender.get_operator_key()))
             else:
                 break
 
-
     def free_perm_accs(self):
-        logger.debug("FREE RESOURCES {}".format(self.perm_accs_id))
+        self.debug("FREE RESOURCES {}".format(self.perm_accs_id))
         with new_acc_id_glob.get_lock():
             acc_list_glob.append(self.perm_accs_id)
-
 
     def create_account_with_seed(self, seed, storage_size):
         account = accountWithSeed(self.sender.get_operator_key(), seed)
 
         if self.sender.get_sol_balance(account) == 0:
             minimum_balance = self.sender.get_multiple_rent_exempt_balances_for_size([storage_size])[0]
-            logger.debug("Minimum balance required for account {}".format(minimum_balance))
+            self.debug("Minimum balance required for account {}".format(minimum_balance))
 
             trx = Transaction()
             trx.add(self.instruction.create_account_with_seed_trx(account, seed, minimum_balance, storage_size))
             self.sender.send_transaction(trx, eth_trx=self.eth_trx, reason='createAccountWithSeed')
 
         return account
-
 
     def create_multiple_accounts_with_seed(self, seeds: List[bytes], sizes: List[int]) -> List[PublicKey]:
         accounts = list(map(lambda seed: accountWithSeed(self.sender.get_operator_key(), seed), seeds))
@@ -165,7 +155,7 @@ class TransactionSender:
 
         for account_key, account_info, seed, minimum_balance, storage_size in zip(accounts, accounts_info, seeds, minimum_balances, sizes):
             if account_info is None:
-                logger.debug("Minimum balance required for account {}".format(minimum_balance))
+                self.debug("Minimum balance required for account {}".format(minimum_balance))
                 trx.add(self.instruction.create_account_with_seed_trx(account_key, seed, minimum_balance, storage_size))
             else:
                 if account_info.lamports < minimum_balance:
@@ -180,7 +170,6 @@ class TransactionSender:
 
         return accounts
 
-
     def create_account_list_by_emulate(self):
         sender_ether = bytes.fromhex(self.eth_trx.sender())
         add_keys_05 = []
@@ -193,11 +182,11 @@ class TransactionSender:
             to_address_arg = self.eth_trx.toAddress.hex()
             to_address = self.eth_trx.toAddress
 
-        logger.debug("send_addr: %s", self.eth_trx.sender())
-        logger.debug("dest_addr: %s", to_address.hex())
+        self.debug("send_addr: %s", self.eth_trx.sender())
+        self.debug("dest_addr: %s", to_address.hex())
 
         output_json = call_emulated(to_address_arg, sender_ether.hex(), self.eth_trx.callData.hex(), hex(self.eth_trx.value))
-        logger.debug("emulator returns: %s", json.dumps(output_json, indent=3))
+        self.debug("emulator returns: %s", json.dumps(output_json, indent=3))
 
         # resize storage account
         resize_instr = []
@@ -209,30 +198,30 @@ class TransactionSender:
                         seed = b58encode(ACCOUNT_SEED_VERSION + os.urandom(20))
                         code_account_new = accountWithSeed(self.sender.get_operator_key(), seed)
 
-                        logger.debug("creating new code_account with increased size %s", code_account_new)
+                        self.debug("creating new code_account with increased size %s", code_account_new)
                         self.create_account_with_seed(seed, code_size)
-                        logger.debug("resized account is created %s", code_account_new)
+                        self.debug("resized account is created %s", code_account_new)
 
                         resize_instr.append(self.instruction.make_resize_instruction(acc_desc, code_account_new, seed))
                         # replace code_account
                         acc_desc["contract"] = code_account_new
 
         for instr in resize_instr:
-            logger.debug("code and storage migration, account %s from  %s to %s", instr.keys[0].pubkey, instr.keys[1].pubkey, instr.keys[2].pubkey)
+            self.debug("code and storage migration, account %s from  %s to %s", instr.keys[0].pubkey, instr.keys[1].pubkey, instr.keys[2].pubkey)
 
             tx = Transaction().add(instr)
             success = False
             count = 0
 
             while count < 2:
-                logger.debug("attemt: %d", count)
+                self.debug("attemt: %d", count)
 
                 self.sender.send_transaction(tx, eth_trx=self.eth_trx, reason='resize_storage_account')
                 info = self.sender._getAccountData(instr.keys[0].pubkey, ACCOUNT_INFO_LAYOUT.sizeof())
                 info_data = AccountInfo.frombytes(info)
                 if info_data.code_account == instr.keys[2].pubkey:
                     success = True
-                    logger.debug("successful code and storage migration, %s", instr.keys[0].pubkey)
+                    self.debug("successful code and storage migration, %s", instr.keys[0].pubkey)
                     break
                 # wait for unlock account
                 time.sleep(1)
@@ -247,11 +236,11 @@ class TransactionSender:
             code_account = None
             code_account_writable = False
             if acc_desc["new"]:
-                logger.debug("Create solana accounts for %s: %s %s", acc_desc["address"], acc_desc["account"], acc_desc["contract"])
+                self.debug("Create solana accounts for %s: %s %s", acc_desc["address"], acc_desc["account"], acc_desc["contract"])
                 if acc_desc["code_size"]:
                     seed = b58encode(ACCOUNT_SEED_VERSION+address)
                     code_account = accountWithSeed(self.sender.get_operator_key(), seed)
-                    logger.debug("     with code account %s", code_account)
+                    self.debug("     with code account %s", code_account)
                     code_size = acc_desc["code_size"] + 2048
                     code_account_balance = self.sender.get_multiple_rent_exempt_balances_for_size([code_size])[0]
                     self.create_acc_trx.add(self.instruction.create_account_with_seed_trx(code_account, seed, code_account_balance, code_size))
@@ -314,7 +303,6 @@ class NoniterativeTransactionSender:
         self.create_acc_trx = create_acc_trx
         self.eth_trx = eth_trx
 
-
     def call_signed_noniterative(self):
         call_txs_05 = Transaction()
         if len(self.create_acc_trx.instructions) > 0:
@@ -336,6 +324,7 @@ class NoniterativeTransactionSender:
                 return (NeonTxResultInfo(result), result['transaction']['signatures'][0])
 
 
+@logged_group("neon.proxy")
 class IterativeTransactionSender:
     CONTINUE_REGULAR = 'ContinueV02'
     CONTINUE_COMBINED = 'PartialCallOrContinueFromRawEthereumTX'
@@ -352,7 +341,6 @@ class IterativeTransactionSender:
             self.retry_on_blocked = retry_on_blocked
             self.step_count = step_count
 
-
     def __init__(self, solana_interactor: SolanaInteractor, neon_instruction: NeonInstruction, create_acc_trx: Transaction, eth_trx: EthTrx, steps: int, steps_emulated: int):
         self.sender = solana_interactor
         self.instruction = neon_instruction
@@ -363,7 +351,6 @@ class IterativeTransactionSender:
         self.success_steps = 0
         self.instruction_type = self.CONTINUE_REGULAR
 
-
     def call_signed_iterative_combined(self):
         if len(self.create_acc_trx.instructions) > 0:
             create_accounts_siganture = self.sender.send_transaction_unconfirmed(self.create_acc_trx)
@@ -372,7 +359,6 @@ class IterativeTransactionSender:
 
         self.instruction_type = self.CONTINUE_COMBINED
         return self.call_continue()
-
 
     def call_signed_with_holder_combined(self):
         if len(self.create_acc_trx.instructions) > 0:
@@ -384,9 +370,8 @@ class IterativeTransactionSender:
         self.instruction_type = self.CONTINUE_HOLDER_COMB
         return self.call_continue()
 
-
     def write_to_holder_account_trx(self, create_acc_trx = None) -> List[Transaction]:
-        logger.debug('write_trx_to_holder_account')
+        self.debug('write_trx_to_holder_account')
         msg = self.eth_trx.signature() + len(self.eth_trx.unsigned_msg()).to_bytes(8, byteorder="little") + self.eth_trx.unsigned_msg()
 
         offset = 0
@@ -402,10 +387,10 @@ class IterativeTransactionSender:
 
         while len(write_trxs) > 0:
             (trxs, write_trxs) = (write_trxs[:20], write_trxs[20:])
-            logger.debug(f'write_trxs {len(write_trxs)} trxs {len(trxs)}')
+            self.debug(f'write_trxs {len(write_trxs)} trxs {len(trxs)}')
 
             while len(trxs) > 0:
-                logger.debug(f'write {len(trxs)} trxs')
+                self.debug(f'write {len(trxs)} trxs')
                 receipts = self.sender.send_multiple_transactions_unconfirmed(trxs)
                 results = self.sender.collect_results(receipts, eth_trx=self.eth_trx, reason='WriteHolder')
 
@@ -415,7 +400,6 @@ class IterativeTransactionSender:
                         success_trxs.append(trx)
                 trxs = [trx for trx in trxs if trx not in success_trxs]
 
-
     def call_continue(self):
         none_receipts = []
         while True:
@@ -423,7 +407,7 @@ class IterativeTransactionSender:
             try_one_step = False
             found_errors = False
 
-            logger.debug(f"Send pack of combined: {self.instruction_type}")
+            self.debug(f"Send pack of combined: {self.instruction_type}")
             trxs = []
             for index in range(self.steps_count()):
                 trxs.append(self.make_combined_trx(self.steps, index))
@@ -441,7 +425,7 @@ class IterativeTransactionSender:
             retry_on_blocked = RETRY_ON_BLOCKED
             while try_one_step and step_count > 0 and retry_on_blocked > 0:
                 try_one_step = False
-                logger.debug(f"step_count: {step_count} retry_on_blocked: {retry_on_blocked}")
+                self.debug(f"step_count: {step_count} retry_on_blocked: {retry_on_blocked}")
                 trx = self.make_combined_trx(step_count, 0)
 
                 continue_result = self.send_and_confirm_continue([trx], none_receipts, retry_on_blocked, step_count)
@@ -470,16 +454,14 @@ class IterativeTransactionSender:
 
         return self.call_cancel()
 
-
     def call_cancel(self):
         trx = self.instruction.make_cancel_transaction()
 
-        logger.debug("Cancel")
+        self.debug("Cancel")
         result = self.sender.send_measured_transaction(trx, self.eth_trx, 'CancelWithNonce')
         neon_res = NeonTxResultInfo()
         neon_res.slot = result['slot']
         return (neon_res, result['transaction']['signatures'][0])
-
 
     def send_and_confirm_continue(self, trxs: List[Transaction], none_receipts: List[str], retry_on_blocked: int = 1, step_count: int = 1) -> ContinueReturn:
         found_errors = False
@@ -493,7 +475,7 @@ class IterativeTransactionSender:
         none_receipts = []
         result_list = self.sender.collect_results(receipts, eth_trx=self.eth_trx, reason=self.instruction_type)
 
-        logger.debug(f"result_list: {len(result_list)} receipts: {len(receipts)}")
+        self.debug(f"result_list: {len(result_list)} receipts: {len(receipts)}")
         for result, receipt in zip(result_list, receipts):
             if result is not None:
                 if not check_error(result):
@@ -504,12 +486,12 @@ class IterativeTransactionSender:
                         success_signature = result['transaction']['signatures'][0]
                         success_neon_res = neon_res
                 elif check_if_accounts_blocked(result):
-                    logger.debug("Blocked account")
+                    self.debug("Blocked account")
                     retry_on_blocked -= 1
                     time.sleep(0.5)
                     try_one_step = True
                 elif check_if_program_exceeded_instructions(result):
-                    logger.debug("Compute Limit")
+                    self.debug("Compute Limit")
                     step_count = int(step_count * 90 / 100)
                     try_one_step = True
                 else:
@@ -530,7 +512,6 @@ class IterativeTransactionSender:
         else:
             return MAX_STEPS_IN_PACK
 
-
     def addition_count(self):
         '''
         How many transactions are needed depending on trx type:
@@ -544,7 +525,6 @@ class IterativeTransactionSender:
         elif self.instruction_type == self.CONTINUE_HOLDER_COMB:
             addition_count = 1
         return addition_count
-
 
     def make_combined_trx(self, steps, index):
         if self.instruction_type == self.CONTINUE_COMBINED:

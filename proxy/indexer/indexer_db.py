@@ -1,5 +1,5 @@
 import base58
-import logging
+from logged_groups import logged_group
 import traceback
 
 try:
@@ -13,10 +13,8 @@ except ImportError:
     from .transactions_db import NeonTxsDB, NeonTxDBInfo
     from .sql_dict import SQLDict
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
-
+@logged_group("neon.indexer")
 class IndexerDB:
     def __init__(self, client):
         self._logs_db = LogDB()
@@ -33,9 +31,9 @@ class IndexerDB:
         try:
             block = self.get_block_by_slot(neon_res.slot)
             if block.hash is None:
-                logger.critical(f'Unable to submit transaction {neon_tx.sign} because slot {neon_res.slot} not found')
+                self.critical(f'Unable to submit transaction {neon_tx.sign} because slot {neon_res.slot} not found')
                 return
-            logger.debug(f'{neon_tx} {neon_res} {block}')
+            self.debug(f'{neon_tx} {neon_res} {block}')
             if neon_res.logs:
                 for rec in neon_res.logs:
                     rec['transactionHash'] = neon_tx.sign
@@ -46,7 +44,7 @@ class IndexerDB:
             self._txs_db.set_tx(tx)
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
-            logger.warning('Exception on submitting transaction. ' +
+            self.warning('Exception on submitting transaction. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
     def _fill_block_from_net(self, block: SolanaBlockDBInfo):
@@ -62,7 +60,7 @@ class IndexerDB:
         block.parent_hash = '0x' + base58.b58decode(net_block['previousBlockhash']).hex()
         block.time = net_block['blockTime']
         block.finalized = ("confirmed" == FINALIZED)
-        logger.debug(f'{block}')
+        self.debug(f'{block}')
         self._blocks_db.set_block(block)
         return block
 
@@ -83,6 +81,9 @@ class IndexerDB:
 
     def get_last_block_height(self):
         return self._constants['last_block_height']
+
+    def get_latest_block_height(self):
+        return self._blocks_db.get_latest_block_height()
 
     def set_last_slot_height(self, slot, height):
         self._constants['last_block_slot'] = slot

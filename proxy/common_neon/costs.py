@@ -4,6 +4,7 @@ import psycopg2
 from ..environment import EVM_LOADER_ID, WRITE_TRANSACTION_COST_IN_DB
 from ..indexer.sql_dict import POSTGRES_USER, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PASSWORD
 
+
 class SQLCost():
     def __init__(self):
 

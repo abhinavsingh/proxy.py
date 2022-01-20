@@ -1,7 +1,6 @@
 import base58
 import base64
 import json
-import logging
 import re
 import time
 import requests
@@ -15,6 +14,8 @@ from solana.rpc.types import RPCResponse, TxOpts
 from solana.transaction import Transaction
 from urllib.parse import urlparse
 from itertools import zip_longest
+from logged_groups import logged_group
+
 
 from .costs import update_transaction_cost
 from .utils import get_from_dict
@@ -22,14 +23,14 @@ from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, LOG_SENDING_S
 
 from typing import Any, List, NamedTuple, Union, cast
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 class AccountInfo(NamedTuple):
     tag: int
     lamports: int
     owner: PublicKey
 
+
+@logged_group("neon.proxy")
 class SolanaInteractor:
     def __init__(self, signer, client: SolanaClient) -> None:
         self.signer = signer
@@ -68,11 +69,11 @@ class SolanaInteractor:
         }
 
         result = self.client._provider.make_request("getAccountInfo", str(storage_account), opts)
-        logger.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
+        self.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
 
         info = result['result']['value']
         if info is None:
-            logger.debug("Can't get information about {}".format(storage_account))
+            self.debug("Can't get information about {}".format(storage_account))
             return None
 
         data = base64.b64decode(info['data'][0])
@@ -90,10 +91,10 @@ class SolanaInteractor:
             "dataSlice": { "offset": 0, "length": 16 }
         }
         result = self.client._provider.make_request("getMultipleAccounts", list(map(str, accounts)), options)
-        logger.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
+        self.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
 
         if result['result']['value'] is None:
-            logger.debug("Can't get information about {}".format(accounts))
+            self.debug("Can't get information about {}".format(accounts))
             return None
 
         accounts_info = []
@@ -151,7 +152,7 @@ class SolanaInteractor:
             except SendTransactionError as err:
                 err_type = get_from_dict(err.result, "data", "err")
                 if err_type is not None and isinstance(err_type, str) and err_type == "BlockhashNotFound":
-                    logger.debug("BlockhashNotFound {}".format(blockhash))
+                    self.debug("BlockhashNotFound {}".format(blockhash))
                     time.sleep(0.1)
                     continue
                 raise
@@ -176,7 +177,7 @@ class SolanaInteractor:
 
     def send_measured_transaction(self, trx, eth_trx, reason):
         if LOG_SENDING_SOLANA_TRANSACTION:
-            logger.debug("send_measured_transaction for reason %s: %s ", reason, trx.__dict__)
+            self.debug("send_measured_transaction for reason %s: %s ", reason, trx.__dict__)
         result = self.send_transaction(trx, eth_trx, reason=reason)
         self.get_measurements(result)
         return result
@@ -186,10 +187,11 @@ class SolanaInteractor:
     def get_measurements(self, result):
         try:
             measurements = self.extract_measurements_from_receipt(result)
-            for m in measurements: logger.info(json.dumps(m))
+            for m in measurements:
+                self.info("get_measurements: " + json.dumps(m))
         except Exception as err:
-            logger.error("Can't get measurements %s"%err)
-            logger.info("Failed result: %s"%json.dumps(result, indent=3))
+            self.error("Can't get measurements %s"%err)
+            self.info("Failed result: %s"%json.dumps(result, indent=3))
 
     def confirm_multiple_transactions(self, signatures: List[Union[str, bytes]]):
         """Confirm a transaction."""
@@ -198,7 +200,7 @@ class SolanaInteractor:
         elapsed_time = 0
         while elapsed_time < TIMEOUT:
             response = self.client.get_signature_statuses(signatures)
-            logger.debug('confirm_transactions: %s', response)
+            self.debug('confirm_transactions: %s', response)
             if response['result'] is None:
                 continue
 
@@ -234,7 +236,8 @@ class SolanaInteractor:
         return result
 
     @staticmethod
-    def extract_measurements_from_receipt(receipt):
+    @logged_group("neon.proxy")
+    def extract_measurements_from_receipt(receipt, *, logger):
         if check_for_errors(receipt):
             logger.warning("Can't get measurements from receipt with error")
             logger.info("Failed result: %s"%json.dumps(receipt, indent=3))
