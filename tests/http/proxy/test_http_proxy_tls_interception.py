@@ -19,7 +19,7 @@ from unittest import mock
 
 from pytest_mock import MockerFixture
 
-from proxy.http import HttpProtocolHandler, httpMethods, HttpClientConnection
+from proxy.http import HttpProtocolHandler, HttpClientConnection, httpMethods
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
 from proxy.common.utils import bytes_, build_http_request

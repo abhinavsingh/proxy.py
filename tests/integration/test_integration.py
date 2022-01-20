@@ -11,13 +11,14 @@
     Test the simplest proxy use scenario for smoke.
 """
 import time
-import pytest
 import tempfile
 import subprocess
-
+from typing import Any, List, Generator
 from pathlib import Path
-from typing import Any, Generator, List
-from subprocess import Popen, check_output as _check_output
+from subprocess import Popen
+from subprocess import check_output as _check_output
+
+import pytest
 
 from proxy.common.constants import IS_WINDOWS
 

@@ -13,22 +13,21 @@ import sys
 import time
 import signal
 import logging
-
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 from proxy.core.ssh.listener import SshTunnelListener
-
+from .core.ssh import SshHttpProtocolHandler
 from .core.work import ThreadlessPool
 from .core.event import EventManager
-from .core.ssh import SshHttpProtocolHandler
-from .core.acceptor import AcceptorPool, Listener
-
-from .common.utils import bytes_
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_LOG_FILE
-from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
-from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
-from .common.constants import DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL, IS_WINDOWS
+from .common.utils import bytes_
+from .core.acceptor import Listener, AcceptorPool
+from .common.constants import (
+    IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
+    DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_LOG_FORMAT,
+    DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT, DEFAULT_ENABLE_DASHBOARD,
+    DEFAULT_ENABLE_SSH_TUNNEL,
+)
 
 
 logger = logging.getLogger(__name__)

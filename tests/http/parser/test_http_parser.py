@@ -16,8 +16,8 @@ from proxy.common.utils import (
     bytes_, find_http_line, build_http_header, build_http_request,
 )
 from proxy.http.exception import HttpProtocolException
-from proxy.http.responses import okResponse
 from proxy.http.protocols import httpProtocols
+from proxy.http.responses import okResponse
 from proxy.common.constants import CRLF, HTTP_1_0
 
 
