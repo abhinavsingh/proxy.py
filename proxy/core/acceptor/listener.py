@@ -28,7 +28,7 @@ flags.add_argument(
     '--backlog',
     type=int,
     default=DEFAULT_BACKLOG,
-    help='Default: 100. Maximum number of pending connections to proxy server',
+    help='Default: 100. Maximum number of pending connections to proxy server.',
 )
 
 flags.add_argument(
@@ -41,15 +41,17 @@ flags.add_argument(
 flags.add_argument(
     '--port',
     type=int,
-    default=DEFAULT_PORT,
-    help='Default: 8899. Server port.',
+    action='append',
+    nargs='+',
+    default=[DEFAULT_PORT],
+    help='Default: 8899.  Server port.  Can listen on multiple ports.',
 )
 
 flags.add_argument(
     '--port-file',
     type=str,
     default=DEFAULT_PORT_FILE,
-    help='Default: None. Save server port numbers. Useful when using --port=0 ephemeral mode.',
+    help='Default: None. Save server port numbers. Useful when using --port=0 ephemeral mode.'
 )
 
 flags.add_argument(

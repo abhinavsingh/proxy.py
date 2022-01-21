@@ -2246,8 +2246,8 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--enable-events]
           [--threadless] [--threaded] [--num-workers NUM_WORKERS]
           [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
-          [--hostname HOSTNAME] [--port PORT] [--port-file PORT_FILE]
-          [--unix-socket-path UNIX_SOCKET_PATH]
+          [--hostname HOSTNAME] [--port PORT [PORT ...]]
+          [--port-file PORT_FILE] [--unix-socket-path UNIX_SOCKET_PATH]
           [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
           [--log-file LOG_FILE] [--log-format LOG_FORMAT]
           [--open-file-limit OPEN_FILE_LIMIT]
@@ -2271,7 +2271,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.0rc7.dev28+gfbd7b46.d20220120
+proxy.py v2.4.0rc8.dev7+g1871027
 
 options:
   -h, --help            show this help message and exit
@@ -2310,9 +2310,11 @@ options:
                         executors, instead of using underlying OS kernel
                         scheduling algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
-                        proxy server
+                        proxy server.
   --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
-  --port PORT           Default: 8899. Server port.
+  --port PORT [PORT ...]
+                        Default: 8899. Server port. Can listen on multiple
+                        ports.
   --port-file PORT_FILE
                         Default: None. Save server port numbers. Useful when
                         using --port=0 ephemeral mode.
