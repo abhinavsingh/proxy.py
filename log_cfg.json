@@ -4,7 +4,8 @@
         "standard": {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
-            "formatter": "standard"
+            "formatter": "standard",
+            "filters": ["context_filter", "neon_logging_filter"]
         },
         "root": {
             "class": "logging.StreamHandler",
@@ -12,13 +13,21 @@
             "formatter": "root"
         }
     },
+    "filters": {
+        "context_filter": {
+            "()": "logged_groups.ContextFilter"
+        },
+        "neon_logging_filter": {
+            "()": "proxy.common_neon.logging.NeonPrefixDropper"
+        }
+    },
     "formatters": {
         "standard": {
-            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-10s %(name)15s:%(class)-30s %(message)s",
+            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-10s %(name)15s:%(class)-30s %(context)s %(message)s",
             "style": "%"
         },
         "root": {
-            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-10s %(name)15s:undefined                      %(message)s",
+            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-10s %(name)15s:Undefined                      %(message)s",
             "style": "%"
         }
     },

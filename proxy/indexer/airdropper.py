@@ -23,7 +23,7 @@ NEON_PRICE_USD = Decimal('0.25')
 FINALIZED = os.environ.get('FINALIZED', 'finalized')
 
 
-@logged_group("neon.airdropper")
+@logged_group("neon.Airdropper")
 class Airdropper(IndexerBase):
     def __init__(self,
                  solana_url,
@@ -263,7 +263,7 @@ class Airdropper(IndexerBase):
         self._constants['latest_processed_slot'] = self.latest_processed_slot
 
 
-@logged_group("neon.airdropper")
+@logged_group("neon.Airdropper")
 def run_airdropper(solana_url,
                    evm_loader_id,
                    pyth_mapping_account: PublicKey,

@@ -14,7 +14,7 @@ except ImportError:
     from .sql_dict import SQLDict
 
 
-@logged_group("neon.indexer")
+@logged_group("neon.Indexer")
 class IndexerDB:
     def __init__(self, client):
         self._logs_db = LogDB()

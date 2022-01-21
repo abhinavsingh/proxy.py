@@ -47,7 +47,7 @@ def unpack(layout_descriptor, raw_data, field_name, index = 0):
     return struct.unpack(field['format'], raw_data[start_idx:stop_idx])[0]
 
 
-@logged_group("neon.airdropper")
+@logged_group("neon.Airdropper")
 class PythNetworkClient:
     PYTH_MAGIC = 0xa1b2c3d4
     PROD_ACCT_SIZE = 512
