@@ -17,7 +17,7 @@ from unittest import mock
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
 from proxy.common.constants import (  # noqa: WPS450
-    DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
+    DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
     DEFAULT_LOG_FILE, DEFAULT_PAC_FILE, DEFAULT_PID_FILE, PLUGIN_DASHBOARD,
     DEFAULT_CERT_FILE, DEFAULT_LOG_LEVEL, DEFAULT_PORT_FILE, PLUGIN_HTTP_PROXY,
     PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_BASIC_AUTH,
@@ -77,6 +77,7 @@ class TestMain(unittest.TestCase):
         mock_args.local_executor = int(DEFAULT_LOCAL_EXECUTOR)
         mock_args.port_file = DEFAULT_PORT_FILE
         mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
+        mock_args.enable_reverse_proxy = DEFAULT_ENABLE_REVERSE_PROXY
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -243,7 +244,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_dashboard = True
         mock_args.local_executor = 0
-        main(enable_dashboard=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -290,7 +291,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_devtools = True
         mock_args.local_executor = 0
-        main(enable_devtools=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -335,7 +336,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_ssh_tunnel = True
         mock_args.local_executor = 0
-        main(enable_ssh_tunnel=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
