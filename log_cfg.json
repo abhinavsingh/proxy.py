@@ -5,7 +5,7 @@
             "class": "logging.StreamHandler",
             "level": "DEBUG",
             "formatter": "standard",
-            "filters": ["context_filter", "neon_logging_filter"]
+            "filters": ["context_filter", "neon_prefix_dropper"]
         },
         "root": {
             "class": "logging.StreamHandler",
@@ -17,7 +17,7 @@
         "context_filter": {
             "()": "logged_groups.ContextFilter"
         },
-        "neon_logging_filter": {
+        "neon_prefix_dropper": {
             "()": "proxy.common_neon.logging.NeonPrefixDropper"
         }
     },
