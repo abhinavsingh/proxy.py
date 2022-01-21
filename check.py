@@ -37,6 +37,7 @@ ALL_PY_FILES = (
     list(REPO_ROOT.glob('*.py')) +
     list((REPO_ROOT / 'proxy').rglob('*.py')) +
     list((REPO_ROOT / 'examples').rglob('*.py')) +
+    list((REPO_ROOT / 'skeleton').rglob('*.py')) +
     list((REPO_ROOT / 'benchmark').rglob('*.py')) +
     list((REPO_ROOT / 'tests').rglob('*.py'))
 )
