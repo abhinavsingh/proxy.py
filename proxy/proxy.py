@@ -173,6 +173,9 @@ class Proxy:
         listener.setup()
         return listener
 
+    def teardown_listener(self, listener: Listener) -> None:
+        listener.shutdown()
+
     def setup(self) -> None:
         # TODO: Introduce cron feature
         # https://github.com/abhinavsingh/proxy.py/discussions/808
@@ -191,14 +194,14 @@ class Proxy:
         # in case of ephemeral port being used
         if isinstance(self.flags.port, List):
             for port in self.flags.port:
-                pass
+                listener = self.setup_listener()
+                self.listeners.append(listener)
         else:
-            listener = self.setup_listener()
-            self.listeners.append(listener)
+            self.listeners.append(self.setup_listener())
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
-        self.flags.port = listener._port
+        self.flags.port = self.listeners[0]._port
         self._write_port_file()
         # Setup EventManager
         if self.flags.enable_events:
@@ -255,7 +258,8 @@ class Proxy:
             assert self.event_manager is not None
             self.event_manager.shutdown()
         for listener in self.listeners:
-            listener.shutdown()
+            self.teardown_listener(listener)
+        self.listeners.clear()
         self._delete_port_file()
         self._delete_pid_file()
 
