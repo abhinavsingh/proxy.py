@@ -40,7 +40,7 @@ class TestAcceptorPool(unittest.TestCase):
         self.assertEqual(flags.num_acceptors, num_acceptors)
 
         pool = AcceptorPool(
-            flags=flags, listener=mock_listener.return_value,
+            flags=flags, listeners=mock_listener.return_value,
             executor_queues=[], executor_pids=[], executor_locks=[],
         )
         pool.setup()

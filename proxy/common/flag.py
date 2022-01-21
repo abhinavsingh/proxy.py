@@ -323,7 +323,7 @@ class FlagParser:
         # Similarly, if any developer intends to use the same,
         # they MUST consider ``flags.port`` to be a list of integers.
         #
-        if len(args.port) == 1:
+        if isinstance(args.port, List) and len(args.port) == 1:
             args.port = args.port[0]
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)

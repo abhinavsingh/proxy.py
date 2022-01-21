@@ -64,7 +64,7 @@ class AcceptorPool:
     def __init__(
             self,
             flags: argparse.Namespace,
-            listener: Listener,
+            listeners: List[Listener],
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
             executor_locks: List['multiprocessing.synchronize.Lock'],
@@ -72,7 +72,7 @@ class AcceptorPool:
     ) -> None:
         self.flags = flags
         # File descriptor to use for accepting new work
-        self.listener: Listener = listener
+        self.listeners: List[Listener] = listeners
         # Available executors
         self.executor_queues: List[connection.Connection] = executor_queues
         self.executor_pids: List[int] = executor_pids
@@ -109,14 +109,15 @@ class AcceptorPool:
             ),
         )
         # Send file descriptor to all acceptor processes.
-        fd = self.listener.fileno()
-        for index in range(self.flags.num_acceptors):
-            send_handle(
-                self.fd_queues[index],
-                fd,
-                self.acceptors[index].pid,
-            )
-            self.fd_queues[index].close()
+        for listener in self.listeners:
+            fd = listener.fileno()
+            for index in range(self.flags.num_acceptors):
+                send_handle(
+                    self.fd_queues[index],
+                    fd,
+                    self.acceptors[index].pid,
+                )
+                self.fd_queues[index].close()
 
     def shutdown(self) -> None:
         logger.info('Shutting down %d acceptors' % self.flags.num_acceptors)

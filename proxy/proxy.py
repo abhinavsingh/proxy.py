@@ -154,7 +154,7 @@ class Proxy:
 
     def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
         self.flags = FlagParser.initialize(input_args, **opts)
-        self.listener: Optional[Listener] = None
+        self.listeners: List[Listener] = []
         self.executors: Optional[ThreadlessPool] = None
         self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
@@ -167,6 +167,11 @@ class Proxy:
 
     def __exit__(self, *args: Any) -> None:
         self.shutdown()
+
+    def setup_listener(self) -> Listener:
+        listener = Listener(flags=self.flags)
+        listener.setup()
+        return listener
 
     def setup(self) -> None:
         # TODO: Introduce cron feature
@@ -184,12 +189,16 @@ class Proxy:
         self._write_pid_file()
         # We setup listeners first because of flags.port override
         # in case of ephemeral port being used
-        self.listener = Listener(flags=self.flags)
-        self.listener.setup()
+        if isinstance(self.flags.port, List):
+            for port in self.flags.port:
+                pass
+        else:
+            listener = self.setup_listener()
+            self.listeners.append(listener)
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
-        self.flags.port = self.listener._port
+        self.flags.port = listener._port
         self._write_port_file()
         # Setup EventManager
         if self.flags.enable_events:
@@ -210,7 +219,7 @@ class Proxy:
         # Setup acceptors
         self.acceptors = AcceptorPool(
             flags=self.flags,
-            listener=self.listener,
+            listeners=self.listeners,
             executor_queues=self.executors.work_queues if self.executors else [],
             executor_pids=self.executors.work_pids if self.executors else [],
             executor_locks=self.executors.work_locks if self.executors else [],
@@ -245,8 +254,8 @@ class Proxy:
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.shutdown()
-        assert self.listener
-        self.listener.shutdown()
+        for listener in self.listeners:
+            listener.shutdown()
         self._delete_port_file()
         self._delete_pid_file()
 
