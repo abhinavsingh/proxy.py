@@ -34,6 +34,8 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
             proxy_pass http://httpbin.org/get
         }
         ```
+
+    Update the routes config before.
     """
 
     def routes(self) -> List[Tuple[str, List[bytes]]]:
