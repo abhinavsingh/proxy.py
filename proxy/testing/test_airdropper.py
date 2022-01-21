@@ -264,6 +264,24 @@ class Test_Airdropper(unittest.TestCase):
         mock_dict_get.assert_called_once_with('latest_processed_slot', ANY)
         mock_get_slot.assert_not_called()
 
+    @patch.object(SQLDict, 'get')
+    @patch.object(SolanaClient, 'get_slot')
+    def test_init_airdropper_slot_continue_recent_slot_not_found(self, mock_get_slot, mock_dict_get):
+        mock_dict_get.side_effect = [None]
+        with self.assertRaises(Exception):
+            self.create_airdropper('CONTINUE')
+        mock_dict_get.assert_called_once_with('latest_processed_slot', ANY)
+        mock_get_slot.assert_not_called()
+
+    
+    @patch.object(SQLDict, 'get')
+    @patch.object(SolanaClient, 'get_slot')
+    def test_init_airdropper_start_slot_parse_error(self, mock_get_slot, mock_dict_get):
+        with self.assertRaises(Exception):
+            self.create_airdropper('Wrong value')
+        mock_dict_get.assert_not_called()
+        mock_get_slot.assert_not_called()
+
 
     @patch.object(SQLDict, 'get')
     @patch.object(SolanaClient, 'get_slot')

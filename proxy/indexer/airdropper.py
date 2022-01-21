@@ -110,7 +110,9 @@ class Airdropper(IndexerBase):
         self._constants = SQLDict(tablename="constants")
         if start_slot == 'CONTINUE':
             self.info('Trying to use latest processed slot from previous run')
-            start_slot = self._constants.get('latest_processed_slot', 0)
+            start_slot = self._constants.get('latest_processed_slot', None)
+            if start_slot is None:
+                raise Exception('START_SLOT set to CONINUE but recent slot number not found in DB')
         elif start_slot == 'LATEST':
             self.info('Airdropper will start at latest blockchain slot')
             client = SolanaClient(solana_url)
@@ -118,10 +120,9 @@ class Airdropper(IndexerBase):
         else:
             try:
                 start_slot = int(start_slot)
-            except Exception as err:
-                self.warning(f'''Unsupported value for start_slot: {start_slot}.
-                Must be either integer value or one of [CONTINUE,LATEST]''')
-                raise
+            except:
+                raise Exception(f'Failed to parse start_slot value: {start_slot}')
+
         self.info(f'Start slot is {start_slot}')
 
         IndexerBase.__init__(self, solana_url, evm_loader_id, start_slot)
@@ -362,13 +363,16 @@ def run_airdropper(solana_url,
         Price provider solana: {pp_solana_url},
         Max confidence interval: {max_conf}""")
 
-    airdropper = Airdropper(solana_url,
-                            evm_loader_id,
-                            pyth_mapping_account,
-                            faucet_url,
-                            wrapper_whitelist,
-                            neon_decimals,
-                            start_slot,
-                            pp_solana_url,
-                            max_conf)
-    airdropper.run()
+    try:
+        airdropper = Airdropper(solana_url,
+                                evm_loader_id,
+                                pyth_mapping_account,
+                                faucet_url,
+                                wrapper_whitelist,
+                                neon_decimals,
+                                start_slot,
+                                pp_solana_url,
+                                max_conf)
+        airdropper.run()
+    except Exception as err:
+        logger.error(f'Failed to start Airdropper: {err}')
