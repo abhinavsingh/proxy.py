@@ -168,7 +168,7 @@ class EthereumModel:
         return self.db.get_logs(fromBlock, toBlock, address, topics, blockHash)
 
     def getBlockBySlot(self, slot, full):
-        block = self.db.get_full_block_by_slot(slot, commitment='confirmed')
+        block = self.db.get_full_block_by_slot(slot)
         if block.slot is None:
             return None
 
@@ -176,7 +176,7 @@ class EthereumModel:
         gasUsed = 0
         trx_index = 0
         for signature in block.signs:
-            tx = self.db.get_tx_by_sol_sign(signature, commitment='confirmed')
+            tx = self.db.get_tx_by_sol_sign(signature)
             if not tx:
                 continue
 
@@ -308,7 +308,7 @@ class EthereumModel:
         self.debug('eth_getTransactionReceipt: %s', trxId)
 
         neon_sign = trxId.lower()
-        tx = self.db.get_tx_by_neon_sign(neon_sign, commitment='confirmed')
+        tx = self.db.get_tx_by_neon_sign(neon_sign)
         if not tx:
             self.debug("Not found receipt")
             return None
@@ -388,7 +388,7 @@ class EthereumModel:
             self.debug('Transaction signature: %s %s', signature, eth_signature)
             neon_tx = NeonTxInfo()
             neon_tx.init_from_eth_tx(trx)
-            self.db.submit_transaction(neon_tx, neon_res, [], commitment='confirmed')
+            self.db.submit_transaction(neon_tx, neon_res, [])
             return eth_signature
 
         except SolanaTrxError as err:
