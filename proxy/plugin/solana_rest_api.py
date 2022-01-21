@@ -488,7 +488,6 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
     SOLANA_PROXY_PASS = [
         b'http://localhost:8545/'
     ]
-    NANOSECONDS_PER_MONTH = 2678400000000017
 
     def __init__(self, *args):
         HttpWebServerBasePlugin.__init__(self, *args)
