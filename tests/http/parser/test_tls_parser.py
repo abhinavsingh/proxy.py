@@ -14,7 +14,7 @@ from pathlib import Path
 
 import unittest
 
-from proxy.http.parser.tls import TlsParser, tlsContentType, tlsHandshakeType
+from proxy.core.tls import TlsParser, tlsContentType, tlsHandshakeType
 
 
 class TestTlsParser(unittest.TestCase):
