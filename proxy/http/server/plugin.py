@@ -96,3 +96,12 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
         Return None if plugin has logged the request.
         """
         return context
+
+
+class ReverseProxyBasePlugin(ABC):
+    """ReverseProxyPlugin base class."""
+
+    @abstractmethod
+    def routes(self) -> List[Tuple[str, List[bytes]]]:
+        """Return List(path, List(upstream)) reverse proxy config."""
+        raise NotImplementedError()     # pragma: no cover
