@@ -30,8 +30,8 @@ from proxy.common.constants import (  # noqa: WPS450
     DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_ENABLE_WEB_SERVER,
     DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_WEBSOCKET_TRANSPORT,
     DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
-    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_ENABLE_STATIC_SERVER,
-    _env_threadless_compliant,
+    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_ENABLE_REVERSE_PROXY,
+    DEFAULT_ENABLE_STATIC_SERVER, _env_threadless_compliant,
 )
 
 
@@ -77,6 +77,7 @@ class TestMain(unittest.TestCase):
         mock_args.local_executor = int(DEFAULT_LOCAL_EXECUTOR)
         mock_args.port_file = DEFAULT_PORT_FILE
         mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
+        mock_args.enable_reverse_proxy = DEFAULT_ENABLE_REVERSE_PROXY
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -243,7 +244,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_dashboard = True
         mock_args.local_executor = 0
-        main(enable_dashboard=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -290,7 +291,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_devtools = True
         mock_args.local_executor = 0
-        main(enable_devtools=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -335,7 +336,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_ssh_tunnel = True
         mock_args.local_executor = 0
-        main(enable_ssh_tunnel=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [

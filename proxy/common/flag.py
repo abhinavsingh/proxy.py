@@ -26,8 +26,8 @@ from .version import __version__
 from .constants import (
     COMMA, IS_WINDOWS, PLUGIN_PAC_FILE, PLUGIN_DASHBOARD, PLUGIN_HTTP_PROXY,
     PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_NUM_WORKERS,
-    DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC, DEFAULT_DISABLE_HEADERS,
-    PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
+    PLUGIN_REVERSE_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC,
+    DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
     PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEBSOCKET_TRANSPORT,
     DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_MIN_COMPRESSION_LIMIT,
 )
@@ -415,6 +415,9 @@ class FlagParser:
                 args.pac_file is not None or \
                 args.enable_static_server:
             default_plugins.append(PLUGIN_WEB_SERVER)
+        if args.enable_reverse_proxy:
+            default_plugins.append(PLUGIN_WEB_SERVER)
+            default_plugins.append(PLUGIN_REVERSE_PROXY)
         if args.pac_file is not None:
             default_plugins.append(PLUGIN_PAC_FILE)
         return list(collections.OrderedDict.fromkeys(default_plugins).keys())
