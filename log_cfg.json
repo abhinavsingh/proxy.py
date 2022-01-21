@@ -23,11 +23,11 @@
     },
     "formatters": {
         "standard": {
-            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-10s %(name)15s:%(class)-30s %(context)s %(message)s",
+            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-11s %(name)15s:%(class)-30s %(context)s %(message)s",
             "style": "%"
         },
         "root": {
-            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-10s %(name)15s:Undefined                      %(message)s",
+            "format": "%(asctime)23s %(levelname)8s %(process)6d:%(threadName)-11s %(name)15s:Undefined                      %(message)s",
             "style": "%"
         }
     },
