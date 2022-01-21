@@ -487,6 +487,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
     SOLANA_PROXY_PASS = [
         b'http://localhost:8545/'
     ]
+    NANOSECONDS_PER_MONTH = 2678400000000017
 
     def __init__(self, *args):
         HttpWebServerBasePlugin.__init__(self, *args)
@@ -534,7 +535,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         return response
 
     def handle_request(self, request: HttpParser) -> None:
-        unique_req_id = time.time_ns()
+        unique_req_id = time.time_ns() % SolanaProxyPlugin.NANOSECONDS_PER_MONTH
         with logging_context(req_id=unique_req_id):
             self.handle_request_impl(request)
             self.info("Request processed")
