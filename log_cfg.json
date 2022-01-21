@@ -23,12 +23,12 @@
     },
     "formatters": {
         "standard": {
-            "format": "%(asctime)s.%(msecs)03d %(levelname)8s %(process)6d:%(threadName)-11s %(name)15s:%(class)-30s %(context)s %(message)s",
+            "format": "%(asctime)s.%(msecs)03d %(levelname)8s %(process)6d:%(threadName)-11s %(name)14s:%(class)-30s %(context)s %(message)s",
             "style": "%",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         },
         "root": {
-            "format": "%(asctime)s.%(msecs)03d %(levelname)8s %(process)6d:%(threadName)-11s %(name)15s:Undefined                      %(message)s",
+            "format": "%(asctime)s.%(msecs)03d %(levelname)8s %(process)6d:%(threadName)-11s %(name)14s:Undefined                      %(message)s",
             "style": "%",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         }
