@@ -1784,7 +1784,9 @@ Listed below are a few strategies for using `proxy.py` in your private/productio
 
 > You MUST `avoid forking` the repository *"just"* to put your plugin code in `proxy/plugin` directory.  Forking is recommended workflow for project contributors, NOT for project users.
 
-Instead, use one of the suggested approaches from below.  Then load your plugins using `--plugin`, `--plugins` flags or `plugin` kwargs.
+- Instead, use one of the suggested approaches from below.
+- Then load your plugins using `--plugin`, `--plugins` flags or `plugin` kwargs.
+- See [skeleton](https://github.com/abhinavsingh/proxy.py/tree/develop/skeleton) app for example standalone project using `proxy.py`.
 
 ### Via Requirements
 

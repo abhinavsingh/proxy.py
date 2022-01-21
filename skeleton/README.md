@@ -31,4 +31,7 @@ $ python -m app
 ...[redacted]... - 127.0.0.1:64622 - GET / - curl/7.77.0 - 0.95ms
 ```
 
-Voila!!! That's your custom app skeleton structure built on top of `proxy.py`.
+Voila!!!
+
+That is your custom app skeleton structure built on top of `proxy.py`.  Now copy the `app` directory
+outside of `proxy.py` repo and create your own git repo.  Customize the `app` for your project needs
