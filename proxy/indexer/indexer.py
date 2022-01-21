@@ -366,7 +366,7 @@ class DummyIxDecoder:
 
         rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data))
         if rlp_error:
-            self.error(f'Neon tx rlp error: {rlp_error}, on instruction: {self}')
+            self.error(f'{self} Neon tx rlp error: {rlp_error}')
 
         tx.holder_account = holder_account
         tx.move_ix_used(holder)
