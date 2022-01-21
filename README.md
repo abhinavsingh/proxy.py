@@ -202,8 +202,10 @@
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
     - `--plugins proxy.plugin.ProxyPoolPlugin`
-  - Optionally, enable builtin [Web Server](#http-web-server-plugins). Example:
-    - `--enable-web-server --plugins proxy.plugin.ReverseProxyPlugin`
+  - Enable builtin [Web Server](#http-web-server-plugins). Example:
+    - `--enable-web-server --plugins proxy.plugin.WebServerPlugin`
+  - Enable builtin Reverse Proxy Server. Example:
+    - `--enable-reverse-proxy --plugins proxy.plugin.ReverseProxyPlugin`
   - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
 - Real-time Dashboard
   - Optionally, enable [proxy.py dashboard](#run-dashboard).
@@ -947,7 +949,7 @@ Extend in-built Web Server to add Reverse Proxy capabilities.
 Start `proxy.py` as:
 
 ```console
-❯ proxy --enable-web-server \
+❯ proxy --enable-reverse-proxy \
     --plugins proxy.plugin.ReverseProxyPlugin
 ```
 

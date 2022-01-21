@@ -34,22 +34,6 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
             proxy_pass http://httpbin.org/get
         }
         ```
-
-    Example::
-
-        ```console
-        $ curl http://localhost:9000/get
-        {
-          "args": {},
-          "headers": {
-            "Accept": "*/*",
-            "Host": "localhost",
-            "User-Agent": "curl/7.64.1"
-          },
-          "origin": "1.2.3.4, 5.6.7.8",
-          "url": "http://localhost/get"
-        }
-        ```
     """
 
     def routes(self) -> List[Tuple[str, List[bytes]]]:

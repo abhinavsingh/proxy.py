@@ -62,7 +62,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
         # Example, here we don't know which of our registered
         # route actually matched.
         #
-        for route in self.reverse.keys():
+        for route in self.reverse:
             pattern = re.compile(route)
             if pattern.match(text_(request.path)):
                 self.choice = Url.from_bytes(

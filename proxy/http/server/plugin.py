@@ -99,7 +99,7 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
 
 
 class ReverseProxyBasePlugin(ABC):
-    """ReverseProxyPlugin base class."""
+    """ReverseProxy base plugin class."""
 
     @abstractmethod
     def routes(self) -> List[Tuple[str, List[bytes]]]:
