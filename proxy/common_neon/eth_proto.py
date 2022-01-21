@@ -42,7 +42,7 @@ class Trx(rlp.Serializable):
     @classmethod
     def fromString(cls, s):
         return rlp.decode(s, Trx)
-    
+
     def chainId(self):
         # chainid*2 + 35  xxxxx0 + 100011   xxxx0 + 100010 +1
         # chainid*2 + 36  xxxxx0 + 100100   xxxx0 + 100011 +1
@@ -56,15 +56,24 @@ class Trx(rlp.Serializable):
     def signature(self):
         return keys.Signature(vrs=[1 if self.v % 2 == 0 else 0, self.r, self.s]).to_bytes()
 
-    def sender(self):
+    def _sender(self):
         hash = keccak_256(self.unsigned_msg()).digest()
-        sig = keys.Signature(vrs=[1 if self.v%2==0 else 0, self.r, self.s])
+        sig = keys.Signature(vrs=[1 if self.v % 2 == 0 else 0, self.r, self.s])
         pub = sig.recover_public_key_from_msg_hash(hash)
-        return pub.to_canonical_address().hex()
+        return pub.to_canonical_address()
+
+    def sender(self):
+        return self._sender().hex()
 
     def hash_signed(self):
         return keccak_256(rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData,
                                       self.v, self.r, self.s))).digest()
+
+    def contract(self):
+        if self.toAddress:
+            return None
+        contract_addr = rlp.encode((self._sender(), self.nonce))
+        return keccak_256(contract_addr).digest()[-20:].hex()
 
 #class JsonEncoder(json.JSONEncoder):
 #    def default(self, obj):

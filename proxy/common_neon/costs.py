@@ -1,7 +1,7 @@
 import base58
 import psycopg2
 
-from ..environment import EVM_LOADER_ID, WRITE_TRANSACTION_COST_IN_DB
+from ..environment import EVM_LOADER_ID
 from ..indexer.sql_dict import POSTGRES_USER, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PASSWORD
 
 class SQLCost():
@@ -48,9 +48,6 @@ operator_cost = SQLCost()
 
 
 def update_transaction_cost(receipt, eth_trx, extra_sol_trx=False, reason=None):
-    if not WRITE_TRANSACTION_COST_IN_DB:
-        return
-
     cost = receipt['meta']['preBalances'][0] - receipt['meta']['postBalances'][0]
     if eth_trx:
         hash = eth_trx.hash_signed().hex()

@@ -12,7 +12,6 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=0
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="postgres"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
-  [[ -z "$RETRY_ON_BLOCKED"             ]] && export RETRY_ON_BLOCKED=32
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
   [[ -z "$FINALIZED"                    ]] && export FINALIZED="confirmed"
 elif [ "$CONFIG" == "local" ]; then
@@ -22,7 +21,6 @@ elif [ "$CONFIG" == "local" ]; then
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=0
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
-  [[ -z "$RETRY_ON_BLOCKED"             ]] && export RETRY_ON_BLOCKED=32
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
   [[ -z "$FINALIZED"                    ]] && export FINALIZED="confirmed"
 elif [ "$CONFIG" == "devnet" ]; then
@@ -33,7 +31,6 @@ elif [ "$CONFIG" == "devnet" ]; then
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=1
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=60
-  [[ -z "$RETRY_ON_BLOCKED"             ]] && export RETRY_ON_BLOCKED=32
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
   [[ -z "$FINALIZED"                    ]] && export FINALIZED="finalized"
 elif [ "$CONFIG" == "testnet" ]; then
@@ -44,7 +41,6 @@ elif [ "$CONFIG" == "testnet" ]; then
   [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE="1"
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=60
-  [[ -z "$RETRY_ON_BLOCKED"             ]] && export RETRY_ON_BLOCKED=32
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
   [[ -z "$FINALIZED"                    ]] && export FINALIZED="finalized"
 elif [ "$CONFIG" != "custom" ]; then

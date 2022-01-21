@@ -2,7 +2,6 @@ import base64
 import logging
 
 from datetime import datetime
-from solana.account import Account as SolanaAccount
 from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
 from solana.rpc.commitment import Confirmed
@@ -10,9 +9,8 @@ from solana.rpc.commitment import Confirmed
 from ..common_neon.address import ether2program, getTokenAddr, EthereumAddress, AccountInfo
 from ..common_neon.errors import SolanaAccountNotFoundError, SolanaErrors
 from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT
-from ..common_neon.neon_instruction import NeonInstruction
 from ..common_neon.solana_interactor import SolanaInteractor
-from ..common_neon.transaction_sender import TransactionSender
+from ..common_neon.transaction_sender import NeonTxSender
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.utils import get_from_dict
 from ..environment import NEW_USER_AIRDROP_AMOUNT, read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
@@ -46,8 +44,8 @@ def neon_config_load(ethereum_model):
 
 def call_signed(signer, client, eth_trx, steps):
     solana_interactor = SolanaInteractor(signer, client)
-    trx_sender = TransactionSender(solana_interactor, eth_trx, steps)
-    return trx_sender.execute()
+    tx_sender = NeonTxSender(solana_interactor, eth_trx, steps)
+    return tx_sender.execute()
 
 
 
@@ -66,15 +64,6 @@ def getAccountInfo(client, eth_account: EthereumAddress):
     account_sol, nonce = ether2program(eth_account)
     info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
     return AccountInfo.frombytes(info)
-
-
-def create_eth_account_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress):
-    trx = NeonInstruction(signer.public_key()).make_trx_with_create_and_airdrop (eth_account)
-    result = SolanaInteractor(signer, client).send_transaction(trx, None, reason='create_eth_account_and_airdrop')
-    error = result.get("error")
-    if error is not None:
-        logger.error(f"Failed to create eth_account and airdrop: {eth_account}, error occurred: {error}")
-        raise Exception("Create eth_account error")
 
 
 def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
@@ -96,19 +85,15 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
     return int(balance)
 
 
-def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress) -> int:
+def get_token_balance_or_airdrop(client: SolanaClient, eth_account: EthereumAddress) -> int:
     solana_account, nonce = ether2program(eth_account)
     logger.debug(f"Get balance for eth account: {eth_account} aka: {solana_account}")
 
     try:
         return get_token_balance_gwei(client, solana_account)
     except SolanaAccountNotFoundError:
-        logger.debug(f"Account not found:  {eth_account} aka: {solana_account} - create")
-        if NEW_USER_AIRDROP_AMOUNT == 0:
-            return 0
-            
-        create_eth_account_and_airdrop(client, signer, eth_account)
-        return get_token_balance_gwei(client, solana_account)
+        logger.debug(f"Account not found:  {eth_account} aka: {solana_account} - return airdrop amount")
+        return NEW_USER_AIRDROP_AMOUNT * 1_000_000_000
 
 
 def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> bool:
@@ -118,10 +103,7 @@ def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> boo
     return value is not None
 
 
-def estimate_gas(client: SolanaClient, signer: SolanaAccount, contract_id: str, caller_eth_account: EthereumAddress,
-                 data: str = None, value: str = None):
-    if not is_account_exists(client, caller_eth_account):
-        create_eth_account_and_airdrop(client, signer, caller_eth_account)
+def estimate_gas(contract_id: str, caller_eth_account: EthereumAddress, data: str = None, value: str = None):
     result = call_emulated(contract_id, str(caller_eth_account), data, value)
     used_gas = result.get("used_gas")
     if used_gas is None:

@@ -23,13 +23,14 @@ from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from solana.account import Account as sol_Account
-from solana.rpc.api import Client as SolanaClient, SendTransactionError as SolanaTrxError
+from solana.rpc.api import Client as SolanaClient
 from typing import List, Tuple, Optional
 from web3 import Web3
 
 from .solana_rest_api_tools import getAccountInfo, call_signed, neon_config_load, \
     get_token_balance_or_airdrop, estimate_gas
 from ..common_neon.address import EthereumAddress
+from ..common_neon.transaction_sender import SolanaTxError
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError
 from ..common_neon.eth_proto import Trx as EthTrx
@@ -112,9 +113,10 @@ class EthereumModel:
             contract_id = param.get('to', "deploy")
             data = param.get('data', "None")
             value = param.get('value', "")
-            return estimate_gas(self.client, self.signer, contract_id, EthereumAddress(caller_id), data, value)
+            return estimate_gas(contract_id, EthereumAddress(caller_id), data, value)
         except Exception as err:
-            logger.debug("Exception on eth_estimateGas: %s", err)
+            err_tb = "".join(traceback.format_tb(err.__traceback__))
+            logger.debug(f"Exception on eth_estimateGas: {err}: {err_tb}")
             raise
 
     def __repr__(self):
@@ -144,7 +146,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         logger.debug('eth_getBalance: %s %s', account, eth_acc)
-        balance = get_token_balance_or_airdrop(self.client, self.signer, eth_acc)
+        balance = get_token_balance_or_airdrop(self.client, eth_acc)
 
         return hex(balance * eth_utils.denoms.gwei)
 
@@ -385,14 +387,14 @@ class EthereumModel:
                                     ]
                                 })
         try:
-            neon_res, signature = call_signed(self.signer, self.client, trx, steps=250)
-            logger.debug('Transaction signature: %s %s', signature, eth_signature)
+            neon_res = call_signed(self.signer, self.client, trx, steps=500)
+            logger.debug('Transaction signature: %s %s', neon_res.sol_sign, eth_signature)
             neon_tx = NeonTxInfo()
             neon_tx.init_from_eth_tx(trx)
             self.db.submit_transaction(neon_tx, neon_res, [])
             return eth_signature
 
-        except SolanaTrxError as err:
+        except SolanaTxError as err:
             self._log_transaction_error(err, logger)
             raise
         except EthereumError as err:
@@ -402,12 +404,9 @@ class EthereumModel:
             logger.debug("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
             raise
 
-    def _log_transaction_error(self, error: SolanaTrxError, logger):
-        result = copy.deepcopy(error.result)
-        logs = result.get("data", {}).get("logs", [])
-        result.get("data", {}).update({"logs": ["\n\t" + log for log in logs]})
-        log_msg = str(result).replace("\\n\\t", "\n\t")
-        logger.error(f"Got SendTransactionError: {log_msg}")
+    def _log_transaction_error(self, error: SolanaTxError, logger):
+        err_msg = json.dumps(error.result, indent=3)
+        logger.error(f"Got SendTransactionError: {err_msg}")
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -518,7 +517,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 method = getattr(self.model, request['method'])
                 params = request.get('params', [])
                 response['result'] = method(*params)
-        except SolanaTrxError as err:
+        except SolanaTxError as err:
             # traceback.print_exc()
             response['error'] = err.result
         except EthereumError as err:

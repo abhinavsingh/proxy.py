@@ -121,7 +121,7 @@ class NeonInstruction:
 
     def create_account_with_seed_trx(self, account, seed, lamports, space):
         seed_str = str(seed, 'utf8')
-        logger.debug("createAccountWithSeedTrx base(%s) account(%s) seed(%s)", type(self.operator_account),account, seed_str)
+        logger.debug(f"createAccountWithSeedTrx {self.operator_account} account({account} seed({seed_str})")
         return TransactionInstruction(
             keys=[
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
@@ -134,6 +134,8 @@ class NeonInstruction:
 
 
     def make_create_eth_account_trx(self, eth_address: EthereumAddress, code_acc=None) -> Tuple[Transaction, PublicKey]:
+        if isinstance(eth_address, str):
+            eth_address = EthereumAddress(eth_address)
         pda_account, nonce = ether2program(eth_address)
         neon_token_account = getTokenAddr(PublicKey(pda_account))
         logger.debug(f'Create eth account: {eth_address}, sol account: {pda_account}, neon_token_account: {neon_token_account}, nonce: {nonce}')
@@ -220,15 +222,15 @@ class NeonInstruction:
         return trx
 
 
-    def make_resize_instruction(self, acc_desc, code_account_new, seed) -> TransactionInstruction:
+    def make_resize_instruction(self, account, code_account_old, code_account_new, seed) -> TransactionInstruction:
         return TransactionInstruction(
             program_id = EVM_LOADER_ID,
             data = bytearray.fromhex("11") + bytes(seed), # 17- ResizeStorageAccount
             keys = [
-                AccountMeta(pubkey=PublicKey(acc_desc["account"]), is_signer=False, is_writable=True),
+                AccountMeta(pubkey=PublicKey(account), is_signer=False, is_writable=True),
                 (
-                    AccountMeta(pubkey=acc_desc["contract"], is_signer=False, is_writable=True)
-                    if acc_desc["contract"] else
+                    AccountMeta(pubkey=code_account_old, is_signer=False, is_writable=True)
+                    if code_account_old else
                     AccountMeta(pubkey=PublicKey("11111111111111111111111111111111"), is_signer=False, is_writable=False)
                 ),
                 AccountMeta(pubkey=code_account_new, is_signer=False, is_writable=True),
@@ -300,7 +302,7 @@ class NeonInstruction:
         ))
 
 
-    def make_partial_call_or_continue_instruction(self, steps: int = 0) -> TransactionInstruction:
+    def make_partial_call_or_continue_instruction(self, steps=0) -> TransactionInstruction:
         data = bytearray.fromhex("0D") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder="little") + self.msg
         return TransactionInstruction(
             program_id = EVM_LOADER_ID,
@@ -322,14 +324,14 @@ class NeonInstruction:
         )
 
 
-    def make_partial_call_or_continue_transaction(self, steps: int = 0, length_before: int = 0) -> Transaction:
+    def make_partial_call_or_continue_transaction(self, steps=0, length_before=0) -> Transaction:
         trx = Transaction()
         trx.add(self.make_keccak_instruction(length_before + 1, len(self.eth_trx.unsigned_msg()), 13))
         trx.add(self.make_partial_call_or_continue_instruction(steps))
         return trx
 
 
-    def make_partial_call_or_continue_from_account_data(self, steps, index=None) -> Transaction:
+    def make_partial_call_or_continue_from_account_data(self, steps, index=0) -> Transaction:
         data = bytearray.fromhex("0E") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder='little')
         if index:
             data = data + index.to_bytes(8, byteorder="little")

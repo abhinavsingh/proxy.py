@@ -111,7 +111,7 @@ class NeonTxResultInfo:
         }
         self.logs.append(rec)
 
-    def _decode_return(self, log: bytes(), ix_idx: int, tx: {}):
+    def _decode_return(self, log: bytes, ix_idx: int, tx: {}):
         self.status = '0x1' if log[1] < 0xd0 else '0x0'
         self.gas_used = hex(int.from_bytes(log[2:10], 'little'))
         self.return_value = log[10:].hex()
@@ -149,8 +149,8 @@ class NeonTxResultInfo:
     def clear(self):
         self._set_defaults()
 
-    def is_valid(self):
-        return (self.slot != -1)
+    def is_valid(self) -> bool:
+        return self.slot != -1
 
 
 class NeonTxInfo:
@@ -192,9 +192,8 @@ class NeonTxInfo:
         self.calldata = '0x' + tx.callData.hex()
 
         if not tx.toAddress:
-            contract = rlp.encode((bytes.fromhex(self.addr[2:]), tx.nonce))
-            self.contract = '0x' + bytes(w3.keccak(contract))[-20:].hex()
             self.to_addr = None
+            self.contract = '0x' + tx.contract()
         else:
             self.to_addr = '0x' + tx.toAddress.hex()
             self.contract = None
