@@ -169,6 +169,7 @@ repos:
     - --strict-optional
     - benchmark/
     - examples/
+    - skeleton/
     - proxy/
     - tests/
     pass_filenames: false
