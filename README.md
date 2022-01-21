@@ -63,8 +63,9 @@
     - [Custom Network Interface](#customnetworkinterface)
     - [Program Name Plugin](#programnameplugin)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
-    - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
+  - [Reverse Proxy Plugins](#reverse-proxy-plugins)
+    - [Reverse Proxy](#reverse-proxy)
   - [Plugin Ordering](#plugin-ordering)
 - [End-to-End Encryption](#end-to-end-encryption)
 - [TLS Interception](#tls-interception)
@@ -204,7 +205,7 @@
     - `--plugins proxy.plugin.ProxyPoolPlugin`
   - Enable builtin [Web Server](#http-web-server-plugins). Example:
     - `--enable-web-server --plugins proxy.plugin.WebServerPlugin`
-  - Enable builtin Reverse Proxy Server. Example:
+  - Enable builtin [Reverse Proxy Server](#reverse-proxy-plugins). Example:
     - `--enable-reverse-proxy --plugins proxy.plugin.ReverseProxyPlugin`
   - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
 - Real-time Dashboard
@@ -942,9 +943,28 @@ Notice `curl` in-place of `::1` or `127.0.0.1` as client IP.
 
 ## HTTP Web Server Plugins
 
-### Reverse Proxy
+### Web Server Route
 
-Extend in-built Web Server to add Reverse Proxy capabilities.
+Demonstrates inbuilt web server routing using plugin.
+
+Start `proxy.py` as:
+
+```console
+❯ proxy --enable-web-server \
+    --plugins proxy.plugin.WebServerPlugin
+```
+
+Verify using `curl -v localhost:8899/http-route-example`, should return:
+
+```console
+HTTP route response
+```
+
+## Reverse Proxy Plugins
+
+Extends in-built Web Server to add Reverse Proxy capabilities.
+
+### Reverse Proxy
 
 Start `proxy.py` as:
 
@@ -975,23 +995,6 @@ Verify using `curl -v localhost:8899/get`:
   "origin": "1.2.3.4, 5.6.7.8",
   "url": "https://localhost/get"
 }
-```
-
-### Web Server Route
-
-Demonstrates inbuilt web server routing using plugin.
-
-Start `proxy.py` as:
-
-```console
-❯ proxy --enable-web-server \
-    --plugins proxy.plugin.WebServerPlugin
-```
-
-Verify using `curl -v localhost:8899/http-route-example`, should return:
-
-```console
-HTTP route response
 ```
 
 ## Plugin Ordering
