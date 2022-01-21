@@ -51,7 +51,7 @@ flags.add_argument(
     '--port-file',
     type=str,
     default=DEFAULT_PORT_FILE,
-    help='Default: None. Save server port numbers. Useful when using --port=0 ephemeral mode.'
+    help='Default: None. Save server port numbers. Useful when using --port=0 ephemeral mode.',
 )
 
 flags.add_argument(
