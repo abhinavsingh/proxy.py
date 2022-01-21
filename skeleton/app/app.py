@@ -23,6 +23,6 @@ def entry_point() -> None:
             plugins=[
                 'app.plugins.MyWebServerPlugin',
                 'app.plugins.MyProxyPlugin',
-            ]
+            ],
     ) as _:
         proxy.sleep_loop()
