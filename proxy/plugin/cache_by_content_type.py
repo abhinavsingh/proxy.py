@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class CacheByContentTypePlugin(HttpProxyBasePlugin):
     """This plugin is supposed to work with
-    :py:class`~proxy.plugin.cache.CacheResponsesPlugin`.  This plugin
+    :py:class:`~proxy.plugin.cache.cache_responses.CacheResponsesPlugin`.  This plugin
     must be put after the cache response plugin in the chain.
 
     Plugin will try to extract out content type from the responses.
