@@ -8,8 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import Any
-
 from ..common.types import Readables, Writables, Descriptors
 
 
@@ -18,10 +16,6 @@ class DescriptorsHandlerMixin:
     """DescriptorsHandlerMixin provides abstraction used by several core HTTP modules
     include web and proxy plugins.  By using DescriptorsHandlerMixin, class
     becomes complaint with core event loop."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        # FIXME: Required for multi-level inheritance to work
-        super().__init__(*args, **kwargs)   # type: ignore
 
     # @abstractmethod
     async def get_descriptors(self) -> Descriptors:

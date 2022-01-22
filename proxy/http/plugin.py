@@ -58,7 +58,6 @@ class HttpProtocolHandlerPlugin(
             event_queue: Optional[EventQueue] = None,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
-        super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
         self.uid: str = uid
         self.flags: argparse.Namespace = flags
         self.client: HttpClientConnection = client
