@@ -302,29 +302,6 @@ class FlagParser:
             # assert args.unix_socket_path is None
             args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(List[int], opts.get('port', args.port))
-        # NOTE: Dirty hack to add multiport support with backward compatibility.
-        #
-        # Background here is that, port was changed from integer
-        # to list of integer.  This was done to add multiport support.
-        #
-        # However, in theory, not everyone is going to use
-        # multiport feature.  Additionally, entire codebase
-        # including plugins, assumes that port will be an integer.
-        # Similarly, custom plugins of developers can break
-        # if we change port type to list of integers.
-        #
-        # To maintain backward compatibility, we overwrite
-        # port value here to be of type integer, if there is only
-        # a single instance of ``--port`` flag.  This also keeps
-        # the ephemeral port discovery API a.k.a. ``flags.port``
-        # backward compatible.
-        #
-        # For multiport scenarios, core has been updated to support it.
-        # Similarly, if any developer intends to use the same,
-        # they MUST consider ``flags.port`` to be a list of integers.
-        #
-        if isinstance(args.port, List) and len(args.port) == 1:
-            args.port = args.port[0]
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)
         args.num_workers = cast(

@@ -22,7 +22,7 @@ from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 
 from .acceptor import Acceptor
-from .listener import Listener
+from ..listener import ListenerPool
 from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_ACCEPTORS
 
@@ -64,7 +64,7 @@ class AcceptorPool:
     def __init__(
             self,
             flags: argparse.Namespace,
-            listeners: List[Listener],
+            listeners: ListenerPool,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
             executor_locks: List['multiprocessing.synchronize.Lock'],
@@ -72,7 +72,7 @@ class AcceptorPool:
     ) -> None:
         self.flags = flags
         # File descriptor to use for accepting new work
-        self.listeners: List[Listener] = listeners
+        self.listeners: ListenerPool = listeners
         # Available executors
         self.executor_queues: List[connection.Connection] = executor_queues
         self.executor_pids: List[int] = executor_pids
@@ -109,8 +109,9 @@ class AcceptorPool:
             ),
         )
         # Send file descriptor to all acceptor processes.
-        for listener in self.listeners:
+        for listener in self.listeners.pool:
             fd = listener.fileno()
+            assert fd is not None
             for index in range(self.flags.num_acceptors):
                 send_handle(
                     self.fd_queues[index],
