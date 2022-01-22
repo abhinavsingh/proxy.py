@@ -24,7 +24,7 @@ class CacheByContentTypePlugin(HttpProxyBasePlugin):
     must be put after the cache response plugin in the chain.
 
     Plugin will try to extract out content type from the responses.
-    When found, data is stored under `proxy.py` instance data directory."""
+    When found, data is stored under ``proxy.py`` instance data directory."""
 
     def on_access_log(self, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if tls_interception_enabled(self.flags) and 'cache_file_path' in context:
