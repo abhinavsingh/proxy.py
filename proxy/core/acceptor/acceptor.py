@@ -19,7 +19,7 @@ import selectors
 import threading
 import multiprocessing
 import multiprocessing.synchronize
-from typing import List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
@@ -93,9 +93,8 @@ class Acceptor(multiprocessing.Process):
         # Selector
         self.running = multiprocessing.Event()
         self.selector: Optional[selectors.DefaultSelector] = None
-        # File descriptor used to accept new work
-        # Currently, a socket fd is assumed.
-        self.sock: Optional[socket.socket] = None
+        # File descriptors used to accept new work
+        self.socks: Dict[int, socket.socket] = {}
         # Internals
         self._total: Optional[int] = None
         self._local_work_queue: Optional['NonBlockingQueue'] = None
@@ -107,11 +106,10 @@ class Acceptor(multiprocessing.Process):
             events: List[Tuple[selectors.SelectorKey, int]],
     ) -> List[Tuple[socket.socket, Optional[Tuple[str, int]]]]:
         works = []
-        for _, mask in events:
-            if mask & selectors.EVENT_READ and \
-                    self.sock is not None:
+        for key, mask in events:
+            if mask & selectors.EVENT_READ:
                 try:
-                    conn, addr = self.sock.accept()
+                    conn, addr = self.socks[key.data].accept()
                     logging.debug(
                         'Accepting new work#{0}'.format(conn.fileno()),
                     )
@@ -158,33 +156,43 @@ class Acceptor(multiprocessing.Process):
             self.flags.log_format,
         )
         self.selector = selectors.DefaultSelector()
-        # TODO: Use selector on fd_queue so that we can
-        # dynamically accept from new fds.
-        fileno = recv_handle(self.fd_queue)
-        self.fd_queue.close()
-        # TODO: Convert to socks i.e. list of fds
-        self.sock = socket.fromfd(
-            fileno,
-            family=self.flags.family,
-            type=socket.SOCK_STREAM,
-        )
+        self._recv_and_setup_socks()
         try:
             if self.flags.threadless and self.flags.local_executor:
                 self._start_local()
-            self.selector.register(self.sock, selectors.EVENT_READ)
+            for fileno in self.socks:
+                self.selector.register(
+                    fileno, selectors.EVENT_READ, fileno,
+                )
             while not self.running.is_set():
                 self.run_once()
         except KeyboardInterrupt:
             pass
         finally:
-            self.selector.unregister(self.sock)
+            for fileno in self.socks:
+                self.selector.unregister(fileno)
             if self.flags.threadless and self.flags.local_executor:
                 self._stop_local()
-            self.sock.close()
+            for fileno in self.socks:
+                self.socks[fileno].close()
+            self.socks.clear()
             logger.debug('Acceptor#%d shutdown', self.idd)
 
+    def _recv_and_setup_socks(self) -> None:
+        # TODO: Use selector on fd_queue so that we can
+        # dynamically accept from new fds.
+        for _ in range(self.fd_queue.recv()):
+            fileno = recv_handle(self.fd_queue)
+            # TODO: Convert to socks i.e. list of fds
+            self.socks[fileno] = socket.fromfd(
+                fileno,
+                family=self.flags.family,
+                type=socket.SOCK_STREAM,
+            )
+        self.fd_queue.close()
+
     def _start_local(self) -> None:
-        assert self.sock
+        assert self.socks
         self._local_work_queue = NonBlockingQueue()
         self._local = LocalExecutor(
             iid=self.idd,

@@ -9,7 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, Any, List, Type
 
 from .tcp import TcpSocketListener
 from .unix import UnixSocketListener
@@ -36,15 +36,18 @@ class ListenerPool:
 
     def setup(self) -> None:
         if self.flags.unix_socket_path:
-            ulistener = UnixSocketListener(flags=self.flags)
-            ulistener.setup()
-            self.pool.append(ulistener)
+            self.add(UnixSocketListener)
         else:
-            listener = TcpSocketListener(flags=self.flags)
-            listener.setup()
-            self.pool.append(listener)
+            self.add(TcpSocketListener)
+        for port in self.flags.ports:
+            self.add(TcpSocketListener, port=port)
 
     def shutdown(self) -> None:
         for listener in self.pool:
             listener.shutdown()
         self.pool.clear()
+
+    def add(self, klass: Type['BaseListener'], **kwargs: Any) -> None:
+        listener = klass(flags=self.flags, **kwargs)
+        listener.setup()
+        self.pool.append(listener)

@@ -34,7 +34,7 @@ class BaseListener(ABC):
 
     For usage provide a listen method implementation."""
 
-    def __init__(self, flags: argparse.Namespace) -> None:
+    def __init__(self, *args: Any, flags: argparse.Namespace, **kwargs: Any) -> None:
         self.flags = flags
         self._socket: Optional[socket.socket] = None
 
