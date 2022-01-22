@@ -6,7 +6,7 @@ from .errors import EthereumError
 from ..environment import neon_cli, ETH_TOKEN_MINT_ID
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 def call_emulated(contract_id, caller_id, data=None, value=None, *, logger):
     output = emulator(contract_id, caller_id, data, value)
     logger.debug(f"Call emulated. contract_id: {contract_id}, caller_id: {caller_id}, data: {data}, value: {value}, return: {output}")
@@ -15,7 +15,7 @@ def call_emulated(contract_id, caller_id, data=None, value=None, *, logger):
     return result
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 def check_emulated_exit_status(result: Dict[str, Any], *, logger):
     exit_status = result['exit_status']
     if exit_status == 'revert':
@@ -32,7 +32,7 @@ def check_emulated_exit_status(result: Dict[str, Any], *, logger):
         raise Exception("evm emulator error ", result)
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 def decode_revert_message(data: str, *, logger) -> Optional[str]:
     data_len = len(data)
     if data_len == 0:

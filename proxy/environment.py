@@ -1,6 +1,6 @@
 import os
 import subprocess
-from logged_groups import logged_group
+from logged_groups import logged_group, LogMng
 from solana.publickey import PublicKey
 
 SOLANA_URL = os.environ.get("SOLANA_URL", "http://localhost:8899")
@@ -21,7 +21,7 @@ RETRY_ON_FAIL = int(os.environ.get("RETRY_ON_FAIL", "2"))
 RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION = max(int(os.environ.get("RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION", "1000")), 1)
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 class solana_cli:
     def call(self, *args):
         try:
@@ -35,14 +35,16 @@ class solana_cli:
             raise
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 class neon_cli:
     def call(self, *args):
         try:
+            ctx = str(LogMng.get_logging_context())
             cmd = ["neon-cli",
                    "--commitment=recent",
                    "--url", SOLANA_URL,
-                   "--evm_loader={}".format(EVM_LOADER_ID),
+                   f"--evm_loader={EVM_LOADER_ID}",
+                   f"--logging_ctx={ctx}"
                    ]\
                   + (["-vvv"] if LOG_NEON_CLI_DEBUG else [])\
                   + list(args)

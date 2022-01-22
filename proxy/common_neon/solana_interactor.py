@@ -30,7 +30,7 @@ class AccountInfo(NamedTuple):
     owner: PublicKey
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 class SolanaInteractor:
     def __init__(self, signer, client: SolanaClient) -> None:
         self.signer = signer
@@ -236,7 +236,7 @@ class SolanaInteractor:
         return result
 
     @staticmethod
-    @logged_group("neon.proxy")
+    @logged_group("neon.Proxy")
     def extract_measurements_from_receipt(receipt, *, logger):
         if check_for_errors(receipt):
             logger.warning("Can't get measurements from receipt with error")

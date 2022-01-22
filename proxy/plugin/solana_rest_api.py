@@ -15,8 +15,9 @@ import threading
 import traceback
 import unittest
 import time
+import hashlib
 
-from logged_groups import logged_group
+from logged_groups import logged_group, logging_context
 
 from ..common.utils import build_http_response
 from ..http.codes import httpStatusCodes
@@ -46,7 +47,7 @@ NEON_PROXY_PKG_VERSION = '0.5.4-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 class EthereumModel:
     def __init__(self):
         self.signer = self.get_solana_account()
@@ -418,7 +419,7 @@ class JsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-@logged_group("neon.test_cases")
+@logged_group("neon.TestCases")
 class SolanaContractTests(unittest.TestCase):
 
     def setUp(self):
@@ -478,7 +479,7 @@ class SolanaContractTests(unittest.TestCase):
         self.assertTrue(receiptId in block['transactions'])
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 class SolanaProxyPlugin(HttpWebServerBasePlugin):
     """Extend in-built Web Server to add Reverse Proxy capabilities.
     """
@@ -534,6 +535,16 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         return response
 
     def handle_request(self, request: HttpParser) -> None:
+        unique_req_id = self.get_unique_id()
+        with logging_context(req_id=unique_req_id):
+            self.handle_request_impl(request)
+            self.info("Request processed")
+
+    @staticmethod
+    def get_unique_id():
+        return hashlib.md5((time.time_ns()).to_bytes(16, 'big')).hexdigest()[:7]
+
+    def handle_request_impl(self, request: HttpParser) -> None:
         if request.method == b'OPTIONS':
             self.client.queue(memoryview(build_http_response(
                 httpStatusCodes.OK, body=None,

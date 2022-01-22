@@ -26,7 +26,7 @@ from ..environment import EVM_LOADER_ID, RETRY_ON_BLOCKED
 from ..indexer.utils import NeonTxResultInfo
 from ..common_neon.eth_proto import Trx as EthTrx
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 class TransactionSender:
     def __init__(self, solana_interactor: SolanaInteractor, eth_trx: EthTrx, steps: int) -> None:
         self.sender = solana_interactor
@@ -324,7 +324,7 @@ class NoniterativeTransactionSender:
                 return (NeonTxResultInfo(result), result['transaction']['signatures'][0])
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 class IterativeTransactionSender:
     CONTINUE_REGULAR = 'ContinueV02'
     CONTINUE_COMBINED = 'PartialCallOrContinueFromRawEthereumTX'

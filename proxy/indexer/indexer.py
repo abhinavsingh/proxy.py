@@ -20,7 +20,7 @@ CANCEL_TIMEOUT = int(os.environ.get("CANCEL_TIMEOUT", "60"))
 UPDATE_BLOCK_COUNT = PARALLEL_REQUESTS * 16
 
 
-@logged_group("neon.indexer")
+@logged_group("neon.Indexer")
 class SolanaIxInfo:
     def __init__(self, sign: str, slot: int, tx: {}):
         self.sign = SolanaIxSignInfo(sign=sign, slot=slot, idx=-1)
@@ -139,7 +139,7 @@ class NeonTxObject(BaseEvmObject):
         return str_fmt_object(self)
 
 
-@logged_group("neon.indexer")
+@logged_group("neon.Indexer")
 class ReceiptsParserState:
     """
     Each instruction is passed to a decoder (see DummyIxDecoder bellow).
@@ -250,7 +250,7 @@ class ReceiptsParserState:
             yield tx
 
 
-@logged_group("neon.indexer")
+@logged_group("neon.Indexer")
 class DummyIxDecoder:
     def __init__(self, name: str, state: ReceiptsParserState):
         self.name = name
@@ -614,7 +614,7 @@ class ExecuteOrContinueIxParser(DummyIxDecoder):
         return self._decode_tx(tx)
 
 
-@logged_group("neon.indexer")
+@logged_group("neon.Indexer")
 class Indexer(IndexerBase):
     def __init__(self, solana_url, evm_loader_id):
         IndexerBase.__init__(self, solana_url, evm_loader_id, 0)
@@ -736,7 +736,7 @@ class Indexer(IndexerBase):
         return start_block_slot, last_block_slot
 
 
-@logged_group("neon.indexer")
+@logged_group("neon.Indexer")
 def run_indexer(solana_url, evm_loader_id, *, logger):
     logger.info(f"""Running indexer with params:
         solana_url: {solana_url},

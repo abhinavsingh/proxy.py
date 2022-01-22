@@ -18,7 +18,7 @@ from ..common_neon.utils import get_from_dict
 from ..environment import NEW_USER_AIRDROP_AMOUNT, read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 def neon_config_load(ethereum_model, *, logger):
     try:
         ethereum_model.neon_config_dict
@@ -65,7 +65,7 @@ def getAccountInfo(client, eth_account: EthereumAddress):
     return AccountInfo.frombytes(info)
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 def create_eth_account_and_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress, *, logger):
     trx = NeonInstruction(signer.public_key()).make_trx_with_create_and_airdrop(eth_account)
     result = SolanaInteractor(signer, client).send_transaction(trx, None, reason='create_eth_account_and_airdrop')
@@ -75,7 +75,7 @@ def create_eth_account_and_airdrop(client: SolanaClient, signer: SolanaAccount, 
         raise Exception("Create eth_account error")
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 def get_token_balance_gwei(client: SolanaClient, pda_account: str, *, logger) -> int:
     neon_token_account = getTokenAddr(PublicKey(pda_account))
     rpc_response = client.get_token_account_balance(neon_token_account, commitment=Confirmed)
@@ -95,7 +95,7 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str, *, logger) ->
     return int(balance)
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 def get_token_balance_or_airdrop(client: SolanaClient, signer: SolanaAccount, eth_account: EthereumAddress, *, logger) -> int:
     solana_account, nonce = ether2program(eth_account)
     logger.debug(f"Get balance for eth account: {eth_account} aka: {solana_account}")
@@ -118,7 +118,7 @@ def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> boo
     return value is not None
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 def estimate_gas(client: SolanaClient, signer: SolanaAccount, contract_id: str, caller_eth_account: EthereumAddress,
                  data: str = None, value: str = None, *, logger):
 

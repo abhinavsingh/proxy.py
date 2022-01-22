@@ -79,7 +79,7 @@ def make_keccak_instruction_data(check_instruction_index, msg_len, data_start):
     return data
 
 
-@logged_group("neon.proxy")
+@logged_group("neon.Proxy")
 class NeonInstruction:
     def __init__(self, operator):
         self.operator_account = operator
