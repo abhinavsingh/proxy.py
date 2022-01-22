@@ -36,7 +36,7 @@ class TcpUpstreamConnectionHandler(ABC):
         super().__init__(*args, **kwargs)   # type: ignore
         self.upstream: Optional[TcpServerConnection] = None
         # TODO: Currently, :class:`~proxy.core.base.TcpUpstreamConnectionHandler`
-        # is used within :class:`~proxy.plugin.ReverseProxyPlugin` and
+        # is used within :class:`~proxy.http.server.ReverseProxy` and
         # :class:`~proxy.plugin.ProxyPoolPlugin`.
         #
         # For both of which we expect a 4-tuple as arguments
@@ -47,7 +47,7 @@ class TcpUpstreamConnectionHandler(ABC):
         # A separate tunnel class must be created which handles
         # client connection too.
         #
-        # Both :class:`~proxy.plugin.ReverseProxyPlugin` and
+        # Both :class:`~proxy.http.server.ReverseProxy` and
         # :class:`~proxy.plugin.ProxyPoolPlugin` are currently
         # calling client queue within `handle_upstream_data` callback.
         #

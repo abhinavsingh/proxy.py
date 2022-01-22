@@ -28,8 +28,8 @@ from ...common.types import Readables, Writables, Descriptors
 from ...common.utils import text_, bytes_, build_websocket_handshake_response
 from ...common.constants import (
     DEFAULT_ENABLE_WEB_SERVER, DEFAULT_STATIC_SERVER_DIR,
-    DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_MIN_COMPRESSION_LIMIT,
-    DEFAULT_WEB_ACCESS_LOG_FORMAT,
+    DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
+    DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT,
 )
 
 
@@ -68,6 +68,13 @@ flags.add_argument(
     default=DEFAULT_MIN_COMPRESSION_LIMIT,
     help='Default: ' + str(DEFAULT_MIN_COMPRESSION_LIMIT) + ' bytes.  ' +
     'Sets the minimum length of a response that will be compressed (gzipped).',
+)
+
+flags.add_argument(
+    '--enable-reverse-proxy',
+    action='store_true',
+    default=DEFAULT_ENABLE_REVERSE_PROXY,
+    help='Default: False.  Whether to enable reverse proxy core.',
 )
 
 
