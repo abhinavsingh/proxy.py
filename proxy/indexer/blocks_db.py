@@ -1,3 +1,5 @@
+import psycopg2
+import psycopg2.extras
 from .utils import BaseDB, str_fmt_object
 
 
@@ -106,16 +108,23 @@ class SolanaBlocksDB(BaseDB):
             (block.slot, block.finalized, block.height, block.hash,
              block.parent_hash, block.time, self.encode_list(block.signs)))
 
+    def _insert_execute_values(self, slot_heights) -> None:
+        with self._conn.cursor() as cursor:
+            psycopg2.extras.execute_values(cursor, f"""
+                INSERT
+                INTO {self._table_name} (slot, finalized, height)
+                VALUES %s
+                ON CONFLICT (slot, finalized) DO UPDATE
+                SET finalized = True;
+            """, (row for row in slot_heights), template="(%s, True, %s)", page_size=1000)
+
     def fill_block_height(self, height, slots):
         rows = []
         for slot in slots:
             rows.append((slot, height))
             height += 1
 
-        cursor = self._conn.cursor()
-        cursor.executemany(
-            f'INSERT INTO {self._table_name}(slot, finalized, height) VALUES(%s, True, %s) ON CONFLICT DO NOTHING',
-            rows)
+        self._insert_execute_values(rows)
 
     def del_not_finalized(self, from_slot: int, to_slot: int):
         cursor = self._conn.cursor()
