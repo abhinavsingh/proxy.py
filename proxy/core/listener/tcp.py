@@ -54,7 +54,10 @@ logger = logging.getLogger(__name__)
 class TcpSocketListener(BaseListener):
     """Tcp listener."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, port: Optional[int] = None, **kwargs: Any) -> None:
+        # Port if passed will be used, otherwise
+        # flag port value will be used.
+        self.port = port
         # Set after binding to a port.
         #
         # Stored here separately for ephemeral port discovery.
@@ -66,7 +69,8 @@ class TcpSocketListener(BaseListener):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         # s.setsockopt(socket.SOL_TCP, socket.TCP_FASTOPEN, 5)
-        sock.bind((str(self.flags.hostname), self.flags.port))
+        port = self.port if self.port is not None else self.flags.port
+        sock.bind((str(self.flags.hostname), port))
         sock.listen(self.flags.backlog)
         sock.setblocking(False)
         self._port = sock.getsockname()[1]

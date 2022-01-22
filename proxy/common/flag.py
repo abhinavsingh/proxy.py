@@ -8,6 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from functools import reduce
+import operator
 import os
 import sys
 import base64
@@ -302,7 +304,11 @@ class FlagParser:
             # assert args.unix_socket_path is None
             args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
-        args.ports = cast(Optional[List[int]], opts.get('ports', args.ports))
+        ports = cast(Optional[List[int]], opts.get('ports', args.ports))
+        args.ports = [int(port) for port in reduce(
+            operator.concat,
+            [[]] if ports is None else ports,
+        )]
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)
         args.num_workers = cast(

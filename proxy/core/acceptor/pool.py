@@ -109,16 +109,17 @@ class AcceptorPool:
             ),
         )
         # Send file descriptor to all acceptor processes.
-        for listener in self.listeners.pool:
-            fd = listener.fileno()
-            assert fd is not None
-            for index in range(self.flags.num_acceptors):
+        for index in range(self.flags.num_acceptors):
+            self.fd_queues[index].send(len(self.listeners.pool))
+            for listener in self.listeners.pool:
+                fd = listener.fileno()
+                assert fd is not None
                 send_handle(
                     self.fd_queues[index],
                     fd,
                     self.acceptors[index].pid,
                 )
-                self.fd_queues[index].close()
+            self.fd_queues[index].close()
 
     def shutdown(self) -> None:
         logger.info('Shutting down %d acceptors' % self.flags.num_acceptors)

@@ -208,6 +208,12 @@
   - Enable builtin [Reverse Proxy Server](#reverse-proxy-plugins). Example:
     - `--enable-reverse-proxy --plugins proxy.plugin.ReverseProxyPlugin`
   - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
+
+- Can listen on multiple ports
+  - Use `--ports` flag to provide additional ports
+  - Optionally, use `--port` flag to override default port `8899`
+  - Capable of serving multiple protocols over the same port
+
 - Real-time Dashboard
   - Optionally, enable [proxy.py dashboard](#run-dashboard).
     - Use `--enable-dashboard`
@@ -216,34 +222,45 @@
   - [Chrome DevTools Protocol](#chrome-devtools-protocol) support
   - Extend dashboard frontend using `typescript` based [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/dashboard/src/plugins)
   - Dashboard is currently in *development phase*  Expect breaking changes.
+
 - Secure
   - Enable end-to-end encryption between clients and `proxy.py`
   - See [End-to-End Encryption](#end-to-end-encryption)
+
 - Private
   - Protection against DNS based traffic blockers
   - Browse with malware and adult content protection enabled
   - See [DNS-over-HTTPS](#cloudflarednsresolverplugin)
+
 - Man-In-The-Middle
   - Can decrypt TLS traffic between clients and upstream servers
   - See [TLS Interception](#tls-interception)
+
 - Supported http protocols for proxy requests
   - `http(s)`
     - `http1`
     - `http1.1` with pipeline
   - `http2`
   - `websockets`
+
 - Support for `HAProxy Protocol`
   - See `--enable-proxy-protocol` flag
+
 - Static file server support
   - See `--enable-static-server` and `--static-server-dir` flags
+
 - Optimized for large file uploads and downloads
   - See `--client-recvbuf-size` and `--server-recvbuf-size` flag
+
 - `IPv4` and `IPv6` support
   - See `--hostname` flag
+
 - Unix domain socket support
   - See `--unix-socket-path` flag
+
 - Basic authentication support
   - See `--basic-auth` flag
+
 - PAC (Proxy Auto-configuration) support
   - See `--pac-file` and `--pac-file-url-path` flags
 
