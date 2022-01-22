@@ -113,7 +113,7 @@ class EthereumModel:
             value = param.get('value', "")
             return estimate_gas(self.client, self.signer, contract_id, EthereumAddress(caller_id), data, value)
         except Exception as err:
-            self.debug("Exception on eth_estimateGas: %s", err)
+            self.error("Exception on eth_estimateGas: {}".format(err))
             raise
 
     def __repr__(self):
@@ -216,7 +216,7 @@ class EthereumModel:
             value = neon_cli().call('get-storage-at', account, position)
             return value
         except Exception as err:
-            self.debug(f"Neon-cli failed to execute: {err}")
+            self.error(f"eth_getStorageAt: Neon-cli failed to execute: {err}")
             return '0x00'
 
     def eth_getBlockByHash(self, block_hash, full):
@@ -273,7 +273,7 @@ class EthereumModel:
             value = obj.get('value', '')
             return "0x"+call_emulated(contract_id, caller_id, data, value)['result']
         except Exception as err:
-            self.debug("eth_call %s", err)
+            self.error("eth_call Exception %s", err)
             raise
 
     def eth_getTransactionCount(self, account, tag):
@@ -282,7 +282,7 @@ class EthereumModel:
             acc_info = getAccountInfo(self.client, EthereumAddress(account))
             return hex(int.from_bytes(acc_info.trx_count, 'little'))
         except Exception as err:
-            print("Can't get account info: %s"%err)
+            self.error("eth_getTransactionCount: Can't get account info: %s", err)
             return hex(0)
 
     def _getTransactionReceipt(self, tx):
@@ -395,10 +395,10 @@ class EthereumModel:
             self._log_transaction_error(err)
             raise
         except EthereumError as err:
-            self.debug("eth_sendRawTransaction EthereumError:%s", err)
+            self.error("eth_sendRawTransaction EthereumError:%s", err)
             raise
         except Exception as err:
-            self.debug("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
+            self.error("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
             raise
 
     def _log_transaction_error(self, error: SolanaTrxError):
@@ -527,7 +527,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             response['error'] = err.getError()
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
-            self.warning('Exception on process request. ' +
+            self.error('Exception on process request. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
             response['error'] = {'code': -32000, 'message': str(err)}
 
@@ -545,7 +545,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 })))
             return
         start_time = time.time()
-        self.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
+        self.info('handle_request <<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
         response = None
 
         try:
@@ -566,7 +566,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             response = {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': str(err)}}
 
         resp_time_ms = (time.time() - start_time)*1000  # convert this into milliseconds
-        self.debug('>>> %s 0x%0x %s %s resp_time_ms= %s', threading.get_ident(), id(self.model), json.dumps(response),
+        self.info('handle_request >>> %s 0x%0x %s %s resp_time_ms= %s', threading.get_ident(), id(self.model), json.dumps(response),
                      request.get('method', '---'),
                      resp_time_ms)
 

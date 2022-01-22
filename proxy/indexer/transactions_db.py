@@ -83,7 +83,7 @@ class NeonTxsDB(BaseDB):
                 calldata TEXT,
                 logs BYTEA,
 
-                UNIQUE(neon_sign, finalized),
+                UNIQUE(neon_sign),
                 UNIQUE(sol_sign, idx)
             );
             CREATE INDEX IF NOT EXISTS {self._table_name}_finalized ON {self._table_name}(slot, finalized);
@@ -136,11 +136,14 @@ class NeonTxsDB(BaseDB):
 
         cursor = self._conn.cursor()
         cursor.execute(f'''
-                       INSERT INTO {self._table_name}
-                       ({', '.join(self._column_lst)})
-                       VALUES
-                       ({', '.join(['%s' for _ in range(len(self._column_lst))])})
-                       ON CONFLICT DO NOTHING
+                        INSERT INTO {self._table_name}
+                            ({', '.join(self._column_lst)})
+                        VALUES
+                            ({', '.join(['%s' for _ in range(len(self._column_lst))])})
+                        ON CONFLICT (neon_sign)
+                        DO UPDATE SET
+                            {', '.join([col+'=EXCLUDED.'+col for col in self._column_lst])}
+                        WHERE {self._table_name}.finalized=False AND EXCLUDED.finalized=True;
                        ''',
                        row)
 

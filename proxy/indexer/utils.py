@@ -212,7 +212,6 @@ class NeonTxInfo:
 
             return None
         except Exception as e:
-            self.warning(f'Exception on RLP decoding: {e}')
             self.error = e
             return self.error
 
@@ -457,7 +456,7 @@ class Canceller:
             self.debug(cmd)
             return subprocess.check_output(cmd, universal_newlines=True)
         except subprocess.CalledProcessError as err:
-            self.debug("ERR: solana error {}".format(err))
+            self.error("ERR: solana error {}".format(err))
             raise
 
     def unlock_accounts(self, blocked_storages):

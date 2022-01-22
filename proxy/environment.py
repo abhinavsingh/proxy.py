@@ -18,6 +18,7 @@ LOG_NEON_CLI_DEBUG = os.environ.get("LOG_NEON_CLI_DEBUG", "NO") == "YES"
 WRITE_TRANSACTION_COST_IN_DB = os.environ.get("WRITE_TRANSACTION_COST_IN_DB", "NO") == "YES"
 RETRY_ON_BLOCKED = max(int(os.environ.get("RETRY_ON_BLOCKED", "32")), 1)
 RETRY_ON_FAIL = int(os.environ.get("RETRY_ON_FAIL", "2"))
+RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION = max(int(os.environ.get("RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION", "1000")), 1)
 
 
 @logged_group("neon.proxy")

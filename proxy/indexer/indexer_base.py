@@ -6,6 +6,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 from typing import Dict, Union
 from logged_groups import logged_group
 
+from ..environment import RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
+
 try:
     from sql_dict import SQLDict
     from trx_receipts_storage import TrxReceiptsStorage
@@ -37,7 +39,6 @@ class IndexerBase:
         self.counter_ = 0
         self.max_known_tx = self.transaction_receipts.max_known_trx()
         self._move_data_from_old_table()
-
 
     def _move_data_from_old_table(self):
         if self.transaction_receipts.size() == 0:
@@ -107,7 +108,6 @@ class IndexerBase:
         self.debug(max_known_tx)
         self.max_known_tx = max_known_tx
 
-
     def _get_signatures(self, before, until):
         opts: Dict[str, Union[int, str]] = {}
         if until is not None:
@@ -118,19 +118,21 @@ class IndexerBase:
         result = self.client._provider.make_request("getSignaturesForAddress", self.evm_loader_id, opts)
         return result['result']
 
-
     def _get_tx_receipts(self, solana_signature):
         # trx = None
-        retry = True
+        retry = RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
 
-        while retry:
+        while retry > 0:
             try:
                 trx = self.client.get_confirmed_transaction(solana_signature)['result']
                 self._add_trx(solana_signature, trx)
-                retry = False
+                retry = 0
             except Exception as err:
-                self.debug(err)
+                self.debug(f'Exception on get_confirmed_transaction: "{err}"')
                 time.sleep(1)
+                retry -= 1
+                if retry == 0:
+                    self.error(f'Exception on get_confirmed_transaction: "{err}"')
 
         self.counter_ += 1
         if self.counter_ % 100 == 0:

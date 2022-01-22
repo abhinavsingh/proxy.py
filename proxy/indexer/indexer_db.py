@@ -41,10 +41,11 @@ class IndexerDB:
                     rec['blockNumber'] = hex(block.height)
                 self._logs_db.push_logs(neon_res.logs, block)
             tx = NeonTxDBInfo(neon_tx=neon_tx, neon_res=neon_res, block=block, used_ixs=used_ixs)
+            self.debug(f'submit_transaction NeonTxDBInfo {tx}')
             self._txs_db.set_tx(tx)
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
-            self.warning('Exception on submitting transaction. ' +
+            self.error('Exception on submitting transaction. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
     def _fill_block_from_net(self, block: SolanaBlockDBInfo):
@@ -59,7 +60,7 @@ class IndexerDB:
         block.signs = net_block['signatures']
         block.parent_hash = '0x' + base58.b58decode(net_block['previousBlockhash']).hex()
         block.time = net_block['blockTime']
-        block.finalized = ("confirmed" == FINALIZED)
+        block.finalized = block.finalized if block.finalized else ("confirmed" == FINALIZED)
         self.debug(f'{block}')
         self._blocks_db.set_block(block)
         return block
