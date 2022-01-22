@@ -12,6 +12,7 @@
 
        utils
 """
+import argparse
 import ssl
 import sys
 import socket
@@ -32,6 +33,13 @@ if not IS_WINDOWS:  # pragma: no cover
     import resource
 
 logger = logging.getLogger(__name__)
+
+
+def tls_interception_enabled(flags: argparse.Namespace) -> bool:
+    return flags.ca_key_file is not None and \
+        flags.ca_cert_dir is not None and \
+        flags.ca_signing_key_file is not None and \
+        flags.ca_cert_file is not None
 
 
 def is_threadless(threadless: bool, threaded: bool) -> bool:

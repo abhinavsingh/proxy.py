@@ -10,7 +10,7 @@
 """
 import os
 import multiprocessing
-from typing import Any
+from typing import Any, Dict, Optional
 
 from .base import BaseCacheResponsesPlugin
 from .store.disk import OnDiskCacheStore
@@ -32,3 +32,9 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
             ),
         )
         self.set_store(self.disk_store)
+
+    def on_access_log(self, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        context.update({
+            'cache_file_path': self.disk_store.cache_file_path,
+        })
+        return super().on_access_log(context)

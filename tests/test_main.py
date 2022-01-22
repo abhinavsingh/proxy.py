@@ -17,7 +17,7 @@ from unittest import mock
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
 from proxy.common.constants import (  # noqa: WPS450
-    DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
+    DEFAULT_CACHE_DIRECTORY_PATH, DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
     DEFAULT_LOG_FILE, DEFAULT_PAC_FILE, DEFAULT_PID_FILE, PLUGIN_DASHBOARD,
     DEFAULT_CERT_FILE, DEFAULT_LOG_LEVEL, DEFAULT_PORT_FILE, PLUGIN_HTTP_PROXY,
     PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_BASIC_AUTH,
@@ -79,6 +79,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
         mock_args.enable_reverse_proxy = DEFAULT_ENABLE_REVERSE_PROXY
         mock_args.unix_socket_path = None
+        mock_args.cache_dir_path = DEFAULT_CACHE_DIRECTORY_PATH
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')

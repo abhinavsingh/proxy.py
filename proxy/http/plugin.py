@@ -13,10 +13,10 @@ import argparse
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Union, Optional
 
-from .mixins import TlsInterceptionPropertyMixin
 from .parser import HttpParser
 from .connection import HttpClientConnection
 from ..core.event import EventQueue
+from ..common.utils import tls_interception_enabled
 from .descriptors import DescriptorsHandlerMixin
 
 
@@ -26,7 +26,6 @@ if TYPE_CHECKING:   # pragma: no cover
 
 class HttpProtocolHandlerPlugin(
         DescriptorsHandlerMixin,
-        TlsInterceptionPropertyMixin,
         ABC,
 ):
     """Base HttpProtocolHandler Plugin class.
@@ -95,3 +94,7 @@ class HttpProtocolHandlerPlugin(
         perform any cleanup work here.
         """
         pass  # pragma: no cover
+
+    @property
+    def tls_interception_enabled(self) -> bool:
+        return tls_interception_enabled(self.flags)
