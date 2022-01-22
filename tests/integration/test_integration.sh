@@ -27,6 +27,7 @@ CURL="curl -v --connect-timeout 20 --max-time 120 --retry-connrefused --retry-de
 
 PROXY_URL="http://localhost:$PROXY_PY_PORT"
 TEST_URL="$PROXY_URL/http-route-example"
+REVERSE_PROXY_URL="$PROXY_URL/get"
 CURL_EXTRA_FLAGS=""
 USE_HTTPS=$2
 if [[ ! -z "$USE_HTTPS" ]]; then
@@ -79,6 +80,23 @@ verify_response() {
     fi;
 }
 
+verify_contains() {
+    if [ "$1" == "" ];
+    then
+        echo "Empty response";
+        return 1;
+    else
+        if [[ "$1" == *"$2"* ]];
+        then
+            echo "Ok";
+            return 0;
+        else
+            echo "Invalid response: '$1', expected: '$2'";
+            return 1;
+        fi
+    fi;
+}
+
 # Check if proxy was started with integration
 # testing web server plugin.  If detected, use
 # internal web server for integration testing.
@@ -104,6 +122,8 @@ verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED2=$?
 
 if $USE_HTTPS; then
+    # See https://github.com/abhinavsingh/proxy.py/issues/994
+    # for rationale
     VERIFIED3=0
 else
     echo "[Test Internal Web Server via Proxy]"
@@ -121,28 +141,38 @@ then
 fi
 
 echo "[Test Download File Hash Verifies 1]"
-touch downloaded.hash
-echo "3d1921aab49d3464a712c1c1397b6babf8b461a9873268480aa8064da99441bc  -" > downloaded.hash
+touch downloaded1.hash
+echo "3d1921aab49d3464a712c1c1397b6babf8b461a9873268480aa8064da99441bc  -" > downloaded1.hash
 $CURL -L \
     $CURL_EXTRA_FLAGS \
-    -o downloaded.whl \
+    -o downloaded1.whl \
     -x $PROXY_URL \
     https://files.pythonhosted.org/packages/88/78/e642316313b1cd6396e4b85471a316e003eff968f29773e95ea191ea1d08/proxy.py-2.4.0rc4-py3-none-any.whl#sha256=3d1921aab49d3464a712c1c1397b6babf8b461a9873268480aa8064da99441bc
-cat downloaded.whl | $SHASUM -c downloaded.hash
+cat downloaded1.whl | $SHASUM -c downloaded1.hash
 VERIFIED4=$?
-rm downloaded.whl downloaded.hash
+rm downloaded1.whl downloaded1.hash
 
 echo "[Test Download File Hash Verifies 2]"
-touch downloaded.hash
-echo "077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8  -" > downloaded.hash
+touch downloaded2.hash
+echo "077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8  -" > downloaded2.hash
 $CURL -L \
     $CURL_EXTRA_FLAGS \
-    -o downloaded.whl \
+    -o downloaded2.whl \
     -x $PROXY_URL \
     https://files.pythonhosted.org/packages/20/9a/e5d9ec41927401e41aea8af6d16e78b5e612bca4699d417f646a9610a076/Jinja2-3.0.3-py3-none-any.whl#sha256=077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8
-cat downloaded.whl | $SHASUM -c downloaded.hash
+cat downloaded2.whl | $SHASUM -c downloaded2.hash
 VERIFIED5=$?
-rm downloaded.whl downloaded.hash
+rm downloaded2.whl downloaded2.hash
 
-EXIT_CODE=$(( $VERIFIED1 || $VERIFIED2 || $VERIFIED3 || $VERIFIED4 || $VERIFIED5 ))
+read -r -d '' REVERSE_PROXY_RESPONSE << EOM
+"Host": "localhost"
+EOM
+
+echo "[Test Reverse Proxy Plugin]"
+CMD="$CURL $CURL_EXTRA_FLAGS $REVERSE_PROXY_URL"
+RESPONSE=$($CMD 2> /dev/null)
+verify_contains "$RESPONSE" "$REVERSE_PROXY_RESPONSE"
+VERIFIED6=$?
+
+EXIT_CODE=$(( $VERIFIED1 || $VERIFIED2 || $VERIFIED3 || $VERIFIED4 || $VERIFIED5 || $VERIFIED6))
 exit $EXIT_CODE
