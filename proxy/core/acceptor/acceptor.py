@@ -107,8 +107,7 @@ class Acceptor(multiprocessing.Process):
     ) -> List[Tuple[socket.socket, Optional[Tuple[str, int]]]]:
         works = []
         for key, mask in events:
-            if mask & selectors.EVENT_READ and \
-                    self.socks is not None:
+            if mask & selectors.EVENT_READ:
                 try:
                     conn, addr = self.socks[key.data].accept()
                     logging.debug(
