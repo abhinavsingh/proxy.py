@@ -14,20 +14,25 @@ import time
 import pprint
 import signal
 import logging
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, cast
 
 from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
 from .core.work import ThreadlessPool
 from .core.event import EventManager
 from .common.flag import FlagParser, flags
 from .common.utils import bytes_
-from .core.acceptor import Listener, AcceptorPool
+from .core.acceptor import AcceptorPool
+from .core.listener import ListenerPool
 from .common.constants import (
     IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
     DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_BASIC_AUTH,
     DEFAULT_LOG_FORMAT, DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT,
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
 )
+
+
+if TYPE_CHECKING:
+    from .core.listener import TcpSocketListener
 
 
 logger = logging.getLogger(__name__)
@@ -154,7 +159,7 @@ class Proxy:
 
     def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
         self.flags = FlagParser.initialize(input_args, **opts)
-        self.listener: Optional[Listener] = None
+        self.listeners: Optional[ListenerPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
@@ -184,12 +189,15 @@ class Proxy:
         self._write_pid_file()
         # We setup listeners first because of flags.port override
         # in case of ephemeral port being used
-        self.listener = Listener(flags=self.flags)
-        self.listener.setup()
+        self.listeners = ListenerPool(flags=self.flags)
+        self.listeners.setup()
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
-        self.flags.port = self.listener._port
+        self.flags.port = cast(
+            'TcpSocketListener',
+            self.listeners.pool[0],
+        )._port
         self._write_port_file()
         # Setup EventManager
         if self.flags.enable_events:
@@ -210,7 +218,7 @@ class Proxy:
         # Setup acceptors
         self.acceptors = AcceptorPool(
             flags=self.flags,
-            listener=self.listener,
+            listeners=self.listeners,
             executor_queues=self.executors.work_queues if self.executors else [],
             executor_pids=self.executors.work_pids if self.executors else [],
             executor_locks=self.executors.work_locks if self.executors else [],
@@ -245,10 +253,10 @@ class Proxy:
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.shutdown()
-        assert self.listener
-        self.listener.shutdown()
-        self._delete_port_file()
-        self._delete_pid_file()
+        if self.listeners:
+            self.listeners.shutdown()
+            self._delete_port_file()
+            self._delete_pid_file()
 
     @property
     def remote_executors_enabled(self) -> bool:
