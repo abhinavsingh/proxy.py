@@ -13,10 +13,10 @@ from abc import ABC
 from typing import TYPE_CHECKING, Any, Dict, Tuple, Optional
 
 from ..parser import HttpParser
-from ...common.utils import tls_interception_enabled
 from ..connection import HttpClientConnection
 from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
+from ...common.utils import tls_interception_enabled
 
 
 if TYPE_CHECKING:   # pragma: no cover

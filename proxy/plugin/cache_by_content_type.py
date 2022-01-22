@@ -9,11 +9,10 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-
 from typing import Any, Dict, Optional
 
-from ..common.utils import tls_interception_enabled
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.utils import tls_interception_enabled
 
 
 logger = logging.getLogger(__name__)

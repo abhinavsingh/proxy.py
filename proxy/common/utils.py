@@ -12,11 +12,11 @@
 
        utils
 """
-import argparse
 import ssl
 import sys
 import socket
 import logging
+import argparse
 import functools
 import ipaddress
 import contextlib
