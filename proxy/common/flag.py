@@ -13,12 +13,11 @@ import sys
 import base64
 import socket
 import argparse
-import operator
 import ipaddress
+import itertools
 import collections
 import multiprocessing
 from typing import Any, List, Optional, cast
-from functools import reduce
 
 from .types import IpAddress
 from .utils import bytes_, is_py2, is_threadless, set_open_file_limit
@@ -304,11 +303,10 @@ class FlagParser:
             # assert args.unix_socket_path is None
             args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
-        ports = cast(Optional[List[int]], opts.get('ports', args.ports))
+        ports: List[List[int]] = opts.get('ports', args.ports)
         args.ports = [
-            int(port) for port in reduce(
-                operator.concat,
-                [[]] if ports is None else ports,
+            int(port) for port in list(
+                itertools.chain.from_iterable([] if ports is None else ports),
             )
         ]
         args.backlog = cast(int, opts.get('backlog', args.backlog))

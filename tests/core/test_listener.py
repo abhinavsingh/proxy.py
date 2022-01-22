@@ -27,7 +27,7 @@ class TestListener(unittest.TestCase):
     def test_setup_and_teardown(self, mock_socket: mock.Mock) -> None:
         sock = mock_socket.return_value
         flags = FlagParser.initialize(port=0)
-        listener = TcpSocketListener(flags)
+        listener = TcpSocketListener(flags=flags)
         listener.setup()
         mock_socket.assert_called_with(
             socket.AF_INET6 if flags.hostname.version == 6 else socket.AF_INET,
@@ -66,7 +66,7 @@ class TestListener(unittest.TestCase):
         sock = mock_socket.return_value
         sock_path = os.path.join(tempfile.gettempdir(), 'proxy.sock')
         flags = FlagParser.initialize(unix_socket_path=sock_path)
-        listener = UnixSocketListener(flags)
+        listener = UnixSocketListener(flags=flags)
         listener.setup()
 
         mock_socket.assert_called_with(

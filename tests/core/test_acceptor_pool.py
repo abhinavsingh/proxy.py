@@ -41,9 +41,11 @@ class TestAcceptorPool(unittest.TestCase):
         )
         self.assertEqual(flags.num_acceptors, num_acceptors)
 
-        mock_listener_pool.return_value.pool = [
-            mock_tcp_socket_listener.return_value,
-        ]
+        type(mock_listener_pool.return_value).pool = mock.PropertyMock(
+            return_value=[
+                mock_tcp_socket_listener.return_value,
+            ],
+        )
         pool = AcceptorPool(
             flags=flags, listeners=mock_listener_pool.return_value,
             executor_queues=[], executor_pids=[], executor_locks=[],
@@ -52,30 +54,49 @@ class TestAcceptorPool(unittest.TestCase):
 
         self.assertEqual(mock_pipe.call_count, num_acceptors)
         self.assertEqual(mock_acceptor.call_count, num_acceptors)
-        mock_send_handle.assert_called()
         self.assertEqual(mock_send_handle.call_count, num_acceptors)
 
         self.assertEqual(
-            mock_acceptor.call_args_list[0][1]['idd'], 0,
+            mock_acceptor.call_args_list[0][1]['idd'],
+            0,
         )
         self.assertEqual(
-            mock_acceptor.call_args_list[0][1]['fd_queue'], mock_pipe.return_value[1],
+            mock_acceptor.call_args_list[0][1]['fd_queue'],
+            mock_pipe.return_value[1],
         )
         self.assertEqual(
-            mock_acceptor.call_args_list[0][1]['flags'], flags,
+            mock_acceptor.call_args_list[0][1]['flags'],
+            flags,
         )
         self.assertEqual(
-            mock_acceptor.call_args_list[0][1]['event_queue'], None,
+            mock_acceptor.call_args_list[0][1]['event_queue'],
+            None,
         )
         # executor_queues=[],
         # executor_pids=[]
         self.assertEqual(
             mock_acceptor.call_args_list[1][1]['idd'], 1,
         )
+        self.assertEqual(
+            mock_acceptor.call_args_list[1][1]['fd_queue'],
+            mock_pipe.return_value[2],
+        )
+        self.assertEqual(
+            mock_acceptor.call_args_list[1][1]['flags'],
+            flags,
+        )
+        self.assertEqual(
+            mock_acceptor.call_args_list[1][1]['event_queue'],
+            None,
+        )
 
         acceptor1.start.assert_called_once()
         acceptor2.start.assert_called_once()
-        mock_tcp_socket_listener.return_value.fileno.assert_called_once()
+
+        self.assertEqual(
+            mock_tcp_socket_listener.return_value.fileno.call_count,
+            num_acceptors,
+        )
 
         acceptor1.join.assert_not_called()
         acceptor2.join.assert_not_called()
