@@ -189,7 +189,7 @@ class Proxy:
         self._write_pid_file()
         # We setup listeners first because of flags.port override
         # in case of ephemeral port being used
-        self.listeners = ListenerPool(self.flags)
+        self.listeners = ListenerPool(flags=self.flags)
         self.listeners.setup()
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve

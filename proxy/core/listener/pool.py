@@ -36,11 +36,11 @@ class ListenerPool:
 
     def setup(self) -> None:
         if self.flags.unix_socket_path:
-            ulistener = UnixSocketListener(self.flags)
+            ulistener = UnixSocketListener(flags=self.flags)
             ulistener.setup()
             self.pool.append(ulistener)
         else:
-            listener = TcpSocketListener(self.flags)
+            listener = TcpSocketListener(flags=self.flags)
             listener.setup()
             self.pool.append(listener)
 

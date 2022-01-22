@@ -20,10 +20,12 @@ class TestAcceptorPool(unittest.TestCase):
     @mock.patch('proxy.core.acceptor.pool.send_handle')
     @mock.patch('multiprocessing.Pipe')
     @mock.patch('proxy.core.acceptor.pool.Acceptor')
-    @mock.patch('proxy.core.acceptor.Listener')
+    @mock.patch('proxy.core.listener.pool.ListenerPool')
+    @mock.patch('proxy.core.listener.pool.TcpSocketListener')
     def test_setup_and_shutdown(
             self,
-            mock_listener: mock.Mock,
+            mock_tcp_socket_listener: mock.Mock,
+            mock_listener_pool: mock.Mock,
             mock_acceptor: mock.Mock,
             mock_pipe: mock.Mock,
             mock_send_handle: mock.Mock,
@@ -39,8 +41,11 @@ class TestAcceptorPool(unittest.TestCase):
         )
         self.assertEqual(flags.num_acceptors, num_acceptors)
 
+        mock_listener_pool.return_value.pool = [
+            mock_tcp_socket_listener.return_value,
+        ]
         pool = AcceptorPool(
-            flags=flags, listeners=mock_listener.return_value,
+            flags=flags, listeners=mock_listener_pool.return_value,
             executor_queues=[], executor_pids=[], executor_locks=[],
         )
         pool.setup()
@@ -70,7 +75,7 @@ class TestAcceptorPool(unittest.TestCase):
 
         acceptor1.start.assert_called_once()
         acceptor2.start.assert_called_once()
-        mock_listener.return_value.fileno.assert_called_once()
+        mock_tcp_socket_listener.return_value.fileno.assert_called_once()
 
         acceptor1.join.assert_not_called()
         acceptor2.join.assert_not_called()
