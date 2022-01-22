@@ -13,8 +13,8 @@
        pre
 """
 from .tcp import TcpSocketListener
-from .unix import UnixSocketListener
 from .pool import ListenerPool
+from .unix import UnixSocketListener
 
 
 __all__ = [
