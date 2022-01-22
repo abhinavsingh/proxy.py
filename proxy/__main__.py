@@ -26,19 +26,9 @@ if __name__ == '__main__':
         wrapper_whitelist = os.environ['INDEXER_ERC20_WRAPPER_WHITELIST']
         if wrapper_whitelist != 'ANY':
             wrapper_whitelist = wrapper_whitelist.split(',')
-        log_level = os.environ['LOG_LEVEL']
         neon_decimals = int(os.environ.get('NEON_DECIMALS', '9'))
 
-        start_slot = os.environ.get('START_SLOT', None)
-        finalized = os.environ.get('FINALIZED', 'finalized')
-        if start_slot == 'LATEST':
-            client = Client(solana_url)
-            start_slot = client.get_slot(commitment=finalized)["result"]
-        if start_slot is None: # by default
-            start_slot = 0
-        else: # try to convert into integer
-            start_slot = int(start_slot)
-
+        start_slot = os.environ.get('START_SLOT', 0)
         pp_solana_url = os.environ.get('PP_SOLANA_URL', None)
         max_conf = float(os.environ.get('MAX_CONFIDENCE_INTERVAL', 0.02))
 
@@ -47,7 +37,6 @@ if __name__ == '__main__':
                        pyth_mapping_account,
                        faucet_url,
                        wrapper_whitelist,
-                       log_level,
                        neon_decimals,
                        start_slot,
                        pp_solana_url,

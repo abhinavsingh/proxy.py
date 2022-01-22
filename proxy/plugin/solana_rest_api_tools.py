@@ -1,10 +1,11 @@
 import base64
-import logging
+import eth_utils
 
 from datetime import datetime
 from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
 from solana.rpc.commitment import Confirmed
+from logged_groups import logged_group
 
 from ..common_neon.address import ether2program, getTokenAddr, EthereumAddress, AccountInfo
 from ..common_neon.errors import SolanaAccountNotFoundError, SolanaErrors
@@ -16,11 +17,8 @@ from ..common_neon.utils import get_from_dict
 from ..environment import NEW_USER_AIRDROP_AMOUNT, read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-
-def neon_config_load(ethereum_model):
+@logged_group("neon.Proxy")
+def neon_config_load(ethereum_model, *, logger):
     try:
         ethereum_model.neon_config_dict
     except AttributeError:
@@ -48,7 +46,6 @@ def call_signed(signer, client, eth_trx, steps):
     return tx_sender.execute()
 
 
-
 def _getAccountData(client, account, expected_length, owner=None):
     info = client.get_account_info(account, commitment=Confirmed)['result']['value']
     if info is None:
@@ -66,7 +63,8 @@ def getAccountInfo(client, eth_account: EthereumAddress):
     return AccountInfo.frombytes(info)
 
 
-def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
+@logged_group("neon.Proxy")
+def get_token_balance_gwei(client: SolanaClient, pda_account: str, *, logger) -> int:
     neon_token_account = getTokenAddr(PublicKey(pda_account))
     rpc_response = client.get_token_account_balance(neon_token_account, commitment=Confirmed)
     error = rpc_response.get('error')
@@ -80,20 +78,22 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str) -> int:
 
     balance = get_from_dict(rpc_response, "result", "value", "amount")
     if balance is None:
-        logger.error(f"Failed to get_token_balance_gwei by neon_token_account: {neon_token_account}, response: {rpc_response}")
+        logger.error(
+            f"Failed to get_token_balance_gwei by neon_token_account: {neon_token_account}, response: {rpc_response}")
         raise Exception("Unexpected get_balance response")
     return int(balance)
 
 
-def get_token_balance_or_airdrop(client: SolanaClient, eth_account: EthereumAddress) -> int:
+@logged_group("neon.Proxy")
+def get_token_balance_or_airdrop(client: SolanaClient, eth_account: EthereumAddress, *, logger) -> int:
     solana_account, nonce = ether2program(eth_account)
     logger.debug(f"Get balance for eth account: {eth_account} aka: {solana_account}")
 
     try:
-        return get_token_balance_gwei(client, solana_account)
+        return get_token_balance_gwei(client, solana_account) * eth_utils.denoms.gwei
     except SolanaAccountNotFoundError:
         logger.debug(f"Account not found:  {eth_account} aka: {solana_account} - return airdrop amount")
-        return NEW_USER_AIRDROP_AMOUNT * 1_000_000_000
+        return NEW_USER_AIRDROP_AMOUNT * eth_utils.denoms.gwei
 
 
 def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> bool:
@@ -103,7 +103,8 @@ def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> boo
     return value is not None
 
 
-def estimate_gas(contract_id: str, caller_eth_account: EthereumAddress, data: str = None, value: str = None):
+@logged_group("neon.Proxy")
+def estimate_gas(contract_id: str, caller_eth_account: EthereumAddress, data: str = None, value: str = None, *, logger):
     result = call_emulated(contract_id, str(caller_eth_account), data, value)
     used_gas = result.get("used_gas")
     if used_gas is None:

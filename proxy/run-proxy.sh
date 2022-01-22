@@ -13,7 +13,7 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="postgres"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
-  [[ -z "$FINALIZED"                    ]] && export FINALIZED="confirmed"
+  [[ -z "$FINALIZED"                    ]] && export FINALIZED="finalized"
 elif [ "$CONFIG" == "local" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="http://localhost:8899"
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=0
@@ -22,7 +22,7 @@ elif [ "$CONFIG" == "local" ]; then
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
-  [[ -z "$FINALIZED"                    ]] && export FINALIZED="confirmed"
+  [[ -z "$FINALIZED"                    ]] && export FINALIZED="finalized"
 elif [ "$CONFIG" == "devnet" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="https://api.devnet.solana.com"
   [[ -z "$EVM_LOADER"                   ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU

@@ -1,11 +1,8 @@
 import psycopg2
-import logging
 from collections.abc import MutableMapping
 from proxy.indexer.pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD\
     , POSTGRES_HOST, encode, decode, dummy
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 class SQLDict(MutableMapping):
     """Serialize an object using pickle to a binary format accepted by SQLite."""

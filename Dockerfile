@@ -8,21 +8,22 @@ FROM neonlabsorg/evm_loader:${EVM_LOADER_REVISION} AS spl
 FROM ubuntu:20.04
 ARG PROXY_REVISION
 
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt -y install \
-            software-properties-common openssl curl \
-            ca-certificates python3-pip python3-venv && \
-    rm -rf /var/lib/apt/lists/*
-
 COPY ./requirements.txt /opt
 COPY ./proxy/solana-py.patch /opt
+COPY ./log_cfg.json /opt
+
 WORKDIR /opt
 
-RUN python3 -m venv venv && \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -y git software-properties-common openssl curl \
+                                                  ca-certificates python3-pip python3-venv && \
+    python3 -m venv venv && \
     pip3 install --upgrade pip && \
     /bin/bash -c "source venv/bin/activate" && \
     pip install -r requirements.txt && \
-    pip install py-solc-x
+    apt remove -y git && \
+    pip install py-solc-x && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=cli /opt/solana/bin/solana \
                 /opt/solana/bin/solana-faucet \

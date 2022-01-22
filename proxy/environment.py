@@ -1,10 +1,7 @@
 import os
 import subprocess
-import logging
+from logged_groups import logged_group, LogMng
 from solana.publickey import PublicKey
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 SOLANA_URL = os.environ.get("SOLANA_URL", "http://localhost:8899")
 EVM_LOADER_ID = os.environ.get("EVM_LOADER")
@@ -20,51 +17,58 @@ LOG_SENDING_SOLANA_TRANSACTION = os.environ.get("LOG_SENDING_SOLANA_TRANSACTION"
 LOG_NEON_CLI_DEBUG = os.environ.get("LOG_NEON_CLI_DEBUG", "NO") == "YES"
 WRITE_TRANSACTION_COST_IN_DB = os.environ.get("WRITE_TRANSACTION_COST_IN_DB", "NO") == "YES"
 RETRY_ON_FAIL = int(os.environ.get("RETRY_ON_FAIL", "10"))
+RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION = max(int(os.environ.get("RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION", "1000")), 1)
 
+@logged_group("neon.Proxy")
 class solana_cli:
     def call(self, *args):
         try:
             cmd = ["solana",
                    "--url", SOLANA_URL,
                    ] + list(args)
-            logger.debug("Calling: " + " ".join(cmd))
+            self.debug("Calling: " + " ".join(cmd))
             return subprocess.check_output(cmd, universal_newlines=True)
         except subprocess.CalledProcessError as err:
-            logger.debug("ERR: solana error {}".format(err))
+            self.error("ERR: solana error {}".format(err))
             raise
 
 
+@logged_group("neon.Proxy")
 class neon_cli:
     def call(self, *args):
         try:
+            ctx = str(LogMng.get_logging_context())
             cmd = ["neon-cli",
                    "--commitment=recent",
                    "--url", SOLANA_URL,
-                   "--evm_loader={}".format(EVM_LOADER_ID),
+                   f"--evm_loader={EVM_LOADER_ID}",
+                   f"--logging_ctx={ctx}"
                    ]\
                   + (["-vvv"] if LOG_NEON_CLI_DEBUG else [])\
                   + list(args)
-            logger.debug("Calling: " + " ".join(cmd))
+            self.debug("Calling: " + " ".join(cmd))
             return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True)
         except subprocess.CalledProcessError as err:
-            logger.debug("ERR: neon-cli error {}".format(err))
+            self.error("ERR: neon-cli error {}".format(err))
             raise
 
     def version(self):
         try:
             cmd = ["neon-cli",
                    "--version"]
-            logger.debug("Calling: " + " ".join(cmd))
+            self.debug("Calling: " + " ".join(cmd))
             return subprocess.check_output(cmd, timeout=neon_cli_timeout, universal_newlines=True).split()[1]
         except subprocess.CalledProcessError as err:
-            logger.debug("ERR: neon-cli error {}".format(err))
+            self.error("ERR: neon-cli error {}".format(err))
             raise
+
 
 def read_elf_params(out_dict):
     for param in neon_cli().call("neon-elf-params").splitlines():
         if param.startswith('NEON_') and '=' in param:
             v = param.split('=')
             out_dict[v[0]] = v[1]
+
 
 ELF_PARAMS = {}
 read_elf_params(ELF_PARAMS)

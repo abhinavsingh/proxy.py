@@ -180,16 +180,19 @@ class Test_Neon_Faucet(unittest.TestCase):
         self.faucet = subprocess.Popen(['faucet', 'run', '--workers', '1'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     # @unittest.skip("a.i.")
-    def test_neon_faucet_01_neon_in_galans(self):
+    def test_neon_faucet_00_ping(self):
         print()
-        url = 'http://localhost:{}/request_neon_in_galans'.format(os.environ['FAUCET_RPC_PORT'])
-        # First request - trigger creation of the account without real transfer
-        data = '{"wallet": "' + user.address + '", "amount": 0}'
+        url = 'http://localhost:{}/request_ping'.format(os.environ['FAUCET_RPC_PORT'])
+        data = '{"ping": "Hello"}'
         r = requests.post(url, data=data)
         if not r.ok:
             print('Response:', r.status_code)
         assert(r.ok)
-        # Second request - actual test
+
+    # @unittest.skip("a.i.")
+    def test_neon_faucet_01_neon_in_galans(self):
+        print()
+        url = 'http://localhost:{}/request_neon_in_galans'.format(os.environ['FAUCET_RPC_PORT'])
         balance_before = proxy.eth.get_balance(user.address)
         print('NEO balance before:', balance_before)
         data = '{"wallet": "' + user.address + '", "amount": 99999}'
@@ -207,13 +210,6 @@ class Test_Neon_Faucet(unittest.TestCase):
     def test_neon_faucet_02_neon(self):
         print()
         url = 'http://localhost:{}/request_neon'.format(os.environ['FAUCET_RPC_PORT'])
-        # First request - trigger creation of the account without real transfer
-        data = '{"wallet": "' + user.address + '", "amount": 0}'
-        r = requests.post(url, data=data)
-        if not r.ok:
-            print('Response:', r.status_code)
-        assert(r.ok)
-        # Second request - actual test
         balance_before = proxy.eth.get_balance(user.address)
         print('NEO balance before:', balance_before)
         data = '{"wallet": "' + user.address + '", "amount": 1}'
@@ -228,7 +224,7 @@ class Test_Neon_Faucet(unittest.TestCase):
         self.assertEqual(balance_after - balance_before, 1000000000000000000)
 
     # @unittest.skip("a.i.")
-    def test_neon_faucet_03_erc20_tokens(self):
+    def test_neon_faucet_03_erc20(self):
         print()
         url = 'http://localhost:{}/request_erc20'.format(os.environ['FAUCET_RPC_PORT'])
         a_before = self.get_token_balance(self.token_a, user.address)

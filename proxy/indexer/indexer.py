@@ -3,14 +3,14 @@ from typing import Optional
 import base58
 import os
 import time
-import logging
+from logged_groups import logged_group
 
 try:
-    from indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
+    from indexer_base import IndexerBase, PARALLEL_REQUESTS
     from indexer_db import IndexerDB
     from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxSignInfo, Canceller, str_fmt_object, FINALIZED
 except ImportError:
-    from .indexer_base import logger, IndexerBase, PARALLEL_REQUESTS
+    from .indexer_base import IndexerBase, PARALLEL_REQUESTS
     from .indexer_db import IndexerDB, FINALIZED
     from .utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object, FINALIZED
 
@@ -20,6 +20,7 @@ CANCEL_TIMEOUT = int(os.environ.get("CANCEL_TIMEOUT", "60"))
 UPDATE_BLOCK_COUNT = PARALLEL_REQUESTS * 16
 
 
+@logged_group("neon.Indexer")
 class SolanaIxInfo:
     def __init__(self, sign: str, slot: int, tx: {}):
         self.sign = SolanaIxSignInfo(sign=sign, slot=slot, idx=-1)
@@ -42,7 +43,7 @@ class SolanaIxInfo:
             self.evm_ix = int(self.ix_data[0])
             return True
         except Exception as e:
-            logger.debug(f'{self} fail to get a Neon EVM instruction: {e}')
+            self.debug(f'{self} fail to get a Neon EVM instruction: {e}')
             self.evm_ix = 0xFF
             self.ix_data = None
         return False
@@ -63,7 +64,7 @@ class SolanaIxInfo:
             # Make a new object to keep values in existing
             self.sign = SolanaIxSignInfo(sign=self.sign.sign, slot=self.sign.slot, idx=ix_idx)
             if 'programIdIndex' not in self.ix:
-                logger.debug(f'{self} error: fail to get program id')
+                self.debug(f'{self} error: fail to get program id')
                 continue
             if accounts[self.ix['programIdIndex']] != EVM_LOADER_ID:
                 continue
@@ -138,6 +139,7 @@ class NeonTxObject(BaseEvmObject):
         return str_fmt_object(self)
 
 
+@logged_group("neon.Indexer")
 class ReceiptsParserState:
     """
     Each instruction is passed to a decoder (see DummyIxDecoder bellow).
@@ -202,7 +204,7 @@ class ReceiptsParserState:
 
     def add_holder(self, account: str) -> NeonHolderObject:
         if account in self._holder_table:
-            logger.debug(f'{self.ix} ATTENTION: the holder {account} is already used!')
+            self.debug(f'{self.ix} ATTENTION: the holder {account} is already used!')
 
         holder = NeonHolderObject(account=account)
         self._holder_table[account] = holder
@@ -216,7 +218,7 @@ class ReceiptsParserState:
 
     def add_tx(self, storage_account: str, neon_tx=None, neon_res=None) -> NeonTxObject:
         if storage_account in self._tx_table:
-            logger.debug(f'{self.ix} ATTENTION: the tx {storage_account} is already used!')
+            self.debug(f'{self.ix} ATTENTION: the tx {storage_account} is already used!')
 
         tx = NeonTxObject(storage_account=storage_account, neon_tx=neon_tx, neon_res=neon_res)
         self._tx_table[storage_account] = tx
@@ -248,6 +250,7 @@ class ReceiptsParserState:
             yield tx
 
 
+@logged_group("neon.Indexer")
 class DummyIxDecoder:
     def __init__(self, name: str, state: ReceiptsParserState):
         self.name = name
@@ -263,7 +266,7 @@ class DummyIxDecoder:
     def _getadd_tx(self, storage_account, neon_tx=None, blocked_accounts=[str]) -> NeonTxObject:
         tx = self.state.get_tx(storage_account)
         if tx and neon_tx and tx.neon_tx and (neon_tx.sign != tx.neon_tx.sign):
-            self._log_warning(f'storage {storage_account}, tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx})')
+            self.warning(f'{self}: tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx}), storage: {storage_account}')
             self.state.unmark_ix_used(tx)
             self.state.del_tx(tx)
             tx = None
@@ -275,9 +278,6 @@ class DummyIxDecoder:
             tx.neon_tx = neon_tx
         return tx
 
-    def _log_warning(self, msg: str):
-        logger.warning(f'{self}: {msg}')
-
     def _decoding_start(self):
         """
         Start decoding process:
@@ -285,7 +285,7 @@ class DummyIxDecoder:
         - log the start of decoding.
         """
         self.ix = self.state.ix
-        logger.debug(f'{self} ...')
+        self.debug(f'{self} ...')
 
     def _decoding_success(self, obj: BaseEvmObject, msg: str) -> bool:
         """
@@ -294,7 +294,7 @@ class DummyIxDecoder:
         - log the success message.
         """
         self.state.mark_ix_used(obj)
-        logger.debug(f'{self}: {msg} - {obj}')
+        self.debug(f'{self}: {msg} - {obj}')
         return True
 
     def _decoding_done(self, obj: BaseEvmObject, msg: str) -> bool:
@@ -309,12 +309,12 @@ class DummyIxDecoder:
             self.state.del_holder(obj)
         else:
             assert False, 'Unknown type of object'
-        logger.debug(f'{self}: {msg} - {obj}')
+        self.debug(f'{self}: {msg} - {obj}')
         return True
 
     def _decoding_skip(self, reason: str) -> bool:
         """Skip decoding of the instruction"""
-        logger.error(f'{self}: {reason}')
+        self.error(f'{self}: {reason}')
         return False
 
     def _decoding_fail(self, obj: BaseEvmObject, reason: str) -> bool:
@@ -325,7 +325,7 @@ class DummyIxDecoder:
 
         Show errors in warning mode because it can be a result of restarting.
         """
-        logger.warning(f'{self}: {reason} - {obj}')
+        self.warning(f'{self}: {reason} - {obj}')
         self.state.unmark_ix_used(obj)
 
         if isinstance(obj, NeonTxObject):
@@ -366,7 +366,7 @@ class DummyIxDecoder:
 
         rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data))
         if rlp_error:
-            self._log_warning(f'Neon tx rlp error "{rlp_error}"')
+            self.error(f'{self} Neon tx rlp error: {rlp_error}')
 
         tx.holder_account = holder_account
         tx.move_ix_used(holder)
@@ -614,18 +614,16 @@ class ExecuteOrContinueIxParser(DummyIxDecoder):
         return self._decode_tx(tx)
 
 
+@logged_group("neon.Indexer")
 class Indexer(IndexerBase):
-    def __init__(self,
-                 solana_url,
-                 evm_loader_id,
-                 log_level = 'INFO'):
-        IndexerBase.__init__(self, solana_url, evm_loader_id, log_level, 0)
+    def __init__(self, solana_url, evm_loader_id):
+        IndexerBase.__init__(self, solana_url, evm_loader_id, 0)
         self.db = IndexerDB(self.client)
         self.canceller = Canceller()
         self.blocked_storages = {}
         self.processed_slot = self.db.get_min_receipt_slot()
-        logger.debug(f'Minimum receipt slot: {self.processed_slot}')
-        logger.debug(f'Finalized commitment: {FINALIZED}')
+        self.debug(f'Minimum receipt slot: {self.processed_slot}')
+        self.debug(f'Finalized commitment: {FINALIZED}')
 
         self.state = ReceiptsParserState(db=self.db, client=self.client)
         self.ix_decoder_map = {
@@ -653,13 +651,13 @@ class Indexer(IndexerBase):
 
     def process_functions(self):
         IndexerBase.process_functions(self)
-        logger.debug("Start getting blocks")
+        self.debug("Start getting blocks")
         (start_block_slot, last_block_slot) = self.gather_blocks()
-        logger.debug("Process receipts")
+        self.debug("Process receipts")
         self.process_receipts()
-        logger.debug(f'remove not finalized data in range[{start_block_slot}..{last_block_slot}]')
+        self.debug(f'remove not finalized data in range[{start_block_slot}..{last_block_slot}]')
         self.db.del_not_finalized(from_slot=start_block_slot, to_slot=last_block_slot)
-        logger.debug("Unlock accounts")
+        self.debug("Unlock accounts")
         self.canceller.unlock_accounts(self.blocked_storages)
         self.blocked_storages = {}
 
@@ -688,14 +686,14 @@ class Indexer(IndexerBase):
 
         for tx in self.state.iter_txs():
             if tx.storage_account and abs(tx.slot - self.current_slot) > CANCEL_TIMEOUT:
-                logger.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
+                self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
                 self.blocked_storages[tx.storage_account] = (tx.neon_tx, tx.blocked_accounts)
 
         self.processed_slot = max(self.processed_slot, max_slot + 1)
         self.db.set_min_receipt_slot(self.state.find_min_used_slot(self.processed_slot))
 
         process_receipts_ms = (time.time() - start_time) * 1000  # convert this into milliseconds
-        logger.debug(f"process_receipts_ms: {process_receipts_ms} transaction_receipts.len: {self.transaction_receipts.size()} from {self.processed_slot} to {self.current_slot} slots")
+        self.debug(f"process_receipts_ms: {process_receipts_ms} transaction_receipts.len: {self.transaction_receipts.size()} from {self.processed_slot} to {self.current_slot} slots")
 
     def gather_blocks(self):
         start_time = time.time()
@@ -724,41 +722,31 @@ class Indexer(IndexerBase):
             last_block_slot = confirmed_blocks[confirmed_blocks_len - 1]
             last_block = client.make_request("getBlock", last_block_slot, block_opts)
             if not last_block['result'] or last_block['result']['blockHeight'] != max_height:
-                logger.warning(f"FAILED max_height {max_height} last_block_slot {last_block_slot} {last_block}")
+                self.warning(f"FAILED max_height {max_height} last_block_slot {last_block_slot} {last_block}")
                 break
 
             # Everything is good
-            logger.debug(f"gather_blocks from {height} to {max_height}")
+            self.debug(f"gather_blocks from {height} to {max_height}")
             self.db.fill_block_height(height, confirmed_blocks)
             self.db.set_last_slot_height(last_block_slot, max_height)
             height = max_height
 
         gather_blocks_ms = (time.time() - start_time) * 1000  # convert this into milliseconds
-        logger.debug(f"gather_blocks_ms: {gather_blocks_ms} last_height: {max_height} last_block_slot {last_block_slot}")
+        self.debug(f"gather_blocks_ms: {gather_blocks_ms} last_height: {max_height} last_block_slot {last_block_slot}")
         return start_block_slot, last_block_slot
 
 
-def run_indexer(solana_url,
-                evm_loader_id,
-                log_level = 'DEBUG'):
-    logging.basicConfig(format='%(asctime)s - pid:%(process)d [%(levelname)-.1s] %(funcName)s:%(lineno)d - %(message)s')
-    logger.setLevel(logging.DEBUG)
+@logged_group("neon.Indexer")
+def run_indexer(solana_url, evm_loader_id, *, logger):
     logger.info(f"""Running indexer with params:
         solana_url: {solana_url},
-        evm_loader_id: {evm_loader_id},
-        log_level: {log_level}""")
+        evm_loader_id: {evm_loader_id}""")
 
-    indexer = Indexer(solana_url,
-                      evm_loader_id,
-                      log_level)
+    indexer = Indexer(solana_url, evm_loader_id)
     indexer.run()
 
 
 if __name__ == "__main__":
     solana_url = os.environ.get('SOLANA_URL', 'http://localhost:8899')
     evm_loader_id = os.environ.get('EVM_LOADER_ID', '53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io')
-    log_level = os.environ.get('LOG_LEVEL', 'INFO')
-
-    run_indexer(solana_url,
-                evm_loader_id,
-                log_level)
+    run_indexer(solana_url, evm_loader_id)

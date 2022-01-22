@@ -1,15 +1,11 @@
 import psycopg2
-import os
-import logging
 from proxy.indexer.pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD\
     , POSTGRES_HOST, encode, decode, dummy
 
-logger = logging.getLogger(__name__)
 
 class TrxReceiptsStorage:
-    def __init__(self, table_name, log_level = logging.DEBUG):
+    def __init__(self, table_name):
         self.table_name = table_name
-        logger.setLevel(log_level)
         self.conn = psycopg2.connect(
             dbname=POSTGRES_DB,
             user=POSTGRES_USER,

@@ -120,7 +120,6 @@ services:
       FAUCET_URL: http://faucet:3333
       NEON_CLI_TIMEOUT: 0.9
       INDEXER_ERC20_WRAPPER_WHITELIST: ANY
-      LOG_LEVEL: INFO
       PRICE_UPDATE_INTERVAL: 10
       START_SLOT: LATEST
       PP_SOLANA_URL: https://api.mainnet-beta.solana.com

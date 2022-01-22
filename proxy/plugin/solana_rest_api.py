@@ -8,14 +8,14 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import copy
-import eth_utils
 import json
-import logging
 import threading
 import traceback
 import unittest
 import time
+import hashlib
+
+from logged_groups import logged_group, logging_context
 
 from ..common.utils import build_http_response
 from ..http.codes import httpStatusCodes
@@ -39,9 +39,6 @@ from ..environment import neon_cli, solana_cli, SOLANA_URL, MINIMAL_GAS_PRICE
 from ..indexer.indexer_db import IndexerDB
 from ..indexer.utils import NeonTxInfo
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
@@ -49,6 +46,7 @@ NEON_PROXY_PKG_VERSION = '0.5.4-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
+@logged_group("neon.Proxy")
 class EthereumModel:
     def __init__(self):
         self.signer = self.get_solana_account()
@@ -59,7 +57,7 @@ class EthereumModel:
         with proxy_id_glob.get_lock():
             self.proxy_id = proxy_id_glob.value
             proxy_id_glob.value += 1
-        logger.debug("worker id {}".format(self.proxy_id))
+        self.debug("worker id {}".format(self.proxy_id))
 
         neon_config_load(self)
 
@@ -118,7 +116,7 @@ class EthereumModel:
             raise
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
-            logger.debug(f"Exception on eth_estimateGas: {err}: {err_tb}")
+            self.error(f"Exception on eth_estimateGas: {err}: {err_tb}")
             raise
 
     def __repr__(self):
@@ -126,7 +124,7 @@ class EthereumModel:
 
     def process_block_tag(self, tag):
         if tag == "latest":
-            block_number = self.db.get_last_block_height()
+            block_number = self.db.get_latest_block_height()
         elif tag in ('earliest', 'pending'):
             raise Exception("Invalid tag {}".format(tag))
         elif isinstance(tag, str):
@@ -138,8 +136,8 @@ class EthereumModel:
         return block_number
 
     def eth_blockNumber(self):
-        height = self.db.get_last_block_height()
-        logger.debug("eth_blockNumber %s", hex(height))
+        height = self.db.get_latest_block_height()
+        self.debug("eth_blockNumber %s", hex(height))
         return hex(height)
 
     def eth_getBalance(self, account, tag):
@@ -147,10 +145,9 @@ class EthereumModel:
            tag - integer block number, or the string "latest", "earliest" or "pending"
         """
         eth_acc = EthereumAddress(account)
-        logger.debug('eth_getBalance: %s %s', account, eth_acc)
-        balance = get_token_balance_or_airdrop(self.client, eth_acc)
-
-        return hex(balance * eth_utils.denoms.gwei)
+        self.debug(f'eth_getBalance: {account} {eth_acc}')
+        balance = get_token_balance_or_airdrop(self.client, self.signer, eth_acc)
+        return hex(balance)
 
     def eth_getLogs(self, obj):
         fromBlock = None
@@ -214,14 +211,14 @@ class EthereumModel:
         Currently supports only 'latest' block
         '''
         if block_identifier != "latest":
-            logger.debug(f"Block type '{block_identifier}' is not supported yet")
+            self.debug(f"Block type '{block_identifier}' is not supported yet")
             raise RuntimeError(f"Not supported block identifier: {block_identifier}")
 
         try:
             value = neon_cli().call('get-storage-at', account, position)
             return value
         except Exception as err:
-            logger.debug(f"Neon-cli failed to execute: {err}")
+            self.error(f"eth_getStorageAt: Neon-cli failed to execute: {err}")
             return '0x00'
 
     def eth_getBlockByHash(self, block_hash, full):
@@ -232,13 +229,13 @@ class EthereumModel:
         block_hash = block_hash.lower()
         slot = self.db.get_block_by_hash(block_hash).slot
         if slot is None:
-            logger.debug("Not found block by hash %s", block_hash)
+            self.debug("Not found block by hash %s", block_hash)
             return None
         ret = self.getBlockBySlot(slot, full)
         if ret is not None:
-            logger.debug("eth_getBlockByHash: %s", json.dumps(ret, indent=3))
+            self.debug("eth_getBlockByHash: %s", json.dumps(ret, indent=3))
         else:
-            logger.debug("Not found block by hash %s", block_hash)
+            self.debug("Not found block by hash %s", block_hash)
         return ret
 
     def eth_getBlockByNumber(self, tag, full):
@@ -249,13 +246,13 @@ class EthereumModel:
         block_number = self.process_block_tag(tag)
         slot = self.db.get_block_by_height(block_number).slot
         if slot is None:
-            logger.debug("Not found block by number %s", tag)
+            self.debug("Not found block by number %s", tag)
             return None
         ret = self.getBlockBySlot(slot, full)
         if ret is not None:
-            logger.debug("eth_getBlockByNumber: %s", json.dumps(ret, indent=3))
+            self.debug("eth_getBlockByNumber: %s", json.dumps(ret, indent=3))
         else:
-            logger.debug("Not found block by number %s", tag)
+            self.debug("Not found block by number %s", tag)
         return ret
 
     def eth_call(self, obj, tag):
@@ -280,16 +277,16 @@ class EthereumModel:
         except EthereumError:
             raise
         except Exception as err:
-            logger.debug("eth_call %s", err)
+            self.error("eth_call Exception %s", err)
             raise
 
     def eth_getTransactionCount(self, account, tag):
-        logger.debug('eth_getTransactionCount: %s', account)
+        self.debug('eth_getTransactionCount: %s', account)
         try:
             acc_info = getAccountInfo(self.client, EthereumAddress(account))
             return hex(int.from_bytes(acc_info.trx_count, 'little'))
         except Exception as err:
-            print("Can't get account info: %s"%err)
+            self.error("eth_getTransactionCount: Can't get account info: %s", err)
             return hex(0)
 
     def _getTransactionReceipt(self, tx):
@@ -308,16 +305,16 @@ class EthereumModel:
             "logsBloom":"0x"+'0'*512
         }
 
-        logger.debug('RESULT: %s', json.dumps(result, indent=3))
+        self.debug('RESULT: %s', json.dumps(result, indent=3))
         return result
 
     def eth_getTransactionReceipt(self, trxId):
-        logger.debug('eth_getTransactionReceipt: %s', trxId)
+        self.debug('eth_getTransactionReceipt: %s', trxId)
 
         neon_sign = trxId.lower()
         tx = self.db.get_tx_by_neon_sign(neon_sign)
         if not tx:
-            logger.debug("Not found receipt")
+            self.debug("Not found receipt")
             return None
         return self._getTransactionReceipt(tx)
 
@@ -340,16 +337,16 @@ class EthereumModel:
             "s": t.s,
         }
 
-        logger.debug("_getTransaction: %s", json.dumps(ret, indent=3))
+        self.debug("_getTransaction: %s", json.dumps(ret, indent=3))
         return ret
 
     def eth_getTransactionByHash(self, trxId):
-        logger.debug('eth_getTransactionByHash: %s', trxId)
+        self.debug('eth_getTransactionByHash: %s', trxId)
 
         neon_sign = trxId.lower()
         tx = self.db.get_tx_by_neon_sign(neon_sign)
         if tx is None:
-            logger.debug ("Not found receipt")
+            self.debug("Not found receipt")
             return None
         return self._getTransaction(tx)
 
@@ -357,30 +354,30 @@ class EthereumModel:
         return "0x01"
 
     def eth_sendTransaction(self, trx):
-        logger.debug("eth_sendTransaction")
-        logger.debug("eth_sendTransaction: type(trx):%s", type(trx))
-        logger.debug("eth_sendTransaction: str(trx):%s", str(trx))
-        logger.debug("eth_sendTransaction: trx=%s", json.dumps(trx, cls=JsonEncoder, indent=3))
+        self.debug("eth_sendTransaction")
+        self.debug("eth_sendTransaction: type(trx):%s", type(trx))
+        self.debug("eth_sendTransaction: str(trx):%s", str(trx))
+        self.debug("eth_sendTransaction: trx=%s", json.dumps(trx, cls=JsonEncoder, indent=3))
         raise Exception("eth_sendTransaction is not supported. please use eth_sendRawTransaction")
 
     def eth_sendRawTransaction(self, rawTrx):
-        logger.debug('eth_sendRawTransaction rawTrx=%s', rawTrx)
+        self.debug('eth_sendRawTransaction rawTrx=%s', rawTrx)
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
-        logger.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
+        self.debug("%s", json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3))
         if trx.gasPrice < MINIMAL_GAS_PRICE:
             raise Exception("The transaction gasPrice is less then the minimum allowable value ({}<{})".format(trx.gasPrice, MINIMAL_GAS_PRICE))
 
         eth_signature = '0x' + bytes(Web3.keccak(bytes.fromhex(rawTrx[2:]))).hex()
 
         sender = trx.sender()
-        logger.debug('Eth Sender: %s', sender)
-        logger.debug('Eth Signature: %s', trx.signature().hex())
-        logger.debug('Eth Hash: %s', eth_signature)
+        self.debug('Eth Sender: %s', sender)
+        self.debug('Eth Signature: %s', trx.signature().hex())
+        self.debug('Eth Hash: %s', eth_signature)
 
         nonce = int(self.eth_getTransactionCount('0x' + sender, None), base=16)
 
-        logger.debug('Eth Sender trx nonce in solana: %s', nonce)
-        logger.debug('Eth Sender trx nonce in transaction: %s', trx.nonce)
+        self.debug('Eth Sender trx nonce in solana: %s', nonce)
+        self.debug('Eth Sender trx nonce in transaction: %s', trx.nonce)
 
         if (int(nonce) != int(trx.nonce)):
             raise EthereumError(-32002, 'Verifying nonce before send transaction: Error processing Instruction 1: invalid program argument'
@@ -392,25 +389,25 @@ class EthereumModel:
                                 })
         try:
             neon_res = call_signed(self.signer, self.client, trx, steps=500)
-            logger.debug('Transaction signature: %s %s', neon_res.sol_sign, eth_signature)
+            self.debug('Transaction signature: %s %s', neon_res.sol_sign, eth_signature)
             neon_tx = NeonTxInfo()
             neon_tx.init_from_eth_tx(trx)
             self.db.submit_transaction(neon_tx, neon_res, [])
             return eth_signature
 
         except SolanaTxError as err:
-            self._log_transaction_error(err, logger)
+            self._log_transaction_error(err)
             raise
         except EthereumError as err:
-            logger.debug("eth_sendRawTransaction EthereumError:%s", err)
+            self.error("eth_sendRawTransaction EthereumError:%s", err)
             raise
         except Exception as err:
-            logger.debug("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
+            self.error("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
             raise
 
-    def _log_transaction_error(self, error: SolanaTxError, logger):
+    def _log_transaction_error(self, error: SolanaTxError):
         err_msg = json.dumps(error.result, indent=3)
-        logger.error(f"Got SendTransactionError: {err_msg}")
+        self.error(f"Got SendTransactionError: {err_msg}")
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -422,6 +419,7 @@ class JsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+@logged_group("neon.TestCases")
 class SolanaContractTests(unittest.TestCase):
 
     def setUp(self):
@@ -445,17 +443,17 @@ class SolanaContractTests(unittest.TestCase):
         blockNumber = self.getBlockNumber()
 
         receiptId = self.model.eth_sendRawTransaction('0xf8730a85174876e800825208948d900bfa2353548a4631be870f99939575551b608906aaf7c8516d0c0000808602e92be91e86a040a2a5d73931f66185e8526f09c4d0dc1f389c1b9fcd5e37a012839e6c5c70f0a00554615806c3fa7dc7c8096b3bfed5a29354045e56982bdf3ee11f649e53d51e')
-        logger.debug('ReceiptId:', receiptId)
+        self.debug('ReceiptId:', receiptId)
 
         self.assertEqual(self.getBalance(sender), senderBalance - amount)
         self.assertEqual(self.getBalance(receiver), receiverBalance + amount)
         self.assertEqual(self.getBlockNumber(), blockNumber+1)
 
         receipt = self.model.eth_getTransactionReceipt(receiptId)
-        logger.debug('Receipt:', receipt)
+        self.debug('Receipt:', receipt)
 
         block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
-        logger.debug('Block:', block)
+        self.debug('Block:', block)
 
         self.assertTrue(receiptId in block['transactions'])
 
@@ -467,20 +465,21 @@ class SolanaContractTests(unittest.TestCase):
 
 
         receiptId = self.model.eth_sendRawTransaction('0xf8b018850bdfd63e00830186a094b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000cac68f98c1893531df666f2d58243b27dd351a8800000000000000000000000000000000000000000000000000000000000000208602e92be91e86a05ed7d0093a991563153f59c785e989a466e5e83bddebd9c710362f5ee23f7dbaa023a641d304039f349546089bc0cb2a5b35e45619fd97661bd151183cb47f1a0a')
-        logger.debug('ReceiptId:', receiptId)
+        self.debug('ReceiptId:', receiptId)
 
         self.assertEqual(self.getTokenBalance(token, sender), senderBalance - amount)
         self.assertEqual(self.getTokenBalance(token, receiver), receiverBalance + amount)
 
         receipt = self.model.eth_getTransactionReceipt(receiptId)
-        logger.debug('Receipt:', receipt)
+        self.debug('Receipt:', receipt)
 
         block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
-        logger.debug('Block:', block)
+        self.debug('Block:', block)
 
         self.assertTrue(receiptId in block['transactions'])
 
 
+@logged_group("neon.Proxy")
 class SolanaProxyPlugin(HttpWebServerBasePlugin):
     """Extend in-built Web Server to add Reverse Proxy capabilities.
     """
@@ -529,13 +528,23 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             response['error'] = err.getError()
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
-            logger.warning('Exception on process request. ' +
+            self.error('Exception on process request. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
             response['error'] = {'code': -32000, 'message': str(err)}
 
         return response
 
     def handle_request(self, request: HttpParser) -> None:
+        unique_req_id = self.get_unique_id()
+        with logging_context(req_id=unique_req_id):
+            self.handle_request_impl(request)
+            self.info("Request processed")
+
+    @staticmethod
+    def get_unique_id():
+        return hashlib.md5((time.time_ns()).to_bytes(16, 'big')).hexdigest()[:7]
+
+    def handle_request_impl(self, request: HttpParser) -> None:
         if request.method == b'OPTIONS':
             self.client.queue(memoryview(build_http_response(
                 httpStatusCodes.OK, body=None,
@@ -547,12 +556,12 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 })))
             return
         start_time = time.time()
-        logger.debug('<<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
+        self.info('handle_request <<< %s 0x%x %s', threading.get_ident(), id(self.model), request.body.decode('utf8'))
         response = None
 
         try:
             request = json.loads(request.body)
-            print('type(request) = ', type(request), request)
+            self.debug(f'Request payload: {request}')
             if isinstance(request, list):
                 response = []
                 if len(request) == 0:
@@ -568,7 +577,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             response = {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': str(err)}}
 
         resp_time_ms = (time.time() - start_time)*1000  # convert this into milliseconds
-        logger.debug('>>> %s 0x%0x %s %s resp_time_ms= %s', threading.get_ident(), id(self.model), json.dumps(response),
+        self.info('handle_request >>> %s 0x%0x %s %s resp_time_ms= %s', threading.get_ident(), id(self.model), json.dumps(response),
                      request.get('method', '---'),
                      resp_time_ms)
 
@@ -587,4 +596,3 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
 
     def on_websocket_close(self) -> None:
         pass
-

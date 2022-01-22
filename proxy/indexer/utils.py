@@ -1,7 +1,6 @@
 import base58
 import base64
 import json
-import logging
 import psycopg2
 import rlp
 import subprocess
@@ -18,7 +17,7 @@ from solana.sysvar import SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
-from web3.auto.gethdev import w3
+from logged_groups import logged_group
 
 from ..common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PROGRAM
 from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT
@@ -31,9 +30,6 @@ from proxy.indexer.pg_common import encode, decode
 
 
 FINALIZED = os.environ.get('FINALIZED', 'finalized')
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def check_error(trx):
@@ -48,7 +44,7 @@ def str_fmt_object(obj):
     name = f'{type(obj)}'
     name = name[name.rfind('.') + 1:-2]
     lookup = lambda o: o.__dict__ if hasattr(o, '__dict__') else None
-    members = {json.dumps(obj, default=lookup, sort_keys=True)}
+    members = {json.dumps(obj, skipkeys=True, default=lookup, sort_keys=True)}
     return f'{name}: {members}'
 
 
@@ -153,6 +149,7 @@ class NeonTxResultInfo:
         return self.slot != -1
 
 
+@logged_group("neon.Indexer")
 class NeonTxInfo:
     def __init__(self, rlp_sign=None, rlp_data=None):
         self._set_defaults()
@@ -213,7 +210,6 @@ class NeonTxInfo:
 
             return None
         except Exception as e:
-            logger.warning(f'Exception on RLP decoding: {e}')
             self.error = e
             return self.error
 
@@ -224,7 +220,8 @@ class NeonTxInfo:
         return (self.addr is not None) and (not self.error)
 
 
-def get_account_list(client, storage_account):
+@logged_group("neon.Indexer")
+def get_account_list(client, storage_account, *, logger):
     opts = {
         "encoding": "base64",
         "commitment": "confirmed",
@@ -263,6 +260,7 @@ def get_account_list(client, storage_account):
         return None
 
 
+@logged_group("neon.Indexer")
 class BaseDB:
     def __init__(self):
         self._conn = psycopg2.connect(
@@ -354,7 +352,7 @@ class LogDB(BaseDB):
                                             transactionHash, transactionLogIndex, topic, json)
                             VALUES (%s, %s, %s, %s,  %s, %s,  %s, %s, %s) ON CONFLICT DO NOTHING''', rows)
         else:
-            logger.debug("NO LOGS")
+            self.debug("NO LOGS")
 
 
     def get_logs(self, fromBlock = None, toBlock = None, address = None, topics = None, blockHash = None):
@@ -401,8 +399,8 @@ class LogDB(BaseDB):
             if idx < len(queries) - 1:
                 query_string += " AND "
 
-        logger.debug(query_string)
-        logger.debug(params)
+        self.debug(query_string)
+        self.debug(params)
 
         cur = self._conn.cursor()
         cur.execute(query_string, tuple(params))
@@ -423,6 +421,7 @@ class LogDB(BaseDB):
                        (from_slot, to_slot))
 
 
+@logged_group("neon.Indexer")
 class Canceller:
     def __init__(self):
         # Initialize user account
@@ -447,18 +446,16 @@ class Canceller:
         self.operator = self.signer.public_key()
         self.operator_token = get_associated_token_address(PublicKey(self.operator), ETH_TOKEN_MINT_ID)
 
-
     def call(self, *args):
         try:
             cmd = ["solana",
                    "--url", SOLANA_URL,
                    ] + list(args)
-            logger.debug(cmd)
+            self.debug(cmd)
             return subprocess.check_output(cmd, universal_newlines=True)
         except subprocess.CalledProcessError as err:
-            logger.debug("ERR: solana error {}".format(err))
+            self.error("ERR: solana error {}".format(err))
             raise
-
 
     def unlock_accounts(self, blocked_storages):
         readonly_accs = [
@@ -476,15 +473,15 @@ class Canceller:
             (neon_tx, blocked_accs) = trx_accs
             acc_list = get_account_list(self.client, storage)
             if blocked_accs is None:
-                logger.error("blocked_accs is None")
+                self.error("blocked_accs is None")
                 continue
             if acc_list is None:
-                logger.error("acc_list is None. Storage is empty")
-                logger.error(storage)
+                self.error("acc_list is None. Storage is empty")
+                self.error(storage)
                 continue
 
             if acc_list != blocked_accs:
-                logger.error("acc_list != blocked_accs")
+                self.error("acc_list != blocked_accs")
                 continue
 
             if acc_list is not None:
@@ -507,11 +504,11 @@ class Canceller:
                     keys=keys
                 ))
 
-                logger.debug("Send Cancel")
+                self.debug("Send Cancel")
                 try:
                     self.client.send_transaction(trx, self.signer, opts=TxOpts(preflight_commitment=Confirmed))
                 except Exception as err:
-                    logger.error(err)
+                    self.error(err)
                 else:
-                    logger.debug("Canceled")
-                    logger.debug(acc_list)
+                    self.debug("Canceled")
+                    self.debug(acc_list)
