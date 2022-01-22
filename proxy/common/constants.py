@@ -145,6 +145,9 @@ DEFAULT_DEVTOOLS_FRAME_ID = secrets.token_hex(8)
 DEFAULT_DEVTOOLS_LOADER_ID = secrets.token_hex(8)
 
 DEFAULT_DATA_DIRECTORY_PATH = os.path.join(str(pathlib.Path.home()), '.proxy')
+DEFAULT_CACHE_DIRECTORY_PATH = os.path.join(
+    DEFAULT_DATA_DIRECTORY_PATH, 'cache',
+)
 
 # Cor plugins enabled by default or via flags
 DEFAULT_ABC_PLUGINS = [
