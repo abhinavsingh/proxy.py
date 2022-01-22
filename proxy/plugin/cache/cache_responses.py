@@ -28,7 +28,7 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
             uid=self.uid,
             cache_dir=os.path.join(
                 self.flags.cache_dir,
-                "responses",
+                'responses',
             ),
         )
         self.set_store(self.disk_store)
