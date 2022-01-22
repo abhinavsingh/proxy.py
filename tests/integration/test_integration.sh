@@ -26,8 +26,6 @@ fi
 CURL="curl -v --connect-timeout 20 --max-time 120 --retry-connrefused --retry-delay 5 --retry 3"
 
 PROXY_URL="http://localhost:$PROXY_PY_PORT"
-TEST_URL="$PROXY_URL/http-route-example"
-REVERSE_PROXY_URL="$PROXY_URL/get"
 CURL_EXTRA_FLAGS=""
 USE_HTTPS=$2
 if [[ ! -z "$USE_HTTPS" ]]; then
@@ -38,8 +36,10 @@ if [[ ! -z "$USE_HTTPS" ]]; then
     TEST_URL="http://google.com"
     USE_HTTPS=true
 else
+    TEST_URL="$PROXY_URL/http-route-example"
     USE_HTTPS=false
 fi
+REVERSE_PROXY_URL="$PROXY_URL/get"
 
 # Wait for server to come up
 WAIT_FOR_PROXY="lsof -i TCP:$PROXY_PY_PORT | wc -l | tr -d ' '"
