@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import abc
 import json
-import logging
 import math
 import os
 import time
 import base58
 import sha3
 import traceback
+
+from logged_groups import logged_group
 
 from solana.transaction import AccountMeta, Transaction, PublicKey
 
@@ -24,10 +25,6 @@ from ..common_neon.eth_proto import Trx as EthTx
 from ..core.acceptor.pool import new_acc_id_glob, acc_list_glob
 from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID
 from ..indexer.utils import NeonTxResultInfo
-
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class SolanaTxError(Exception):
@@ -78,6 +75,7 @@ class NeonCreateAccountWithSeedStage(NeonTxStage, abc.ABC):
         return self.s.builder.create_account_with_seed_trx(self.sol_account, self._seed, self.balance, self.size)
 
 
+@logged_group("neon.Proxy")
 class NeonCreatePermAccount(NeonCreateAccountWithSeedStage, abc.ABC):
     NAME = 'createPermAccount'
 
@@ -96,10 +94,11 @@ class NeonCreatePermAccount(NeonCreateAccountWithSeedStage, abc.ABC):
     def build(self):
         assert self._is_empty()
 
-        logger.debug(f'Create perm account {self.sol_account}')
+        self.debug(f'Create perm account {self.sol_account}')
         self.tx.add(self._create_account_with_seed())
 
 
+@logged_group("neon.Proxy")
 class NeonCreateAccountTxStage(NeonTxStage):
     NAME = 'createNeonAccount'
 
@@ -115,10 +114,11 @@ class NeonCreateAccountTxStage(NeonTxStage):
 
     def build(self):
         assert self._is_empty()
-        logger.debug(f'Create user account {self._address}')
+        self.debug(f'Create user account {self._address}')
         self.tx.add(self._create_account())
 
 
+@logged_group("neon.Proxy")
 class NeonCreateERC20TxStage(NeonTxStage, abc.ABC):
     NAME = 'createERC20Account'
 
@@ -135,7 +135,7 @@ class NeonCreateERC20TxStage(NeonTxStage, abc.ABC):
     def build(self):
         assert self._is_empty()
 
-        logger.debug(f'Create ERC20 token account:' +
+        self.debug(f'Create ERC20 token account:' +
                      f' key {self._token_account["key"]}' +
                      f', owner: {self._token_account["owner"]}' +
                      f', contact: {self._token_account["contract"]}' +
@@ -144,6 +144,7 @@ class NeonCreateERC20TxStage(NeonTxStage, abc.ABC):
         self.tx.add(self._create_erc20_account())
 
 
+@logged_group("neon.Proxy")
 class NeonCreateContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
     NAME = 'createNeonContract'
 
@@ -163,12 +164,13 @@ class NeonCreateContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
     def build(self):
         assert self._is_empty()
 
-        logger.debug(f'Create contact {self._address}: {self.sol_account} (size {self.size})')
+        self.debug(f'Create contact {self._address}: {self.sol_account} (size {self.size})')
 
         self.tx.add(self._create_account_with_seed())
         self.tx.add(self._create_account())
 
 
+@logged_group("neon.Proxy")
 class NeonResizeContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
     NAME = 'resizeNeonContract'
 
@@ -189,9 +191,9 @@ class NeonResizeContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
     def build(self):
         assert self._is_empty()
 
-        logger.debug(f'Resize contact {self._account_desc["address"]}:' +
-                     f' {self._old_sol_account} (size {self._account_desc["code_size_current"]}) ->' +
-                     f' {self.sol_account} (size {self.size})')
+        self.debug(f'Resize contact {self._account_desc["address"]}: ' +
+                   f'{self._old_sol_account} (size {self._account_desc["code_size_current"]}) -> ' +
+                   f'{self.sol_account} (size {self.size})')
 
         self.tx.add(self._create_account_with_seed())
         self.tx.add(self._resize_account())
@@ -202,6 +204,7 @@ def EthMeta(pubkey, is_writable) -> AccountMeta:
     return AccountMeta(pubkey=pubkey, is_signer=False, is_writable=is_writable)
 
 
+@logged_group("neon.Proxy")
 class NeonTxSender:
     def __init__(self, solana_interactor: SolanaInteractor, eth_tx: EthTx, steps: int):
         self.solana = solana_interactor
@@ -235,15 +238,15 @@ class NeonTxSender:
 
                 strategy = Strategy(self)
                 if not strategy.is_valid:
-                    logger.debug(f'Skip strategy {Strategy.NAME}: {strategy.error}')
+                    self.debug(f'Skip strategy {Strategy.NAME}: {strategy.error}')
                 else:
-                    logger.debug(f'Use strategy {Strategy.NAME}')
+                    self.debug(f'Use strategy {Strategy.NAME}')
                     return strategy.execute()
             except Exception as e:
                 if (not Strategy.IS_SIMPLE) or (not check_if_program_exceeded_instructions(e)):
                     raise
 
-        logger.warning(f'No strategy to execute the Neon transaction: {self.eth_tx}')
+        self.error(f'No strategy to execute the Neon transaction: {self.eth_tx}')
         raise RuntimeError('No strategy to execute the Neon transaction')
 
     def _prepare_execution(self):
@@ -254,7 +257,7 @@ class NeonTxSender:
         self._parse_token_list()
         self._parse_solana_list()
 
-        logger.debug('metas: ' + ','.join([f'{m.pubkey, m.is_signer, m.is_writable}' for m in self._eth_meta_list]))
+        self.debug('metas: ' + ', '.join([f'{m.pubkey, m.is_signer, m.is_writable}' for m in self._eth_meta_list]))
 
         # Build all instructions
         self._build_txs()
@@ -262,19 +265,19 @@ class NeonTxSender:
         self.builder.init_eth_trx(self.eth_tx, self._eth_meta_list, self._caller_token)
 
     def _call_emulated(self):
-        logger.debug(f'sender address: {self.eth_tx.sender()}')
+        self.debug(f'sender address: {self.eth_tx.sender()}')
         self.deployed_contract = self.eth_tx.contract()
 
         if self.deployed_contract:
             dst = 'deploy'
-            logger.debug(f'deploy contract: 0x{self.deployed_contract}')
+            self.debug(f'deploy contract: 0x{self.deployed_contract}')
         else:
             dst = self.eth_tx.toAddress.hex()
-            logger.debug(f'destination address 0x{dst}')
+            self.debug(f'destination address 0x{dst}')
 
         self._emulator_json = call_emulated(
             dst, self.eth_tx.sender(), self.eth_tx.callData.hex(), hex(self.eth_tx.value))
-        logger.debug(f'emulator returns: {json.dumps(self._emulator_json, indent=3)}')
+        self.debug(f'emulator returns: {json.dumps(self._emulator_json, indent=3)}')
 
         self.steps_emulated = self._emulator_json['steps_executed']
 
@@ -347,7 +350,7 @@ class NeonTxSender:
                     free_id = new_acc_id_glob.value
                     new_acc_id_glob.value += 1
 
-            logger.debug(f"TRY TO LOCK RESOURCES {free_id}")
+            self.debug(f"TRY TO LOCK RESOURCES {free_id}")
             account_id = free_id.to_bytes(math.ceil(free_id.bit_length() / 8), 'big')
 
             seed_list = [prefix + account_id for prefix in [b"storage", b"holder"]]
@@ -356,7 +359,7 @@ class NeonTxSender:
                 self._perm_accounts_id = free_id
             except Exception as err:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
-                logger.warning(f"Account is locked err({err}) id({free_id}) owner({self.operator_key}): {err_tb}")
+                self.warning(f"Account is locked err({err}) id({free_id}) owner({self.operator_key}): {err_tb}")
 
     def _create_perm_accounts(self, seed_list):
         tx = Transaction()
@@ -384,7 +387,7 @@ class NeonTxSender:
         if self._perm_accounts_id is None:
             return
 
-        logger.debug(f"FREE RESOURCES {self._perm_accounts_id}")
+        self.debug(f"FREE RESOURCES {self._perm_accounts_id}")
         with new_acc_id_glob.get_lock():
             acc_list_glob.append(self._perm_accounts_id)
 
@@ -403,6 +406,7 @@ class NeonTxSender:
             self.create_account_tx.instructions.clear()
 
 
+@logged_group("neon.Proxy")
 class SolTxListSender:
     def __init__(self, sender: NeonTxSender, tx_list: [Transaction], name: str, skip_preflight=True):
         self._s = sender
@@ -457,12 +461,12 @@ class SolTxListSender:
                 else:
                     self._on_success_send(tx, receipt)
 
-            logger.debug(f'retry {self._retry_idx}, ' +
-                         f'total receipts {len(receipt_list)}, ' +
-                         f'bad blocks {len(self._bad_block_list)}, ' +
-                         f'blocked accounts {len(self._blocked_account_list)}, ' +
-                         f'budget exceeded {len(self._budget_exceeded_list)}, ' +
-                         f'bad storage status: {len(self._storage_empty)}')
+            self.debug(f'retry {self._retry_idx}, ' +
+                       f'total receipts {len(receipt_list)}, ' +
+                       f'bad blocks {len(self._bad_block_list)}, ' +
+                       f'blocked accounts {len(self._blocked_account_list)}, ' +
+                       f'budget exceeded {len(self._budget_exceeded_list)}, ' +
+                       f'bad storage status: {len(self._storage_empty)}')
 
             self._on_post_send()
 
@@ -503,6 +507,7 @@ class SolTxListSender:
             self._tx_list.append(tx)
 
 
+@logged_group("neon.Proxy")
 class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
     NAME = 'UNKNOWN STRATEGY'
 
@@ -550,6 +555,7 @@ class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
             raise
 
 
+@logged_group("neon.Proxy")
 class SimpleNeonTxSender(SolTxListSender):
     def __init__(self, strategy: BaseNeonTxStrategy, *args, **kwargs):
         SolTxListSender.__init__(self, *args, **kwargs)
@@ -559,7 +565,7 @@ class SimpleNeonTxSender(SolTxListSender):
     def _on_success_send(self, tx: Transaction, receipt: {}):
         if not self.neon_res.is_valid():
             self.neon_res.decode(receipt)
-            logger.debug(f'Get the Neon tx result: {self.neon_res.is_valid()}')
+            self.debug(f'Got the Neon tx result: {self.neon_res.is_valid()}')
         super()._on_success_send(tx, receipt)
 
     def _on_post_send(self):
@@ -569,6 +575,7 @@ class SimpleNeonTxSender(SolTxListSender):
             super()._on_post_send()
 
 
+@logged_group("neon.Proxy")
 class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
     NAME = 'CallFromRawEthereumTX'
     IS_SIMPLE = True
@@ -613,6 +620,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         return tx_sender.neon_res
 
 
+@logged_group("neon.Proxy")
 class IterativeNeonTxSender(SimpleNeonTxSender):
     def __init__(self, *args, **kwargs):
         SimpleNeonTxSender.__init__(self, *args, **kwargs)
@@ -631,7 +639,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
         self._blocked_account_list.clear()
 
     def _cancel(self):
-        logger.debug(f'Cancel the transaction')
+        self.debug(f'Cancel the transaction')
         self.clear()
         self._is_canceled = True
         self._retry_idx = 0  # force the cancel sending
@@ -639,7 +647,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
 
     def _decrease_steps(self):
         self._strategy.steps >>= 1
-        logger.debug(f'Decrease EVM steps to {self._strategy.steps}')
+        self.debug(f'Decrease EVM steps to {self._strategy.steps}')
         if self._strategy.steps < 50:
             return self._cancel()
 
@@ -656,7 +664,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
             super()._on_success_send(tx, receipt)
 
     def _on_post_send(self):
-        logger.debug(f' {self.neon_res.is_valid()}')
+        self.debug(f' {self.neon_res.is_valid()}')
 
         # Result is received
         if self.neon_res.is_valid():
@@ -688,23 +696,25 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
 
         # if no iterations and no result then add the additional iteration
         if not len(self._tx_list):
-            logger.debug('Add the additional iteration')
+            self.debug('No result -> add the additional iteration')
             self._tx_list.append(self._strategy.build_tx())
 
 
+@logged_group("neon.Proxy")
 class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
     NAME = 'PartialCallOrContinueFromRawEthereumTX'
     IS_SIMPLE = False
 
     def __init__(self, *args, **kwargs):
         BaseNeonTxStrategy.__init__(self, *args, **kwargs)
+        self.steps += 1
 
     def _validate(self) -> bool:
         return self._validate_notdeploy_tx() and self._validate_txsize()
 
     def build_tx(self) -> Transaction:
         self.steps = self.steps - 1  # generate unique tx
-        if self.steps < 5:   # impossible case but protect from it
+        if self.steps < 5:   # protect from the impossible case
             raise RuntimeError(COMPUTATION_BUDGET_EXCEEDED)
         return self.s.builder.make_partial_call_or_continue_transaction(self.steps)
 
@@ -721,10 +731,11 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         cnt = math.ceil(self.s.steps_emulated / self.steps)
         cnt = math.ceil(self.s.steps_emulated / (self.steps - cnt)) + 2  # +1 on begin, +1 on end
         tx_list = [self.build_tx() for _ in range(cnt)]
-        logger.debug(f'Total iterations {len(tx_list)} for {self.s.steps_emulated} EVM steps')
+        self.debug(f'Total iterations {len(tx_list)} for {self.s.steps_emulated} ({self.steps}) EVM steps')
         return IterativeNeonTxSender(self, self.s, tx_list, self.NAME).send().neon_res
 
 
+@logged_group("neon.Proxy")
 class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
     NAME = 'ExecuteTrxFromAccountDataIterativeOrContinue'
 

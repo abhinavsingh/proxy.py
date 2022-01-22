@@ -90,7 +90,7 @@ def get_token_balance_or_airdrop(client: SolanaClient, eth_account: EthereumAddr
     logger.debug(f"Get balance for eth account: {eth_account} aka: {solana_account}")
 
     try:
-        return get_token_balance_gwei(client, solana_account) * eth_utils.denoms.gwei
+        return get_token_balance_gwei(client, solana_account)
     except SolanaAccountNotFoundError:
         logger.debug(f"Account not found:  {eth_account} aka: {solana_account} - return airdrop amount")
         return NEW_USER_AIRDROP_AMOUNT * eth_utils.denoms.gwei

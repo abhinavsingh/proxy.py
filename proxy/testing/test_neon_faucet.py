@@ -203,8 +203,8 @@ class Test_Neon_Faucet(unittest.TestCase):
         # Check
         balance_after = proxy.eth.get_balance(user.address)
         print('NEO balance after:', balance_after)
-        print('NEO balance difference:', balance_after - balance_before)
-        self.assertEqual(balance_after - balance_before, 99999000000000)
+        print('NEO balance difference:', balance_before - balance_after)
+        self.assertEqual(balance_after, 99999000000000)
 
     # @unittest.skip("a.i.")
     def test_neon_faucet_02_neon(self):

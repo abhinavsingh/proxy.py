@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import eth_utils
 import json
 import threading
 import traceback
@@ -146,8 +147,8 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         self.debug(f'eth_getBalance: {account} {eth_acc}')
-        balance = get_token_balance_or_airdrop(self.client, self.signer, eth_acc)
-        return hex(balance)
+        balance = get_token_balance_or_airdrop(self.client, eth_acc)
+        return hex(balance * eth_utils.denoms.gwei)
 
     def eth_getLogs(self, obj):
         fromBlock = None

@@ -1,7 +1,6 @@
 import base58
 import base64
 import json
-import logging
 import re
 import time
 
@@ -12,6 +11,7 @@ from solana.rpc.commitment import Confirmed
 from solana.rpc.types import RPCResponse
 from solana.transaction import Transaction
 from itertools import zip_longest
+from logged_groups import logged_group
 
 from .costs import update_transaction_cost
 from .utils import get_from_dict
@@ -20,9 +20,6 @@ from ..environment import LOG_SENDING_SOLANA_TRANSACTION
 
 from typing import Any, List, NamedTuple, cast
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
 
 class AccountInfo(NamedTuple):
     tag: int
@@ -30,6 +27,7 @@ class AccountInfo(NamedTuple):
     owner: PublicKey
 
 
+@logged_group("neon.Proxy")
 class SolanaInteractor:
     def __init__(self, signer, client: SolanaClient) -> None:
         self.signer = signer
@@ -62,7 +60,7 @@ class SolanaInteractor:
 
         for request, response in zip_longest(full_request_data, full_response_data):
             if request["id"] != response["id"]:
-                raise RuntimeError("Invalid RPC response: request {} response {}", request, response)
+                raise RuntimeError(f"Invalid RPC response: request {request} response {response}")
 
         return full_response_data
 
@@ -80,11 +78,11 @@ class SolanaInteractor:
         }
 
         result = self.client._provider.make_request("getAccountInfo", str(storage_account), opts)
-        logger.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
+        self.debug(f"\n{json.dumps(result, indent=4, sort_keys=True)}")
 
         info = result['result']['value']
         if info is None:
-            logger.debug("Can't get information about {}".format(storage_account))
+            self.debug(f"Can't get information about {storage_account}")
             return None
 
         data = base64.b64decode(info['data'][0])
@@ -102,10 +100,10 @@ class SolanaInteractor:
             "dataSlice": { "offset": 0, "length": 16 }
         }
         result = self.client._provider.make_request("getMultipleAccounts", [str(a) for a in accounts], options)
-        logger.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
+        self.debug(f"\n{json.dumps(result, indent=4, sort_keys=True)}")
 
         if result['result']['value'] is None:
-            logger.debug("Can't get information about {}".format(accounts))
+            self.debug(f"Can't get information about {accounts}")
             return []
 
         accounts_info = []
@@ -130,11 +128,11 @@ class SolanaInteractor:
     def _getAccountData(self, account, expected_length):
         info = self.client.get_account_info(account, commitment=Confirmed)['result']['value']
         if info is None:
-            raise ValueError("Can't get information about {}".format(account))
+            raise ValueError(f"Can't get information about {account}")
 
         data = base64.b64decode(info['data'][0])
         if len(data) < expected_length:
-            raise ValueError("Wrong data length for account data {}".format(account))
+            raise ValueError(f"Wrong data length for account data {account}")
         return data
 
     def get_recent_blockhash(self) -> Blockhash:
@@ -148,7 +146,11 @@ class SolanaInteractor:
         tx.sign(self.signer)
 
     def send_multiple_transactions_unconfirmed(self, tx_list: [Transaction], skip_preflight=True) -> [str]:
-        opts = {"skipPreflight": skip_preflight, "encoding": "base64", "preflightCommitment": "confirmed"}
+        opts = {
+            "skipPreflight": skip_preflight,
+            "encoding": "base64",
+            "preflightCommitment": "confirmed"
+        }
 
         blockhash = None
         request_list = []
@@ -170,7 +172,7 @@ class SolanaInteractor:
         debug_measurements = LOG_SENDING_SOLANA_TRANSACTION and (reason in ['CancelWithNonce', 'CallFromRawEthereumTX'])
 
         if debug_measurements:
-            logger.debug(f"send_multiple_transactions for reason {reason}: {eth_tx.__dict__}")
+            self.debug(f"send_multiple_transactions for reason {reason}: {eth_tx.__dict__}")
 
         sign_list = self.send_multiple_transactions_unconfirmed(tx_list, skip_preflight=skip_preflight)
         self.confirm_multiple_transactions(sign_list)
@@ -195,10 +197,10 @@ class SolanaInteractor:
         try:
             measurements = self.extract_measurements_from_receipt(receipt)
             for m in measurements:
-                logger.info(json.dumps(m))
+                self.info(json.dumps(m))
         except Exception as err:
-            logger.error("Can't get measurements %s"%err)
-            logger.info("Failed result: %s"%json.dumps(receipt, indent=3))
+            self.error(f"Can't get measurements {err}")
+            self.info(f"Failed result: {json.dumps(receipt, indent=3)}")
 
     def confirm_multiple_transactions(self, sign_list: [str]):
         """Confirm a transaction."""
@@ -228,11 +230,10 @@ class SolanaInteractor:
         response_list = self._send_rpc_batch_request("getTransaction", request_list)
         return [r['result'] for r in response_list]
 
-    @staticmethod
-    def extract_measurements_from_receipt(receipt):
+    def extract_measurements_from_receipt(self, receipt):
         if check_for_errors(receipt):
-            logger.warning("Can't get measurements from receipt with error")
-            logger.info(f"Failed result:{json.dumps(receipt, indent=3)}")
+            self.warning("Can't get measurements from receipt with error")
+            self.info(f"Failed result: {json.dumps(receipt, indent=3)}")
             return []
 
         log_messages = receipt['meta']['logMessages']
@@ -307,17 +308,19 @@ def get_error_definition_from_receipt(receipt):
     return None
 
 
-
 def check_for_errors(receipt):
     if get_error_definition_from_receipt(receipt) is not None:
         return True
     return False
 
+
 def check_if_big_transaction(err: Exception) -> bool:
     return str(err).startswith("transaction too large:")
 
+
 PROGRAM_FAILED_TO_COMPLETE = 'ProgramFailedToComplete'
 COMPUTATION_BUDGET_EXCEEDED = 'ComputationalBudgetExceeded'
+
 
 def check_if_program_exceeded_instructions(receipt):
     error_type = None
@@ -332,6 +335,7 @@ def check_if_program_exceeded_instructions(receipt):
         return error_type in [PROGRAM_FAILED_TO_COMPLETE, COMPUTATION_BUDGET_EXCEEDED]
     return False
 
+
 def check_if_storage_is_empty_error(receipt):
     error_arr = get_error_definition_from_receipt(receipt)
     if error_arr is not None and isinstance(error_arr, list):
@@ -340,6 +344,7 @@ def check_if_storage_is_empty_error(receipt):
             if error_dict['Custom'] == 1 or error_dict['Custom'] == 4:
                 return True
     return False
+
 
 def get_logs_from_receipt(receipt):
     log_from_receipt = get_from_dict(receipt, 'result', 'meta', 'logMessages')
@@ -365,7 +370,8 @@ def get_logs_from_receipt(receipt):
     return None
 
 
-def check_if_accounts_blocked(receipt):
+@logged_group("neon.Proxy")
+def check_if_accounts_blocked(receipt, *, logger):
     logs = get_logs_from_receipt(receipt)
     if logs is None:
         logger.error("Can't get logs")

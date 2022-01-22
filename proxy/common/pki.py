@@ -23,8 +23,6 @@ from .constants import COMMA
 from .version import __version__
 
 
-logger = logging.getLogger(__name__)
-
 
 DEFAULT_CONFIG = b'''[ req ]
 #default_bits		= 2048
