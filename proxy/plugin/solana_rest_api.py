@@ -114,6 +114,8 @@ class EthereumModel:
             data = param.get('data', "None")
             value = param.get('value', "")
             return estimate_gas(contract_id, EthereumAddress(caller_id), data, value)
+        except EthereumError:
+            raise
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
             logger.debug(f"Exception on eth_estimateGas: {err}: {err_tb}")
@@ -275,6 +277,8 @@ class EthereumModel:
             data = obj.get('data', "None")
             value = obj.get('value', '')
             return "0x"+call_emulated(contract_id, caller_id, data, value)['result']
+        except EthereumError:
+            raise
         except Exception as err:
             logger.debug("eth_call %s", err)
             raise
