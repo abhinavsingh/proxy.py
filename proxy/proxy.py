@@ -30,6 +30,7 @@ from .common.constants import (
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
 )
 
+
 if TYPE_CHECKING:
     from .core.listener import TcpSocketListener
 
@@ -193,8 +194,10 @@ class Proxy:
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
-        self.flags.port = cast('TcpSocketListener',
-                               self.listeners.pool[0])._port
+        self.flags.port = cast(
+            'TcpSocketListener',
+            self.listeners.pool[0],
+        )._port
         self._write_port_file()
         # Setup EventManager
         if self.flags.enable_events:
