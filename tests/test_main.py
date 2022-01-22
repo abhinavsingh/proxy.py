@@ -80,7 +80,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
         mock_args.enable_reverse_proxy = DEFAULT_ENABLE_REVERSE_PROXY
         mock_args.unix_socket_path = None
-        mock_args.cache_dir_path = DEFAULT_CACHE_DIRECTORY_PATH
+        mock_args.cache_dir = DEFAULT_CACHE_DIRECTORY_PATH
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
