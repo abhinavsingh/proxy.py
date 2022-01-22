@@ -8,17 +8,17 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from functools import reduce
-import operator
 import os
 import sys
 import base64
 import socket
 import argparse
+import operator
 import ipaddress
 import collections
 import multiprocessing
 from typing import Any, List, Optional, cast
+from functools import reduce
 
 from .types import IpAddress
 from .utils import bytes_, is_py2, is_threadless, set_open_file_limit
