@@ -347,8 +347,8 @@ class LogDB(BaseDB):
         if len(rows):
             # logger.debug(rows)
             cur = self._conn.cursor()
-            cur.executemany('''
-                            INSERT INTO logs(address, blockHash, blockNumber, slot, finalized,
+            cur.executemany(f'''
+                            INSERT INTO {self._table_name}(address, blockHash, blockNumber, slot, finalized,
                                             transactionHash, transactionLogIndex, topic, json)
                             VALUES (%s, %s, %s, %s,  %s, %s,  %s, %s, %s) ON CONFLICT DO NOTHING''', rows)
         else:
@@ -393,7 +393,7 @@ class LogDB(BaseDB):
                 queries.append(address_query)
                 params += address
 
-        query_string = "SELECT * FROM logs WHERE "
+        query_string = f"SELECT * FROM {self._table_name} WHERE "
         for idx, query in enumerate(queries):
             query_string += query
             if idx < len(queries) - 1:
