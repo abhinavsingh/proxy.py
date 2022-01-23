@@ -12,11 +12,11 @@ import argparse
 from abc import ABC
 from typing import TYPE_CHECKING, Any, Dict, Tuple, Optional
 
-from ..mixins import TlsInterceptionPropertyMixin
 from ..parser import HttpParser
 from ..connection import HttpClientConnection
 from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
+from ...common.utils import tls_interception_enabled
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -25,7 +25,6 @@ if TYPE_CHECKING:   # pragma: no cover
 
 class HttpProxyBasePlugin(
         DescriptorsHandlerMixin,
-        TlsInterceptionPropertyMixin,
         ABC,
 ):
     """Base HttpProxyPlugin Plugin class.
@@ -40,7 +39,6 @@ class HttpProxyBasePlugin(
             event_queue: EventQueue,
             upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:
-        super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
         self.uid = uid                  # pragma: no cover
         self.flags = flags              # pragma: no cover
         self.client = client            # pragma: no cover
@@ -170,4 +168,4 @@ class HttpProxyBasePlugin(
         flags BUT only conditionally enable interception for
         certain requests.
         """
-        return self.tls_interception_enabled
+        return tls_interception_enabled(self.flags)

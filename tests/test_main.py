@@ -30,8 +30,9 @@ from proxy.common.constants import (  # noqa: WPS450
     DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_ENABLE_WEB_SERVER,
     DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_WEBSOCKET_TRANSPORT,
     DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
-    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_ENABLE_REVERSE_PROXY,
-    DEFAULT_ENABLE_STATIC_SERVER, _env_threadless_compliant,
+    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CACHE_DIRECTORY_PATH,
+    DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
+    _env_threadless_compliant,
 )
 
 
@@ -79,6 +80,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
         mock_args.enable_reverse_proxy = DEFAULT_ENABLE_REVERSE_PROXY
         mock_args.unix_socket_path = None
+        mock_args.cache_dir = DEFAULT_CACHE_DIRECTORY_PATH
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
