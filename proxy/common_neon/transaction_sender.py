@@ -504,6 +504,8 @@ class SolTxListSender:
         for tx in full_list:
             self._set_tx_blockhash(tx)
             self._tx_list.append(tx)
+        if len(self._tx_list):
+            self.debug(f' Resend Solana transactions: {len(self._tx_list)}')
 
 
 @logged_group("neon.Proxy")
@@ -564,11 +566,12 @@ class SimpleNeonTxSender(SolTxListSender):
     def _on_success_send(self, tx: Transaction, receipt: {}):
         if not self.neon_res.is_valid():
             self.neon_res.decode(receipt)
-            self.debug(f'Got the Neon tx result: {self.neon_res.is_valid()}')
+
         super()._on_success_send(tx, receipt)
 
     def _on_post_send(self):
         if self.neon_res.is_valid():
+            self.debug(f'Got the Neon tx result: {self.neon_res}')
             self.clear()
         else:
             super()._on_post_send()
@@ -664,10 +667,9 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
             super()._on_success_send(tx, receipt)
 
     def _on_post_send(self):
-        self.debug(f' {self.neon_res.is_valid()}')
-
         # Result is received
         if self.neon_res.is_valid():
+            self.debug(f'Got Neon tx {"cancel" if self._is_canceled else "result"}: {self.neon_res}')
             return self.clear()
 
         # There is no more retries to send transactions

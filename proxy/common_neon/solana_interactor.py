@@ -197,10 +197,10 @@ class SolanaInteractor:
         try:
             measurements = self.extract_measurements_from_receipt(receipt)
             for m in measurements:
-                self.info(json.dumps(m))
+                self.info(f'get_measurements: {json.dumps(m)}')
         except Exception as err:
-            self.error(f"Can't get measurements {err}")
-            self.info(f"Failed result: {json.dumps(receipt, indent=3)}")
+            self.error(f"get_measurements: can't get measurements {err}")
+            self.info(f"get measurements: failed result {json.dumps(receipt, indent=3)}")
 
     def confirm_multiple_transactions(self, sign_list: [str]):
         """Confirm a transaction."""

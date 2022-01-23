@@ -8,7 +8,7 @@ from logged_groups import logged_group
 try:
     from indexer_base import IndexerBase, PARALLEL_REQUESTS
     from indexer_db import IndexerDB
-    from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxSignInfo, Canceller, str_fmt_object, FINALIZED
+    from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object, FINALIZED
     from utils import get_accounts_from_storage
 except ImportError:
     from .indexer_base import IndexerBase, PARALLEL_REQUESTS
@@ -366,7 +366,7 @@ class DummyIxDecoder:
         rlp_endpos = 73 + rlp_len
         rlp_data = holder.data[73:rlp_endpos]
 
-        rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data))
+        rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data)).error
         if rlp_error:
             self.error(f'{self} Neon tx rlp error: {rlp_error}')
 

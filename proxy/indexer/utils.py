@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import base58
 import base64
 import json
 import psycopg2
-import rlp
 import subprocess
 import os
 
@@ -115,7 +116,7 @@ class NeonTxResultInfo:
         self.slot = tx['slot']
         self.idx = ix_idx
 
-    def decode(self, tx: {}, ix_idx=-1):
+    def decode(self, tx: {}, ix_idx=-1) -> NeonTxResultInfo:
         self._set_defaults()
         meta_ixs = tx['meta']['innerInstructions']
         msg = tx['transaction']['message']
@@ -141,6 +142,7 @@ class NeonTxResultInfo:
                             self._decode_event(log, ix_idx)
                         elif evm_ix == 6:
                             self._decode_return(log, ix_idx, tx)
+        return self
 
     def clear(self):
         self._set_defaults()
@@ -195,7 +197,7 @@ class NeonTxInfo:
             self.to_addr = '0x' + tx.toAddress.hex()
             self.contract = None
 
-    def decode(self, rlp_sign: bytes, rlp_data: bytes):
+    def decode(self, rlp_sign: bytes, rlp_data: bytes) -> NeonTxInfo:
         self._set_defaults()
 
         try:
@@ -207,11 +209,9 @@ class NeonTxInfo:
 
             tx = EthTx(utx.nonce, utx.gasPrice, utx.gasLimit, utx.toAddress, utx.value, utx.callData, uv, ur, us)
             self.init_from_eth_tx(tx)
-
-            return None
         except Exception as e:
             self.error = e
-            return self.error
+        return self
 
     def clear(self):
         self._set_defaults()
