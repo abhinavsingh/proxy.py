@@ -366,7 +366,7 @@ class Test_Query_Account_Contract(unittest.TestCase):
         ok = query.functions.test_metadata_ok().call()
         assert(ok)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("a.i.")
     def test_data_ok(self):
         print
         query = proxy.eth.contract(address=self.contract_address, abi=self.contract['abi'])

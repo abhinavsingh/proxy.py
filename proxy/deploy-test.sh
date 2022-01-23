@@ -15,7 +15,6 @@ solana address
 solana airdrop 1000
 solana balance
 
-# python3 -m unittest discover -v -p 'test_create_account_block.py'
 python3 -m unittest discover -v -p 'test_*.py'
 
 echo "Deploy test success"
