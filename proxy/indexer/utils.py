@@ -307,7 +307,7 @@ class LogDB(BaseDB):
         BaseDB.__init__(self)
 
     def _create_table_sql(self) -> str:
-        self._table_name = 'logs'
+        self._table_name = 'neon_transaction_logs'
         return f"""
             CREATE TABLE IF NOT EXISTS {self._table_name} (
                 address CHAR(42),
