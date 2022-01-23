@@ -9,9 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import pytest
+
 from pytest_mock import MockerFixture
-from proxy.common.flag import FlagParser
+
 from proxy.socks import SocksProtocolHandler, SocksClientConnection
+from proxy.common.flag import FlagParser
 from ..test_assertions import Assertions
 
 
