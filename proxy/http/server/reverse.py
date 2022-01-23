@@ -85,11 +85,11 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                     ),
                 )
             # Update Host header
-            if request.has_header(b'Host'):
-                request.del_header(b'Host')
-            request.add_header(
-                b'Host', ('%s:%d' % self.upstream.addr).encode('utf-8'),
-            )
+            # if request.has_header(b'Host'):
+            #     request.del_header(b'Host')
+            # request.add_header(
+            #     b'Host', ('%s:%d' % self.upstream.addr).encode('utf-8'),
+            # )
             self.upstream.queue(memoryview(request.build()))
         except ConnectionRefusedError:
             raise HttpProtocolException(

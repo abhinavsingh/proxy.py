@@ -165,7 +165,7 @@ VERIFIED5=$?
 rm downloaded2.whl downloaded2.hash
 
 read -r -d '' REVERSE_PROXY_RESPONSE << EOM
-"Host": "httpbin.org"
+"Host": "localhost"
 EOM
 
 echo "[Test Reverse Proxy Plugin]"
