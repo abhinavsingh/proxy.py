@@ -8,7 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import ssl
 import queue
+import socket
 import ipaddress
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
@@ -25,5 +27,5 @@ SelectableEvents = Dict[Selectable, int]    # Values are event masks
 Readables = Selectables
 Writables = Selectables
 Descriptors = Tuple[Readables, Writables]
-
 IpAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+TcpOrTlsSocket = Union[ssl.SSLSocket, socket.socket]

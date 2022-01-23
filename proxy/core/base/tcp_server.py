@@ -12,16 +12,15 @@
 
        tcp
 """
-import ssl
 import socket
 import logging
 import selectors
 from abc import abstractmethod
-from typing import Any, Union, TypeVar, Optional
+from typing import Any, TypeVar, Optional
 
 from ...core.work import Work
 from ...common.flag import flags
-from ...common.types import Readables, Writables, SelectableEvents
+from ...common.types import Readables, Writables, SelectableEvents, TcpOrTlsSocket
 from ...common.utils import wrap_socket
 from ...core.connection import TcpClientConnection
 from ...common.constants import (
@@ -208,9 +207,7 @@ class BaseTcpServerHandler(Work[T]):
         return self.flags.keyfile is not None and \
             self.flags.certfile is not None
 
-    def _optionally_wrap_socket(
-            self, conn: socket.socket,
-    ) -> Union[ssl.SSLSocket, socket.socket]:
+    def _optionally_wrap_socket(self, conn: socket.socket) -> TcpOrTlsSocket:
         """Attempts to wrap accepted client connection using provided certificates.
 
         Shutdown and closes client connection upon error.

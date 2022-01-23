@@ -9,12 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
-import socket
-from typing import Tuple, Union, Optional
+from typing import Tuple, Optional
 
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
 from ...common.utils import new_socket_connection
+from ...common.types import TcpOrTlsSocket
 
 
 class TcpServerConnection(TcpConnection):
@@ -22,12 +22,12 @@ class TcpServerConnection(TcpConnection):
 
     def __init__(self, host: str, port: int) -> None:
         super().__init__(tcpConnectionTypes.SERVER)
-        self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
+        self._conn: Optional[TcpOrTlsSocket] = None
         self.addr: Tuple[str, int] = (host, port)
         self.closed = True
 
     @property
-    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+    def connection(self) -> TcpOrTlsSocket:
         if self._conn is None:
             raise TcpConnectionUninitializedException()
         return self._conn

@@ -8,18 +8,18 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import ssl
 import base64
 import socket
 import secrets
 import selectors
-from typing import Union, Callable, Optional
+from typing import Callable, Optional
 
 from .frame import WebsocketFrame
 from ..parser import HttpParser, httpParserTypes
 from ...common.utils import (
     text_, new_socket_connection, build_websocket_handshake_request,
 )
+from ...common.types import TcpOrTlsSocket
 from ...core.connection import TcpConnection, tcpConnectionTypes
 from ...common.constants import (
     DEFAULT_BUFFER_SIZE, DEFAULT_SELECTOR_SELECT_TIMEOUT,
@@ -53,7 +53,7 @@ class WebsocketClient(TcpConnection):
         self.selector: selectors.DefaultSelector = selectors.DefaultSelector()
 
     @property
-    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+    def connection(self) -> TcpOrTlsSocket:
         return self.sock
 
     def handshake(self) -> None:
