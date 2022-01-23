@@ -29,7 +29,7 @@ class ThreadlessFdExecutor(Threadless[T]):
             *args: Any,
             **kwargs: Any,
     ) -> None:
-        fileno: int = args[0]
+        fileno: int = kwargs['fileno']
         addr: Optional[HostPort] = kwargs.get('addr', None)
         conn: Optional[TcpOrTlsSocket] = \
             kwargs.get('conn', None)
