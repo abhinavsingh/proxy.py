@@ -29,3 +29,4 @@ Writables = Selectables
 Descriptors = Tuple[Readables, Writables]
 IpAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 TcpOrTlsSocket = Union[ssl.SSLSocket, socket.socket]
+HostPort = Tuple[str, int]

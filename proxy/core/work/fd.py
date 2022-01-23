@@ -10,11 +10,11 @@
 """
 import socket
 import logging
-from typing import Any, Tuple, TypeVar, Optional
+from typing import Any, TypeVar, Optional
 
 from ..event import eventNames
 from .threadless import Threadless
-from ...common.types import TcpOrTlsSocket
+from ...common.types import HostPort, TcpOrTlsSocket
 
 
 T = TypeVar('T')
@@ -30,7 +30,7 @@ class ThreadlessFdExecutor(Threadless[T]):
             **kwargs: Any,
     ) -> None:
         fileno: int = args[0]
-        addr: Optional[Tuple[str, int]] = kwargs.get('addr', None)
+        addr: Optional[HostPort] = kwargs.get('addr', None)
         conn: Optional[TcpOrTlsSocket] = \
             kwargs.get('conn', None)
         conn = conn or socket.fromfd(

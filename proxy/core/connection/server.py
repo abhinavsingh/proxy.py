@@ -9,11 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
-from typing import Tuple, Optional
+from typing import Optional
 
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
-from ...common.types import TcpOrTlsSocket
+from ...common.types import HostPort, TcpOrTlsSocket
 from ...common.utils import new_socket_connection
 
 
@@ -23,7 +23,7 @@ class TcpServerConnection(TcpConnection):
     def __init__(self, host: str, port: int) -> None:
         super().__init__(tcpConnectionTypes.SERVER)
         self._conn: Optional[TcpOrTlsSocket] = None
-        self.addr: Tuple[str, int] = (host, port)
+        self.addr: HostPort = (host, port)
         self.closed = True
 
     @property
@@ -34,8 +34,8 @@ class TcpServerConnection(TcpConnection):
 
     def connect(
             self,
-            addr: Optional[Tuple[str, int]] = None,
-            source_address: Optional[Tuple[str, int]] = None,
+            addr: Optional[HostPort] = None,
+            source_address: Optional[HostPort] = None,
     ) -> None:
         assert self._conn is None
         self._conn = new_socket_connection(

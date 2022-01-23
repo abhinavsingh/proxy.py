@@ -26,6 +26,7 @@ from multiprocessing.reduction import recv_handle
 from ..work import LocalExecutor, start_threaded_work, delegate_work_to_pool
 from ..event import EventQueue
 from ...common.flag import flags
+from ...common.types import HostPort
 from ...common.logger import Logger
 from ...common.backports import NonBlockingQueue
 from ...common.constants import DEFAULT_LOCAL_EXECUTOR
@@ -104,7 +105,7 @@ class Acceptor(multiprocessing.Process):
     def accept(
             self,
             events: List[Tuple[selectors.SelectorKey, int]],
-    ) -> List[Tuple[socket.socket, Optional[Tuple[str, int]]]]:
+    ) -> List[Tuple[socket.socket, Optional[HostPort]]]:
         works = []
         for key, mask in events:
             if mask & selectors.EVENT_READ:
@@ -209,7 +210,7 @@ class Acceptor(multiprocessing.Process):
             self._local_work_queue.put(False)
             self._lthread.join()
 
-    def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
+    def _work(self, conn: socket.socket, addr: Optional[HostPort]) -> None:
         self._total = self._total or 0
         if self.flags.threadless:
             # Index of worker to which this work should be dispatched
