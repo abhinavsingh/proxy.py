@@ -20,7 +20,7 @@ class Socks4Packet:
     """SOCKS4 and SOCKS4a protocol parser.
 
     FIXME: Currently doesn't buffer during parsing and expects
-    packet to arrive within a single socket.recv event.
+    packet to arrive within a single socket receive event.
     """
 
     def __init__(self) -> None:

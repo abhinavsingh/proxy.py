@@ -11,9 +11,10 @@
 from typing import Any, Optional
 
 from ..core.base import BaseTcpServerHandler
+from .client import SocksClientConnection
 
 
-class Socks4ProtocolHandler(BaseTcpServerHandler):
+class Socks4ProtocolHandler(BaseTcpServerHandler[SocksClientConnection]):
     """Reference https://www.openssh.com/txt/socks4.protocol"""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
