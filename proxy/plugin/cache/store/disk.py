@@ -10,13 +10,13 @@
 """
 import os
 import logging
-import tempfile
 from typing import BinaryIO, Optional
 
 from .base import CacheStore
 from ....common.flag import flags
 from ....http.parser import HttpParser
 from ....common.utils import text_
+from ....common.constants import DEFAULT_CACHE_DIRECTORY_PATH
 
 
 logger = logging.getLogger(__name__)
@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 flags.add_argument(
     '--cache-dir',
     type=str,
-    default=tempfile.gettempdir(),
-    help='Default: A temporary directory.  ' +
+    default=DEFAULT_CACHE_DIRECTORY_PATH,
+    help='Default: ' + DEFAULT_CACHE_DIRECTORY_PATH + '.  ' +
     'Flag only applicable when cache plugin is used with on-disk storage.',
 )
 

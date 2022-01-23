@@ -395,6 +395,11 @@ class FlagParser:
             )
         os.makedirs(args.ca_cert_dir, exist_ok=True)
 
+        # FIXME: Necessary here until flags framework provides a way
+        # for flag owners to initialize
+        os.makedirs(args.cache_dir, exist_ok=True)
+        os.makedirs(os.path.join(args.cache_dir, 'response'), exist_ok=True)
+
         return args
 
     @staticmethod
