@@ -21,8 +21,8 @@ class SocksProtocolHandler(BaseTcpServerHandler[SocksClientConnection]):
         super().__init__(*args, **kwargs)
 
     @staticmethod
-    def create(**kwargs: Any) -> SocksClientConnection:
-        return SocksClientConnection(**kwargs)
+    def create(*args: Any) -> SocksClientConnection:
+        return SocksClientConnection(*args)
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
         return super().handle_data(data)

@@ -120,7 +120,7 @@ class Threadless(ABC, Generic[T]):
         raise NotImplementedError()
 
     @abstractmethod
-    def work(self, **kwargs: Any) -> None:
+    def work(self, *args: Any) -> None:
         raise NotImplementedError()
 
     def close_work_queue(self) -> None:

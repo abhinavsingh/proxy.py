@@ -43,7 +43,7 @@ class RemoteFdExecutor(ThreadlessFdExecutor[connection.Connection]):
         if not self.flags.unix_socket_path:
             addr = self.work_queue.recv()
         fileno = recv_handle(self.work_queue)
-        self.work(fileno=fileno, addr=addr)
+        self.work(fileno, addr, None)
         return False
 
     def work_queue_fileno(self) -> Optional[int]:

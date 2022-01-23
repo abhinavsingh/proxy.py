@@ -47,4 +47,4 @@ class LocalFdExecutor(ThreadlessFdExecutor[NonBlockingQueue]):
         # NOTE: Here we are assuming to receive a connection object
         # and not a fileno because we are a LocalExecutor.
         fileno = conn.fileno()
-        self.work(fileno=fileno, addr=addr, conn=conn)
+        self.work(fileno, addr, conn)
