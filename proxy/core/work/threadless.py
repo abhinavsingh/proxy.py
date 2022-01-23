@@ -123,6 +123,15 @@ class Threadless(ABC, Generic[T]):
     def work(self, *args: Any) -> None:
         raise NotImplementedError()
 
+    def create(self, uid: str, *args: Any) -> 'Work[T]':
+        return self.flags.work_klass(
+            self.flags.work_klass.create(*args),
+            flags=self.flags,
+            event_queue=self.event_queue,
+            uid=uid,
+            upstream_conn_pool=self._upstream_conn_pool,
+        )
+
     def close_work_queue(self) -> None:
         """Only called if ``work_queue_fileno`` returns an integer.
         If an fd is select-able for work queue, make sure

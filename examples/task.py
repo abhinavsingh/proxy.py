@@ -17,7 +17,6 @@ from typing import Any
 from proxy.core.work import (
     Work, ThreadlessPool, BaseLocalExecutor, BaseRemoteExecutor,
 )
-from proxy.core.event import eventNames
 from proxy.common.flag import FlagParser
 from proxy.common.backports import NonBlockingQueue
 
@@ -47,37 +46,15 @@ class LocalTaskExecutor(BaseLocalExecutor):
     def work(self, *args: Any) -> None:
         task_id = int(time.time())
         uid = '%s-%s' % (self.iid, task_id)
-        self.works[task_id] = self.flags.work_klass(
-            self.flags.work_klass.create(*args),
-            flags=self.flags,
-            event_queue=self.event_queue,
-            uid=uid,
-            upstream_conn_pool=self._upstream_conn_pool,
-        )
-        self.works[task_id].publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'uid': uid},
-            publisher_id=self.__class__.__name__,
-        )
+        self.works[task_id] = self.create(uid, *args)
 
 
 class RemoteTaskExecutor(BaseRemoteExecutor):
 
     def work(self, *args: Any) -> None:
-        no = int(time.time())
-        uid = '%s-%s' % (self.iid, no)
-        self.works[no] = self.flags.work_klass(
-            self.flags.work_klass.create(*args),
-            flags=self.flags,
-            event_queue=self.event_queue,
-            uid=uid,
-            upstream_conn_pool=self._upstream_conn_pool,
-        )
-        self.works[no].publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'uid': uid},
-            publisher_id=self.__class__.__name__,
-        )
+        task_id = int(time.time())
+        uid = '%s-%s' % (self.iid, task_id)
+        self.works[task_id] = self.create(uid, *args)
 
 
 def start_local(flags: argparse.Namespace) -> None:
