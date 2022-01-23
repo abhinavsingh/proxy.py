@@ -22,7 +22,7 @@ if TYPE_CHECKING:   # pragma: no cover
     from ..event import EventQueue
     from .threadless import Threadless
 
-T = TypeVar('T', bound='Threadless')
+T = TypeVar('T', bound='Threadless[Any]')
 
 logger = logging.getLogger(__name__)
 
