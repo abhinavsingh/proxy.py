@@ -156,8 +156,8 @@ class Acceptor(multiprocessing.Process):
             self.flags.log_format,
         )
         self.selector = selectors.DefaultSelector()
-        self._recv_and_setup_socks()
         try:
+            self._recv_and_setup_socks()
             if self.flags.threadless and self.flags.local_executor:
                 self._start_local()
             for fileno in self.socks:

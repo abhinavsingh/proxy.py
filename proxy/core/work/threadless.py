@@ -16,7 +16,7 @@ import selectors
 import multiprocessing
 from abc import ABC, abstractmethod
 from typing import (
-    TYPE_CHECKING, Set, Dict, List, Tuple, Generic, TypeVar, Optional,
+    TYPE_CHECKING, Any, Set, Dict, List, Tuple, Generic, TypeVar, Optional,
 )
 
 from ...common.types import Readables, Writables, SelectableEvents
@@ -28,8 +28,6 @@ from ...common.constants import (
 
 
 if TYPE_CHECKING:   # pragma: no cover
-    from typing import Any
-
     from .work import Work
     from ..event import EventQueue
 

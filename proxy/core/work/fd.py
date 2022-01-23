@@ -1,16 +1,28 @@
+# -*- coding: utf-8 -*-
+"""
+    proxy.py
+    ~~~~~~~~
+    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
+    Network monitoring, controls & Application development, testing, debugging.
+
+    :copyright: (c) 2013-present by Abhinav Singh and contributors.
+    :license: BSD, see LICENSE for more details.
+"""
 import socket
 import logging
-from typing import Any, Tuple, Optional
+from typing import Any, Tuple, TypeVar, Optional
 
 from ..event import eventNames
 from .threadless import Threadless
 from ...common.types import TcpOrTlsSocket
 
 
+T = TypeVar('T')
+
 logger = logging.getLogger(__name__)
 
 
-class ThreadlessFd(Threadless):
+class ThreadlessFdExecutor(Threadless[T]):
 
     def work(
             self,
