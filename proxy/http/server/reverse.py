@@ -20,8 +20,8 @@ from ..exception import HttpProtocolException
 from ...core.base import TcpUpstreamConnectionHandler
 from ...common.utils import text_
 from ...common.constants import (
-    DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
-    DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT, HTTPS_PROTO,
+    HTTPS_PROTO, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
+    DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT,
 )
 
 
