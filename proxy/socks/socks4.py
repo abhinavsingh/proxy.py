@@ -10,8 +10,8 @@
 """
 from typing import Any, Optional
 
-from ..core.base import BaseTcpServerHandler
 from .client import SocksClientConnection
+from ..core.base import BaseTcpServerHandler
 
 
 class Socks4ProtocolHandler(BaseTcpServerHandler[SocksClientConnection]):
