@@ -9,7 +9,8 @@
     :license: BSD, see LICENSE for more details.
 """
 from .packet import Socks4Packet
-from .operations import socks4Operations, Socks4Operations
+from .operations import Socks4Operations, socks4Operations
+
 
 __all__ = [
     'Socks4Packet',
