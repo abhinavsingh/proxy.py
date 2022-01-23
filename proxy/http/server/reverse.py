@@ -20,7 +20,7 @@ from ..exception import HttpProtocolException
 from ...core.base import TcpUpstreamConnectionHandler
 from ...common.utils import text_
 from ...common.constants import (
-    DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
+    HTTPS_PROTO, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
     DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT,
 )
 
@@ -78,12 +78,18 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
         assert self.upstream
         try:
             self.upstream.connect()
-            if self.choice.scheme == b'https':
+            if self.choice.scheme == HTTPS_PROTO:
                 self.upstream.wrap(
                     text_(
                         self.choice.hostname,
-                    ), ca_file=str(self.flags.ca_file),
+                    ),
                 )
+            # Update Host header
+            # if request.has_header(b'Host'):
+            #     request.del_header(b'Host')
+            # request.add_header(
+            #     b'Host', ('%s:%d' % self.upstream.addr).encode('utf-8'),
+            # )
             self.upstream.queue(memoryview(request.build()))
         except ConnectionRefusedError:
             raise HttpProtocolException(
