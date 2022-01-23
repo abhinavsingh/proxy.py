@@ -21,6 +21,7 @@ from .core.work import ThreadlessPool
 from .core.event import EventManager
 from .common.flag import FlagParser, flags
 from .common.utils import bytes_
+from .core.work.fd import RemoteFdExecutor
 from .core.acceptor import AcceptorPool
 from .core.listener import ListenerPool
 from .common.constants import (
@@ -213,6 +214,7 @@ class Proxy:
             self.executors = ThreadlessPool(
                 flags=self.flags,
                 event_queue=event_queue,
+                executor_klass=RemoteFdExecutor,
             )
             self.executors.setup()
         # Setup acceptors

@@ -8,22 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import queue
 import asyncio
 import logging
-import contextlib
 from typing import Any, Optional
-
-from .fd import ThreadlessFdExecutor
-from ...common.backports import (  # noqa: W0611, F401   pylint: disable=unused-import
-    NonBlockingQueue,
-)
 
 
 logger = logging.getLogger(__name__)
 
 
-class LocalExecutor(ThreadlessFdExecutor['NonBlockingQueue']):
+class LocalExecutor:
     """A threadless executor implementation which uses a queue to receive new work."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -38,16 +31,3 @@ class LocalExecutor(ThreadlessFdExecutor['NonBlockingQueue']):
 
     def work_queue_fileno(self) -> Optional[int]:
         return None
-
-    def receive_from_work_queue(self) -> bool:
-        with contextlib.suppress(queue.Empty):
-            work = self.work_queue.get()
-            if isinstance(work, bool) and work is False:
-                return True
-            assert isinstance(work, tuple)
-            conn, addr = work
-            # NOTE: Here we are assuming to receive a connection object
-            # and not a fileno because we are a LocalExecutor.
-            fileno = conn.fileno()
-            self.work(fileno=fileno, addr=addr, conn=conn)
-        return False
