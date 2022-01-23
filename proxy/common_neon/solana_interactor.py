@@ -16,7 +16,7 @@ from logged_groups import logged_group
 from .costs import update_transaction_cost
 from .utils import get_from_dict
 from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, WRITE_TRANSACTION_COST_IN_DB
-from ..environment import LOG_SENDING_SOLANA_TRANSACTION
+from ..environment import LOG_SENDING_SOLANA_TRANSACTION, FUZZING_BLOCKHASH
 
 from typing import Any, List, NamedTuple, cast
 
@@ -32,6 +32,7 @@ class SolanaInteractor:
     def __init__(self, signer, client: SolanaClient) -> None:
         self.signer = signer
         self.client = client
+        self._fuzzing_hash_cycle = False
 
     def _send_rpc_batch_request(self, method: str, params_list: List[Any]) -> List[RPCResponse]:
         full_request_data = []
@@ -140,6 +141,24 @@ class SolanaInteractor:
         if not blockhash_resp["result"]:
             raise RuntimeError("failed to get recent blockhash")
         blockhash = blockhash_resp["result"]["value"]["blockhash"]
+
+        if not FUZZING_BLOCKHASH:
+            return Blockhash(blockhash)
+
+        self._fuzzing_hash_cycle = not self._fuzzing_hash_cycle
+        if not self._fuzzing_hash_cycle:
+            return Blockhash(blockhash)
+
+        # blockhash = '4NCYB3kRT8sCNodPNuCZo8VUh4xqpBQxsxed2wd9xaD4'
+        opts = {
+            "encoding": "json",
+            "transactionDetails": "none",
+            "rewards": False
+        }
+        slot = blockhash_resp['result']['context']['slot'] - 500
+        block = self.client._provider.make_request("getBlock", slot, opts)
+        blockhash = block['result']['blockhash']
+        self.debug(f'fuzzing block: {blockhash}')
         return Blockhash(blockhash)
 
     def sign_transaction(self, tx: Transaction):
