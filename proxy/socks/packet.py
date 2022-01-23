@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import struct
-
 from typing import Optional
 
 

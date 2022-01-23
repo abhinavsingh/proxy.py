@@ -10,8 +10,9 @@
 """
 import re
 import socket
-import unittest
 import binascii
+
+import unittest
 
 from proxy.socks import Socks4Packet, socks4Operations
 
