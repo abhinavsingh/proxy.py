@@ -35,7 +35,7 @@ class ThreadlessFdExecutor(Threadless[T]):
             type=socket.SOCK_STREAM,
         )
         uid = '%s-%s-%s' % (self.iid, self._total, fileno)
-        self.works[fileno] = self.create(uid, *(conn, addr))
+        self.works[fileno] = self.create(uid, conn, addr)
         self.works[fileno].publish_event(
             event_name=eventNames.WORK_STARTED,
             event_payload={'fileno': fileno, 'addr': addr},

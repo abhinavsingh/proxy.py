@@ -17,6 +17,7 @@ import multiprocessing
 from abc import ABC, abstractmethod
 from typing import (
     TYPE_CHECKING, Any, Set, Dict, List, Tuple, Generic, TypeVar, Optional,
+    cast,
 )
 
 from ...common.types import Readables, Writables, SelectableEvents
@@ -124,12 +125,14 @@ class Threadless(ABC, Generic[T]):
         raise NotImplementedError()
 
     def create(self, uid: str, *args: Any) -> 'Work[T]':
-        return self.flags.work_klass(
-            self.flags.work_klass.create(*args),
-            flags=self.flags,
-            event_queue=self.event_queue,
-            uid=uid,
-            upstream_conn_pool=self._upstream_conn_pool,
+        return cast(
+            'Work[T]', self.flags.work_klass(
+                self.flags.work_klass.create(*args),
+                flags=self.flags,
+                event_queue=self.event_queue,
+                uid=uid,
+                upstream_conn_pool=self._upstream_conn_pool,
+            ),
         )
 
     def close_work_queue(self) -> None:
