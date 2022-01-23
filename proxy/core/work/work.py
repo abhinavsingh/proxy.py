@@ -49,7 +49,7 @@ class Work(ABC, Generic[T]):
 
     @staticmethod
     @abstractmethod
-    def create(**kwargs: Any) -> T:
+    def create(*args: Any) -> T:
         """Implementations are responsible for creation of work objects
         from incoming args.  This helps keep work core agnostic to
         creation of externally defined work class objects."""

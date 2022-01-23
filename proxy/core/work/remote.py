@@ -33,3 +33,7 @@ class BaseRemoteExecutor(Threadless[connection.Connection]):
 
     def close_work_queue(self) -> None:
         self.work_queue.close()
+
+    def receive_from_work_queue(self) -> bool:
+        self.work(self.work_queue.recv())
+        return False

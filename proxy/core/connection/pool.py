@@ -76,8 +76,8 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
         self.pools: Dict[HostPort, Set[TcpServerConnection]] = {}
 
     @staticmethod
-    def create(**kwargs: Any) -> TcpServerConnection:   # pragma: no cover
-        return TcpServerConnection(**kwargs)
+    def create(*args: Any) -> TcpServerConnection:   # pragma: no cover
+        return TcpServerConnection(*args)
 
     def acquire(self, addr: HostPort) -> Tuple[bool, TcpServerConnection]:
         """Returns a reusable connection from the pool.
@@ -154,7 +154,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
 
         NOTE: You must not use the returned connection, instead use `acquire`.
         """
-        new_conn = self.create(host=addr[0], port=addr[1])
+        new_conn = self.create(addr[0], addr[1])
         new_conn.connect()
         self._add(new_conn)
         logger.debug(

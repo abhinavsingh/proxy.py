@@ -47,8 +47,8 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler[TcpClientConnection]):
         pass    # pragma: no cover
 
     @staticmethod
-    def create(**kwargs: Any) -> TcpClientConnection:   # pragma: no cover
-        return TcpClientConnection(**kwargs)
+    def create(*args: Any) -> TcpClientConnection:   # pragma: no cover
+        return TcpClientConnection(*args)
 
     def initialize(self) -> None:
         self.work.connection.setblocking(False)

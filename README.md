@@ -2265,8 +2265,8 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--tunnel-username TUNNEL_USERNAME]
           [--tunnel-ssh-key TUNNEL_SSH_KEY]
           [--tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE]
-          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--enable-events]
-          [--threadless] [--threaded] [--num-workers NUM_WORKERS]
+          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--threadless]
+          [--threaded] [--num-workers NUM_WORKERS] [--enable-events]
           [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
           [--hostname HOSTNAME] [--port PORT] [--ports PORTS [PORTS ...]]
           [--port-file PORT_FILE] [--unix-socket-path UNIX_SOCKET_PATH]
@@ -2294,7 +2294,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.0rc8.dev7+g1871027
+proxy.py v2.4.0rc8.dev17+g59a4335.d20220123
 
 options:
   -h, --help            show this help message and exit
@@ -2313,9 +2313,6 @@ options:
   --tunnel-remote-port TUNNEL_REMOTE_PORT
                         Default: 8899. Remote port which will be forwarded
                         locally for proxy.
-  --enable-events       Default: False. Enables core to dispatch lifecycle
-                        events. Plugins can be used to subscribe for core
-                        events.
   --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
                         linux). When disabled a new thread is spawned to
                         handle each client connection.
@@ -2324,6 +2321,9 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
+  --enable-events       Default: False. Enables core to dispatch lifecycle
+                        events. Plugins can be used to subscribe for core
+                        events.
   --local-executor LOCAL_EXECUTOR
                         Default: 1. Enabled by default. Use 0 to disable. When
                         enabled acceptors will make use of local (same
@@ -2422,8 +2422,9 @@ options:
                         Default: proxy.http.proxy.auth.AuthPlugin. Auth plugin
                         to use instead of default basic auth plugin.
   --cache-dir CACHE_DIR
-                        Default: A temporary directory. Flag only applicable
-                        when cache plugin is used with on-disk storage.
+                        Default: /Users/abhinavsingh/.proxy/cache. Flag only
+                        applicable when cache plugin is used with on-disk
+                        storage.
   --proxy-pool PROXY_POOL
                         List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable

@@ -8,7 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import queue
 import asyncio
+import contextlib
 from typing import Any, Optional
 
 from .threadless import Threadless
@@ -30,3 +32,11 @@ class BaseLocalExecutor(Threadless[NonBlockingQueue]):
 
     def work_queue_fileno(self) -> Optional[int]:
         return None
+
+    def receive_from_work_queue(self) -> bool:
+        with contextlib.suppress(queue.Empty):
+            work = self.work_queue.get()
+            if isinstance(work, bool) and work is False:
+                return True
+            self.work(work)
+        return False

@@ -21,8 +21,8 @@ class EchoSSLServerHandler(BaseTcpServerHandler[TcpClientConnection]):
     """Wraps client socket during initialization."""
 
     @staticmethod
-    def create(**kwargs: Any) -> TcpClientConnection:   # pragma: no cover
-        return TcpClientConnection(**kwargs)
+    def create(*args: Any) -> TcpClientConnection:   # pragma: no cover
+        return TcpClientConnection(*args)
 
     def initialize(self) -> None:
         # Acceptors don't perform TLS handshake.  Perform the same
