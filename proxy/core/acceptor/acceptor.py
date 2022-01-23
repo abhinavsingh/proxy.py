@@ -10,7 +10,6 @@
 
     .. spelling::
 
-       acceptor
        pre
 """
 import socket
@@ -20,33 +19,28 @@ import selectors
 import threading
 import multiprocessing
 import multiprocessing.synchronize
-
+from typing import Dict, List, Tuple, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from typing import List, Optional, Tuple
-
+from ..work import LocalExecutor, start_threaded_work, delegate_work_to_pool
+from ..event import EventQueue
 from ...common.flag import flags
-from ...common.utils import is_threadless
 from ...common.logger import Logger
 from ...common.backports import NonBlockingQueue
 from ...common.constants import DEFAULT_LOCAL_EXECUTOR
 
-from ..event import EventQueue
-
-from .local import LocalExecutor
-from .executors import ThreadlessPool
 
 logger = logging.getLogger(__name__)
 
 
 flags.add_argument(
     '--local-executor',
-    action='store_true',
-    default=DEFAULT_LOCAL_EXECUTOR,
-    help='Default: ' + ('True' if DEFAULT_LOCAL_EXECUTOR else 'False') + '.  ' +
-    'Disabled by default.  When enabled acceptors will make use of ' +
-    'local (same process) executor instead of distributing load across ' +
+    type=int,
+    default=int(DEFAULT_LOCAL_EXECUTOR),
+    help='Default: ' + ('1' if DEFAULT_LOCAL_EXECUTOR else '0') + '.  ' +
+    'Enabled by default.  Use 0 to disable.  When enabled acceptors ' +
+    'will make use of local (same process) executor instead of distributing load across ' +
     'remote (other process) executors.  Enable this option to achieve CPU affinity between ' +
     'acceptors and executors, instead of using underlying OS kernel scheduling algorithm.',
 )
@@ -74,10 +68,11 @@ class Acceptor(multiprocessing.Process):
             idd: int,
             fd_queue: connection.Connection,
             flags: argparse.Namespace,
-            lock: multiprocessing.synchronize.Lock,
+            lock: 'multiprocessing.synchronize.Lock',
+            # semaphore: multiprocessing.synchronize.Semaphore,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
-            executor_locks: List[multiprocessing.synchronize.Lock],
+            executor_locks: List['multiprocessing.synchronize.Lock'],
             event_queue: Optional[EventQueue] = None,
     ) -> None:
         super().__init__()
@@ -88,6 +83,7 @@ class Acceptor(multiprocessing.Process):
         self.idd = idd
         # Mutex used for synchronization with acceptors
         self.lock = lock
+        # self.semaphore = semaphore
         # Queue over which server socket fd is received on start-up
         self.fd_queue: connection.Connection = fd_queue
         # Available executors
@@ -97,45 +93,62 @@ class Acceptor(multiprocessing.Process):
         # Selector
         self.running = multiprocessing.Event()
         self.selector: Optional[selectors.DefaultSelector] = None
-        # File descriptor used to accept new work
-        # Currently, a socket fd is assumed.
-        self.sock: Optional[socket.socket] = None
+        # File descriptors used to accept new work
+        self.socks: Dict[int, socket.socket] = {}
         # Internals
         self._total: Optional[int] = None
         self._local_work_queue: Optional['NonBlockingQueue'] = None
         self._local: Optional[LocalExecutor] = None
         self._lthread: Optional[threading.Thread] = None
 
-    def accept(self, events: List[Tuple[selectors.SelectorKey, int]]) -> None:
-        for _, mask in events:
+    def accept(
+            self,
+            events: List[Tuple[selectors.SelectorKey, int]],
+    ) -> List[Tuple[socket.socket, Optional[Tuple[str, int]]]]:
+        works = []
+        for key, mask in events:
             if mask & selectors.EVENT_READ:
-                if self.sock is not None:
-                    conn, addr = self.sock.accept()
+                try:
+                    conn, addr = self.socks[key.data].accept()
                     logging.debug(
                         'Accepting new work#{0}'.format(conn.fileno()),
                     )
-                    work = (conn, addr or None)
-                    if self.flags.local_executor:
-                        assert self._local_work_queue
-                        self._local_work_queue.put(work)
-                    else:
-                        self._work(*work)
+                    works.append((conn, addr or None))
+                except BlockingIOError:
+                    # logger.info('blocking io error')
+                    pass
+        return works
 
     def run_once(self) -> None:
         if self.selector is not None:
             events = self.selector.select(timeout=1)
             if len(events) == 0:
                 return
-            locked = False
+            # locked = False
+            # try:
+            #     if self.lock.acquire(block=False):
+            #         locked = True
+            #         self.semaphore.release()
+            # finally:
+            #     if locked:
+            #         self.lock.release()
+            locked, works = False, []
             try:
+                # if not self.semaphore.acquire(False, None):
+                #     return
                 if self.lock.acquire(block=False):
                     locked = True
-                    self.accept(events)
-            except BlockingIOError:
-                pass
+                    works = self.accept(events)
             finally:
                 if locked:
                     self.lock.release()
+            for work in works:
+                if self.flags.threadless and \
+                        self.flags.local_executor:
+                    assert self._local_work_queue
+                    self._local_work_queue.put(work)
+                else:
+                    self._work(*work)
 
     def run(self) -> None:
         Logger.setup(
@@ -143,35 +156,46 @@ class Acceptor(multiprocessing.Process):
             self.flags.log_format,
         )
         self.selector = selectors.DefaultSelector()
-        # TODO: Use selector on fd_queue so that we can
-        # dynamically accept from new fds.
-        fileno = recv_handle(self.fd_queue)
-        self.fd_queue.close()
-        # TODO: Convert to socks i.e. list of fds
-        self.sock = socket.fromfd(
-            fileno,
-            family=self.flags.family,
-            type=socket.SOCK_STREAM,
-        )
+        self._recv_and_setup_socks()
         try:
-            if self.flags.local_executor:
+            if self.flags.threadless and self.flags.local_executor:
                 self._start_local()
-            self.selector.register(self.sock, selectors.EVENT_READ)
+            for fileno in self.socks:
+                self.selector.register(
+                    fileno, selectors.EVENT_READ, fileno,
+                )
             while not self.running.is_set():
                 self.run_once()
         except KeyboardInterrupt:
             pass
         finally:
-            self.selector.unregister(self.sock)
-            if self.flags.local_executor:
+            for fileno in self.socks:
+                self.selector.unregister(fileno)
+            if self.flags.threadless and self.flags.local_executor:
                 self._stop_local()
-            self.sock.close()
+            for fileno in self.socks:
+                self.socks[fileno].close()
+            self.socks.clear()
             logger.debug('Acceptor#%d shutdown', self.idd)
 
+    def _recv_and_setup_socks(self) -> None:
+        # TODO: Use selector on fd_queue so that we can
+        # dynamically accept from new fds.
+        for _ in range(self.fd_queue.recv()):
+            fileno = recv_handle(self.fd_queue)
+            # TODO: Convert to socks i.e. list of fds
+            self.socks[fileno] = socket.fromfd(
+                fileno,
+                family=self.flags.family,
+                type=socket.SOCK_STREAM,
+            )
+        self.fd_queue.close()
+
     def _start_local(self) -> None:
-        assert self.sock
+        assert self.socks
         self._local_work_queue = NonBlockingQueue()
         self._local = LocalExecutor(
+            iid=self.idd,
             work_queue=self._local_work_queue,
             flags=self.flags,
             event_queue=self.event_queue,
@@ -187,7 +211,7 @@ class Acceptor(multiprocessing.Process):
 
     def _work(self, conn: socket.socket, addr: Optional[Tuple[str, int]]) -> None:
         self._total = self._total or 0
-        if is_threadless(self.flags.threadless, self.flags.threaded):
+        if self.flags.threadless:
             # Index of worker to which this work should be dispatched
             # Use round-robin strategy by default.
             #
@@ -195,7 +219,7 @@ class Acceptor(multiprocessing.Process):
             # 1st workers.  To randomize, we offset index by idd.
             index = (self._total + self.idd) % self.flags.num_workers
             thread = threading.Thread(
-                target=ThreadlessPool.delegate,
+                target=delegate_work_to_pool,
                 args=(
                     self.executor_pids[index],
                     self.executor_queues[index],
@@ -206,20 +230,22 @@ class Acceptor(multiprocessing.Process):
                 ),
             )
             thread.start()
-            logger.debug(
+            # TODO: Move me into target method
+            logger.debug(   # pragma: no cover
                 'Dispatched work#{0}.{1}.{2} to worker#{3}'.format(
                     conn.fileno(), self.idd, self._total, index,
                 ),
             )
         else:
-            _, thread = ThreadlessPool.start_threaded_work(
+            _, thread = start_threaded_work(
                 self.flags,
                 conn,
                 addr,
                 event_queue=self.event_queue,
                 publisher_id=self.__class__.__name__,
             )
-            logger.debug(
+            # TODO: Move me into target method
+            logger.debug(   # pragma: no cover
                 'Started work#{0}.{1}.{2} in thread#{3}'.format(
                     conn.fileno(), self.idd, self._total, thread.ident,
                 ),

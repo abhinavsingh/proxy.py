@@ -15,21 +15,10 @@
 """
 from typing import Optional
 
+from ...http import httpHeaders
 from ..exception import ProxyAuthenticationFailed
-
-from ...common.flag import flags
-from ...common.constants import DEFAULT_BASIC_AUTH
-from ...http.parser import HttpParser
 from ...http.proxy import HttpProxyBasePlugin
-
-
-flags.add_argument(
-    '--basic-auth',
-    type=str,
-    default=DEFAULT_BASIC_AUTH,
-    help='Default: No authentication. Specify colon separated user:password '
-    'to enable basic authentication.',
-)
+from ...http.parser import HttpParser
 
 
 class AuthPlugin(HttpProxyBasePlugin):
@@ -38,10 +27,10 @@ class AuthPlugin(HttpProxyBasePlugin):
     def before_upstream_connection(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
-        if self.flags.auth_code:
-            if b'proxy-authorization' not in request.headers:
+        if self.flags.auth_code and request.headers:
+            if httpHeaders.PROXY_AUTHORIZATION not in request.headers:
                 raise ProxyAuthenticationFailed()
-            parts = request.headers[b'proxy-authorization'][1].split()
+            parts = request.headers[httpHeaders.PROXY_AUTHORIZATION][1].split()
             if len(parts) != 2 \
                     or parts[0].lower() != b'basic' \
                     or parts[1] != self.flags.auth_code:

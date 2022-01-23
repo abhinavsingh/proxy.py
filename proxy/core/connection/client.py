@@ -10,11 +10,10 @@
 """
 import ssl
 import socket
+from typing import Tuple, Union, Optional
 
-from typing import Union, Tuple, Optional
-
-from .connection import TcpConnection, TcpConnectionUninitializedException
 from .types import tcpConnectionTypes
+from .connection import TcpConnection, TcpConnectionUninitializedException
 
 
 class TcpClientConnection(TcpConnection):
@@ -46,7 +45,6 @@ class TcpClientConnection(TcpConnection):
         self._conn = ssl.wrap_socket(
             self.connection,
             server_side=True,
-            # ca_certs=self.flags.ca_cert_file,
             certfile=certfile,
             keyfile=keyfile,
             ssl_version=ssl.PROTOCOL_TLS,

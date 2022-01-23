@@ -1,4 +1,4 @@
 [worker.oci]
   max-parallelism = 4
 [registry."docker.io"]
-  mirrors = ["mirror.gcr.io"]
+  mirrors = ["ghcr.io"]

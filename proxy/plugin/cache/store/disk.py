@@ -8,17 +8,16 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import logging
 import os
+import logging
 import tempfile
-from typing import Optional, BinaryIO
-from uuid import UUID
-
-from ....common.flag import flags
-from ....common.utils import text_
-from ....http.parser import HttpParser
+from typing import BinaryIO, Optional
 
 from .base import CacheStore
+from ....common.flag import flags
+from ....http.parser import HttpParser
+from ....common.utils import text_
+
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ flags.add_argument(
 
 class OnDiskCacheStore(CacheStore):
 
-    def __init__(self, uid: UUID, cache_dir: str) -> None:
+    def __init__(self, uid: str, cache_dir: str) -> None:
         super().__init__(uid)
         self.cache_dir = cache_dir
         self.cache_file_path: Optional[str] = None
@@ -43,7 +42,7 @@ class OnDiskCacheStore(CacheStore):
     def open(self, request: HttpParser) -> None:
         self.cache_file_path = os.path.join(
             self.cache_dir,
-            '%s-%s.txt' % (text_(request.host), self.uid.hex),
+            '%s-%s.txt' % (text_(request.host), self.uid),
         )
         self.cache_file = open(self.cache_file_path, "wb")
 

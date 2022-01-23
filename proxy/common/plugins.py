@@ -9,16 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import abc
-import logging
 import inspect
-import itertools
+import logging
 import importlib
+import itertools
+from typing import Any, Dict, List, Tuple, Union, Optional
 
-from typing import Any, List, Dict, Optional, Tuple, Union
+from .utils import text_, bytes_
+from .constants import DOT, COMMA, DEFAULT_ABC_PLUGINS
 
-from .utils import bytes_, text_
-from .constants import DOT, DEFAULT_ABC_PLUGINS, COMMA
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +71,19 @@ class Plugins:
             klass, module_name = Plugins.importer(plugin_)
             assert klass and module_name
             mro = list(inspect.getmro(klass))
-            mro.reverse()
-            iterator = iter(mro)
-            while next(iterator) is not abc.ABC:
-                pass
-            base_klass = next(iterator)
+            # Find the base plugin class that
+            # this plugin_ is implementing
+            base_klass = None
+            for k in mro:
+                if bytes_(k.__name__) in p:
+                    base_klass = k
+                    break
+            if base_klass is None:
+                raise ValueError('%s is NOT a valid plugin' % text_(plugin_))
             if klass not in p[bytes_(base_klass.__name__)]:
                 p[bytes_(base_klass.__name__)].append(klass)
             logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
+        # print(p)
         return p
 
     @staticmethod

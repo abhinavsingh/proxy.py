@@ -16,13 +16,12 @@
        Websocket
 """
 import io
-import hashlib
 import base64
 import struct
-import secrets
+import hashlib
 import logging
-
-from typing import TypeVar, Type, Optional, NamedTuple
+import secrets
+from typing import Type, TypeVar, Optional, NamedTuple
 
 
 WebsocketOpcodes = NamedTuple(

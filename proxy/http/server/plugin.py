@@ -7,39 +7,38 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import argparse
-
-from uuid import UUID
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Optional
 
-from ..websocket import WebsocketFrame
 from ..parser import HttpParser
-
-from ...common.types import Readables, Writables
-from ...core.connection import TcpClientConnection
+from ..websocket import WebsocketFrame
+from ..connection import HttpClientConnection
 from ...core.event import EventQueue
+from ..descriptors import DescriptorsHandlerMixin
 
 
-class HttpWebServerBasePlugin(ABC):
+if TYPE_CHECKING:   # pragma: no cover
+    from ...core.connection import UpstreamConnectionPool
+
+
+class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
     """Web Server Plugin for routing of requests."""
 
     def __init__(
             self,
-            uid: UUID,
+            uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: HttpClientConnection,
             event_queue: EventQueue,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
         self.uid = uid
         self.flags = flags
         self.client = client
         self.event_queue = event_queue
+        self.upstream_conn_pool = upstream_conn_pool
 
     def name(self) -> str:
         """A unique name for your plugin.
@@ -47,36 +46,6 @@ class HttpWebServerBasePlugin(ABC):
         Defaults to name of the class. This helps plugin developers to directly
         access a specific plugin by its name."""
         return self.__class__.__name__      # pragma: no cover
-
-    # TODO(abhinavsingh): get_descriptors, write_to_descriptors, read_from_descriptors
-    # can be placed into their own abstract class which can then be shared by
-    # HttpProxyBasePlugin, HttpWebServerBasePlugin and HttpProtocolHandlerPlugin class.
-    #
-    # Currently code has been shamelessly copied.  Also these methods are not
-    # marked as abstract to avoid breaking custom plugins written by users for
-    # previous versions of proxy.py
-    #
-    # Since 3.4.0
-    #
-    # @abstractmethod
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
-        return [], []  # pragma: no cover
-
-    # @abstractmethod
-    def write_to_descriptors(self, w: Writables) -> bool:
-        """Implementations must now write/flush data over the socket.
-
-        Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call
-        :meth:`~proxy.core.connection.connection.TcpConnection.flush`
-        here, to send any buffered data over the socket.
-        """
-        return False  # pragma: no cover
-
-    # @abstractmethod
-    def read_from_descriptors(self, r: Readables) -> bool:
-        """Implementations must now read data over the socket."""
-        return False  # pragma: no cover
 
     @abstractmethod
     def routes(self) -> List[Tuple[int, str]]:
@@ -127,3 +96,12 @@ class HttpWebServerBasePlugin(ABC):
         Return None if plugin has logged the request.
         """
         return context
+
+
+class ReverseProxyBasePlugin(ABC):
+    """ReverseProxy base plugin class."""
+
+    @abstractmethod
+    def routes(self) -> List[Tuple[str, List[bytes]]]:
+        """Return List(path, List(upstream)) reverse proxy config."""
+        raise NotImplementedError()     # pragma: no cover

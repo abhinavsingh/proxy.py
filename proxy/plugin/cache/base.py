@@ -9,11 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-from typing import Optional, Any
+from typing import Any, Optional
 
-from ...http.parser import HttpParser
-from ...http.proxy import HttpProxyBasePlugin
 from .store.base import CacheStore
+from ...http.proxy import HttpProxyBasePlugin
+from ...http.parser import HttpParser
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class BaseCacheResponsesPlugin(HttpProxyBasePlugin):
         assert self.store
         return self.store.cache_request(request)
 
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+    def handle_upstream_chunk(self, chunk: memoryview) -> Optional[memoryview]:
         assert self.store
         return self.store.cache_response_chunk(chunk)
 

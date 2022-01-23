@@ -11,13 +11,12 @@
 import ssl
 import socket
 import logging
-
 from abc import ABC, abstractmethod
-from typing import Optional, Union, List
-
-from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
+from typing import List, Union, Optional
 
 from .types import tcpConnectionTypes
+from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
+
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +74,7 @@ class TcpConnection(ABC):
         return self.closed
 
     def has_buffer(self) -> bool:
-        return self._num_buffer > 0
+        return self._num_buffer != 0
 
     def queue(self, mv: memoryview) -> None:
         self.buffer.append(mv)

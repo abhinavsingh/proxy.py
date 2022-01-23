@@ -8,19 +8,23 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import base64
 import random
 import logging
+import ipaddress
+from typing import Any, Dict, List, Optional
 
-from typing import Dict, List, Optional, Any
-
-from ..common.flag import flags
-
-from ..http import Url, httpMethods
-from ..http.parser import HttpParser
-from ..http.exception import HttpProtocolException
-from ..http.proxy import HttpProxyBasePlugin
-
+from ..http import Url, httpHeaders, httpMethods
 from ..core.base import TcpUpstreamConnectionHandler
+from ..http.proxy import HttpProxyBasePlugin
+from ..common.flag import flags
+from ..http.parser import HttpParser
+from ..common.utils import text_, bytes_
+from ..http.exception import HttpProtocolException
+from ..common.constants import (
+    COLON, ANY_INTERFACE_HOSTNAMES, LOCAL_INTERFACE_HOSTNAMES,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +69,9 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self._endpoint: Url = self._select_proxy()
         # Cached attributes to be used during access log override
-        self.request_host_port_path_method: List[Any] = [
+        self._metadata: List[Any] = [
             None, None, None, None,
         ]
 
@@ -78,47 +83,54 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
     ) -> Optional[HttpParser]:
         """Avoids establishing the default connection to upstream server
         by returning None.
+
+        TODO(abhinavsingh): Ideally connection to upstream proxy endpoints
+        must be bootstrapped within it's own re-usable and garbage collected pool,
+        to avoid establishing a new upstream proxy connection for each client request.
+
+        See :class:`~proxy.core.connection.pool.UpstreamConnectionPool` which is a work
+        in progress for SSL cache handling.
         """
-        # TODO(abhinavsingh): Ideally connection to upstream proxy endpoints
-        # must be bootstrapped within it's own re-usable and gc'd pool, to avoid establishing
-        # a fresh upstream proxy connection for each client request.
-        #
-        # See :class:`~proxy.core.connection.pool.ConnectionPool` which is a work
-        # in progress for SSL cache handling.
-        #
-        # Implement your own logic here e.g. round-robin, least connection etc.
-        endpoint = random.choice(self.flags.proxy_pool)[0].split(':')
-        if endpoint[0] == 'localhost' and endpoint[1] == '8899':
+        # We don't want to send private IP requests to remote proxies
+        try:
+            if ipaddress.ip_address(text_(request.host)).is_private:
+                return request
+        except ValueError:
+            pass
+        # If chosen proxy is the local instance, bypass upstream proxies
+        assert self._endpoint.port and self._endpoint.hostname
+        if self._endpoint.port == self.flags.port and \
+                self._endpoint.hostname in LOCAL_INTERFACE_HOSTNAMES + ANY_INTERFACE_HOSTNAMES:
             return request
-        logger.debug('Using endpoint: {0}:{1}'.format(*endpoint))
-        self.initialize_upstream(endpoint[0], int(endpoint[1]))
+        # Establish connection to chosen upstream proxy
+        endpoint_tuple = (text_(self._endpoint.hostname), self._endpoint.port)
+        logger.debug('Using endpoint: {0}:{1}'.format(*endpoint_tuple))
+        self.initialize_upstream(*endpoint_tuple)
         assert self.upstream
         try:
             self.upstream.connect()
         except TimeoutError:
-            logger.info(
+            raise HttpProtocolException(
                 'Timed out connecting to upstream proxy {0}:{1}'.format(
-                    *endpoint,
+                    *endpoint_tuple,
                 ),
             )
-            raise HttpProtocolException()
         except ConnectionRefusedError:
             # TODO(abhinavsingh): Try another choice, when all (or max configured) choices have
             # exhausted, retry for configured number of times before giving up.
             #
             # Failing upstream proxies, must be removed from the pool temporarily.
             # A periodic health check must put them back in the pool.  This can be achieved
-            # using a datastructure without having to spawn separate thread/process for health
+            # using a data structure without having to spawn separate thread/process for health
             # check.
-            logger.info(
+            raise HttpProtocolException(
                 'Connection refused by upstream proxy {0}:{1}'.format(
-                    *endpoint,
+                    *endpoint_tuple,
                 ),
             )
-            raise HttpProtocolException()
         logger.debug(
             'Established connection to upstream proxy {0}:{1}'.format(
-                *endpoint,
+                *endpoint_tuple,
             ),
         )
         return None
@@ -142,13 +154,24 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
             assert url.hostname
             host, port = url.hostname.decode('utf-8'), url.port
             port = port if port else (
-                443 if request.is_https_tunnel() else 80
+                443 if request.is_https_tunnel else 80
             )
         path = None if not request.path else request.path.decode()
-        self.request_host_port_path_method = [
+        self._metadata = [
             host, port, path, request.method,
         ]
-        # Queue original request to upstream proxy
+        # Queue original request optionally with auth headers to upstream proxy
+        if self._endpoint.has_credentials:
+            assert self._endpoint.username and self._endpoint.password
+            request.add_header(
+                httpHeaders.PROXY_AUTHORIZATION,
+                b'Basic ' +
+                base64.b64encode(
+                    self._endpoint.username +
+                    COLON +
+                    self._endpoint.password,
+                ),
+            )
         self.upstream.queue(memoryview(request.build(for_proxy=True)))
         return request
 
@@ -159,7 +182,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         self.upstream.queue(raw)
         return raw
 
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+    def handle_upstream_chunk(self, chunk: memoryview) -> Optional[memoryview]:
         """Will never be called since we didn't establish an upstream connection."""
         if not self.upstream:
             return chunk
@@ -180,9 +203,9 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         context.update({
             'upstream_proxy_host': addr,
             'upstream_proxy_port': port,
-            'server_host': self.request_host_port_path_method[0],
-            'server_port': self.request_host_port_path_method[1],
-            'request_path': self.request_host_port_path_method[2],
+            'server_host': self._metadata[0],
+            'server_port': self._metadata[1],
+            'request_path': self._metadata[2],
             'response_bytes': self.total_size,
         })
         self.access_log(context)
@@ -190,7 +213,14 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
 
     def access_log(self, log_attrs: Dict[str, Any]) -> None:
         access_log_format = DEFAULT_HTTPS_ACCESS_LOG_FORMAT
-        request_method = self.request_host_port_path_method[3]
+        request_method = self._metadata[3]
         if request_method and request_method != httpMethods.CONNECT:
             access_log_format = DEFAULT_HTTP_ACCESS_LOG_FORMAT
         logger.info(access_log_format.format_map(log_attrs))
+
+    def _select_proxy(self) -> Url:
+        """Choose a random proxy from the pool.
+
+        TODO: Implement your own logic here e.g. round-robin, least connection etc.
+        """
+        return Url.from_bytes(bytes_(random.choice(self.flags.proxy_pool)[0]))

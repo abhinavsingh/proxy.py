@@ -12,9 +12,9 @@ import unittest
 
 from proxy.http import httpStatusCodes
 from proxy.http.parser import HttpParser, httpParserTypes
+from proxy.common.utils import build_http_response
 from proxy.http.exception import HttpRequestRejected
 from proxy.common.constants import CRLF
-from proxy.common.utils import build_http_response
 
 
 class TestHttpRequestRejected(unittest.TestCase):
@@ -31,19 +31,23 @@ class TestHttpRequestRejected(unittest.TestCase):
         self.assertEqual(
             e.response(self.request), CRLF.join([
                 b'HTTP/1.1 200 OK',
+                b'Connection: close',
                 CRLF,
             ]),
         )
 
     def test_body_response(self) -> None:
         e = HttpRequestRejected(
-            status_code=httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
+            status_code=httpStatusCodes.NOT_FOUND,
+            reason=b'NOT FOUND',
             body=b'Nothing here',
         )
         self.assertEqual(
             e.response(self.request),
             build_http_response(
                 httpStatusCodes.NOT_FOUND,
-                reason=b'NOT FOUND', body=b'Nothing here',
+                reason=b'NOT FOUND',
+                body=b'Nothing here',
+                conn_close=True,
             ),
         )

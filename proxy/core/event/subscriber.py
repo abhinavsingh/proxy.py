@@ -13,13 +13,12 @@ import queue
 import logging
 import threading
 import multiprocessing
-
+from typing import Any, Dict, Callable, Optional
 from multiprocessing import connection
 
-from typing import Dict, Optional, Any, Callable
-
-from .queue import EventQueue
 from .names import eventNames
+from .queue import EventQueue
+
 
 logger = logging.getLogger(__name__)
 
@@ -34,18 +33,16 @@ class EventSubscriber:
     can be different from publishers.  Publishers can even be processes
     outside of the proxy.py core.
 
-    Note that, EventSubscriber cannot share the `multiprocessing.Manager`
-    with the EventManager.  Because EventSubscriber can be started
-    in a different process than EventManager.
+    `multiprocessing.Pipe` is used to initialize a new Queue for
+    receiving subscribed events from eventing core.  Note that,
+    core EventDispatcher might be running in a separate process
+    and hence subscription queue must be multiprocess safe.
 
-    `multiprocessing.Manager` is used to initialize
-    a new Queue which is used for subscriptions.  EventDispatcher
-    might be running in a separate process and hence
-    subscription queue must be multiprocess safe.
+    When `subscribe` method is called, EventManager stars
+    a relay thread which consumes event out of the subscription queue
+    and invoke callback.
 
-    When `subscribe` method is called, EventManager will
-    start a relay thread which consumes using the multiprocess
-    safe queue passed to the relay thread.
+    NOTE: Callback is executed in the context of relay thread.
     """
 
     def __init__(self, event_queue: EventQueue, callback: Callable[[Dict[str, Any]], None]) -> None:
@@ -103,9 +100,7 @@ class EventSubscriber:
             return
         try:
             self.event_queue.unsubscribe(self.relay_sub_id)
-        except BrokenPipeError:
-            pass
-        except EOFError:
+        except (BrokenPipeError, EOFError):
             pass
         finally:
             # self.relay_sub_id = None

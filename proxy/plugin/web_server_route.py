@@ -11,14 +11,15 @@
 import logging
 from typing import List, Tuple
 
-from ..common.utils import build_http_response
-
-from ..http import httpStatusCodes
 from ..http.parser import HttpParser
-from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
+from ..http.responses import okResponse
+
 
 logger = logging.getLogger(__name__)
+
+HTTP_RESPONSE = okResponse(content=b'HTTP route response')
+HTTPS_RESPONSE = okResponse(content=b'HTTPS route response')
 
 
 class WebServerPlugin(HttpWebServerBasePlugin):
@@ -33,27 +34,6 @@ class WebServerPlugin(HttpWebServerBasePlugin):
 
     def handle_request(self, request: HttpParser) -> None:
         if request.path == b'/http-route-example':
-            self.client.queue(
-                memoryview(
-                    build_http_response(
-                        httpStatusCodes.OK, body=b'HTTP route response',
-                    ),
-                ),
-            )
+            self.client.queue(HTTP_RESPONSE)
         elif request.path == b'/https-route-example':
-            self.client.queue(
-                memoryview(
-                    build_http_response(
-                        httpStatusCodes.OK, body=b'HTTPS route response',
-                    ),
-                ),
-            )
-
-    def on_websocket_open(self) -> None:
-        logger.info('Websocket open')
-
-    def on_websocket_message(self, frame: WebsocketFrame) -> None:
-        logger.info(frame.data)
-
-    def on_client_connection_close(self) -> None:
-        logger.debug('Client connection close')
+            self.client.queue(HTTPS_RESPONSE)

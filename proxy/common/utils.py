@@ -11,25 +11,24 @@
     .. spelling::
 
        utils
-       websocket
-       Websocket
-       WebSocket
 """
-import sys
 import ssl
+import sys
 import socket
 import logging
 import functools
 import ipaddress
 import contextlib
-
 from types import TracebackType
-from typing import Optional, Dict, Any, List, Tuple, Type, Callable
+from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 
-from ._compat import IS_WINDOWS  # noqa: WPS436
-from .constants import HTTP_1_1, COLON, WHITESPACE, CRLF, DEFAULT_TIMEOUT, DEFAULT_THREADLESS
+from .constants import (
+    CRLF, COLON, HTTP_1_1, IS_WINDOWS, WHITESPACE, DEFAULT_TIMEOUT,
+    DEFAULT_THREADLESS,
+)
 
-if not IS_WINDOWS:
+
+if not IS_WINDOWS:  # pragma: no cover
     import resource
 
 logger = logging.getLogger(__name__)
@@ -78,12 +77,14 @@ def build_http_request(
     protocol_version: bytes = HTTP_1_1,
     headers: Optional[Dict[bytes, bytes]] = None,
     body: Optional[bytes] = None,
+    conn_close: bool = False,
 ) -> bytes:
     """Build and returns a HTTP request packet."""
-    if headers is None:
-        headers = {}
     return build_http_pkt(
-        [method, url, protocol_version], headers, body,
+        [method, url, protocol_version],
+        headers or {},
+        body,
+        conn_close,
     )
 
 
@@ -93,6 +94,7 @@ def build_http_response(
     reason: Optional[bytes] = None,
     headers: Optional[Dict[bytes, bytes]] = None,
     body: Optional[bytes] = None,
+    conn_close: bool = False,
 ) -> bytes:
     """Build and returns a HTTP response packet."""
     line = [protocol_version, bytes_(status_code)]
@@ -102,7 +104,7 @@ def build_http_response(
         headers = {}
     has_content_length = False
     has_transfer_encoding = False
-    for k in headers:
+    for k, _ in headers.items():
         if k.lower() == b'content-length':
             has_content_length = True
         if k.lower() == b'transfer-encoding':
@@ -111,7 +113,7 @@ def build_http_response(
             not has_transfer_encoding and \
             not has_content_length:
         headers[b'Content-Length'] = bytes_(len(body))
-    return build_http_pkt(line, headers, body)
+    return build_http_pkt(line, headers, body, conn_close)
 
 
 def build_http_header(k: bytes, v: bytes) -> bytes:
@@ -123,12 +125,15 @@ def build_http_pkt(
     line: List[bytes],
     headers: Optional[Dict[bytes, bytes]] = None,
     body: Optional[bytes] = None,
+    conn_close: bool = False,
 ) -> bytes:
     """Build and returns a HTTP request or response packet."""
     pkt = WHITESPACE.join(line) + CRLF
-    if headers is not None:
-        for k in headers:
-            pkt += build_http_header(k, headers[k]) + CRLF
+    headers = headers or {}
+    if conn_close:
+        headers[b'Connection'] = b'close'
+    for k, v in headers.items():
+        pkt += build_http_header(k, v) + CRLF
     pkt += CRLF
     if body:
         pkt += body
@@ -277,7 +282,8 @@ def get_available_port() -> int:
 
 def set_open_file_limit(soft_limit: int) -> None:
     """Configure open file description soft limit on supported OS."""
-    if IS_WINDOWS:  # resource module not available on Windows OS
+    # resource module not available on Windows OS
+    if IS_WINDOWS:  # pragma: no cover
         return
 
     curr_soft_limit, curr_hard_limit = resource.getrlimit(

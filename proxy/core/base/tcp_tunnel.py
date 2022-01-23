@@ -7,28 +7,23 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       tcp
 """
 import logging
 import selectors
-
 from abc import abstractmethod
-from typing import Any, Optional, Dict
+from typing import Any, Optional
 
+from .tcp_server import BaseTcpServerHandler
+from ..connection import TcpClientConnection, TcpServerConnection
 from ...http.parser import HttpParser, httpParserTypes
-from ...common.types import Readables, Writables
+from ...common.types import Readables, Writables, SelectableEvents
 from ...common.utils import text_
 
-from ..connection import TcpServerConnection
-from .tcp_server import BaseTcpServerHandler
 
 logger = logging.getLogger(__name__)
 
 
-class BaseTcpTunnelHandler(BaseTcpServerHandler):
+class BaseTcpTunnelHandler(BaseTcpServerHandler[TcpClientConnection]):
     """BaseTcpTunnelHandler build on-top of BaseTcpServerHandler work class.
 
     On-top of BaseTcpServerHandler implementation,
@@ -51,6 +46,10 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
     def handle_data(self, data: memoryview) -> Optional[bool]:
         pass    # pragma: no cover
 
+    @staticmethod
+    def create(**kwargs: Any) -> TcpClientConnection:   # pragma: no cover
+        return TcpClientConnection(**kwargs)
+
     def initialize(self) -> None:
         self.work.connection.setblocking(False)
 
@@ -64,9 +63,9 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler):
             self.upstream.close()
         super().shutdown()
 
-    async def get_events(self) -> Dict[int, int]:
+    async def get_events(self) -> SelectableEvents:
         # Get default client events
-        ev: Dict[int, int] = await super().get_events()
+        ev: SelectableEvents = await super().get_events()
         # Read from server if we are connected
         if self.upstream and self.upstream._conn is not None:
             ev[self.upstream.connection.fileno()] = selectors.EVENT_READ

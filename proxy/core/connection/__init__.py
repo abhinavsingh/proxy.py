@@ -13,11 +13,12 @@
        reusability
        Submodules
 """
-from .connection import TcpConnection, TcpConnectionUninitializedException
+from .pool import UpstreamConnectionPool
+from .types import tcpConnectionTypes
 from .client import TcpClientConnection
 from .server import TcpServerConnection
-from .pool import ConnectionPool
-from .types import tcpConnectionTypes
+from .connection import TcpConnection, TcpConnectionUninitializedException
+
 
 __all__ = [
     'TcpConnection',
@@ -25,5 +26,5 @@ __all__ = [
     'TcpServerConnection',
     'TcpClientConnection',
     'tcpConnectionTypes',
-    'ConnectionPool',
+    'UpstreamConnectionPool',
 ]

@@ -14,23 +14,25 @@ import base64
 import socket
 import argparse
 import ipaddress
+import itertools
 import collections
 import multiprocessing
+from typing import Any, List, Optional, cast
 
-from typing import Optional, List, Any, cast
-
-from ._compat import IS_WINDOWS  # noqa: WPS436
-from .plugins import Plugins
 from .types import IpAddress
-from .utils import bytes_, is_py2, set_open_file_limit
-from .constants import COMMA, DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_NUM_ACCEPTORS, DEFAULT_NUM_WORKERS
-from .constants import DEFAULT_DEVTOOLS_WS_PATH, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE
-from .constants import PLUGIN_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL, DEFAULT_MIN_COMPRESSION_LIMIT
-from .constants import PLUGIN_HTTP_PROXY, PLUGIN_INSPECT_TRAFFIC, PLUGIN_PAC_FILE
-from .constants import PLUGIN_WEB_SERVER, PLUGIN_PROXY_AUTH
+from .utils import bytes_, is_py2, is_threadless, set_open_file_limit
 from .logger import Logger
-
+from .plugins import Plugins
 from .version import __version__
+from .constants import (
+    COMMA, IS_WINDOWS, PLUGIN_PAC_FILE, PLUGIN_DASHBOARD, PLUGIN_HTTP_PROXY,
+    PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_NUM_WORKERS,
+    PLUGIN_REVERSE_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC,
+    DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
+    PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEBSOCKET_TRANSPORT,
+    DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_MIN_COMPRESSION_LIMIT,
+)
+
 
 __homepage__ = 'https://github.com/abhinavsingh/proxy.py'
 
@@ -136,9 +138,11 @@ class FlagParser:
             if isinstance(work_klass, str) \
             else work_klass
 
+        # TODO: Plugin flag initialization logic must be moved within plugins.
+        #
         # Generate auth_code required for basic authentication if enabled
         auth_code = None
-        basic_auth = opts.get('basic_auth', args.basic_auth)
+        basic_auth = opts.get('basic_auth', getattr(args, 'basic_auth', None))
         # Destroy passed credentials via flags or options
         args.basic_auth = None
         if 'basic_auth' in opts:
@@ -156,13 +160,37 @@ class FlagParser:
             # unless user overrides the default auth plugin.
             auth_plugins.append(auth_plugin)
 
+        # --enable flags must be parsed before loading plugins
+        # otherwise we will miss the plugins passed via constructor
+        args.enable_web_server = cast(
+            bool,
+            opts.get(
+                'enable_web_server',
+                args.enable_web_server,
+            ),
+        )
+        args.enable_static_server = cast(
+            bool,
+            opts.get(
+                'enable_static_server',
+                args.enable_static_server,
+            ),
+        )
+        args.enable_events = cast(
+            bool,
+            opts.get(
+                'enable_events',
+                args.enable_events,
+            ),
+        )
+
         # Load default plugins along with user provided --plugins
         default_plugins = [
             bytes_(p)
             for p in FlagParser.get_default_plugins(args)
         ]
         requested_plugins = Plugins.resolve_plugin_flag(
-            args.plugins, opts.get('plugins', None),
+            args.plugins, opts.get('plugins'),
         )
         plugins = Plugins.load(
             default_plugins + auth_plugins + requested_plugins,
@@ -219,12 +247,14 @@ class FlagParser:
             ),
         )
         args.disable_headers = disabled_headers if disabled_headers is not None else DEFAULT_DISABLE_HEADERS
+
         args.certfile = cast(
             Optional[str], opts.get(
                 'cert_file', args.cert_file,
             ),
         )
         args.keyfile = cast(Optional[str], opts.get('key_file', args.key_file))
+
         args.ca_key_file = cast(
             Optional[str], opts.get(
                 'ca_key_file', args.ca_key_file,
@@ -249,6 +279,7 @@ class FlagParser:
                 args.ca_file,
             ),
         )
+
         args.hostname = cast(
             IpAddress,
             opts.get('hostname', ipaddress.ip_address(args.hostname)),
@@ -272,6 +303,12 @@ class FlagParser:
             # assert args.unix_socket_path is None
             args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
+        ports: List[List[int]] = opts.get('ports', args.ports)
+        args.ports = [
+            int(port) for port in list(
+                itertools.chain.from_iterable([] if ports is None else ports),
+            )
+        ]
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)
         args.num_workers = cast(
@@ -281,8 +318,8 @@ class FlagParser:
         # See https://github.com/abhinavsingh/proxy.py/pull/714 description
         # to understand rationale behind the following logic.
         #
-        # --num-workers flag or option was found. We will use
-        # the same value for num_acceptors when --num-acceptors flag
+        # Num workers flag or option was found. We will use
+        # the same value for num_acceptors when num acceptors flag
         # is absent.
         if num_workers != DEFAULT_NUM_WORKERS and num_acceptors == DEFAULT_NUM_ACCEPTORS:
             args.num_acceptors = args.num_workers
@@ -290,18 +327,12 @@ class FlagParser:
             args.num_acceptors = cast(
                 int, num_acceptors if num_acceptors > 0 else multiprocessing.cpu_count(),
             )
+
         args.static_server_dir = cast(
             str,
             opts.get(
                 'static_server_dir',
                 args.static_server_dir,
-            ),
-        )
-        args.enable_static_server = cast(
-            bool,
-            opts.get(
-                'enable_static_server',
-                args.enable_static_server,
             ),
         )
         args.min_compression_limit = cast(
@@ -322,26 +353,34 @@ class FlagParser:
             ),
         )
         args.timeout = cast(int, opts.get('timeout', args.timeout))
-        args.threadless = cast(bool, opts.get('threadless', args.threadless))
-        args.threaded = cast(bool, opts.get('threaded', args.threaded))
-        args.enable_events = cast(
-            bool,
+        args.local_executor = cast(
+            int,
             opts.get(
-                'enable_events',
-                args.enable_events,
+                'local_executor',
+                args.local_executor,
             ),
         )
+        args.threaded = cast(bool, opts.get('threaded', args.threaded))
+        # Pre-evaluate threadless values based upon environment and config
+        #
+        # --threadless is now default mode of execution
+        # but we still have exceptions based upon OS config.
+        # Make sure executors are not started if is_threadless
+        # evaluates to False.
+        args.threadless = cast(bool, opts.get('threadless', args.threadless))
+        args.threadless = is_threadless(args.threadless, args.threaded)
+
         args.pid_file = cast(
             Optional[str], opts.get(
                 'pid_file',
                 args.pid_file,
             ),
         )
-        args.local_executor = cast(
-            bool,
-            opts.get(
-                'local_executor',
-                args.local_executor,
+
+        args.port_file = cast(
+            Optional[str], opts.get(
+                'port_file',
+                args.port_file,
             ),
         )
 
@@ -354,7 +393,7 @@ class FlagParser:
             args.ca_cert_dir = os.path.join(
                 args.proxy_py_data_dir, 'certificates',
             )
-            os.makedirs(args.ca_cert_dir, exist_ok=True)
+        os.makedirs(args.ca_cert_dir, exist_ok=True)
 
         return args
 
@@ -370,6 +409,7 @@ class FlagParser:
             default_plugins.append(PLUGIN_WEB_SERVER)
             args.enable_static_server = True
             default_plugins.append(PLUGIN_DASHBOARD)
+            default_plugins.append(PLUGIN_WEBSOCKET_TRANSPORT)
             default_plugins.append(PLUGIN_INSPECT_TRAFFIC)
             args.enable_events = True
             args.enable_devtools = True
@@ -382,6 +422,9 @@ class FlagParser:
                 args.pac_file is not None or \
                 args.enable_static_server:
             default_plugins.append(PLUGIN_WEB_SERVER)
+        if args.enable_reverse_proxy:
+            default_plugins.append(PLUGIN_WEB_SERVER)
+            default_plugins.append(PLUGIN_REVERSE_PROXY)
         if args.pac_file is not None:
             default_plugins.append(PLUGIN_PAC_FILE)
         return list(collections.OrderedDict.fromkeys(default_plugins).keys())

@@ -17,19 +17,18 @@
 import logging
 import argparse
 import multiprocessing
-
+from typing import TYPE_CHECKING, Any, List, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import send_handle
 
-from typing import Any, List, Optional
-
-from .listener import Listener
 from .acceptor import Acceptor
-
-from ..event import EventQueue
-
+from ..listener import ListenerPool
 from ...common.flag import flags
 from ...common.constants import DEFAULT_NUM_ACCEPTORS
+
+
+if TYPE_CHECKING:   # pragma: no cover
+    from ..event import EventQueue
 
 logger = logging.getLogger(__name__)
 
@@ -59,33 +58,34 @@ class AcceptorPool:
             while True:
                 time.sleep(1)
 
-    `flags.work_klass` must implement `work.Work` class.
+    `flags.work_klass` must implement :py:class:`~proxy.core.work.Work` class.
     """
 
     def __init__(
             self,
             flags: argparse.Namespace,
-            listener: Listener,
+            listeners: ListenerPool,
             executor_queues: List[connection.Connection],
             executor_pids: List[int],
-            executor_locks: List[multiprocessing.synchronize.Lock],
-            event_queue: Optional[EventQueue] = None,
+            executor_locks: List['multiprocessing.synchronize.Lock'],
+            event_queue: Optional['EventQueue'] = None,
     ) -> None:
         self.flags = flags
         # File descriptor to use for accepting new work
-        self.listener: Listener = listener
+        self.listeners: ListenerPool = listeners
         # Available executors
         self.executor_queues: List[connection.Connection] = executor_queues
         self.executor_pids: List[int] = executor_pids
-        self.executor_locks: List[multiprocessing.synchronize.Lock] = executor_locks
+        self.executor_locks: List['multiprocessing.synchronize.Lock'] = executor_locks
         # Eventing core queue
-        self.event_queue: Optional[EventQueue] = event_queue
+        self.event_queue: Optional['EventQueue'] = event_queue
         # Acceptor process instances
         self.acceptors: List[Acceptor] = []
         # Fd queues used to share file descriptor with acceptor processes
         self.fd_queues: List[connection.Connection] = []
         # Internals
         self.lock = multiprocessing.Lock()
+        # self.semaphore = multiprocessing.Semaphore(0)
 
     def __enter__(self) -> 'AcceptorPool':
         self.setup()
@@ -97,15 +97,28 @@ class AcceptorPool:
     def setup(self) -> None:
         """Setup acceptors."""
         self._start()
-        logger.info('Started %d acceptors' % self.flags.num_acceptors)
+        execution_mode = (
+            'threadless (local)'
+            if self.flags.local_executor
+            else 'threadless (remote)'
+        ) if self.flags.threadless else 'threaded'
+        logger.info(
+            'Started %d acceptors in %s mode' % (
+                self.flags.num_acceptors,
+                execution_mode,
+            ),
+        )
         # Send file descriptor to all acceptor processes.
-        fd = self.listener.fileno()
         for index in range(self.flags.num_acceptors):
-            send_handle(
-                self.fd_queues[index],
-                fd,
-                self.acceptors[index].pid,
-            )
+            self.fd_queues[index].send(len(self.listeners.pool))
+            for listener in self.listeners.pool:
+                fd = listener.fileno()
+                assert fd is not None
+                send_handle(
+                    self.fd_queues[index],
+                    fd,
+                    self.acceptors[index].pid,
+                )
             self.fd_queues[index].close()
 
     def shutdown(self) -> None:
@@ -125,6 +138,7 @@ class AcceptorPool:
                 fd_queue=work_queue[1],
                 flags=self.flags,
                 lock=self.lock,
+                # semaphore=self.semaphore,
                 event_queue=self.event_queue,
                 executor_queues=self.executor_queues,
                 executor_pids=self.executor_pids,

@@ -73,7 +73,9 @@ extend-ignore =
   Q003    # FIXME: avoid escaping in-string quotes
   RST201  # FIXME: missing trailing blank line in docstring
   RST203  # FIXME: no trailing blank line in docstring
+  RST299  # FIXME: Cannot extract compound bibliographic field "copyright"
   RST301  # FIXME: unexpected indent in docstring
+  RST499  # FIXME: Missing matching underline for section title overline
   S101    # FIXME: assertions are thrown away in optimized mode, needs audit
   S104    # FIXME: bind-all interface listen
   S105    # FIXME: hardcoded password?
@@ -146,7 +148,6 @@ extend-ignore =
   WPS420  # FIXME: pointless keyword like `pass`
   WPS421  # FIXME: call to `print()`
   WPS425  # FIXME: bool non-keyword arg
-  WPS427  # FIXME: unreachable code
   WPS428  # FIXME: pointless statement
   WPS430  # FIXME: nested func
   WPS431  # FIXME: nested class

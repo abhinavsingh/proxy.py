@@ -11,20 +11,18 @@
 import os
 import time
 import threading
-
+from typing import Any, Dict, Optional
 from multiprocessing import connection
 
-from typing import Dict, Optional, Any
-
-from ...common.types import DictQueueType
-
 from .names import eventNames
+from ...common.types import DictQueueType
 
 
 class EventQueue:
-    """Global event queue.  Must be a multiprocessing.Manager queue because
-    subscribers need to dispatch their subscription queue over this global
-    queue.
+    """Global event queue.  Must be a multiprocess safe queue capable of
+    transporting other queues.  This is necessary because currently
+    subscribers use a separate subscription queue to consume events.
+    Subscription queue is exchanged over the global event queue.
 
     Each published event contains following schema::
 

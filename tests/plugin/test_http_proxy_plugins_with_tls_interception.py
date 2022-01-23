@@ -9,23 +9,25 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
+import gzip
 import socket
-import pytest
 import selectors
-
-from pytest_mock import MockerFixture
 from typing import Any, cast
 
-from proxy.common.flag import FlagParser
-from proxy.common.utils import bytes_, build_http_request, build_http_response
-from proxy.core.connection import TcpClientConnection, TcpServerConnection
+import pytest
 
-from proxy.http import httpMethods, httpStatusCodes, HttpProtocolHandler
+from pytest_mock import MockerFixture
+
+from proxy.http import HttpProtocolHandler, HttpClientConnection, httpMethods
 from proxy.http.proxy import HttpProxyPlugin
-from proxy.http.parser import HttpParser
-
+from proxy.common.flag import FlagParser
+from proxy.http.parser import HttpParser, httpParserTypes
+from proxy.common.utils import bytes_, build_http_request
+from proxy.http.responses import (
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT, okResponse,
+)
+from proxy.core.connection import TcpServerConnection
 from .utils import get_plugin_by_test_name
-
 from ..test_assertions import Assertions
 
 
@@ -69,7 +71,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         self._conn = mocker.MagicMock(spec=socket.socket)
         self.mock_fromfd.return_value = self._conn
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr), flags=self.flags,
+            HttpClientConnection(self._conn, self._addr), flags=self.flags,
         )
         self.protocol_handler.initialize()
 
@@ -174,7 +176,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         )
         self.assertEqual(self.server.connection, self.server_ssl_connection)
         self._conn.send.assert_called_with(
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
         self.assertFalse(self.protocol_handler.work.has_buffer())
 
@@ -229,7 +231,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         )
         self.assertEqual(self.server.connection, self.server_ssl_connection)
         self._conn.send.assert_called_with(
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
         self.assertFalse(self.protocol_handler.work.has_buffer())
         #
@@ -250,17 +252,14 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         self.server.flush.assert_called_once()
 
         # Server read
-        self.server.recv.return_value = memoryview(
-            build_http_response(
-                httpStatusCodes.OK,
-                reason=b'OK', body=b'Original Response From Upstream',
-            ),
+        self.server.recv.return_value = okResponse(
+            content=b'Original Response From Upstream',
         )
         await self.protocol_handler._run_once()
+        response = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        response.parse(self.protocol_handler.work.buffer[0].tobytes())
+        assert response.body
         self.assertEqual(
-            self.protocol_handler.work.buffer[0].tobytes(),
-            build_http_response(
-                httpStatusCodes.OK,
-                reason=b'OK', body=b'Hello from man in the middle',
-            ),
+            gzip.decompress(response.body),
+            b'Hello from man in the middle',
         )

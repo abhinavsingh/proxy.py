@@ -9,17 +9,20 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
-from typing import Optional
+from typing import Any, Optional
 
 from proxy import Proxy
+from proxy.core.base import BaseTcpServerHandler
 from proxy.common.utils import wrap_socket
 from proxy.core.connection import TcpClientConnection
 
-from proxy.core.base import BaseTcpServerHandler
 
-
-class EchoSSLServerHandler(BaseTcpServerHandler):
+class EchoSSLServerHandler(BaseTcpServerHandler[TcpClientConnection]):
     """Wraps client socket during initialization."""
+
+    @staticmethod
+    def create(**kwargs: Any) -> TcpClientConnection:   # pragma: no cover
+        return TcpClientConnection(**kwargs)
 
     def initialize(self) -> None:
         # Acceptors don't perform TLS handshake.  Perform the same

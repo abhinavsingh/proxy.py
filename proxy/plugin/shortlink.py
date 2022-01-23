@@ -14,12 +14,10 @@
 """
 from typing import Optional
 
-from ..common.constants import DOT, SLASH
-from ..common.utils import build_http_response
-
-from ..http import httpStatusCodes
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..http.parser import HttpParser
+from ..http.responses import NOT_FOUND_RESPONSE_PKT, seeOthersResponse
+from ..common.constants import DOT, SLASH
 
 
 class ShortLinkPlugin(HttpProxyBasePlugin):
@@ -66,28 +64,11 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
             if request.host in self.SHORT_LINKS:
                 path = SLASH if not request.path else request.path
                 self.client.queue(
-                    memoryview(
-                        build_http_response(
-                            httpStatusCodes.SEE_OTHER, reason=b'See Other',
-                            headers={
-                                b'Location': b'http://' + self.SHORT_LINKS[request.host] + path,
-                                b'Content-Length': b'0',
-                                b'Connection': b'close',
-                            },
-                        ),
+                    seeOthersResponse(
+                        b'http://' + self.SHORT_LINKS[request.host] + path,
                     ),
                 )
             else:
-                self.client.queue(
-                    memoryview(
-                        build_http_response(
-                            httpStatusCodes.NOT_FOUND, reason=b'NOT FOUND',
-                            headers={
-                                b'Content-Length': b'0',
-                                b'Connection': b'close',
-                            },
-                        ),
-                    ),
-                )
+                self.client.queue(NOT_FOUND_RESPONSE_PKT)
             return None
         return request

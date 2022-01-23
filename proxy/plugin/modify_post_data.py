@@ -10,11 +10,10 @@
 """
 from typing import Optional
 
-from ..common.utils import bytes_
-
 from ..http import httpMethods
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..http.parser import HttpParser
+from ..common.utils import bytes_
 
 
 class ModifyPostDataPlugin(HttpProxyBasePlugin):
@@ -34,7 +33,7 @@ class ModifyPostDataPlugin(HttpProxyBasePlugin):
             request.body = ModifyPostDataPlugin.MODIFIED_BODY
             # Update Content-Length header only when request is NOT chunked
             # encoded
-            if not request.is_chunked_encoded():
+            if not request.is_chunked_encoded:
                 request.add_header(
                     b'Content-Length',
                     bytes_(len(request.body)),

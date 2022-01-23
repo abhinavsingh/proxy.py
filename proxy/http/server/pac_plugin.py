@@ -10,20 +10,16 @@
 
     .. spelling::
 
-       http
        pac
 """
-import gzip
-
-from typing import List, Tuple, Optional, Any
+from typing import Any, List, Tuple, Optional
 
 from .plugin import HttpWebServerBasePlugin
-from .protocols import httpProtocolTypes
-
 from ..parser import HttpParser
-
-from ...common.utils import bytes_, text_, build_http_response
+from .protocols import httpProtocolTypes
+from ..responses import okResponse
 from ...common.flag import flags
+from ...common.utils import text_, bytes_
 from ...common.constants import DEFAULT_PAC_FILE, DEFAULT_PAC_FILE_URL_PATH
 
 
@@ -54,8 +50,16 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
     def routes(self) -> List[Tuple[int, str]]:
         if self.flags.pac_file_url_path:
             return [
-                (httpProtocolTypes.HTTP, text_(self.flags.pac_file_url_path)),
-                (httpProtocolTypes.HTTPS, text_(self.flags.pac_file_url_path)),
+                (
+                    httpProtocolTypes.HTTP, r'{0}$'.format(
+                        text_(self.flags.pac_file_url_path),
+                    ),
+                ),
+                (
+                    httpProtocolTypes.HTTPS, r'{0}$'.format(
+                        text_(self.flags.pac_file_url_path),
+                    ),
+                ),
             ]
         return []   # pragma: no cover
 
@@ -70,11 +74,11 @@ class HttpWebServerPacFilePlugin(HttpWebServerBasePlugin):
                     content = f.read()
             except IOError:
                 content = bytes_(self.flags.pac_file)
-            self.pac_file_response = memoryview(
-                build_http_response(
-                    200, reason=b'OK', headers={
-                        b'Content-Type': b'application/x-ns-proxy-autoconfig',
-                        b'Content-Encoding': b'gzip',
-                    }, body=gzip.compress(content),
-                ),
+            self.pac_file_response = okResponse(
+                content=content,
+                headers={
+                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
+                },
+                conn_close=True,
+                compress=False,
             )

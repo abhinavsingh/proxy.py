@@ -11,13 +11,12 @@
 import queue
 import logging
 import threading
-
+from typing import Any, Dict, List
 from multiprocessing import connection
 
-from typing import Dict, Any, List
-
-from .queue import EventQueue
 from .names import eventNames
+from .queue import EventQueue
+
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,7 @@ class EventDispatcher:
             })
         elif ev['event_name'] == eventNames.UNSUBSCRIBE:
             # send ack
-            print('unsubscription request ack sent')
+            logger.info('unsubscription request ack sent')
             self.subscribers[ev['event_payload']['sub_id']].send({
                 'event_name': eventNames.UNSUBSCRIBED,
             })
@@ -83,11 +82,7 @@ class EventDispatcher:
                     self.run_once()
                 except queue.Empty:
                     pass
-        except BrokenPipeError:
-            pass
-        except EOFError:
-            pass
-        except KeyboardInterrupt:
+        except (BrokenPipeError, EOFError, KeyboardInterrupt):
             pass
         except Exception as e:
             logger.exception('Dispatcher exception', exc_info=e)

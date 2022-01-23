@@ -1,5 +1,6 @@
 myst-parser[linkify] >= 0.15.2
 setuptools-scm >= 6.3.2
-Sphinx >= 4.3.0
+Sphinx == 4.3.2
 furo >= 2021.11.15
 sphinxcontrib-apidoc >= 0.3.0
+sphinxcontrib-towncrier >= 0.2.0a0

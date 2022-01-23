@@ -10,12 +10,11 @@
 """
 from typing import Optional
 
-from ..common.utils import text_
-from ..common.flag import flags
-
 from ..http import httpStatusCodes
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.flag import flags
+from ..http.parser import HttpParser
+from ..common.utils import text_
 from ..http.exception import HttpRequestRejected
 
 
@@ -35,9 +34,7 @@ class FilterByUpstreamHostPlugin(HttpProxyBasePlugin):
     ) -> Optional[HttpParser]:
         if text_(request.host) in self.flags.filtered_upstream_hosts.split(','):
             raise HttpRequestRejected(
-                status_code=httpStatusCodes.I_AM_A_TEAPOT, reason=b'I\'m a tea pot',
-                headers={
-                    b'Connection': b'close',
-                },
+                status_code=httpStatusCodes.I_AM_A_TEAPOT,
+                reason=b'I\'m a tea pot',
             )
         return request

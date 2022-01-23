@@ -12,9 +12,11 @@
 
        http
 """
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from ..parser import HttpParser
+
+if TYPE_CHECKING:   # pragma: no cover
+    from ..parser import HttpParser
 
 
 class HttpProtocolException(Exception):
@@ -25,5 +27,8 @@ class HttpProtocolException(Exception):
     ``response()`` method to optionally return custom response to client.
     """
 
-    def response(self, request: HttpParser) -> Optional[memoryview]:
+    def __init__(self, message: Optional[str] = None, **kwargs: Any) -> None:
+        super().__init__(message or 'Reason unknown')
+
+    def response(self, request: 'HttpParser') -> Optional[memoryview]:
         return None  # pragma: no cover

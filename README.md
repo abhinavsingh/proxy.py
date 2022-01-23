@@ -12,27 +12,29 @@
 [![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 [![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
-[![pypi version](https://img.shields.io/pypi/v/proxy.py)](https://pypi.org/project/proxy.py/)
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue)](https://www.python.org/)
-[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue)](http://mypy-lang.org/)
-[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
-[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![pypi version](https://img.shields.io/pypi/v/proxy.py?style=flat-square)](https://pypi.org/project/proxy.py/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue&style=flat-square)](https://www.python.org/)
+[![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue&style=flat-square)](http://mypy-lang.org/)
 
-[![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/issues)
-[![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen)](https://twitter.com/imoracle)
-[![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen)](https://github.com/jaxl-innovations-private-limited)
+[![doc](https://img.shields.io/readthedocs/proxypy/latest?style=flat-square&color=darkgreen)](https://proxypy.readthedocs.io/)
+[![codecov](https://codecov.io/gh/abhinavsingh/proxy.py/branch/develop/graph/badge.svg?token=Zh9J7b4la2)](https://codecov.io/gh/abhinavsingh/proxy.py)
+[![lib](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml/badge.svg?branch=develop&event=push)](https://github.com/abhinavsingh/proxy.py/actions/workflows/test-library.yml)
+
+[![Contributions Welcome](https://img.shields.io/static/v1?label=Contributions&message=Welcome%20%F0%9F%91%8D&color=darkgreen&style=flat-square)](https://github.com/abhinavsingh/proxy.py/issues)
+[![Need Help](https://img.shields.io/static/v1?label=Need%20Help%3F&message=Ask&color=darkgreen&style=flat-square)](https://twitter.com/imoracle)
+[![Sponsored by Jaxl Innovations Private Limited](https://img.shields.io/static/v1?label=Sponsored%20By&message=Jaxl%20Innovations%20Private%20Limited&color=darkgreen&style=flat-square)](https://github.com/jaxl-innovations-private-limited)
 
 # Table of Contents
 
 - [Features](#features)
 - [Install](#install)
-  - [Stable vs Develop](#stable-vs-develop)
   - [Using PIP](#using-pip)
     - [Stable version](#stable-version-with-pip)
     - [Development version](#development-version-with-pip)
   - [Using Docker](#using-docker)
-    - [Stable version](#stable-version-from-docker-hub)
-    - [Development version](#build-development-version-locally)
+    - [Stable version from Docker Hub](#stable-version-from-docker-hub)
+    - [Development Version from GHCR](#development-version-from-ghcr)
+    - [Build container locally](#build-development-version-locally)
   - [Using HomeBrew](#using-homebrew)
     - [Stable version](#stable-version-with-homebrew)
     - [Development version](#development-version-with-homebrew)
@@ -54,14 +56,16 @@
     - [Cache Responses Plugin](#cacheresponsesplugin)
     - [Man-In-The-Middle Plugin](#maninthemiddleplugin)
     - [Proxy Pool Plugin](#proxypoolplugin)
-    - [FilterByClientIpPlugin](#filterbyclientipplugin)
-    - [ModifyChunkResponsePlugin](#modifychunkresponseplugin)
-    - [CloudflareDnsResolverPlugin](#cloudflarednsresolverplugin)
-    - [CustomDnsResolverPlugin](#customdnsresolverplugin)
-    - [CustomNetworkInterface](#customnetworkinterface)
+    - [Filter By Client IP Plugin](#filterbyclientipplugin)
+    - [Modify Chunk Response Plugin](#modifychunkresponseplugin)
+    - [Cloudflare DNS Resolver Plugin](#cloudflarednsresolverplugin)
+    - [Custom DNS Resolver Plugin](#customdnsresolverplugin)
+    - [Custom Network Interface](#customnetworkinterface)
+    - [Program Name Plugin](#programnameplugin)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
-    - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
+  - [Reverse Proxy Plugins](#reverse-proxy-plugins)
+    - [Reverse Proxy](#reverse-proxy)
   - [Plugin Ordering](#plugin-ordering)
 - [End-to-End Encryption](#end-to-end-encryption)
 - [TLS Interception](#tls-interception)
@@ -92,7 +96,15 @@
   - [Inspect Traffic](#inspect-traffic)
 - [Chrome DevTools Protocol](#chrome-devtools-protocol)
 - [Frequently Asked Questions](#frequently-asked-questions)
+  - [Deploying proxy.py in production](#deploying-proxypy-in-production)
+    - [What not to do?](#what-not-to-do)
+    - [Via Requirements](#via-requirements)
+    - [Via Docker Container](#via-docker-container)
+    - [Integrate your CI/CD with proxy.py](#integrate-your-cicd-with-proxypy)
+  - [Stable vs Develop](#stable-vs-develop)
+    - [Release Schedule](#release-schedule)
   - [Threads vs Threadless](#threads-vs-threadless)
+  - [Threadless Remote vs Local Execution Mode](#threadless-remote-vs-local-execution-mode)
   - [SyntaxError: invalid syntax](#syntaxerror-invalid-syntax)
   - [Unable to load plugins](#unable-to-load-plugins)
   - [Unable to connect with proxy.py from remote host](#unable-to-connect-with-proxypy-from-remote-host)
@@ -105,133 +117,156 @@
   - [High level architecture](#high-level-architecture)
   - [Everything is a plugin](#everything-is-a-plugin)
   - [Internal Documentation](#internal-documentation)
+    - [Read The Doc](#read-the-doc)
+    - [pydoc](#pydoc)
+    - [pyreverse](#pyreverse)
   - [Development Guide](#development-guide)
     - [Setup Local Environment](#setup-local-environment)
     - [Setup Git Hooks](#setup-git-hooks)
     - [Sending a Pull Request](#sending-a-pull-request)
 - [Benchmarks](#benchmarks)
 - [Flags](#flags)
-- [Changelog](#changelog)
-  - [v2.x](#v2x)
-  - [v1.x](#v1x)
-  - [v0.x](#v0x)
+- [Changelog](https://proxypy.rtfd.io/en/latest/changelog)
+  - [v2.x](https://proxypy.rtfd.io/en/latest/changelog#v2x)
+  - [v1.x](https://proxypy.rtfd.io/en/latest/changelog#v1x)
+  - [v0.x](https://proxypy.rtfd.io/en/latest/changelog#v0x)
 
 [//]: # (DO-NOT-REMOVE-docs-badges-END)
 
 # Features
 - Fast & Scalable
 
-  - Scales by using all available cores on the system
+  - Scale up by using all available cores on the system
+
   - Threadless executions using asyncio
+
   - Made to handle `tens-of-thousands` connections / sec
 
     ```console
     # On Macbook Pro 2019 / 2.4 GHz 8-Core Intel Core i9 / 32 GB RAM
     ❯ ./helper/benchmark.sh
-      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req, QPS: 8000 req/sec, TIMEOUT: 1 sec
+      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req
 
       Summary:
-        Total:	3.1217 secs
-        Slowest:	0.0499 secs
-        Fastest:	0.0004 secs
-        Average:	0.0030 secs
-        Requests/sec:	32033.7261
+        Success rate:	1.0000
+        Total:	2.5489 secs
+        Slowest:	0.0443 secs
+        Fastest:	0.0006 secs
+        Average:	0.0025 secs
+        Requests/sec:	39232.6572
 
-        Total data:	1900000 bytes
-        Size/request:	19 bytes
+        Total data:	1.81 MiB
+        Size/request:	19 B
+        Size/sec:	727.95 KiB
 
       Response time histogram:
-        0.000 [1]	|
-        0.005 [92268]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-        0.010 [7264]	|■■■
-        0.015 [318]	|
-        0.020 [102]	|
-        0.025 [32]	|
-        0.030 [6]	|
-        0.035 [4]	|
-        0.040 [1]	|
-        0.045 [2]	|
-        0.050 [2]	|
-
+        0.001 [5006]  |■■■■■
+        0.001 [19740] |■■■■■■■■■■■■■■■■■■■■■
+        0.002 [29701] |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+        0.002 [21278] |■■■■■■■■■■■■■■■■■■■■■■
+        0.003 [15376] |■■■■■■■■■■■■■■■■
+        0.004 [6644]  |■■■■■■■
+        0.004 [1609]  |■
+        0.005 [434]   |
+        0.006 [83]    |
+        0.006 [29]    |
+        0.007 [100]   |
 
       Latency distribution:
-        10% in 0.0017 secs
-        25% in 0.0020 secs
-        50% in 0.0025 secs
-        75% in 0.0036 secs
-        90% in 0.0050 secs
-        95% in 0.0060 secs
-        99% in 0.0087 secs
+        10% in 0.0014 secs
+        25% in 0.0018 secs
+        50% in 0.0023 secs
+        75% in 0.0030 secs
+        90% in 0.0036 secs
+        95% in 0.0040 secs
+        99% in 0.0047 secs
 
       Details (average, fastest, slowest):
-        DNS+dialup:	0.0000 secs, 0.0004 secs, 0.0499 secs
-        DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0000 secs
-        req write:	0.0000 secs, 0.0000 secs, 0.0020 secs
-        resp wait:	0.0030 secs, 0.0004 secs, 0.0462 secs
-        resp read:	0.0000 secs, 0.0000 secs, 0.0027 secs
+        DNS+dialup:	0.0025 secs, 0.0015 secs, 0.0030 secs
+        DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0001 secs
 
       Status code distribution:
-        [200]	100000 responses
+        [200] 100000 responses
     ```
 
-    PS: `proxy.py` and benchmark tools are running on the same machine during the above load test.
-    Checkout the repo and try it for yourself.  See [Benchmarks](#benchmarks) for more details.
+    Consult [Threads vs Threadless](#threads-vs-threadless) and [Threadless Remote vs Local Execution Mode](#threadless-remote-vs-local-execution-mode) to control number of CPU cores utilized.
+
+    See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and for how to run benchmarks locally.
 
 - Lightweight
-  - Uses only `~5-20MB` RAM
+  - Uses only `~5-20 MB` RAM
+    - No memory leaks
+    - Start once and forget, no restarts required
+  - Compressed containers size is only `~25 MB`
   - No external dependency other than standard Python library
+
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
     - `--plugins proxy.plugin.ProxyPoolPlugin`
-  - Optionally, enable builtin [Web Server Plugins](#http-web-server-plugins). Example:
-    - `--plugins proxy.plugin.ReverseProxyPlugin`
-  - Plugin API is currently in development phase, expect breaking changes
+  - Enable builtin [Web Server](#http-web-server-plugins). Example:
+    - `--enable-web-server --plugins proxy.plugin.WebServerPlugin`
+  - Enable builtin [Reverse Proxy Server](#reverse-proxy-plugins). Example:
+    - `--enable-reverse-proxy --plugins proxy.plugin.ReverseProxyPlugin`
+  - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
+
+- Can listen on multiple ports
+  - Use `--ports` flag to provide additional ports
+  - Optionally, use `--port` flag to override default port `8899`
+  - Capable of serving multiple protocols over the same port
+
 - Real-time Dashboard
   - Optionally, enable [proxy.py dashboard](#run-dashboard).
-    - Available at `http://localhost:8899/dashboard`.
+    - Use `--enable-dashboard`
+    - Then, visit `http://localhost:8899/dashboard`
   - [Inspect, Monitor, Control and Configure](#inspect-traffic) `proxy.py` at runtime
   - [Chrome DevTools Protocol](#chrome-devtools-protocol) support
-  - Extend dashboard using plugins
-  - Dashboard is currently in development phase, expect breaking changes
+  - Extend dashboard frontend using `typescript` based [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/dashboard/src/plugins)
+  - Dashboard is currently in *development phase*  Expect breaking changes.
+
 - Secure
   - Enable end-to-end encryption between clients and `proxy.py`
   - See [End-to-End Encryption](#end-to-end-encryption)
+
 - Private
-  - Everyone deserves privacy. Browse with malware and adult content protection
+  - Protection against DNS based traffic blockers
+  - Browse with malware and adult content protection enabled
   - See [DNS-over-HTTPS](#cloudflarednsresolverplugin)
+
 - Man-In-The-Middle
   - Can decrypt TLS traffic between clients and upstream servers
   - See [TLS Interception](#tls-interception)
-- Supported proxy protocols
+
+- Supported http protocols for proxy requests
   - `http(s)`
     - `http1`
     - `http1.1` with pipeline
   - `http2`
   - `websockets`
+
 - Support for `HAProxy Protocol`
   - See `--enable-proxy-protocol` flag
+
 - Static file server support
   - See `--enable-static-server` and `--static-server-dir` flags
+
 - Optimized for large file uploads and downloads
   - See `--client-recvbuf-size` and `--server-recvbuf-size` flag
+
 - `IPv4` and `IPv6` support
   - See `--hostname` flag
+
 - Unix domain socket support
   - See `--unix-socket-path` flag
+
 - Basic authentication support
   - See `--basic-auth` flag
+
 - PAC (Proxy Auto-configuration) support
   - See `--pac-file` and `--pac-file-url-path` flags
 
 # Install
 
-## Stable vs Develop
-
-`master` branch contains latest stable code and is available via `PyPi` repository
-
-`develop` branch contains cutting edge changes
-
-Development branch is kept stable *(most of the times)*. But if you want 100% reliability and serving users in production environment, always use stable version from `PyPi` or `Docker` container from `hub.docker.com`.
+Consult [Deploying proxy.py in production](#deploying-proxypy-in-production) when deploying production grade applications using `proxy.py`.
 
 ## Using PIP
 
@@ -257,6 +292,15 @@ or from GitHub `master` branch
 
 ## Using Docker
 
+Multi-platform containers are available via:
+
+- Docker Hub
+  - `latest` tag points to last `stable` release
+  - `docker pull abhinavsingh/proxy.py:latest`
+- GitHub container registry (GHCR)
+  - `latest` tag points to last `develop` release
+  - `docker pull ghcr.io/abhinavsingh/proxy.py:latest`
+
 Stable version container releases are available for following platforms:
 
 - `linux/386`
@@ -275,10 +319,19 @@ Run `proxy.py` latest container:
 ❯ docker run -it -p 8899:8899 --rm abhinavsingh/proxy.py:latest
 ```
 
+Docker daemon will automatically pull the matching platform image.
 To run specific target platform container on multi-platform supported servers:
 
 ```console
 ❯ docker run -it -p 8899:8899 --rm --platform linux/arm64/v8 abhinavsingh/proxy.py:latest
+```
+
+### Development Version from GHCR
+
+Run `proxy.py` container from cutting edge code in the develop branch:
+
+```console
+❯ docker run -it -p 8899:8899 --rm ghcr.io/abhinavsingh/proxy.py:latest
 ```
 
 ### Build Development Version Locally
@@ -568,7 +621,7 @@ Verify mock API response using `curl -x localhost:8899 http://api.example.com/v1
 Verify the same by inspecting `proxy.py` logs:
 
 ```console
-2019-09-27 12:44:02,212 - INFO - pid:7077 - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
+... [redacted] ... - access_log:1210 - ::1:64792 - GET None:None/v1/users/ - None None - 0 byte
 ```
 
 Access log shows `None:None` as server `ip:port`. `None` simply means that
@@ -608,8 +661,8 @@ Verify the same by inspecting the logs for `proxy.py`.
 Along with the proxy request log, you must also see a http web server request log.
 
 ```
-2019-09-24 19:09:33,602 - INFO - pid:49996 - access_log:1241 - ::1:49525 - GET /
-2019-09-24 19:09:33,603 - INFO - pid:49995 - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
+... [redacted] ... - access_log:1241 - ::1:49525 - GET /
+... [redacted] ... - access_log:1157 - ::1:49524 - GET localhost:8899/ - 404 NOT FOUND - 70 bytes
 ```
 
 ### FilterByUpstreamHostPlugin
@@ -640,10 +693,10 @@ Above `418 I'm a tea pot` is sent by our plugin.
 Verify the same by inspecting logs for `proxy.py`:
 
 ```console
-2019-09-24 19:21:37,893 - ERROR - pid:50074 - handle_readables:1347 - HttpProtocolException type raised
+... [redacted] ... - handle_readables:1347 - HttpProtocolException type raised
 Traceback (most recent call last):
 ... [redacted] ...
-2019-09-24 19:21:37,897 - INFO - pid:50074 - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
+... [redacted] ... - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
 ```
 
 ### CacheResponsesPlugin
@@ -750,9 +803,8 @@ Response body `Hello from man in the middle` is sent by our plugin.
 
 Forward incoming proxy requests to a set of upstream proxy servers.
 
-Let's start upstream proxies first.
-
-Start `proxy.py` on port `9000` and `9001`
+Let's start 2 upstream proxies first.  To simulate upstream proxies,
+start `proxy.py` on port `9000` and `9001`
 
 ```console
 ❯ proxy --port 9000
@@ -778,6 +830,10 @@ Make a curl request via `8899` proxy:
 
 Verify that `8899` proxy forwards requests to upstream proxies
 by checking respective logs.
+
+If an upstream proxy require credentials, pass them as arguments. Example:
+
+`--proxy-pool user:pass@upstream.proxy:port`
 
 ### FilterByClientIpPlugin
 
@@ -874,16 +930,63 @@ for more details.
 PS: There is no plugin named, but [CustomDnsResolverPlugin](#customdnsresolverplugin)
 can be easily customized according to your needs.
 
+### ProgramNamePlugin
+
+Attempts to resolve program `(application)` name for proxy requests originating from the local machine.
+If identified, client IP in the access logs is replaced with program name.
+
+Start `proxy.py` as:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.ProgramNamePlugin
+```
+
+Make a request using `curl`:
+
+```console
+❯ curl -v -x localhost:8899 https://httpbin.org/get
+```
+
+You must see log lines like this:
+
+```console
+... [redacted] ... - [I] server.access_log:419 - curl:58096 - CONNECT httpbin.org:443 - 6010 bytes - 1824.62ms
+```
+
+Notice `curl` in-place of `::1` or `127.0.0.1` as client IP.
+
+[![WARNING](https://img.shields.io/static/v1?label=Compatibility&message=warning&color=red)](#programnameplugin) If `ProgramNamePlugin` does not work reliably on your operating system, kindly contribute by sending a pull request and/or open an issue.  Thank you!!!
+
 ## HTTP Web Server Plugins
 
-### Reverse Proxy
+### Web Server Route
 
-Extend in-built Web Server to add Reverse Proxy capabilities.
+Demonstrates inbuilt web server routing using plugin.
 
 Start `proxy.py` as:
 
 ```console
 ❯ proxy --enable-web-server \
+    --plugins proxy.plugin.WebServerPlugin
+```
+
+Verify using `curl -v localhost:8899/http-route-example`, should return:
+
+```console
+HTTP route response
+```
+
+## Reverse Proxy Plugins
+
+Extends in-built Web Server to add Reverse Proxy capabilities.
+
+### Reverse Proxy
+
+Start `proxy.py` as:
+
+```console
+❯ proxy --enable-reverse-proxy \
     --plugins proxy.plugin.ReverseProxyPlugin
 ```
 
@@ -909,23 +1012,6 @@ Verify using `curl -v localhost:8899/get`:
   "origin": "1.2.3.4, 5.6.7.8",
   "url": "https://localhost/get"
 }
-```
-
-### Web Server Route
-
-Demonstrates inbuilt web server routing using plugin.
-
-Start `proxy.py` as:
-
-```console
-❯ proxy --enable-web-server \
-    --plugins proxy.plugin.WebServerPlugin
-```
-
-Verify using `curl -v localhost:8899/http-route-example`, should return:
-
-```console
-HTTP route response
 ```
 
 ## Plugin Ordering
@@ -1212,8 +1298,15 @@ Start `proxy.py` as:
     --tunnel-username username \
     --tunnel-hostname ip.address.or.domain.name \
     --tunnel-port 22 \
-    --tunnel-remote-host 127.0.0.1
-    --tunnel-remote-port 8899
+    --tunnel-remote-port 8899 \
+    --tunnel-ssh-key /path/to/ssh/private.key \
+    --tunnel-ssh-key-passphrase XXXXX
+...[redacted]... [I] listener.setup:97 - Listening on 127.0.0.1:8899
+...[redacted]... [I] pool.setup:106 - Started 16 acceptors in threadless (local) mode
+...[redacted]... [I] transport._log:1873 - Connected (version 2.0, client OpenSSH_7.6p1)
+...[redacted]... [I] transport._log:1873 - Authentication (publickey) successful!
+...[redacted]... [I] listener.setup:116 - SSH connection established to ip.address.or.domain.name:22...
+...[redacted]... [I] listener.start_port_forward:91 - :8899 forwarding successful...
 ```
 
 Make a HTTP proxy request on `remote` server and
@@ -1252,6 +1345,13 @@ access_log:328 - remote:52067 - GET httpbin.org:80
                         FIREWALL
                      (allow tcp/22)
 
+Not planned.
+
+If you have a valid use case, kindly open an issue.  You are always welcome to send
+contributions via pull-requests to add this functionality :)
+
+> To proxy local requests remotely, make use of [Proxy Pool Plugin](#proxypoolplugin).
+
 # Embed proxy.py
 
 ## Blocking Mode
@@ -1266,19 +1366,7 @@ if __name__ == '__main__':
   proxy.main()
 ```
 
-Customize startup flags by passing list of input arguments:
-
-```python
-import proxy
-
-if __name__ == '__main__':
-  proxy.main([
-    '--hostname', '::1',
-    '--port', '8899'
-  ])
-```
-
-or, customize startup flags by passing them as kwargs:
+Customize startup flags by passing them as kwargs:
 
 ```python
 import ipaddress
@@ -1293,8 +1381,10 @@ if __name__ == '__main__':
 
 Note that:
 
-1. Calling `main` is simply equivalent to starting `proxy.py` from command line.
-2. `main` will block until `proxy.py` shuts down.
+1. `main` is equivalent to starting `proxy.py` from command line.
+2. `main` does not accept any `args` (only `kwargs`).
+3. `main` will automatically consume any available `sys.argv` as `args`.
+3. `main` will block until `proxy.py` shuts down.
 
 ## Non-blocking Mode
 
@@ -1305,20 +1395,21 @@ by using `Proxy` context manager: Example:
 import proxy
 
 if __name__ == '__main__':
-  with proxy.Proxy([]) as p:
-    # ... your logic here ...
+  with proxy.Proxy() as p:
+    # Uncomment the line below and
+    # implement your app your logic here
+    proxy.sleep_loop()
 ```
 
 Note that:
 
-1. `Proxy` is similar to `main`, except `Proxy` does not block.
-2. Internally `Proxy` is a context manager.
-3. It will start `proxy.py` when called and will shut it down
-   once the scope ends.
-4. Just like `main`, startup flags with `Proxy`
-   can be customized by either passing flags as list of
-   input arguments e.g. `Proxy(['--port', '8899'])` or
+1. `Proxy` is similar to `main`, except `Proxy` will not block.
+2. Internally, `Proxy` is a context manager which will start
+   `proxy.py` when called and will shut it down once the scope ends.
+3. Unlike `main`, startup flags with `Proxy` can also be customized
+   by using `args` and `kwargs`. e.g. `Proxy(['--port', '8899'])` or
    by using passing flags as kwargs e.g. `Proxy(port=8899)`.
+4. Unlike `main`, `Proxy` will not inspect `sys.argv`.
 
 ## Ephemeral Port
 
@@ -1330,11 +1421,12 @@ In embedded mode, you can access this port.  Example:
 import proxy
 
 if __name__ == '__main__':
-  with proxy.Proxy([]) as p:
-    print(p.acceptors.flags.port)
+  with proxy.Proxy() as p:
+    print(p.flags.port)
+    proxy.sleep_loop()
 ```
 
-`acceptors.flags.port` will give you access to the random port allocated by the kernel.
+`flags.port` will give you access to the random port allocated by the kernel.
 
 ## Loading Plugins
 
@@ -1352,9 +1444,7 @@ Example, load a single plugin using `--plugins` flag:
 import proxy
 
 if __name__ == '__main__':
-  proxy.main([
-    '--plugins', 'proxy.plugin.CacheResponsesPlugin',
-  ])
+  proxy.main(plugins=['proxy.plugin.CacheResponsesPlugin'])
 ```
 
 For simplicity, you can also pass the list of plugins as a keyword argument to `proxy.main` or the `Proxy` constructor.
@@ -1366,7 +1456,7 @@ import proxy
 from proxy.plugin import FilterByUpstreamHostPlugin
 
 if __name__ == '__main__':
-  proxy.main([], plugins=[
+  proxy.main(plugins=[
     b'proxy.plugin.CacheResponsesPlugin',
     FilterByUpstreamHostPlugin,
   ])
@@ -1376,8 +1466,7 @@ if __name__ == '__main__':
 
 ## `proxy.TestCase`
 
-To setup and tear down `proxy.py` for your Python `unittest` classes,
-simply use `proxy.TestCase` instead of `unittest.TestCase`.
+To setup and tear down `proxy.py` for your Python `unittest` classes, simply use `proxy.TestCase` instead of `unittest.TestCase`.
 Example:
 
 ```python
@@ -1393,7 +1482,7 @@ Note that:
 
 1. `proxy.TestCase` overrides `unittest.TestCase.run()` method to setup and tear down `proxy.py`.
 2. `proxy.py` server will listen on a random available port on the system.
-   This random port is available as `self.PROXY.acceptors.flags.port` within your test cases.
+   This random port is available as `self.PROXY.flags.port` within your test cases.
 3. Only a single acceptor and worker is started by default (`--num-workers 1 --num-acceptors 1`) for faster setup and tear down.
 4. Most importantly, `proxy.TestCase` also ensures `proxy.py` server
    is up and running before proceeding with execution of tests. By default,
@@ -1499,8 +1588,7 @@ As a decorator:
 - Generate HTTP GET request with headers
 
   ```python
-  >>> build_http_request(b'GET', b'/',
-          headers={b'Connection': b'close'})
+  >>> build_http_request(b'GET', b'/', conn_close=True)
   b'GET / HTTP/1.1\r\nConnection: close\r\n\r\n'
   ```
 
@@ -1627,21 +1715,24 @@ optional arguments:
 
 ## Internal Documentation
 
-Code is well documented. Browse through internal class hierarchy and documentation using `pydoc3`
+### Read The Doc
 
-```console
-❯ pydoc3 proxy
+- Visit [proxypy.readthedocs.io](https://proxypy.readthedocs.io/)
+- Build locally using:
 
-PACKAGE CONTENTS
-    __main__
-    common (package)
-    core (package)
-    http (package)
-    main
+`make lib-doc`
 
-FILE
-    /Users/abhinav/Dev/proxy.py/proxy/__init__.py
-```
+### pydoc
+
+Code is well documented.  Grab the source code and run:
+
+`pydoc3 proxy`
+
+### pyreverse
+
+Generate class level hierarchy UML diagrams for in-depth analysis:
+
+`make lib-pyreverse`
 
 # Run Dashboard
 
@@ -1707,6 +1798,122 @@ Now point your CDT instance to `ws://localhost:8899/devtools`.
 
 # Frequently Asked Questions
 
+## Deploying proxy.py in production
+
+Listed below are a few strategies for using `proxy.py` in your private/production/corporate projects.
+
+### What not to do?
+
+> You MUST `avoid forking` the repository *"just"* to put your plugin code in `proxy/plugin` directory.  Forking is recommended workflow for project contributors, NOT for project users.
+
+- Instead, use one of the suggested approaches from below.
+- Then load your plugins using `--plugin`, `--plugins` flags or `plugin` kwargs.
+- See [skeleton](https://github.com/abhinavsingh/proxy.py/tree/develop/skeleton) app for example standalone project using `proxy.py`.
+
+### Via Requirements
+
+It is *highly* recommended that you use `proxy.py` via `requirements.txt` or similar dependency management setups. This will allow you to take advantages of regular performance updates, bug fixes, security patches and other improvements happening in the `proxy.py` ecosystem.  Example:
+
+1. Use `--pre` option to depend upon last `pre-release`
+
+    ```console
+    ❯ pip install proxy.py --pre
+    ```
+
+    Pre-releases are similar to depending upon `develop` branch code, just that pre-releases may not point to the `HEAD`.  This could happen because pre-releases are NOT made available on `PyPi` after every PR merge.
+
+2. Use `TestPyPi` with `--pre` option to depend upon `develop` branch code
+
+    ```console
+    ❯ pip install -i https://test.pypi.org/simple/ proxy.py --pre
+    ```
+
+    A pre-release is made available on `TestPyPi` after every PR merge.
+
+3. Use last `stable` release code
+
+    As usual, simply use:
+
+    ```console
+    ❯ pip install proxy.py
+    ```
+
+### Via Docker Container
+
+If you are into deploying containers, then simply build your image from base `proxy.py` container images.
+
+1. Use `GHCR` to build from `develop` branch code:
+
+    ```console
+    FROM ghcr.io/abhinavsingh/proxy.py:latest as base
+    ```
+
+    *PS: I use GHCR latest for several production level projects*
+
+2. Use `DockerHub` to build from last `stable` release code:
+
+    ```console
+    FROM abhinavsingh/proxy.py:latest as base
+    ```
+
+PS: IMHO, container based strategy is *the best approach* and the only strategy that *I use myself*.
+
+### Integrate your CI/CD with proxy.py
+
+*Hey, but you keep making breaking changes in the develop branch.*
+
+I hear you.  And hence, for your production grade applications, you *MUST* integrate application CI/CD with `proxy.py`.  You must make sure that your application builds and passes its tests for every PR merge into the `proxy.py` upstream repo.
+
+If your application repository is public, in certain scenarios, PR authors may send patch PRs for all dependents to maintain backward incompatibility and green CI/CD.
+
+CI/CD integration ensure your app continues to build with latest `proxy.py` code.  Depending upon where you host your code, use the strategy listed below:
+
+- GitHub
+
+    TBD
+
+- Google Cloud Build
+
+    TBD
+
+- AWS
+
+    TBD
+
+- Azure
+
+    TBD
+
+- Others
+
+    TBD
+
+> At some stage, we'll deprecate `master` branch segregation and simply maintain a `develop` branch.  As dependents can maintain stability via CI/CD integrations. Currently, it's hard for a production grade project to blindly depend upon `develop` branch.
+
+## Stable vs Develop
+
+- `master` branch contains latest `stable` code and is available via `PyPi` repository and `Docker` containers via `docker.io` and `ghcr.io` registries.
+
+  Issues reported for `stable` releases are considered with top-priority.  However, currently we don't back port fixes into older releases.  Example, if you reported an issue in `v2.3.1`, but current `master` branch now contains `v2.4.0rc1`.  Then, the fix will land in `v2.4.0rc2`.
+
+- `develop` branch contains cutting edge changes
+
+  Development branch is kept stable *(most of the times)*. **But**, if you want *100% reliability* and serving users in *production environment*, ALWAYS use the stable version.
+
+### Release Schedule
+
+A `vX.Y.ZrcN` pull request is created once a month which merges `develop` → `master`.  Find below how code flows from a pull request to the next stable release.
+
+1. Development release is deployed from `develop` → `test.pypi.org` after every pull request merge
+
+2. Alpha release is deployed from `develop` → `pypi.org` **before** merging the `vX.Y.Z.rcN` pull request from `develop` → `master` branch.  There can be multiple alpha releases made before merging the `rc` pull request
+
+3. Beta release is deployed from `master` → `pypi.org`.  Beta releases are made in preparation of `rc` releases and can be skipped if unnecessary
+
+4. Release candidate is deployed from `master` → `pypi.org`.  Release candidates are always made available before final stable release
+
+5. Stable release is deployed from `master` → `pypi.org`
+
 ## Threads vs Threadless
 
 ### `v1.x`
@@ -1726,6 +1933,20 @@ Threadless execution was turned ON by default for `Python 3.8+` on `mac` and `li
 For `windows` and `Python < 3.8`, you can still try out threadless mode by starting `proxy.py` with `--threadless` flag.
 
 If threadless works for you, consider sending a PR by editing `_env_threadless_compliant` method in the `proxy/common/constants.py` file.
+
+## Threadless Remote vs Local execution mode
+
+Original threadless implementation used `remote` execution mode.  This is also depicted under [High level architecture](#high-level-architecture) as ASCII art.
+
+Under `remote` execution mode, acceptors delegate incoming client connection processing to a remote worker process.  By default, acceptors delegate connections in round-robin fashion.  Worker processing the request may or may not be running on the same CPU core as the acceptor.  This architecture scales well for high throughput, but results in spawning two process per CPU core.
+
+Example, if there are N-CPUs on the machine, by default, N acceptors and N worker processes are started.  You can tune number of processes using `--num-acceptors` and `--num-workers` flag.  You might want more workers than acceptors or vice versa depending upon your use case.
+
+In v2.4.x, `local` execution mode was added, mainly to reduce number of processes spawned by default.  This model serves well for day-to-day single user use cases and for developer testing scenarios.  Under `local` execution mode, acceptors delegate client connections to a companion thread, instead of a remote process.  `local` execution mode ensure CPU affinity, unlike in the `remote` mode where acceptor and worker might be running on different CPU cores.
+
+`--local-executor 1` was made default in v2.4.x series.  Under `local` execution mode, `--num-workers` flag has no effect, as no remote workers are started.
+
+To use `remote` execution mode, use `--local-executor 0` flag.  Then use `--num-workers` to tune number of worker processes.
 
 ## SyntaxError: invalid syntax
 
@@ -2028,7 +2249,9 @@ for list of tests.
 
 # Benchmarks
 
-Simply run the following command from repo root to start benchmark
+See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisons with other OSS web servers.
+
+To run standalone benchmark for `proxy.py`, use the following command from repo root:
 
 ```console
 ❯ ./helper/benchmark.sh
@@ -2038,43 +2261,61 @@ Simply run the following command from repo root to start benchmark
 
 ```console
 ❯ proxy -h
-usage: -m [-h] [--enable-events] [--enable-conn-pool] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS] [--local-executor]
-          [--backlog BACKLOG] [--hostname HOSTNAME] [--port PORT]
-          [--unix-socket-path UNIX_SOCKET_PATH]
+usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
+          [--tunnel-username TUNNEL_USERNAME]
+          [--tunnel-ssh-key TUNNEL_SSH_KEY]
+          [--tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE]
+          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--enable-events]
+          [--threadless] [--threaded] [--num-workers NUM_WORKERS]
+          [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
+          [--hostname HOSTNAME] [--port PORT] [--ports PORTS [PORTS ...]]
+          [--port-file PORT_FILE] [--unix-socket-path UNIX_SOCKET_PATH]
           [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
           [--log-file LOG_FILE] [--log-format LOG_FORMAT]
           [--open-file-limit OPEN_FILE_LIMIT]
           [--plugins PLUGINS [PLUGINS ...]] [--enable-dashboard]
+          [--basic-auth BASIC_AUTH] [--enable-ssh-tunnel]
           [--work-klass WORK_KLASS] [--pid-file PID_FILE]
-          [--enable-proxy-protocol]
-          [--client-recvbuf-size CLIENT_RECVBUF_SIZE] [--key-file KEY_FILE]
-          [--timeout TIMEOUT] [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+          [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
+          [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+          [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--timeout TIMEOUT]
           [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
           [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
           [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
-          [--ca-signing-key-file CA_SIGNING_KEY_FILE] [--cert-file CERT_FILE]
-          [--auth-plugin AUTH_PLUGIN] [--basic-auth BASIC_AUTH]
-          [--cache-dir CACHE_DIR]
-          [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
-          [--enable-web-server] [--enable-static-server]
-          [--static-server-dir STATIC_SERVER_DIR]
+          [--ca-signing-key-file CA_SIGNING_KEY_FILE]
+          [--auth-plugin AUTH_PLUGIN] [--cache-dir CACHE_DIR]
+          [--proxy-pool PROXY_POOL] [--enable-web-server]
+          [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
-          [--pac-file PAC_FILE] [--pac-file-url-path PAC_FILE_URL_PATH]
-          [--proxy-pool PROXY_POOL]
+          [--enable-reverse-proxy] [--pac-file PAC_FILE]
+          [--pac-file-url-path PAC_FILE_URL_PATH]
+          [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
+          [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
-          [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.3.2.dev190+ge60d80d.d20211124
+proxy.py v2.4.0rc8.dev7+g1871027
 
 options:
   -h, --help            show this help message and exit
+  --tunnel-hostname TUNNEL_HOSTNAME
+                        Default: None. Remote hostname or IP address to which
+                        SSH tunnel will be established.
+  --tunnel-port TUNNEL_PORT
+                        Default: 22. SSH port of the remote host.
+  --tunnel-username TUNNEL_USERNAME
+                        Default: None. Username to use for establishing SSH
+                        tunnel.
+  --tunnel-ssh-key TUNNEL_SSH_KEY
+                        Default: None. Private key path in pem format
+  --tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE
+                        Default: None. Private key passphrase
+  --tunnel-remote-port TUNNEL_REMOTE_PORT
+                        Default: 8899. Remote port which will be forwarded
+                        locally for proxy.
   --enable-events       Default: False. Enables core to dispatch lifecycle
                         events. Plugins can be used to subscribe for core
                         events.
-  --enable-conn-pool    Default: False. (WIP) Enable upstream connection
-                        pooling.
   --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
                         linux). When disabled a new thread is spawned to
                         handle each client connection.
@@ -2083,17 +2324,24 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
-  --local-executor      Default: False. Disabled by default. When enabled
-                        acceptors will make use of local (same process)
-                        executor instead of distributing load across remote
-                        (other process) executors. Enable this option to
-                        achieve CPU affinity between acceptors and executors,
-                        instead of using underlying OS kernel scheduling
-                        algorithm.
+  --local-executor LOCAL_EXECUTOR
+                        Default: 1. Enabled by default. Use 0 to disable. When
+                        enabled acceptors will make use of local (same
+                        process) executor instead of distributing load across
+                        remote (other process) executors. Enable this option
+                        to achieve CPU affinity between acceptors and
+                        executors, instead of using underlying OS kernel
+                        scheduling algorithm.
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
-                        proxy server
-  --hostname HOSTNAME   Default: ::1. Server IP address.
-  --port PORT           Default: 8899. Server port.
+                        proxy server.
+  --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
+  --port PORT           Default: 8899. Server port. To listen on more ports,
+                        pass them using --ports flag.
+  --ports PORTS [PORTS ...]
+                        Default: None. Additional ports to listen on.
+  --port-file PORT_FILE
+                        Default: None. Save server port numbers. Useful when
+                        using --port=0 ephemeral mode.
   --unix-socket-path UNIX_SOCKET_PATH
                         Default: None. Unix socket path to use. When provided
                         --host and --port flags are ignored
@@ -2115,6 +2363,10 @@ options:
                         Comma separated plugins. You may use --plugins flag
                         multiple times.
   --enable-dashboard    Default: False. Enables proxy.py dashboard.
+  --basic-auth BASIC_AUTH
+                        Default: No authentication. Specify colon separated
+                        user:password to enable basic authentication.
+  --enable-ssh-tunnel   Default: False. Enable SSH tunnel.
   --work-klass WORK_KLASS
                         Default: proxy.http.HttpProtocolHandler. Work klass to
                         use for work execution.
@@ -2122,22 +2374,24 @@ options:
   --enable-proxy-protocol
                         Default: False. If used, will enable proxy protocol.
                         Only version 1 is currently supported.
-  --client-recvbuf-size CLIENT_RECVBUF_SIZE
-                        Default: 1 MB. Maximum amount of data received from
-                        the client in a single recv() operation. Bump this
-                        value for faster uploads at the expense of increased
-                        RAM.
+  --enable-conn-pool    Default: False. (WIP) Enable upstream connection
+                        pooling.
   --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
                         TLS encryption with clients. If used, must also pass
                         --cert-file.
+  --cert-file CERT_FILE
+                        Default: None. Server certificate to enable end-to-end
+                        TLS encryption with clients. If used, must also pass
+                        --key-file.
+  --client-recvbuf-size CLIENT_RECVBUF_SIZE
+                        Default: 128 KB. Maximum amount of data received from
+                        the client in a single recv() operation.
+  --server-recvbuf-size SERVER_RECVBUF_SIZE
+                        Default: 128 KB. Maximum amount of data received from
+                        the server in a single recv() operation.
   --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
                         inactive connection must be dropped. Inactivity is
                         defined by no data sent or received by the client.
-  --server-recvbuf-size SERVER_RECVBUF_SIZE
-                        Default: 1 MB. Maximum amount of data received from
-                        the server in a single recv() operation. Bump this
-                        value for faster downloads at the expense of increased
-                        RAM.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
   --disable-headers DISABLE_HEADERS
@@ -2149,9 +2403,9 @@ options:
                         generated HTTPS certificates. If used, must also pass
                         --ca-cert-file and --ca-signing-key-file
   --ca-cert-dir CA_CERT_DIR
-                        Default: ~/.proxy.py. Directory to store dynamically
-                        generated certificates. Also see --ca-key-file, --ca-
-                        cert-file and --ca-signing-key-file
+                        Default: ~/.proxy/certificates. Directory to store
+                        dynamically generated certificates. Also see --ca-key-
+                        file, --ca-cert-file and --ca-signing-key-file
   --ca-cert-file CA_CERT_FILE
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
@@ -2164,22 +2418,14 @@ options:
                         Default: None. CA signing key to use for dynamic
                         generation of HTTPS certificates. If used, must also
                         pass --ca-key-file and --ca-cert-file
-  --cert-file CERT_FILE
-                        Default: None. Server certificate to enable end-to-end
-                        TLS encryption with clients. If used, must also pass
-                        --key-file.
   --auth-plugin AUTH_PLUGIN
-                        Default: proxy.http.proxy.AuthPlugin. Auth plugin to
-                        use instead of default basic auth plugin.
-  --basic-auth BASIC_AUTH
-                        Default: No authentication. Specify colon separated
-                        user:password to enable basic authentication.
+                        Default: proxy.http.proxy.auth.AuthPlugin. Auth plugin
+                        to use instead of default basic auth plugin.
   --cache-dir CACHE_DIR
                         Default: A temporary directory. Flag only applicable
                         when cache plugin is used with on-disk storage.
-  --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
-                        Default: Blocks Facebook. Comma separated list of IPv4
-                        and IPv6 addresses.
+  --proxy-pool PROXY_POOL
+                        List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
   --enable-static-server
@@ -2195,51 +2441,27 @@ options:
   --min-compression-length MIN_COMPRESSION_LENGTH
                         Default: 20 bytes. Sets the minimum length of a
                         response that will be compressed (gzipped).
+  --enable-reverse-proxy
+                        Default: False. Whether to enable reverse proxy core.
   --pac-file PAC_FILE   A file (Proxy Auto Configuration) or string to serve
                         when the server receives a direct file request. Using
                         this option enables proxy.HttpWebServerPlugin.
   --pac-file-url-path PAC_FILE_URL_PATH
                         Default: /. Web server path to serve the PAC file.
-  --proxy-pool PROXY_POOL
-                        List of upstream proxies to use in the pool
+  --cloudflare-dns-mode CLOUDFLARE_DNS_MODE
+                        Default: security. Either "security" (for malware
+                        protection) or "family" (for malware and adult content
+                        protection)
+  --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
+                        Default: Blocks Facebook. Comma separated list of IPv4
+                        and IPv6 addresses.
   --filtered-client-ips FILTERED_CLIENT_IPS
                         Default: 127.0.0.1,::1. Comma separated list of IPv4
                         and IPv6 addresses.
   --filtered-url-regex-config FILTERED_URL_REGEX_CONFIG
                         Default: No config. Comma separated list of IPv4 and
                         IPv6 addresses.
-  --cloudflare-dns-mode CLOUDFLARE_DNS_MODE
-                        Default: security. Either "security" (for malware
-                        protection) or "family" (for malware and adult content
-                        protection)
 
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
-
-# Changelog
-
-## v2.4.0
-
-- No longer support `Python 3.6` due to `asyncio.run` usage in the core.
-
-## v2.x
-
-- No longer ~~a single file module~~.
-- Added support for threadless execution.
-- Added dashboard app.
-- Added support for unit testing.
-
-## v1.x
-
-- `Python3` only.
-  - Deprecated support for ~~Python 2.x~~.
-- Added support multi core accept.
-- Added plugin support.
-
-## v0.x
-
-- Single file.
-- Single threaded server.
-
-For detailed changelog refer to release PRs or commit history.

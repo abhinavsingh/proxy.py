@@ -4,8 +4,8 @@
 """Configuration for the Sphinx documentation generator."""
 
 import sys
-from functools import partial
 from pathlib import Path
+from functools import partial
 
 from setuptools_scm import get_version
 
@@ -53,6 +53,7 @@ release = get_scm_version()
 
 rst_epilog = f"""
 .. |project| replace:: {project}
+.. |release_l| replace:: ``v{release}``
 """
 
 
@@ -100,6 +101,7 @@ extensions = [
     # Third-party extensions:
     'myst_parser',  # extended markdown; https://pypi.org/project/myst-parser/
     'sphinxcontrib.apidoc',
+    'sphinxcontrib.towncrier',  # provides `towncrier-draft-entries` directive
 ]
 
 # Conditional third-party extensions:
@@ -117,6 +119,13 @@ else:
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
 language = 'en'
+
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+# This pattern also affects html_static_path and html_extra_path.
+exclude_patterns = [
+    'changelog-fragments.d/**',  # Towncrier-managed change notes
+]
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -210,9 +219,20 @@ extlinks = {
 # -- Options for linkcheck builder -------------------------------------------
 
 linkcheck_ignore = [
-    r'http://localhost:\d+/',  # local URLs
+    # local URLs
+    r'http://localhost:\d+/',
+    # GHA sees "403 Client Error: Forbidden for url:"
+    # while the URL actually works
+    r'https://developers.cloudflare.com/',
 ]
 linkcheck_workers = 25
+
+# -- Options for towncrier_draft extension -----------------------------------
+
+towncrier_draft_autoversion_mode = 'draft'  # or: 'sphinx-version', 'sphinx-release'
+towncrier_draft_include_empty = True
+towncrier_draft_working_directory = PROJECT_ROOT_DIR
+# Not yet supported: towncrier_draft_config_path = 'pyproject.toml'  # relative to cwd
 
 # -- Options for myst_parser extension ------------------------------------------
 
@@ -230,6 +250,9 @@ myst_enable_extensions = [
 ]
 myst_substitutions = {
   'project': project,
+  'release': release,
+  'release_l': f'`v{release}`',
+  'version': version,
 }
 
 # -- Strict mode -------------------------------------------------------------
@@ -260,7 +283,9 @@ nitpick_ignore = [
     (_any_role, 'work_klass'),
     (_py_class_role, '_asyncio.Task'),
     (_py_class_role, 'asyncio.events.AbstractEventLoop'),
+    (_py_class_role, 'BaseListener'),
     (_py_class_role, 'CacheStore'),
+    (_py_class_role, 'Channel'),
     (_py_class_role, 'HttpParser'),
     (_py_class_role, 'HttpProtocolHandlerPlugin'),
     (_py_class_role, 'HttpProxyBasePlugin'),
@@ -273,15 +298,26 @@ nitpick_ignore = [
     (_py_class_role, 'proxy.plugin.cache.store.base.CacheStore'),
     (_py_class_role, 'proxy.core.pool.AcceptorPool'),
     (_py_class_role, 'proxy.core.executors.ThreadlessPool'),
-    (_py_class_role, 'proxy.core.acceptor.threadless.T'),
+    (_py_class_role, 'proxy.core.work.threadless.T'),
+    (_py_class_role, 'proxy.core.work.work.T'),
+    (_py_class_role, 'proxy.core.acceptor.threadless.Threadless'),
     (_py_class_role, 'queue.Queue[Any]'),
+    (_py_class_role, 'SelectableEvents'),
     (_py_class_role, 'TcpClientConnection'),
     (_py_class_role, 'TcpServerConnection'),
     (_py_class_role, 'unittest.case.TestCase'),
     (_py_class_role, 'unittest.result.TestResult'),
     (_py_class_role, 'UUID'),
+    (_py_class_role, 'UpstreamConnectionPool'),
+    (_py_class_role, 'HttpClientConnection'),
     (_py_class_role, 'Url'),
     (_py_class_role, 'WebsocketFrame'),
     (_py_class_role, 'Work'),
-    (_py_obj_role, 'proxy.core.acceptor.threadless.T'),
+    (_py_class_role, 'proxy.core.acceptor.work.Work'),
+    (_py_class_role, 'connection.Connection'),
+    (_py_class_role, 'EventQueue'),
+    (_py_class_role, 'T'),
+    (_py_obj_role, 'proxy.core.work.threadless.T'),
+    (_py_obj_role, 'proxy.core.work.work.T'),
+    (_py_obj_role, 'proxy.core.base.tcp_server.T'),
 ]

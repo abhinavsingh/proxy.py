@@ -7,21 +7,22 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import json
 import time
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
 from ..websocket import WebsocketFrame
-from ...common.constants import PROXY_PY_START_TIME, DEFAULT_DEVTOOLS_DOC_URL
-from ...common.constants import DEFAULT_DEVTOOLS_FRAME_ID, DEFAULT_DEVTOOLS_LOADER_ID
-from ...common.utils import bytes_
-from ...core.connection import TcpClientConnection
 from ...core.event import eventNames
+from ...common.utils import bytes_
+from ...common.constants import (
+    PROXY_PY_START_TIME, DEFAULT_DEVTOOLS_DOC_URL, DEFAULT_DEVTOOLS_FRAME_ID,
+    DEFAULT_DEVTOOLS_LOADER_ID,
+)
+
+
+if TYPE_CHECKING:   # pragma: no cover
+    from ..connection import HttpClientConnection
 
 
 class CoreEventsToDevtoolsProtocol:
@@ -34,7 +35,7 @@ class CoreEventsToDevtoolsProtocol:
 
     @staticmethod
     def transformer(
-        client: TcpClientConnection,
+        client: 'HttpClientConnection',
         event: Dict[str, Any],
     ) -> None:
         event_name = event['event_name']

@@ -8,10 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import Any
+from typing import Any, Optional
 
-from ..http.parser import HttpParser, httpParserTypes, httpParserStates
 from ..http.proxy import HttpProxyBasePlugin
+from ..http.parser import HttpParser, httpParserTypes
 
 
 class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
@@ -29,15 +29,15 @@ class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
         # Create a new http protocol parser for response payloads
         self.response = HttpParser(httpParserTypes.RESPONSE_PARSER)
 
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+    def handle_upstream_chunk(self, chunk: memoryview) -> Optional[memoryview]:
         # Parse the response.
         # Note that these chunks also include headers
         self.response.parse(chunk.tobytes())
         # If response is complete, modify and dispatch to client
-        if self.response.state == httpParserStates.COMPLETE:
+        if self.response.is_complete:
             # Avoid setting a body for responses where a body is not expected.
             # Otherwise, example curl will report warnings.
-            if self.response.body_expected():
+            if self.response.body_expected:
                 self.response.body = b'\n'.join(self.DEFAULT_CHUNKS) + b'\n'
             self.client.queue(memoryview(self.response.build_response()))
-        return memoryview(b'')
+        return None

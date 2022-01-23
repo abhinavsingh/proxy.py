@@ -7,26 +7,28 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import socket
 import argparse
-
-from uuid import UUID
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Union, Optional
+from typing import TYPE_CHECKING, List, Union, Optional
 
+from .mixins import TlsInterceptionPropertyMixin
 from .parser import HttpParser
-
-from ..common.types import Readables, Writables
+from .connection import HttpClientConnection
 from ..core.event import EventQueue
-from ..core.connection import TcpClientConnection
+from .descriptors import DescriptorsHandlerMixin
 
 
-class HttpProtocolHandlerPlugin(ABC):
+if TYPE_CHECKING:   # pragma: no cover
+    from ..core.connection import UpstreamConnectionPool
+
+
+class HttpProtocolHandlerPlugin(
+        DescriptorsHandlerMixin,
+        TlsInterceptionPropertyMixin,
+        ABC,
+):
     """Base HttpProtocolHandler Plugin class.
 
     NOTE: This is an internal plugin and in most cases only useful for core contributors.
@@ -50,50 +52,29 @@ class HttpProtocolHandlerPlugin(ABC):
 
     def __init__(
             self,
-            uid: UUID,
+            uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: HttpClientConnection,
             request: HttpParser,
-            event_queue: EventQueue,
+            event_queue: Optional[EventQueue] = None,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ):
-        self.uid: UUID = uid
+        super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
+        self.uid: str = uid
         self.flags: argparse.Namespace = flags
-        self.client: TcpClientConnection = client
+        self.client: HttpClientConnection = client
         self.request: HttpParser = request
         self.event_queue = event_queue
-        super().__init__()
+        self.upstream_conn_pool = upstream_conn_pool
 
-    def name(self) -> str:
-        """A unique name for your plugin.
-
-        Defaults to name of the class. This helps plugin developers to directly
-        access a specific plugin by its name."""
-        return self.__class__.__name__
-
+    @staticmethod
     @abstractmethod
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
-        """Implementations must return a list of descriptions that they wish to
-        read from and write into."""
-        return [], []  # pragma: no cover
-
-    @abstractmethod
-    async def write_to_descriptors(self, w: Writables) -> bool:
-        """Implementations must now write/flush data over the socket.
-
-        Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call
-        :meth:`~proxy.core.connection.TcpConnection.flush` here, to send
-        any buffered data over the socket.
-        """
-        return False  # pragma: no cover
-
-    @abstractmethod
-    async def read_from_descriptors(self, r: Readables) -> bool:
-        """Implementations must now read data over the socket."""
-        return False  # pragma: no cover
+    def protocols() -> List[int]:
+        raise NotImplementedError()
 
     @abstractmethod
     def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
+        """Called only after original request has been completely received."""
         return raw  # pragma: no cover
 
     @abstractmethod

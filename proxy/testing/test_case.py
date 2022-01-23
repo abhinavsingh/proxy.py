@@ -8,24 +8,26 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import contextlib
 import time
+import contextlib
+from typing import Any, List, Optional, Generator
+
 import unittest
-from typing import Optional, List, Generator, Any
 
 from ..proxy import Proxy
-from ..common.constants import DEFAULT_TIMEOUT
-from ..common.utils import new_socket_connection
 from ..plugin import CacheResponsesPlugin
+from ..common.utils import new_socket_connection
+from ..common.constants import DEFAULT_TIMEOUT
 
 
 class TestCase(unittest.TestCase):
     """Base TestCase class that automatically setup and tear down proxy.py."""
 
     DEFAULT_PROXY_PY_STARTUP_FLAGS = [
+        '--hostname', '127.0.0.1',
+        '--port', '0',
         '--num-workers', '1',
         '--num-acceptors', '1',
-        '--threadless',
     ]
 
     PROXY: Optional[Proxy] = None
@@ -36,19 +38,13 @@ class TestCase(unittest.TestCase):
         cls.INPUT_ARGS = getattr(cls, 'PROXY_PY_STARTUP_FLAGS') \
             if hasattr(cls, 'PROXY_PY_STARTUP_FLAGS') \
             else cls.DEFAULT_PROXY_PY_STARTUP_FLAGS
-        cls.INPUT_ARGS.append('--hostname')
-        cls.INPUT_ARGS.append('0.0.0.0')
-        cls.INPUT_ARGS.append('--port')
-        cls.INPUT_ARGS.append('0')
-
         cls.PROXY = Proxy(cls.INPUT_ARGS)
         cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(
             CacheResponsesPlugin,
         )
-
         cls.PROXY.__enter__()
         assert cls.PROXY.acceptors
-        cls.wait_for_server(cls.PROXY.acceptors.flags.port)
+        cls.wait_for_server(cls.PROXY.flags.port)
 
     @staticmethod
     def wait_for_server(

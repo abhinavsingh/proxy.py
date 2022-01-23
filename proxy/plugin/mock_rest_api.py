@@ -15,11 +15,10 @@
 import json
 from typing import Optional
 
-from ..common.utils import bytes_, build_http_response, text_
-
-from ..http import httpStatusCodes
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..http.parser import HttpParser
+from ..common.utils import text_, bytes_
+from ..http.responses import NOT_FOUND_RESPONSE_PKT, okResponse
 
 
 class ProposedRestApiPlugin(HttpProxyBasePlugin):
@@ -75,26 +74,15 @@ class ProposedRestApiPlugin(HttpProxyBasePlugin):
         assert request.path
         if request.path in self.REST_API_SPEC:
             self.client.queue(
-                memoryview(
-                    build_http_response(
-                        httpStatusCodes.OK,
-                        reason=b'OK',
-                        headers={b'Content-Type': b'application/json'},
-                        body=bytes_(
-                            json.dumps(
-                                self.REST_API_SPEC[request.path],
-                            ),
+                okResponse(
+                    headers={b'Content-Type': b'application/json'},
+                    content=bytes_(
+                        json.dumps(
+                            self.REST_API_SPEC[request.path],
                         ),
                     ),
                 ),
             )
         else:
-            self.client.queue(
-                memoryview(
-                    build_http_response(
-                        httpStatusCodes.NOT_FOUND,
-                        reason=b'NOT FOUND', body=b'Not Found',
-                    ),
-                ),
-            )
+            self.client.queue(NOT_FOUND_RESPONSE_PKT)
         return None

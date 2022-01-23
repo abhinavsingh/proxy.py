@@ -9,16 +9,15 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import threading
-import unittest
 import queue
+import threading
 import multiprocessing
-
 from multiprocessing import connection
 
+import unittest
 from unittest import mock
 
-from proxy.core.event import EventDispatcher, EventQueue, eventNames
+from proxy.core.event import EventQueue, EventDispatcher, eventNames
 
 
 class TestEventDispatcher(unittest.TestCase):

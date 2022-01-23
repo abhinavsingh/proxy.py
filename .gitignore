@@ -10,18 +10,23 @@
 .tox
 .python-version
 
+__pycache__
+
 coverage.xml
 proxy.py.iml
 
 .vscode/*
 !.vscode/settings.json
 
+*.dot
 *.pyc
 *.egg-info
 *.csr
 *.crt
 *.key
 *.pem
+
+.venv*
 venv*
 
 cover
@@ -29,5 +34,5 @@ htmlcov
 dist
 build
 
-proxy/public
+pyreverse.png
 profile.svg

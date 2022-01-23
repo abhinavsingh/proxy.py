@@ -10,13 +10,12 @@
 """
 import time
 import threading
-
-from typing import Any, Deque
 from queue import Empty
+from typing import Any, Deque
 from collections import deque
 
 
-class cached_property:
+class cached_property:      # pragma: no cover
     """Decorator for read-only properties evaluated only once within TTL period.
     It can be used to create a cached property like this::
 
@@ -38,8 +37,7 @@ class cached_property:
     two-element tuple with the last computed property value and the last time
     it was updated in seconds since the epoch.
 
-    The default time-to-live (TTL) is 300 seconds (5 minutes). Set the TTL to
-    zero for the cached value to never expire.
+    The default time-to-live (TTL) is 0 seconds i.e. cached value will never expire.
 
     To expire a cached property value manually just do::
         del instance._cached_properties[<property name>]
@@ -56,9 +54,10 @@ class cached_property:
        backports
        getter
        Arndt
+       del
     """
 
-    def __init__(self, ttl: float = 300.0):
+    def __init__(self, ttl: float = 0):
         self.ttl = ttl
 
     def __call__(self, fget: Any, doc: Any = None) -> 'cached_property':
@@ -111,8 +110,8 @@ class NonBlockingQueue:
 
     def empty(self) -> bool:
         '''Return True if the queue is empty, False otherwise (not reliable!).'''
-        return len(self._queue) == 0
+        return len(self._queue) == 0    # pragma: no cover
 
     def qsize(self) -> int:
         '''Return the approximate size of the queue (not reliable!).'''
-        return len(self._queue)
+        return len(self._queue)     # pragma: no cover

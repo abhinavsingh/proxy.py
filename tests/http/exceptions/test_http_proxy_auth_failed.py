@@ -8,17 +8,16 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import pytest
 import selectors
+
+import pytest
 
 from pytest_mock import MockerFixture
 
+from proxy.http import HttpProtocolHandler, HttpClientConnection, httpHeaders
 from proxy.common.flag import FlagParser
-from proxy.http.exception.proxy_auth_failed import ProxyAuthenticationFailed
-from proxy.http import HttpProtocolHandler
-from proxy.core.connection import TcpClientConnection
 from proxy.common.utils import build_http_request
-
+from proxy.http.responses import PROXY_AUTH_FAILED_RESPONSE_PKT
 from ...test_assertions import Assertions
 
 
@@ -39,7 +38,7 @@ class TestHttpProxyAuthFailed(Assertions):
         )
         self._conn = self.mock_fromfd.return_value
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()
@@ -67,7 +66,8 @@ class TestHttpProxyAuthFailed(Assertions):
         self.mock_server_conn.assert_not_called()
         self.assertEqual(self.protocol_handler.work.has_buffer(), True)
         self.assertEqual(
-            self.protocol_handler.work.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT,
+            self.protocol_handler.work.buffer[0],
+            PROXY_AUTH_FAILED_RESPONSE_PKT,
         )
         self._conn.send.assert_not_called()
 
@@ -77,7 +77,7 @@ class TestHttpProxyAuthFailed(Assertions):
             b'GET', b'http://upstream.host/not-found.html',
             headers={
                 b'Host': b'upstream.host',
-                b'Proxy-Authorization': b'Basic hello',
+                httpHeaders.PROXY_AUTHORIZATION: b'Basic hello',
             },
         )
         self.mock_selector.return_value.select.side_effect = [
@@ -95,7 +95,8 @@ class TestHttpProxyAuthFailed(Assertions):
         self.mock_server_conn.assert_not_called()
         self.assertEqual(self.protocol_handler.work.has_buffer(), True)
         self.assertEqual(
-            self.protocol_handler.work.buffer[0], ProxyAuthenticationFailed.RESPONSE_PKT,
+            self.protocol_handler.work.buffer[0],
+            PROXY_AUTH_FAILED_RESPONSE_PKT,
         )
         self._conn.send.assert_not_called()
 
@@ -105,7 +106,7 @@ class TestHttpProxyAuthFailed(Assertions):
             b'GET', b'http://upstream.host/not-found.html',
             headers={
                 b'Host': b'upstream.host',
-                b'Proxy-Authorization': b'Basic dXNlcjpwYXNz',
+                httpHeaders.PROXY_AUTHORIZATION: b'Basic dXNlcjpwYXNz',
             },
         )
         self.mock_selector.return_value.select.side_effect = [
@@ -129,7 +130,7 @@ class TestHttpProxyAuthFailed(Assertions):
             b'GET', b'http://upstream.host/not-found.html',
             headers={
                 b'Host': b'upstream.host',
-                b'Proxy-Authorization': b'bAsIc dXNlcjpwYXNz',
+                httpHeaders.PROXY_AUTHORIZATION: b'bAsIc dXNlcjpwYXNz',
             },
         )
         self.mock_selector.return_value.select.side_effect = [

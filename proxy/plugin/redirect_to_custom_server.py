@@ -8,8 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from urllib import parse as urlparse
 from typing import Optional
+from urllib import parse as urlparse
 
 from ..http.proxy import HttpProxyBasePlugin
 from ..http.parser import HttpParser
@@ -24,7 +24,7 @@ class RedirectToCustomServerPlugin(HttpProxyBasePlugin):
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
         # Redirect all non-https requests to inbuilt WebServer.
-        if not request.is_https_tunnel():
+        if not request.is_https_tunnel:
             request.set_url(self.UPSTREAM_SERVER)
             # Update Host header too, otherwise upstream can reject our request
             if request.has_header(b'Host'):

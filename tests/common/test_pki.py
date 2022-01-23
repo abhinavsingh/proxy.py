@@ -10,10 +10,11 @@
 """
 import os
 import tempfile
-import unittest
 import subprocess
-from unittest import mock
 from typing import Tuple
+
+import unittest
+from unittest import mock
 
 from proxy.common import pki
 
@@ -122,7 +123,7 @@ class TestPki(unittest.TestCase):
     def _gen_public_private_key(self) -> Tuple[str, str, str]:
         key_path, nopass_key_path = self._gen_private_key()
         crt_path = os.path.join(self._tempdir, 'test_gen_public.crt')
-        pki.gen_public_key(crt_path, key_path, 'password', '/CN=example.com')
+        pki.gen_public_key(crt_path, key_path, 'password', '/CN=localhost')
         return (key_path, nopass_key_path, crt_path)
 
     def _gen_private_key(self) -> Tuple[str, str]:

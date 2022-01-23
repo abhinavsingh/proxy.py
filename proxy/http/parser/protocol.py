@@ -7,14 +7,12 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 
+from ..exception import HttpProtocolException
 from ...common.constants import WHITESPACE
+
 
 PROXY_PROTOCOL_V2_SIGNATURE = b'\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A'
 
@@ -47,4 +45,6 @@ class ProxyProtocol:
             self.version = 2
             raise NotImplementedError()
         else:
-            raise ValueError('Neither a v1 or v2 proxy protocol packet')
+            raise HttpProtocolException(
+                'Neither a v1 or v2 proxy protocol packet',
+            )

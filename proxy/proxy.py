@@ -7,25 +7,32 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       eventing
 """
 import os
 import sys
 import time
+import pprint
+import signal
 import logging
+from typing import TYPE_CHECKING, Any, List, Optional, cast
 
-from typing import List, Optional, Any
-
-from .core.acceptor import AcceptorPool, ThreadlessPool, Listener
+from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
+from .core.work import ThreadlessPool
 from .core.event import EventManager
-from .common.utils import bytes_
 from .common.flag import FlagParser, flags
-from .common.constants import DEFAULT_LOG_FILE, DEFAULT_LOG_FORMAT, DEFAULT_LOG_LEVEL
-from .common.constants import DEFAULT_OPEN_FILE_LIMIT, DEFAULT_PLUGINS, DEFAULT_VERSION
-from .common.constants import DEFAULT_ENABLE_DASHBOARD, DEFAULT_WORK_KLASS, DEFAULT_PID_FILE
+from .common.utils import bytes_
+from .core.acceptor import AcceptorPool
+from .core.listener import ListenerPool
+from .common.constants import (
+    IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
+    DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_BASIC_AUTH,
+    DEFAULT_LOG_FORMAT, DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT,
+    DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
+)
+
+
+if TYPE_CHECKING:
+    from .core.listener import TcpSocketListener
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +46,6 @@ flags.add_argument(
     help='Prints proxy.py version.',
 )
 
-# TODO: Convert me into 1-letter choices
 # TODO: Add --verbose option which also
 # starts to log traffic flowing between
 # clients and upstream servers.
@@ -97,6 +103,23 @@ flags.add_argument(
     help='Default: False.  Enables proxy.py dashboard.',
 )
 
+# NOTE: Same reason as mention above.
+# Ideally this flag belongs to proxy auth plugin.
+flags.add_argument(
+    '--basic-auth',
+    type=str,
+    default=DEFAULT_BASIC_AUTH,
+    help='Default: No authentication. Specify colon separated user:password '
+    'to enable basic authentication.',
+)
+
+flags.add_argument(
+    '--enable-ssh-tunnel',
+    action='store_true',
+    default=DEFAULT_ENABLE_SSH_TUNNEL,
+    help='Default: False.  Enable SSH tunnel.',
+)
+
 flags.add_argument(
     '--work-klass',
     type=str,
@@ -125,6 +148,10 @@ class Proxy:
     Executor pool receives newly accepted work by :class:`~proxy.core.acceptor.Acceptor`
     and creates an instance of work class for processing the received work.
 
+    In ``--threadless`` mode and with ``--local-executor 0``,
+    acceptors will start a companion thread to handle accepted
+    client connections.
+
     Optionally, Proxy class also initializes the EventManager.
     A multi-process safe pubsub system which can be used to build various
     patterns for message sharing and/or signaling.
@@ -132,10 +159,12 @@ class Proxy:
 
     def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
         self.flags = FlagParser.initialize(input_args, **opts)
-        self.listener: Optional[Listener] = None
+        self.listeners: Optional[ListenerPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
+        self.ssh_http_protocol_handler: Optional[SshHttpProtocolHandler] = None
+        self.ssh_tunnel_listener: Optional[SshTunnelListener] = None
 
     def __enter__(self) -> 'Proxy':
         self.setup()
@@ -146,27 +175,30 @@ class Proxy:
 
     def setup(self) -> None:
         # TODO: Introduce cron feature
-        # https://github.com/abhinavsingh/proxy.py/issues/392
+        # https://github.com/abhinavsingh/proxy.py/discussions/808
         #
-        # TODO: Introduce ability to publish
-        # adhoc events which can modify behaviour of server
-        # at runtime.  Example, updating flags, plugin
-        # configuration etc.
+        # TODO: Introduce ability to change flags dynamically
+        # https://github.com/abhinavsingh/proxy.py/discussions/1020
         #
-        # TODO: Python shell within running proxy.py environment?
+        # TODO: Python shell within running proxy.py environment
+        # https://github.com/abhinavsingh/proxy.py/discussions/1021
         #
-        # TODO: Pid watcher which watches for processes started
-        # by proxy.py core.  May be alert or restart those processes
-        # on failure.
+        # TODO: Near realtime resource / stats monitoring
+        # https://github.com/abhinavsingh/proxy.py/discussions/1023
+        #
         self._write_pid_file()
         # We setup listeners first because of flags.port override
         # in case of ephemeral port being used
-        self.listener = Listener(flags=self.flags)
-        self.listener.setup()
+        self.listeners = ListenerPool(flags=self.flags)
+        self.listeners.setup()
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
-        self.flags.port = self.listener._port
+        self.flags.port = cast(
+            'TcpSocketListener',
+            self.listeners.pool[0],
+        )._port
+        self._write_port_file()
         # Setup EventManager
         if self.flags.enable_events:
             logger.info('Core Event enabled')
@@ -175,8 +207,9 @@ class Proxy:
         event_queue = self.event_manager.queue \
             if self.event_manager is not None \
             else None
-        # Setup remote executors
-        if not self.flags.local_executor:
+        # Setup remote executors only if
+        # --local-executor mode isn't enabled.
+        if self.remote_executors_enabled:
             self.executors = ThreadlessPool(
                 flags=self.flags,
                 event_queue=event_queue,
@@ -185,47 +218,105 @@ class Proxy:
         # Setup acceptors
         self.acceptors = AcceptorPool(
             flags=self.flags,
-            listener=self.listener,
+            listeners=self.listeners,
             executor_queues=self.executors.work_queues if self.executors else [],
             executor_pids=self.executors.work_pids if self.executors else [],
             executor_locks=self.executors.work_locks if self.executors else [],
             event_queue=event_queue,
         )
         self.acceptors.setup()
+        # Start SSH tunnel acceptor if enabled
+        if self.flags.enable_ssh_tunnel:
+            self.ssh_http_protocol_handler = SshHttpProtocolHandler(
+                flags=self.flags,
+            )
+            self.ssh_tunnel_listener = SshTunnelListener(
+                flags=self.flags,
+                on_connection_callback=self.ssh_http_protocol_handler.on_connection,
+            )
+            self.ssh_tunnel_listener.setup()
+            self.ssh_tunnel_listener.start_port_forward(
+                ('', self.flags.tunnel_remote_port),
+            )
         # TODO: May be close listener fd as we don't need it now
+        self._register_signals()
 
     def shutdown(self) -> None:
+        if self.flags.enable_ssh_tunnel:
+            assert self.ssh_tunnel_listener is not None
+            self.ssh_tunnel_listener.shutdown()
         assert self.acceptors
         self.acceptors.shutdown()
-        if not self.flags.local_executor:
+        if self.remote_executors_enabled:
             assert self.executors
             self.executors.shutdown()
         if self.flags.enable_events:
             assert self.event_manager is not None
             self.event_manager.shutdown()
-        assert self.listener
-        self.listener.shutdown()
-        self._delete_pid_file()
+        if self.listeners:
+            self.listeners.shutdown()
+            self._delete_port_file()
+            self._delete_pid_file()
+
+    @property
+    def remote_executors_enabled(self) -> bool:
+        return self.flags.threadless and \
+            not self.flags.local_executor
 
     def _write_pid_file(self) -> None:
-        if self.flags.pid_file is not None:
-            # NOTE: Multiple instances of proxy.py running on
-            # same host machine will currently result in overwriting the PID file
+        if self.flags.pid_file:
             with open(self.flags.pid_file, 'wb') as pid_file:
                 pid_file.write(bytes_(os.getpid()))
 
     def _delete_pid_file(self) -> None:
-        if self.flags.pid_file and os.path.exists(self.flags.pid_file):
+        if self.flags.pid_file \
+                and os.path.exists(self.flags.pid_file):
             os.remove(self.flags.pid_file)
+
+    def _write_port_file(self) -> None:
+        if self.flags.port_file:
+            with open(self.flags.port_file, 'wb') as port_file:
+                port_file.write(bytes_(self.flags.port))
+
+    def _delete_port_file(self) -> None:
+        if self.flags.port_file \
+                and os.path.exists(self.flags.port_file):
+            os.remove(self.flags.port_file)
+
+    def _register_signals(self) -> None:
+        # TODO: Define SIGUSR1, SIGUSR2
+        signal.signal(signal.SIGINT, self._handle_exit_signal)
+        signal.signal(signal.SIGTERM, self._handle_exit_signal)
+        if not IS_WINDOWS:
+            if hasattr(signal, 'SIGINFO'):
+                signal.signal(      # pragma: no cover
+                    signal.SIGINFO,       # pylint: disable=E1101
+                    self._handle_siginfo,
+                )
+            signal.signal(signal.SIGHUP, self._handle_exit_signal)
+            # TODO: SIGQUIT is ideally meant to terminate with core dumps
+            signal.signal(signal.SIGQUIT, self._handle_exit_signal)
+
+    @staticmethod
+    def _handle_exit_signal(signum: int, _frame: Any) -> None:
+        logger.info('Received signal %d' % signum)
+        sys.exit(0)
+
+    def _handle_siginfo(self, _signum: int, _frame: Any) -> None:
+        pprint.pprint(self.flags.__dict__)  # pragma: no cover
+
+
+def sleep_loop() -> None:
+    while True:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            break
 
 
 def main(**opts: Any) -> None:
-    try:
-        with Proxy(sys.argv[1:], **opts):
-            while True:
-                time.sleep(1)
-    except KeyboardInterrupt:
-        pass
+    with Proxy(sys.argv[1:], **opts):
+        sleep_loop()
 
 
 def entry_point() -> None:

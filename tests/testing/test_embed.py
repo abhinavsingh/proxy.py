@@ -9,47 +9,42 @@
     :license: BSD, see LICENSE for more details.
 """
 import http.client
-import urllib.request
 import urllib.error
-
-import pytest
+import urllib.request
 
 from proxy import TestCase
-from proxy.common._compat import IS_WINDOWS  # noqa: WPS436
-from proxy.common.constants import DEFAULT_CLIENT_RECVBUF_SIZE, PROXY_AGENT_HEADER_VALUE
-from proxy.common.utils import socket_connection, build_http_request
 from proxy.http import httpMethods
-from proxy.http.server import HttpWebServerPlugin
-
-
-@pytest.mark.skipif(
-    IS_WINDOWS,
-    reason='Disabled for Windows due to weird permission issues.',
+from proxy.common.utils import socket_connection, build_http_request
+from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
+from proxy.common.constants import (
+    PROXY_AGENT_HEADER_VALUE, DEFAULT_CLIENT_RECVBUF_SIZE,
 )
+
+
 class TestProxyPyEmbedded(TestCase):
     """This test case is a demonstration of proxy.TestCase and also serves as
     integration test suite for proxy.py."""
 
     PROXY_PY_STARTUP_FLAGS = TestCase.DEFAULT_PROXY_PY_STARTUP_FLAGS + [
-        '--enable-web-server', '--port', '0',
+        '--enable-web-server',
     ]
 
     def test_with_proxy(self) -> None:
         """Makes a HTTP request to in-build web server via proxy server."""
-        assert self.PROXY and self.PROXY.acceptors
+        assert self.PROXY
         with socket_connection(('localhost', self.PROXY.flags.port)) as conn:
             conn.send(
                 build_http_request(
-                    httpMethods.GET, b'http://localhost:%d/' % self.PROXY.acceptors.flags.port,
+                    httpMethods.GET, b'http://localhost:%d/' % self.PROXY.flags.port,
                     headers={
-                        b'Host': b'localhost:%d' % self.PROXY.acceptors.flags.port,
+                        b'Host': b'localhost:%d' % self.PROXY.flags.port,
                     },
                 ),
             )
             response = conn.recv(DEFAULT_CLIENT_RECVBUF_SIZE)
         self.assertEqual(
             response,
-            HttpWebServerPlugin.DEFAULT_404_RESPONSE.tobytes(),
+            NOT_FOUND_RESPONSE_PKT.tobytes(),
         )
 
     def test_proxy_vcr(self) -> None:

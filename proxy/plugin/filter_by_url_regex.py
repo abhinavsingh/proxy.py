@@ -12,20 +12,18 @@
 
        url
 """
+import re
 import json
 import logging
-
-from typing import Optional, List, Dict, Any
-
-from ..common.flag import flags
-from ..common.utils import text_
+from typing import Any, Dict, List, Optional
 
 from ..http import httpStatusCodes
-from ..http.parser import HttpParser
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.flag import flags
+from ..http.parser import HttpParser
+from ..common.utils import text_
 from ..http.exception import HttpRequestRejected
 
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +57,8 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
         request_host = None
         if request.host:
             request_host = request.host
-        else:
-            if b'host' in request.headers:
-                request_host = request.header(b'host')
+        elif request.headers and b'host' in request.headers:
+            request_host = request.header(b'host')
 
         if not request_host:
             logger.error("Cannot determine host")
@@ -73,8 +70,7 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
             request.path,
         )
         # check URL against list
-        rule_number = 1
-        for blocked_entry in self.filters:
+        for rule_number, blocked_entry in enumerate(self.filters, start=1):
             # if regex matches on URL
             if re.search(text_(blocked_entry['regex']), text_(url)):
                 # log that the request has been filtered
@@ -89,11 +85,6 @@ class FilterByURLRegexPlugin(HttpProxyBasePlugin):
                 # list
                 raise HttpRequestRejected(
                     status_code=httpStatusCodes.NOT_FOUND,
-                    headers={b'Connection': b'close'},
                     reason=b'Blocked',
                 )
-                # stop looping through filter list
-                break
-            # increment rule number
-            rule_number += 1
         return request

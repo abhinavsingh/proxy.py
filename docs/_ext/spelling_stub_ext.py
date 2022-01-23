@@ -2,9 +2,9 @@
 
 from typing import List
 
+from sphinx.util.nodes import nodes
 from sphinx.application import Sphinx
 from sphinx.util.docutils import SphinxDirective
-from sphinx.util.nodes import nodes
 
 
 class SpellingNoOpDirective(SphinxDirective):

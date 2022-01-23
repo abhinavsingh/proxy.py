@@ -7,40 +7,45 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       http
 """
 import argparse
-
 from abc import ABC
-from uuid import UUID
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Tuple, Optional
 
+from ..mixins import TlsInterceptionPropertyMixin
 from ..parser import HttpParser
-
-from ...common.types import Readables, Writables
+from ..connection import HttpClientConnection
 from ...core.event import EventQueue
-from ...core.connection import TcpClientConnection
+from ..descriptors import DescriptorsHandlerMixin
 
 
-class HttpProxyBasePlugin(ABC):
+if TYPE_CHECKING:   # pragma: no cover
+    from ...core.connection import UpstreamConnectionPool
+
+
+class HttpProxyBasePlugin(
+        DescriptorsHandlerMixin,
+        TlsInterceptionPropertyMixin,
+        ABC,
+):
     """Base HttpProxyPlugin Plugin class.
 
     Implement various lifecycle event methods to customize behavior."""
 
     def __init__(
             self,
-            uid: UUID,
+            uid: str,
             flags: argparse.Namespace,
-            client: TcpClientConnection,
+            client: HttpClientConnection,
             event_queue: EventQueue,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
     ) -> None:
+        super().__init__(uid, flags, client, event_queue, upstream_conn_pool)
         self.uid = uid                  # pragma: no cover
         self.flags = flags              # pragma: no cover
         self.client = client            # pragma: no cover
         self.event_queue = event_queue  # pragma: no cover
+        self.upstream_conn_pool = upstream_conn_pool
 
     def name(self) -> str:
         """A unique name for your plugin.
@@ -48,36 +53,6 @@ class HttpProxyBasePlugin(ABC):
         Defaults to name of the class. This helps plugin developers to directly
         access a specific plugin by its name."""
         return self.__class__.__name__      # pragma: no cover
-
-    # TODO(abhinavsingh): get_descriptors, write_to_descriptors, read_from_descriptors
-    # can be placed into their own abstract class which can then be shared by
-    # HttpProxyBasePlugin, HttpWebServerBasePlugin and HttpProtocolHandlerPlugin class.
-    #
-    # Currently code has been shamelessly copied.  Also these methods are not
-    # marked as abstract to avoid breaking custom plugins written by users for
-    # previous versions of proxy.py
-    #
-    # Since 3.4.0
-    #
-    # @abstractmethod
-    def get_descriptors(self) -> Tuple[List[int], List[int]]:
-        return [], []  # pragma: no cover
-
-    # @abstractmethod
-    def write_to_descriptors(self, w: Writables) -> bool:
-        """Implementations must now write/flush data over the socket.
-
-        Note that buffer management is in-build into the connection classes.
-        Hence implementations MUST call
-        :meth:`~proxy.core.connection.connection.TcpConnection.flush`
-        here, to send any buffered data over the socket.
-        """
-        return False  # pragma: no cover
-
-    # @abstractmethod
-    def read_from_descriptors(self, r: Readables) -> bool:
-        """Implementations must now read data over the socket."""
-        return False  # pragma: no cover
 
     def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:
         """Resolve upstream server host to an IP address.
@@ -121,6 +96,8 @@ class HttpProxyBasePlugin(ABC):
         Essentially, if you return None from within before_upstream_connection,
         be prepared to handle_client_data and not handle_client_request.
 
+        Only called after initial request from client has been received.
+
         Raise HttpRequestRejected to tear down the connection
         Return None to drop the connection
         """
@@ -152,11 +129,14 @@ class HttpProxyBasePlugin(ABC):
     # No longer abstract since 2.4.0
     #
     # @abstractmethod
-    def handle_upstream_chunk(self, chunk: memoryview) -> memoryview:
+    def handle_upstream_chunk(self, chunk: memoryview) -> Optional[memoryview]:
         """Handler called right after receiving raw response from upstream server.
 
         For HTTPS connections, chunk will be encrypted unless
-        TLS interception is also enabled."""
+        TLS interception is also enabled.
+
+        Return None if you don't want to sent this chunk to the client.
+        """
         return chunk  # pragma: no cover
 
     # No longer abstract since 2.4.0
@@ -179,3 +159,15 @@ class HttpProxyBasePlugin(ABC):
         must return None to prevent other plugin.on_access_log invocation.
         """
         return context
+
+    def do_intercept(self, _request: HttpParser) -> bool:
+        """By default returns True (only) when necessary flags
+        for TLS interception are passed.
+
+        When TLS interception is enabled, plugins can still disable
+        TLS interception by returning False explicitly.  This hook
+        will allow you to run proxy instance with TLS interception
+        flags BUT only conditionally enable interception for
+        certain requests.
+        """
+        return self.tls_interception_enabled

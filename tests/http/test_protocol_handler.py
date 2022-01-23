@@ -9,25 +9,28 @@
     :license: BSD, see LICENSE for more details.
 """
 import base64
-import pytest
 import selectors
+from typing import Any, cast
 
+import pytest
 from unittest import mock
+
 from pytest_mock import MockerFixture
-from typing import cast, Any
 
-from proxy.common.plugins import Plugins
-from proxy.common.flag import FlagParser
-from proxy.common.version import __version__
-from proxy.common.utils import bytes_
-from proxy.common.constants import CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER
-from proxy.core.connection import TcpClientConnection
-from proxy.http.parser import HttpParser
+from proxy.http import HttpProtocolHandler, HttpClientConnection, httpHeaders
 from proxy.http.proxy import HttpProxyPlugin
-from proxy.http.parser import httpParserStates, httpParserTypes
-from proxy.http.exception import ProxyAuthenticationFailed, ProxyConnectionFailed
-from proxy.http import HttpProtocolHandler
-
+from proxy.common.flag import FlagParser
+from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.common.utils import bytes_
+from proxy.common.plugins import Plugins
+from proxy.common.version import __version__
+from proxy.http.responses import (
+    BAD_GATEWAY_RESPONSE_PKT, BAD_REQUEST_RESPONSE_PKT,
+    PROXY_AUTH_FAILED_RESPONSE_PKT, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+)
+from proxy.common.constants import (
+    CRLF, PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER,
+)
 from ..test_assertions import Assertions
 
 
@@ -64,7 +67,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
         ])
 
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()
@@ -80,7 +83,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
         await self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
-            ProxyConnectionFailed.RESPONSE_PKT,
+            BAD_GATEWAY_RESPONSE_PKT,
         )
 
     @pytest.mark.asyncio    # type: ignore[misc]
@@ -97,7 +100,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
             bytes_(PLUGIN_PROXY_AUTH),
         ])
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr), flags=flags,
+            HttpClientConnection(self._conn, self._addr), flags=flags,
         )
         self.protocol_handler.initialize()
         self._conn.recv.return_value = CRLF.join([
@@ -108,7 +111,35 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
         await self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
-            ProxyAuthenticationFailed.RESPONSE_PKT,
+            PROXY_AUTH_FAILED_RESPONSE_PKT,
+        )
+
+    @pytest.mark.asyncio    # type: ignore[misc]
+    async def test_proxy_bails_out_for_unknown_schemes(self) -> None:
+        mock_selector_for_client_read(self)
+        self._conn.recv.return_value = CRLF.join([
+            b'REQMOD icap://icap-server.net/server?arg=87 ICAP/1.0',
+            b'Host: icap-server.net',
+            CRLF,
+        ])
+        await self.protocol_handler._run_once()
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0],
+            BAD_REQUEST_RESPONSE_PKT,
+        )
+
+    @pytest.mark.asyncio    # type: ignore[misc]
+    async def test_proxy_bails_out_for_sip_request_lines(self) -> None:
+        mock_selector_for_client_read(self)
+        self._conn.recv.return_value = CRLF.join([
+            b'OPTIONS sip:nm SIP/2.0',
+            b'Accept: application/sdp',
+            CRLF,
+        ])
+        await self.protocol_handler._run_once()
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0],
+            BAD_REQUEST_RESPONSE_PKT,
         )
 
 
@@ -134,7 +165,7 @@ class TestHttpProtocolHandler(Assertions):
         ])
 
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr),
+            HttpClientConnection(self._conn, self._addr),
             flags=self.flags,
         )
         self.protocol_handler.initialize()
@@ -186,12 +217,12 @@ class TestHttpProtocolHandler(Assertions):
         self.assertTrue(
             cast(
                 HttpProxyPlugin,
-                self.protocol_handler.plugins['HttpProxyPlugin'],
+                self.protocol_handler.plugin,
             ).upstream is not None,
         )
         self.assertEqual(
             self.protocol_handler.work.buffer[0],
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
         self.mock_server_connection.assert_called_once()
         server.connect.assert_called_once()
@@ -297,7 +328,7 @@ class TestHttpProtocolHandler(Assertions):
         ])
 
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr), flags=flags,
+            HttpClientConnection(self._conn, self._addr), flags=flags,
         )
         self.protocol_handler.initialize()
         assert self.http_server_port is not None
@@ -321,8 +352,8 @@ class TestHttpProtocolHandler(Assertions):
             b'User-Agent: proxy.py/%s' % bytes_(__version__),
             b'Host: localhost:%d' % self.http_server_port,
             b'Accept: */*',
-            b'Proxy-Connection: Keep-Alive',
-            b'Proxy-Authorization: Basic dXNlcjpwYXNz',
+            httpHeaders.PROXY_CONNECTION + b': Keep-Alive',
+            httpHeaders.PROXY_AUTHORIZATION + b': Basic dXNlcjpwYXNz',
             CRLF,
         ])
         await self.assert_data_queued(server)
@@ -345,7 +376,7 @@ class TestHttpProtocolHandler(Assertions):
         ])
 
         self.protocol_handler = HttpProtocolHandler(
-            TcpClientConnection(self._conn, self._addr), flags=flags,
+            HttpClientConnection(self._conn, self._addr), flags=flags,
         )
         self.protocol_handler.initialize()
 
@@ -354,8 +385,8 @@ class TestHttpProtocolHandler(Assertions):
             b'CONNECT localhost:%d HTTP/1.1' % self.http_server_port,
             b'Host: localhost:%d' % self.http_server_port,
             b'User-Agent: proxy.py/%s' % bytes_(__version__),
-            b'Proxy-Connection: Keep-Alive',
-            b'Proxy-Authorization: Basic dXNlcjpwYXNz',
+            httpHeaders.PROXY_CONNECTION + b': Keep-Alive',
+            httpHeaders.PROXY_AUTHORIZATION + b': Basic dXNlcjpwYXNz',
             CRLF,
         ])
         await self.assert_tunnel_response(server)
@@ -432,7 +463,7 @@ class TestHttpProtocolHandler(Assertions):
         assert self.http_server_port is not None
         self.assertEqual(
             self._conn.send.call_args[0][0],
-            HttpProxyPlugin.PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
 
         pkt = CRLF.join([

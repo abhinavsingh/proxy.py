@@ -1,5 +1,4 @@
 ---
-# yamllint disable rule:line-length
 name: lib
 
 on:   # yamllint disable-line rule:truthy
@@ -67,6 +66,8 @@ jobs:
       git-tag: ${{ steps.git-tag.outputs.tag }}
       sdist-artifact-name: ${{ steps.artifact-name.outputs.sdist }}
       wheel-artifact-name: ${{ steps.artifact-name.outputs.wheel }}
+      container-version: v${{ steps.container.outputs.version }}
+      container-platforms: ${{ steps.container.outputs.platforms }}
     steps:
     - name: Switch to using Python 3.9 by default
       uses: actions/setup-python@v2
@@ -195,6 +196,18 @@ jobs:
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
         }}-py3-none-any.whl')
+    - name: Calculate container attributes
+      id: container
+      shell: bash
+      run: >-
+        VER=$(echo '${{
+            steps.request-check.outputs.release-requested == 'true'
+            && github.event.inputs.release-version
+            || steps.scm-version.outputs.dist-version
+        }}' | tr + .);
+        PLATFORMS="linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x";
+        echo "::set-output name=version::$VER";
+        echo "::set-output name=platforms::$PLATFORMS"
 
   build:
     name: 👷 dists ${{ needs.pre-setup.outputs.git-tag }}
@@ -234,8 +247,10 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini') }}
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini')
+          }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
               steps.calc-cache-key-py.outputs.py-hash-key
@@ -357,8 +372,10 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini') }}
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini')
+          }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
               steps.calc-cache-key-py.outputs.py-hash-key
@@ -472,12 +489,13 @@ jobs:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
           ${{ runner.os }}-pip-${{
-          steps.calc-cache-key-py.outputs.py-hash-key }}-${{
-          hashFiles('tox.ini', 'requirements.txt', 'requirements-testing.txt')
+            steps.calc-cache-key-py.outputs.py-hash-key
+          }}-${{
+            hashFiles('tox.ini', 'requirements**.txt')
           }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
-              steps.calc-cache-key-py.outputs.py-hash-key
+            steps.calc-cache-key-py.outputs.py-hash-key
           }}-
           ${{ runner.os }}-pip-
     - name: Install tox
@@ -522,6 +540,68 @@ jobs:
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
 
+  test-container:
+    runs-on: Ubuntu-latest
+    permissions:
+      packages: write
+    if: success()
+    needs:
+    - pre-setup  # transitive, for accessing settings
+    - build
+    name: 🐳 Build & Test
+    strategy:
+      fail-fast: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
+      with:
+        version: v0.7.0
+        buildkitd-flags: --debug
+        config: .github/buildkitd.toml
+        install: true
+    - name: Enable Multiarch    # This slows down arm build by 4-5x
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Create builder
+      run: |
+        docker buildx create --name proxypybuilder
+        docker buildx use proxypybuilder
+        docker buildx inspect
+        docker buildx ls
+    - name: Build, run & test container
+      run: >-
+        CONTAINER_TAG="abhinavsingh/proxy.py:${{
+          needs.pre-setup.outputs.container-version
+        }}";
+        docker buildx build
+        --load
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
+        &&
+        docker run
+        -d
+        -p 8899:8899
+        $CONTAINER_TAG
+        --hostname 0.0.0.0
+        --enable-web-server
+        --enable-reverse-proxy
+        --plugin proxy.plugin.ReverseProxyPlugin
+        &&
+        ./tests/integration/test_integration.sh 8899
+
   analyze:
     runs-on: ubuntu-latest
     name: 🛡️ Analyze
@@ -546,11 +626,6 @@ jobs:
         # We must fetch at least the immediate parents so that if this is
         # a pull request then we can checkout the head.
         fetch-depth: 2
-
-    # If this run was triggered by a pull request event, then checkout
-    # the head of the pull request instead of the merge commit.
-    - run: git checkout HEAD^2
-      if: ${{ github.event_name == 'pull_request' }}
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -630,46 +705,76 @@ jobs:
         cd dashboard
         npm run build
         cd ..
+    - name: Build Devtools
+      run: |
+        cd dashboard
+        npm run devtools
+        cd ..
 
-  docker:
-    # TODO: To build our docker container, we must wait for check,
-    # so that we can use the same distribution available.
+  developer:
     runs-on: ${{ matrix.os }}-latest
-    needs:
-    - build
-    - pre-setup  # transitive, for accessing settings
-    name: 🐳 🐍${{ matrix.python }} @ ${{ matrix.targetplatform }}
+    name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os:
-        - Ubuntu
-        python:
-        - '3.10'
-        targetplatform:
-        - 'linux/386'
-        - 'linux/amd64'
-        - 'linux/arm/v6'
-        - 'linux/arm/v7'
-        - 'linux/arm64/v8'
-        - 'linux/ppc64le'
-        - 'linux/s390x'
-      # max-parallel: 1
+        os: [ubuntu, macOS]
+        python: ['3.10']
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install Pip Dependencies
+      run: |
+        make lib-dep
+    - name: Run essentials
+      run: |
+        ./write-scm-version.sh
+        python3 check.py
+        make https-certificates
+        make sign-https-certificates
+        make ca-certificates
+        python3 -m proxy --version
+
+  ghcr-latest:
+    runs-on: Ubuntu-latest
+    permissions:
+      packages: write
+    if: success()
+    needs:
+    - test-container
+    - pre-setup  # transitive, for accessing settings
+    name: 🐳 ghcr:latest
+    strategy:
       fail-fast: false
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Set up Docker Buildx
-      id: buildx
-      uses: docker/setup-buildx-action@v1
       with:
-        buildkitd-flags: --debug
-        config: .github/buildkitd.toml
-        install: true
+        ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
       uses: actions/download-artifact@v2
       with:
         name: python-package-distributions
         path: dist/
+    - name: Login to GHCR
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
+      with:
+        version: v0.7.0
+        buildkitd-flags: --debug
+        config: .github/buildkitd.toml
+        install: true
     - name: Enable Multiarch    # This slows down arm build by 4-5x
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
@@ -679,32 +784,210 @@ jobs:
         docker buildx use proxypybuilder
         docker buildx inspect
         docker buildx ls
-    - name: Set PROXYPY_CONTAINER_VERSION
+    - name: Push to GHCR
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        CONTAINER_TAG=$REGISTRY_URL:${{
+          needs.pre-setup.outputs.container-version
+        }};
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg SKIP_OPENSSL=1
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
+    - name: Tag latest on GHCR
+      if: >-
+        github.event_name == 'push' &&
+        (
+          github.ref == format(
+            'refs/heads/{0}', github.event.repository.default_branch
+          ) ||
+          github.ref == 'refs/heads/master'
+        )
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        LATEST_TAG=$REGISTRY_URL:latest;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg SKIP_OPENSSL=1
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $LATEST_TAG .
+
+  ghcr-openssl:
+    runs-on: Ubuntu-latest
+    permissions:
+      packages: write
+    if: success()
+    needs:
+    - test-container
+    - pre-setup  # transitive, for accessing settings
+    name: 🐳 ghcr:openssl
+    strategy:
+      fail-fast: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Login to GHCR
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
+      with:
+        version: v0.7.0
+        buildkitd-flags: --debug
+        config: .github/buildkitd.toml
+        install: true
+    - name: Enable Multiarch    # This slows down arm build by 4-5x
       run: |
-        echo "PROXYPY_CONTAINER_VERSION=$(echo '${{ needs.pre-setup.outputs.dist-version }}' | tr + .)" > $GITHUB_ENV
-    - name: Build container
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Create builder
       run: |
-        make container-buildx \
-          -e PROXYPY_PKG_PATH='dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}' \
-          -e BUILDX_TARGET_PLATFORM='${{ matrix.targetplatform }}' \
-          -e PROXYPY_CONTAINER_VERSION='${{ env.PROXYPY_CONTAINER_VERSION }}'
+        docker buildx create --name proxypybuilder
+        docker buildx use proxypybuilder
+        docker buildx inspect
+        docker buildx ls
+    - name: Push openssl to GHCR
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        CONTAINER_TAG=$REGISTRY_URL:${{
+          needs.pre-setup.outputs.container-version
+        }}-openssl;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
+    - name: Tag openssl on GHCR
+      if: >-
+        github.event_name == 'push' &&
+        (
+          github.ref == format(
+            'refs/heads/{0}', github.event.repository.default_branch
+          ) ||
+          github.ref == 'refs/heads/master'
+        )
+      run: >-
+        REGISTRY_URL="ghcr.io/abhinavsingh/proxy.py";
+        LATEST_TAG=$REGISTRY_URL:openssl;
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $LATEST_TAG .
+
+  docker-latest:
+    runs-on: Ubuntu-latest
+    permissions:
+      packages: write
+    if: success()
+    needs:
+    - test-container
+    - pre-setup  # transitive, for accessing settings
+    name: 🐳 docker:latest
+    strategy:
+      fail-fast: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.inputs.release-commitish }}
+    - name: Download all the dists
+      uses: actions/download-artifact@v2
+      with:
+        name: python-package-distributions
+        path: dist/
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v1
+      # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
+      with:
+        version: v0.7.0
+        buildkitd-flags: --debug
+        config: .github/buildkitd.toml
+        install: true
+    - name: Enable Multiarch    # This slows down arm build by 4-5x
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - name: Create builder
+      run: |
+        docker buildx create --name proxypybuilder
+        docker buildx use proxypybuilder
+        docker buildx inspect
+        docker buildx ls
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: abhinavsingh
+        password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+    # TODO: openssl image is not published on DockerHub
+    - name: Push to DockerHub
+      run: >-
+        REGISTRY_URL="abhinavsingh/proxy.py";
+        CONTAINER_TAG=$REGISTRY_URL:${{
+          needs.pre-setup.outputs.container-version
+        }};
+        docker buildx build
+        --push
+        --platform ${{
+          needs.pre-setup.outputs.container-platforms
+        }}
+        --build-arg SKIP_OPENSSL=1
+        --build-arg PROXYPY_PKG_PATH='dist/${{
+          needs.pre-setup.outputs.wheel-artifact-name
+        }}'
+        -t $CONTAINER_TAG .
 
   check:  # This job does nothing and is only used for the branch protection
+    if: always()
+
     needs:
     - analyze
     - test
     - lint
-    - docker
     - dashboard
     - brew
+    - developer
+    - ghcr-latest
+    - ghcr-openssl
+    - docker-latest
 
-    runs-on: ubuntu-latest
+    runs-on: Ubuntu-latest
 
     steps:
-    - name: Report success of the test matrix
-      run: >-
-        print("All's good")
-      shell: python
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
 
   publish-pypi:
     name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI
@@ -729,13 +1012,13 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: >-
-        Publish 🐍📦 v${{ needs.pre-setup.outputs.git-tag }} to PyPI
+        Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.PYPI_TOKEN }}
 
   publish-testpypi:
-    name: Publish 🐍📦 to TestPyPI
+    name: Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
     needs:
     - check
     - pre-setup  # transitive, for accessing settings
@@ -758,7 +1041,7 @@ jobs:
         name: python-package-distributions
         path: dist/
     - name: >-
-        Publish 🐍📦  v${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
+        Publish 🐍📦 ${{ needs.pre-setup.outputs.git-tag }} to TestPyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.TESTPYPI_API_TOKEN }}

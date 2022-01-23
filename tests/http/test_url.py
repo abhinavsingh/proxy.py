@@ -11,6 +11,7 @@
 import unittest
 
 from proxy.http import Url
+from proxy.http.exception import HttpProtocolException
 
 
 class TestUrl(unittest.TestCase):
@@ -114,3 +115,48 @@ class TestUrl(unittest.TestCase):
         self.assertEqual(url.hostname, b'localhost')
         self.assertEqual(url.port, 12345)
         self.assertEqual(url.remainder, b'/v1/users/')
+        self.assertEqual(url.username, None)
+        self.assertEqual(url.password, None)
+
+    def test_username_password(self) -> None:
+        url = Url.from_bytes(b'http://user:pass@localhost:12345/v1/users/')
+        self.assertEqual(url.scheme, b'http')
+        self.assertEqual(url.hostname, b'localhost')
+        self.assertEqual(url.port, 12345)
+        self.assertEqual(url.remainder, b'/v1/users/')
+        self.assertEqual(url.username, b'user')
+        self.assertEqual(url.password, b'pass')
+
+    def test_username_password_without_proto_prefix(self) -> None:
+        url = Url.from_bytes('user:pass@å∫ç.com'.encode('utf-8'))
+        self.assertEqual(url.scheme, None)
+        self.assertEqual(url.hostname, 'å∫ç.com'.encode('utf-8'))
+        self.assertEqual(url.port, None)
+        self.assertEqual(url.remainder, None)
+        self.assertEqual(url.username, b'user')
+        self.assertEqual(url.password, b'pass')
+
+    def test_no_scheme_suffix(self) -> None:
+        url = Url.from_bytes(b'//example-server.net/server?arg=87')
+        self.assertEqual(url.scheme, b'http')
+        self.assertEqual(url.hostname, b'example-server.net')
+        self.assertEqual(url.port, None)
+        self.assertEqual(url.remainder, b'/server?arg=87')
+        self.assertEqual(url.username, None)
+        self.assertEqual(url.password, None)
+
+    def test_any_scheme_suffix(self) -> None:
+        url = Url.from_bytes(
+            b'icap://example-server.net/server?arg=87',
+            allowed_url_schemes=[b'icap'],
+        )
+        self.assertEqual(url.scheme, b'icap')
+        self.assertEqual(url.hostname, b'example-server.net')
+        self.assertEqual(url.port, None)
+        self.assertEqual(url.remainder, b'/server?arg=87')
+        self.assertEqual(url.username, None)
+        self.assertEqual(url.password, None)
+
+    def test_assert_raises_for_unknown_schemes(self) -> None:
+        with self.assertRaises(HttpProtocolException):
+            Url.from_bytes(b'icap://example-server.net/server?arg=87')

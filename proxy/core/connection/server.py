@@ -10,13 +10,11 @@
 """
 import ssl
 import socket
+from typing import Tuple, Union, Optional
 
-from typing import Optional, Union, Tuple
-
-from ...common.utils import new_socket_connection
-
-from .connection import TcpConnection, TcpConnectionUninitializedException
 from .types import tcpConnectionTypes
+from .connection import TcpConnection, TcpConnectionUninitializedException
+from ...common.utils import new_socket_connection
 
 
 class TcpServerConnection(TcpConnection):
@@ -25,7 +23,7 @@ class TcpServerConnection(TcpConnection):
     def __init__(self, host: str, port: int) -> None:
         super().__init__(tcpConnectionTypes.SERVER)
         self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
-        self.addr: Tuple[str, int] = (host, int(port))
+        self.addr: Tuple[str, int] = (host, port)
         self.closed = True
 
     @property
@@ -39,13 +37,13 @@ class TcpServerConnection(TcpConnection):
             addr: Optional[Tuple[str, int]] = None,
             source_address: Optional[Tuple[str, int]] = None,
     ) -> None:
-        if self._conn is None:
-            self._conn = new_socket_connection(
-                addr or self.addr, source_address=source_address,
-            )
-            self.closed = False
+        assert self._conn is None
+        self._conn = new_socket_connection(
+            addr or self.addr, source_address=source_address,
+        )
+        self.closed = False
 
-    def wrap(self, hostname: str, ca_file: Optional[str]) -> None:
+    def wrap(self, hostname: str, ca_file: Optional[str] = None) -> None:
         ctx = ssl.create_default_context(
             ssl.Purpose.SERVER_AUTH, cafile=ca_file,
         )

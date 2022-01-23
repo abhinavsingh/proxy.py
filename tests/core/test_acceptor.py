@@ -8,24 +8,27 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import unittest
 import socket
 import selectors
 import multiprocessing
+
+import unittest
 from unittest import mock
 
-from proxy.core.acceptor import Acceptor
 from proxy.common.flag import FlagParser
+from proxy.core.acceptor import Acceptor
 
 
 class TestAcceptor(unittest.TestCase):
 
     def setUp(self) -> None:
         self.acceptor_id = 1
-        self.pipe = multiprocessing.Pipe()
+        self.pipe = mock.MagicMock()
+        self.work_klass = mock.MagicMock()
         self.flags = FlagParser.initialize(
             threaded=True,
-            work_klass=mock.MagicMock(),
+            work_klass=self.work_klass,
+            local_executor=0,
         )
         self.acceptor = Acceptor(
             idd=self.acceptor_id,
@@ -61,7 +64,6 @@ class TestAcceptor(unittest.TestCase):
         sock.accept.assert_not_called()
         self.flags.work_klass.assert_not_called()
 
-    @mock.patch('proxy.core.acceptor.executors.TcpClientConnection')
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
     @mock.patch('socket.fromfd')
@@ -72,7 +74,6 @@ class TestAcceptor(unittest.TestCase):
             mock_fromfd: mock.Mock,
             mock_selector: mock.Mock,
             mock_thread: mock.Mock,
-            mock_client: mock.Mock,
     ) -> None:
         fileno = 10
         conn = mock.MagicMock()
@@ -81,25 +82,34 @@ class TestAcceptor(unittest.TestCase):
         mock_fromfd.return_value.accept.return_value = (conn, addr)
         mock_recv_handle.return_value = fileno
 
+        self.pipe[1].recv.return_value = 1
+
         mock_thread.return_value.start.side_effect = KeyboardInterrupt()
 
+        mock_key = mock.MagicMock()
+        type(mock_key).data = mock.PropertyMock(return_value=fileno)
+
         selector = mock_selector.return_value
-        selector.select.return_value = [(None, selectors.EVENT_READ)]
+        selector.select.return_value = [(mock_key, selectors.EVENT_READ)]
 
         self.acceptor.run()
 
-        selector.register.assert_called_with(sock, selectors.EVENT_READ)
-        selector.unregister.assert_called_with(sock)
+        self.pipe[1].recv.assert_called_once()
+        selector.register.assert_called_with(
+            fileno, selectors.EVENT_READ, fileno,
+        )
+        selector.unregister.assert_called_with(fileno)
         mock_recv_handle.assert_called_with(self.pipe[1])
         mock_fromfd.assert_called_with(
             fileno,
-            family=socket.AF_INET6,
+            family=socket.AF_INET,
             type=socket.SOCK_STREAM,
         )
         self.flags.work_klass.assert_called_with(
-            mock_client.return_value,
+            self.work_klass.create.return_value,
             flags=self.flags,
             event_queue=None,
+            upstream_conn_pool=None,
         )
         mock_thread.assert_called_with(
             target=self.flags.work_klass.return_value.run,
