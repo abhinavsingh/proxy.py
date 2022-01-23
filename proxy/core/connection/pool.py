@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Set, Dict, Tuple
 from ..work import Work
 from .server import TcpServerConnection
 from ...common.flag import flags
-from ...common.types import Readables, Writables, SelectableEvents
+from ...common.types import HostPort, Readables, Writables, SelectableEvents
 
 
 logger = logging.getLogger(__name__)
@@ -73,13 +73,13 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
 
     def __init__(self) -> None:
         self.connections: Dict[int, TcpServerConnection] = {}
-        self.pools: Dict[Tuple[str, int], Set[TcpServerConnection]] = {}
+        self.pools: Dict[HostPort, Set[TcpServerConnection]] = {}
 
     @staticmethod
     def create(**kwargs: Any) -> TcpServerConnection:   # pragma: no cover
         return TcpServerConnection(**kwargs)
 
-    def acquire(self, addr: Tuple[str, int]) -> Tuple[bool, TcpServerConnection]:
+    def acquire(self, addr: HostPort) -> Tuple[bool, TcpServerConnection]:
         """Returns a reusable connection from the pool.
 
         If none exists, will create and return a new connection."""
@@ -147,7 +147,7 @@ class UpstreamConnectionPool(Work[TcpServerConnection]):
             self._remove(fileno)
         return False
 
-    def add(self, addr: Tuple[str, int]) -> TcpServerConnection:
+    def add(self, addr: HostPort) -> TcpServerConnection:
         """Creates, connects and adds a new connection to the pool.
 
         Returns newly created connection.

@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import TYPE_CHECKING, Tuple, Optional
+from typing import TYPE_CHECKING, Optional
 from multiprocessing.reduction import send_handle
 
 
@@ -17,13 +17,15 @@ if TYPE_CHECKING:   # pragma: no cover
     import multiprocessing
     from multiprocessing import connection
 
+    from ...common.types import HostPort
+
 
 def delegate_work_to_pool(
         worker_pid: int,
         work_queue: 'connection.Connection',
         work_lock: 'multiprocessing.synchronize.Lock',
         conn: 'socket.socket',
-        addr: Optional[Tuple[str, int]],
+        addr: Optional['HostPort'],
         unix_socket_path: Optional[str] = None,
 ) -> None:
     """Utility method to delegate a work to threadless executor pool."""

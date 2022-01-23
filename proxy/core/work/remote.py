@@ -14,13 +14,13 @@ from typing import Any, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from .threadless import Threadless
+from .fd import ThreadlessFdExecutor
 
 
 logger = logging.getLogger(__name__)
 
 
-class RemoteExecutor(Threadless[connection.Connection]):
+class RemoteExecutor(ThreadlessFdExecutor[connection.Connection]):
     """A threadless executor implementation which receives work over a connection.
 
     NOTE: RemoteExecutor uses ``recv_handle`` to accept file descriptors.
@@ -53,5 +53,5 @@ class RemoteExecutor(Threadless[connection.Connection]):
         if not self.flags.unix_socket_path:
             addr = self.work_queue.recv()
         fileno = recv_handle(self.work_queue)
-        self.work_on_tcp_conn(fileno=fileno, addr=addr)
+        self.work(fileno=fileno, addr=addr)
         return False

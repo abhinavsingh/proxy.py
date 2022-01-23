@@ -9,8 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import ssl
-import socket
 import asyncio
 import logging
 import argparse
@@ -18,10 +16,9 @@ import selectors
 import multiprocessing
 from abc import ABC, abstractmethod
 from typing import (
-    TYPE_CHECKING, Set, Dict, List, Tuple, Union, Generic, TypeVar, Optional,
+    TYPE_CHECKING, Any, Set, Dict, List, Tuple, Generic, TypeVar, Optional,
 )
 
-from ..event import eventNames
 from ...common.types import Readables, Writables, SelectableEvents
 from ...common.logger import Logger
 from ...common.constants import (
@@ -31,8 +28,6 @@ from ...common.constants import (
 
 
 if TYPE_CHECKING:   # pragma: no cover
-    from typing import Any
-
     from .work import Work
     from ..event import EventQueue
 
@@ -124,47 +119,15 @@ class Threadless(ABC, Generic[T]):
         return work queue fd."""
         raise NotImplementedError()
 
+    @abstractmethod
+    def work(self, *args: Any, **kwargs: Any) -> None:
+        raise NotImplementedError()
+
     def close_work_queue(self) -> None:
         """Only called if ``work_queue_fileno`` returns an integer.
         If an fd is select-able for work queue, make sure
         to close the work queue fd now."""
         pass    # pragma: no cover
-
-    def work_on_tcp_conn(
-            self,
-            fileno: int,
-            addr: Optional[Tuple[str, int]] = None,
-            conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None,
-    ) -> None:
-        conn = conn or socket.fromfd(
-            fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
-            type=socket.SOCK_STREAM,
-        )
-        uid = '%s-%s-%s' % (self.iid, self._total, fileno)
-        self.works[fileno] = self.flags.work_klass(
-            self.flags.work_klass.create(
-                conn=conn,
-                addr=addr,
-            ),
-            flags=self.flags,
-            event_queue=self.event_queue,
-            uid=uid,
-            upstream_conn_pool=self._upstream_conn_pool,
-        )
-        self.works[fileno].publish_event(
-            event_name=eventNames.WORK_STARTED,
-            event_payload={'fileno': fileno, 'addr': addr},
-            publisher_id=self.__class__.__name__,
-        )
-        try:
-            self.works[fileno].initialize()
-            self._total += 1
-        except Exception as e:
-            logger.exception(
-                'Exception occurred during initialization',
-                exc_info=e,
-            )
-            self._cleanup(fileno)
 
     async def _update_work_events(self, work_id: int) -> None:
         assert self.selector is not None

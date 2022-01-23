@@ -10,7 +10,7 @@
 """
 import logging
 import argparse
-from typing import TYPE_CHECKING, Any, Set, Tuple, Callable, Optional
+from typing import TYPE_CHECKING, Any, Set, Callable, Optional
 
 
 try:
@@ -18,6 +18,8 @@ try:
     from paramiko.transport import Transport
     if TYPE_CHECKING:   # pragma: no cover
         from paramiko.channel import Channel
+
+        from ...common.types import HostPort
 except ImportError:     # pragma: no cover
     pass
 
@@ -78,15 +80,15 @@ class SshTunnelListener:
     def __init__(
             self,
             flags: argparse.Namespace,
-            on_connection_callback: Callable[['Channel', Tuple[str, int], Tuple[str, int]], None],
+            on_connection_callback: Callable[['Channel', 'HostPort', 'HostPort'], None],
     ) -> None:
         self.flags = flags
         self.on_connection_callback = on_connection_callback
         self.ssh: Optional[SSHClient] = None
         self.transport: Optional[Transport] = None
-        self.forwarded: Set[Tuple[str, int]] = set()
+        self.forwarded: Set['HostPort'] = set()
 
-    def start_port_forward(self, remote_addr: Tuple[str, int]) -> None:
+    def start_port_forward(self, remote_addr: 'HostPort') -> None:
         assert self.transport is not None
         self.transport.request_port_forward(
             *remote_addr,
@@ -95,7 +97,7 @@ class SshTunnelListener:
         self.forwarded.add(remote_addr)
         logger.info('%s:%d forwarding successful...' % remote_addr)
 
-    def stop_port_forward(self, remote_addr: Tuple[str, int]) -> None:
+    def stop_port_forward(self, remote_addr: 'HostPort') -> None:
         assert self.transport is not None
         self.transport.cancel_port_forward(*remote_addr)
         self.forwarded.remove(remote_addr)

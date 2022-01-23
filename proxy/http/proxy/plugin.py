@@ -20,6 +20,7 @@ from ...common.utils import tls_interception_enabled
 
 
 if TYPE_CHECKING:   # pragma: no cover
+    from ...common.types import HostPort
     from ...core.connection import UpstreamConnectionPool
 
 
@@ -52,7 +53,7 @@ class HttpProxyBasePlugin(
         access a specific plugin by its name."""
         return self.__class__.__name__      # pragma: no cover
 
-    def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:
+    def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional['HostPort']]:
         """Resolve upstream server host to an IP address.
 
         Optionally also override the source address to use for
