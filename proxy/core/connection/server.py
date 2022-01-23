@@ -43,7 +43,7 @@ class TcpServerConnection(TcpConnection):
         )
         self.closed = False
 
-    def wrap(self, hostname: str, ca_file: Optional[str]) -> None:
+    def wrap(self, hostname: str, ca_file: Optional[str] = None) -> None:
         ctx = ssl.create_default_context(
             ssl.Purpose.SERVER_AUTH, cafile=ca_file,
         )
