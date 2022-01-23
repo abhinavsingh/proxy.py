@@ -11,9 +11,9 @@
 import ssl
 from typing import Tuple, Optional
 
-from ...common.types import TcpOrTlsSocket
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
+from ...common.types import TcpOrTlsSocket
 
 
 class TcpClientConnection(TcpConnection):

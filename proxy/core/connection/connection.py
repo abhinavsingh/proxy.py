@@ -13,8 +13,9 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from .types import tcpConnectionTypes
-from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
 from ...common.types import TcpOrTlsSocket
+from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
+
 
 logger = logging.getLogger(__name__)
 

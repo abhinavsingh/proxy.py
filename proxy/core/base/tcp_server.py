@@ -20,7 +20,9 @@ from typing import Any, TypeVar, Optional
 
 from ...core.work import Work
 from ...common.flag import flags
-from ...common.types import Readables, Writables, SelectableEvents, TcpOrTlsSocket
+from ...common.types import (
+    Readables, Writables, TcpOrTlsSocket, SelectableEvents,
+)
 from ...common.utils import wrap_socket
 from ...core.connection import TcpClientConnection
 from ...common.constants import (

@@ -16,10 +16,10 @@ from typing import Callable, Optional
 
 from .frame import WebsocketFrame
 from ..parser import HttpParser, httpParserTypes
+from ...common.types import TcpOrTlsSocket
 from ...common.utils import (
     text_, new_socket_connection, build_websocket_handshake_request,
 )
-from ...common.types import TcpOrTlsSocket
 from ...core.connection import TcpConnection, tcpConnectionTypes
 from ...common.constants import (
     DEFAULT_BUFFER_SIZE, DEFAULT_SELECTOR_SELECT_TIMEOUT,

@@ -13,6 +13,7 @@ from typing import Optional
 import unittest
 from unittest import mock
 
+from proxy.common.types import TcpOrTlsSocket
 from proxy.core.connection import (
     TcpConnection, TcpClientConnection, TcpServerConnection,
     TcpConnectionUninitializedException, tcpConnectionTypes,
@@ -20,7 +21,6 @@ from proxy.core.connection import (
 from proxy.common.constants import (
     DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME, DEFAULT_IPV6_HOSTNAME,
 )
-from proxy.common.types import TcpOrTlsSocket
 
 
 class TestTcpConnection(unittest.TestCase):

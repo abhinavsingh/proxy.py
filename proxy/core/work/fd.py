@@ -1,11 +1,11 @@
 import socket
 import logging
+from typing import Any, Tuple, Optional
 
-from typing import Any, Optional, Tuple
-
-from ...common.types import TcpOrTlsSocket
 from ..event import eventNames
 from .threadless import Threadless
+from ...common.types import TcpOrTlsSocket
+
 
 logger = logging.getLogger(__name__)
 

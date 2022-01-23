@@ -13,8 +13,8 @@ from typing import Tuple, Optional
 
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
-from ...common.utils import new_socket_connection
 from ...common.types import TcpOrTlsSocket
+from ...common.utils import new_socket_connection
 
 
 class TcpServerConnection(TcpConnection):
