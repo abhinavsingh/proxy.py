@@ -439,12 +439,11 @@ class SolTxListSender:
     def send(self) -> SolTxListSender:
         solana = self._s.solana
         eth_tx = self._s.eth_tx
-        name = self._name
         skip_preflight = self._skip_preflight
 
         while (self._retry_idx < RETRY_ON_FAIL) and (len(self._tx_list)):
             self._retry_idx += 1
-            receipt_list = solana.send_multiple_transactions(self._tx_list, eth_tx, name, skip_preflight)
+            receipt_list = solana.send_multiple_transactions(self._tx_list, eth_tx, self._name, skip_preflight)
 
             for receipt, tx in zip(receipt_list, self._tx_list):
                 if not receipt:
@@ -641,6 +640,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
     def _cancel(self):
         self.debug(f'Cancel the transaction')
         self.clear()
+        self._name = 'CancelWithNonce'
         self._is_canceled = True
         self._retry_idx = 0  # force the cancel sending
         self._tx_list = [self._s.builder.make_cancel_transaction()]
