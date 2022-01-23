@@ -15,6 +15,7 @@
 from .pool import ThreadlessPool
 from .work import Work
 from .local import BaseLocalExecutor
+from .remote import BaseRemoteExecutor
 from .delegate import delegate_work_to_pool
 from .threaded import start_threaded_work
 from .threadless import Threadless
@@ -27,4 +28,5 @@ __all__ = [
     'delegate_work_to_pool',
     'start_threaded_work',
     'BaseLocalExecutor',
+    'BaseRemoteExecutor',
 ]
