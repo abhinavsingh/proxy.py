@@ -9,15 +9,29 @@
     :license: BSD, see LICENSE for more details.
 """
 import queue
+import asyncio
 import contextlib
-from typing import Any
+from typing import Any, Optional
 
 from .fd import ThreadlessFdExecutor
-from ..local import LocalExecutor
 from ....common.backports import NonBlockingQueue
 
 
-class LocalFdExecutor(LocalExecutor, ThreadlessFdExecutor[NonBlockingQueue]):
+class LocalFdExecutor(ThreadlessFdExecutor[NonBlockingQueue]):
+    """A threadless executor implementation which uses a queue to receive new work."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+
+    @property
+    def loop(self) -> Optional[asyncio.AbstractEventLoop]:
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop_policy().new_event_loop()
+        return self._loop
+
+    def work_queue_fileno(self) -> Optional[int]:
+        return None
 
     def receive_from_work_queue(self) -> bool:
         with contextlib.suppress(queue.Empty):

@@ -83,7 +83,7 @@ class ThreadlessPool:
         self.work_locks: List['multiprocessing.synchronize.Lock'] = []
         # List of threadless workers
         self._executor_klass = executor_klass
-        # FIXME:
+        # FIXME: Instead of Any type must be the executor klass
         self._workers: List[Any] = []
         self._processes: List[multiprocessing.Process] = []
 

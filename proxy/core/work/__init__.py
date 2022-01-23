@@ -14,8 +14,6 @@
 """
 from .pool import ThreadlessPool
 from .work import Work
-from .local import LocalExecutor
-from .remote import RemoteExecutor
 from .delegate import delegate_work_to_pool
 from .threaded import start_threaded_work
 from .threadless import Threadless
@@ -24,8 +22,6 @@ from .threadless import Threadless
 __all__ = [
     'Work',
     'Threadless',
-    'RemoteExecutor',
-    'LocalExecutor',
     'ThreadlessPool',
     'delegate_work_to_pool',
     'start_threaded_work',
