@@ -221,7 +221,7 @@ class NeonTxInfo:
 
 
 @logged_group("neon.Indexer")
-def get_account_list(client, storage_account, *, logger):
+def get_accounts_from_storage(client, storage_account, *, logger):
     opts = {
         "encoding": "base64",
         "commitment": "confirmed",
@@ -469,31 +469,21 @@ class Canceller:
             PublicKey(INCINERATOR_PUBKEY),
             PublicKey(SYS_PROGRAM_ID),
         ]
-        for storage, trx_accs in blocked_storages.items():
-            (neon_tx, blocked_accs) = trx_accs
-            acc_list = get_account_list(self.client, storage)
-            if blocked_accs is None:
-                self.error("blocked_accs is None")
-                continue
-            if acc_list is None:
-                self.error("acc_list is None. Storage is empty")
-                self.error(storage)
-                continue
+        for storage, tx_accounts in blocked_storages.items():
+            (neon_tx, blocked_accounts) = tx_accounts
+            if blocked_accounts is None:
+                self.error(f"Emtpy blocked accounts for the Neon tx {neon_tx}.")
 
-            if acc_list != blocked_accs:
-                self.error("acc_list != blocked_accs")
-                continue
-
-            if acc_list is not None:
+            if blocked_accounts is not None:
                 keys = [
                         AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
                         AccountMeta(pubkey=self.operator, is_signer=True, is_writable=True),
                         AccountMeta(pubkey=self.operator_token, is_signer=False, is_writable=True),
-                        AccountMeta(pubkey=acc_list[4], is_signer=False, is_writable=True),
+                        AccountMeta(pubkey=blocked_accounts[4], is_signer=False, is_writable=True),
                         AccountMeta(pubkey=INCINERATOR_PUBKEY, is_signer=False, is_writable=True),
                         AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False)
                     ]
-                for acc in acc_list:
+                for acc in blocked_accounts:
                     keys.append(AccountMeta(pubkey=acc, is_signer=False, is_writable=(False if acc in readonly_accs else True)))
 
                 trx = Transaction()
@@ -510,5 +500,4 @@ class Canceller:
                 except Exception as err:
                     self.error(err)
                 else:
-                    self.debug("Canceled")
-                    self.debug(acc_list)
+                    self.debug(f"Canceled: {blocked_accounts}")
