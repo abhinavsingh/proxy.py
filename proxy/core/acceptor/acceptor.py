@@ -23,8 +23,9 @@ from typing import Dict, List, Tuple, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
 
-from ..work import LocalExecutor, start_threaded_work, delegate_work_to_pool
+from ..work import start_threaded_work, delegate_work_to_pool
 from ..event import EventQueue
+from ..work.fd import LocalFdExecutor
 from ...common.flag import flags
 from ...common.types import HostPort
 from ...common.logger import Logger
@@ -99,7 +100,7 @@ class Acceptor(multiprocessing.Process):
         # Internals
         self._total: Optional[int] = None
         self._local_work_queue: Optional['NonBlockingQueue'] = None
-        self._local: Optional[LocalExecutor] = None
+        self._local: Optional[LocalFdExecutor] = None
         self._lthread: Optional[threading.Thread] = None
 
     def accept(
@@ -195,7 +196,7 @@ class Acceptor(multiprocessing.Process):
     def _start_local(self) -> None:
         assert self.socks
         self._local_work_queue = NonBlockingQueue()
-        self._local = LocalExecutor(
+        self._local = LocalFdExecutor(
             iid=self.idd,
             work_queue=self._local_work_queue,
             flags=self.flags,

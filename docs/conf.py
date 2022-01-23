@@ -322,5 +322,5 @@ nitpick_ignore = [
     (_py_obj_role, 'proxy.core.work.threadless.T'),
     (_py_obj_role, 'proxy.core.work.work.T'),
     (_py_obj_role, 'proxy.core.base.tcp_server.T'),
-    (_py_obj_role, 'proxy.core.work.fd.T'),
+    (_py_obj_role, 'proxy.core.work.fd.fd.T'),
 ]

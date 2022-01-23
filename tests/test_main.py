@@ -16,6 +16,7 @@ from unittest import mock
 
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
+from proxy.core.work.fd import RemoteFdExecutor
 from proxy.common.constants import (  # noqa: WPS450
     DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
     DEFAULT_LOG_FILE, DEFAULT_PAC_FILE, DEFAULT_PID_FILE, PLUGIN_DASHBOARD,
@@ -119,6 +120,7 @@ class TestMain(unittest.TestCase):
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=None,
+            executor_klass=RemoteFdExecutor,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
@@ -169,6 +171,7 @@ class TestMain(unittest.TestCase):
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=None,
+            executor_klass=RemoteFdExecutor,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
@@ -214,6 +217,7 @@ class TestMain(unittest.TestCase):
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=mock_event_manager.return_value.queue,
+            executor_klass=RemoteFdExecutor,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,

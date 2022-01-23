@@ -55,16 +55,14 @@ class Work(ABC, Generic[T]):
         creation of externally defined work class objects."""
         raise NotImplementedError()
 
-    @abstractmethod
     async def get_events(self) -> SelectableEvents:
         """Return sockets and events (read or write) that we are interested in."""
         return {}   # pragma: no cover
 
-    @abstractmethod
     async def handle_events(
             self,
-            readables: Readables,
-            writables: Writables,
+            _readables: Readables,
+            _writables: Writables,
     ) -> bool:
         """Handle readable and writable sockets.
 

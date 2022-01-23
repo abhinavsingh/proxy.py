@@ -12,9 +12,9 @@ import socket
 import logging
 from typing import Any, TypeVar, Optional
 
-from ..event import eventNames
-from .threadless import Threadless
-from ...common.types import HostPort, TcpOrTlsSocket
+from ...event import eventNames
+from ..threadless import Threadless
+from ....common.types import HostPort, TcpOrTlsSocket
 
 
 T = TypeVar('T')
@@ -23,12 +23,10 @@ logger = logging.getLogger(__name__)
 
 
 class ThreadlessFdExecutor(Threadless[T]):
+    """A threadless executor which handles file descriptors
+    and works with read/write events over a socket."""
 
-    def work(
-            self,
-            *args: Any,
-            **kwargs: Any,
-    ) -> None:
+    def work(self, **kwargs: Any) -> None:
         fileno: int = kwargs['fileno']
         addr: Optional[HostPort] = kwargs.get('addr', None)
         conn: Optional[TcpOrTlsSocket] = \

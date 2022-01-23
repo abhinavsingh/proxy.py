@@ -11,16 +11,18 @@
 import logging
 import argparse
 import multiprocessing
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Type, TypeVar, Optional
 from multiprocessing import connection
 
-from .remote import RemoteExecutor
 from ...common.flag import flags
 from ...common.constants import DEFAULT_THREADLESS, DEFAULT_NUM_WORKERS
 
 
 if TYPE_CHECKING:   # pragma: no cover
     from ..event import EventQueue
+    from .threadless import Threadless
+
+T = TypeVar('T', bound='Threadless[Any]')
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,7 @@ class ThreadlessPool:
     def __init__(
         self,
         flags: argparse.Namespace,
+        executor_klass: Type['T'],
         event_queue: Optional['EventQueue'] = None,
     ) -> None:
         self.flags = flags
@@ -79,7 +82,9 @@ class ThreadlessPool:
         self.work_pids: List[int] = []
         self.work_locks: List['multiprocessing.synchronize.Lock'] = []
         # List of threadless workers
-        self._workers: List[RemoteExecutor] = []
+        self._executor_klass = executor_klass
+        # FIXME: Instead of Any type must be the executor klass
+        self._workers: List[Any] = []
         self._processes: List[multiprocessing.Process] = []
 
     def __enter__(self) -> 'ThreadlessPool':
@@ -115,8 +120,8 @@ class ThreadlessPool:
         self.work_locks.append(multiprocessing.Lock())
         pipe = multiprocessing.Pipe()
         self.work_queues.append(pipe[0])
-        w = RemoteExecutor(
-            iid=index,
+        w = self._executor_klass(
+            iid=str(index),
             work_queue=pipe[1],
             flags=self.flags,
             event_queue=self.event_queue,

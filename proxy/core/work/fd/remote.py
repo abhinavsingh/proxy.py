@@ -9,7 +9,6 @@
     :license: BSD, see LICENSE for more details.
 """
 import asyncio
-import logging
 from typing import Any, Optional
 from multiprocessing import connection
 from multiprocessing.reduction import recv_handle
@@ -17,10 +16,7 @@ from multiprocessing.reduction import recv_handle
 from .fd import ThreadlessFdExecutor
 
 
-logger = logging.getLogger(__name__)
-
-
-class RemoteExecutor(ThreadlessFdExecutor[connection.Connection]):
+class RemoteFdExecutor(ThreadlessFdExecutor[connection.Connection]):
     """A threadless executor implementation which receives work over a connection.
 
     NOTE: RemoteExecutor uses ``recv_handle`` to accept file descriptors.
@@ -40,12 +36,6 @@ class RemoteExecutor(ThreadlessFdExecutor[connection.Connection]):
             self._loop = asyncio.get_event_loop_policy().get_event_loop()
         return self._loop
 
-    def work_queue_fileno(self) -> Optional[int]:
-        return self.work_queue.fileno()
-
-    def close_work_queue(self) -> None:
-        self.work_queue.close()
-
     def receive_from_work_queue(self) -> bool:
         # Acceptor will not send address for
         # unix socket domain environments.
@@ -55,3 +45,9 @@ class RemoteExecutor(ThreadlessFdExecutor[connection.Connection]):
         fileno = recv_handle(self.work_queue)
         self.work(fileno=fileno, addr=addr)
         return False
+
+    def work_queue_fileno(self) -> Optional[int]:
+        return self.work_queue.fileno()
+
+    def close_work_queue(self) -> None:
+        self.work_queue.close()
