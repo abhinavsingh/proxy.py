@@ -15,7 +15,7 @@ from .tcp import TcpSocketListener
 from .unix import UnixSocketListener
 
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from .base import BaseListener
 
 

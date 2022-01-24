@@ -23,8 +23,9 @@ if __name__ == '__main__':
             open_file_limit=65536,
             enable_web_server=True,
             disable_proxy_server=True,
-            num_acceptors=10,
-            local_executor=1,
+            num_acceptors=4,
+            num_workers=10,
+            local_executor=0,
             log_file='/dev/null',
     ) as _:
         while True:
