@@ -11,8 +11,8 @@
 import unittest
 from unittest import mock
 
-from proxy.core.listener import ListenerPool
 from proxy.common.flag import FlagParser
+from proxy.core.listener import ListenerPool
 
 
 class TestListenerPool(unittest.TestCase):
