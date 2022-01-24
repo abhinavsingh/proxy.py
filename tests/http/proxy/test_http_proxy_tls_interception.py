@@ -195,7 +195,8 @@ class TestHttpProxyTlsInterception(Assertions):
 
         # Invoked lifecycle callbacks
         self.proxy_plugin.return_value.resolve_dns.assert_called_once_with(
-            host, port)
+            host, port,
+        )
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
         self.proxy_plugin.return_value.handle_client_request.assert_called_once()
         self.proxy_plugin.return_value.do_intercept.assert_called_once()
@@ -279,7 +280,8 @@ class TestHttpProxyTlsInterception(Assertions):
         self.proxy_plugin.return_value.on_access_log.assert_not_called()
         # Only handle client request lifecycle must be called again
         self.proxy_plugin.return_value.resolve_dns.assert_called_once_with(
-            host, port)
+            host, port,
+        )
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
         self.assertEqual(
             self.proxy_plugin.return_value.handle_client_request.call_count,
