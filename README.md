@@ -710,6 +710,8 @@ Start `proxy.py` as:
     --plugins proxy.plugin.CacheResponsesPlugin
 ```
 
+You may also use the `--cache-requests` flag to enable request packet caching for inspection.
+
 Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
 
 ```console
