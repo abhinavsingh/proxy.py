@@ -32,7 +32,7 @@ from .common.constants import (
 )
 
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from .core.listener import TcpSocketListener
 
 

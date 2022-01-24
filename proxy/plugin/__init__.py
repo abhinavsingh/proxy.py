@@ -26,14 +26,12 @@ from .filter_by_upstream import FilterByUpstreamHostPlugin
 from .custom_dns_resolver import CustomDnsResolverPlugin
 from .filter_by_client_ip import FilterByClientIpPlugin
 from .filter_by_url_regex import FilterByURLRegexPlugin
-from .cache_by_content_type import CacheByContentTypePlugin
 from .modify_chunk_response import ModifyChunkResponsePlugin
 from .redirect_to_custom_server import RedirectToCustomServerPlugin
 
 
 __all__ = [
     'CacheResponsesPlugin',
-    'CacheByContentTypePlugin',
     'BaseCacheResponsesPlugin',
     'FilterByUpstreamHostPlugin',
     'ManInTheMiddlePlugin',

@@ -25,7 +25,7 @@ from ...common.constants import (
 )
 
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:   # pragma: no cover
     from .plugin import ReverseProxyBasePlugin
 
 
@@ -92,7 +92,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             # )
             self.upstream.queue(memoryview(request.build()))
         except ConnectionRefusedError:
-            raise HttpProtocolException(
+            raise HttpProtocolException(    # pragma: no cover
                 'Connection refused by upstream server {0}:{1}'.format(
                     text_(self.choice.hostname), port,
                 ),

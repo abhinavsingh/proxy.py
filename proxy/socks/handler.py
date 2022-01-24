@@ -22,7 +22,7 @@ class SocksProtocolHandler(BaseTcpServerHandler[SocksClientConnection]):
 
     @staticmethod
     def create(*args: Any) -> SocksClientConnection:
-        return SocksClientConnection(*args)
+        return SocksClientConnection(*args)     # pragma: no cover
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
-        return super().handle_data(data)
+        return super().handle_data(data)    # pragma: no cover

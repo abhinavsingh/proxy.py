@@ -110,6 +110,9 @@ def start_remote_pool(flags: argparse.Namespace) -> None:
             pass
 
 
+# TODO: TaskWork, LocalTaskExecutor, RemoteTaskExecutor
+# should not be needed, abstract those pieces out in the core
+# for stateless tasks.
 if __name__ == '__main__':
     flags = FlagParser.initialize(
         ['--disable-http-proxy'],

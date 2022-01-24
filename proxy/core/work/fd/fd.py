@@ -45,7 +45,7 @@ class ThreadlessFdExecutor(Threadless[T]):
             self.works[fileno].initialize()
             self._total += 1
         except Exception as e:
-            logger.exception(
+            logger.exception(   # pragma: no cover
                 'Exception occurred during initialization',
                 exc_info=e,
             )
