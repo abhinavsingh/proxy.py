@@ -12,7 +12,6 @@ import contextlib
 import os
 import sys
 import time
-import logging
 
 from types import TracebackType
 from typing import List, Optional, Generator, Any, Type
@@ -25,8 +24,6 @@ from .http.handler import HttpProtocolHandler
 from multiprocessing import Process
 from .indexer.indexer import run_indexer
 from proxy.environment import SOLANA_URL, EVM_LOADER_ID
-
-logger = logging.getLogger(__name__)
 
 
 class Proxy:

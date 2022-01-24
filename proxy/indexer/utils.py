@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import base58
 import base64
 import json
 import psycopg2
-import rlp
 import subprocess
 import os
 
@@ -17,7 +18,6 @@ from solana.sysvar import SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
-from web3.auto.gethdev import w3
 from logged_groups import logged_group
 
 from ..common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PROGRAM
@@ -108,7 +108,7 @@ class NeonTxResultInfo:
         }
         self.logs.append(rec)
 
-    def _decode_return(self, log: bytes(), ix_idx: int, tx: {}):
+    def _decode_return(self, log: bytes, ix_idx: int, tx: {}):
         self.status = '0x1' if log[1] < 0xd0 else '0x0'
         self.gas_used = hex(int.from_bytes(log[2:10], 'little'))
         self.return_value = log[10:].hex()
@@ -116,7 +116,7 @@ class NeonTxResultInfo:
         self.slot = tx['slot']
         self.idx = ix_idx
 
-    def decode(self, tx: {}, ix_idx=-1):
+    def decode(self, tx: {}, ix_idx=-1) -> NeonTxResultInfo:
         self._set_defaults()
         meta_ixs = tx['meta']['innerInstructions']
         msg = tx['transaction']['message']
@@ -142,12 +142,13 @@ class NeonTxResultInfo:
                             self._decode_event(log, ix_idx)
                         elif evm_ix == 6:
                             self._decode_return(log, ix_idx, tx)
+        return self
 
     def clear(self):
         self._set_defaults()
 
-    def is_valid(self):
-        return (self.slot != -1)
+    def is_valid(self) -> bool:
+        return self.slot != -1
 
 
 @logged_group("neon.Indexer")
@@ -190,14 +191,13 @@ class NeonTxInfo:
         self.calldata = '0x' + tx.callData.hex()
 
         if not tx.toAddress:
-            contract = rlp.encode((bytes.fromhex(self.addr[2:]), tx.nonce))
-            self.contract = '0x' + bytes(w3.keccak(contract))[-20:].hex()
             self.to_addr = None
+            self.contract = '0x' + tx.contract()
         else:
             self.to_addr = '0x' + tx.toAddress.hex()
             self.contract = None
 
-    def decode(self, rlp_sign: bytes, rlp_data: bytes):
+    def decode(self, rlp_sign: bytes, rlp_data: bytes) -> NeonTxInfo:
         self._set_defaults()
 
         try:
@@ -209,11 +209,9 @@ class NeonTxInfo:
 
             tx = EthTx(utx.nonce, utx.gasPrice, utx.gasLimit, utx.toAddress, utx.value, utx.callData, uv, ur, us)
             self.init_from_eth_tx(tx)
-
-            return None
         except Exception as e:
             self.error = e
-            return self.error
+        return self
 
     def clear(self):
         self._set_defaults()
@@ -223,7 +221,7 @@ class NeonTxInfo:
 
 
 @logged_group("neon.Indexer")
-def get_account_list(client, storage_account, *, logger):
+def get_accounts_from_storage(client, storage_account, *, logger):
     opts = {
         "encoding": "base64",
         "commitment": "confirmed",
@@ -309,7 +307,7 @@ class LogDB(BaseDB):
         BaseDB.__init__(self)
 
     def _create_table_sql(self) -> str:
-        self._table_name = 'logs'
+        self._table_name = 'neon_transaction_logs'
         return f"""
             CREATE TABLE IF NOT EXISTS {self._table_name} (
                 address CHAR(42),
@@ -349,8 +347,8 @@ class LogDB(BaseDB):
         if len(rows):
             # logger.debug(rows)
             cur = self._conn.cursor()
-            cur.executemany('''
-                            INSERT INTO logs(address, blockHash, blockNumber, slot, finalized,
+            cur.executemany(f'''
+                            INSERT INTO {self._table_name}(address, blockHash, blockNumber, slot, finalized,
                                             transactionHash, transactionLogIndex, topic, json)
                             VALUES (%s, %s, %s, %s,  %s, %s,  %s, %s, %s) ON CONFLICT DO NOTHING''', rows)
         else:
@@ -395,7 +393,7 @@ class LogDB(BaseDB):
                 queries.append(address_query)
                 params += address
 
-        query_string = "SELECT * FROM logs WHERE "
+        query_string = f"SELECT * FROM {self._table_name} WHERE "
         for idx, query in enumerate(queries):
             query_string += query
             if idx < len(queries) - 1:
@@ -471,31 +469,21 @@ class Canceller:
             PublicKey(INCINERATOR_PUBKEY),
             PublicKey(SYS_PROGRAM_ID),
         ]
-        for storage, trx_accs in blocked_storages.items():
-            (neon_tx, blocked_accs) = trx_accs
-            acc_list = get_account_list(self.client, storage)
-            if blocked_accs is None:
-                self.error("blocked_accs is None")
-                continue
-            if acc_list is None:
-                self.error("acc_list is None. Storage is empty")
-                self.error(storage)
-                continue
+        for storage, tx_accounts in blocked_storages.items():
+            (neon_tx, blocked_accounts) = tx_accounts
+            if blocked_accounts is None:
+                self.error(f"Emtpy blocked accounts for the Neon tx {neon_tx}.")
 
-            if acc_list != blocked_accs:
-                self.error("acc_list != blocked_accs")
-                continue
-
-            if acc_list is not None:
+            if blocked_accounts is not None:
                 keys = [
                         AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
                         AccountMeta(pubkey=self.operator, is_signer=True, is_writable=True),
                         AccountMeta(pubkey=self.operator_token, is_signer=False, is_writable=True),
-                        AccountMeta(pubkey=acc_list[4], is_signer=False, is_writable=True),
+                        AccountMeta(pubkey=blocked_accounts[4], is_signer=False, is_writable=True),
                         AccountMeta(pubkey=INCINERATOR_PUBKEY, is_signer=False, is_writable=True),
                         AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False)
                     ]
-                for acc in acc_list:
+                for acc in blocked_accounts:
                     keys.append(AccountMeta(pubkey=acc, is_signer=False, is_writable=(False if acc in readonly_accs else True)))
 
                 trx = Transaction()
@@ -512,5 +500,4 @@ class Canceller:
                 except Exception as err:
                     self.error(err)
                 else:
-                    self.debug("Canceled")
-                    self.debug(acc_list)
+                    self.debug(f"Canceled: {blocked_accounts}")

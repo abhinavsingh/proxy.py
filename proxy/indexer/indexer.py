@@ -8,11 +8,13 @@ from logged_groups import logged_group
 try:
     from indexer_base import IndexerBase, PARALLEL_REQUESTS
     from indexer_db import IndexerDB
-    from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxSignInfo, Canceller, str_fmt_object, FINALIZED
+    from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object, FINALIZED
+    from utils import get_accounts_from_storage
 except ImportError:
     from .indexer_base import IndexerBase, PARALLEL_REQUESTS
     from .indexer_db import IndexerDB, FINALIZED
     from .utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object, FINALIZED
+    from .utils import get_accounts_from_storage
 
 from ..environment import EVM_LOADER_ID
 
@@ -245,7 +247,7 @@ class ReceiptsParserState:
             self.del_tx(tx)
         self._done_tx_list.clear()
 
-    def iter_txs(self) -> NeonTxObject:
+    def iter_txs(self):
         for tx in self._tx_table.values():
             yield tx
 
@@ -364,7 +366,7 @@ class DummyIxDecoder:
         rlp_endpos = 73 + rlp_len
         rlp_data = holder.data[73:rlp_endpos]
 
-        rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data))
+        rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data)).error
         if rlp_error:
             self.error(f'{self} Neon tx rlp error: {rlp_error}')
 
@@ -681,19 +683,43 @@ class Indexer(IndexerBase):
                 self.state.set_ix(ix_info)
                 (self.ix_decoder_map.get(ix_info.evm_ix) or self.def_decoder).execute()
 
-        # after last instruction and slot
-        self.state.complete_done_txs()
-
+        # cancel transactions with long inactive time
         for tx in self.state.iter_txs():
             if tx.storage_account and abs(tx.slot - self.current_slot) > CANCEL_TIMEOUT:
-                self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
-                self.blocked_storages[tx.storage_account] = (tx.neon_tx, tx.blocked_accounts)
+                if not self.unlock_accounts(tx):
+                    tx.neon_res.slot = max_slot
+                    self.state.done_tx(tx)
+
+        # after last instruction and slot
+        self.state.complete_done_txs()
 
         self.processed_slot = max(self.processed_slot, max_slot + 1)
         self.db.set_min_receipt_slot(self.state.find_min_used_slot(self.processed_slot))
 
         process_receipts_ms = (time.time() - start_time) * 1000  # convert this into milliseconds
         self.debug(f"process_receipts_ms: {process_receipts_ms} transaction_receipts.len: {self.transaction_receipts.size()} from {self.processed_slot} to {self.current_slot} slots")
+
+    def unlock_accounts(self, tx) -> bool:
+        # We already indexed the transaction
+        if tx.neon_res.is_valid():
+            return True
+
+        if not tx.blocked_accounts:
+            self.warning(f"Transaction {tx.neon_tx} hasn't blocked accounts.")
+            return False
+
+        storage_accounts_list = get_accounts_from_storage(self.client, tx.storage_account)
+        if storage_accounts_list is None:
+            self.warning(f"Transaction {tx.neon_tx} has empty storage.")
+            return False
+
+        if storage_accounts_list != tx.blocked_accounts:
+            self.warning(f"Transaction {tx.neon_tx} has another list of accounts than storage.")
+            return False
+
+        self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
+        self.blocked_storages[tx.storage_account] = (tx.neon_tx, tx.blocked_accounts)
+        return True
 
     def gather_blocks(self):
         start_time = time.time()

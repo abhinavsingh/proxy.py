@@ -8,7 +8,7 @@ import eth_utils
 from eth_account.account import LocalAccount
 from solana.rpc.api import Client as SolanaClient
 
-from ..plugin.solana_rest_api_tools import get_token_balance_gwei, ether2program
+from ..plugin.solana_rest_api_tools import get_token_balance_or_airdrop, ether2program
 from .testing_helpers import SolidityContractDeployer
 
 
@@ -56,8 +56,7 @@ class TestAirdroppingEthAccounts(unittest.TestCase):
         self.assertEqual(self._EXPECTED_BALANCE_WEI, owner_balance)
 
     def _get_balance_wei(self, eth_account: str) -> int:
-        token_owner_account, nonce = ether2program(eth_account)
-        balance = get_token_balance_gwei(self._solana_client, token_owner_account)
+        balance = get_token_balance_or_airdrop(self._solana_client, eth_account)
         self.assertIsNotNone(balance)
         self.assertIsInstance(balance, int)
         return balance * eth_utils.denoms.gwei
