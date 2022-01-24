@@ -413,7 +413,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             for plugin in self.plugins.values():
                 o = plugin.handle_client_data(raw)
                 if o is None:
-                    return None
+                    return
                 raw = o
         elif self.upstream and not self.upstream.closed:
             # For http proxy requests, handle pipeline case.
@@ -429,7 +429,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # upgrade request. Incoming client data now
                     # must be treated as WebSocket protocol packets.
                     self.upstream.queue(raw)
-                    return None
+                    return
 
                 if self.pipeline_request is None:
                     # For pipeline requests, we never
@@ -452,7 +452,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                         assert self.pipeline_request is not None
                         r = plugin.handle_client_request(self.pipeline_request)
                         if r is None:
-                            return None
+                            return
                         self.pipeline_request = r
                     assert self.pipeline_request is not None
                     # TODO(abhinavsingh): Remove memoryview wrapping here after

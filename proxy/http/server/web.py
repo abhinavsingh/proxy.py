@@ -211,7 +211,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     assert self.route
                     self.route.on_websocket_message(frame)
                 frame.reset()
-            return None
+            return
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
         if self.request.is_complete and \
