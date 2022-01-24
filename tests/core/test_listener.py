@@ -52,11 +52,6 @@ class TestListener(unittest.TestCase):
             )
         sock.close.assert_called_once()
 
-    # FIXME: Ignore is necessary for as long as pytest hasn't figured out
-    # FIXME: typing for their fixtures.
-    # Refs:
-    # * https://github.com/pytest-dev/pytest/issues/7469#issuecomment-918345196
-    # * https://github.com/pytest-dev/pytest/issues/3342
     @pytest.mark.skipif(
         IS_WINDOWS,
         reason='AF_UNIX not available on Windows',
