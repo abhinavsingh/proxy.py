@@ -58,7 +58,7 @@ class TestWebsocketClient(unittest.TestCase):
             mock_connect: mock.Mock,
             mock_selector: mock.Mock,
             mock_b64encode: mock.Mock,
-    ):
+    ) -> None:
         key = b'MySecretKey'
         mock_b64encode.return_value = key
         mock_connect.return_value.recv.side_effect = [
@@ -68,7 +68,7 @@ class TestWebsocketClient(unittest.TestCase):
             WebsocketFrame.text(b'world'),
         ]
 
-        def on_message(frame: WebsocketFrame):
+        def on_message(frame: WebsocketFrame) -> None:
             assert frame.build() == WebsocketFrame.text(b'world')
 
         client = WebsocketClient(
