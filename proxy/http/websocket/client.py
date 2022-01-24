@@ -121,3 +121,4 @@ class WebsocketClient(TcpConnection):
                 except OSError:
                     pass
             self.sock.close()
+            self.selector.close()

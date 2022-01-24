@@ -351,6 +351,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             )
         finally:
             self.shutdown()
+            if self.selector:
+                self.selector.close()
             loop.close()
 
     async def _run_once(self) -> bool:
