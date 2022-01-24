@@ -75,19 +75,18 @@ class TcpUpstreamConnectionHandler(ABC):
                 self.upstream.connection.fileno() in r:
             try:
                 raw = self.upstream.recv(self.server_recvbuf_size)
-                if raw is not None:
-                    self.total_size += len(raw)
-                    self.handle_upstream_data(raw)
-                else:
+                if raw is None:     # pragma: no cover
                     # Tear down because upstream proxy closed the connection
                     return True
-            except TimeoutError:
+                self.total_size += len(raw)
+                self.handle_upstream_data(raw)
+            except TimeoutError:    # pragma: no cover
                 logger.info('Upstream recv timeout error')
                 return True
-            except ssl.SSLWantReadError:
+            except ssl.SSLWantReadError:    # pragma: no cover
                 logger.info('Upstream SSLWantReadError, will retry')
                 return False
-            except ConnectionResetError:
+            except ConnectionResetError:    # pragma: no cover
                 logger.debug('Connection reset by upstream')
                 return True
         return False
@@ -98,10 +97,10 @@ class TcpUpstreamConnectionHandler(ABC):
                 self.upstream.has_buffer():
             try:
                 self.upstream.flush()
-            except ssl.SSLWantWriteError:
+            except ssl.SSLWantWriteError:   # pragma: no cover
                 logger.info('Upstream SSLWantWriteError, will retry')
                 return False
-            except BrokenPipeError:
+            except BrokenPipeError:     # pragma: no cover
                 logger.debug('BrokenPipeError when flushing to upstream')
                 return True
         return False
