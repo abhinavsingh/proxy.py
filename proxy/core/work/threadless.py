@@ -419,6 +419,7 @@ class Threadless(ABC, Generic[T]):
             if wqfileno is not None:
                 self.selector.unregister(wqfileno)
                 self.close_work_queue()
+            self.selector.close()
             assert self.loop is not None
             self.loop.run_until_complete(self.loop.shutdown_asyncgens())
             self.loop.close()
