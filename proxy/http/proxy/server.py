@@ -398,7 +398,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return chunk
 
     # Can return None to tear down connection
-    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
+    def on_client_data(self, raw: memoryview) -> None:
         # For scenarios when an upstream connection was never established,
         # let plugin do whatever they wish to.  These are special scenarios
         # where plugins are trying to do something magical.  Within the core
@@ -468,8 +468,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # simply queue for upstream server.
             else:
                 self.upstream.queue(raw)
-            return None
-        return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         self.emit_request_complete()

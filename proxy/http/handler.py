@@ -174,7 +174,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             # HttpProtocolHandlerPlugin.on_client_data
             # Can raise HttpProtocolException to tear down the connection
             elif self.plugin:
-                data = self.plugin.on_client_data(data) or data
+                self.plugin.on_client_data(data)
         except HttpProtocolException as e:
             logger.info('HttpProtocolException: %s' % e)
             response: Optional[memoryview] = e.response(self.request)
