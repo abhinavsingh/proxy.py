@@ -65,7 +65,7 @@ if __name__ == '__main__':
                 '  %s <execution-mode>' % sys.argv[0],
                 '    execution-mode can be one of the following:',
                 '    "remote_pool", "remote_process", "local_thread"',
-            ])
+            ]),
         )
         sys.exit(1)
     main()
