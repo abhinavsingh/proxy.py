@@ -114,7 +114,7 @@ class HttpParser:
     def header(self, key: bytes) -> bytes:
         """Convenient method to return original header value from internal data structure."""
         if self.headers is None or key.lower() not in self.headers:
-            raise KeyError('%s not found in headers', text_(key))
+            raise KeyError('%s not found in headers' % text_(key))
         return self.headers[key.lower()][1]
 
     def has_header(self, key: bytes) -> bool:
