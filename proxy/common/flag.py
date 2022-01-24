@@ -14,6 +14,7 @@ import base64
 import socket
 import argparse
 import ipaddress
+import itertools
 import collections
 import multiprocessing
 from typing import Any, List, Optional, cast
@@ -26,8 +27,8 @@ from .version import __version__
 from .constants import (
     COMMA, IS_WINDOWS, PLUGIN_PAC_FILE, PLUGIN_DASHBOARD, PLUGIN_HTTP_PROXY,
     PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_NUM_WORKERS,
-    DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC, DEFAULT_DISABLE_HEADERS,
-    PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
+    PLUGIN_REVERSE_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC,
+    DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
     PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEBSOCKET_TRANSPORT,
     DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_MIN_COMPRESSION_LIMIT,
 )
@@ -98,17 +99,13 @@ class FlagParser:
             print(PY2_DEPRECATION_MESSAGE)
             sys.exit(1)
 
-        # Dirty hack to always discover --basic-auth flag
-        # defined by proxy auth plugin.
-        in_args = input_args + ['--plugin', PLUGIN_PROXY_AUTH]
-
         # Discover flags from requested plugin.
         # This will also surface external plugin flags
         # under --help.
-        Plugins.discover(in_args)
+        Plugins.discover(input_args)
 
         # Parse flags
-        args = flags.parse_args(in_args)
+        args = flags.parse_args(input_args)
 
         # Print version and exit
         if args.version:
@@ -306,6 +303,12 @@ class FlagParser:
             # assert args.unix_socket_path is None
             args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
+        ports: List[List[int]] = opts.get('ports', args.ports)
+        args.ports = [
+            int(port) for port in list(
+                itertools.chain.from_iterable([] if ports is None else ports),
+            )
+        ]
         args.backlog = cast(int, opts.get('backlog', args.backlog))
         num_workers = opts.get('num_workers', args.num_workers)
         args.num_workers = cast(
@@ -392,6 +395,11 @@ class FlagParser:
             )
         os.makedirs(args.ca_cert_dir, exist_ok=True)
 
+        # FIXME: Necessary here until flags framework provides a way
+        # for flag owners to initialize
+        os.makedirs(args.cache_dir, exist_ok=True)
+        os.makedirs(os.path.join(args.cache_dir, 'response'), exist_ok=True)
+
         return args
 
     @staticmethod
@@ -419,6 +427,9 @@ class FlagParser:
                 args.pac_file is not None or \
                 args.enable_static_server:
             default_plugins.append(PLUGIN_WEB_SERVER)
+        if args.enable_reverse_proxy:
+            default_plugins.append(PLUGIN_WEB_SERVER)
+            default_plugins.append(PLUGIN_REVERSE_PROXY)
         if args.pac_file is not None:
             default_plugins.append(PLUGIN_PAC_FILE)
         return list(collections.OrderedDict.fromkeys(default_plugins).keys())

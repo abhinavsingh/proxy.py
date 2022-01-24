@@ -23,7 +23,7 @@ import pytest
 from proxy.common.constants import IS_WINDOWS
 
 
-def check_output(args: List[Any]) -> bytes:
+def check_output(args: List[Any]) -> bytes:     # pragma: no cover
     args = args if not IS_WINDOWS else ['powershell'] + args
     return _check_output(args)
 
@@ -165,6 +165,8 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
         '--port-file', str(port_file),
         '--enable-web-server',
         '--plugin', 'proxy.plugin.WebServerPlugin',
+        '--enable-reverse-proxy',
+        '--plugin', 'proxy.plugin.ReverseProxyPlugin',
         '--num-acceptors', '3',
         '--num-workers', '3',
         '--ca-cert-dir', str(ca_cert_dir),

@@ -14,11 +14,9 @@
 """
 from .pool import AcceptorPool
 from .acceptor import Acceptor
-from .listener import Listener
 
 
 __all__ = [
-    'Listener',
     'Acceptor',
     'AcceptorPool',
 ]

@@ -9,26 +9,14 @@
     :license: BSD, see LICENSE for more details.
 """
 import asyncio
-import logging
 from typing import Any, Optional
 from multiprocessing import connection
-from multiprocessing.reduction import recv_handle
 
 from .threadless import Threadless
 
 
-logger = logging.getLogger(__name__)
-
-
-class RemoteExecutor(Threadless[connection.Connection]):
-    """A threadless executor implementation which receives work over a connection.
-
-    NOTE: RemoteExecutor uses ``recv_handle`` to accept file descriptors.
-
-    TODO: Refactor and abstract ``recv_handle`` part so that a threaded
-    remote executor can also accept work over a connection.  Currently,
-    remote executors must be running in a process.
-    """
+class BaseRemoteExecutor(Threadless[connection.Connection]):
+    """A threadless executor implementation which receives work over a connection."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -47,11 +35,5 @@ class RemoteExecutor(Threadless[connection.Connection]):
         self.work_queue.close()
 
     def receive_from_work_queue(self) -> bool:
-        # Acceptor will not send address for
-        # unix socket domain environments.
-        addr = None
-        if not self.flags.unix_socket_path:
-            addr = self.work_queue.recv()
-        fileno = recv_handle(self.work_queue)
-        self.work_on_tcp_conn(fileno=fileno, addr=addr)
+        self.work(self.work_queue.recv())
         return False

@@ -283,6 +283,7 @@ nitpick_ignore = [
     (_any_role, 'work_klass'),
     (_py_class_role, '_asyncio.Task'),
     (_py_class_role, 'asyncio.events.AbstractEventLoop'),
+    (_py_class_role, 'BaseListener'),
     (_py_class_role, 'CacheStore'),
     (_py_class_role, 'Channel'),
     (_py_class_role, 'HttpParser'),
@@ -316,7 +317,10 @@ nitpick_ignore = [
     (_py_class_role, 'connection.Connection'),
     (_py_class_role, 'EventQueue'),
     (_py_class_role, 'T'),
+    (_py_class_role, 'HostPort'),
+    (_py_class_role, 'TcpOrTlsSocket'),
     (_py_obj_role, 'proxy.core.work.threadless.T'),
     (_py_obj_role, 'proxy.core.work.work.T'),
     (_py_obj_role, 'proxy.core.base.tcp_server.T'),
+    (_py_obj_role, 'proxy.core.work.fd.fd.T'),
 ]

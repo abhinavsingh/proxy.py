@@ -9,10 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:   # pragma: no cover
+    from ...common.types import HostPort
     try:
         from paramiko.channel import Channel
     except ImportError:
@@ -28,7 +29,7 @@ class SshHttpProtocolHandler:
     def on_connection(
             self,
             chan: 'Channel',
-            origin: Tuple[str, int],
-            server: Tuple[str, int],
+            origin: 'HostPort',
+            server: 'HostPort',
     ) -> None:
         pass

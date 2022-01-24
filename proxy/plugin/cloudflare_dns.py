@@ -26,6 +26,7 @@ from typing import Tuple, Optional
 
 from ..http.proxy import HttpProxyBasePlugin
 from ..common.flag import flags
+from ..common.types import HostPort
 
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class CloudflareDnsResolverPlugin(HttpProxyBasePlugin):
            pip install "httpx[http2]"
     """
 
-    def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:
+    def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[HostPort]]:
         try:
             context = httpx.create_ssl_context(http2=True)
             # TODO: Support resolution via Authority (SOA) to add support for

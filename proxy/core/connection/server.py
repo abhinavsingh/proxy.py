@@ -9,11 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
-import socket
-from typing import Tuple, Union, Optional
+from typing import Optional
 
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
+from ...common.types import HostPort, TcpOrTlsSocket
 from ...common.utils import new_socket_connection
 
 
@@ -22,20 +22,20 @@ class TcpServerConnection(TcpConnection):
 
     def __init__(self, host: str, port: int) -> None:
         super().__init__(tcpConnectionTypes.SERVER)
-        self._conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None
-        self.addr: Tuple[str, int] = (host, port)
+        self._conn: Optional[TcpOrTlsSocket] = None
+        self.addr: HostPort = (host, port)
         self.closed = True
 
     @property
-    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+    def connection(self) -> TcpOrTlsSocket:
         if self._conn is None:
             raise TcpConnectionUninitializedException()
         return self._conn
 
     def connect(
             self,
-            addr: Optional[Tuple[str, int]] = None,
-            source_address: Optional[Tuple[str, int]] = None,
+            addr: Optional[HostPort] = None,
+            source_address: Optional[HostPort] = None,
     ) -> None:
         assert self._conn is None
         self._conn = new_socket_connection(
@@ -43,7 +43,7 @@ class TcpServerConnection(TcpConnection):
         )
         self.closed = False
 
-    def wrap(self, hostname: str, ca_file: Optional[str]) -> None:
+    def wrap(self, hostname: str, ca_file: Optional[str] = None) -> None:
         ctx = ssl.create_default_context(
             ssl.Purpose.SERVER_AUTH, cafile=ca_file,
         )

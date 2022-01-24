@@ -63,8 +63,9 @@
     - [Custom Network Interface](#customnetworkinterface)
     - [Program Name Plugin](#programnameplugin)
   - [HTTP Web Server Plugins](#http-web-server-plugins)
-    - [Reverse Proxy](#reverse-proxy)
     - [Web Server Route](#web-server-route)
+  - [Reverse Proxy Plugins](#reverse-proxy-plugins)
+    - [Reverse Proxy](#reverse-proxy)
   - [Plugin Ordering](#plugin-ordering)
 - [End-to-End Encryption](#end-to-end-encryption)
 - [TLS Interception](#tls-interception)
@@ -202,9 +203,17 @@
 - Programmable
   - Customize proxy behavior using [Proxy Server Plugins](#http-proxy-plugins). Example:
     - `--plugins proxy.plugin.ProxyPoolPlugin`
-  - Optionally, enable builtin [Web Server](#http-web-server-plugins). Example:
-    - `--enable-web-server --plugins proxy.plugin.ReverseProxyPlugin`
+  - Enable builtin [Web Server](#http-web-server-plugins). Example:
+    - `--enable-web-server --plugins proxy.plugin.WebServerPlugin`
+  - Enable builtin [Reverse Proxy Server](#reverse-proxy-plugins). Example:
+    - `--enable-reverse-proxy --plugins proxy.plugin.ReverseProxyPlugin`
   - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
+
+- Can listen on multiple ports
+  - Use `--ports` flag to provide additional ports
+  - Optionally, use `--port` flag to override default port `8899`
+  - Capable of serving multiple protocols over the same port
+
 - Real-time Dashboard
   - Optionally, enable [proxy.py dashboard](#run-dashboard).
     - Use `--enable-dashboard`
@@ -213,34 +222,45 @@
   - [Chrome DevTools Protocol](#chrome-devtools-protocol) support
   - Extend dashboard frontend using `typescript` based [plugins](https://github.com/abhinavsingh/proxy.py/tree/develop/dashboard/src/plugins)
   - Dashboard is currently in *development phase*  Expect breaking changes.
+
 - Secure
   - Enable end-to-end encryption between clients and `proxy.py`
   - See [End-to-End Encryption](#end-to-end-encryption)
+
 - Private
   - Protection against DNS based traffic blockers
   - Browse with malware and adult content protection enabled
   - See [DNS-over-HTTPS](#cloudflarednsresolverplugin)
+
 - Man-In-The-Middle
   - Can decrypt TLS traffic between clients and upstream servers
   - See [TLS Interception](#tls-interception)
+
 - Supported http protocols for proxy requests
   - `http(s)`
     - `http1`
     - `http1.1` with pipeline
   - `http2`
   - `websockets`
+
 - Support for `HAProxy Protocol`
   - See `--enable-proxy-protocol` flag
+
 - Static file server support
   - See `--enable-static-server` and `--static-server-dir` flags
+
 - Optimized for large file uploads and downloads
   - See `--client-recvbuf-size` and `--server-recvbuf-size` flag
+
 - `IPv4` and `IPv6` support
   - See `--hostname` flag
+
 - Unix domain socket support
   - See `--unix-socket-path` flag
+
 - Basic authentication support
   - See `--basic-auth` flag
+
 - PAC (Proxy Auto-configuration) support
   - See `--pac-file` and `--pac-file-url-path` flags
 
@@ -940,14 +960,33 @@ Notice `curl` in-place of `::1` or `127.0.0.1` as client IP.
 
 ## HTTP Web Server Plugins
 
-### Reverse Proxy
+### Web Server Route
 
-Extend in-built Web Server to add Reverse Proxy capabilities.
+Demonstrates inbuilt web server routing using plugin.
 
 Start `proxy.py` as:
 
 ```console
 ❯ proxy --enable-web-server \
+    --plugins proxy.plugin.WebServerPlugin
+```
+
+Verify using `curl -v localhost:8899/http-route-example`, should return:
+
+```console
+HTTP route response
+```
+
+## Reverse Proxy Plugins
+
+Extends in-built Web Server to add Reverse Proxy capabilities.
+
+### Reverse Proxy
+
+Start `proxy.py` as:
+
+```console
+❯ proxy --enable-reverse-proxy \
     --plugins proxy.plugin.ReverseProxyPlugin
 ```
 
@@ -973,23 +1012,6 @@ Verify using `curl -v localhost:8899/get`:
   "origin": "1.2.3.4, 5.6.7.8",
   "url": "https://localhost/get"
 }
-```
-
-### Web Server Route
-
-Demonstrates inbuilt web server routing using plugin.
-
-Start `proxy.py` as:
-
-```console
-❯ proxy --enable-web-server \
-    --plugins proxy.plugin.WebServerPlugin
-```
-
-Verify using `curl -v localhost:8899/http-route-example`, should return:
-
-```console
-HTTP route response
 ```
 
 ## Plugin Ordering
@@ -1784,7 +1806,9 @@ Listed below are a few strategies for using `proxy.py` in your private/productio
 
 > You MUST `avoid forking` the repository *"just"* to put your plugin code in `proxy/plugin` directory.  Forking is recommended workflow for project contributors, NOT for project users.
 
-Instead, use one of the suggested approaches from below.  Then load your plugins using `--plugin`, `--plugins` flags or `plugin` kwargs.
+- Instead, use one of the suggested approaches from below.
+- Then load your plugins using `--plugin`, `--plugins` flags or `plugin` kwargs.
+- See [skeleton](https://github.com/abhinavsingh/proxy.py/tree/develop/skeleton) app for example standalone project using `proxy.py`.
 
 ### Via Requirements
 
@@ -2241,35 +2265,36 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--tunnel-username TUNNEL_USERNAME]
           [--tunnel-ssh-key TUNNEL_SSH_KEY]
           [--tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE]
-          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--enable-events]
-          [--threadless] [--threaded] [--num-workers NUM_WORKERS]
-          [--backlog BACKLOG] [--hostname HOSTNAME] [--port PORT]
+          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--threadless]
+          [--threaded] [--num-workers NUM_WORKERS] [--enable-events]
+          [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
+          [--hostname HOSTNAME] [--port PORT] [--ports PORTS [PORTS ...]]
           [--port-file PORT_FILE] [--unix-socket-path UNIX_SOCKET_PATH]
-          [--local-executor LOCAL_EXECUTOR] [--num-acceptors NUM_ACCEPTORS]
-          [--version] [--log-level LOG_LEVEL] [--log-file LOG_FILE]
-          [--log-format LOG_FORMAT] [--open-file-limit OPEN_FILE_LIMIT]
+          [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
+          [--log-file LOG_FILE] [--log-format LOG_FORMAT]
+          [--open-file-limit OPEN_FILE_LIMIT]
           [--plugins PLUGINS [PLUGINS ...]] [--enable-dashboard]
-          [--enable-ssh-tunnel] [--work-klass WORK_KLASS]
-          [--pid-file PID_FILE] [--enable-conn-pool] [--key-file KEY_FILE]
+          [--basic-auth BASIC_AUTH] [--enable-ssh-tunnel]
+          [--work-klass WORK_KLASS] [--pid-file PID_FILE]
+          [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
           [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
           [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--timeout TIMEOUT]
-          [--enable-proxy-protocol] [--disable-http-proxy]
-          [--disable-headers DISABLE_HEADERS] [--ca-key-file CA_KEY_FILE]
-          [--ca-cert-dir CA_CERT_DIR] [--ca-cert-file CA_CERT_FILE]
-          [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE]
-          [--auth-plugin AUTH_PLUGIN] [--basic-auth BASIC_AUTH]
-          [--cache-dir CACHE_DIR]
-          [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
-          [--enable-web-server] [--enable-static-server]
-          [--static-server-dir STATIC_SERVER_DIR]
+          [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
+          [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
+          [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
+          [--ca-signing-key-file CA_SIGNING_KEY_FILE]
+          [--auth-plugin AUTH_PLUGIN] [--cache-dir CACHE_DIR]
+          [--proxy-pool PROXY_POOL] [--enable-web-server]
+          [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
-          [--pac-file PAC_FILE] [--pac-file-url-path PAC_FILE_URL_PATH]
-          [--proxy-pool PROXY_POOL]
+          [--enable-reverse-proxy] [--pac-file PAC_FILE]
+          [--pac-file-url-path PAC_FILE_URL_PATH]
+          [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
+          [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
-          [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
 
-proxy.py v2.4.0rc7.dev12+gd234339.d20220116
+proxy.py v2.4.0rc8.dev17+g59a4335.d20220123
 
 options:
   -h, --help            show this help message and exit
@@ -2288,9 +2313,6 @@ options:
   --tunnel-remote-port TUNNEL_REMOTE_PORT
                         Default: 8899. Remote port which will be forwarded
                         locally for proxy.
-  --enable-events       Default: False. Enables core to dispatch lifecycle
-                        events. Plugins can be used to subscribe for core
-                        events.
   --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
                         linux). When disabled a new thread is spawned to
                         handle each client connection.
@@ -2299,16 +2321,9 @@ options:
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
-  --backlog BACKLOG     Default: 100. Maximum number of pending connections to
-                        proxy server
-  --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
-  --port PORT           Default: 8899. Server port.
-  --port-file PORT_FILE
-                        Default: None. Save server port numbers. Useful when
-                        using --port=0 ephemeral mode.
-  --unix-socket-path UNIX_SOCKET_PATH
-                        Default: None. Unix socket path to use. When provided
-                        --host and --port flags are ignored
+  --enable-events       Default: False. Enables core to dispatch lifecycle
+                        events. Plugins can be used to subscribe for core
+                        events.
   --local-executor LOCAL_EXECUTOR
                         Default: 1. Enabled by default. Use 0 to disable. When
                         enabled acceptors will make use of local (same
@@ -2317,6 +2332,19 @@ options:
                         to achieve CPU affinity between acceptors and
                         executors, instead of using underlying OS kernel
                         scheduling algorithm.
+  --backlog BACKLOG     Default: 100. Maximum number of pending connections to
+                        proxy server.
+  --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
+  --port PORT           Default: 8899. Server port. To listen on more ports,
+                        pass them using --ports flag.
+  --ports PORTS [PORTS ...]
+                        Default: None. Additional ports to listen on.
+  --port-file PORT_FILE
+                        Default: None. Save server port numbers. Useful when
+                        using --port=0 ephemeral mode.
+  --unix-socket-path UNIX_SOCKET_PATH
+                        Default: None. Unix socket path to use. When provided
+                        --host and --port flags are ignored
   --num-acceptors NUM_ACCEPTORS
                         Defaults to number of CPU cores.
   --version, -v         Prints proxy.py version.
@@ -2335,11 +2363,17 @@ options:
                         Comma separated plugins. You may use --plugins flag
                         multiple times.
   --enable-dashboard    Default: False. Enables proxy.py dashboard.
+  --basic-auth BASIC_AUTH
+                        Default: No authentication. Specify colon separated
+                        user:password to enable basic authentication.
   --enable-ssh-tunnel   Default: False. Enable SSH tunnel.
   --work-klass WORK_KLASS
                         Default: proxy.http.HttpProtocolHandler. Work klass to
                         use for work execution.
   --pid-file PID_FILE   Default: None. Save "parent" process ID to a file.
+  --enable-proxy-protocol
+                        Default: False. If used, will enable proxy protocol.
+                        Only version 1 is currently supported.
   --enable-conn-pool    Default: False. (WIP) Enable upstream connection
                         pooling.
   --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
@@ -2358,9 +2392,6 @@ options:
   --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
                         inactive connection must be dropped. Inactivity is
                         defined by no data sent or received by the client.
-  --enable-proxy-protocol
-                        Default: False. If used, will enable proxy protocol.
-                        Only version 1 is currently supported.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
   --disable-headers DISABLE_HEADERS
@@ -2388,17 +2419,14 @@ options:
                         generation of HTTPS certificates. If used, must also
                         pass --ca-key-file and --ca-cert-file
   --auth-plugin AUTH_PLUGIN
-                        Default: proxy.http.proxy.AuthPlugin. Auth plugin to
-                        use instead of default basic auth plugin.
-  --basic-auth BASIC_AUTH
-                        Default: No authentication. Specify colon separated
-                        user:password to enable basic authentication.
+                        Default: proxy.http.proxy.auth.AuthPlugin. Auth plugin
+                        to use instead of default basic auth plugin.
   --cache-dir CACHE_DIR
-                        Default: A temporary directory. Flag only applicable
-                        when cache plugin is used with on-disk storage.
-  --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
-                        Default: Blocks Facebook. Comma separated list of IPv4
-                        and IPv6 addresses.
+                        Default: /Users/abhinavsingh/.proxy/cache. Flag only
+                        applicable when cache plugin is used with on-disk
+                        storage.
+  --proxy-pool PROXY_POOL
+                        List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
   --enable-static-server
@@ -2414,23 +2442,26 @@ options:
   --min-compression-length MIN_COMPRESSION_LENGTH
                         Default: 20 bytes. Sets the minimum length of a
                         response that will be compressed (gzipped).
+  --enable-reverse-proxy
+                        Default: False. Whether to enable reverse proxy core.
   --pac-file PAC_FILE   A file (Proxy Auto Configuration) or string to serve
                         when the server receives a direct file request. Using
                         this option enables proxy.HttpWebServerPlugin.
   --pac-file-url-path PAC_FILE_URL_PATH
                         Default: /. Web server path to serve the PAC file.
-  --proxy-pool PROXY_POOL
-                        List of upstream proxies to use in the pool
+  --cloudflare-dns-mode CLOUDFLARE_DNS_MODE
+                        Default: security. Either "security" (for malware
+                        protection) or "family" (for malware and adult content
+                        protection)
+  --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
+                        Default: Blocks Facebook. Comma separated list of IPv4
+                        and IPv6 addresses.
   --filtered-client-ips FILTERED_CLIENT_IPS
                         Default: 127.0.0.1,::1. Comma separated list of IPv4
                         and IPv6 addresses.
   --filtered-url-regex-config FILTERED_URL_REGEX_CONFIG
                         Default: No config. Comma separated list of IPv4 and
                         IPv6 addresses.
-  --cloudflare-dns-mode CLOUDFLARE_DNS_MODE
-                        Default: security. Either "security" (for malware
-                        protection) or "family" (for malware and adult content
-                        protection)
 
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new

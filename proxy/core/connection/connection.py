@@ -8,13 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import ssl
-import socket
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Union, Optional
+from typing import List, Optional
 
 from .types import tcpConnectionTypes
+from ...common.types import TcpOrTlsSocket
 from ...common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
 
 
@@ -44,7 +43,7 @@ class TcpConnection(ABC):
 
     @property
     @abstractmethod
-    def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+    def connection(self) -> TcpOrTlsSocket:
         """Must return the socket connection to use in this class."""
         raise TcpConnectionUninitializedException()     # pragma: no cover
 

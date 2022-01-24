@@ -16,12 +16,14 @@ import ssl
 import sys
 import socket
 import logging
+import argparse
 import functools
 import ipaddress
 import contextlib
 from types import TracebackType
 from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 
+from .types import HostPort
 from .constants import (
     CRLF, COLON, HTTP_1_1, IS_WINDOWS, WHITESPACE, DEFAULT_TIMEOUT,
     DEFAULT_THREADLESS,
@@ -32,6 +34,13 @@ if not IS_WINDOWS:  # pragma: no cover
     import resource
 
 logger = logging.getLogger(__name__)
+
+
+def tls_interception_enabled(flags: argparse.Namespace) -> bool:
+    return flags.ca_key_file is not None and \
+        flags.ca_cert_dir is not None and \
+        flags.ca_signing_key_file is not None and \
+        flags.ca_cert_file is not None
 
 
 def is_threadless(threadless: bool, threaded: bool) -> bool:
@@ -212,9 +221,9 @@ def wrap_socket(
 
 
 def new_socket_connection(
-        addr: Tuple[str, int],
+        addr: HostPort,
         timeout: float = DEFAULT_TIMEOUT,
-        source_address: Optional[Tuple[str, int]] = None,
+        source_address: Optional[HostPort] = None,
 ) -> socket.socket:
     conn = None
     try:
@@ -244,8 +253,8 @@ def new_socket_connection(
 class socket_connection(contextlib.ContextDecorator):
     """Same as new_socket_connection but as a context manager and decorator."""
 
-    def __init__(self, addr: Tuple[str, int]):
-        self.addr: Tuple[str, int] = addr
+    def __init__(self, addr: HostPort):
+        self.addr: HostPort = addr
         self.conn: Optional[socket.socket] = None
         super().__init__()
 

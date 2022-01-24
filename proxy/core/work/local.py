@@ -10,20 +10,14 @@
 """
 import queue
 import asyncio
-import logging
 import contextlib
 from typing import Any, Optional
 
 from .threadless import Threadless
-from ...common.backports import (  # noqa: W0611, F401   pylint: disable=unused-import
-    NonBlockingQueue,
-)
+from ...common.backports import NonBlockingQueue
 
 
-logger = logging.getLogger(__name__)
-
-
-class LocalExecutor(Threadless['NonBlockingQueue']):
+class BaseLocalExecutor(Threadless[NonBlockingQueue]):
     """A threadless executor implementation which uses a queue to receive new work."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -44,10 +38,5 @@ class LocalExecutor(Threadless['NonBlockingQueue']):
             work = self.work_queue.get()
             if isinstance(work, bool) and work is False:
                 return True
-            assert isinstance(work, tuple)
-            conn, addr = work
-            # NOTE: Here we are assuming to receive a connection object
-            # and not a fileno because we are a LocalExecutor.
-            fileno = conn.fileno()
-            self.work_on_tcp_conn(fileno=fileno, addr=addr, conn=conn)
+            self.work(work)
         return False

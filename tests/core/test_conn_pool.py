@@ -33,10 +33,7 @@ class TestConnectionPool(unittest.TestCase):
         mock_conn.closed = False
         # Acquire
         created, conn = pool.acquire(addr)
-        mock_tcp_server_connection.assert_called_once_with(
-            host=addr[0],
-            port=addr[1],
-        )
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
         mock_conn.mark_inuse.assert_called_once()
         mock_conn.reset.assert_not_called()
         self.assertTrue(created)
@@ -69,10 +66,7 @@ class TestConnectionPool(unittest.TestCase):
         # Acquire
         created, conn = pool.acquire(addr)
         self.assertTrue(created)
-        mock_tcp_server_connection.assert_called_once_with(
-            host=addr[0],
-            port=addr[1],
-        )
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
         self.assertEqual(conn, mock_conn)
         self.assertEqual(len(pool.pools[addr]), 1)
         self.assertTrue(conn in pool.pools[addr])
@@ -97,10 +91,7 @@ class TestConnectionPoolAsync:
         mock_conn = mock_tcp_server_connection.return_value
         addr = mock_conn.addr
         pool.add(addr)
-        mock_tcp_server_connection.assert_called_once_with(
-            host=addr[0],
-            port=addr[1],
-        )
+        mock_tcp_server_connection.assert_called_once_with(addr[0], addr[1])
         mock_conn.connect.assert_called_once()
         events = await pool.get_events()
         print(events)

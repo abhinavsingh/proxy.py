@@ -16,12 +16,13 @@ import socket
 from typing import Tuple, Optional
 
 from ..http.proxy import HttpProxyBasePlugin
+from ..common.types import HostPort
 
 
 class CustomDnsResolverPlugin(HttpProxyBasePlugin):
     """This plugin demonstrate how to use your own custom DNS resolver."""
 
-    def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[Tuple[str, int]]]:
+    def resolve_dns(self, host: str, port: int) -> Tuple[Optional[str], Optional[HostPort]]:
         """Here we are using in-built python resolver for demonstration.
 
         Ideally you would like to query your custom DNS server or even

@@ -56,8 +56,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     ##
 
     @staticmethod
-    def create(**kwargs: Any) -> HttpClientConnection:  # pragma: no cover
-        return HttpClientConnection(**kwargs)
+    def create(*args: Any) -> HttpClientConnection:  # pragma: no cover
+        return HttpClientConnection(*args)
 
     def initialize(self) -> None:
         super().initialize()

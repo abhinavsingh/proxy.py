@@ -9,7 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 from .web import HttpWebServerPlugin
-from .plugin import HttpWebServerBasePlugin
+from .plugin import ReverseProxyBasePlugin, HttpWebServerBasePlugin
 from .protocols import httpProtocolTypes
 from .pac_plugin import HttpWebServerPacFilePlugin
 
@@ -19,4 +19,5 @@ __all__ = [
     'HttpWebServerPacFilePlugin',
     'HttpWebServerBasePlugin',
     'httpProtocolTypes',
+    'ReverseProxyBasePlugin',
 ]

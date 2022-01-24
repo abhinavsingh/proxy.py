@@ -16,6 +16,7 @@ from unittest import mock
 
 from proxy.proxy import main, entry_point
 from proxy.common.utils import bytes_
+from proxy.core.work.fd import RemoteFdExecutor
 from proxy.common.constants import (  # noqa: WPS450
     DEFAULT_PORT, DEFAULT_PLUGINS, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE,
     DEFAULT_LOG_FILE, DEFAULT_PAC_FILE, DEFAULT_PID_FILE, PLUGIN_DASHBOARD,
@@ -30,7 +31,8 @@ from proxy.common.constants import (  # noqa: WPS450
     DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_ENABLE_WEB_SERVER,
     DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_WEBSOCKET_TRANSPORT,
     DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
-    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_ENABLE_STATIC_SERVER,
+    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CACHE_DIRECTORY_PATH,
+    DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
     _env_threadless_compliant,
 )
 
@@ -77,6 +79,9 @@ class TestMain(unittest.TestCase):
         mock_args.local_executor = int(DEFAULT_LOCAL_EXECUTOR)
         mock_args.port_file = DEFAULT_PORT_FILE
         mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
+        mock_args.enable_reverse_proxy = DEFAULT_ENABLE_REVERSE_PROXY
+        mock_args.unix_socket_path = None
+        mock_args.cache_dir = DEFAULT_CACHE_DIRECTORY_PATH
 
     @mock.patch('os.remove')
     @mock.patch('os.path.exists')
@@ -86,10 +91,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.Listener')
+    @mock.patch('proxy.proxy.ListenerPool')
     def test_entry_point(
             self,
-            mock_listener: mock.Mock,
+            mock_listener_pool: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -101,6 +106,7 @@ class TestMain(unittest.TestCase):
     ) -> None:
         pid_file = os.path.join(tempfile.gettempdir(), 'pid')
         mock_sleep.side_effect = KeyboardInterrupt()
+        mock_initialize.return_value.unix_socket_path = None
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.pid_file = pid_file
@@ -108,16 +114,17 @@ class TestMain(unittest.TestCase):
         mock_initialize.return_value.enable_ssh_tunnel = False
         entry_point()
         mock_event_manager.assert_not_called()
-        mock_listener.assert_called_once_with(
+        mock_listener_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
         )
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=None,
+            executor_klass=RemoteFdExecutor,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
-            listener=mock_listener.return_value,
+            listeners=mock_listener_pool.return_value,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
             executor_locks=mock_executor_pool.return_value.work_locks,
@@ -125,7 +132,7 @@ class TestMain(unittest.TestCase):
         )
         mock_acceptor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.return_value.shutdown.assert_called_once()
-        mock_listener.return_value.shutdown.assert_called_once()
+        mock_listener_pool.return_value.shutdown.assert_called_once()
         mock_sleep.assert_called()
 
         mock_open.assert_called_with(pid_file, 'wb')
@@ -140,10 +147,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.Listener')
+    @mock.patch('proxy.proxy.ListenerPool')
     def test_main_with_no_flags(
             self,
-            mock_listener: mock.Mock,
+            mock_listener_pool: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -151,22 +158,24 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
+        mock_initialize.return_value.unix_socket_path = None
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = False
         mock_initialize.return_value.port_file = None
         mock_initialize.return_value.enable_ssh_tunnel = False
         main()
         mock_event_manager.assert_not_called()
-        mock_listener.assert_called_once_with(
+        mock_listener_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
         )
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=None,
+            executor_klass=RemoteFdExecutor,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
-            listener=mock_listener.return_value,
+            listeners=mock_listener_pool.return_value,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
             executor_locks=mock_executor_pool.return_value.work_locks,
@@ -174,7 +183,7 @@ class TestMain(unittest.TestCase):
         )
         mock_acceptor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.return_value.shutdown.assert_called_once()
-        mock_listener.return_value.shutdown.assert_called_once()
+        mock_listener_pool.return_value.shutdown.assert_called_once()
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
@@ -182,10 +191,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.Listener')
+    @mock.patch('proxy.proxy.ListenerPool')
     def test_enable_events(
             self,
-            mock_listener: mock.Mock,
+            mock_listener_pool: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -193,6 +202,7 @@ class TestMain(unittest.TestCase):
             mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
+        mock_initialize.return_value.unix_socket_path = None
         mock_initialize.return_value.local_executor = 0
         mock_initialize.return_value.enable_events = True
         mock_initialize.return_value.port_file = None
@@ -201,16 +211,17 @@ class TestMain(unittest.TestCase):
         mock_event_manager.assert_called_once()
         mock_event_manager.return_value.setup.assert_called_once()
         mock_event_manager.return_value.shutdown.assert_called_once()
-        mock_listener.assert_called_once_with(
+        mock_listener_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
         )
         mock_executor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
             event_queue=mock_event_manager.return_value.queue,
+            executor_klass=RemoteFdExecutor,
         )
         mock_acceptor_pool.assert_called_once_with(
             flags=mock_initialize.return_value,
-            listener=mock_listener.return_value,
+            listeners=mock_listener_pool.return_value,
             event_queue=mock_event_manager.return_value.queue,
             executor_queues=mock_executor_pool.return_value.work_queues,
             executor_pids=mock_executor_pool.return_value.work_pids,
@@ -218,7 +229,7 @@ class TestMain(unittest.TestCase):
         )
         mock_acceptor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.return_value.shutdown.assert_called_once()
-        mock_listener.return_value.shutdown.assert_called_once()
+        mock_listener_pool.return_value.shutdown.assert_called_once()
         mock_sleep.assert_called()
 
     @mock.patch('time.sleep')
@@ -227,10 +238,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.Listener')
+    @mock.patch('proxy.proxy.ListenerPool')
     def test_enable_dashboard(
             self,
-            mock_listener: mock.Mock,
+            mock_listener_pool: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -243,7 +254,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_dashboard = True
         mock_args.local_executor = 0
-        main(enable_dashboard=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -266,7 +277,7 @@ class TestMain(unittest.TestCase):
             mock_executor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called_once()
-        mock_listener.return_value.setup.assert_called_once()
+        mock_listener_pool.return_value.setup.assert_called_once()
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.common.plugins.Plugins.load')
@@ -274,10 +285,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.Listener')
+    @mock.patch('proxy.proxy.ListenerPool')
     def test_enable_devtools(
             self,
-            mock_listener: mock.Mock,
+            mock_listener_pool: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -290,7 +301,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_devtools = True
         mock_args.local_executor = 0
-        main(enable_devtools=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -307,7 +318,7 @@ class TestMain(unittest.TestCase):
             mock_executor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called_once()
-        mock_listener.return_value.setup.assert_called_once()
+        mock_listener_pool.return_value.setup.assert_called_once()
 
     @mock.patch('time.sleep')
     @mock.patch('proxy.common.plugins.Plugins.load')
@@ -315,14 +326,14 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.EventManager')
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.Listener')
+    @mock.patch('proxy.proxy.ListenerPool')
     @mock.patch('proxy.proxy.SshHttpProtocolHandler')
     @mock.patch('proxy.proxy.SshTunnelListener')
     def test_enable_ssh_tunnel(
             self,
             mock_ssh_tunnel_listener: mock.Mock,
             mock_ssh_http_proto_handler: mock.Mock,
-            mock_listener: mock.Mock,
+            mock_listener_pool: mock.Mock,
             mock_executor_pool: mock.Mock,
             mock_acceptor_pool: mock.Mock,
             mock_event_manager: mock.Mock,
@@ -335,7 +346,7 @@ class TestMain(unittest.TestCase):
         self.mock_default_args(mock_args)
         mock_args.enable_ssh_tunnel = True
         mock_args.local_executor = 0
-        main(enable_ssh_tunnel=True, local_executor=0)
+        main()
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -349,7 +360,7 @@ class TestMain(unittest.TestCase):
             mock_executor_pool.return_value.setup.assert_called_once()
         mock_acceptor_pool.assert_called_once()
         mock_acceptor_pool.return_value.setup.assert_called_once()
-        mock_listener.return_value.setup.assert_called_once()
+        mock_listener_pool.return_value.setup.assert_called_once()
         mock_ssh_http_proto_handler.assert_called_once()
         mock_ssh_tunnel_listener.assert_called_once()
         mock_ssh_tunnel_listener.return_value.setup.assert_called_once()

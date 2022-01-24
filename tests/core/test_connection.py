@@ -8,13 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import ssl
-import socket
-from typing import Union, Optional
+from typing import Optional
 
 import unittest
 from unittest import mock
 
+from proxy.common.types import TcpOrTlsSocket
 from proxy.core.connection import (
     TcpConnection, TcpClientConnection, TcpServerConnection,
     TcpConnectionUninitializedException, tcpConnectionTypes,
@@ -28,14 +27,14 @@ class TestTcpConnection(unittest.TestCase):
     class TcpConnectionToTest(TcpConnection):
 
         def __init__(
-            self, conn: Optional[Union[ssl.SSLSocket, socket.socket]] = None,
+            self, conn: Optional[TcpOrTlsSocket] = None,
             tag: int = tcpConnectionTypes.CLIENT,
         ) -> None:
             super().__init__(tag)
             self._conn = conn
 
         @property
-        def connection(self) -> Union[ssl.SSLSocket, socket.socket]:
+        def connection(self) -> TcpOrTlsSocket:
             if self._conn is None:
                 raise TcpConnectionUninitializedException()
             return self._conn

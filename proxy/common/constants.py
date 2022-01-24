@@ -94,6 +94,7 @@ DEFAULT_ENABLE_EVENTS = False
 DEFAULT_EVENTS_QUEUE = None
 DEFAULT_ENABLE_STATIC_SERVER = False
 DEFAULT_ENABLE_WEB_SERVER = False
+DEFAULT_ENABLE_REVERSE_PROXY = False
 DEFAULT_ALLOWED_URL_SCHEMES = [HTTP_PROTO, HTTPS_PROTO]
 DEFAULT_IPV4_HOSTNAME = ipaddress.IPv4Address('127.0.0.1')
 DEFAULT_IPV6_HOSTNAME = ipaddress.IPv6Address('::1')
@@ -110,6 +111,8 @@ DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
 DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port} - ' + \
     '{response_bytes} bytes - {connection_time_ms}ms'
+DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
+    '{request_method} {request_path} -> {upstream_proxy_pass} - {connection_time_ms}ms'
 DEFAULT_NUM_ACCEPTORS = 0
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
@@ -142,6 +145,9 @@ DEFAULT_DEVTOOLS_FRAME_ID = secrets.token_hex(8)
 DEFAULT_DEVTOOLS_LOADER_ID = secrets.token_hex(8)
 
 DEFAULT_DATA_DIRECTORY_PATH = os.path.join(str(pathlib.Path.home()), '.proxy')
+DEFAULT_CACHE_DIRECTORY_PATH = os.path.join(
+    DEFAULT_DATA_DIRECTORY_PATH, 'cache',
+)
 
 # Cor plugins enabled by default or via flags
 DEFAULT_ABC_PLUGINS = [
@@ -149,11 +155,13 @@ DEFAULT_ABC_PLUGINS = [
     'HttpProxyBasePlugin',
     'HttpWebServerBasePlugin',
     'WebSocketTransportBasePlugin',
+    'ReverseProxyBasePlugin',
 ]
 PLUGIN_DASHBOARD = 'proxy.dashboard.ProxyDashboard'
 PLUGIN_HTTP_PROXY = 'proxy.http.proxy.HttpProxyPlugin'
 PLUGIN_PROXY_AUTH = 'proxy.http.proxy.auth.AuthPlugin'
 PLUGIN_WEB_SERVER = 'proxy.http.server.HttpWebServerPlugin'
+PLUGIN_REVERSE_PROXY = 'proxy.http.server.reverse.ReverseProxy'
 PLUGIN_PAC_FILE = 'proxy.http.server.HttpWebServerPacFilePlugin'
 PLUGIN_DEVTOOLS_PROTOCOL = 'proxy.http.inspector.devtools.DevtoolsProtocolPlugin'
 PLUGIN_INSPECT_TRAFFIC = 'proxy.http.inspector.inspect_traffic.InspectTrafficPlugin'
