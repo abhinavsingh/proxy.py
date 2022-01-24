@@ -28,5 +28,13 @@ class ThreadedTaskExecutor(threading.Thread):
             **kwargs,
         )
 
+    def __enter__(self) -> 'ThreadedTaskExecutor':
+        self.start()
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.executor.running.set()
+        self.join()
+
     def run(self) -> None:
         self.executor.run()
