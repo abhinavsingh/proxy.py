@@ -127,7 +127,7 @@ class TestHttpProxyTlsInterception(Assertions):
         )
         client_tls_sock.recv.return_value = get_request
 
-        T = TypeVar('T')
+        T = TypeVar('T')    # noqa: N806
 
         async def asyncReturn(val: T) -> T:
             return val
