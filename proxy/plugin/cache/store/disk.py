@@ -16,7 +16,9 @@ from .base import CacheStore
 from ....common.flag import flags
 from ....http.parser import HttpParser
 from ....common.utils import text_
-from ....common.constants import DEFAULT_CACHE_DIRECTORY_PATH
+from ....common.constants import (
+    DEFAULT_CACHE_REQUESTS, DEFAULT_CACHE_DIRECTORY_PATH,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -30,12 +32,21 @@ flags.add_argument(
     'Flag only applicable when cache plugin is used with on-disk storage.',
 )
 
+flags.add_argument(
+    '--cache-requests',
+    action='store_true',
+    default=DEFAULT_CACHE_REQUESTS,
+    help='Default: False.  ' +
+    'Whether to also cache request packets.',
+)
+
 
 class OnDiskCacheStore(CacheStore):
 
-    def __init__(self, uid: str, cache_dir: str) -> None:
+    def __init__(self, uid: str, cache_dir: str, cache_requests: bool) -> None:
         super().__init__(uid)
         self.cache_dir = cache_dir
+        self.cache_requests = cache_requests
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 
@@ -47,6 +58,8 @@ class OnDiskCacheStore(CacheStore):
         self.cache_file = open(self.cache_file_path, "wb")
 
     def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
+        if self.cache_file and self.cache_requests:
+            self.cache_file.write(request.build())
         return request
 
     def cache_response_chunk(self, chunk: memoryview) -> memoryview:

@@ -2284,7 +2284,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
           [--ca-signing-key-file CA_SIGNING_KEY_FILE]
           [--auth-plugin AUTH_PLUGIN] [--cache-dir CACHE_DIR]
-          [--proxy-pool PROXY_POOL] [--enable-web-server]
+          [--cache-requests] [--proxy-pool PROXY_POOL] [--enable-web-server]
           [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
           [--enable-reverse-proxy] [--pac-file PAC_FILE]
@@ -2425,6 +2425,7 @@ options:
                         Default: /Users/abhinavsingh/.proxy/cache. Flag only
                         applicable when cache plugin is used with on-disk
                         storage.
+  --cache-requests      Default: False. Whether to also cache request packets.
   --proxy-pool PROXY_POOL
                         List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable

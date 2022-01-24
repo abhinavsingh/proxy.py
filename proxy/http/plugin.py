@@ -71,9 +71,9 @@ class HttpProtocolHandlerPlugin(
         raise NotImplementedError()
 
     @abstractmethod
-    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
+    def on_client_data(self, raw: memoryview) -> None:
         """Called only after original request has been completely received."""
-        return raw  # pragma: no cover
+        pass    # pragma: no cover
 
     @abstractmethod
     def on_request_complete(self) -> Union[socket.socket, bool]:

@@ -194,7 +194,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 return True
         return False
 
-    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
+    def on_client_data(self, raw: memoryview) -> None:
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
             # TODO(abhinavsingh): Remove .tobytes after websocket frame parser
             # is memoryview compliant
@@ -211,7 +211,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                     assert self.route
                     self.route.on_websocket_message(frame)
                 frame.reset()
-            return None
+            return
         # If 1st valid request was completed and it's a HTTP/1.1 keep-alive
         # And only if we have a route, parse pipeline requests
         if self.request.is_complete and \
@@ -231,7 +231,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                         'Pipelined request is not keep-alive, will tear down request...',
                     )
                 self.pipeline_request = None
-        return raw
 
     def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
         return chunk

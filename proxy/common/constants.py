@@ -148,6 +148,7 @@ DEFAULT_DATA_DIRECTORY_PATH = os.path.join(str(pathlib.Path.home()), '.proxy')
 DEFAULT_CACHE_DIRECTORY_PATH = os.path.join(
     DEFAULT_DATA_DIRECTORY_PATH, 'cache',
 )
+DEFAULT_CACHE_REQUESTS = False
 
 # Cor plugins enabled by default or via flags
 DEFAULT_ABC_PLUGINS = [
