@@ -435,6 +435,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # For pipeline requests, we never
                     # want to use --enable-proxy-protocol flag
                     # as proxy protocol header will not be present
+                    #
+                    # TODO: HTTP parser must be smart about detecting
+                    # HA proxy protocol or we must always explicitly pass
+                    # the flag when we are expecting HA proxy protocol
+                    # request line before HTTP request lines.
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER,
                     )

@@ -12,7 +12,7 @@ import ssl
 import uuid
 import socket
 import selectors
-from typing import Any
+from typing import Any, TypeVar
 
 import pytest
 from unittest import mock
@@ -22,7 +22,10 @@ from pytest_mock import MockerFixture
 from proxy.http import HttpProtocolHandler, HttpClientConnection, httpMethods
 from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
-from proxy.common.utils import bytes_, build_http_request
+from proxy.http.parser import HttpParser
+from proxy.common.utils import (
+    bytes_, build_http_request, tls_interception_enabled,
+)
 from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 from proxy.core.connection import TcpServerConnection
 from proxy.common.constants import DEFAULT_CA_FILE
@@ -46,21 +49,25 @@ class TestHttpProxyTlsInterception(Assertions):
         self.mock_server_conn = mocker.patch(
             'proxy.http.proxy.server.TcpServerConnection',
         )
-        self.mock_ssl_context = mocker.patch('ssl.create_default_context')
-        self.mock_ssl_wrap = mocker.patch('ssl.wrap_socket')
-
         self.mock_sign_csr.return_value = True
         self.mock_gen_csr.return_value = True
         self.mock_gen_public_key.return_value = True
 
-        ssl_connection = mock.MagicMock(spec=ssl.SSLSocket)
-        self.mock_ssl_context.return_value.wrap_socket.return_value = ssl_connection
-        self.mock_ssl_wrap.return_value = mock.MagicMock(spec=ssl.SSLSocket)
+        # Used for server side wrapping
+        self.mock_ssl_context = mocker.patch('ssl.create_default_context')
+        upstream_tls_sock = mock.MagicMock(spec=ssl.SSLSocket)
+        self.mock_ssl_context.return_value.wrap_socket.return_value = upstream_tls_sock
+
+        # Used for client wrapping
+        self.mock_ssl_wrap = mocker.patch('ssl.wrap_socket')
+        client_tls_sock = mock.MagicMock(spec=ssl.SSLSocket)
+        self.mock_ssl_wrap.return_value = client_tls_sock
+
         plain_connection = mock.MagicMock(spec=socket.socket)
 
         def mock_connection() -> Any:
             if self.mock_ssl_context.return_value.wrap_socket.called:
-                return ssl_connection
+                return upstream_tls_sock
             return plain_connection
 
         # Do not mock the original wrap method
@@ -72,6 +79,9 @@ class TestHttpProxyTlsInterception(Assertions):
         type(self.mock_server_conn.return_value).connection = \
             mock.PropertyMock(side_effect=mock_connection)
 
+        type(self.mock_server_conn.return_value).closed = \
+            mock.PropertyMock(return_value=False)
+
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
         self.flags = FlagParser.initialize(
@@ -80,6 +90,11 @@ class TestHttpProxyTlsInterception(Assertions):
             ca_signing_key_file='ca-signing-key.pem',
             threaded=True,
         )
+        self.assertTrue(tls_interception_enabled(self.flags))
+        # In this test we enable a mock http protocol handler plugin
+        # and a mock http proxy plugin.  Internally, http protocol
+        # handler will only initialize proxy plugin as we'll never
+        # make any other request.
         self.plugin = mock.MagicMock()
         self.proxy_plugin = mock.MagicMock()
         self.flags.plugins = {
@@ -96,40 +111,65 @@ class TestHttpProxyTlsInterception(Assertions):
         self.plugin.assert_not_called()
         self.proxy_plugin.assert_not_called()
 
+        # Mock a CONNECT request followed by a GET request
+        # from client connection
+        headers = {
+            b'Host': bytes_(netloc),
+        }
         connect_request = build_http_request(
             httpMethods.CONNECT, bytes_(netloc),
-            headers={
-                b'Host': bytes_(netloc),
-            },
+            headers=headers,
         )
         self._conn.recv.return_value = connect_request
+        get_request = build_http_request(
+            httpMethods.GET, b'/',
+            headers=headers,
+        )
+        client_tls_sock.recv.return_value = get_request
 
-        async def asyncReturnBool(val: bool) -> bool:
+        T = TypeVar('T')
+
+        async def asyncReturn(val: T) -> T:
             return val
 
-        # Prepare mocked HttpProtocolHandlerPlugin
-        # self.plugin.return_value.get_descriptors.return_value = ([], [])
-        # self.plugin.return_value.write_to_descriptors.return_value = asyncReturnBool(False)
-        # self.plugin.return_value.read_from_descriptors.return_value = asyncReturnBool(False)
-        # self.plugin.return_value.on_client_data.side_effect = lambda raw: raw
-        # self.plugin.return_value.on_request_complete.return_value = False
-        # self.plugin.return_value.on_response_chunk.side_effect = lambda chunk: chunk
-        # self.plugin.return_value.on_client_connection_close.return_value = None
-
         # Prepare mocked HttpProxyBasePlugin
-        self.proxy_plugin.return_value.write_to_descriptors.return_value = \
-            asyncReturnBool(False)
-        self.proxy_plugin.return_value.read_from_descriptors.return_value = \
-            asyncReturnBool(False)
-        self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
-        self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
+        # 1. Mock descriptor mixin methods
+        #
+        # NOTE: We need multiple async result otherwise
+        # we will end up with cannot await on already
+        # awaited coroutine.
+        self.proxy_plugin.return_value.get_descriptors.side_effect = \
+            [asyncReturn(([], [])), asyncReturn(([], []))]
+        self.proxy_plugin.return_value.write_to_descriptors.side_effect = \
+            [asyncReturn(False), asyncReturn(False)]
+        self.proxy_plugin.return_value.read_from_descriptors.side_effect = \
+            [asyncReturn(False), asyncReturn(False)]
+        # 2. Mock plugin lifecycle methods
         self.proxy_plugin.return_value.resolve_dns.return_value = None, None
+        self.proxy_plugin.return_value.before_upstream_connection.side_effect = lambda r: r
+        self.proxy_plugin.return_value.handle_client_data.side_effect = lambda r: r
+        self.proxy_plugin.return_value.handle_client_request.side_effect = lambda r: r
+        self.proxy_plugin.return_value.handle_upstream_chunk.side_effect = lambda r: r
+        self.proxy_plugin.return_value.on_upstream_connection_close.return_value = None
+        self.proxy_plugin.return_value.on_access_log.side_effect = lambda r: r
+        self.proxy_plugin.return_value.do_intercept.return_value = True
 
         self.mock_selector.return_value.select.side_effect = [
+            # Trigger read on plain socket
             [(
                 selectors.SelectorKey(
                     fileobj=self._conn.fileno(),
                     fd=self._conn.fileno(),
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+            # Trigger read on encrypted socket
+            [(
+                selectors.SelectorKey(
+                    fileobj=client_tls_sock.fileno(),
+                    fd=client_tls_sock.fileno(),
                     events=selectors.EVENT_READ,
                     data=None,
                 ),
@@ -150,20 +190,36 @@ class TestHttpProxyTlsInterception(Assertions):
         # for interception
         self.assertEqual(
             self.proxy_plugin.call_args[0][2].connection,
-            self.mock_ssl_wrap.return_value,
+            client_tls_sock,
         )
 
-        # Assert our mocked plugins invocations
-        # self.plugin.return_value.get_descriptors.assert_called()
-        # self.plugin.return_value.write_to_descriptors.assert_called_with([])
-        # # on_client_data is only called after initial request has completed
-        # self.plugin.return_value.on_client_data.assert_not_called()
-        # self.plugin.return_value.on_request_complete.assert_called()
-        # self.plugin.return_value.read_from_descriptors.assert_called_with([
-        #     self._conn.fileno(),
-        # ])
+        # Invoked lifecycle callbacks
+        self.proxy_plugin.return_value.resolve_dns.assert_called_once_with(
+            host, port)
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
-        self.proxy_plugin.return_value.handle_client_request.assert_called()
+        self.proxy_plugin.return_value.handle_client_request.assert_called_once()
+        self.proxy_plugin.return_value.do_intercept.assert_called_once()
+        # All the invoked lifecycle callbacks will receive the CONNECT request
+        # packet with / as the path
+        callback_request: HttpParser = \
+            self.proxy_plugin.return_value.before_upstream_connection.call_args_list[0][0][0]
+        callback_request1: HttpParser = \
+            self.proxy_plugin.return_value.handle_client_request.call_args_list[0][0][0]
+        callback_request2: HttpParser = \
+            self.proxy_plugin.return_value.do_intercept.call_args_list[0][0][0]
+        self.assertEqual(callback_request.host, bytes_(host))
+        self.assertEqual(callback_request.port, 443)
+        assert callback_request._url
+        self.assertEqual(callback_request._url.remainder, None)
+        self.assertEqual(callback_request.method, httpMethods.CONNECT)
+        self.assertEqual(callback_request.is_https_tunnel, True)
+        self.assertEqual(callback_request.build(), callback_request1.build())
+        self.assertEqual(callback_request.build(), callback_request2.build())
+        # Lifecycle callbacks not invoked
+        self.proxy_plugin.return_value.handle_client_data.assert_not_called()
+        self.proxy_plugin.return_value.handle_upstream_chunk.assert_not_called()
+        self.proxy_plugin.return_value.on_upstream_connection_close.assert_not_called()
+        self.proxy_plugin.return_value.on_access_log.assert_not_called()
 
         self.mock_server_conn.assert_called_with(host, port)
         self.mock_server_conn.return_value.connection.setblocking.assert_called_with(
@@ -173,9 +229,6 @@ class TestHttpProxyTlsInterception(Assertions):
         self.mock_ssl_context.assert_called_with(
             ssl.Purpose.SERVER_AUTH, cafile=str(DEFAULT_CA_FILE),
         )
-        # self.assertEqual(self.mock_ssl_context.return_value.options,
-        #                  ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 |
-        #                  ssl.OP_NO_TLSv1_1)
         self.assertEqual(plain_connection.setblocking.call_count, 2)
         self.mock_ssl_context.return_value.wrap_socket.assert_called_with(
             plain_connection, server_hostname=host,
@@ -183,10 +236,10 @@ class TestHttpProxyTlsInterception(Assertions):
         self.assertEqual(self.mock_sign_csr.call_count, 1)
         self.assertEqual(self.mock_gen_csr.call_count, 1)
         self.assertEqual(self.mock_gen_public_key.call_count, 1)
-        self.assertEqual(ssl_connection.setblocking.call_count, 1)
+        self.assertEqual(upstream_tls_sock.setblocking.call_count, 1)
         self.assertEqual(
             self.mock_server_conn.return_value._conn,
-            ssl_connection,
+            upstream_tls_sock,
         )
         self._conn.send.assert_called_with(
             PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
@@ -204,15 +257,31 @@ class TestHttpProxyTlsInterception(Assertions):
         self.assertEqual(self._conn.setblocking.call_count, 2)
         self.assertEqual(
             self.protocol_handler.work.connection,
-            self.mock_ssl_wrap.return_value,
+            client_tls_sock,
         )
 
         # Assert connection references for all other plugins is updated
-        # self.assertEqual(
-        #     self.plugin.return_value.client._conn,
-        #     self.mock_ssl_wrap.return_value,
-        # )
         self.assertEqual(
             self.proxy_plugin.return_value.client._conn,
-            self.mock_ssl_wrap.return_value,
+            client_tls_sock,
         )
+
+        # Now process the GET request
+        await self.protocol_handler._run_once()
+        self.plugin.assert_not_called()
+        self.proxy_plugin.assert_called_once()
+
+        # Lifecycle callbacks still not invoked
+        self.proxy_plugin.return_value.handle_client_data.assert_not_called()
+        self.proxy_plugin.return_value.handle_upstream_chunk.assert_not_called()
+        self.proxy_plugin.return_value.on_upstream_connection_close.assert_not_called()
+        self.proxy_plugin.return_value.on_access_log.assert_not_called()
+        # Only handle client request lifecycle must be called again
+        self.proxy_plugin.return_value.resolve_dns.assert_called_once_with(
+            host, port)
+        self.proxy_plugin.return_value.before_upstream_connection.assert_called()
+        self.assertEqual(
+            self.proxy_plugin.return_value.handle_client_request.call_count,
+            2,
+        )
+        self.proxy_plugin.return_value.do_intercept.assert_called_once()
