@@ -9,8 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
-import pytest
 import tempfile
+
+import pytest
 import unittest
 from unittest import mock
 
