@@ -43,9 +43,10 @@ flags.add_argument(
 
 class OnDiskCacheStore(CacheStore):
 
-    def __init__(self, uid: str, cache_dir: str) -> None:
+    def __init__(self, uid: str, cache_dir: str, cache_requests: bool) -> None:
         super().__init__(uid)
         self.cache_dir = cache_dir
+        self.cache_requests = cache_requests
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 
@@ -57,7 +58,7 @@ class OnDiskCacheStore(CacheStore):
         self.cache_file = open(self.cache_file_path, "wb")
 
     def cache_request(self, request: HttpParser) -> Optional[HttpParser]:
-        if self.cache_file:
+        if self.cache_file and self.cache_requests:
             self.cache_file.write(request.build())
         return request
 

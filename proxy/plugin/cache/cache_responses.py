@@ -30,6 +30,7 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
                 self.flags.cache_dir,
                 'responses',
             ),
+            cache_requests=self.flags.cache_requests,
         )
         self.set_store(self.disk_store)
 
