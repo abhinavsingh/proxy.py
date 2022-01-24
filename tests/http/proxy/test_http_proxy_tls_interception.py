@@ -209,6 +209,7 @@ class TestHttpProxyTlsInterception(Assertions):
             self.proxy_plugin.return_value.do_intercept.call_args_list[0][0][0]
         self.assertEqual(callback_request.host, bytes_(host))
         self.assertEqual(callback_request.port, 443)
+        self.assertEqual(callback_request.header(b'Host'), headers[b'Host'])
         assert callback_request._url
         self.assertEqual(callback_request._url.remainder, None)
         self.assertEqual(callback_request.method, httpMethods.CONNECT)
@@ -285,3 +286,13 @@ class TestHttpProxyTlsInterception(Assertions):
             2,
         )
         self.proxy_plugin.return_value.do_intercept.assert_called_once()
+
+        callback_request = \
+            self.proxy_plugin.return_value.handle_client_request.call_args_list[1][0][0]
+        self.assertEqual(callback_request.host, None)
+        self.assertEqual(callback_request.port, 80)
+        self.assertEqual(callback_request.header(b'Host'), headers[b'Host'])
+        assert callback_request._url
+        self.assertEqual(callback_request._url.remainder, b'/')
+        self.assertEqual(callback_request.method, httpMethods.GET)
+        self.assertEqual(callback_request.is_https_tunnel, False)
