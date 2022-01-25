@@ -83,6 +83,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                     text_(
                         self.choice.hostname,
                     ),
+                    as_non_blocking=True,
                 )
             # Update Host header
             # if request.has_header(b'Host'):

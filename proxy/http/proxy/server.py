@@ -762,7 +762,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         assert isinstance(self.upstream.connection, socket.socket)
         do_close = False
         try:
-            self.upstream.wrap(text_(self.request.host), self.flags.ca_file)
+            self.upstream.wrap(
+                text_(self.request.host),
+                self.flags.ca_file,
+                as_non_blocking=True,
+            )
         except ssl.SSLCertVerificationError:    # Server raised certificate verification error
             # When --disable-interception-on-ssl-cert-verification-error flag is on,
             # we will cache such upstream hosts and avoid intercepting them for future
