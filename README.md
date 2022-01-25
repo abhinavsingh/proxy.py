@@ -250,7 +250,7 @@
   - See `--enable-static-server` and `--static-server-dir` flags
 
 - Optimized for large file uploads and downloads
-  - See `--client-recvbuf-size` and `--server-recvbuf-size` flag
+  - See `--client-recvbuf-size`, `--server-recvbuf-size`, `--max-sendbuf-size` flags
 
 - `IPv4` and `IPv6` support
   - See `--hostname` flag
@@ -2280,7 +2280,8 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--work-klass WORK_KLASS] [--pid-file PID_FILE]
           [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
           [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
-          [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--timeout TIMEOUT]
+          [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+          [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
           [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
           [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
           [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
@@ -2391,6 +2392,9 @@ options:
   --server-recvbuf-size SERVER_RECVBUF_SIZE
                         Default: 128 KB. Maximum amount of data received from
                         the server in a single recv() operation.
+  --max-sendbuf-size MAX_SENDBUF_SIZE
+                        Default: 64 KB. Maximum amount of data to dispatch in
+                        a single send() operation.
   --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
                         inactive connection must be dropped. Inactivity is
                         defined by no data sent or received by the client.
