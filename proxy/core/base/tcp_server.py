@@ -27,7 +27,8 @@ from ...common.utils import wrap_socket
 from ...core.connection import TcpClientConnection
 from ...common.constants import (
     DEFAULT_TIMEOUT, DEFAULT_KEY_FILE, DEFAULT_CERT_FILE,
-    DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_SERVER_RECVBUF_SIZE,
+    DEFAULT_MAX_SEND_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE,
+    DEFAULT_SERVER_RECVBUF_SIZE,
 )
 
 
@@ -66,6 +67,14 @@ flags.add_argument(
     help='Default: ' + str(int(DEFAULT_SERVER_RECVBUF_SIZE / 1024)) +
     ' KB. Maximum amount of data received from the '
     'server in a single recv() operation.',
+)
+
+flags.add_argument(
+    '--max-sendbuf-size',
+    type=int,
+    default=DEFAULT_MAX_SEND_SIZE,
+    help='Default: ' + str(int(DEFAULT_MAX_SEND_SIZE / 1024)) +
+    ' KB. Maximum amount of data to dispatch in a single send() operation.',
 )
 
 flags.add_argument(
@@ -164,7 +173,7 @@ class BaseTcpServerHandler(Work[T]):
             logger.debug(
                 'Flushing buffer to client {0}'.format(self.work.address),
             )
-            self.work.flush()
+            self.work.flush(self.flags.max_sendbuf_size)
             if self.must_flush_before_shutdown is True and \
                     not self.work.has_buffer():
                 teardown = True

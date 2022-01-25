@@ -79,12 +79,15 @@ class TcpConnection(ABC):
         self.buffer.append(mv)
         self._num_buffer += 1
 
-    def flush(self) -> int:
+    def flush(self, max_send_size: Optional[int] = None) -> int:
         """Users must handle BrokenPipeError exceptions"""
         if not self.has_buffer():
             return 0
         mv = self.buffer[0].tobytes()
-        sent: int = self.send(mv[:DEFAULT_MAX_SEND_SIZE])
+        max_send_size = max_send_size or DEFAULT_MAX_SEND_SIZE
+        # TODO: Assemble multiple packets if total
+        # size remains below max send size.
+        sent: int = self.send(mv[:max_send_size])
         if sent == len(mv):
             self.buffer.pop(0)
             self._num_buffer -= 1
