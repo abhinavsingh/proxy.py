@@ -26,8 +26,9 @@ from ...common.types import (
 from ...common.utils import wrap_socket
 from ...core.connection import TcpClientConnection
 from ...common.constants import (
-    DEFAULT_MAX_SEND_SIZE, DEFAULT_TIMEOUT, DEFAULT_KEY_FILE, DEFAULT_CERT_FILE,
-    DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_SERVER_RECVBUF_SIZE,
+    DEFAULT_TIMEOUT, DEFAULT_KEY_FILE, DEFAULT_CERT_FILE,
+    DEFAULT_MAX_SEND_SIZE, DEFAULT_CLIENT_RECVBUF_SIZE,
+    DEFAULT_SERVER_RECVBUF_SIZE,
 )
 
 
