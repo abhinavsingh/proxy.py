@@ -72,8 +72,8 @@ class TestHttpProxyTlsInterception(Assertions):
 
         # Do not mock the original wrap method
         self.mock_server_conn.return_value.wrap.side_effect = \
-            lambda x, y: TcpServerConnection.wrap(
-                self.mock_server_conn.return_value, x, y,
+            lambda x, y, as_non_blocking: TcpServerConnection.wrap(
+                self.mock_server_conn.return_value, x, y, as_non_blocking=as_non_blocking,
             )
 
         type(self.mock_server_conn.return_value).connection = \

@@ -47,7 +47,7 @@ class TcpServerConnection(TcpConnection):
             self,
             hostname: str,
             ca_file: Optional[str] = None,
-            as_non_blocking: bool = True,
+            as_non_blocking: bool = False,
     ) -> None:
         ctx = ssl.create_default_context(
             ssl.Purpose.SERVER_AUTH, cafile=ca_file,

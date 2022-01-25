@@ -95,7 +95,9 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
 
         # Do not mock the original wrap method
         self.server.wrap.side_effect = \
-            lambda x, y: TcpServerConnection.wrap(self.server, x, y)
+            lambda x, y, as_non_blocking: TcpServerConnection.wrap(
+                self.server, x, y, as_non_blocking=as_non_blocking,
+            )
 
         self.server.has_buffer.side_effect = has_buffer
         type(self.server).closed = mocker.PropertyMock(side_effect=closed)
