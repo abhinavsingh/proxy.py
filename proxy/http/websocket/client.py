@@ -94,6 +94,7 @@ class WebsocketClient(TcpConnection):
         self.selector.unregister(self.sock)
         for _, mask in events:
             if mask & selectors.EVENT_READ and self.on_message:
+                # TODO: client recvbuf size flag currently not used here
                 raw = self.recv()
                 if raw is None or raw.tobytes() == b'':
                     self.closed = True

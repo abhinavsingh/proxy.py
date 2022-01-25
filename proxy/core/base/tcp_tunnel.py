@@ -89,7 +89,7 @@ class BaseTcpTunnelHandler(BaseTcpServerHandler[TcpClientConnection]):
             return do_shutdown
         # Handle server events
         if self.upstream and self.upstream.connection.fileno() in readables:
-            data = self.upstream.recv()
+            data = self.upstream.recv(self.flags.server_recvbuf_size)
             if data is None:
                 # Server closed connection
                 logger.debug('Connection closed by server')
