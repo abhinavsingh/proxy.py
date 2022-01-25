@@ -396,7 +396,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
                 ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
                 if len(ev) == 0:
                     continue
-                self.work.flush()
+                self.work.flush(self.flags.max_sendbuf_size)
         except BrokenPipeError:
             pass
         finally:

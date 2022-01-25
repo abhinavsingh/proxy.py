@@ -104,6 +104,7 @@ class WebsocketClient(TcpConnection):
                 frame.parse(raw.tobytes())
                 self.on_message(frame)
             elif mask & selectors.EVENT_WRITE:
+                # TODO: max sendbuf size flag currently not used here
                 self.flush()
         return False
 

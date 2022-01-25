@@ -96,6 +96,7 @@ class TcpUpstreamConnectionHandler(ABC):
                 self.upstream.connection.fileno() in w and \
                 self.upstream.has_buffer():
             try:
+                # TODO: max sendbuf size flag currently not used here
                 self.upstream.flush()
             except ssl.SSLWantWriteError:   # pragma: no cover
                 logger.info('Upstream SSLWantWriteError, will retry')

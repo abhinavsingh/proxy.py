@@ -188,7 +188,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 self.upstream.connection.fileno() in w:
             logger.debug('Server is write ready, flushing...')
             try:
-                self.upstream.flush()
+                self.upstream.flush(self.flags.max_sendbuf_size)
             except ssl.SSLWantWriteError:
                 logger.warning(
                     'SSLWantWriteError while trying to flush to server, will retry',
