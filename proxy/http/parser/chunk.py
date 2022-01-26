@@ -34,13 +34,13 @@ class ChunkParser:
         # Expected size of next following chunk
         self.size: Optional[int] = None
 
-    def parse(self, raw: bytes) -> bytes:
+    def parse(self, raw: memoryview) -> memoryview:
         more = len(raw) > 0
         while more and self.state != chunkParserStates.COMPLETE:
-            more, raw = self.process(raw)
+            more, raw = self.process(raw.tobytes())
         return raw
 
-    def process(self, raw: bytes) -> Tuple[bool, bytes]:
+    def process(self, raw: bytes) -> Tuple[bool, memoryview]:
         if self.state == chunkParserStates.WAITING_FOR_SIZE:
             # Consume prior chunk in buffer
             # in case chunk size without CRLF was received
@@ -69,7 +69,7 @@ class ChunkParser:
                     self.state = chunkParserStates.WAITING_FOR_SIZE
                 self.chunk = b''
                 self.size = None
-        return len(raw) > 0, raw
+        return len(raw) > 0, memoryview(raw)
 
     @staticmethod
     def to_chunks(raw: bytes, chunk_size: int = DEFAULT_BUFFER_SIZE) -> bytes:

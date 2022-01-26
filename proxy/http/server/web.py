@@ -174,8 +174,10 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
     def on_client_data(self, raw: memoryview) -> None:
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
-            # TODO(abhinavsingh): Remove .tobytes after websocket frame parser
-            # is memoryview compliant
+            # TODO(abhinavsingh): Do we really tobytes() here?
+            # Websocket parser currently doesn't depend on internal
+            # buffers, due to which it can directly parse out of
+            # memory views.  But how about large payloads scenarios?
             remaining = raw.tobytes()
             frame = WebsocketFrame()
             while remaining != b'':
@@ -199,9 +201,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.pipeline_request = HttpParser(
                     httpParserTypes.REQUEST_PARSER,
                 )
-            # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
-            # compliant
-            self.pipeline_request.parse(raw.tobytes())
+            self.pipeline_request.parse(raw)
             if self.pipeline_request.is_complete:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive:

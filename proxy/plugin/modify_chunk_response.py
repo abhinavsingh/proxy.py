@@ -32,7 +32,7 @@ class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
     def handle_upstream_chunk(self, chunk: memoryview) -> Optional[memoryview]:
         # Parse the response.
         # Note that these chunks also include headers
-        self.response.parse(chunk.tobytes())
+        self.response.parse(chunk)
         # If response is complete, modify and dispatch to client
         if self.response.is_complete:
             # Avoid setting a body for responses where a body is not expected.

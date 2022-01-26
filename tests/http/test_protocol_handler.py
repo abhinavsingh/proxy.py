@@ -230,7 +230,7 @@ class TestHttpProtocolHandler(Assertions):
         server.closed = False
 
         parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        parser.parse(self.protocol_handler.work.buffer[0].tobytes())
+        parser.parse(self.protocol_handler.work.buffer[0])
         self.assertEqual(parser.state, httpParserStates.COMPLETE)
         assert parser.code is not None
         self.assertEqual(int(parser.code), 200)
@@ -456,7 +456,7 @@ class TestHttpProtocolHandler(Assertions):
             CRLF,
         ])
         server.queue.assert_called_once()
-        self.assertEqual(server.queue.call_args_list[0][0][0].tobytes(), pkt)
+        self.assertEqual(server.queue.call_args_list[0][0][0], pkt)
         server.buffer_size.return_value = len(pkt)
 
     async def assert_data_queued_to_server(self, server: mock.Mock) -> None:

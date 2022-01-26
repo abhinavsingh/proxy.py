@@ -156,7 +156,7 @@ class TestHttpProxyPluginExamples(Assertions):
 
         self.mock_server_conn.assert_not_called()
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        response.parse(self.protocol_handler.work.buffer[0].tobytes())
+        response.parse(self.protocol_handler.work.buffer[0])
         assert response.body
         self.assertEqual(
             response.header(b'content-type'),
@@ -283,7 +283,7 @@ class TestHttpProxyPluginExamples(Assertions):
 
         self.mock_server_conn.assert_not_called()
         self.assertEqual(
-            self.protocol_handler.work.buffer[0].tobytes(),
+            self.protocol_handler.work.buffer[0],
             build_http_response(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT,
                 reason=b'I\'m a tea pot',
@@ -379,7 +379,7 @@ class TestHttpProxyPluginExamples(Assertions):
             )
         await self.protocol_handler._run_once()
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        response.parse(self.protocol_handler.work.buffer[0].tobytes())
+        response.parse(self.protocol_handler.work.buffer[0])
         assert response.body
         self.assertEqual(
             gzip.decompress(response.body),
@@ -416,7 +416,7 @@ class TestHttpProxyPluginExamples(Assertions):
         await self.protocol_handler._run_once()
 
         self.assertEqual(
-            self.protocol_handler.work.buffer[0].tobytes(),
+            self.protocol_handler.work.buffer[0],
             build_http_response(
                 status_code=httpStatusCodes.NOT_FOUND,
                 reason=b'Blocked',
