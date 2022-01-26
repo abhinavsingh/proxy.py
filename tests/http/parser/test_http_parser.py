@@ -124,7 +124,7 @@ class TestHttpParser(unittest.TestCase):
     def test_build_request(self) -> None:
         self.assertEqual(
             build_http_request(
-                b'GET', b'http://localhost:12345', b'HTTP/1.1',
+                b'GET', b'http://localhost:12345', b'HTTP/1.1', no_ua=True,
             ),
             CRLF.join([
                 b'GET http://localhost:12345 HTTP/1.1',
@@ -135,6 +135,7 @@ class TestHttpParser(unittest.TestCase):
             build_http_request(
                 b'GET', b'http://localhost:12345', b'HTTP/1.1',
                 headers={b'key': b'value'},
+                no_ua=True,
             ),
             CRLF.join([
                 b'GET http://localhost:12345 HTTP/1.1',
@@ -147,10 +148,12 @@ class TestHttpParser(unittest.TestCase):
                 b'GET', b'http://localhost:12345', b'HTTP/1.1',
                 headers={b'key': b'value'},
                 body=b'Hello from py',
+                no_ua=True,
             ),
             CRLF.join([
                 b'GET http://localhost:12345 HTTP/1.1',
                 b'key: value',
+                b'Content-Length: 13',
                 CRLF,
             ]) + b'Hello from py',
         )

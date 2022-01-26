@@ -28,6 +28,9 @@ from proxy.http.proxy import HttpProxyPlugin
 from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.common.utils import bytes_, build_http_request, build_http_response
+from proxy.http.responses import (
+    NOT_FOUND_RESPONSE_PKT, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+)
 from proxy.common.constants import DEFAULT_HTTP_PORT, PROXY_AGENT_HEADER_VALUE
 from .utils import get_plugin_by_test_name
 from ..test_assertions import Assertions
@@ -90,6 +93,7 @@ class TestHttpProxyPluginExamples(Assertions):
                 b'Content-Length': bytes_(len(original)),
             },
             body=original,
+            no_ua=True,
         )
         self.mock_selector.return_value.select.side_effect = [
             [(
@@ -117,6 +121,7 @@ class TestHttpProxyPluginExamples(Assertions):
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
                 body=modified,
+                no_ua=True,
             ),
         )
 
@@ -186,6 +191,7 @@ class TestHttpProxyPluginExamples(Assertions):
             headers={
                 b'Host': b'example.org',
             },
+            no_ua=True,
         )
         self._conn.recv.return_value = request
         self.mock_selector.return_value.select.side_effect = [
@@ -212,7 +218,42 @@ class TestHttpProxyPluginExamples(Assertions):
                     b'Host': upstream.netloc,
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
+                no_ua=True,
             ),
+        )
+
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        (
+            ('test_redirect_to_custom_server_plugin'),
+        ),
+        indirect=True,
+    )   # type: ignore[misc]
+    async def test_redirect_to_custom_server_plugin_skips_https(self) -> None:
+        request = build_http_request(
+            b'CONNECT', b'jaxl.com:443',
+            headers={
+                b'Host': b'jaxl.com:443',
+            },
+        )
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
+        await self.protocol_handler._run_once()
+        self.mock_server_conn.assert_called_with('jaxl.com', 443)
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0].tobytes(),
+            PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
         )
 
     @pytest.mark.asyncio    # type: ignore[misc]
@@ -268,6 +309,7 @@ class TestHttpProxyPluginExamples(Assertions):
             headers={
                 b'Host': b'super.secure',
             },
+            no_ua=True,
         )
         self._conn.recv.return_value = request
 
@@ -326,8 +368,12 @@ class TestHttpProxyPluginExamples(Assertions):
                     b'Host': b'super.secure',
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
+                no_ua=True,
             )
-        server.queue.assert_called_once_with(queued_request)
+        server.queue.assert_called_once()
+        print(server.queue.call_args_list[0][0][0].tobytes())
+        print(queued_request)
+        self.assertEqual(server.queue.call_args_list[0][0][0], queued_request)
 
         # Server write
         await self.protocol_handler._run_once()
@@ -386,3 +432,122 @@ class TestHttpProxyPluginExamples(Assertions):
                 conn_close=True,
             ),
         )
+
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        (
+            ('test_shortlink_plugin'),
+        ),
+        indirect=True,
+    )   # type: ignore[misc]
+    async def test_shortlink_plugin(self) -> None:
+        request = build_http_request(
+            b'GET', b'http://t/',
+            headers={
+                b'Host': b't',
+            },
+        )
+        self._conn.recv.return_value = request
+
+        self.mock_selector.return_value.select.side_effect = [
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
+
+        await self.protocol_handler._run_once()
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0].tobytes(),
+            build_http_response(
+                status_code=httpStatusCodes.SEE_OTHER,
+                reason=b'See Other',
+                headers={
+                    b'Location': b'http://twitter.com/',
+                },
+                conn_close=True,
+            ),
+        )
+
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        (
+            ('test_shortlink_plugin'),
+        ),
+        indirect=True,
+    )   # type: ignore[misc]
+    async def test_shortlink_plugin_unknown(self) -> None:
+        request = build_http_request(
+            b'GET', b'http://unknown/',
+            headers={
+                b'Host': b'unknown',
+            },
+        )
+        self._conn.recv.return_value = request
+
+        self.mock_selector.return_value.select.side_effect = [
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
+        await self.protocol_handler._run_once()
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0].tobytes(),
+            NOT_FOUND_RESPONSE_PKT,
+        )
+
+    @pytest.mark.asyncio    # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        (
+            ('test_shortlink_plugin'),
+        ),
+        indirect=True,
+    )   # type: ignore[misc]
+    async def test_shortlink_plugin_external(self) -> None:
+        request = build_http_request(
+            b'GET', b'http://jaxl.com/',
+            headers={
+                b'Host': b'jaxl.com',
+            },
+            no_ua=True,
+        )
+        self._conn.recv.return_value = request
+
+        self.mock_selector.return_value.select.side_effect = [
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
+        await self.protocol_handler._run_once()
+        self.mock_server_conn.assert_called_once_with('jaxl.com', 80)
+        self.mock_server_conn.return_value.queue.assert_called_with(
+            build_http_request(
+                b'GET', b'/',
+                headers={
+                    b'Host': b'jaxl.com',
+                    b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
+                },
+                no_ua=True,
+            ),
+        )
+        self.assertFalse(self.protocol_handler.work.has_buffer())

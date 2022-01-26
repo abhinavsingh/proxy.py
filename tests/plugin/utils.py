@@ -11,9 +11,9 @@
 from typing import Type
 
 from proxy.plugin import (
-    CacheResponsesPlugin, ManInTheMiddlePlugin, ModifyPostDataPlugin,
-    ProposedRestApiPlugin, FilterByURLRegexPlugin, FilterByUpstreamHostPlugin,
-    RedirectToCustomServerPlugin,
+    ShortLinkPlugin, CacheResponsesPlugin, ManInTheMiddlePlugin,
+    ModifyPostDataPlugin, ProposedRestApiPlugin, FilterByURLRegexPlugin,
+    FilterByUpstreamHostPlugin, RedirectToCustomServerPlugin,
 )
 from proxy.http.proxy import HttpProxyBasePlugin
 
@@ -34,4 +34,6 @@ def get_plugin_by_test_name(test_name: str) -> Type[HttpProxyBasePlugin]:
         plugin = ManInTheMiddlePlugin
     elif test_name == 'test_filter_by_url_regex_plugin':
         plugin = FilterByURLRegexPlugin
+    elif test_name == 'test_shortlink_plugin':
+        plugin = ShortLinkPlugin
     return plugin

@@ -11,6 +11,8 @@
     .. spelling::
 
        Cloudflare
+       ws
+       onmessage
 """
 from .cache import CacheResponsesPlugin, BaseCacheResponsesPlugin
 from .shortlink import ShortLinkPlugin
