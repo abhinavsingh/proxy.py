@@ -31,6 +31,7 @@ class TestHttpRequestRejected(unittest.TestCase):
         self.assertEqual(
             e.response(self.request), CRLF.join([
                 b'HTTP/1.1 200 OK',
+                b'Content-Length: 0',
                 b'Connection: close',
                 CRLF,
             ]),
