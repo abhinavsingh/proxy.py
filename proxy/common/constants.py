@@ -149,6 +149,7 @@ DEFAULT_CACHE_DIRECTORY_PATH = os.path.join(
     DEFAULT_DATA_DIRECTORY_PATH, 'cache',
 )
 DEFAULT_CACHE_REQUESTS = False
+DEFAULT_CACHE_BY_CONTENT_TYPE = False
 
 # Cor plugins enabled by default or via flags
 DEFAULT_ABC_PLUGINS = [

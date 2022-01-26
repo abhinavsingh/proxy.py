@@ -2286,8 +2286,9 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
           [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
           [--ca-signing-key-file CA_SIGNING_KEY_FILE]
-          [--auth-plugin AUTH_PLUGIN] [--cache-dir CACHE_DIR]
-          [--cache-requests] [--proxy-pool PROXY_POOL] [--enable-web-server]
+          [--auth-plugin AUTH_PLUGIN] [--cache-requests]
+          [--cache-by-content-type] [--cache-dir CACHE_DIR]
+          [--proxy-pool PROXY_POOL] [--enable-web-server]
           [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
           [--enable-reverse-proxy] [--pac-file PAC_FILE]
@@ -2299,7 +2300,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
 
 proxy.py v2.4.0rc9.dev12+g558a430.d20220126
 
-options:
+optional arguments:
   -h, --help            show this help message and exit
   --tunnel-hostname TUNNEL_HOSTNAME
                         Default: None. Remote hostname or IP address to which
@@ -2416,9 +2417,9 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv310/lib/
-                        python3.10/site-packages/certifi/cacert.pem. Provide
-                        path to custom CA bundle for peer certificate
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv-
+                        wstest/lib/python3.9/site-packages/certifi/cacert.pem.
+                        Provide path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic
@@ -2427,11 +2428,16 @@ options:
   --auth-plugin AUTH_PLUGIN
                         Default: proxy.http.proxy.auth.AuthPlugin. Auth plugin
                         to use instead of default basic auth plugin.
+  --cache-requests      Default: False. Whether to also write request packets
+                        in the cache file.
+  --cache-by-content-type
+                        Default: False. Whether to extract content by type
+                        from responses. Extracted content type is written to
+                        the cache directory e.g. video.mp4.
   --cache-dir CACHE_DIR
                         Default: /Users/abhinavsingh/.proxy/cache. Flag only
                         applicable when cache plugin is used with on-disk
                         storage.
-  --cache-requests      Default: False. Whether to also cache request packets.
   --proxy-pool PROXY_POOL
                         List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable
@@ -2473,4 +2479,3 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
-``
