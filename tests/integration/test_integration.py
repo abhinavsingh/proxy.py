@@ -14,6 +14,7 @@ import os
 import time
 import tempfile
 import subprocess
+from random import random
 from typing import Any, List, Generator
 from pathlib import Path
 from subprocess import Popen
@@ -169,8 +170,10 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
 
     After the testing is over, tear it down.
     """
-    port_file = TEMP_DIR / 'proxy.port'
-    ca_cert_dir = TEMP_DIR / ('certificates-%s' % int(time.time()))
+    run_id = str(int(time.time())) + '-' + str(int(random() * pow(10, 6)))
+    port_file = TEMP_DIR / ('proxy-%s.port' % run_id)
+    ca_cert_dir = TEMP_DIR / ('certificates-%s' % run_id)
+    os.makedirs(ca_cert_dir, exist_ok=True)
     proxy_cmd = (
         'python', '-m', 'proxy',
         '--hostname', '127.0.0.1',
@@ -249,7 +252,11 @@ def test_https_integration(proxy_py_subprocess: int) -> None:
 def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
     """An acceptance test for TLS interception using ``curl`` through proxy.py."""
     shell_script_test = Path(__file__).parent / 'test_interception.sh'
-    check_output([str(shell_script_test), str(proxy_py_subprocess)])
+    check_output([
+        str(shell_script_test),
+        str(proxy_py_subprocess),
+        str(CERT_DIR),
+    ])
 
 
 @pytest.mark.smoke  # type: ignore[misc]
@@ -266,7 +273,11 @@ def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test for :py:class:`~proxy.plugin.ModifyChunkResponsePlugin`
     interception using ``curl`` through proxy.py."""
     shell_script_test = Path(__file__).parent / 'test_modify_chunk_response.sh'
-    check_output([str(shell_script_test), str(proxy_py_subprocess)])
+    check_output([
+        str(shell_script_test),
+        str(proxy_py_subprocess),
+        str(CERT_DIR),
+    ])
 
 
 @pytest.mark.smoke  # type: ignore[misc]
@@ -283,4 +294,8 @@ def test_modify_post_response_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test for :py:class:`~proxy.plugin.ModifyPostDataPlugin`
     interception using ``curl`` through proxy.py."""
     shell_script_test = Path(__file__).parent / 'test_modify_post_data.sh'
-    check_output([str(shell_script_test), str(proxy_py_subprocess)])
+    check_output([
+        str(shell_script_test),
+        str(proxy_py_subprocess),
+        str(CERT_DIR),
+    ])
