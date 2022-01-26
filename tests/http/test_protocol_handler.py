@@ -230,7 +230,7 @@ class TestHttpProtocolHandler(Assertions):
         server.closed = False
 
         parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        parser.parse(self.protocol_handler.work.buffer[0].tobytes())
+        parser.parse(self.protocol_handler.work.buffer[0])
         self.assertEqual(parser.state, httpParserStates.COMPLETE)
         assert parser.code is not None
         self.assertEqual(int(parser.code), 200)

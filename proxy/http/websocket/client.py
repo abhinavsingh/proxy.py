@@ -77,7 +77,7 @@ class WebsocketClient(TcpConnection):
             ),
         )
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
+        response.parse(memoryview(self.sock.recv(DEFAULT_BUFFER_SIZE)))
         accept = response.header(b'Sec-Websocket-Accept')
         assert WebsocketFrame.key_to_accept(key) == accept
 
@@ -100,8 +100,6 @@ class WebsocketClient(TcpConnection):
                     self.closed = True
                     return True
                 frame = WebsocketFrame()
-                # TODO(abhinavsingh): Remove .tobytes after parser is
-                # memoryview compliant
                 frame.parse(raw.tobytes())
                 self.on_message(frame)
             elif mask & selectors.EVENT_WRITE:
