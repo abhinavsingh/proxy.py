@@ -2300,7 +2300,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
 
 proxy.py v2.4.0rc9.dev12+g558a430.d20220126
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --tunnel-hostname TUNNEL_HOSTNAME
                         Default: None. Remote hostname or IP address to which
@@ -2417,9 +2417,9 @@ optional arguments:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv-
-                        wstest/lib/python3.9/site-packages/certifi/cacert.pem.
-                        Provide path to custom CA bundle for peer certificate
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv310/lib/
+                        python3.10/site-packages/certifi/cacert.pem. Provide
+                        path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic
