@@ -10,7 +10,7 @@
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from .types import tcpConnectionTypes
 from ...common.types import TcpOrTlsSocket
@@ -47,7 +47,7 @@ class TcpConnection(ABC):
         """Must return the socket connection to use in this class."""
         raise TcpConnectionUninitializedException()     # pragma: no cover
 
-    def send(self, data: bytes) -> int:
+    def send(self, data: Union[memoryview, bytes]) -> int:
         """Users must handle BrokenPipeError exceptions"""
         # logger.info(data)
         return self.connection.send(data)
