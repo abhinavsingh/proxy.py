@@ -76,7 +76,9 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
                 content_type = parser.header(b'content-type') \
                     if parser.has_header(b'content-type') \
                     else b'text/plain'
-                extension = content_type.split(SLASH)[-1].decode('utf-8')
+                extension = content_type.split(
+                    SLASH, maxsplit=1,
+                )[-1].decode('utf-8')
                 content_file_path = os.path.join(
                     cache_dir, 'content',
                     '%s.%s' % (content_file_name, extension),
