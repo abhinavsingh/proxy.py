@@ -65,7 +65,7 @@ class NeonTxsDB(BaseDB):
 
                 nonce VARCHAR,
                 gas_price VARCHAR,
-                gas_limit VARCHAR ,
+                gas_limit VARCHAR,
                 value VARCHAR,
                 gas_used VARCHAR,
 
@@ -143,7 +143,11 @@ class NeonTxsDB(BaseDB):
                         ON CONFLICT (neon_sign)
                         DO UPDATE SET
                             {', '.join([col+'=EXCLUDED.'+col for col in self._column_lst])}
-                        WHERE {self._table_name}.finalized=False AND EXCLUDED.finalized=True;
+                        WHERE
+                        ({self._table_name}.finalized=False AND EXCLUDED.finalized=True
+                            AND (EXCLUDED.status='0x1' OR {self._table_name}.status='0x0'))
+                        OR
+                        ({self._table_name}.status='0x0' AND EXCLUDED.status='0x1');
                        ''',
                        row)
 
