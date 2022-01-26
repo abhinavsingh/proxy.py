@@ -22,6 +22,8 @@ import pytest
 
 from proxy.common.constants import IS_WINDOWS
 
+TEMP_DIR = Path(tempfile.gettempdir())
+
 
 def check_output(args: List[Any]) -> bytes:     # pragma: no cover
     args = args if not IS_WINDOWS else ['powershell'] + args
@@ -155,9 +157,8 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
 
     After the testing is over, tear it down.
     """
-    temp_dir = Path(tempfile.gettempdir())
-    port_file = temp_dir / 'proxy.port'
-    ca_cert_dir = temp_dir / ('certificates-%s' % int(time.time()))
+    port_file = TEMP_DIR / 'proxy.port'
+    ca_cert_dir = TEMP_DIR / ('certificates-%s' % int(time.time()))
     proxy_cmd = (
         'python', '-m', 'proxy',
         '--hostname', '127.0.0.1',

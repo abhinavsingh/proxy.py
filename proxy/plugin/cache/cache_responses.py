@@ -53,7 +53,7 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
                 self.disk_store.cache_file_name:
             self.write_content_type(
                 self.disk_store.cache_file_path,
-                self.disk_store.cache_dir,
+                self.flags.cache_dir,
                 self.disk_store.cache_file_name,
                 self.flags.cache_requests,
             )
@@ -61,7 +61,7 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
     @staticmethod
     def write_content_type(
             cache_file_path: str,
-            content_dir: str,
+            cache_dir: str,
             content_file_name: str,
             cache_requests: bool,
     ) -> Optional[str]:
@@ -78,7 +78,7 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
                     else b'text/plain'
                 extension = content_type.split(SLASH)[-1].decode('utf-8')
                 content_file_path = os.path.join(
-                    content_dir,
+                    cache_dir, "content",
                     '%s.%s' % (content_file_name, extension),
                 )
                 with open(content_file_path, 'wb') as content:

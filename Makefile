@@ -7,15 +7,17 @@ PROXYPY_CONTAINER_VERSION := latest
 # Used by container build and run targets
 PROXYPY_CONTAINER_TAG := $(NS)/$(IMAGE_NAME):$(PROXYPY_CONTAINER_VERSION)
 
-HTTPS_KEY_FILE_PATH := https-key.pem
-HTTPS_CERT_FILE_PATH := https-cert.pem
-HTTPS_CSR_FILE_PATH := https-csr.pem
-HTTPS_SIGNED_CERT_FILE_PATH := https-signed-cert.pem
+CERT_DIR :=
+
+HTTPS_KEY_FILE_PATH := $(CERT_DIR)https-key.pem
+HTTPS_CERT_FILE_PATH := $(CERT_DIR)https-cert.pem
+HTTPS_CSR_FILE_PATH := $(CERT_DIR)https-csr.pem
+HTTPS_SIGNED_CERT_FILE_PATH := $(CERT_DIR)https-signed-cert.pem
 
 CA_CERT_SUFFIX :=
-CA_KEY_FILE_PATH := ca-key$(CA_CERT_SUFFIX).pem
-CA_CERT_FILE_PATH := ca-cert$(CA_CERT_SUFFIX).pem
-CA_SIGNING_KEY_FILE_PATH := ca-signing-key$(CA_CERT_SUFFIX).pem
+CA_KEY_FILE_PATH := $(CERT_DIR)ca-key$(CA_CERT_SUFFIX).pem
+CA_CERT_FILE_PATH := $(CERT_DIR)ca-cert$(CA_CERT_SUFFIX).pem
+CA_SIGNING_KEY_FILE_PATH := $(CERT_DIR)ca-signing-key$(CA_CERT_SUFFIX).pem
 
 # Dummy invalid hardcoded value
 PROXYPY_PKG_PATH := dist/proxy.py.whl
