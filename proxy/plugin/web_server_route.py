@@ -7,6 +7,11 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       ws
+       onmessage
 """
 import logging
 from typing import List, Tuple
@@ -42,9 +47,11 @@ class WebServerPlugin(HttpWebServerBasePlugin):
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
         """Open chrome devtools and try using following commands:
 
-        ws = new WebSocket("ws://localhost:8899/ws-route-example")
-        ws.onmessage = function(m) { console.log(m); }
-        ws.send('hello')
+        Example:
+
+            ws = new WebSocket("ws://localhost:8899/ws-route-example")
+            ws.onmessage = function(m) { console.log(m); }
+            ws.send('hello')
 
         """
         self.client.queue(memoryview(WebsocketFrame.text(frame.data or b'')))
