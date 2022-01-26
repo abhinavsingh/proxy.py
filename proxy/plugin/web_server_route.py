@@ -14,6 +14,7 @@ from typing import List, Tuple
 from ..http.parser import HttpParser
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from ..http.responses import okResponse
+from ..http.websocket.frame import WebsocketFrame
 
 
 logger = logging.getLogger(__name__)
@@ -37,3 +38,6 @@ class WebServerPlugin(HttpWebServerBasePlugin):
             self.client.queue(HTTP_RESPONSE)
         elif request.path == b'/https-route-example':
             self.client.queue(HTTPS_RESPONSE)
+
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        self.client.queue(memoryview(WebsocketFrame.text(frame.data or b'')))

@@ -12,7 +12,7 @@ from typing import Optional
 
 from ..http import httpMethods
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser
+from ..http.parser import HttpParser, ChunkParser
 from ..common.utils import bytes_
 
 
@@ -30,14 +30,20 @@ class ModifyPostDataPlugin(HttpProxyBasePlugin):
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
         if request.method == httpMethods.POST:
-            request.body = ModifyPostDataPlugin.MODIFIED_BODY
-            # Update Content-Length header only when request is NOT chunked
-            # encoded
+            # If request data is compressed, compress the body too
+            body = ModifyPostDataPlugin.MODIFIED_BODY
+            # If the request is of type chunked encoding
+            # add post data as chunk
             if not request.is_chunked_encoded:
+                body = ChunkParser.to_chunks(
+                    ModifyPostDataPlugin.MODIFIED_BODY,
+                )
+            else:
                 request.add_header(
                     b'Content-Length',
-                    bytes_(len(request.body)),
+                    bytes_(len(body)),
                 )
+            request.body = body
             # Enforce content-type json
             if request.has_header(b'Content-Type'):
                 request.del_header(b'Content-Type')
