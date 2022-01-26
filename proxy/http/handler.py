@@ -267,10 +267,9 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
 
     def _parse_first_request(self, data: memoryview) -> bool:
         # Parse http request
-        #
-        # TODO(abhinavsingh): Remove .tobytes after parser is
-        # memoryview compliant
         try:
+            # TODO(abhinavsingh): Remove .tobytes after parser is
+            # memoryview compliant
             self.request.parse(data.tobytes())
         except HttpProtocolException as e:  # noqa: WPS329
             self.work.queue(BAD_REQUEST_RESPONSE_PKT)
