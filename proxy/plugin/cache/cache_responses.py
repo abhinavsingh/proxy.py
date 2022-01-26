@@ -78,7 +78,7 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
                     else b'text/plain'
                 extension = content_type.split(SLASH)[-1].decode('utf-8')
                 content_file_path = os.path.join(
-                    cache_dir, "content",
+                    cache_dir, 'content',
                     '%s.%s' % (content_file_name, extension),
                 )
                 with open(content_file_path, 'wb') as content:
