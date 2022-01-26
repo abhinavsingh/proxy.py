@@ -13,9 +13,7 @@ import logging
 from typing import List, Tuple
 
 from ..http.parser import HttpParser
-from ..http.server import (
-    HttpWebServerPlugin, HttpWebServerBasePlugin, httpProtocolTypes,
-)
+from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from ..http.responses import permanentRedirectResponse
 
 
@@ -46,11 +44,12 @@ class ProxyDashboard(HttpWebServerBasePlugin):
     def handle_request(self, request: HttpParser) -> None:
         if request.path == b'/dashboard/':
             self.client.queue(
-                HttpWebServerPlugin.read_and_build_static_file_response(
+                self.serve_static_file(
                     os.path.join(
                         self.flags.static_server_dir,
                         'dashboard', 'proxy.html',
                     ),
+                    self.flags.min_compression_length,
                 ),
             )
         elif request.path in (

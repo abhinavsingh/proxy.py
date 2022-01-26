@@ -12,7 +12,6 @@ import re
 import time
 import socket
 import logging
-import mimetypes
 from typing import Any, Dict, List, Tuple, Union, Pattern, Optional
 
 from .plugin import HttpWebServerBasePlugin
@@ -21,15 +20,15 @@ from ..plugin import HttpProtocolHandlerPlugin
 from .protocols import httpProtocolTypes
 from ..exception import HttpProtocolException
 from ..protocols import httpProtocols
-from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
+from ..responses import NOT_FOUND_RESPONSE_PKT
 from ..websocket import WebsocketFrame, websocketOpcodes
 from ...common.flag import flags
 from ...common.types import Readables, Writables, Descriptors
-from ...common.utils import text_, bytes_, build_websocket_handshake_response
+from ...common.utils import text_, build_websocket_handshake_response
 from ...common.constants import (
     DEFAULT_ENABLE_WEB_SERVER, DEFAULT_STATIC_SERVER_DIR,
     DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
-    DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT,
+    DEFAULT_WEB_ACCESS_LOG_FORMAT, DEFAULT_MIN_COMPRESSION_LENGTH,
 )
 
 
@@ -65,8 +64,8 @@ flags.add_argument(
 flags.add_argument(
     '--min-compression-length',
     type=int,
-    default=DEFAULT_MIN_COMPRESSION_LIMIT,
-    help='Default: ' + str(DEFAULT_MIN_COMPRESSION_LIMIT) + ' bytes.  ' +
+    default=DEFAULT_MIN_COMPRESSION_LENGTH,
+    help='Default: ' + str(DEFAULT_MIN_COMPRESSION_LENGTH) + ' bytes.  ' +
     'Sets the minimum length of a response that will be compressed (gzipped).',
 )
 
@@ -123,27 +122,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def encryption_enabled(self) -> bool:
         return self.flags.keyfile is not None and \
             self.flags.certfile is not None
-
-    @staticmethod
-    def read_and_build_static_file_response(path: str) -> memoryview:
-        try:
-            with open(path, 'rb') as f:
-                content = f.read()
-            content_type = mimetypes.guess_type(path)[0]
-            if content_type is None:
-                content_type = 'text/plain'
-            headers = {
-                b'Content-Type': bytes_(content_type),
-                b'Cache-Control': b'max-age=86400',
-            }
-            return okResponse(
-                content=content,
-                headers=headers,
-                # TODO: Should we really close or take advantage of keep-alive?
-                conn_close=True,
-            )
-        except FileNotFoundError:
-            return NOT_FOUND_RESPONSE_PKT
 
     def switch_to_websocket(self) -> None:
         self.client.queue(
@@ -309,7 +287,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def _try_static_or_404(self, path: bytes) -> None:
         path = text_(path).split('?', 1)[0]
         self.client.queue(
-            self.read_and_build_static_file_response(
+            HttpWebServerBasePlugin.serve_static_file(
                 self.flags.static_server_dir + path,
+                self.flags.min_compression_length,
             ),
         )
