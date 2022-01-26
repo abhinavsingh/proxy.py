@@ -12,10 +12,12 @@ import logging
 from typing import Any, Optional
 
 from .store.base import CacheStore
-from ...common.flag import flags
 from ...http.proxy import HttpProxyBasePlugin
+from ...common.flag import flags
 from ...http.parser import HttpParser
-from ...common.constants import DEFAULT_CACHE_BY_CONTENT_TYPE, DEFAULT_CACHE_REQUESTS
+from ...common.constants import (
+    DEFAULT_CACHE_REQUESTS, DEFAULT_CACHE_BY_CONTENT_TYPE,
+)
 
 
 logger = logging.getLogger(__name__)

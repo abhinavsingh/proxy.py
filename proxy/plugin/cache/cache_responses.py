@@ -13,11 +13,11 @@ import logging
 import multiprocessing
 from typing import Any, Dict, Optional
 
-from ...common.constants import SLASH
-from ...http.parser import HttpParser, httpParserTypes
-
 from .base import BaseCacheResponsesPlugin
 from .store.disk import OnDiskCacheStore
+from ...http.parser import HttpParser, httpParserTypes
+from ...common.constants import SLASH
+
 
 logger = logging.getLogger(__name__)
 
