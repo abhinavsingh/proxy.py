@@ -23,6 +23,7 @@ PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(
     build_http_response(
         httpStatusCodes.OK,
         reason=b'Connection established',
+        no_cl=True,
     ),
 )
 
@@ -31,6 +32,7 @@ PROXY_TUNNEL_UNSUPPORTED_SCHEME = memoryview(
         httpStatusCodes.BAD_REQUEST,
         reason=b'Unsupported protocol scheme',
         conn_close=True,
+        no_cl=True,
     ),
 )
 
@@ -44,6 +46,7 @@ PROXY_AUTH_FAILED_RESPONSE_PKT = memoryview(
         },
         body=b'Proxy Authentication Required',
         conn_close=True,
+        no_cl=True,
     ),
 )
 
@@ -53,7 +56,6 @@ BAD_REQUEST_RESPONSE_PKT = memoryview(
         reason=b'BAD REQUEST',
         headers={
             b'Server': PROXY_AGENT_HEADER_VALUE,
-            b'Content-Length': b'0',
         },
         conn_close=True,
     ),
@@ -65,7 +67,6 @@ NOT_FOUND_RESPONSE_PKT = memoryview(
         reason=b'NOT FOUND',
         headers={
             b'Server': PROXY_AGENT_HEADER_VALUE,
-            b'Content-Length': b'0',
         },
         conn_close=True,
     ),
@@ -77,7 +78,6 @@ NOT_IMPLEMENTED_RESPONSE_PKT = memoryview(
         reason=b'NOT IMPLEMENTED',
         headers={
             b'Server': PROXY_AGENT_HEADER_VALUE,
-            b'Content-Length': b'0',
         },
         conn_close=True,
     ),
@@ -92,6 +92,7 @@ BAD_GATEWAY_RESPONSE_PKT = memoryview(
         },
         body=b'Bad Gateway',
         conn_close=True,
+        no_cl=True,
     ),
 )
 

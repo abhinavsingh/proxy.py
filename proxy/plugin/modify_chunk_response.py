@@ -34,8 +34,9 @@ class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
         # Note that these chunks also include headers
         self.response.parse(chunk)
         # If response is complete, modify and dispatch to client
-        if self.response.is_complete and self.response.is_chunked_encoded:
-            self.response.body = b'\n'.join(self.DEFAULT_CHUNKS) + b'\n'
+        if self.response.is_complete:
+            if self.response.is_chunked_encoded:
+                self.response.body = b'\n'.join(self.DEFAULT_CHUNKS) + b'\n'
             self.client.queue(memoryview(self.response.build_response()))
-            return None
-        return chunk
+        # Avoid returning chunk straight to client
+        return None

@@ -120,6 +120,7 @@ def build_http_response(
     headers: Optional[Dict[bytes, bytes]] = None,
     body: Optional[bytes] = None,
     conn_close: bool = False,
+    no_cl: bool = False,
 ) -> bytes:
     """Build and returns a HTTP response packet."""
     line = [protocol_version, bytes_(status_code)]
@@ -131,7 +132,7 @@ def build_http_response(
         if k.lower() == b'transfer-encoding':
             has_transfer_encoding = True
             break
-    if not has_transfer_encoding:
+    if not has_transfer_encoding and not no_cl:
         headers[b'Content-Length'] = bytes_(len(body)) if body else b'0'
     return build_http_pkt(line, headers, body, conn_close)
 
