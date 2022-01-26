@@ -111,17 +111,13 @@ def build_http_response(
         line.append(reason)
     if headers is None:
         headers = {}
-    has_content_length = False
     has_transfer_encoding = False
     for k, _ in headers.items():
-        if k.lower() == b'content-length':
-            has_content_length = True
         if k.lower() == b'transfer-encoding':
             has_transfer_encoding = True
-    if body is not None and \
-            not has_transfer_encoding and \
-            not has_content_length:
-        headers[b'Content-Length'] = bytes_(len(body))
+            break
+    if not has_transfer_encoding:
+        headers[b'Content-Length'] = bytes_(len(body)) if body else b'0'
     return build_http_pkt(line, headers, body, conn_close)
 
 
