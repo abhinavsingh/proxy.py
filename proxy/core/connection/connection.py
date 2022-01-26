@@ -10,7 +10,7 @@
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union
+from typing import List, Union, Optional
 
 from .types import tcpConnectionTypes
 from ...common.types import TcpOrTlsSocket
