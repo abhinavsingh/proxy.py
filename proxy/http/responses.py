@@ -13,7 +13,10 @@ from typing import Any, Dict, Optional
 
 from .codes import httpStatusCodes
 from ..common.utils import build_http_response
-from ..common.constants import DEFAULT_MIN_COMPRESSION_LENGTH, PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
+from ..common.constants import (
+    PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE,
+    DEFAULT_MIN_COMPRESSION_LENGTH,
+)
 
 
 PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(
