@@ -201,9 +201,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.pipeline_request = HttpParser(
                     httpParserTypes.REQUEST_PARSER,
                 )
-            # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
-            # compliant
-            self.pipeline_request.parse(raw.tobytes())
+            self.pipeline_request.parse(raw)
             if self.pipeline_request.is_complete:
                 self.route.handle_request(self.pipeline_request)
                 if not self.pipeline_request.is_http_1_1_keep_alive:

@@ -259,7 +259,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         )
         await self.protocol_handler._run_once()
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        response.parse(self.protocol_handler.work.buffer[0].tobytes())
+        response.parse(self.protocol_handler.work.buffer[0])
         assert response.body
         self.assertEqual(
             gzip.decompress(response.body),

@@ -276,11 +276,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     if self.response.is_complete:
                         self.handle_pipeline_response(raw)
                     else:
-                        # TODO(abhinavsingh): Remove .tobytes after parser is
-                        # memoryview compliant
-                        chunk = raw.tobytes()
-                        self.response.parse(chunk)
-                        self.emit_response_events(len(chunk))
+                        self.response.parse(raw)
+                        self.emit_response_events(len(raw))
                 else:
                     self.response.total_size += len(raw)
                 # queue raw data for client
@@ -430,7 +427,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # must be treated as WebSocket protocol packets.
                     self.upstream.queue(raw)
                     return
-
                 if self.pipeline_request is None:
                     # For pipeline requests, we never
                     # want to use --enable-proxy-protocol flag
@@ -443,10 +439,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER,
                     )
-
-                # TODO(abhinavsingh): Remove .tobytes after parser is
-                # memoryview compliant
-                self.pipeline_request.parse(raw.tobytes())
+                self.pipeline_request.parse(raw)
                 if self.pipeline_request.is_complete:
                     for plugin in self.plugins.values():
                         assert self.pipeline_request is not None
@@ -555,9 +548,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.pipeline_response = HttpParser(
                 httpParserTypes.RESPONSE_PARSER,
             )
-        # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
-        # compliant
-        self.pipeline_response.parse(raw.tobytes())
+        self.pipeline_response.parse(raw)
         if self.pipeline_response.is_complete:
             self.pipeline_response = None
 
