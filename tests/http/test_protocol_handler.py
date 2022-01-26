@@ -456,7 +456,7 @@ class TestHttpProtocolHandler(Assertions):
             CRLF,
         ])
         server.queue.assert_called_once()
-        self.assertEqual(server.queue.call_args_list[0][0][0].tobytes(), pkt)
+        self.assertEqual(server.queue.call_args_list[0][0][0], pkt)
         server.buffer_size.return_value = len(pkt)
 
     async def assert_data_queued_to_server(self, server: mock.Mock) -> None:
