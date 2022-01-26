@@ -74,7 +74,7 @@ flags.add_argument(
     type=int,
     default=DEFAULT_MAX_SEND_SIZE,
     help='Default: ' + str(int(DEFAULT_MAX_SEND_SIZE / 1024)) +
-    ' KB. Maximum amount of data to dispatch in a single send() operation.',
+    ' KB. Maximum amount of data to flush in a single send() operation.',
 )
 
 flags.add_argument(

@@ -2297,7 +2297,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.0rc9.dev8+gea0253d.d20220126
+proxy.py v2.4.0rc9.dev12+g558a430.d20220126
 
 options:
   -h, --help            show this help message and exit
@@ -2393,8 +2393,8 @@ options:
                         Default: 128 KB. Maximum amount of data received from
                         the server in a single recv() operation.
   --max-sendbuf-size MAX_SENDBUF_SIZE
-                        Default: 64 KB. Maximum amount of data to dispatch in
-                        a single send() operation.
+                        Default: 64 KB. Maximum amount of data to flush in a
+                        single send() operation.
   --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
                         inactive connection must be dropped. Inactivity is
                         defined by no data sent or received by the client.
@@ -2473,3 +2473,4 @@ options:
 Proxy.py not working? Report at:
 https://github.com/abhinavsingh/proxy.py/issues/new
 ```
+``
