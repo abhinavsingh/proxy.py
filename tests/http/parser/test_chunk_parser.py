@@ -19,18 +19,20 @@ class TestChunkParser(unittest.TestCase):
         self.parser = ChunkParser()
 
     def test_chunk_parse_basic(self) -> None:
-        self.parser.parse(memoryview(
-            b''.join([
-                b'4\r\n',
-                b'Wiki\r\n',
-                b'5\r\n',
-                b'pedia\r\n',
-                b'E\r\n',
-                b' in\r\n\r\nchunks.\r\n',
-                b'0\r\n',
-                b'\r\n',
-            ]),
-        ))
+        self.parser.parse(
+            memoryview(
+                b''.join([
+                    b'4\r\n',
+                    b'Wiki\r\n',
+                    b'5\r\n',
+                    b'pedia\r\n',
+                    b'E\r\n',
+                    b' in\r\n\r\nchunks.\r\n',
+                    b'0\r\n',
+                    b'\r\n',
+                ]),
+            ),
+        )
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'Wikipedia in\r\n\r\nchunks.')
