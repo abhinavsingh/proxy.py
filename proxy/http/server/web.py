@@ -29,7 +29,7 @@ from ...common.utils import text_, bytes_, build_websocket_handshake_response
 from ...common.constants import (
     DEFAULT_ENABLE_WEB_SERVER, DEFAULT_STATIC_SERVER_DIR,
     DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
-    DEFAULT_MIN_COMPRESSION_LIMIT, DEFAULT_WEB_ACCESS_LOG_FORMAT,
+    DEFAULT_MIN_COMPRESSION_LENGTH, DEFAULT_WEB_ACCESS_LOG_FORMAT,
 )
 
 
@@ -65,8 +65,8 @@ flags.add_argument(
 flags.add_argument(
     '--min-compression-length',
     type=int,
-    default=DEFAULT_MIN_COMPRESSION_LIMIT,
-    help='Default: ' + str(DEFAULT_MIN_COMPRESSION_LIMIT) + ' bytes.  ' +
+    default=DEFAULT_MIN_COMPRESSION_LENGTH,
+    help='Default: ' + str(DEFAULT_MIN_COMPRESSION_LENGTH) + ' bytes.  ' +
     'Sets the minimum length of a response that will be compressed (gzipped).',
 )
 
@@ -125,7 +125,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             self.flags.certfile is not None
 
     @staticmethod
-    def read_and_build_static_file_response(path: str) -> memoryview:
+    def read_and_build_static_file_response(path: str, min_compression_length: int) -> memoryview:
         try:
             with open(path, 'rb') as f:
                 content = f.read()
@@ -139,6 +139,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             return okResponse(
                 content=content,
                 headers=headers,
+                min_compression_length=min_compression_length,
                 # TODO: Should we really close or take advantage of keep-alive?
                 conn_close=True,
             )
@@ -311,5 +312,6 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.client.queue(
             self.read_and_build_static_file_response(
                 self.flags.static_server_dir + path,
+                self.flags.min_compression_length,
             ),
         )

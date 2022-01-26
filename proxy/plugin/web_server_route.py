@@ -34,6 +34,6 @@ class WebServerPlugin(HttpWebServerBasePlugin):
 
     def handle_request(self, request: HttpParser) -> None:
         if request.path == b'/http-route-example':
-            self.client.queue(HTTP_RESPONSE)
+            self.client.queue(okResponse())
         elif request.path == b'/https-route-example':
             self.client.queue(HTTPS_RESPONSE)
