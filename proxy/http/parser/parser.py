@@ -77,7 +77,7 @@ class HttpParser:
         # Total size of raw bytes passed for parsing
         self.total_size: int = 0
         # Buffer to hold unprocessed bytes
-        self.buffer: bytes = b''
+        self.buffer: Optional[memoryview] = None
         # Internal headers data structure:
         # - Keys are lower case header names.
         # - Values are 2-tuple containing original
@@ -102,19 +102,19 @@ class HttpParser:
             httpParserTypes.REQUEST_PARSER,
             enable_proxy_protocol=enable_proxy_protocol,
         )
-        parser.parse(raw)
+        parser.parse(memoryview(raw))
         return parser
 
     @classmethod
     def response(cls: Type[T], raw: bytes) -> T:
         parser = cls(httpParserTypes.RESPONSE_PARSER)
-        parser.parse(raw)
+        parser.parse(memoryview(raw))
         return parser
 
     def header(self, key: bytes) -> bytes:
         """Convenient method to return original header value from internal data structure."""
         if self.headers is None or key.lower() not in self.headers:
-            raise KeyError('%s not found in headers', text_(key))
+            raise KeyError('%s not found in headers' % text_(key))
         return self.headers[key.lower()][1]
 
     def has_header(self, key: bytes) -> bool:
@@ -206,14 +206,21 @@ class HttpParser:
         """Returns true if content or chunked response is expected."""
         return self._content_expected or self._is_chunked_encoded
 
-    def parse(self, raw: bytes, allowed_url_schemes: Optional[List[bytes]] = None) -> None:
+    def parse(
+            self,
+            raw: memoryview,
+            allowed_url_schemes: Optional[List[bytes]] = None,
+    ) -> None:
         """Parses HTTP request out of raw bytes.
 
         Check for `HttpParser.state` after `parse` has successfully returned."""
         size = len(raw)
         self.total_size += size
-        raw = self.buffer + raw
-        self.buffer, more = b'', size > 0
+        if self.buffer:
+            # TODO(abhinavsingh): Instead of tobytes our parser
+            # must be capable of working with arrays of memoryview
+            raw = memoryview(self.buffer.tobytes() + raw.tobytes())
+        self.buffer, more = None, size > 0
         while more and self.state != httpParserStates.COMPLETE:
             # gte with HEADERS_COMPLETE also encapsulated RCVING_BODY state
             if self.state >= httpParserStates.HEADERS_COMPLETE:
@@ -237,7 +244,7 @@ class HttpParser:
                     not (self._content_expected or self._is_chunked_encoded) and \
                     raw == b'':
                 self.state = httpParserStates.COMPLETE
-        self.buffer = raw
+        self.buffer = None if raw == b'' else raw
 
     def build(self, disable_headers: Optional[List[bytes]] = None, for_proxy: bool = False) -> bytes:
         """Rebuild the request object."""
@@ -263,6 +270,7 @@ class HttpParser:
                 k.lower() not in disable_headers
             },
             body=body,
+            no_ua=True,
         )
 
     def build_response(self) -> bytes:
@@ -278,7 +286,7 @@ class HttpParser:
             body=self._get_body_or_chunks(),
         )
 
-    def _process_body(self, raw: bytes) -> Tuple[bool, bytes]:
+    def _process_body(self, raw: memoryview) -> Tuple[bool, memoryview]:
         # Ref: http://www.ietf.org/rfc/rfc2616.txt
         # 3.If a Content-Length header field (section 14.13) is present, its
         #   decimal value in OCTETs represents both the entity-length and the
@@ -297,7 +305,8 @@ class HttpParser:
                 self.body = self.chunk.body
                 self.state = httpParserStates.COMPLETE
             more = False
-        elif self._content_expected:
+            return more, raw
+        if self._content_expected:
             self.state = httpParserStates.RCVING_BODY
             if self.body is None:
                 self.body = b''
@@ -307,23 +316,21 @@ class HttpParser:
             if self.body and \
                     len(self.body) == int(self.header(b'content-length')):
                 self.state = httpParserStates.COMPLETE
-            more, raw = len(raw) > 0, raw[total_size - received_size:]
-        else:
-            self.state = httpParserStates.RCVING_BODY
-            # Received a packet without content-length header
-            # and no transfer-encoding specified.
-            #
-            # This can happen for both HTTP/1.0 and HTTP/1.1 scenarios.
-            # Currently, we consume the remaining buffer as body.
-            #
-            # Ref https://github.com/abhinavsingh/proxy.py/issues/398
-            #
-            # See TestHttpParser.test_issue_398 scenario
-            self.body = raw
-            more, raw = False, b''
-        return more, raw
+            return len(raw) > 0, raw[total_size - received_size:]
+        # Received a packet without content-length header
+        # and no transfer-encoding specified.
+        #
+        # This can happen for both HTTP/1.0 and HTTP/1.1 scenarios.
+        # Currently, we consume the remaining buffer as body.
+        #
+        # Ref https://github.com/abhinavsingh/proxy.py/issues/398
+        #
+        # See TestHttpParser.test_issue_398 scenario
+        self.state = httpParserStates.RCVING_BODY
+        self.body = raw
+        return False, memoryview(b'')
 
-    def _process_headers(self, raw: bytes) -> Tuple[bool, bytes]:
+    def _process_headers(self, raw: memoryview) -> Tuple[bool, memoryview]:
         """Returns False when no CRLF could be found in received bytes.
 
         TODO: We should not return until parser reaches headers complete
@@ -334,10 +341,10 @@ class HttpParser:
         This will also help make the parser even more stateless.
         """
         while True:
-            parts = raw.split(CRLF, 1)
+            parts = raw.tobytes().split(CRLF, 1)
             if len(parts) == 1:
                 return False, raw
-            line, raw = parts[0], parts[1]
+            line, raw = parts[0], memoryview(parts[1])
             if self.state in (httpParserStates.LINE_RCVD, httpParserStates.RCVING_HEADERS):
                 if line == b'' or line.strip() == b'':  # Blank line received.
                     self.state = httpParserStates.HEADERS_COMPLETE
@@ -352,14 +359,14 @@ class HttpParser:
 
     def _process_line(
             self,
-            raw: bytes,
+            raw: memoryview,
             allowed_url_schemes: Optional[List[bytes]] = None,
-    ) -> Tuple[bool, bytes]:
+    ) -> Tuple[bool, memoryview]:
         while True:
-            parts = raw.split(CRLF, 1)
+            parts = raw.tobytes().split(CRLF, 1)
             if len(parts) == 1:
                 return False, raw
-            line, raw = parts[0], parts[1]
+            line, raw = parts[0], memoryview(parts[1])
             if self.type == httpParserTypes.REQUEST_PARSER:
                 if self.protocol is not None and self.protocol.version is None:
                     # We expect to receive entire proxy protocol v1 line

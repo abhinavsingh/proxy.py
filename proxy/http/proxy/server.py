@@ -188,7 +188,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 self.upstream.connection.fileno() in w:
             logger.debug('Server is write ready, flushing...')
             try:
-                self.upstream.flush()
+                self.upstream.flush(self.flags.max_sendbuf_size)
             except ssl.SSLWantWriteError:
                 logger.warning(
                     'SSLWantWriteError while trying to flush to server, will retry',
@@ -276,11 +276,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     if self.response.is_complete:
                         self.handle_pipeline_response(raw)
                     else:
-                        # TODO(abhinavsingh): Remove .tobytes after parser is
-                        # memoryview compliant
-                        chunk = raw.tobytes()
-                        self.response.parse(chunk)
-                        self.emit_response_events(len(chunk))
+                        self.response.parse(raw)
+                        self.emit_response_events(len(raw))
                 else:
                     self.response.total_size += len(raw)
                 # queue raw data for client
@@ -398,7 +395,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return chunk
 
     # Can return None to tear down connection
-    def on_client_data(self, raw: memoryview) -> Optional[memoryview]:
+    def on_client_data(self, raw: memoryview) -> None:
         # For scenarios when an upstream connection was never established,
         # let plugin do whatever they wish to.  These are special scenarios
         # where plugins are trying to do something magical.  Within the core
@@ -413,7 +410,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             for plugin in self.plugins.values():
                 o = plugin.handle_client_data(raw)
                 if o is None:
-                    return None
+                    return
                 raw = o
         elif self.upstream and not self.upstream.closed:
             # For http proxy requests, handle pipeline case.
@@ -429,25 +426,26 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     # upgrade request. Incoming client data now
                     # must be treated as WebSocket protocol packets.
                     self.upstream.queue(raw)
-                    return None
-
+                    return
                 if self.pipeline_request is None:
                     # For pipeline requests, we never
                     # want to use --enable-proxy-protocol flag
                     # as proxy protocol header will not be present
+                    #
+                    # TODO: HTTP parser must be smart about detecting
+                    # HA proxy protocol or we must always explicitly pass
+                    # the flag when we are expecting HA proxy protocol
+                    # request line before HTTP request lines.
                     self.pipeline_request = HttpParser(
                         httpParserTypes.REQUEST_PARSER,
                     )
-
-                # TODO(abhinavsingh): Remove .tobytes after parser is
-                # memoryview compliant
-                self.pipeline_request.parse(raw.tobytes())
+                self.pipeline_request.parse(raw)
                 if self.pipeline_request.is_complete:
                     for plugin in self.plugins.values():
                         assert self.pipeline_request is not None
                         r = plugin.handle_client_request(self.pipeline_request)
                         if r is None:
-                            return None
+                            return
                         self.pipeline_request = r
                     assert self.pipeline_request is not None
                     # TODO(abhinavsingh): Remove memoryview wrapping here after
@@ -463,8 +461,6 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # simply queue for upstream server.
             else:
                 self.upstream.queue(raw)
-            return None
-        return raw
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
         self.emit_request_complete()
@@ -552,9 +548,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             self.pipeline_response = HttpParser(
                 httpParserTypes.RESPONSE_PARSER,
             )
-        # TODO(abhinavsingh): Remove .tobytes after parser is memoryview
-        # compliant
-        self.pipeline_response.parse(raw.tobytes())
+        self.pipeline_response.parse(raw)
         if self.pipeline_response.is_complete:
             self.pipeline_response = None
 
@@ -759,7 +753,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         assert isinstance(self.upstream.connection, socket.socket)
         do_close = False
         try:
-            self.upstream.wrap(text_(self.request.host), self.flags.ca_file)
+            self.upstream.wrap(
+                text_(self.request.host),
+                self.flags.ca_file,
+                as_non_blocking=True,
+            )
         except ssl.SSLCertVerificationError:    # Server raised certificate verification error
             # When --disable-interception-on-ssl-cert-verification-error flag is on,
             # we will cache such upstream hosts and avoid intercepting them for future

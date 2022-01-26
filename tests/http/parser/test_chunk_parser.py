@@ -20,16 +20,18 @@ class TestChunkParser(unittest.TestCase):
 
     def test_chunk_parse_basic(self) -> None:
         self.parser.parse(
-            b''.join([
-                b'4\r\n',
-                b'Wiki\r\n',
-                b'5\r\n',
-                b'pedia\r\n',
-                b'E\r\n',
-                b' in\r\n\r\nchunks.\r\n',
-                b'0\r\n',
-                b'\r\n',
-            ]),
+            memoryview(
+                b''.join([
+                    b'4\r\n',
+                    b'Wiki\r\n',
+                    b'5\r\n',
+                    b'pedia\r\n',
+                    b'E\r\n',
+                    b' in\r\n\r\nchunks.\r\n',
+                    b'0\r\n',
+                    b'\r\n',
+                ]),
+            ),
         )
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, None)
@@ -38,7 +40,7 @@ class TestChunkParser(unittest.TestCase):
 
     def test_chunk_parse_issue_27(self) -> None:
         """Case when data ends with the chunk size but without ending CRLF."""
-        self.parser.parse(b'3')
+        self.parser.parse(memoryview(b'3'))
         self.assertEqual(self.parser.chunk, b'3')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'')
@@ -46,7 +48,7 @@ class TestChunkParser(unittest.TestCase):
             self.parser.state,
             chunkParserStates.WAITING_FOR_SIZE,
         )
-        self.parser.parse(b'\r\n')
+        self.parser.parse(memoryview(b'\r\n'))
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, 3)
         self.assertEqual(self.parser.body, b'')
@@ -54,7 +56,7 @@ class TestChunkParser(unittest.TestCase):
             self.parser.state,
             chunkParserStates.WAITING_FOR_DATA,
         )
-        self.parser.parse(b'abc')
+        self.parser.parse(memoryview(b'abc'))
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'abc')
@@ -62,7 +64,7 @@ class TestChunkParser(unittest.TestCase):
             self.parser.state,
             chunkParserStates.WAITING_FOR_SIZE,
         )
-        self.parser.parse(b'\r\n')
+        self.parser.parse(memoryview(b'\r\n'))
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'abc')
@@ -70,7 +72,7 @@ class TestChunkParser(unittest.TestCase):
             self.parser.state,
             chunkParserStates.WAITING_FOR_SIZE,
         )
-        self.parser.parse(b'4\r\n')
+        self.parser.parse(memoryview(b'4\r\n'))
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, 4)
         self.assertEqual(self.parser.body, b'abc')
@@ -78,7 +80,7 @@ class TestChunkParser(unittest.TestCase):
             self.parser.state,
             chunkParserStates.WAITING_FOR_DATA,
         )
-        self.parser.parse(b'defg\r\n0')
+        self.parser.parse(memoryview(b'defg\r\n0'))
         self.assertEqual(self.parser.chunk, b'0')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'abcdefg')
@@ -86,7 +88,7 @@ class TestChunkParser(unittest.TestCase):
             self.parser.state,
             chunkParserStates.WAITING_FOR_SIZE,
         )
-        self.parser.parse(b'\r\n\r\n')
+        self.parser.parse(memoryview(b'\r\n\r\n'))
         self.assertEqual(self.parser.chunk, b'')
         self.assertEqual(self.parser.size, None)
         self.assertEqual(self.parser.body, b'abcdefg')

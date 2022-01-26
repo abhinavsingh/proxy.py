@@ -30,7 +30,7 @@ from .constants import (
     PLUGIN_REVERSE_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC,
     DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
     PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEBSOCKET_TRANSPORT,
-    DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_MIN_COMPRESSION_LIMIT,
+    DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_MIN_COMPRESSION_LENGTH,
 )
 
 
@@ -335,13 +335,13 @@ class FlagParser:
                 args.static_server_dir,
             ),
         )
-        args.min_compression_limit = cast(
+        args.min_compression_length = cast(
             bool,
             opts.get(
-                'min_compression_limit',
+                'min_compression_length',
                 getattr(
-                    args, 'min_compression_limit',
-                    DEFAULT_MIN_COMPRESSION_LIMIT,
+                    args, 'min_compression_length',
+                    DEFAULT_MIN_COMPRESSION_LENGTH,
                 ),
             ),
         )

@@ -163,9 +163,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             self.work.closed = True
             return True
         try:
-            # Don't parse incoming data any further after 1st request has completed.
-            #
-            # This specially does happen for pipeline requests.
+            # We don't parse incoming data any further after 1st HTTP request packet.
             #
             # Plugins can utilize on_client_data for such cases and
             # apply custom logic to handle request data sent after 1st
@@ -173,11 +171,10 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             if self.request.state != httpParserStates.COMPLETE:
                 if self._parse_first_request(data):
                     return True
-            else:
-                # HttpProtocolHandlerPlugin.on_client_data
-                # Can raise HttpProtocolException to tear down the connection
-                if self.plugin:
-                    data = self.plugin.on_client_data(data) or data
+            # HttpProtocolHandlerPlugin.on_client_data
+            # Can raise HttpProtocolException to tear down the connection
+            elif self.plugin:
+                self.plugin.on_client_data(data)
         except HttpProtocolException as e:
             logger.info('HttpProtocolException: %s' % e)
             response: Optional[memoryview] = e.response(self.request)
@@ -270,11 +267,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
 
     def _parse_first_request(self, data: memoryview) -> bool:
         # Parse http request
-        #
-        # TODO(abhinavsingh): Remove .tobytes after parser is
-        # memoryview compliant
         try:
-            self.request.parse(data.tobytes())
+            self.request.parse(data)
         except HttpProtocolException as e:  # noqa: WPS329
             self.work.queue(BAD_REQUEST_RESPONSE_PKT)
             raise e
@@ -351,6 +345,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             )
         finally:
             self.shutdown()
+            if self.selector:
+                self.selector.close()
             loop.close()
 
     async def _run_once(self) -> bool:
@@ -397,7 +393,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
                 ] = self.selector.select(timeout=DEFAULT_SELECTOR_SELECT_TIMEOUT)
                 if len(ev) == 0:
                     continue
-                self.work.flush()
+                self.work.flush(self.flags.max_sendbuf_size)
         except BrokenPipeError:
             pass
         finally:

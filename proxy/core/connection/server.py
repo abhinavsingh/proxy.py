@@ -43,7 +43,12 @@ class TcpServerConnection(TcpConnection):
         )
         self.closed = False
 
-    def wrap(self, hostname: str, ca_file: Optional[str] = None) -> None:
+    def wrap(
+            self,
+            hostname: str,
+            ca_file: Optional[str] = None,
+            as_non_blocking: bool = False,
+    ) -> None:
         ctx = ssl.create_default_context(
             ssl.Purpose.SERVER_AUTH, cafile=ca_file,
         )
@@ -54,4 +59,5 @@ class TcpServerConnection(TcpConnection):
             self.connection,
             server_hostname=hostname,
         )
-        self.connection.setblocking(False)
+        if as_non_blocking:
+            self.connection.setblocking(False)

@@ -9,14 +9,17 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
+import mimetypes
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Optional
 
 from ..parser import HttpParser
+from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
 from ..websocket import WebsocketFrame
 from ..connection import HttpClientConnection
 from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
+from ...common.utils import bytes_
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -39,6 +42,28 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
         self.client = client
         self.event_queue = event_queue
         self.upstream_conn_pool = upstream_conn_pool
+
+    @staticmethod
+    def serve_static_file(path: str, min_compression_length: int) -> memoryview:
+        try:
+            with open(path, 'rb') as f:
+                content = f.read()
+            content_type = mimetypes.guess_type(path)[0]
+            if content_type is None:
+                content_type = 'text/plain'
+            headers = {
+                b'Content-Type': bytes_(content_type),
+                b'Cache-Control': b'max-age=86400',
+            }
+            return okResponse(
+                content=content,
+                headers=headers,
+                min_compression_length=min_compression_length,
+                # TODO: Should we really close or take advantage of keep-alive?
+                conn_close=True,
+            )
+        except FileNotFoundError:
+            return NOT_FOUND_RESPONSE_PKT
 
     def name(self) -> str:
         """A unique name for your plugin.

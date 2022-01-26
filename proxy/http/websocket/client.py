@@ -27,6 +27,9 @@ from ...common.constants import (
 
 
 class WebsocketClient(TcpConnection):
+    """Websocket client connection.
+
+    TODO: Make me compatible with the work framework."""
 
     def __init__(
         self,
@@ -57,10 +60,14 @@ class WebsocketClient(TcpConnection):
         return self.sock
 
     def handshake(self) -> None:
+        """Start websocket upgrade & handshake protocol"""
         self.upgrade()
         self.sock.setblocking(False)
 
     def upgrade(self) -> None:
+        """Creates a key and sends websocket handshake packet to upstream.
+        Receives response from the server and asserts that websocket
+        accept header is valid in the response."""
         key = base64.b64encode(secrets.token_bytes(16))
         self.sock.send(
             build_websocket_handshake_request(
@@ -70,15 +77,9 @@ class WebsocketClient(TcpConnection):
             ),
         )
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        response.parse(self.sock.recv(DEFAULT_BUFFER_SIZE))
+        response.parse(memoryview(self.sock.recv(DEFAULT_BUFFER_SIZE)))
         accept = response.header(b'Sec-Websocket-Accept')
         assert WebsocketFrame.key_to_accept(key) == accept
-
-    def ping(self, data: Optional[bytes] = None) -> None:
-        pass    # pragma: no cover
-
-    def pong(self, data: Optional[bytes] = None) -> None:
-        pass    # pragma: no cover
 
     def shutdown(self, _data: Optional[bytes] = None) -> None:
         """Closes connection with the server."""
@@ -93,16 +94,16 @@ class WebsocketClient(TcpConnection):
         self.selector.unregister(self.sock)
         for _, mask in events:
             if mask & selectors.EVENT_READ and self.on_message:
+                # TODO: client recvbuf size flag currently not used here
                 raw = self.recv()
-                if raw is None or raw.tobytes() == b'':
+                if raw is None or raw == b'':
                     self.closed = True
                     return True
                 frame = WebsocketFrame()
-                # TODO(abhinavsingh): Remove .tobytes after parser is
-                # memoryview compliant
                 frame.parse(raw.tobytes())
                 self.on_message(frame)
             elif mask & selectors.EVENT_WRITE:
+                # TODO: max sendbuf size flag currently not used here
                 self.flush()
         return False
 
@@ -121,3 +122,4 @@ class WebsocketClient(TcpConnection):
                 except OSError:
                     pass
             self.sock.close()
+            self.selector.close()

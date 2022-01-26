@@ -125,8 +125,12 @@ repos:
   rev: v2.1.0
   hooks:
   - id: codespell
-    exclude: >-
-      ^.+\.min\.js$
+    exclude: >
+      (?x)^(
+        ^.+\.ipynb$|
+        tests/http/test_responses\.py|
+        ^.+\.min\.js$
+      )$
 
 - repo: https://github.com/adrienverge/yamllint.git
   rev: v1.26.2

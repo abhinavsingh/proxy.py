@@ -95,7 +95,9 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
 
         # Do not mock the original wrap method
         self.server.wrap.side_effect = \
-            lambda x, y: TcpServerConnection.wrap(self.server, x, y)
+            lambda x, y, as_non_blocking: TcpServerConnection.wrap(
+                self.server, x, y, as_non_blocking=as_non_blocking,
+            )
 
         self.server.has_buffer.side_effect = has_buffer
         type(self.server).closed = mocker.PropertyMock(side_effect=closed)
@@ -150,7 +152,9 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
 
         self._conn.send.side_effect = send
         self._conn.recv.return_value = build_http_request(
-            httpMethods.CONNECT, b'uni.corn:443',
+            httpMethods.CONNECT,
+            b'uni.corn:443',
+            no_ua=True,
         )
 
     @pytest.mark.asyncio    # type: ignore[misc]
@@ -191,6 +195,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
                 b'Content-Type': b'application/x-www-form-urlencoded',
             },
             body=original,
+            no_ua=True,
         )
         await self.protocol_handler._run_once()
         self.server.queue.assert_called_once()
@@ -240,6 +245,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             headers={
                 b'Host': b'uni.corn',
             },
+            no_ua=True,
         )
         self.client_ssl_connection.recv.return_value = request
 
@@ -257,7 +263,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         )
         await self.protocol_handler._run_once()
         response = HttpParser(httpParserTypes.RESPONSE_PARSER)
-        response.parse(self.protocol_handler.work.buffer[0].tobytes())
+        response.parse(self.protocol_handler.work.buffer[0])
         assert response.body
         self.assertEqual(
             gzip.decompress(response.body),

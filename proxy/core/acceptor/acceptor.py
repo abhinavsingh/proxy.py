@@ -178,6 +178,7 @@ class Acceptor(multiprocessing.Process):
             for fileno in self.socks:
                 self.socks[fileno].close()
             self.socks.clear()
+            self.selector.close()
             logger.debug('Acceptor#%d shutdown', self.idd)
 
     def _recv_and_setup_socks(self) -> None:
@@ -207,7 +208,8 @@ class Acceptor(multiprocessing.Process):
         self._lthread.start()
 
     def _stop_local(self) -> None:
-        if self._lthread is not None and self._local_work_queue is not None:
+        if self._lthread is not None and \
+                self._local_work_queue is not None:
             self._local_work_queue.put(False)
             self._lthread.join()
 

@@ -94,7 +94,7 @@ lib-clean:
 	rm -rf .hypothesis
 	# Doc RST files are cached and can cause issues
 	# See https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-1003444578
-	rm docs/pkg/*.rst
+	rm -f docs/pkg/*.rst
 
 lib-dep:
 	pip install --upgrade pip && \
@@ -134,7 +134,7 @@ lib-doc:
 	python -m tox -e build-docs && \
 	$(OPEN) .tox/build-docs/docs_out/index.html || true
 
-lib-coverage:
+lib-coverage: lib-clean
 	pytest --cov=proxy --cov=tests --cov-report=html tests/ && \
 	$(OPEN) htmlcov/index.html || true
 

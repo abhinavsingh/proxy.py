@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 from .types import HostPort
 from .constants import (
     CRLF, COLON, HTTP_1_1, IS_WINDOWS, WHITESPACE, DEFAULT_TIMEOUT,
-    DEFAULT_THREADLESS,
+    DEFAULT_THREADLESS, PROXY_AGENT_HEADER_VALUE,
 )
 
 
@@ -84,14 +84,30 @@ def bytes_(s: Any, encoding: str = 'utf-8', errors: str = 'strict') -> Any:
 def build_http_request(
     method: bytes, url: bytes,
     protocol_version: bytes = HTTP_1_1,
+    content_type: Optional[bytes] = None,
     headers: Optional[Dict[bytes, bytes]] = None,
     body: Optional[bytes] = None,
     conn_close: bool = False,
+    no_ua: bool = False,
 ) -> bytes:
     """Build and returns a HTTP request packet."""
+    headers = headers or {}
+    if content_type is not None:
+        headers[b'Content-Type'] = content_type
+    has_transfer_encoding = False
+    has_user_agent = False
+    for k, _ in headers.items():
+        if k.lower() == b'transfer-encoding':
+            has_transfer_encoding = True
+        elif k.lower() == b'user-agent':
+            has_user_agent = True
+    if body and not has_transfer_encoding:
+        headers[b'Content-Length'] = bytes_(len(body))
+    if not has_user_agent and not no_ua:
+        headers[b'User-Agent'] = PROXY_AGENT_HEADER_VALUE
     return build_http_pkt(
         [method, url, protocol_version],
-        headers or {},
+        headers,
         body,
         conn_close,
     )
@@ -109,19 +125,14 @@ def build_http_response(
     line = [protocol_version, bytes_(status_code)]
     if reason:
         line.append(reason)
-    if headers is None:
-        headers = {}
-    has_content_length = False
+    headers = headers or {}
     has_transfer_encoding = False
     for k, _ in headers.items():
-        if k.lower() == b'content-length':
-            has_content_length = True
         if k.lower() == b'transfer-encoding':
             has_transfer_encoding = True
-    if body is not None and \
-            not has_transfer_encoding and \
-            not has_content_length:
-        headers[b'Content-Length'] = bytes_(len(body))
+            break
+    if not has_transfer_encoding:
+        headers[b'Content-Length'] = bytes_(len(body)) if body else b'0'
     return build_http_pkt(line, headers, body, conn_close)
 
 

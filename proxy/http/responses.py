@@ -12,9 +12,11 @@ import gzip
 from typing import Any, Dict, Optional
 
 from .codes import httpStatusCodes
-from ..common.flag import flags
 from ..common.utils import build_http_response
-from ..common.constants import PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE
+from ..common.constants import (
+    PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE,
+    DEFAULT_MIN_COMPRESSION_LENGTH,
+)
 
 
 PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT = memoryview(
@@ -98,10 +100,11 @@ def okResponse(
         content: Optional[bytes] = None,
         headers: Optional[Dict[bytes, bytes]] = None,
         compress: bool = True,
+        min_compression_length: int = DEFAULT_MIN_COMPRESSION_LENGTH,
         **kwargs: Any,
 ) -> memoryview:
     do_compress: bool = False
-    if flags.args and compress and content and len(content) > flags.args.min_compression_limit:
+    if compress and content and len(content) > min_compression_length:
         do_compress = True
         if not headers:
             headers = {}

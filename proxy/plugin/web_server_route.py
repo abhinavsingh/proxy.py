@@ -7,6 +7,11 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       ws
+       onmessage
 """
 import logging
 from typing import List, Tuple
@@ -14,6 +19,7 @@ from typing import List, Tuple
 from ..http.parser import HttpParser
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from ..http.responses import okResponse
+from ..http.websocket.frame import WebsocketFrame
 
 
 logger = logging.getLogger(__name__)
@@ -37,3 +43,15 @@ class WebServerPlugin(HttpWebServerBasePlugin):
             self.client.queue(HTTP_RESPONSE)
         elif request.path == b'/https-route-example':
             self.client.queue(HTTPS_RESPONSE)
+
+    def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        """Open chrome devtools and try using following commands:
+
+        Example:
+
+            ws = new WebSocket("ws://localhost:8899/ws-route-example")
+            ws.onmessage = function(m) { console.log(m); }
+            ws.send('hello')
+
+        """
+        self.client.queue(memoryview(WebsocketFrame.text(frame.data or b'')))

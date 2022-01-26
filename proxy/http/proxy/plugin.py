@@ -121,7 +121,6 @@ class HttpProxyBasePlugin(
         Return None to drop the request data, e.g. in case a response has already been queued.
         Raise HttpRequestRejected or HttpProtocolException directly to
         tear down the connection with client.
-
         """
         return request  # pragma: no cover
 

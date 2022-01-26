@@ -250,7 +250,7 @@
   - See `--enable-static-server` and `--static-server-dir` flags
 
 - Optimized for large file uploads and downloads
-  - See `--client-recvbuf-size` and `--server-recvbuf-size` flag
+  - See `--client-recvbuf-size`, `--server-recvbuf-size`, `--max-sendbuf-size` flags
 
 - `IPv4` and `IPv6` support
   - See `--hostname` flag
@@ -709,6 +709,8 @@ Start `proxy.py` as:
 ❯ proxy \
     --plugins proxy.plugin.CacheResponsesPlugin
 ```
+
+You may also use the `--cache-requests` flag to enable request packet caching for inspection.
 
 Verify using `curl -v -x localhost:8899 http://httpbin.org/get`:
 
@@ -2278,13 +2280,14 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--work-klass WORK_KLASS] [--pid-file PID_FILE]
           [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
           [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
-          [--server-recvbuf-size SERVER_RECVBUF_SIZE] [--timeout TIMEOUT]
+          [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+          [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
           [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
           [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
           [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
           [--ca-signing-key-file CA_SIGNING_KEY_FILE]
           [--auth-plugin AUTH_PLUGIN] [--cache-dir CACHE_DIR]
-          [--proxy-pool PROXY_POOL] [--enable-web-server]
+          [--cache-requests] [--proxy-pool PROXY_POOL] [--enable-web-server]
           [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
           [--enable-reverse-proxy] [--pac-file PAC_FILE]
@@ -2294,7 +2297,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.0rc8.dev17+g59a4335.d20220123
+proxy.py v2.4.0rc9.dev8+gea0253d.d20220126
 
 options:
   -h, --help            show this help message and exit
@@ -2389,6 +2392,9 @@ options:
   --server-recvbuf-size SERVER_RECVBUF_SIZE
                         Default: 128 KB. Maximum amount of data received from
                         the server in a single recv() operation.
+  --max-sendbuf-size MAX_SENDBUF_SIZE
+                        Default: 64 KB. Maximum amount of data to dispatch in
+                        a single send() operation.
   --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
                         inactive connection must be dropped. Inactivity is
                         defined by no data sent or received by the client.
@@ -2425,6 +2431,7 @@ options:
                         Default: /Users/abhinavsingh/.proxy/cache. Flag only
                         applicable when cache plugin is used with on-disk
                         storage.
+  --cache-requests      Default: False. Whether to also cache request packets.
   --proxy-pool PROXY_POOL
                         List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable
