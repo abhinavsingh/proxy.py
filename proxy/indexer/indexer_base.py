@@ -7,38 +7,70 @@ from typing import Dict, Union
 from logged_groups import logged_group
 
 from ..environment import RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
+from ..environment import HISTORY_START, PARALLEL_REQUESTS, FINALIZED
 
 try:
     from sql_dict import SQLDict
     from trx_receipts_storage import TrxReceiptsStorage
-    from utils import FINALIZED
 except ImportError:
     from .sql_dict import SQLDict
     from .trx_receipts_storage import TrxReceiptsStorage
-    from .utils import FINALIZED
 
 
-PARALLEL_REQUESTS = int(os.environ.get("PARALLEL_REQUESTS", "2"))
-
-
-DEVNET_HISTORY_START = "7BdwyUQ61RUZP63HABJkbW66beLk22tdXnP69KsvQBJekCPVaHoJY47Rw68b3VV1UbQNHxX3uxUSLfiJrfy2bTn"
-HISTORY_START = [DEVNET_HISTORY_START]
-
-
+@logged_group("neon.Indexer")
 class IndexerBase:
     def __init__(self,
                  solana_url,
                  evm_loader_id,
-                 start_slot):
-
+                 last_slot):
         self.evm_loader_id = evm_loader_id
         self.client = Client(solana_url)
         self.transaction_receipts = TrxReceiptsStorage('transaction_receipts')
-        self.last_slot = start_slot
+        self._move_data_from_old_table()
+        self.max_known_tx = self.transaction_receipts.max_known_trx()
+        self.last_slot = self._init_last_slot('receipt', last_slot)
         self.current_slot = 0
         self.counter_ = 0
-        self.max_known_tx = self.transaction_receipts.max_known_trx()
-        self._move_data_from_old_table()
+
+    def _init_last_slot(self, name: str, last_known_slot: int):
+        """
+        This function allow to skip some part of history.
+        - LATEST - start from the last block slot from Solana
+        - CONTINUE - continue from the last parsed slot of from latest
+        - NUMBER - first start from the number, then continue from last parsed slot
+        """
+        last_known_slot = 0 if not isinstance(last_known_slot, int) else last_known_slot
+        latest_slot = self.client.get_slot(commitment=FINALIZED)["result"]
+        start_int_slot = 0
+        name = f'{name} slot'
+
+        START_SLOT = os.environ.get('START_SLOT', 0)
+        start_slot = START_SLOT
+        if start_slot not in ['CONTINUE', 'LATEST']:
+            try:
+                start_int_slot = min(int(start_slot), latest_slot)
+            except Exception:
+                start_int_slot = 0
+
+        if start_slot == 'CONTINUE':
+            if last_known_slot > 0:
+                self.info(f'START_SLOT={START_SLOT}: started the {name} from previous run {last_known_slot}')
+                return last_known_slot
+            else:
+                self.info(f'START_SLOT={START_SLOT}: forced the {name} from the latest Solana slot')
+                start_slot = 'LATEST'
+
+        if start_slot == 'LATEST':
+            self.info(f'START_SLOT={START_SLOT}: started the {name} from the latest Solana slot {latest_slot}')
+            return latest_slot
+
+        if start_int_slot < last_known_slot:
+            self.info(f'START_SLOT={START_SLOT}: started the {name} from previous run, ' +
+                      f'because {start_int_slot} < {last_known_slot}')
+            return last_known_slot
+
+        self.info(f'START_SLOT={START_SLOT}: started the {name} from {start_int_slot}')
+        return start_int_slot
 
     def _move_data_from_old_table(self):
         if self.transaction_receipts.size() == 0:
@@ -53,7 +85,7 @@ class IndexerBase:
             except Exception as err:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
                 self.warning('Exception on submitting transaction. ' +
-                               f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
+                             f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
             time.sleep(1.0)
 
     def process_functions(self):

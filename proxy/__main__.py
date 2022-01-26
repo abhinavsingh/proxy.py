@@ -28,7 +28,6 @@ if __name__ == '__main__':
             wrapper_whitelist = wrapper_whitelist.split(',')
         neon_decimals = int(os.environ.get('NEON_DECIMALS', '9'))
 
-        start_slot = os.environ.get('START_SLOT', 0)
         pp_solana_url = os.environ.get('PP_SOLANA_URL', None)
         max_conf = float(os.environ.get('MAX_CONFIDENCE_INTERVAL', 0.02))
 
@@ -38,7 +37,6 @@ if __name__ == '__main__':
                        faucet_url,
                        wrapper_whitelist,
                        neon_decimals,
-                       start_slot,
                        pp_solana_url,
                        max_conf)
     else:

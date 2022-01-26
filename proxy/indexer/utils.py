@@ -5,7 +5,7 @@ import base64
 import json
 import psycopg2
 import subprocess
-import os
+import traceback
 
 from eth_utils import big_endian_to_int
 from solana.account import Account
@@ -25,12 +25,8 @@ from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT
 from ..common_neon.eth_proto import Trx as EthTx
 from ..environment import SOLANA_URL, EVM_LOADER_ID, ETH_TOKEN_MINT_ID
 
-
 from proxy.indexer.pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST
 from proxy.indexer.pg_common import encode, decode
-
-
-FINALIZED = os.environ.get('FINALIZED', 'finalized')
 
 
 def check_error(trx):
@@ -460,7 +456,7 @@ class Canceller:
     def unlock_accounts(self, blocked_storages):
         readonly_accs = [
             PublicKey(EVM_LOADER_ID),
-            ETH_TOKEN_MINT_ID,
+            PublicKey(ETH_TOKEN_MINT_ID),
             PublicKey(TOKEN_PROGRAM_ID),
             PublicKey(SYSVAR_CLOCK_PUBKEY),
             PublicKey(SYSVAR_INSTRUCTION_PUBKEY),
@@ -484,7 +480,8 @@ class Canceller:
                         AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False)
                     ]
                 for acc in blocked_accounts:
-                    keys.append(AccountMeta(pubkey=acc, is_signer=False, is_writable=(False if acc in readonly_accs else True)))
+                    is_writable = False if PublicKey(acc) in readonly_accs else True
+                    keys.append(AccountMeta(pubkey=acc, is_signer=False, is_writable=is_writable))
 
                 trx = Transaction()
                 nonce = int(neon_tx.nonce, 16)
@@ -498,6 +495,8 @@ class Canceller:
                 try:
                     self.client.send_transaction(trx, self.signer, opts=TxOpts(preflight_commitment=Confirmed))
                 except Exception as err:
-                    self.error(err)
+                    err_tb = "".join(traceback.format_tb(err.__traceback__))
+                    self.error('Exception on submitting transaction. ' +
+                               f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
                 else:
                     self.debug(f"Canceled: {blocked_accounts}")

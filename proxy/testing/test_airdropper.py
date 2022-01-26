@@ -1,4 +1,4 @@
-from multiprocessing.connection import Client
+import os
 import unittest
 
 from solana.rpc.api import Client as SolanaClient
@@ -8,7 +8,7 @@ from proxy.indexer.airdropper import Airdropper, AIRDROP_AMOUNT_SOL, NEON_PRICE_
 from proxy.indexer.sql_dict import SQLDict
 import time
 from flask import request, Response
-from unittest.mock import Mock, MagicMock, patch, call, ANY
+from unittest.mock import Mock, MagicMock, patch, ANY
 from decimal import Decimal
 import itertools
 from proxy.testing.transactions import pre_token_airdrop_trx, wrapper_whitelist, evm_loader_addr, token_airdrop_address
@@ -53,13 +53,13 @@ def create_price_info(valid_slot: int, price: Decimal, conf: Decimal):
 
 class Test_Airdropper(unittest.TestCase):
     def create_airdropper(self, start_slot):
+        os.environ['START_SLOT'] = str(start_slot)
         return Airdropper(solana_url         =f'http://{self.address}:8899',
                           evm_loader_id       =self.evm_loader_id,
                           pyth_mapping_account=self.pyth_mapping_account,
                           faucet_url          =f'http://{self.address}:{self.faucet_port}',
                           wrapper_whitelist   =self.wrapper_whitelist,
-                          neon_decimals       =self.neon_decimals,
-                          start_slot          =start_slot)
+                          neon_decimals       =self.neon_decimals)
 
     @classmethod
     @patch.object(SQLDict, 'get')
@@ -73,8 +73,8 @@ class Test_Airdropper(unittest.TestCase):
         cls.wrapper_whitelist = wrapper_whitelist
         cls.neon_decimals = 9
         cls.airdropper = cls.create_airdropper(cls, 0)
-        mock_get_slot.assert_not_called()
-        mock_dict_get.assert_not_called()
+        mock_get_slot.assert_called_once_with(commitment='finalized')
+        mock_dict_get.assert_called()
 
         cls.airdropper.always_reload_price = True
 
@@ -258,37 +258,66 @@ class Test_Airdropper(unittest.TestCase):
     @patch.object(SolanaClient, 'get_slot')
     def test_init_airdropper_slot_continue(self, mock_get_slot, mock_dict_get):
         start_slot = 1234
-        mock_dict_get.side_effect = [start_slot]
+        mock_dict_get.side_effect = [start_slot - 1]
+        mock_get_slot.side_effect = [{'result': start_slot + 1}]
         new_airdropper = self.create_airdropper('CONTINUE')
-        self.assertEqual(new_airdropper.latest_processed_slot, start_slot)
-        mock_dict_get.assert_called_once_with('latest_processed_slot', ANY)
-        mock_get_slot.assert_not_called()
+        self.assertEqual(new_airdropper.latest_processed_slot, start_slot - 1)
+        mock_get_slot.assert_called_once_with(commitment='finalized')
+        mock_dict_get.assert_called()
 
     @patch.object(SQLDict, 'get')
     @patch.object(SolanaClient, 'get_slot')
     def test_init_airdropper_slot_continue_recent_slot_not_found(self, mock_get_slot, mock_dict_get):
+        start_slot = 1234
         mock_dict_get.side_effect = [None]
-        with self.assertRaises(Exception):
-            self.create_airdropper('CONTINUE')
-        mock_dict_get.assert_called_once_with('latest_processed_slot', ANY)
-        mock_get_slot.assert_not_called()
+        mock_get_slot.side_effect = [{'result': start_slot + 1}]
+        new_airdropper = self.create_airdropper('CONTINUE')
+        self.assertEqual(new_airdropper.latest_processed_slot, start_slot + 1)
+        mock_get_slot.assert_called_once_with(commitment='finalized')
+        mock_dict_get.assert_called()
 
-    
+
     @patch.object(SQLDict, 'get')
     @patch.object(SolanaClient, 'get_slot')
     def test_init_airdropper_start_slot_parse_error(self, mock_get_slot, mock_dict_get):
-        with self.assertRaises(Exception):
-            self.create_airdropper('Wrong value')
-        mock_dict_get.assert_not_called()
-        mock_get_slot.assert_not_called()
+        start_slot = 1234
+        mock_dict_get.side_effect = [start_slot - 1]
+        mock_get_slot.side_effect = [{'result': start_slot + 1}]
+        new_airdropper = self.create_airdropper('Wrong value')
+        self.assertEqual(new_airdropper.latest_processed_slot, start_slot - 1)
+        mock_get_slot.assert_called_once_with(commitment='finalized')
+        mock_dict_get.assert_called()
 
 
     @patch.object(SQLDict, 'get')
     @patch.object(SolanaClient, 'get_slot')
     def test_init_airdropper_slot_latest(self, mock_get_slot, mock_dict_get):
         start_slot = 1234
-        mock_get_slot.side_effect = [{'result': start_slot}]
+        mock_dict_get.side_effect = [start_slot - 1]
+        mock_get_slot.side_effect = [{'result': start_slot + 1}]
         new_airdropper = self.create_airdropper('LATEST')
+        self.assertEqual(new_airdropper.latest_processed_slot, start_slot + 1)
+        mock_get_slot.assert_called_once_with(commitment='finalized')
+        mock_dict_get.assert_called()
+
+    @patch.object(SQLDict, 'get')
+    @patch.object(SolanaClient, 'get_slot')
+    def test_init_airdropper_slot_number(self, mock_get_slot, mock_dict_get):
+        start_slot = 1234
+        mock_dict_get.side_effect = [start_slot - 1]
+        mock_get_slot.side_effect = [{'result': start_slot + 1}]
+        new_airdropper = self.create_airdropper(str(start_slot))
         self.assertEqual(new_airdropper.latest_processed_slot, start_slot)
         mock_get_slot.assert_called_once_with(commitment='finalized')
-        mock_dict_get.assert_not_called()
+        mock_dict_get.assert_called()
+
+    @patch.object(SQLDict, 'get')
+    @patch.object(SolanaClient, 'get_slot')
+    def test_init_airdropper_big_slot_number(self, mock_get_slot, mock_dict_get):
+        start_slot = 1234
+        mock_dict_get.side_effect = [start_slot - 1]
+        mock_get_slot.side_effect = [{'result': start_slot + 1}]
+        new_airdropper = self.create_airdropper(str(start_slot + 100))
+        self.assertEqual(new_airdropper.latest_processed_slot, start_slot + 1)
+        mock_get_slot.assert_called_once_with(commitment='finalized')
+        mock_dict_get.assert_called()

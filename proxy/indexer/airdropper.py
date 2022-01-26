@@ -104,29 +104,13 @@ class Airdropper(IndexerBase):
                  faucet_url = '',
                  wrapper_whitelist = 'ANY',
                  neon_decimals = 9,
-                 start_slot = 0,
                  pp_solana_url = None,
                  max_conf = 0.1): # maximum confidence interval deviation related to price
         self._constants = SQLDict(tablename="constants")
-        if start_slot == 'CONTINUE':
-            self.info('Trying to use latest processed slot from previous run')
-            start_slot = self._constants.get('latest_processed_slot', None)
-            if start_slot is None:
-                raise Exception('START_SLOT set to CONINUE but recent slot number not found in DB')
-        elif start_slot == 'LATEST':
-            self.info('Airdropper will start at latest blockchain slot')
-            client = SolanaClient(solana_url)
-            start_slot = client.get_slot(commitment=FINALIZED)["result"]
-        else:
-            try:
-                start_slot = int(start_slot)
-            except:
-                raise Exception(f'Failed to parse start_slot value: {start_slot}')
 
-        self.info(f'Start slot is {start_slot}')
-
-        IndexerBase.__init__(self, solana_url, evm_loader_id, start_slot)
-        self.latest_processed_slot = start_slot
+        last_known_slot = self._constants.get('latest_processed_slot', None)
+        IndexerBase.__init__(self, solana_url, evm_loader_id, last_known_slot)
+        self.latest_processed_slot = self.last_slot
 
         # collection of eth-address-to-create-accout-trx mappings
         # for every addresses that was already funded with airdrop
@@ -313,8 +297,8 @@ class Airdropper(IndexerBase):
                 continue
             success_addresses.add(eth_address)
             self.airdrop_ready.register_airdrop(eth_address,
-                                                { 
-                                                    'amount': airdrop_galans, 
+                                                {
+                                                    'amount': airdrop_galans,
                                                     'scheduled': sched_info['scheduled']
                                                 })
 
@@ -349,7 +333,6 @@ def run_airdropper(solana_url,
                    faucet_url,
                    wrapper_whitelist = 'ANY',
                    neon_decimals = 9,
-                   start_slot = 0,
                    pp_solana_url = None,
                    max_conf = 0.1, *, logger):
     logger.info(f"""Running indexer with params:
@@ -359,7 +342,6 @@ def run_airdropper(solana_url,
         faucet_url: {faucet_url},
         wrapper_whitelist: {wrapper_whitelist},
         NEON decimals: {neon_decimals},
-        Start slot: {start_slot},
         Price provider solana: {pp_solana_url},
         Max confidence interval: {max_conf}""")
 
@@ -370,7 +352,6 @@ def run_airdropper(solana_url,
                                 faucet_url,
                                 wrapper_whitelist,
                                 neon_decimals,
-                                start_slot,
                                 pp_solana_url,
                                 max_conf)
         airdropper.run()

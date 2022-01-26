@@ -40,10 +40,10 @@ def neon_config_load(ethereum_model, *, logger):
     logger.debug(ethereum_model.neon_config_dict)
 
 
-def call_signed(signer, client, eth_trx, steps):
-    solana_interactor = SolanaInteractor(signer, client)
-    tx_sender = NeonTxSender(solana_interactor, eth_trx, steps)
-    return tx_sender.execute()
+def call_signed(db, signer, client, eth_trx, steps):
+    solana = SolanaInteractor(signer, client)
+    tx_sender = NeonTxSender(db, solana, eth_trx, steps)
+    tx_sender.execute()
 
 
 def _getAccountData(client, account, expected_length, owner=None):
