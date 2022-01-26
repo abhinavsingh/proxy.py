@@ -127,7 +127,7 @@ repos:
   - id: codespell
     exclude: >
       (?x)^(
-        tutorial/responses.ipynb|
+        tutorial/*.ipynb|
         tests/http/test_responses\.py|
         ^.+\.min\.js$
       )$
