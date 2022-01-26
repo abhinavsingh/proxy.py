@@ -315,8 +315,7 @@ class HttpParser:
             if self.body and \
                     len(self.body) == int(self.header(b'content-length')):
                 self.state = httpParserStates.COMPLETE
-            more, raw = len(raw) > 0, raw[total_size - received_size:]
-            return more, raw
+            return len(raw) > 0, raw[total_size - received_size:]
         # Received a packet without content-length header
         # and no transfer-encoding specified.
         #

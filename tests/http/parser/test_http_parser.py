@@ -80,7 +80,7 @@ class TestHttpParser(unittest.TestCase):
     def test_unicode_character_domain_connect(self) -> None:
         self.parser.parse(
             memoryview(
-            bytes_('CONNECT ççç.org:443 HTTP/1.1\r\n'),
+                bytes_('CONNECT ççç.org:443 HTTP/1.1\r\n'),
             ),
         )
         self.assertTrue(self.parser.is_https_tunnel)
