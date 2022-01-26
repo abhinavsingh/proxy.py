@@ -75,7 +75,7 @@ class TestResponses(unittest.TestCase):
                 },
                 conn_close=True,
             ),
-            b'HTTP/1.1 200 OK\r\nHost: jaxl.com\r\nContent-Length: 11\r\nConnection: close\r\n\r\nHello World'
+            b'HTTP/1.1 200 OK\r\nHost: jaxl.com\r\nContent-Length: 11\r\nConnection: close\r\n\r\nHello World',
         )
 
     def test_chunked_without_compression(self) -> None:
