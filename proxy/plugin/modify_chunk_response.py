@@ -35,9 +35,10 @@ class ModifyChunkResponsePlugin(HttpProxyBasePlugin):
         self.response.parse(chunk)
         # If response is complete, modify and dispatch to client
         if self.response.is_complete:
-            # Avoid setting a body for responses where a body is not expected.
-            # Otherwise, example curl will report warnings.
-            if self.response.body_expected:
+            # Queue our custom chunk if response is chunked encoded
+            # otherwise queue the original response to client
+            if self.response.is_chunked_encoded:
                 self.response.body = b'\n'.join(self.DEFAULT_CHUNKS) + b'\n'
             self.client.queue(memoryview(self.response.build_response()))
+        # Avoid returning chunk straight to client
         return None

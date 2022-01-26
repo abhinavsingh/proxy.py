@@ -398,7 +398,8 @@ class FlagParser:
         # FIXME: Necessary here until flags framework provides a way
         # for flag owners to initialize
         os.makedirs(args.cache_dir, exist_ok=True)
-        os.makedirs(os.path.join(args.cache_dir, 'response'), exist_ok=True)
+        os.makedirs(os.path.join(args.cache_dir, 'responses'), exist_ok=True)
+        os.makedirs(os.path.join(args.cache_dir, 'content'), exist_ok=True)
 
         return args
 

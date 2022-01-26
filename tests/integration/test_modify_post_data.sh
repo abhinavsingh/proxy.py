@@ -23,6 +23,12 @@ if [[ -z "$PROXY_PY_PORT" ]]; then
   exit 1
 fi
 
+CERT_DIR=$2
+if [[ -z "$CERT_DIR" ]]; then
+  echo "CERT_DIR required as argument."
+  exit 1
+fi
+
 PROXY_URL="127.0.0.1:$PROXY_PY_PORT"
 
 # Wait for server to come up
@@ -42,7 +48,7 @@ while true; do
         --max-time 1 \
         --connect-timeout 1 \
         -x $PROXY_URL \
-        --cacert ca-cert-post.pem \
+        --cacert $CERT_DIR/ca-cert-post.pem \
         http://$PROXY_URL/ 2>/dev/null
     if [[ $? == 0 ]]; then
         break
@@ -73,7 +79,7 @@ read -r -d '' MODIFIED_POST_DATA << EOM
 EOM
 
 echo "[Test ModifyPostDataPlugin]"
-RESPONSE=$(curl -v -x $PROXY_URL --cacert ca-cert-post.pem -d '{"key": "value"}' https://httpbin.org/post 2> /dev/null)
+RESPONSE=$(curl -v -x $PROXY_URL --cacert $CERT_DIR/ca-cert-post.pem -d '{"key": "value"}' https://httpbin.org/post 2> /dev/null)
 verify_contains "$RESPONSE" "$MODIFIED_POST_DATA"
 VERIFIED1=$?
 

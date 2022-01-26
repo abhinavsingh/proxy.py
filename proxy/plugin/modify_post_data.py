@@ -7,17 +7,35 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       localhost
+       httpbin
 """
 from typing import Optional
 
-from ..http import httpMethods
 from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser, ChunkParser
-from ..common.utils import bytes_
+from ..http.parser import HttpParser
 
 
 class ModifyPostDataPlugin(HttpProxyBasePlugin):
-    """Modify POST request body before sending to upstream server."""
+    """Modify POST request body before sending to upstream server.
+
+    Following curl executions will work:
+        1. Plain
+           curl -v -x localhost:8899 -X POST http://httpbin.org/post -d 'key=value'
+        2. Chunked
+           curl -v -x localhost:8899 -X POST \
+               -H 'Transfer-Encoding: chunked' http://httpbin.org/post -d 'key=value'
+        3. Chunked & Compressed
+           echo 'key=value' | gzip | curl -v \
+               -x localhost:8899 \
+               -X POST \
+               --data-binary @- -H 'Transfer-Encoding: chunked' \
+               -H 'Content-Encoding: gzip' http://httpbin.org/post
+
+    """
 
     MODIFIED_BODY = b'{"key": "modified"}'
 
@@ -29,23 +47,9 @@ class ModifyPostDataPlugin(HttpProxyBasePlugin):
     def handle_client_request(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
-        if request.method == httpMethods.POST:
-            # If request data is compressed, compress the body too
-            body = ModifyPostDataPlugin.MODIFIED_BODY
-            # If the request is of type chunked encoding
-            # add post data as chunk
-            if request.is_chunked_encoded:
-                body = ChunkParser.to_chunks(
-                    ModifyPostDataPlugin.MODIFIED_BODY,
-                )
-            else:
-                request.add_header(
-                    b'Content-Length',
-                    bytes_(len(body)),
-                )
-            request.body = body
-            # Enforce content-type json
-            if request.has_header(b'Content-Type'):
-                request.del_header(b'Content-Type')
-            request.add_header(b'Content-Type', b'application/json')
+        if request.body:
+            request.update_body(
+                ModifyPostDataPlugin.MODIFIED_BODY,
+                content_type=b'application/json',
+            )
         return request

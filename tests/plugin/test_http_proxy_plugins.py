@@ -116,8 +116,8 @@ class TestHttpProxyPluginExamples(Assertions):
                 b'POST', b'/post',
                 headers={
                     b'Host': b'httpbin.org',
-                    b'Content-Length': bytes_(len(modified)),
                     b'Content-Type': b'application/json',
+                    b'Content-Length': bytes_(len(modified)),
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
                 body=modified,

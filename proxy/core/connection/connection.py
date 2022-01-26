@@ -49,7 +49,7 @@ class TcpConnection(ABC):
 
     def send(self, data: Union[memoryview, bytes]) -> int:
         """Users must handle BrokenPipeError exceptions"""
-        # logger.info(data)
+        # logger.info(data.tobytes())
         return self.connection.send(data)
 
     def recv(
