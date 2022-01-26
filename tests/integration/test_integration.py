@@ -10,6 +10,7 @@
 
     Test the simplest proxy use scenario for smoke.
 """
+import os
 import time
 import tempfile
 import subprocess
@@ -23,6 +24,8 @@ import pytest
 from proxy.common.constants import IS_WINDOWS
 
 TEMP_DIR = Path(tempfile.gettempdir())
+CERT_DIR = TEMP_DIR / "certificates"
+os.makedirs(CERT_DIR, exist_ok=True)
 
 
 def check_output(args: List[Any]) -> bytes:     # pragma: no cover
@@ -32,16 +35,17 @@ def check_output(args: List[Any]) -> bytes:     # pragma: no cover
 
 def _https_server_flags() -> str:
     return ' '.join((
-        '--key-file', 'https-key.pem',
-        '--cert-file', 'https-signed-cert.pem',
+        '--key-file', str(CERT_DIR / 'https-key.pem'),
+        '--cert-file', str(CERT_DIR / 'https-signed-cert.pem'),
     ))
 
 
 def _tls_interception_flags(ca_cert_suffix: str = '') -> str:
     return ' '.join((
-        '--ca-cert-file', 'ca-cert%s.pem' % ca_cert_suffix,
-        '--ca-key-file', 'ca-key%s.pem' % ca_cert_suffix,
-        '--ca-signing-key', 'ca-signing-key%s.pem' % ca_cert_suffix,
+        '--ca-cert-file', str(CERT_DIR / ('ca-cert%s.pem' % ca_cert_suffix)),
+        '--ca-key-file', str(CERT_DIR / ('ca-key%s.pem' % ca_cert_suffix)),
+        '--ca-signing-key', str(CERT_DIR /
+                                ('ca-signing-key%s.pem' % ca_cert_suffix)),
     ))
 
 
@@ -122,9 +126,11 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = tuple(
 def _gen_https_certificates(request: Any) -> None:
     check_output([
         'make', 'https-certificates',
+        '-e', 'CERT_DIR=%s/' % (str(CERT_DIR))
     ])
     check_output([
         'make', 'sign-https-certificates',
+        '-e', 'CERT_DIR=%s/' % (str(CERT_DIR))
     ])
 
 
@@ -132,14 +138,17 @@ def _gen_https_certificates(request: Any) -> None:
 def _gen_ca_certificates(request: Any) -> None:
     check_output([
         'make', 'ca-certificates',
+        '-e', 'CERT_DIR=%s/' % (str(CERT_DIR))
     ])
     check_output([
         'make', 'ca-certificates',
         '-e', 'CA_CERT_SUFFIX=-chunk',
+        '-e', 'CERT_DIR=%s/' % (str(CERT_DIR))
     ])
     check_output([
         'make', 'ca-certificates',
         '-e', 'CA_CERT_SUFFIX=-post',
+        '-e', 'CERT_DIR=%s/' % (str(CERT_DIR))
     ])
 
 
