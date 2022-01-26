@@ -40,4 +40,11 @@ class WebServerPlugin(HttpWebServerBasePlugin):
             self.client.queue(HTTPS_RESPONSE)
 
     def on_websocket_message(self, frame: WebsocketFrame) -> None:
+        """Open chrome devtools and try using following commands:
+
+        ws = new WebSocket("ws://localhost:8899/ws-route-example")
+        ws.onmessage = function(m) { console.log(m); }
+        ws.send('hello')
+
+        """
         self.client.queue(memoryview(WebsocketFrame.text(frame.data or b'')))
