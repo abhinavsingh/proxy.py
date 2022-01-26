@@ -93,6 +93,7 @@ class TestHttpProxyPluginExamples(Assertions):
                 b'Content-Length': bytes_(len(original)),
             },
             body=original,
+            no_ua=True,
         )
         self.mock_selector.return_value.select.side_effect = [
             [(
@@ -120,6 +121,7 @@ class TestHttpProxyPluginExamples(Assertions):
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
                 body=modified,
+                no_ua=True,
             ),
         )
 
@@ -189,6 +191,7 @@ class TestHttpProxyPluginExamples(Assertions):
             headers={
                 b'Host': b'example.org',
             },
+            no_ua=True,
         )
         self._conn.recv.return_value = request
         self.mock_selector.return_value.select.side_effect = [
@@ -215,6 +218,7 @@ class TestHttpProxyPluginExamples(Assertions):
                     b'Host': upstream.netloc,
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
+                no_ua=True,
             ),
         )
 
@@ -305,6 +309,7 @@ class TestHttpProxyPluginExamples(Assertions):
             headers={
                 b'Host': b'super.secure',
             },
+            no_ua=True,
         )
         self._conn.recv.return_value = request
 
@@ -363,8 +368,12 @@ class TestHttpProxyPluginExamples(Assertions):
                     b'Host': b'super.secure',
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
+                no_ua=True,
             )
-        server.queue.assert_called_once_with(queued_request)
+        server.queue.assert_called_once()
+        print(server.queue.call_args_list[0][0][0].tobytes())
+        print(queued_request)
+        self.assertEqual(server.queue.call_args_list[0][0][0], queued_request)
 
         # Server write
         await self.protocol_handler._run_once()
@@ -514,6 +523,7 @@ class TestHttpProxyPluginExamples(Assertions):
             headers={
                 b'Host': b'jaxl.com',
             },
+            no_ua=True,
         )
         self._conn.recv.return_value = request
 
@@ -537,6 +547,7 @@ class TestHttpProxyPluginExamples(Assertions):
                     b'Host': b'jaxl.com',
                     b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
                 },
+                no_ua=True,
             ),
         )
         self.assertFalse(self.protocol_handler.work.has_buffer())

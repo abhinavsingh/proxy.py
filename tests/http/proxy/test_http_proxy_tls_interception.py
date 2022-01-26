@@ -119,6 +119,7 @@ class TestHttpProxyTlsInterception(Assertions):
         connect_request = build_http_request(
             httpMethods.CONNECT, bytes_(netloc),
             headers=headers,
+            no_ua=True,
         )
         self._conn.recv.return_value = connect_request
         get_request = build_http_request(

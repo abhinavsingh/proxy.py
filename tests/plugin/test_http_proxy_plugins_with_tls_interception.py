@@ -152,7 +152,9 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
 
         self._conn.send.side_effect = send
         self._conn.recv.return_value = build_http_request(
-            httpMethods.CONNECT, b'uni.corn:443',
+            httpMethods.CONNECT,
+            b'uni.corn:443',
+            no_ua=True,
         )
 
     @pytest.mark.asyncio    # type: ignore[misc]
@@ -193,6 +195,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
                 b'Content-Type': b'application/x-www-form-urlencoded',
             },
             body=original,
+            no_ua=True,
         )
         await self.protocol_handler._run_once()
         self.server.queue.assert_called_once()
@@ -242,6 +245,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             headers={
                 b'Host': b'uni.corn',
             },
+            no_ua=True,
         )
         self.client_ssl_connection.recv.return_value = request
 

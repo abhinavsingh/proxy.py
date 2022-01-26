@@ -34,7 +34,7 @@ class ModifyPostDataPlugin(HttpProxyBasePlugin):
             body = ModifyPostDataPlugin.MODIFIED_BODY
             # If the request is of type chunked encoding
             # add post data as chunk
-            if not request.is_chunked_encoded:
+            if request.is_chunked_encoded:
                 body = ChunkParser.to_chunks(
                     ModifyPostDataPlugin.MODIFIED_BODY,
                 )

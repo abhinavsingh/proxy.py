@@ -270,6 +270,7 @@ class HttpParser:
                 k.lower() not in disable_headers
             },
             body=body,
+            no_ua=True,
         )
 
     def build_response(self) -> bytes:
