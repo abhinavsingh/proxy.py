@@ -146,6 +146,7 @@ class TestHttpParser(unittest.TestCase):
             okResponse(protocol_version=b'HTTP/1.1'),
             CRLF.join([
                 b'HTTP/1.1 200 OK',
+                b'Content-Length: 0',
                 CRLF,
             ]),
         )
@@ -157,6 +158,7 @@ class TestHttpParser(unittest.TestCase):
             CRLF.join([
                 b'HTTP/1.1 200 OK',
                 b'key: value',
+                b'Content-Length: 0',
                 CRLF,
             ]),
         )
