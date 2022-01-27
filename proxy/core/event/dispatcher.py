@@ -59,14 +59,19 @@ class EventDispatcher:
                 'event_name': eventNames.SUBSCRIBED,
             })
         elif ev['event_name'] == eventNames.UNSUBSCRIBE:
-            # send ack
-            logger.info('unsubscription request ack sent')
-            self.subscribers[ev['event_payload']['sub_id']].send({
-                'event_name': eventNames.UNSUBSCRIBED,
-            })
-            # close conn and delete subscriber
-            self.subscribers[ev['event_payload']['sub_id']].close()
-            del self.subscribers[ev['event_payload']['sub_id']]
+            if ev['event_payload']['sub_id'] in self.subscribers:
+                # send ack
+                logger.debug('unsubscription request ack sent')
+                self.subscribers[ev['event_payload']['sub_id']].send({
+                    'event_name': eventNames.UNSUBSCRIBED,
+                })
+                # close conn and delete subscriber
+                self.subscribers[ev['event_payload']['sub_id']].close()
+                del self.subscribers[ev['event_payload']['sub_id']]
+            else:
+                logger.info(
+                    'unsubscription request ack not sent, subscriber already gone',
+                )
         else:
             # logger.info(ev)
             self._broadcast(ev)

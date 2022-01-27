@@ -85,6 +85,17 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
             if parser.code and int(parser.code) == httpStatusCodes.SWITCHING_PROTOCOLS:
                 logger.warning('Bypassing websocket response packet')
                 return None
+            # Certain responses may never reach complete state
+            #
+            # E.g. Facebook sends HTML page with content-length: 0
+            # and as chunked encoded, while keeping the connection alive.
+            # This connection gets dropped after timeout period.
+            # Hence, technically response never completed or rather
+            # terminated cleanly with a CRLF tokens.
+            #
+            # E.g. When it's a web socket upgrade response, same problem
+            # can arise.  The response may not reach completion state.
+            #
             # if not parser.is_complete:
             #     logger.warning(data)
             #     return None
