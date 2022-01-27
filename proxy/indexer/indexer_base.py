@@ -26,7 +26,6 @@ class IndexerBase:
         self.evm_loader_id = evm_loader_id
         self.client = Client(solana_url)
         self.transaction_receipts = TrxReceiptsStorage('transaction_receipts')
-        self._move_data_from_old_table()
         self.max_known_tx = self.transaction_receipts.max_known_trx()
         self.last_slot = self._init_last_slot('receipt', last_slot)
         self.current_slot = 0
@@ -71,12 +70,6 @@ class IndexerBase:
 
         self.info(f'START_SLOT={START_SLOT}: started the {name} from {start_int_slot}')
         return start_int_slot
-
-    def _move_data_from_old_table(self):
-        if self.transaction_receipts.size() == 0:
-            transaction_receipts_old = SQLDict(tablename="known_transactions")
-            for signature, trx in transaction_receipts_old.iteritems():
-                self._add_trx(signature, trx)
 
     def run(self):
         while (True):

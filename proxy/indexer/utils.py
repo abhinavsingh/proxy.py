@@ -400,6 +400,8 @@ class LogDB(BaseDB):
             if idx < len(queries) - 1:
                 query_string += " AND "
 
+        query_string += ' ORDER BY slot desc LIMIT 1000'
+
         self.debug(query_string)
         self.debug(params)
 
