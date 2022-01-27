@@ -10,7 +10,8 @@
         "root": {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
-            "formatter": "root"
+            "formatter": "root",
+            "filters": ["context_filter"]
         }
     },
     "filters": {
@@ -23,12 +24,12 @@
     },
     "formatters": {
         "standard": {
-            "format": "%(asctime)s.%(msecs)03d %(levelname)s %(process)d:%(threadName)s %(name)s::%(filename)s:%(lineno)d %(context)s %(message)s",
+            "format": "%(asctime)s.%(msecs)03d %(levelname)8s %(process)6d:%(threadName)-11s %(name)15s:%(class)-30s %(context)s %(message)s",
             "style": "%",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         },
         "root": {
-            "format": "%(asctime)s.%(msecs)03d %(levelname)s %(process)d:%(threadName)s %(name)s::%(filename)s:%(lineno)d %(message)s",
+            "format": "%(asctime)s.%(msecs)03d %(levelname)8s %(process)6d:%(threadName)-11s %(name)15s:Undefined                      %(context)s %(message)s",
             "style": "%",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         }
@@ -40,7 +41,7 @@
             "propagate": false
         },
         "": {
-            "level": "DEBUG",
+            "level": "ERROR",
             "handlers": ["root"],
             "propagate": false
         }

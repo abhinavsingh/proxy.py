@@ -23,10 +23,10 @@ from ..connection import TcpClientConnection
 from ..threadless import ThreadlessWork, Threadless
 from ..event import EventQueue, eventNames
 from ...common.flags import Flags
+from logged_groups import logged_group
 
-logger = logging.getLogger(__name__)
 
-
+@logged_group("neon.Acceptor")
 class Acceptor(multiprocessing.Process):
     """Socket client acceptor.
 
