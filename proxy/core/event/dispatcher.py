@@ -52,33 +52,22 @@ class EventDispatcher:
 
     def handle_event(self, ev: Dict[str, Any]) -> None:
         if ev['event_name'] == eventNames.SUBSCRIBE:
-            self.subscribers[ev['event_payload']['sub_id']] = \
-                ev['event_payload']['conn']
+            sub_id = ev['event_payload']['sub_id']
+            self.subscribers[sub_id] = ev['event_payload']['conn']
             # send ack
-            done = False
-            try:
-                ev['event_payload']['conn'].send({
-                    'event_name': eventNames.SUBSCRIBED,
-                })
-                done = True
-            except (BrokenPipeError, EOFError):
-                pass
-            finally:
-                if not done:
-                    self._close_and_delete(ev['event_payload']['sub_id'])
+            if not self._send(sub_id, {
+                'event_name': eventNames.SUBSCRIBED,
+            }):
+                self._close_and_delete(sub_id)
         elif ev['event_name'] == eventNames.UNSUBSCRIBE:
-            if ev['event_payload']['sub_id'] in self.subscribers:
+            sub_id = ev['event_payload']['sub_id']
+            if sub_id in self.subscribers:
                 # send ack
                 logger.debug('unsubscription request ack sent')
-                try:
-                    self.subscribers[ev['event_payload']['sub_id']].send({
-                        'event_name': eventNames.UNSUBSCRIBED,
-                    })
-                except (BrokenPipeError, EOFError):
-                    pass
-                finally:
-                    # close conn and delete subscriber
-                    self._close_and_delete(ev['event_payload']['sub_id'])
+                self._send(sub_id, {
+                    'event_name': eventNames.UNSUBSCRIBED,
+                })
+                self._close_and_delete(sub_id)
             else:
                 logger.info(
                     'unsubscription request ack not sent, subscriber already gone',
@@ -130,5 +119,14 @@ class EventDispatcher:
     def _close(self, sub_id: str) -> None:
         try:
             self.subscribers[sub_id].close()
-        except Exception:
+        except Exception:   # noqa: S110
             pass
+
+    def _send(self, sub_id: str, payload: Any) -> bool:
+        done = False
+        try:
+            self.subscribers[sub_id].send(payload)
+            done = True
+        except (BrokenPipeError, EOFError):
+            pass
+        return done
