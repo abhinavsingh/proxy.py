@@ -55,18 +55,22 @@ class EventDispatcher:
             sub_id = ev['event_payload']['sub_id']
             self.subscribers[sub_id] = ev['event_payload']['conn']
             # send ack
-            if not self._send(sub_id, {
-                'event_name': eventNames.SUBSCRIBED,
-            }):
+            if not self._send(
+                sub_id, {
+                    'event_name': eventNames.SUBSCRIBED,
+                },
+            ):
                 self._close_and_delete(sub_id)
         elif ev['event_name'] == eventNames.UNSUBSCRIBE:
             sub_id = ev['event_payload']['sub_id']
             if sub_id in self.subscribers:
                 # send ack
                 logger.debug('unsubscription request ack sent')
-                self._send(sub_id, {
-                    'event_name': eventNames.UNSUBSCRIBED,
-                })
+                self._send(
+                    sub_id, {
+                        'event_name': eventNames.UNSUBSCRIBED,
+                    },
+                )
                 self._close_and_delete(sub_id)
             else:
                 logger.info(
