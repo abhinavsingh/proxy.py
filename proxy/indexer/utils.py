@@ -272,20 +272,25 @@ class BaseDB:
     def _create_table_sql(self) -> str:
         assert False, 'No script for the table'
 
-    def _fetchone(self, values, keys, order_list=None) -> str:
+    def _fetchone(self, columns, keys, orders=None) -> str:
         cursor = self._conn.cursor()
 
-        where_cond = '1=1'
-        where_keys = []
-        for name, value in keys:
-            where_cond += f' AND {name} = %s'
-            where_keys.append(value)
+        column_expr = ','.join(columns)
 
-        order_cond = ''
-        if order_list:
-            order_cond = 'ORDER BY ' + ', '.join(order_list)
+        where_expr = ' AND '.join(['1=1'] + [f'{name}=%s' for name, _ in keys])
+        where_keys = [value for _, value in keys]
 
-        cursor.execute(f'SELECT {",".join(values)} FROM {self._table_name} WHERE {where_cond} {order_cond}', where_keys)
+        order_expr = 'ORDER BY ' + ', '.join(orders) if orders else ''
+
+        request = f'''
+            SELECT {column_expr}
+            FROM {self._table_name}
+            WHERE {where_expr}
+            {order_expr}
+            LIMIT 1
+        '''
+
+        cursor.execute(request, where_keys)
         return cursor.fetchone()
 
     def __del__(self):
