@@ -64,4 +64,4 @@ class OnDiskCacheStore(CacheStore):
             self.cache_file.flush()
             self.cache_file.close()
             self.cache_file = None
-            logger.info('Cached response at %s', self.cache_file_path)
+            logger.debug('Cached response at %s', self.cache_file_path)

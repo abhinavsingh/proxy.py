@@ -9,15 +9,24 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
+import gzip
 import logging
 import multiprocessing
 from typing import Any, Dict, Optional
 
 from .base import BaseCacheResponsesPlugin
+from ...http import httpStatusCodes
 from .store.disk import OnDiskCacheStore
 from ...http.parser import HttpParser, httpParserTypes
 from ...common.constants import SLASH
 
+
+br_installed = False
+try:
+    import brotli
+    br_installed = True
+except ModuleNotFoundError:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +60,15 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
         if self.flags.cache_by_content_type and \
                 self.disk_store.cache_file_path and \
                 self.disk_store.cache_file_name:
-            self.write_content_type(
-                self.disk_store.cache_file_path,
-                self.flags.cache_dir,
-                self.disk_store.cache_file_name,
-                self.flags.cache_requests,
-            )
+            try:
+                self.write_content_type(
+                    self.disk_store.cache_file_path,
+                    self.flags.cache_dir,
+                    self.disk_store.cache_file_name,
+                    self.flags.cache_requests,
+                )
+            except Exception as e:
+                logger.exception('Unable to cache by content type', exc_info=e)
 
     @staticmethod
     def write_content_type(
@@ -70,21 +82,38 @@ class CacheResponsesPlugin(BaseCacheResponsesPlugin):
             with open(cache_file_path, 'rb') as cache:
                 data = cache.read()
                 parser.parse(memoryview(data))
-            assert parser.is_complete
-            if parser.body_expected:
-                assert parser.body
+            if parser.code and int(parser.code) == httpStatusCodes.SWITCHING_PROTOCOLS:
+                logger.warning('Bypassing websocket response packet')
+                return None
+            # if not parser.is_complete:
+            #     logger.warning(data)
+            #     return None
+            if parser.body_expected and parser.body:
+                body = parser.body
+                if parser.has_header(b'content-encoding'):
+                    encoding = parser.header(b'content-encoding')
+                    if encoding == b'gzip':
+                        body = gzip.decompress(body)
+                    elif encoding == b'br' and br_installed:
+                        body = brotli.decompress(body)
+                    else:
+                        logger.warning(
+                            'Unsupported content encoding %s',
+                            encoding,
+                        )
+                        return None
                 content_type = parser.header(b'content-type') \
                     if parser.has_header(b'content-type') \
                     else b'text/plain'
                 extension = content_type.split(
                     SLASH, maxsplit=1,
-                )[-1].decode('utf-8')
+                )[-1].split(b';', maxsplit=1)[0].split(b'+', maxsplit=1)[0].decode('utf-8')
                 content_file_path = os.path.join(
                     cache_dir, 'content',
                     '%s.%s' % (content_file_name, extension),
                 )
                 with open(content_file_path, 'wb') as content:
-                    content.write(parser.body)
+                    content.write(body)
                 logger.info('Cached content file at %s', content_file_path)
                 return content_file_path
         else:
