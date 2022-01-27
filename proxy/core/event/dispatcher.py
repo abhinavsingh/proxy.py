@@ -55,19 +55,30 @@ class EventDispatcher:
             self.subscribers[ev['event_payload']['sub_id']] = \
                 ev['event_payload']['conn']
             # send ack
-            ev['event_payload']['conn'].send({
-                'event_name': eventNames.SUBSCRIBED,
-            })
+            done = False
+            try:
+                ev['event_payload']['conn'].send({
+                    'event_name': eventNames.SUBSCRIBED,
+                })
+                done = True
+            except (BrokenPipeError, EOFError):
+                pass
+            finally:
+                if not done:
+                    self._close_and_delete(ev['event_payload']['sub_id'])
         elif ev['event_name'] == eventNames.UNSUBSCRIBE:
             if ev['event_payload']['sub_id'] in self.subscribers:
                 # send ack
                 logger.debug('unsubscription request ack sent')
-                self.subscribers[ev['event_payload']['sub_id']].send({
-                    'event_name': eventNames.UNSUBSCRIBED,
-                })
-                # close conn and delete subscriber
-                self.subscribers[ev['event_payload']['sub_id']].close()
-                del self.subscribers[ev['event_payload']['sub_id']]
+                try:
+                    self.subscribers[ev['event_payload']['sub_id']].send({
+                        'event_name': eventNames.UNSUBSCRIBED,
+                    })
+                except (BrokenPipeError, EOFError):
+                    pass
+                finally:
+                    # close conn and delete subscriber
+                    self._close_and_delete(ev['event_payload']['sub_id'])
             else:
                 logger.info(
                     'unsubscription request ack not sent, subscriber already gone',
@@ -87,11 +98,12 @@ class EventDispatcher:
                     self.run_once()
                 except queue.Empty:
                     pass
-        except (BrokenPipeError, EOFError, KeyboardInterrupt):
+        except KeyboardInterrupt:
             pass
         except Exception as e:
             logger.exception('Dispatcher exception', exc_info=e)
         finally:
+            logger.info('Dispatcher shutdown')
             # Send shutdown message to all active subscribers
             self._broadcast({
                 'event_name': eventNames.DISPATCHER_SHUTDOWN,
@@ -106,7 +118,17 @@ class EventDispatcher:
                 logger.warning(
                     'Subscriber#%s broken pipe', sub_id,
                 )
-                self.subscribers[sub_id].close()
+                self._close(sub_id)
                 broken_pipes.append(sub_id)
         for sub_id in broken_pipes:
             del self.subscribers[sub_id]
+
+    def _close_and_delete(self, sub_id: str) -> None:
+        self._close(sub_id)
+        del self.subscribers[sub_id]
+
+    def _close(self, sub_id: str) -> None:
+        try:
+            self.subscribers[sub_id].close()
+        except Exception:
+            pass
