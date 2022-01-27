@@ -35,8 +35,9 @@ from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError
 from ..common_neon.eth_proto import Trx as EthTrx
 from ..core.acceptor.pool import proxy_id_glob
-from ..environment import neon_cli, solana_cli, SOLANA_URL, MINIMAL_GAS_PRICE
+from ..environment import neon_cli, solana_cli, SOLANA_URL, MINIMAL_GAS_PRICE, ACCOUNT_PERMISSION_UPDATE_INT
 from ..indexer.indexer_db import IndexerDB, PendingTxError
+from ..common_neon.account_whitelist import AccountWhitelist
 
 modelInstanceLock = threading.Lock()
 modelInstance = None
@@ -53,6 +54,8 @@ class EthereumModel:
 
         self.db = IndexerDB()
         self.db.set_client(self.client)
+        
+        self.account_whitelist = AccountWhitelist(self.client, self.signer, ACCOUNT_PERMISSION_UPDATE_INT)
 
         with proxy_id_glob.get_lock():
             self.proxy_id = proxy_id_glob.value
@@ -367,8 +370,18 @@ class EthereumModel:
         if trx.gasPrice < MINIMAL_GAS_PRICE:
             raise Exception("The transaction gasPrice is less then the minimum allowable value ({}<{})".format(trx.gasPrice, MINIMAL_GAS_PRICE))
 
-        eth_signature = '0x' + trx.hash_signed().hex()
         sender = trx.sender()
+        if not self.account_whitelist.has_client_permission(sender):
+            self.warning(f'Sender account {sender} is not allowed to execute transactions')
+            raise Exception(f'Sender account {sender} is not allowed to execute transactions')
+
+        contract = trx.contract()
+        if contract is not None and not self.account_whitelist.has_contract_permission(contract):
+            self.warning(f'Contract account {contract} is not allowed for deployment')
+            raise Exception(f'Contract account {contract} is not allowed for deployment')
+
+        eth_signature = '0x' + trx.hash_signed().hex()
+
         self.debug('Eth Sender: %s', sender)
         self.debug('Eth Signature: %s', trx.signature().hex())
         self.debug('Eth Hash: %s', eth_signature)

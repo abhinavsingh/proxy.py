@@ -26,6 +26,7 @@ HISTORY_START = [DEVNET_HISTORY_START]
 START_SLOT = os.environ.get('START_SLOT', 0)
 FINALIZED = os.environ.get('FINALIZED', 'finalized')
 CANCEL_TIMEOUT = int(os.environ.get("CANCEL_TIMEOUT", "60"))
+ACCOUNT_PERMISSION_UPDATE_INT = int(os.environ.get("ACCOUNT_PERMISSION_UPDATE_INT", 60 * 5))
 
 
 @logged_group("neon.Proxy")
