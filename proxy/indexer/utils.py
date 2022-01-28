@@ -3,6 +3,7 @@ from __future__ import annotations
 import base58
 import base64
 import json
+import multiprocessing
 import psycopg2
 import subprocess
 import traceback
@@ -27,6 +28,9 @@ from ..environment import SOLANA_URL, EVM_LOADER_ID, ETH_TOKEN_MINT_ID, get_sola
 
 from proxy.indexer.pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST
 from proxy.indexer.pg_common import encode, decode
+
+
+basedb_lock_glob = multiprocessing.Lock()
 
 
 def check_error(trx):
@@ -268,8 +272,10 @@ class BaseDB:
             host=POSTGRES_HOST
         )
         self._conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = self._conn.cursor()
-        cursor.execute(self._create_table_sql())
+
+        with basedb_lock_glob:
+            cursor = self._conn.cursor()
+            cursor.execute(self._create_table_sql())
 
     def _create_table_sql(self) -> str:
         assert False, 'No script for the table'

@@ -1,48 +1,37 @@
 import base58
-import psycopg2
 
 from ..environment import EVM_LOADER_ID
-from ..indexer.sql_dict import POSTGRES_USER, POSTGRES_HOST, POSTGRES_DB, POSTGRES_PASSWORD
+from ..indexer.utils import BaseDB
 
 
-class SQLCost():
+class SQLCost(BaseDB):
     def __init__(self):
+        BaseDB.__init__(self)
 
-        self.conn = psycopg2.connect(
-            dbname=POSTGRES_DB,
-            user=POSTGRES_USER,
-            password=POSTGRES_PASSWORD,
-            host=POSTGRES_HOST
-        )
-
-        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        cur = self.conn.cursor()
-        cur.execute('''
-                CREATE TABLE IF NOT EXISTS OPERATOR_COST
-                (
-                    id SERIAL PRIMARY KEY,
-                    hash char(64),
-                    cost bigint,
-                    used_gas bigint,
-                    sender char(40),
-                    to_address char(40) ,
-                    sig char(100),
-                    status varchar(100),
-                    reason varchar(100)
-                )'''
-                    )
-
-    def close(self):
-        self.conn.close()
+    def _create_table_sql(self) -> str:
+        self._table_name = 'OPERATOR_COST'
+        return f"""
+            CREATE TABLE IF NOT EXISTS {self._table_name} (
+                id SERIAL PRIMARY KEY,
+                hash char(64),
+                cost bigint,
+                used_gas bigint,
+                sender char(40),
+                to_address char(40) ,
+                sig char(100),
+                status varchar(100),
+                reason varchar(100)
+            );
+            """
 
     def insert(self, hash, cost, used_gas, sender, to_address, sig, status, reason):
-        cur = self.conn.cursor()
-        cur.execute('''
-                INSERT INTO OPERATOR_COST (hash, cost, used_gas, sender, to_address, sig, status, reason)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-            ''',
-            (hash, cost, used_gas, sender, to_address, sig, status, reason)
-        )
+        with self._conn.cursor() as cur:
+            cur.execute(f'''
+                    INSERT INTO {self._table_name} (hash, cost, used_gas, sender, to_address, sig, status, reason)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+                ''',
+                (hash, cost, used_gas, sender, to_address, sig, status, reason)
+            )
 
 
 operator_cost = SQLCost()

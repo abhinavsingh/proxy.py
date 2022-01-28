@@ -2,12 +2,12 @@ from calendar import c
 from solana.publickey import PublicKey
 from proxy.indexer.indexer_base import IndexerBase
 from proxy.indexer.pythnetwork import PythNetworkClient
+from proxy.indexer.utils import BaseDB
 from solana.rpc.api import Client as SolanaClient
 import requests
 import base58
 from datetime import datetime
 from decimal import Decimal
-import psycopg2
 import os
 from logged_groups import logged_group
 
@@ -22,75 +22,59 @@ ACCOUNT_CREATION_PRICE_SOL = Decimal('0.00472692')
 AIRDROP_AMOUNT_SOL = ACCOUNT_CREATION_PRICE_SOL / 2
 NEON_PRICE_USD = Decimal('0.25')
 
-POSTGRES_DB = os.environ.get("POSTGRES_DB", "neon-db")
-POSTGRES_USER = os.environ.get("POSTGRES_USER", "neon-proxy")
-POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "neon-proxy-pass")
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
 
-
-class FailedAttempts:
+class FailedAttempts(BaseDB):
     def __init__(self) -> None:
-        self.conn = psycopg2.connect(
-            dbname=POSTGRES_DB,
-            user=POSTGRES_USER,
-            password=POSTGRES_PASSWORD,
-            host=POSTGRES_HOST
-        )
-        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        cur = self.conn.cursor()
-        cur.execute('''
-        CREATE TABLE IF NOT EXISTS
-        failed_airdrop_attempts (
-            attempt_time    BIGINT,
-            eth_address     TEXT,
-            reason          TEXT
-        );
+        BaseDB.__init__(self)
 
-        CREATE INDEX IF NOT EXISTS failed_attempt_time_idx ON failed_airdrop_attempts (attempt_time);
-        ''')
+    def _create_table_sql(self) -> str:
+        self._table_name = 'failed_airdrop_attempts'
+        return f'''
+            CREATE TABLE IF NOT EXISTS {self._table_name} (
+                attempt_time    BIGINT,
+                eth_address     TEXT,
+                reason          TEXT
+            );
+            CREATE INDEX IF NOT EXISTS failed_attempt_time_idx ON {self._table_name} (attempt_time);
+            '''
 
     def airdrop_failed(self, eth_address, reason):
-        cur = self.conn.cursor()
-        cur.execute(f'''
-        INSERT INTO failed_airdrop_attempts (attempt_time, eth_address, reason)
-        VALUES ({datetime.now().timestamp()}, '{eth_address}', '{reason}')
-        ''')
+        with self._conn.cursor() as cur:
+            cur.execute(f'''
+            INSERT INTO {self._table_name} (attempt_time, eth_address, reason)
+            VALUES ({datetime.now().timestamp()}, '{eth_address}', '{reason}')
+            ''')
 
 
 class AirdropReadySet:
     def __init__(self) -> None:
-        self.conn = psycopg2.connect(
-            dbname=POSTGRES_DB,
-            user=POSTGRES_USER,
-            password=POSTGRES_PASSWORD,
-            host=POSTGRES_HOST
-        )
-        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-        cur = self.conn.cursor()
-        cur.execute('''
-        CREATE TABLE IF NOT EXISTS
-        airdrop_ready (
-            eth_address     TEXT UNIQUE,
-            scheduled_ts    BIGINT,
-            finished_ts     BIGINT,
-            duration        INTEGER,
-            amount_galans   INTEGER
-        )
-        ''')
+        BaseDB.__init__(self)
+
+    def _create_table_sql(self) -> str:
+        self._table_name = 'airdrop_ready'
+        return f'''
+            CREATE TABLE IF NOT EXISTS {self._table_name} (
+                eth_address     TEXT UNIQUE,
+                scheduled_ts    BIGINT,
+                finished_ts     BIGINT,
+                duration        INTEGER,
+                amount_galans   INTEGER
+            )
+            '''
 
     def register_airdrop(self, eth_address: str, airdrop_info: dict):
         finished = int(datetime.now().timestamp())
         duration = finished - airdrop_info['scheduled']
-        cur = self.conn.cursor()
-        cur.execute(f'''
-        INSERT INTO airdrop_ready (eth_address, scheduled_ts, finished_ts, duration, amount_galans)
-        VALUES ('{eth_address}', {airdrop_info['scheduled']}, {finished}, {duration}, {airdrop_info['amount']})
-        ''')
+        with self._conn.cursor() as cur:
+            cur.execute(f'''
+            INSERT INTO {self._table_name} (eth_address, scheduled_ts, finished_ts, duration, amount_galans)
+            VALUES ('{eth_address}', {airdrop_info['scheduled']}, {finished}, {duration}, {airdrop_info['amount']})
+            ''')
 
     def is_airdrop_ready(self, eth_address):
-        cur = self.conn.cursor()
-        cur.execute(f"SELECT 1 FROM airdrop_ready WHERE eth_address = '{eth_address}'")
-        return cur.fetchone() is not None
+        with self._conn.cursor() as cur:
+            cur.execute(f"SELECT 1 FROM {self._table_name} WHERE eth_address = '{eth_address}'")
+            return cur.fetchone() is not None
 
 FINALIZED = os.environ.get('FINALIZED', 'finalized')
 
