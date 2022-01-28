@@ -9,4 +9,4 @@ psycopg2-binary
 ethereum
 py-solc-x==1.1.0
 flask
-git+https://github.com/neonlabsorg/python-logged-groups.git@2.1.2
+git+https://github.com/neonlabsorg/python-logged-groups.git@2.1.3
