@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 from logged_groups import logged_group, LogMng
@@ -89,7 +90,7 @@ def get_solana_accounts(*, logger) -> [sol_Account]:
 class neon_cli:
     def call(self, *args):
         try:
-            ctx = str(LogMng.get_logging_context())
+            ctx = json.dumps(LogMng.get_logging_context())
             cmd = ["neon-cli",
                    "--commitment=recent",
                    "--url", SOLANA_URL,
