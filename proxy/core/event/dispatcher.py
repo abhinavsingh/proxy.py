@@ -37,7 +37,10 @@ class EventDispatcher:
     When --enable-events is used, dispatcher module is automatically
     started.  Most importantly, dispatcher module ensures that queue is
     not flooded and doesn't utilize too much memory in case there are no
-    event subscriber is enabled.
+    event subscribers for published messages.
+
+    EventDispatcher ensures that subscribers will receive the messages
+    in the order they are published.
     """
 
     def __init__(
