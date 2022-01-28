@@ -140,8 +140,10 @@ class NeonTxResultInfo:
                             self._decode_return(log, ix_idx, tx)
         return self
 
-    def clear(self):
+    def canceled(self, tx: {}):
         self._set_defaults()
+        self.sol_sign = tx['transaction']['signatures'][0]
+        self.slot = tx['slot']
 
     def is_valid(self) -> bool:
         return self.slot != -1

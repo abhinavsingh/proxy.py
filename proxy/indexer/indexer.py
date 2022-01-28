@@ -132,6 +132,7 @@ class NeonTxObject(BaseEvmObject):
         self.step_count = []
         self.holder_account = ''
         self.blocked_accounts = []
+        self.canceled = False
 
     def __str__(self):
         return str_fmt_object(self)
@@ -585,8 +586,7 @@ class CancelIxDecoder(DummyIxDecoder):
         if not tx.neon_tx.is_valid():
             return self._decoding_fail(tx, f'cannot find storage {tx}')
 
-        tx.neon_res.clear()
-        tx.neon_res.slot = self.ix.sign.slot
+        tx.neon_res.canceled(self.ix.tx)
         return self._decoding_done(tx, f'cancel success')
 
 
@@ -726,6 +726,10 @@ class Indexer(IndexerBase):
         if tx.neon_res.is_valid():
             return True
 
+        # We already sent Cancel and waiting for reciept
+        if tx.canceled:
+            return True
+
         if not tx.blocked_accounts:
             self.warning(f"Transaction {tx.neon_tx} hasn't blocked accounts.")
             return False
@@ -741,6 +745,7 @@ class Indexer(IndexerBase):
 
         self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
         self.blocked_storages[tx.storage_account] = (tx.neon_tx, tx.blocked_accounts)
+        tx.canceled = True
         return True
 
     def gather_blocks(self):

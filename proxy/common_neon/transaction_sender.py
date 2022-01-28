@@ -691,7 +691,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
     def _on_success_send(self, tx: Transaction, receipt: {}):
         if self._is_canceled:
             # Transaction with cancel is confirmed
-            self.neon_res.slot = receipt['slot']
+            self.neon_res.canceled(receipt)
         else:
             super()._on_success_send(tx, receipt)
 
