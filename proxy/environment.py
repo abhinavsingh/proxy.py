@@ -2,6 +2,8 @@ import os
 import subprocess
 from logged_groups import logged_group, LogMng
 from solana.publickey import PublicKey
+from solana.account import Account as sol_Account
+from typing import Optional
 
 SOLANA_URL = os.environ.get("SOLANA_URL", "http://localhost:8899")
 EVM_LOADER_ID = os.environ.get("EVM_LOADER")
@@ -41,6 +43,46 @@ class solana_cli:
         except subprocess.CalledProcessError as err:
             self.error("ERR: solana error {}".format(err))
             raise
+
+
+@logged_group("neon.Proxy")
+def get_solana_accounts(*, logger) -> [sol_Account]:
+    def read_sol_account(name) -> Optional[sol_Account]:
+        if not os.path.isfile(name):
+            return None
+
+        with open(name.strip(), mode='r') as d:
+            pkey = (d.read())
+            num_list = [int(v) for v in pkey.strip("[] \n").split(',')]
+            value_list = bytes(num_list[0:32])
+            return sol_Account(value_list)
+
+    res = solana_cli().call('config', 'get')
+    substr = "Keypair Path: "
+    path = ""
+    for line in res.splitlines():
+        if line.startswith(substr):
+            path = line[len(substr):].strip()
+    if path == "":
+        raise Exception("cannot get keypair path")
+
+    path = path.strip()
+
+    signer_list = []
+    (file_name, file_ext) = os.path.splitext(path)
+    i = -1
+    while True:
+        i += 1
+        full_path = file_name + (str(i) if i > 0 else '') + file_ext
+        signer = read_sol_account(full_path)
+        if not signer:
+            break
+        signer_list.append(signer)
+
+    if not len(signer_list):
+        raise Exception("not keypairs")
+
+    return signer_list
 
 
 @logged_group("neon.Proxy")

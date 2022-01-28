@@ -8,6 +8,7 @@ import time
 import base58
 import sha3
 import traceback
+import multiprocessing
 
 from logged_groups import logged_group
 
@@ -23,10 +24,15 @@ from .solana_interactor import SolanaInteractor, check_for_errors, check_if_acco
 from .solana_interactor import check_if_big_transaction, check_if_program_exceeded_instructions
 from .solana_interactor import get_error_definition_from_receipt, check_if_storage_is_empty_error
 from ..common_neon.eth_proto import Trx as EthTx
-from ..core.acceptor.pool import new_acc_id_glob, acc_list_glob
 from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID
 from ..indexer.utils import NeonTxResultInfo, NeonTxInfo
 from ..indexer.indexer_db import IndexerDB, NeonPendingTxInfo
+
+
+manager = multiprocessing.Manager()
+perm_account_lock_glob = multiprocessing.Lock()
+free_perm_account_dict_glob = manager.dict()
+new_perm_account_dict_glob = manager.dict()
 
 
 class SolanaTxError(Exception):
@@ -370,14 +376,19 @@ class NeonTxSender:
 
     def _init_perm_accounts(self):
         while self._perm_accounts_id is None:
-            with new_acc_id_glob.get_lock():
-                try:
-                    free_id = acc_list_glob.pop(0)
-                except IndexError:
-                    free_id = new_acc_id_glob.value
-                    new_acc_id_glob.value += 1
+            with perm_account_lock_glob:
+                key = str(self.operator_key)
+                if key not in free_perm_account_dict_glob:
+                    free_perm_account_dict_glob.setdefault(key, manager.list())
 
-            self.debug(f"TRY TO LOCK RESOURCES {free_id}")
+                free_list = free_perm_account_dict_glob[key]
+                if len(free_list):
+                    free_id = free_list.pop(0)
+                else:
+                    free_id = new_perm_account_dict_glob.setdefault(key, 0)
+                    new_perm_account_dict_glob[key] += 1
+
+            self.debug(f"TRY TO LOCK RESOURCES {free_id} for {self.operator_key}")
             account_id = free_id.to_bytes(math.ceil(free_id.bit_length() / 8), 'big')
 
             seed_list = [prefix + account_id for prefix in [b"storage", b"holder"]]
@@ -414,9 +425,10 @@ class NeonTxSender:
         if self._perm_accounts_id is None:
             return
 
-        self.debug(f"FREE RESOURCES {self._perm_accounts_id}")
-        with new_acc_id_glob.get_lock():
-            acc_list_glob.append(self._perm_accounts_id)
+        self.debug(f"FREE RESOURCES {self._perm_accounts_id} for {self.operator_key}")
+        with perm_account_lock_glob:
+            key = str(self.operator_key)
+            free_perm_account_dict_glob[key].append(self._perm_accounts_id)
 
         self._perm_accounts_id = None
 

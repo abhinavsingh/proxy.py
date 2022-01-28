@@ -15,6 +15,7 @@ import traceback
 import unittest
 import time
 import hashlib
+import multiprocessing
 
 from logged_groups import logged_group, logging_context
 
@@ -23,9 +24,8 @@ from ..http.codes import httpStatusCodes
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
-from solana.account import Account as sol_Account
 from solana.rpc.api import Client as SolanaClient
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 from .solana_rest_api_tools import getAccountInfo, call_signed, neon_config_load, \
     get_token_balance_or_airdrop, estimate_gas
@@ -34,8 +34,7 @@ from ..common_neon.transaction_sender import SolanaTxError
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError
 from ..common_neon.eth_proto import Trx as EthTrx
-from ..core.acceptor.pool import proxy_id_glob
-from ..environment import neon_cli, solana_cli, SOLANA_URL, MINIMAL_GAS_PRICE, ACCOUNT_PERMISSION_UPDATE_INT
+from ..environment import neon_cli, get_solana_accounts, SOLANA_URL, MINIMAL_GAS_PRICE, ACCOUNT_PERMISSION_UPDATE_INT
 from ..indexer.indexer_db import IndexerDB, PendingTxError
 from ..common_neon.account_whitelist import AccountWhitelist
 
@@ -46,44 +45,27 @@ NEON_PROXY_PKG_VERSION = '0.5.4-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
+proxy_id_glob = multiprocessing.Value('i', 0)
+
+
 @logged_group("neon.Proxy")
 class EthereumModel:
     def __init__(self):
-        self.signer = self.get_solana_account()
+        signer_list = get_solana_accounts()
         self.client = SolanaClient(SOLANA_URL)
 
         self.db = IndexerDB()
         self.db.set_client(self.client)
-        
-        self.account_whitelist = AccountWhitelist(self.client, self.signer, ACCOUNT_PERMISSION_UPDATE_INT)
 
         with proxy_id_glob.get_lock():
             self.proxy_id = proxy_id_glob.value
             proxy_id_glob.value += 1
-        self.debug("worker id {}".format(self.proxy_id))
+        self.debug(f"Worker id {self.proxy_id}")
+        self.signer = signer_list[self.proxy_id % len(signer_list)]
+
+        self.account_whitelist = AccountWhitelist(self.client, self.signer, ACCOUNT_PERMISSION_UPDATE_INT)
 
         neon_config_load(self)
-
-
-    @staticmethod
-    def get_solana_account() -> Optional[sol_Account]:
-        solana_account: Optional[sol_Account] = None
-        res = solana_cli().call('config', 'get')
-        substr = "Keypair Path: "
-        path = ""
-        for line in res.splitlines():
-            if line.startswith(substr):
-                path = line[len(substr):].strip()
-        if path == "":
-            raise Exception("cannot get keypair path")
-
-        with open(path.strip(), mode='r') as file:
-            pk = (file.read())
-            nums = list(map(int, pk.strip("[] \n").split(',')))
-            nums = nums[0:32]
-            values = bytes(nums)
-            solana_account = sol_Account(values)
-        return solana_account
 
     def neon_proxy_version(self):
         return 'Neon-proxy/v' + NEON_PROXY_PKG_VERSION + '-' + NEON_PROXY_REVISION
