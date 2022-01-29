@@ -1,0 +1,137 @@
+import unittest
+from proxy.indexer.pythnetwork import PythNetworkClient
+from proxy.plugin.gas_price_calculator import GasPriceCalculator
+from solana.rpc.api import Client as SolanaClient
+from unittest.mock import patch, call
+from decimal import Decimal
+from ..environment import NEON_PRICE_USD, OPERATOR_FEE, GET_SOL_PRICE_MAX_RETRIES, SOL_PRICE_UPDATE_INTERVAL
+
+class TestGasPriceCalculator(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.solana_url = "https://api.devnet.solana.com"
+        cls.solana_client = SolanaClient(cls.solana_url)
+        cls.testee = GasPriceCalculator(cls.solana_client)
+
+
+    def setUp(self) -> None:
+        # reset time on test begins
+        self.testee.recent_sol_price_update_time = None
+
+
+    @patch.object(GasPriceCalculator, 'get_current_time')
+    @patch.object(PythNetworkClient, 'get_price')
+    def test_success_update_price(self, mock_get_price, mock_get_current_time):
+        """
+        Should succesfully calculate gas price on first attempt
+        """
+        sol_price = Decimal('156.3')
+
+        mock_get_current_time.side_effect = [1234]
+        mock_get_price.side_effect = [{'status': 1, 'price': sol_price}]
+
+        gas_price = self.testee.get_min_gas_price()
+        expected_price = (sol_price / NEON_PRICE_USD) * (1 + OPERATOR_FEE)
+        self.assertEqual(gas_price, expected_price)
+
+        mock_get_current_time.assert_called_once()
+        mock_get_price.assert_called_once()
+
+
+    @patch.object(GasPriceCalculator, 'get_current_time')
+    @patch.object(PythNetworkClient, 'get_price')
+    def test_success_update_price_after_retry_due_to_wrong_price_status(self, mock_get_price, mock_get_current_time):
+        """
+        Should retry get_price after wrong price status
+        """
+        sol_price = Decimal('156.3')
+
+        mock_get_current_time.side_effect = [1234]
+        mock_get_price.side_effect = [
+            {'status': 0, 'price': sol_price}, # <--- Wrong price status
+            {'status': 1, 'price': sol_price}
+        ]
+
+        gas_price = self.testee.get_min_gas_price()
+        expected_price = (sol_price / NEON_PRICE_USD) * (1 + OPERATOR_FEE)
+        self.assertEqual(gas_price, expected_price)
+
+        mock_get_current_time.assert_called_once()
+        mock_get_price.assert_has_calls([call()] * 2)
+
+
+    @patch.object(GasPriceCalculator, 'get_current_time')
+    @patch.object(PythNetworkClient, 'get_price')
+    def test_success_update_price_after_retry_due_to_get_price_exception(self, mock_get_price, mock_get_current_time):
+        """
+        Should retry get_price after exception
+        """
+        self.assertGreater(GET_SOL_PRICE_MAX_RETRIES, 1) # Condition required to start test
+        sol_price = Decimal('156.3')
+
+        mock_get_current_time.side_effect = [1234]
+        mock_get_price.side_effect = [
+            Exception("Test exception happened"),
+            {'status': 1, 'price': sol_price}
+        ]
+
+        gas_price = self.testee.get_min_gas_price()
+        expected_price = (sol_price / NEON_PRICE_USD) * (1 + OPERATOR_FEE)
+        self.assertEqual(gas_price, expected_price)
+
+        mock_get_current_time.assert_called_once()
+        mock_get_price.assert_has_calls([call()] * 2)
+
+
+    @patch.object(GasPriceCalculator, 'get_current_time')
+    @patch.object(PythNetworkClient, 'get_price')
+    def test_failed_update_retries_exhausted(self, mock_get_price, mock_get_current_time):
+        """
+        Should throw exception after all retries exhausted
+        """
+        self.assertGreater(GET_SOL_PRICE_MAX_RETRIES, 1) # Condition required to start test
+        sol_price = Decimal('156.3')
+
+        mock_get_current_time.side_effect = [1234]
+        mock_get_price.side_effect = [ Exception("Test exception happened") ] * GET_SOL_PRICE_MAX_RETRIES
+
+        with self.assertRaises(Exception):
+            self.testee.get_min_gas_price()
+
+        mock_get_current_time.assert_called_once()
+        mock_get_price.assert_has_calls([call()] * GET_SOL_PRICE_MAX_RETRIES)
+
+
+    @patch.object(GasPriceCalculator, 'get_current_time')
+    @patch.object(PythNetworkClient, 'get_price')
+    def test_success_get_price_time_intervals(self, mock_get_price, mock_get_current_time):
+        """
+        Should successfully calculate gas price:
+            - with no get_price call on second attempt (time interval too small)
+            - with get_price call on first and third attempt
+        """
+
+        time1 = 1234
+        time2 = time1 + SOL_PRICE_UPDATE_INTERVAL - 1 # small interval
+        time3 = time2 + SOL_PRICE_UPDATE_INTERVAL + 1 # big interval
+        mock_get_current_time.side_effect = [time1, time2, time3]
+
+        sol_price1 = Decimal('156.3')
+        sol_price2 = Decimal('156.3')
+        mock_get_price.side_effect = [
+            {'status': 1, 'price': sol_price1},
+            {'status': 1, 'price': sol_price2}]
+
+        gas_price1 = self.testee.get_min_gas_price()
+        expected_price1 = (sol_price1 / NEON_PRICE_USD) * (1 + OPERATOR_FEE)
+        self.assertEqual(gas_price1, expected_price1)
+
+        gas_price2 = self.testee.get_min_gas_price()
+        self.assertEqual(gas_price2, expected_price1)
+
+        gas_price3 = self.testee.get_min_gas_price()
+        expected_price2 = (sol_price2 / NEON_PRICE_USD) * (1 + OPERATOR_FEE)
+        self.assertEqual(gas_price3, expected_price2)
+
+        mock_get_current_time.assert_has_calls([call()] * 3)
+        mock_get_price.assert_has_calls([call()] * 2)

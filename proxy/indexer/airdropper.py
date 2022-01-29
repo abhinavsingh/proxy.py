@@ -10,6 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 import os
 from logged_groups import logged_group
+from ..environment import NEON_PRICE_USD
 
 try:
     from utils import check_error
@@ -20,7 +21,6 @@ except ImportError:
 
 ACCOUNT_CREATION_PRICE_SOL = Decimal('0.00472692')
 AIRDROP_AMOUNT_SOL = ACCOUNT_CREATION_PRICE_SOL / 2
-NEON_PRICE_USD = Decimal('0.25')
 
 
 class FailedAttempts(BaseDB):

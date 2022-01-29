@@ -1,3 +1,4 @@
+from decimal import Decimal
 import json
 import os
 import subprocess
@@ -7,6 +8,7 @@ from solana.account import Account as sol_Account
 from typing import Optional
 
 SOLANA_URL = os.environ.get("SOLANA_URL", "http://localhost:8899")
+PP_SOLANA_URL = os.environ.get("PP_SOLANA_URL", SOLANA_URL)
 EVM_LOADER_ID = os.environ.get("EVM_LOADER")
 neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
 
@@ -14,7 +16,11 @@ NEW_USER_AIRDROP_AMOUNT = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
 CONFIRMATION_CHECK_DELAY = float(os.environ.get("NEON_CONFIRMATION_CHECK_DELAY", "0.1"))
 CONTINUE_COUNT_FACTOR = int(os.environ.get("CONTINUE_COUNT_FACTOR", "3"))
 TIMEOUT_TO_RELOAD_NEON_CONFIG = int(os.environ.get("TIMEOUT_TO_RELOAD_NEON_CONFIG", "3600"))
-MINIMAL_GAS_PRICE=int(os.environ.get("MINIMAL_GAS_PRICE", 1))*10**9
+
+MINIMAL_GAS_PRICE=os.environ.get("MINIMAL_GAS_PRICE", None)
+if MINIMAL_GAS_PRICE is not None:
+    MINIMAL_GAS_PRICE = int(MINIMAL_GAS_PRICE)*10**9
+
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 LOG_SENDING_SOLANA_TRANSACTION = os.environ.get("LOG_SENDING_SOLANA_TRANSACTION", "NO") == "YES"
 LOG_NEON_CLI_DEBUG = os.environ.get("LOG_NEON_CLI_DEBUG", "NO") == "YES"
@@ -30,7 +36,11 @@ START_SLOT = os.environ.get('START_SLOT', 0)
 FINALIZED = os.environ.get('FINALIZED', 'finalized')
 CANCEL_TIMEOUT = int(os.environ.get("CANCEL_TIMEOUT", "60"))
 ACCOUNT_PERMISSION_UPDATE_INT = int(os.environ.get("ACCOUNT_PERMISSION_UPDATE_INT", 60 * 5))
-
+OPERATOR_FEE = Decimal(os.environ.get("OPERATOR_FEE", "0.1"))
+NEON_PRICE_USD = Decimal('0.25')
+SOL_PRICE_UPDATE_INTERVAL = int(os.environ.get("SOL_PRICE_UPDATE_INTERVAL", 60))
+GET_SOL_PRICE_MAX_RETRIES = int(os.environ.get("GET_SOL_PRICE_MAX_RETRIES", 3))
+GET_SOL_PRICE_RETRY_INTERVAL = int(os.environ.get("GET_SOL_PRICE_RETRY_INTERVAL", 1))
 
 @logged_group("neon.Proxy")
 class solana_cli:

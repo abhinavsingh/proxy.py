@@ -1,7 +1,7 @@
 import os
 
 from proxy.common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY
-from proxy.environment import ETH_TOKEN_MINT_ID, MINIMAL_GAS_PRICE
+from proxy.environment import ETH_TOKEN_MINT_ID
 
 os.environ['SOLANA_URL'] = "http://solana:8899"
 os.environ['EVM_LOADER'] = "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io"
@@ -31,6 +31,7 @@ from web3.auto.gethdev import w3
 install_solc(version='0.7.0')
 from solcx import compile_source
 
+MINIMAL_GAS_PRICE = 1
 SEED = 'https://github.com/neonlabsorg/proxy-model.py/issues/365'
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
