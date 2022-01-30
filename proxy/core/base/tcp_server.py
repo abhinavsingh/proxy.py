@@ -185,8 +185,19 @@ class BaseTcpServerHandler(Work[T]):
         if self.work.connection.fileno() in readables:
             try:
                 data = self.work.recv(self.flags.client_recvbuf_size)
+            except ConnectionResetError:
+                logger.info(
+                    'Connection reset by client {0}'.format(
+                        self.work.address,
+                    ),
+                )
+                return True
             except TimeoutError:
-                logger.info('Client recv timeout error')
+                logger.info(
+                    'Client recv timeout error {0}'.format(
+                        self.work.address,
+                    ),
+                )
                 return True
             if data is None:
                 logger.debug(

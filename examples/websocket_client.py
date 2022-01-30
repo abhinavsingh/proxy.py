@@ -14,7 +14,9 @@ import logging
 from proxy.http.websocket import (
     WebsocketFrame, WebsocketClient, websocketOpcodes,
 )
+from proxy.common.constants import DEFAULT_LOG_FORMAT
 
+logging.basicConfig(level=logging.INFO, format=DEFAULT_LOG_FORMAT)
 
 # globals
 client: WebsocketClient
@@ -47,9 +49,9 @@ def on_message(frame: WebsocketFrame) -> None:
 if __name__ == '__main__':
     # Constructor establishes socket connection
     client = WebsocketClient(
-        b'echo.websocket.org',
-        80,
-        b'/',
+        b'localhost',
+        8899,
+        b'/ws-route-example',
         on_message=on_message,
     )
     # Perform handshake

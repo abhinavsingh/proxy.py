@@ -99,11 +99,11 @@ class EventDispatcher:
         except Exception as e:
             logger.exception('Dispatcher exception', exc_info=e)
         finally:
-            logger.info('Dispatcher shutdown')
             # Send shutdown message to all active subscribers
             self._broadcast({
                 'event_name': eventNames.DISPATCHER_SHUTDOWN,
             })
+            logger.info('Dispatcher shutdown')
 
     def _broadcast(self, ev: Dict[str, Any]) -> None:
         broken_pipes: List[str] = []

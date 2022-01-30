@@ -51,7 +51,7 @@ class EventQueue:
         event_payload: Dict[str, Any],
         publisher_id: Optional[str] = None,
     ) -> None:
-        self.queue.put_nowait({
+        self.queue.put({
             'process_id': os.getpid(),
             'thread_id': threading.get_ident(),
             'event_timestamp': time.time(),
@@ -71,7 +71,7 @@ class EventQueue:
         sub_id is a subscription identifier which must be globally
         unique.  channel MUST be a multiprocessing connection.
         """
-        self.queue.put_nowait({
+        self.queue.put({
             'event_name': eventNames.SUBSCRIBE,
             'event_payload': {'sub_id': sub_id, 'conn': channel},
         })
@@ -81,7 +81,7 @@ class EventQueue:
             sub_id: str,
     ) -> None:
         """Unsubscribe by subscriber id."""
-        self.queue.put_nowait({
+        self.queue.put({
             'event_name': eventNames.UNSUBSCRIBE,
             'event_payload': {'sub_id': sub_id},
         })
