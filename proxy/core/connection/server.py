@@ -48,7 +48,8 @@ class TcpServerConnection(TcpConnection):
             hostname: Optional[str] = None,
             ca_file: Optional[str] = None,
             as_non_blocking: bool = False,
-            verify_mode: ssl.VerifyMode = ssl.VerifyMode.CERT_REQUIRED,
+            # Ref https://github.com/PyCQA/pylint/issues/3691
+            verify_mode: ssl.VerifyMode = ssl.VerifyMode.CERT_REQUIRED,     # pylint: disable=E1101
     ) -> None:
         ctx = ssl.create_default_context(
             ssl.Purpose.SERVER_AUTH,
