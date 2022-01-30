@@ -145,6 +145,7 @@ class EventSubscriber:
                 break
             except KeyboardInterrupt:
                 break
+        logger.debug('bbye!!!')
 
     def _start_relay_thread(self) -> None:
         self.relay_sub_id = uuid.uuid4().hex

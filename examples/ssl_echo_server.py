@@ -52,8 +52,8 @@ def main() -> None:
         threadless=True,
         num_workers=1,
         port=12345,
-        keyfile='https-key.pem',
-        certfile='https-signed-cert.pem',
+        key_file='https-key.pem',
+        cert_file='https-signed-cert.pem',
     ):
         try:
             while True:
