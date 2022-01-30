@@ -65,7 +65,10 @@ class TcpSocketListener(BaseListener):
         super().__init__(*args, **kwargs)
 
     def listen(self) -> socket.socket:
-        sock = socket.socket(self.flags.family, socket.SOCK_STREAM)
+        sock = socket.socket(
+            socket.AF_INET6 if self.flags.hostname.version == 6 else socket.AF_INET,
+            socket.SOCK_STREAM,
+        )
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         # s.setsockopt(socket.SOL_TCP, socket.TCP_FASTOPEN, 5)

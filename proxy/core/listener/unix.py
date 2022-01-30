@@ -8,6 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
 import socket
 import logging
 
@@ -30,9 +31,8 @@ class UnixSocketListener(BaseListener):
     """Unix socket domain listener."""
 
     def listen(self) -> socket.socket:
-        sock = socket.socket(self.flags.family, socket.SOCK_STREAM)
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         sock.bind(self.flags.unix_socket_path)
         sock.listen(self.flags.backlog)
         sock.setblocking(False)
@@ -41,3 +41,8 @@ class UnixSocketListener(BaseListener):
             self.flags.unix_socket_path,
         )
         return sock
+
+    def shutdown(self) -> None:
+        super().shutdown()
+        if self.flags.unix_socket_path:
+            os.remove(self.flags.unix_socket_path)
