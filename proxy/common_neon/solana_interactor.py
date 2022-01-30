@@ -7,6 +7,7 @@ import time
 from solana.blockhash import Blockhash
 from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
+from solana.account import Account as SolanaAccount
 from solana.rpc.commitment import Confirmed
 from solana.rpc.types import RPCResponse
 from solana.transaction import Transaction
@@ -27,10 +28,14 @@ class AccountInfo(NamedTuple):
     owner: PublicKey
 
 
+class SendResult(NamedTuple):
+    error: dict
+    result: dict
+
+
 @logged_group("neon.Proxy")
 class SolanaInteractor:
-    def __init__(self, signer, client: SolanaClient) -> None:
-        self.signer = signer
+    def __init__(self, client: SolanaClient) -> None:
         self.client = client
         self._fuzzing_hash_cycle = False
 
@@ -66,9 +71,6 @@ class SolanaInteractor:
                 raise RuntimeError(f"Invalid RPC response: request {request} response {response}")
 
         return full_response_data
-
-    def get_operator_key(self):
-        return self.signer.public_key()
 
     def get_account_info(self, storage_account) -> AccountInfo:
         opts = {
@@ -149,39 +151,53 @@ class SolanaInteractor:
         if not blockhash_resp["result"]:
             raise RuntimeError("failed to get recent blockhash")
         blockhash = blockhash_resp["result"]["value"]["blockhash"]
+        return Blockhash(blockhash)
 
+    def _fuzzing_transactions(self, signer: SolanaAccount, tx_list, tx_opts, request_list):
+        """
+        Make each second transaction a bad one.
+        This is used to test a transaction sending on a live cluster (testnet/devnet).
+        """
         if not FUZZING_BLOCKHASH:
-            return Blockhash(blockhash)
+            return request_list
 
-        slot = blockhash_resp['result']['context']['slot']
         self._fuzzing_hash_cycle = not self._fuzzing_hash_cycle
         if not self._fuzzing_hash_cycle:
-            self.debug(f"good block {blockhash} for the slot {slot}")
-            return Blockhash(blockhash)
+            return request_list
 
+        # get bad block slot for sent transactions
+        slot = self.get_recent_blockslot()
         # blockhash = '4NCYB3kRT8sCNodPNuCZo8VUh4xqpBQxsxed2wd9xaD4'
-        opts = {
+        block_opts = {
             "encoding": "json",
             "transactionDetails": "none",
             "rewards": False
         }
-        block = self.client._provider.make_request("getBlock", slot - 500, opts)
-        blockhash = block['result']['blockhash']
-        self.debug(f"fuzzing block {blockhash} for slot {slot}")
-        return Blockhash(blockhash)
+        slot = max(slot - 500, 10)
+        block = self.client._provider.make_request("getBlock", slot, block_opts)
+        fuzzing_blockhash = Blockhash(block['result']['blockhash'])
+        self.debug(f"fuzzing block {fuzzing_blockhash} for slot {slot}")
 
-    def sign_transaction(self, tx: Transaction):
-        tx.sign(self.signer)
+        # sign half of transactions with a bad blockhash
+        for idx, tx in enumerate(tx_list):
+            if idx % 2 == 1:
+                continue
+            tx.recent_blockhash = fuzzing_blockhash
+            tx.sign(signer)
+            base64_tx = base64.b64encode(tx.serialize()).decode('utf-8')
+            request_list[idx] = (base64_tx, tx_opts)
+        return request_list
 
-    def send_multiple_transactions_unconfirmed(self, tx_list: [Transaction], skip_preflight=True) -> [str]:
+    def _send_multiple_transactions_unconfirmed(self, signer: SolanaAccount, tx_list: [Transaction]) -> [str]:
         opts = {
-            "skipPreflight": skip_preflight,
+            "skipPreflight": False,
             "encoding": "base64",
             "preflightCommitment": "confirmed"
         }
 
         blockhash = None
         request_list = []
+
         for tx in tx_list:
             if not tx.recent_blockhash:
                 if not blockhash:
@@ -189,59 +205,71 @@ class SolanaInteractor:
                 tx.recent_blockhash = blockhash
                 tx.signatures.clear()
             if not tx.signatures:
-                self.sign_transaction(tx)
+                tx.sign(signer)
             base64_tx = base64.b64encode(tx.serialize()).decode('utf-8')
             request_list.append((base64_tx, opts))
 
+        request_list = self._fuzzing_transactions(signer, tx_list, opts, request_list)
         response_list = self._send_rpc_batch_request('sendTransaction', request_list)
-        return [r['result'] for r in response_list]
+        return [SendResult(result=r.get('result'), error=r.get('error')) for r in response_list]
 
-    def send_multiple_transactions(self, tx_list, eth_tx, reason, waiter=None, skip_preflight=True) -> [{}]:
-        debug_measurements = LOG_SENDING_SOLANA_TRANSACTION and (reason in ['CancelWithNonce', 'CallFromRawEthereumTX'])
-
-        if debug_measurements:
-            self.debug(f"send multiple transactions for reason {reason}: {eth_tx.__dict__}")
-
-        sign_list = self.send_multiple_transactions_unconfirmed(tx_list, skip_preflight=skip_preflight)
-        self.confirm_multiple_transactions(sign_list, waiter)
-        receipt_list = self.get_multiple_confirmed_transactions(sign_list)
+    def send_multiple_transactions(self, signer, tx_list, eth_tx, reason, waiter=None) -> [{}]:
+        send_result_list = self._send_multiple_transactions_unconfirmed(signer, tx_list)
+        # Filter good transactions and wait the confirmations for them
+        sign_list = [s.result for s in send_result_list if s.result]
+        self._confirm_multiple_transactions(sign_list, waiter)
+        # Get receipts for good transactions
+        confirmed_list = self._get_multiple_receipts(sign_list)
+        # Mix errors with receipts for good transactions
+        receipt_list = []
+        for s in send_result_list:
+            if s.error:
+                receipt_list.append(s.error)
+            else:
+                receipt_list.append(confirmed_list.pop(0))
 
         if WRITE_TRANSACTION_COST_IN_DB:
             for receipt in receipt_list:
                 update_transaction_cost(receipt, eth_tx, reason)
 
-        if debug_measurements:
-            for receipt in receipt_list:
-                if receipt is not None:
-                    self.get_measurements(receipt)
-
         return receipt_list
-
-    def send_transaction(self, trx, eth_tx, reason=None):
-        return self.send_multiple_transactions([trx], eth_tx, reason)[0]
 
     # Do not rename this function! This name used in CI measurements (see function `cleanup_docker` in
     # .buildkite/steps/deploy-test.sh)
-    def get_measurements(self, receipt):
+    def get_measurements(self, reason, eth_tx, receipt):
+        if not LOG_SENDING_SOLANA_TRANSACTION:
+            return
+
         try:
-            measurements = self.extract_measurements_from_receipt(receipt)
+            self.debug(f"send multiple transactions for reason {reason}: {eth_tx.__dict__}")
+
+            measurements = self._extract_measurements_from_receipt(receipt)
             for m in measurements:
                 self.info(f'get_measurements: {json.dumps(m)}')
         except Exception as err:
             self.error(f"get_measurements: can't get measurements {err}")
             self.info(f"get measurements: failed result {json.dumps(receipt, indent=3)}")
 
-    def confirm_multiple_transactions(self, sign_list: [str], waiter=None):
+    def _confirm_multiple_transactions(self, sign_list: [str], waiter=None):
         """Confirm a transaction."""
+        if not len(sign_list):
+            self.debug(f'Got confirmed status for transactions: {sign_list}')
+            return
+
         elapsed_time = 0
         while elapsed_time < CONFIRM_TIMEOUT:
-            if waiter:
-                waiter.on_wait_confirm(elapsed_time)
+            if elapsed_time > 0:
+                time.sleep(CONFIRMATION_CHECK_DELAY)
+            elapsed_time += CONFIRMATION_CHECK_DELAY
 
             response = self.client.get_signature_statuses(sign_list)
             result = response['result']
             if not result:
                 continue
+
+            if waiter:
+                slot = result['context']['slot']
+                waiter.on_wait_confirm(elapsed_time, slot)
 
             for status in result['value']:
                 if not status:
@@ -252,17 +280,17 @@ class SolanaInteractor:
                 self.debug(f'Got confirmed status for transactions: {sign_list}')
                 return
 
-            time.sleep(CONFIRMATION_CHECK_DELAY)
-            elapsed_time += CONFIRMATION_CHECK_DELAY
         self.warning(f'No confirmed status for transactions: {sign_list}')
 
-    def get_multiple_confirmed_transactions(self, sign_list: [str]) -> [Any]:
+    def _get_multiple_receipts(self, sign_list: [str]) -> [Any]:
+        if not len(sign_list):
+            return []
         opts = {"encoding": "json", "commitment": "confirmed"}
         request_list = [(sign, opts) for sign in sign_list]
         response_list = self._send_rpc_batch_request("getTransaction", request_list)
         return [r['result'] for r in response_list]
 
-    def extract_measurements_from_receipt(self, receipt):
+    def _extract_measurements_from_receipt(self, receipt):
         if check_for_errors(receipt):
             self.warning("Can't get measurements from receipt with error")
             self.info(f"Failed result: {json.dumps(receipt, indent=3)}")
@@ -330,6 +358,10 @@ def get_error_definition_from_receipt(receipt):
         return err_from_receipt_result
 
     err_from_send_trx_error = get_from_dict(receipt, 'data', 'err', 'InstructionError')
+    if err_from_send_trx_error is not None:
+        return err_from_send_trx_error
+
+    err_from_send_trx_error = get_from_dict(receipt, 'data', 'err')
     if err_from_send_trx_error is not None:
         return err_from_send_trx_error
 
@@ -415,3 +447,7 @@ def check_if_accounts_blocked(receipt, *, logger):
         if log.find(ro_blocked) >= 0 or log.find(rw_blocked) >= 0:
             return True
     return False
+
+
+def check_if_blockhash_notfound(receipt):
+    return (not receipt) or (get_from_dict(receipt, 'data', 'err') == 'BlockhashNotFound')

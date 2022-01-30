@@ -14,8 +14,9 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
   [[ -z "$FINALIZED"                    ]] && export FINALIZED="finalized"
-  [[ -z "$START_SLOT"                   ]] && export START_SLOT=0
-  [[ -z "$CONFIRM_TIMEOUT"              ]] && export CONFIRM_TIMEOUT=5
+  [[ -z "$START_SLOT"                   ]] && export START_SLOT="LATEST"
+  [[ -z "$CONFIRM_TIMEOUT"              ]] && export CONFIRM_TIMEOUT=1
+  [[ -z "$PERM_ACCOUNT_LIMIT"           ]] && export PERM_ACCOUNT_LIMIT=2
 elif [ "$CONFIG" == "local" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="http://localhost:8899"
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=0
@@ -27,6 +28,7 @@ elif [ "$CONFIG" == "local" ]; then
   [[ -z "$FINALIZED"                    ]] && export FINALIZED="finalized"
   [[ -z "$START_SLOT"                   ]] && export START_SLOT=0
   [[ -z "$CONFIRM_TIMEOUT"              ]] && export CONFIRM_TIMEOUT=5
+  [[ -z "$PERM_ACCOUNT_LIMIT"           ]] && export PERM_ACCOUNT_LIMIT=2
 elif [ "$CONFIG" == "devnet" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="https://api.devnet.solana.com"
   [[ -z "$EVM_LOADER"                   ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
@@ -39,6 +41,7 @@ elif [ "$CONFIG" == "devnet" ]; then
   [[ -z "$FINALIZED"                    ]] && export FINALIZED="finalized"
   [[ -z "$START_SLOT"                   ]] && export START_SLOT="LATEST"
   [[ -z "$CONFIRM_TIMEOUT"              ]] && export CONFIRM_TIMEOUT=30
+  [[ -z "$PERM_ACCOUNT_LIMIT"           ]] && export PERM_ACCOUNT_LIMIT=16
 elif [ "$CONFIG" == "testnet" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="https://api.testnet.solana.com"
   [[ -z "$EVM_LOADER"                   ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
@@ -51,6 +54,7 @@ elif [ "$CONFIG" == "testnet" ]; then
   [[ -z "$FINALIZED"                    ]] && export FINALIZED="finalized"
   [[ -z "$START_SLOT"                   ]] && export START_SLOT="LATEST"
   [[ -z "$CONFIRM_TIMEOUT"              ]] && export CONFIRM_TIMEOUT=30
+  [[ -z "$PERM_ACCOUNT_LIMIT"           ]] && export PERM_ACCOUNT_LIMIT=16
 elif [ "$CONFIG" != "custom" ]; then
   exit 1
 fi

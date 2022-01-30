@@ -19,14 +19,14 @@ class TestPermissionToken(unittest.TestCase):
 
         cls.payer = SolanaAccount()
         cls.solana.request_airdrop(cls.payer.public_key(), 1000_000_000_000, Confirmed)
-        cls.allowance_token = PermissionToken(cls.solana, 
-                                              PublicKey(os.environ['NEON_PERMISSION_ALLOWANCE_TOKEN']),
-                                              cls.payer)
+        cls.allowance_token = PermissionToken(cls.solana,
+                                              PublicKey(os.environ['NEON_PERMISSION_ALLOWANCE_TOKEN']))
+        cls.allowance_token.set_payer(cls.payer)
 
         cls.denial_token = PermissionToken(cls.solana,
-                                           PublicKey(os.environ['NEON_PERMISSION_DENIAL_TOKEN']),
-                                           cls.payer)
-    
+                                           PublicKey(os.environ['NEON_PERMISSION_DENIAL_TOKEN']))
+        cls.denial_token.set_payer(cls.payer)
+
     def test_get_balance_non_existing_account(self):
         """
         Should return zero balance for non existing token-account

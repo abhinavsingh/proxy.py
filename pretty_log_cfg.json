@@ -1,0 +1,49 @@
+{
+    "version": 1,
+    "handlers": {
+        "standard": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "standard",
+            "filters": ["context_filter", "neon_prefix_dropper"]
+        },
+        "root": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "root",
+            "filters": ["context_filter"]
+        }
+    },
+    "filters": {
+        "context_filter": {
+            "()": "logged_groups.ContextFilter"
+        },
+        "neon_prefix_dropper": {
+            "()": "proxy.common_neon.logging.NeonPrefixDropper"
+        }
+    },
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s.%(msecs)03d [%(levelname)-.1s] %(process)d %(name)s:%(filename)s:%(lineno)d %(context)s %(message)s",
+            "style": "%",
+            "datefmt": "%Y-%m-%d %H:%M:%S"
+        },
+        "root": {
+            "format": "%(asctime)s.%(msecs)03d [%(levelname)-.1s] %(process)d %(name)s:Undefined %(context)s %(message)s",
+            "style": "%",
+            "datefmt": "%Y-%m-%d %H:%M:%S"
+        }
+    },
+    "loggers": {
+        "neon": {
+            "level": "DEBUG",
+            "handlers": ["standard"],
+            "propagate": false
+        },
+        "": {
+            "level": "ERROR",
+            "handlers": ["root"],
+            "propagate": false
+        }
+    }
+}

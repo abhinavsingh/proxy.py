@@ -13,21 +13,22 @@ NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE = int(ELF_PARAMS.get("NEON_MINIMAL_CONTR
 
 @logged_group("neon.AccountWhitelist")
 class AccountWhitelist:
-    def __init__(self, solana: SolanaClient, payer: SolanaAccount, permission_update_int: int):
+    def __init__(self, solana: SolanaClient, permission_update_int: int):
         self.solana = solana
         self.account_cache = {}
         self.permission_update_int = permission_update_int
+        self.allowance_token = None
+        self.denial_token = None
+
         allowance_token_addr = ELF_PARAMS.get("NEON_PERMISSION_ALLOWANCE_TOKEN", '')
         if allowance_token_addr != '':
             self.allowance_token = PermissionToken(self.solana,
-                                                   PublicKey(allowance_token_addr),
-                                                   payer)
+                                                   PublicKey(allowance_token_addr))
 
         denial_token_addr = ELF_PARAMS.get("NEON_PERMISSION_DENIAL_TOKEN", '')
         if denial_token_addr != '':
             self.denial_token = PermissionToken(self.solana,
-                                                PublicKey(denial_token_addr),
-                                                payer)
+                                                PublicKey(denial_token_addr))
 
         if self.allowance_token is None and self.denial_token is None:
             return
@@ -35,6 +36,18 @@ class AccountWhitelist:
         if self.allowance_token is None or self.denial_token is None:
             self.error(f'Wrong proxy configuration: allowance and denial tokens must both exist or absent!')
             raise Exception("NEON service is unhealthy. Try again later")
+
+    def set_payer(self, payer: SolanaAccount):
+        if self.allowance_token:
+            self.allowance_token.set_payer(payer)
+        if self.denial_token:
+            self.denial_token.set_payer(payer)
+
+    def clear_payer(self):
+        if self.allowance_token:
+            self.allowance_token.clear_payer()
+        if self.denial_token:
+            self.denial_token.clear_payer()
 
     def read_balance_diff(self, ether_addr: Union[str, EthereumAddress]):
         allowance_balance = self.allowance_token.get_balance(ether_addr)
@@ -99,9 +112,9 @@ class AccountWhitelist:
 
         try:
             diff = self.read_balance_diff(ether_addr)
-            self.account_cache[ether_addr] = { 
-                'last_update': current_time, 
-                'diff': diff 
+            self.account_cache[ether_addr] = {
+                'last_update': current_time,
+                'diff': diff
             }
             return diff >= min_balance
         except Exception as err:

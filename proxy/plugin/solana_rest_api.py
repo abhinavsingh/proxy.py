@@ -27,14 +27,17 @@ from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from solana.rpc.api import Client as SolanaClient
 from typing import List, Tuple
 
-from .solana_rest_api_tools import getAccountInfo, call_signed, neon_config_load, \
+from .solana_rest_api_tools import getAccountInfo, neon_config_load, \
     get_token_balance_or_airdrop, estimate_gas
+from ..common_neon.transaction_sender import NeonTxSender, OperatorResourceList
+from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.address import EthereumAddress
 from ..common_neon.transaction_sender import SolanaTxError
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError
 from ..common_neon.eth_proto import Trx as EthTrx
-from ..environment import neon_cli, get_solana_accounts, SOLANA_URL, PP_SOLANA_URL, ACCOUNT_PERMISSION_UPDATE_INT
+from ..environment import SOLANA_URL, MINIMAL_GAS_PRICE, PP_SOLANA_URL, ACCOUNT_PERMISSION_UPDATE_INT
+from ..environment import neon_cli, get_solana_accounts
 from ..indexer.indexer_db import IndexerDB, PendingTxError
 from .gas_price_calculator import GasPriceCalculator
 from ..common_neon.account_whitelist import AccountWhitelist
@@ -46,15 +49,12 @@ NEON_PROXY_PKG_VERSION = '0.5.4-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
-proxy_id_glob = multiprocessing.Value('i', 0)
-
-
 @logged_group("neon.Proxy")
 class EthereumModel:
-    def __init__(self):
-        signer_list = get_solana_accounts()
-        self.client = SolanaClient(SOLANA_URL)
+    proxy_id_glob = multiprocessing.Value('i', 0)
 
+    def __init__(self):
+        self.client = SolanaClient(SOLANA_URL)
         self.db = IndexerDB()
         self.db.set_client(self.client)
         
@@ -63,13 +63,13 @@ class EthereumModel:
         else:
             self.gas_price_calculator = GasPriceCalculator(SolanaClient(PP_SOLANA_URL))
 
-        with proxy_id_glob.get_lock():
-            self.proxy_id = proxy_id_glob.value
-            proxy_id_glob.value += 1
-        self.debug(f"Worker id {self.proxy_id}")
-        self.signer = signer_list[self.proxy_id % len(signer_list)]
+        with self.proxy_id_glob.get_lock():
+            self.proxy_id = self.proxy_id_glob.value
+            self.proxy_id_glob.value += 1
 
-        self.account_whitelist = AccountWhitelist(self.client, self.signer, ACCOUNT_PERMISSION_UPDATE_INT)
+        self.debug(f"Worker id {self.proxy_id}")
+
+        self.account_whitelist = AccountWhitelist(self.client, ACCOUNT_PERMISSION_UPDATE_INT)
 
         neon_config_load(self)
 
@@ -360,15 +360,6 @@ class EthereumModel:
             raise Exception("The transaction gasPrice is less then the minimum allowable value ({}<{})".format(trx.gasPrice, min_gas_price))
 
         sender = trx.sender()
-        if not self.account_whitelist.has_client_permission(sender):
-            self.warning(f'Sender account {sender} is not allowed to execute transactions')
-            raise Exception(f'Sender account {sender} is not allowed to execute transactions')
-
-        contract = trx.contract()
-        if contract is not None and not self.account_whitelist.has_contract_permission(contract):
-            self.warning(f'Contract account {contract} is not allowed for deployment')
-            raise Exception(f'Contract account {contract} is not allowed for deployment')
-
         eth_signature = '0x' + trx.hash_signed().hex()
 
         self.debug('Eth Sender: %s', sender)
@@ -389,7 +380,8 @@ class EthereumModel:
                                     ]
                                 })
         try:
-            call_signed(self.db, self.signer, self.client, trx, steps=500)
+            tx_sender = NeonTxSender(self.db, self.client, self.account_whitelist, trx, steps=500)
+            tx_sender.execute()
             return eth_signature
 
         except PendingTxError:

@@ -7,10 +7,10 @@ class PendingTxError(Exception):
 
 
 class NeonPendingTxInfo:
-    def __init__(self, neon_sign: str, slot: int, pid: int):
+    def __init__(self, neon_sign: str, slot: int, operator: str):
         self.neon_sign = neon_sign
         self.slot = slot
-        self.pid = pid
+        self.operator = operator
 
 
 class NeonPendingTxsDB(BaseDB):
@@ -23,7 +23,7 @@ class NeonPendingTxsDB(BaseDB):
             CREATE TABLE IF NOT EXISTS {self._table_name} (
                 neon_sign CHAR(66),
                 slot BIGINT,
-                pid INT,
+                operator CHAR(50),
 
                 UNIQUE(neon_sign)
             );
@@ -32,21 +32,21 @@ class NeonPendingTxsDB(BaseDB):
 
     def set_tx(self, tx: NeonPendingTxInfo):
         cursor = self._conn.cursor()
-        # Update slot only for this PID
+        # Update slot only for this Operator:ResourceId
         cursor.execute(f'''
                         INSERT INTO {self._table_name}
-                            (neon_sign, slot, pid)
+                            (neon_sign, slot, operator)
                         VALUES
                             (%s, %s, %s)
                         ON CONFLICT (neon_sign)
                         DO UPDATE SET
                             slot = EXCLUDED.slot
-                        WHERE {self._table_name}.pid = EXCLUDED.pid
+                        WHERE {self._table_name}.operator = EXCLUDED.operator
                        ''',
-                       (tx.neon_sign, tx.slot, tx.pid))
+                       (tx.neon_sign, tx.slot, tx.operator))
 
-        values = self._fetchone(['pid'], [('neon_sign', tx.neon_sign)], ['slot desc'])
-        if not values or int(values[0]) != tx.pid:
+        values = self._fetchone(['operator'], [('neon_sign', tx.neon_sign)], ['slot desc'])
+        if not values or values[0].strip() != tx.operator.strip():
             raise PendingTxError('Transaction is locked in other worker')
 
     def del_not_finalized(self, from_slot: int, to_slot: int):

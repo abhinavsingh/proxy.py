@@ -4,7 +4,7 @@ import os
 import subprocess
 from logged_groups import logged_group, LogMng
 from solana.publickey import PublicKey
-from solana.account import Account as sol_Account
+from solana.account import Account as SolanaAccount
 from typing import Optional
 
 SOLANA_URL = os.environ.get("SOLANA_URL", "http://localhost:8899")
@@ -36,6 +36,7 @@ START_SLOT = os.environ.get('START_SLOT', 0)
 FINALIZED = os.environ.get('FINALIZED', 'finalized')
 CANCEL_TIMEOUT = int(os.environ.get("CANCEL_TIMEOUT", "60"))
 ACCOUNT_PERMISSION_UPDATE_INT = int(os.environ.get("ACCOUNT_PERMISSION_UPDATE_INT", 60 * 5))
+PERM_ACCOUNT_LIMIT = max(int(os.environ.get("PERM_ACCOUNT_LIMIT", 2)), 2)
 OPERATOR_FEE = Decimal(os.environ.get("OPERATOR_FEE", "0.1"))
 NEON_PRICE_USD = Decimal('0.25')
 SOL_PRICE_UPDATE_INTERVAL = int(os.environ.get("SOL_PRICE_UPDATE_INTERVAL", 60))
@@ -57,8 +58,8 @@ class solana_cli:
 
 
 @logged_group("neon.Proxy")
-def get_solana_accounts(*, logger) -> [sol_Account]:
-    def read_sol_account(name) -> Optional[sol_Account]:
+def get_solana_accounts(*, logger) -> [SolanaAccount]:
+    def read_sol_account(name) -> Optional[SolanaAccount]:
         if not os.path.isfile(name):
             return None
 
@@ -66,7 +67,7 @@ def get_solana_accounts(*, logger) -> [sol_Account]:
             pkey = (d.read())
             num_list = [int(v) for v in pkey.strip("[] \n").split(',')]
             value_list = bytes(num_list[0:32])
-            return sol_Account(value_list)
+            return SolanaAccount(value_list)
 
     res = solana_cli().call('config', 'get')
     substr = "Keypair Path: "
@@ -81,17 +82,18 @@ def get_solana_accounts(*, logger) -> [sol_Account]:
 
     signer_list = []
     (file_name, file_ext) = os.path.splitext(path)
-    i = -1
+    i = 0
     while True:
         i += 1
-        full_path = file_name + (str(i) if i > 0 else '') + file_ext
+        full_path = file_name + (str(i) if i > 1 else '') + file_ext
         signer = read_sol_account(full_path)
         if not signer:
             break
         signer_list.append(signer)
+        logger.debug(f'Add signer: {signer.public_key()}')
 
     if not len(signer_list):
-        raise Exception("not keypairs")
+        raise Exception("No keypairs")
 
     return signer_list
 

@@ -10,6 +10,7 @@
 !run-faucet.sh
 !run-airdropper.sh
 !log_cfg.json
+!pretty_log_cfg.json
 
 # Ignore __pycache__ directory
 proxy/__pycache__

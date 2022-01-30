@@ -10,8 +10,6 @@ from logged_groups import logged_group
 from ..common_neon.address import ether2program, getTokenAddr, EthereumAddress, AccountInfo
 from ..common_neon.errors import SolanaAccountNotFoundError, SolanaErrors
 from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT
-from ..common_neon.solana_interactor import SolanaInteractor
-from ..common_neon.transaction_sender import NeonTxSender
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.utils import get_from_dict
 from ..environment import NEW_USER_AIRDROP_AMOUNT, read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
@@ -38,12 +36,6 @@ def neon_config_load(ethereum_model, *, logger):
                                                             '-' \
                                                             + ethereum_model.neon_config_dict['NEON_REVISION']
     logger.debug(ethereum_model.neon_config_dict)
-
-
-def call_signed(db, signer, client, eth_trx, steps):
-    solana = SolanaInteractor(signer, client)
-    tx_sender = NeonTxSender(db, solana, eth_trx, steps)
-    tx_sender.execute()
 
 
 def _getAccountData(client, account, expected_length, owner=None):

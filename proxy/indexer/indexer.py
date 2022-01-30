@@ -319,7 +319,7 @@ class DummyIxDecoder:
 
     def _decoding_skip(self, reason: str) -> bool:
         """Skip decoding of the instruction"""
-        self.error(f'{self}: {reason}')
+        self.debug(f'{self}: {reason}')
         return False
 
     def _decoding_fail(self, obj: BaseEvmObject, reason: str) -> bool:
