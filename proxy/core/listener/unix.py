@@ -33,7 +33,6 @@ class UnixSocketListener(BaseListener):
     def listen(self) -> socket.socket:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         sock.bind(self.flags.unix_socket_path)
         sock.listen(self.flags.backlog)
         sock.setblocking(False)
