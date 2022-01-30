@@ -25,7 +25,11 @@ if __name__ == '__main__':
     client.wrap(
         None,  # 'localhost',
         ca_file='ca-cert.pem',
-        verify_mode=ssl.CERT_NONE,
+        # For self-signed certs you will have
+        # to disable verification.  Or you can
+        # add your CA certificate in the CA bundle
+        # and then enable verify.
+        verify_mode=ssl.VerifyMode.CERT_NONE,
     )
     try:
         while True:

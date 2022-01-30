@@ -48,7 +48,7 @@ class TcpServerConnection(TcpConnection):
             hostname: Optional[str] = None,
             ca_file: Optional[str] = None,
             as_non_blocking: bool = False,
-            verify_mode: ssl.VerifyMode = ssl.CERT_REQUIRED,
+            verify_mode: ssl.VerifyMode = ssl.VerifyMode.CERT_REQUIRED,
     ) -> None:
         ctx = ssl.create_default_context(
             ssl.Purpose.SERVER_AUTH,
