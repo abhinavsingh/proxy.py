@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import os
 import socket
 import logging
 import argparse
@@ -60,5 +59,3 @@ class BaseListener(ABC):
     def shutdown(self) -> None:
         assert self._socket
         self._socket.close()
-        if self.flags.unix_socket_path:
-            os.remove(self.flags.unix_socket_path)
