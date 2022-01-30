@@ -11,7 +11,8 @@
 import logging
 
 from proxy.common.utils import socket_connection
-from proxy.common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_LOG_FORMAT
+from proxy.common.constants import DEFAULT_LOG_FORMAT, DEFAULT_BUFFER_SIZE
+
 
 logging.basicConfig(level=logging.INFO, format=DEFAULT_LOG_FORMAT)
 

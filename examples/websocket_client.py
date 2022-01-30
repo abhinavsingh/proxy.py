@@ -16,6 +16,7 @@ from proxy.http.websocket import (
 )
 from proxy.common.constants import DEFAULT_LOG_FORMAT
 
+
 logging.basicConfig(level=logging.INFO, format=DEFAULT_LOG_FORMAT)
 
 # globals

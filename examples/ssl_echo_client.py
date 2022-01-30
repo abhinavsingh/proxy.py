@@ -12,7 +12,8 @@ import ssl
 import logging
 
 from proxy.core.connection import TcpServerConnection
-from proxy.common.constants import DEFAULT_BUFFER_SIZE, DEFAULT_LOG_FORMAT
+from proxy.common.constants import DEFAULT_LOG_FORMAT, DEFAULT_BUFFER_SIZE
+
 
 logging.basicConfig(level=logging.INFO, format=DEFAULT_LOG_FORMAT)
 
