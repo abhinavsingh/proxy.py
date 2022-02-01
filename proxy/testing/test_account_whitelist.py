@@ -19,8 +19,7 @@ class TestAccountWhitelist(unittest.TestCase):
         cls.solana.request_airdrop(cls.payer.public_key(), 1000_000_000_000, Confirmed)
 
         cls.permission_update_int = 10
-        cls.testee = AccountWhitelist(cls.solana, cls.permission_update_int)
-        cls.testee.set_payer(cls.payer)
+        cls.testee = AccountWhitelist(cls.solana, cls.payer, cls.permission_update_int)
 
         mock_allowance_token = Mock()
         mock_allowance_token.get_balance = MagicMock()

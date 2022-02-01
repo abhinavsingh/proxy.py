@@ -29,18 +29,16 @@ from typing import List, Tuple
 
 from .solana_rest_api_tools import getAccountInfo, neon_config_load, \
     get_token_balance_or_airdrop, estimate_gas
-from ..common_neon.transaction_sender import NeonTxSender, OperatorResourceList
-from ..common_neon.solana_interactor import SolanaInteractor
+from ..common_neon.transaction_sender import NeonTxSender
 from ..common_neon.address import EthereumAddress
 from ..common_neon.transaction_sender import SolanaTxError
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError
 from ..common_neon.eth_proto import Trx as EthTrx
-from ..environment import SOLANA_URL, MINIMAL_GAS_PRICE, PP_SOLANA_URL, ACCOUNT_PERMISSION_UPDATE_INT
-from ..environment import neon_cli, get_solana_accounts
+from ..environment import SOLANA_URL, PP_SOLANA_URL
+from ..environment import neon_cli
 from ..indexer.indexer_db import IndexerDB, PendingTxError
 from .gas_price_calculator import GasPriceCalculator
-from ..common_neon.account_whitelist import AccountWhitelist
 
 modelInstanceLock = threading.Lock()
 modelInstance = None
@@ -68,8 +66,6 @@ class EthereumModel:
             self.proxy_id_glob.value += 1
 
         self.debug(f"Worker id {self.proxy_id}")
-
-        self.account_whitelist = AccountWhitelist(self.client, ACCOUNT_PERMISSION_UPDATE_INT)
 
         neon_config_load(self)
 
@@ -380,7 +376,7 @@ class EthereumModel:
                                     ]
                                 })
         try:
-            tx_sender = NeonTxSender(self.db, self.client, self.account_whitelist, trx, steps=500)
+            tx_sender = NeonTxSender(self.db, self.client, trx, steps=500)
             tx_sender.execute()
             return eth_signature
 

@@ -1,5 +1,4 @@
 from lib2to3.pgen2 import token
-from venv import create
 from spl.token.client import Token as SplToken
 from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
@@ -19,29 +18,21 @@ import os
 class PermissionToken:
     def __init__(self,
                  solana: SolanaClient,
-                 token_mint: PublicKey):
+                 token_mint: PublicKey,
+                 payer: SolanaAccount):
         self.solana = solana
         self.token_mint = token_mint
-        self.token = None
-
-    def set_payer(self, payer):
         self.payer = payer
         self.token = SplToken(self.solana,
                               self.token_mint,
                               TOKEN_PROGRAM_ID,
                               payer)
 
-    def clear_payer(self):
-        self.payer = None
-        self.token = None
-
     def get_token_account_address(self, ether_addr: Union[str, EthereumAddress]):
-        assert self.token is not None
         sol_addr = PublicKey(ether2program(ether_addr)[0])
         return get_associated_token_address(sol_addr, self.token.pubkey)
 
     def get_balance(self, ether_addr: Union[str, EthereumAddress]):
-        assert self.token is not None
         token_account = self.get_token_account_address(ether_addr)
         result = self.token.get_balance(token_account).get('result', None)
         if result is None:
@@ -50,8 +41,6 @@ class PermissionToken:
 
     def create_account_if_needed(self,
                                  ether_addr: Union[str, EthereumAddress]):
-        assert self.token is not None
-        assert self.payer is not None
         token_account = self.get_token_account_address(ether_addr)
         response = self.solana.get_account_info(token_account, Confirmed)
         if get_from_dict(response, 'result', 'value') is not None:
@@ -71,7 +60,6 @@ class PermissionToken:
                 amount: int,
                 ether_addr: Union[str, EthereumAddress],
                 mint_authority_file: str):
-        assert self.token is not None
         token_account = self.create_account_if_needed(ether_addr)
         mint_command = f'spl-token mint "{str(self.token.pubkey)}" {Decimal(amount) * pow(Decimal(10), -9)}'
         mint_command += f' --owner {mint_authority_file} -- "{str(token_account)}"'

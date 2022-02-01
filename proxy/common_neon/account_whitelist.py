@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime
 import time
 from proxy.environment import ELF_PARAMS, GET_WHITE_LIST_BALANCE_MAX_RETRIES, GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S
@@ -11,48 +12,36 @@ from logged_groups import logged_group
 
 NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE = int(ELF_PARAMS.get("NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE", 0))
 NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE = int(ELF_PARAMS.get("NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE", 0))
+ALLOWANCE_TOKEN_ADDR = ELF_PARAMS.get("NEON_PERMISSION_ALLOWANCE_TOKEN", '')
+DENIAL_TOKEN_ADDR = ELF_PARAMS.get("NEON_PERMISSION_DENIAL_TOKEN", '')
+
 
 @logged_group("neon.AccountWhitelist")
 class AccountWhitelist:
-    def __init__(self, solana: SolanaClient, permission_update_int: int):
+    def __init__(self, solana: SolanaClient, payer: SolanaAccount, permission_update_int: int):
         self.info(f'GET_WHITE_LIST_BALANCE_MAX_RETRIES={GET_WHITE_LIST_BALANCE_MAX_RETRIES}')
         self.info(f'GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S={GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S} seconds')
         self.info(f'permission_update_int={permission_update_int}')
-
         self.solana = solana
         self.account_cache = {}
         self.permission_update_int = permission_update_int
         self.allowance_token = None
         self.denial_token = None
 
-        allowance_token_addr = ELF_PARAMS.get("NEON_PERMISSION_ALLOWANCE_TOKEN", '')
-        if allowance_token_addr != '':
-            self.allowance_token = PermissionToken(self.solana,
-                                                   PublicKey(allowance_token_addr))
-
-        denial_token_addr = ELF_PARAMS.get("NEON_PERMISSION_DENIAL_TOKEN", '')
-        if denial_token_addr != '':
-            self.denial_token = PermissionToken(self.solana,
-                                                PublicKey(denial_token_addr))
-
-        if self.allowance_token is None and self.denial_token is None:
+        if ALLOWANCE_TOKEN_ADDR == '' and DENIAL_TOKEN_ADDR == '':
             return
 
-        if self.allowance_token is None or self.denial_token is None:
+        if ALLOWANCE_TOKEN_ADDR == '' or DENIAL_TOKEN_ADDR == '':
             self.error(f'Wrong proxy configuration: allowance and denial tokens must both exist or absent!')
             raise Exception("NEON service is unhealthy. Try again later")
 
-    def set_payer(self, payer: SolanaAccount):
-        if self.allowance_token:
-            self.allowance_token.set_payer(payer)
-        if self.denial_token:
-            self.denial_token.set_payer(payer)
+        self.allowance_token = PermissionToken(self.solana,
+                                               PublicKey(ALLOWANCE_TOKEN_ADDR),
+                                               payer)
 
-    def clear_payer(self):
-        if self.allowance_token:
-            self.allowance_token.clear_payer()
-        if self.denial_token:
-            self.denial_token.clear_payer()
+        self.denial_token = PermissionToken(self.solana,
+                                            PublicKey(DENIAL_TOKEN_ADDR),
+                                            payer)
 
     def read_balance_diff(self, ether_addr: Union[str, EthereumAddress]):
         allowance_balance = self.allowance_token.get_balance(ether_addr)
@@ -86,7 +75,9 @@ class AccountWhitelist:
             self.info(f'Permissions deprived to {ether_addr}')
             return True
         except Exception as err:
-            self.error(f'Failed to grant permissions to {ether_addr}: {type(err)}: {err}')
+            err_tb = "".join(traceback.format_tb(err.__traceback__))
+            self.error(f'Failed to grant permissions to {ether_addr}: ' +
+                       f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
             return False
 
     def grant_client_permissions(self, ether_addr: Union[str, EthereumAddress]):
@@ -126,7 +117,9 @@ class AccountWhitelist:
                 }
                 return diff >= min_balance
             except Exception as err:
-                self.error(f'Failed to read permissions for {ether_addr}: {type(err)}: {err}')
+                err_tb = "".join(traceback.format_tb(err.__traceback__))
+                self.error(f'Failed to read permissions for {ether_addr}: ' +
+                           f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
                 num_retries -= 1
                 if num_retries == 0:
                     # This error should be forwarded to client

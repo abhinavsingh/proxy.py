@@ -28,7 +28,7 @@ from .solana_interactor import check_if_big_transaction, check_if_program_exceed
 from .solana_interactor import get_error_definition_from_receipt, check_if_storage_is_empty_error
 from .solana_interactor import check_if_blockhash_notfound
 from ..common_neon.eth_proto import Trx as EthTx
-from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT
+from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT, ACCOUNT_PERMISSION_UPDATE_INT
 from ..indexer.utils import NeonTxResultInfo, NeonTxInfo
 from ..indexer.indexer_db import IndexerDB, NeonPendingTxInfo
 from ..environment import get_solana_accounts
@@ -365,9 +365,8 @@ def EthMeta(pubkey, is_writable) -> AccountMeta:
 
 @logged_group("neon.Proxy")
 class NeonTxSender:
-    def __init__(self, db: IndexerDB, client: SolanaClient, whitelist: AccountWhitelist, eth_tx: EthTx, steps: int):
+    def __init__(self, db: IndexerDB, client: SolanaClient, eth_tx: EthTx, steps: int):
         self._db = db
-        self._whitelist = whitelist
         self.eth_tx = eth_tx
         self.steps = steps
         self.solana = SolanaInteractor(client)
@@ -394,7 +393,6 @@ class NeonTxSender:
             self._prepare_execution()
             return self._execute()
         finally:
-            self._whitelist.clear_payer()
             self._resource_list.free_resource_info()
 
     def set_resource(self, resource: Optional[OperatorResourceInfo]):
@@ -418,8 +416,7 @@ class NeonTxSender:
         self.pending_tx_into_db(self.solana.get_recent_blockslot())
 
         # Validate that transaction is allowed
-        whitelist = self._whitelist
-        whitelist.set_payer(self.resource.signer)
+        whitelist = AccountWhitelist(self.solana.client, ACCOUNT_PERMISSION_UPDATE_INT, self.resource.signer)
         if not whitelist.has_client_permission(self.tx_sender):
             self.warning(f'Sender account {self.tx_sender} is not allowed to execute transactions')
             raise Exception(f'Sender account {self.tx_sender} is not allowed to execute transactions')
