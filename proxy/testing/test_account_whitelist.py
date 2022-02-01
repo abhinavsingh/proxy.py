@@ -8,6 +8,9 @@ from solana.account import Account as SolanaAccount
 from solana.rpc.commitment import Confirmed
 from unittest.mock import Mock, MagicMock, patch, call
 
+from proxy.environment import GET_WHITE_LIST_BALANCE_MAX_RETRIES
+
+
 class TestAccountWhitelist(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -29,13 +32,12 @@ class TestAccountWhitelist(unittest.TestCase):
         mock_denial_token.mint_to = MagicMock()
         cls.testee.denial_token = mock_denial_token
 
-
     def tearDown(self) -> None:
         self.testee.allowance_token.get_balance.reset_mock()
         self.testee.allowance_token.mint_to.reset_mock()
         self.testee.denial_token.get_balance.reset_mock()
         self.testee.denial_token.mint_to.reset_mock()
-
+        self.testee.account_cache = {}
 
     def test_grant_permissions_negative_difference(self):
         """
@@ -57,7 +59,6 @@ class TestAccountWhitelist(unittest.TestCase):
         self.testee.denial_token.get_balance.assert_called_once_with(ether_address)
         self.testee.allowance_token.mint_to.assert_called_once_with(expected_mint, ether_address)
 
-
     def test_grant_permissions_positive_difference(self):
         """
         Should NOT mint allowance token - positive difference
@@ -75,7 +76,6 @@ class TestAccountWhitelist(unittest.TestCase):
         self.testee.allowance_token.get_balance.assert_called_once_with(ether_address)
         self.testee.denial_token.get_balance.assert_called_once_with(ether_address)
         self.testee.allowance_token.mint_to.assert_not_called()
-
 
     def test_deprive_permissions_positive_difference(self):
         """
@@ -97,7 +97,6 @@ class TestAccountWhitelist(unittest.TestCase):
         self.testee.denial_token.get_balance.assert_called_once_with(ether_address)
         self.testee.denial_token.mint_to.assert_called_once_with(expected_mint, ether_address)
 
-
     def test_deprive_permissions_negative_difference(self):
         """
         Should NOT mint denial token - negative difference
@@ -115,7 +114,6 @@ class TestAccountWhitelist(unittest.TestCase):
         self.testee.allowance_token.get_balance.assert_called_once_with(ether_address)
         self.testee.denial_token.get_balance.assert_called_once_with(ether_address)
         self.testee.denial_token.mint_to.assert_not_called()
-
 
     @patch.object(AccountWhitelist, 'get_current_time')
     def test_check_has_permission(self, mock_get_current_time):
@@ -141,3 +139,16 @@ class TestAccountWhitelist(unittest.TestCase):
         self.testee.allowance_token.get_balance.assert_has_calls([call(ether_address)] * 2)
         self.testee.denial_token.get_balance.assert_has_calls([call(ether_address)] * 2)
 
+    @patch.object(AccountWhitelist, 'read_balance_diff')
+    @patch.object(AccountWhitelist, 'get_current_time')
+    def test_success_check_has_permission_after_retry_due_to_read_balance_diff_exception(self, mock_get_current_time, mock_read_balance_diff):
+        """
+        Should retry read_balance_diff after exception
+        """
+        self.assertGreaterEqual(GET_WHITE_LIST_BALANCE_MAX_RETRIES, 2)  # Condition required to start test
+        ether_address = 'Ethereum-Address'
+        mock_get_current_time.side_effect = [0]
+        mock_read_balance_diff.side_effect = [Exception('TestException'), 12.3]
+
+        self.assertTrue(self.testee.has_permission(ether_address, 0))
+        self.assertTrue(mock_read_balance_diff.call_count, 2)

@@ -1,5 +1,6 @@
 from datetime import datetime
-from proxy.environment import ELF_PARAMS
+import time
+from proxy.environment import ELF_PARAMS, GET_WHITE_LIST_BALANCE_MAX_RETRIES, GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S
 from proxy.common_neon.permission_token import PermissionToken
 from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
@@ -14,6 +15,10 @@ NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE = int(ELF_PARAMS.get("NEON_MINIMAL_CONTR
 @logged_group("neon.AccountWhitelist")
 class AccountWhitelist:
     def __init__(self, solana: SolanaClient, permission_update_int: int):
+        self.info(f'GET_WHITE_LIST_BALANCE_MAX_RETRIES={GET_WHITE_LIST_BALANCE_MAX_RETRIES}')
+        self.info(f'GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S={GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S} seconds')
+        self.info(f'permission_update_int={permission_update_int}')
+
         self.solana = solana
         self.account_cache = {}
         self.permission_update_int = permission_update_int
@@ -66,7 +71,7 @@ class AccountWhitelist:
             self.info(f'Permissions granted to {ether_addr}')
             return True
         except Exception as err:
-            self.error(f'Failed to grant permissions to {ether_addr}: {err}')
+            self.error(f'Failed to grant permissions to {ether_addr}: {type(err)}: {err}')
             return False
 
     def deprive_permissions(self, ether_addr: Union[str, EthereumAddress], min_balance: int):
@@ -81,7 +86,7 @@ class AccountWhitelist:
             self.info(f'Permissions deprived to {ether_addr}')
             return True
         except Exception as err:
-            self.error(f'Failed to grant permissions to {ether_addr}: {err}')
+            self.error(f'Failed to grant permissions to {ether_addr}: {type(err)}: {err}')
             return False
 
     def grant_client_permissions(self, ether_addr: Union[str, EthereumAddress]):
@@ -110,16 +115,25 @@ class AccountWhitelist:
             if diff < self.permission_update_int:
                 return cached['diff'] >= min_balance
 
-        try:
-            diff = self.read_balance_diff(ether_addr)
-            self.account_cache[ether_addr] = {
-                'last_update': current_time,
-                'diff': diff
-            }
-            return diff >= min_balance
-        except Exception as err:
-            self.error(f'Failed to read permissions for {ether_addr}: {err}')
-            raise RuntimeError('Failed to read account permissions. Try to repeat later')
+        num_retries = GET_WHITE_LIST_BALANCE_MAX_RETRIES
+
+        while True:
+            try:
+                diff = self.read_balance_diff(ether_addr)
+                self.account_cache[ether_addr] = {
+                    'last_update': current_time,
+                    'diff': diff
+                }
+                return diff >= min_balance
+            except Exception as err:
+                self.error(f'Failed to read permissions for {ether_addr}: {type(err)}: {err}')
+                num_retries -= 1
+                if num_retries == 0:
+                    # This error should be forwarded to client
+                    raise RuntimeError('Failed to read account permissions. Try to repeat later')
+
+                self.info(f'Will retry getting whitelist balance after {GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S} seconds')
+                time.sleep(GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S)
 
     def has_client_permission(self, ether_addr: Union[str, EthereumAddress]):
         return self.has_permission(ether_addr, NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE)
