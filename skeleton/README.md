@@ -36,7 +36,7 @@ Voila!!!
 That is your custom app skeleton structure built on top of `proxy.py`.  Now copy the `app` directory
 outside of `proxy.py` repo and create your own git repo.  Customize the `app` for your project needs
 
-## Run in detached (backgound) mode
+## Run in detached (background) mode
 
 1. For one-off use cases, you can directly use the following command to start the app in background:
    `python -m app 2>&1 &`
