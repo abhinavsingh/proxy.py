@@ -57,7 +57,7 @@ class EthereumModel:
         self.client = SolanaClient(SOLANA_URL)
         self.db = IndexerDB()
         self.db.set_client(self.client)
-        
+
         if PP_SOLANA_URL == SOLANA_URL:
             self.gas_price_calculator = GasPriceCalculator(self.client)
         else:
@@ -277,7 +277,7 @@ class EthereumModel:
             acc_info = getAccountInfo(self.client, EthereumAddress(account))
             return hex(int.from_bytes(acc_info.trx_count, 'little'))
         except Exception as err:
-            self.error("eth_getTransactionCount: Can't get account info: %s", err)
+            self.debug(f"eth_getTransactionCount: Can't get account info: {err}")
             return hex(0)
 
     def _getTransactionReceipt(self, tx):
@@ -391,7 +391,7 @@ class EthereumModel:
             self._log_transaction_error(err)
             raise
         except EthereumError as err:
-            self.error("eth_sendRawTransaction EthereumError:%s", err)
+            self.debug("eth_sendRawTransaction EthereumError: {err}")
             raise
         except Exception as err:
             self.error("eth_sendRawTransaction type(err):%s, Exception:%s", type(err), err)
