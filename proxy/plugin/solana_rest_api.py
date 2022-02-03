@@ -43,7 +43,7 @@ from .gas_price_calculator import GasPriceCalculator
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
-NEON_PROXY_PKG_VERSION = '0.5.4-dev'
+NEON_PROXY_PKG_VERSION = '0.6.0-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
