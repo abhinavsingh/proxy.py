@@ -1,5 +1,5 @@
 
-from construct import Bytes, Int8ul, Int64ul
+from construct import Bytes, Int8ul, Int32ul, Int64ul
 from construct import Struct
 
 STORAGE_ACCOUNT_INFO_LAYOUT = Struct(
@@ -28,6 +28,12 @@ ACCOUNT_INFO_LAYOUT = Struct(
     "rw_blocked_acc" / Bytes(32),
     "eth_token_account" / Bytes(32),
     "ro_blocked_cnt" / Int8ul,
+)
+
+CODE_ACCOUNT_INFO_LAYOUT = Struct(
+    "type" / Int8ul,
+    "owner" / Bytes(32),
+    "code_size" / Int32ul,
 )
 
 

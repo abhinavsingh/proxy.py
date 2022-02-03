@@ -60,10 +60,11 @@ class resize_storage_account(unittest.TestCase):
 
         self.contract = proxy.eth.contract(
             address=receipt.contractAddress,
-            abi=contract.abi
+            abi=contract.abi,
+            bytecode=interface['bin']
         )
 
-    def test_resize_storage_account(self):
+    def test_01_resize_storage_account(self):
         print("\n\nresize_storage_account")
         nonce = proxy.eth.get_transaction_count(self.account.address)
         tx = self.contract.functions.inc().buildTransaction({'nonce': nonce})
@@ -72,4 +73,12 @@ class resize_storage_account(unittest.TestCase):
         receipt = proxy.eth.wait_for_transaction_receipt(signature)
         self.assertIsNotNone(receipt)
 
+    def test_02_get_code_for_resized_storage_account(self):
+        print("\n\nget_code_for_resized_storage_account")
+        code = proxy.eth.get_code(self.contract.address)
+        print("code from proxy: {code.hex()}", code.hex())
+        print("code from contract: {self.contract.bytecode.hex()}", self.contract.bytecode.hex())
+        self.assertEqual(code, self.contract.bytecode[-len(code):])
 
+if __name__ == '__main__':
+    unittest.main()

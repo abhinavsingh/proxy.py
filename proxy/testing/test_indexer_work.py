@@ -144,7 +144,8 @@ class CancelTest(unittest.TestCase):
 
         self.storage_contract = proxy.eth.contract(
             address=trx_deploy_receipt.contractAddress,
-            abi=storage.abi
+            abi=storage.abi,
+            bytecode=contract_interface['bin']
         )
 
     def create_hanged_transaction(self):
@@ -177,7 +178,6 @@ class CancelTest(unittest.TestCase):
 
         return (trx_raw.hex(), eth_signature, from_address)
 
-
     def sol_instr_19_partial_call(self, storage_account, step_count, evm_instruction):
         return TransactionInstruction(
             program_id=self.loader.loader_id,
@@ -209,7 +209,6 @@ class CancelTest(unittest.TestCase):
                 AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
             ])
 
-
     def call_begin(self, storage, steps, msg, instruction):
         print("Begin")
         trx = Transaction()
@@ -218,11 +217,9 @@ class CancelTest(unittest.TestCase):
         print(trx.__dict__)
         return send_transaction(client, trx, self.acc)
 
-
     def sol_instr_keccak(self, keccak_instruction):
         return TransactionInstruction(program_id=keccakprog, data=keccak_instruction, keys=[
                 AccountMeta(pubkey=PublicKey(keccakprog), is_signer=False, is_writable=False), ])
-
 
     def create_storage_account(self, seed):
         storage = PublicKey(sha256(bytes(self.acc.public_key()) + bytes(seed, 'utf8') + bytes(PublicKey(EVM_LOADER))).digest())
@@ -236,12 +233,16 @@ class CancelTest(unittest.TestCase):
         return storage
 
     # @unittest.skip("a.i.")
-    def test_canceled(self):
-        print("\ntest_canceled")
+    def test_01_canceled(self):
+        print("\ntest_01_canceled")
         trx_receipt = proxy.eth.wait_for_transaction_receipt(self.tx_hash)
         print('trx_receipt:', trx_receipt)
         self.assertEqual(trx_receipt['status'], 0)
 
+    def test_02_get_code_from_indexer(self):
+        print("\ntest_02_get_code_from_indexer")
+        code = proxy.eth.get_code(self.storage_contract.address)
+        self.assertEqual(code, self.storage_contract.bytecode[-len(code):])
 
 
 if __name__ == '__main__':

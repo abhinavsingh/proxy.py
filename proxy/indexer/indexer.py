@@ -3,17 +3,18 @@ from typing import Optional
 import base58
 import time
 from logged_groups import logged_group
+from solana.system_program import SYS_PROGRAM_ID
 
 try:
     from indexer_base import IndexerBase
     from indexer_db import IndexerDB
     from utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object
-    from utils import get_accounts_from_storage
+    from utils import get_accounts_from_storage, check_error
 except ImportError:
     from .indexer_base import IndexerBase
     from .indexer_db import IndexerDB
     from .utils import SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, Canceller, str_fmt_object
-    from .utils import get_accounts_from_storage
+    from .utils import get_accounts_from_storage, check_error
 
 from ..environment import EVM_LOADER_ID, FINALIZED, CANCEL_TIMEOUT, SOLANA_URL
 
@@ -252,6 +253,9 @@ class ReceiptsParserState:
         for tx in self._tx_table.values():
             yield tx
 
+    def add_account_to_db(self, neon_account: str, pda_account: str, code_account: str, slot: int):
+        self._db.fill_account_info_by_indexer(neon_account, pda_account, code_account, slot)
+
 
 @logged_group("neon.Indexer")
 class DummyIxDecoder:
@@ -451,6 +455,50 @@ class WriteWithHolderIxDecoder(WriteIxDecoder):
         )
 
 
+class CreateAccountIxDecoder(DummyIxDecoder):
+    def __init__(self, state: ReceiptsParserState):
+        DummyIxDecoder.__init__(self, 'CreateAccount', state)
+
+    def execute(self) -> bool:
+        self._decoding_start()
+
+        if check_error(self.ix.tx):
+            return self._decoding_skip("Ignore failed create account")
+
+        if len(self.ix.ix_data) < 41:
+            return self._decoding_skip(f'not enough data to get the Neon account {len(self.ix.ix_data)}')
+
+        neon_account = "0x" + self.ix.ix_data[8+8+4:][:20].hex()
+        pda_account = self.ix.get_account(1)
+        code_account = self.ix.get_account(3)
+        if code_account == str(SYS_PROGRAM_ID) or code_account == '':
+            code_account = None
+
+        self.debug(f"neon_account({neon_account}), pda_account({pda_account}), code_account({code_account}), slot({self.ix.sign.slot})")
+
+        self.state.add_account_to_db(neon_account, pda_account, code_account, self.ix.sign.slot)
+        return True
+
+
+class ResizeStorageAccountIxDecoder(DummyIxDecoder):
+    def __init__(self, state: ReceiptsParserState):
+        DummyIxDecoder.__init__(self, 'ResizeStorageAccount', state)
+
+    def execute(self) -> bool:
+        self._decoding_start()
+
+        if check_error(self.ix.tx):
+            return self._decoding_skip("Ignore failed resize account")
+
+        pda_account = self.ix.get_account(0)
+        code_account = self.ix.get_account(2)
+
+        self.debug(f"pda_account({pda_account}), code_account({code_account}), slot({self.ix.sign.slot})")
+
+        self.state.add_account_to_db(None, pda_account, code_account, self.ix.sign.slot)
+        return True
+
+
 class CallFromRawIxDecoder(DummyIxDecoder):
     def __init__(self, state: ReceiptsParserState):
         DummyIxDecoder.__init__(self, 'CallFromRaw', state)
@@ -635,7 +683,7 @@ class Indexer(IndexerBase):
         self.ix_decoder_map = {
             0x00: WriteIxDecoder(self.state),
             0x01: DummyIxDecoder('Finalize', self.state),
-            0x02: DummyIxDecoder('CreateAccount', self.state),
+            0x02: CreateAccountIxDecoder(self.state),
             0x03: DummyIxDecoder('Call', self.state),
             0x04: DummyIxDecoder('CreateAccountWithSeed', self.state),
             0x05: CallFromRawIxDecoder(self.state),
@@ -647,6 +695,7 @@ class Indexer(IndexerBase):
             0x0c: CancelIxDecoder(self.state),
             0x0d: PartialCallOrContinueIxDecoder(self.state),
             0x0e: ExecuteOrContinueIxParser(self.state),
+            0x11: ResizeStorageAccountIxDecoder(self.state),
             0x12: WriteWithHolderIxDecoder(self.state),
             0x13: PartialCallV02IxDecoder(self.state),
             0x14: ContinueV02IxDecoder(self.state),

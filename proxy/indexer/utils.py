@@ -21,9 +21,11 @@ from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
 from logged_groups import logged_group
 
+from ..common_neon.address import ether2program
 from ..common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PROGRAM
-from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT
+from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT, CODE_ACCOUNT_INFO_LAYOUT, ACCOUNT_INFO_LAYOUT
 from ..common_neon.eth_proto import Trx as EthTx
+from ..common_neon.utils import get_from_dict
 from ..environment import SOLANA_URL, EVM_LOADER_ID, ETH_TOKEN_MINT_ID, get_solana_accounts
 
 from proxy.indexer.pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST
@@ -35,8 +37,6 @@ basedb_lock_glob = multiprocessing.Lock()
 
 def check_error(trx):
     if 'meta' in trx and 'err' in trx['meta'] and trx['meta']['err'] is not None:
-        # logger.debug("Got err trx")
-        # logger.debug("\n{}".format(json.dumps(trx['meta']['err'])))
         return True
     return False
 
@@ -260,6 +260,42 @@ def get_accounts_from_storage(client, storage_account, *, logger):
     else:
         logger.debug("Not empty other")
         return None
+
+
+@logged_group("neon.Indexer")
+def get_accounts_by_neon_address(client: Client, neon_address, *, logger):
+    pda_address, _nonce = ether2program(neon_address)
+    reciept = client.get_account_info(pda_address, commitment=Confirmed)
+    account_info = get_from_dict(reciept, 'result', 'value')
+    if account_info is None:
+        logger.debug(f"account_info is None for pda_address({pda_address}) in reciept({reciept})")
+        return None, None
+    data = base64.b64decode(account_info['data'][0])
+    if len(data) < ACCOUNT_INFO_LAYOUT.sizeof():
+        logger.debug(f"{len(data)} < {ACCOUNT_INFO_LAYOUT.sizeof()}")
+        return None, None
+    account = ACCOUNT_INFO_LAYOUT.parse(data)
+    code_account = None
+    if account.code_account != [0]*32:
+        code_account = str(PublicKey(account.code_account))
+    return pda_address, code_account
+
+
+@logged_group("neon.Indexer")
+def get_code_from_account(client: Client, address, *, logger):
+    reciept = client.get_account_info(address, commitment=Confirmed)
+    code_account_info = get_from_dict(reciept, 'result', 'value')
+    if code_account_info is None:
+        logger.debug(f"code_account_info is None for code_address({address}) in reciept({reciept})")
+        return None
+    data = base64.b64decode(code_account_info['data'][0])
+    if len(data) < CODE_ACCOUNT_INFO_LAYOUT.sizeof():
+        return None
+    storage = CODE_ACCOUNT_INFO_LAYOUT.parse(data)
+    offset = CODE_ACCOUNT_INFO_LAYOUT.sizeof()
+    if len(data) < offset + storage.code_size:
+        return None
+    return '0x' + data[offset:][:storage.code_size].hex()
 
 
 @logged_group("neon.Indexer")
