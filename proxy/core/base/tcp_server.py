@@ -74,7 +74,7 @@ flags.add_argument(
     type=int,
     default=DEFAULT_MAX_SEND_SIZE,
     help='Default: ' + str(int(DEFAULT_MAX_SEND_SIZE / 1024)) +
-    ' KB. Maximum amount of data to dispatch in a single send() operation.',
+    ' KB. Maximum amount of data to flush in a single send() operation.',
 )
 
 flags.add_argument(
@@ -185,8 +185,19 @@ class BaseTcpServerHandler(Work[T]):
         if self.work.connection.fileno() in readables:
             try:
                 data = self.work.recv(self.flags.client_recvbuf_size)
+            except ConnectionResetError:
+                logger.info(
+                    'Connection reset by client {0}'.format(
+                        self.work.address,
+                    ),
+                )
+                return True
             except TimeoutError:
-                logger.info('Client recv timeout error')
+                logger.info(
+                    'Client recv timeout error {0}'.format(
+                        self.work.address,
+                    ),
+                )
                 return True
             if data is None:
                 logger.debug(

@@ -13,10 +13,32 @@ from typing import Any, Optional
 
 from .store.base import CacheStore
 from ...http.proxy import HttpProxyBasePlugin
+from ...common.flag import flags
 from ...http.parser import HttpParser
+from ...common.constants import (
+    DEFAULT_CACHE_REQUESTS, DEFAULT_CACHE_BY_CONTENT_TYPE,
+)
 
 
 logger = logging.getLogger(__name__)
+
+
+flags.add_argument(
+    '--cache-requests',
+    action='store_true',
+    default=DEFAULT_CACHE_REQUESTS,
+    help='Default: False.  ' +
+    'Whether to also write request packets in the cache file.',
+)
+
+flags.add_argument(
+    '--cache-by-content-type',
+    action='store_true',
+    default=DEFAULT_CACHE_BY_CONTENT_TYPE,
+    help='Default: False.  ' +
+    'Whether to extract content by type from responses. ' +
+    'Extracted content type is written to the cache directory e.g. video.mp4.',
+)
 
 
 class BaseCacheResponsesPlugin(HttpProxyBasePlugin):

@@ -120,6 +120,7 @@ def build_http_response(
     headers: Optional[Dict[bytes, bytes]] = None,
     body: Optional[bytes] = None,
     conn_close: bool = False,
+    no_cl: bool = False,
 ) -> bytes:
     """Build and returns a HTTP response packet."""
     line = [protocol_version, bytes_(status_code)]
@@ -131,7 +132,7 @@ def build_http_response(
         if k.lower() == b'transfer-encoding':
             has_transfer_encoding = True
             break
-    if not has_transfer_encoding:
+    if not has_transfer_encoding and not no_cl:
         headers[b'Content-Length'] = bytes_(len(body)) if body else b'0'
     return build_http_pkt(line, headers, body, conn_close)
 
@@ -212,12 +213,15 @@ def find_http_line(raw: bytes) -> Tuple[Optional[bytes], bytes]:
 
 
 def wrap_socket(
-    conn: socket.socket, keyfile: str,
-    certfile: str,
+        conn: socket.socket,
+        keyfile: str,
+        certfile: str,
+        cafile: Optional[str] = None,
 ) -> ssl.SSLSocket:
     """Use this to upgrade server_side socket to TLS."""
     ctx = ssl.create_default_context(
         ssl.Purpose.CLIENT_AUTH,
+        cafile=cafile,
     )
     ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
     ctx.verify_mode = ssl.CERT_NONE

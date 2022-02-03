@@ -195,10 +195,24 @@ class Proxy:
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
         # the server port when `--port=0` is used.
-        self.flags.port = cast(
-            'TcpSocketListener',
-            self.listeners.pool[0],
-        )._port
+        if not self.flags.unix_socket_path:
+            self.flags.port = cast(
+                'TcpSocketListener',
+                self.listeners.pool[0],
+            )._port
+        # --ports flag can also use 0 as value for ephemeral port selection.
+        # Here, we override flags.ports to reflect actual listening ports.
+        ports = []
+        offset = 1 if self.flags.unix_socket_path or self.flags.port else 0
+        for index in range(offset, offset + len(self.flags.ports)):
+            ports.append(
+                cast(
+                    'TcpSocketListener',
+                    self.listeners.pool[index],
+                )._port,
+            )
+        self.flags.ports = ports
+        # Write ports to port file
         self._write_port_file()
         # Setup EventManager
         if self.flags.enable_events:
@@ -278,7 +292,12 @@ class Proxy:
     def _write_port_file(self) -> None:
         if self.flags.port_file:
             with open(self.flags.port_file, 'wb') as port_file:
-                port_file.write(bytes_(self.flags.port))
+                if not self.flags.unix_socket_path:
+                    port_file.write(bytes_(self.flags.port))
+                    port_file.write(b'\n')
+                for port in self.flags.ports:
+                    port_file.write(bytes_(port))
+                    port_file.write(b'\n')
 
     def _delete_port_file(self) -> None:
         if self.flags.port_file \

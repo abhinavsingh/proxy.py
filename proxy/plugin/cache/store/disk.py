@@ -16,9 +16,7 @@ from .base import CacheStore
 from ....common.flag import flags
 from ....http.parser import HttpParser
 from ....common.utils import text_
-from ....common.constants import (
-    DEFAULT_CACHE_REQUESTS, DEFAULT_CACHE_DIRECTORY_PATH,
-)
+from ....common.constants import DEFAULT_CACHE_DIRECTORY_PATH
 
 
 logger = logging.getLogger(__name__)
@@ -32,14 +30,6 @@ flags.add_argument(
     'Flag only applicable when cache plugin is used with on-disk storage.',
 )
 
-flags.add_argument(
-    '--cache-requests',
-    action='store_true',
-    default=DEFAULT_CACHE_REQUESTS,
-    help='Default: False.  ' +
-    'Whether to also cache request packets.',
-)
-
 
 class OnDiskCacheStore(CacheStore):
 
@@ -47,13 +37,15 @@ class OnDiskCacheStore(CacheStore):
         super().__init__(uid)
         self.cache_dir = cache_dir
         self.cache_requests = cache_requests
+        self.cache_file_name: Optional[str] = None
         self.cache_file_path: Optional[str] = None
         self.cache_file: Optional[BinaryIO] = None
 
     def open(self, request: HttpParser) -> None:
+        self.cache_file_name = '%s-%s' % (text_(request.host), self.uid)
         self.cache_file_path = os.path.join(
             self.cache_dir,
-            '%s-%s.txt' % (text_(request.host), self.uid),
+            '%s.txt' % self.cache_file_name,
         )
         self.cache_file = open(self.cache_file_path, "wb")
 
@@ -69,5 +61,7 @@ class OnDiskCacheStore(CacheStore):
 
     def close(self) -> None:
         if self.cache_file:
+            self.cache_file.flush()
             self.cache_file.close()
-            logger.info('Cached response at %s', self.cache_file_path)
+            self.cache_file = None
+            logger.debug('Cached response at %s', self.cache_file_path)

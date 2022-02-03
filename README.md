@@ -2286,8 +2286,9 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
           [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
           [--ca-signing-key-file CA_SIGNING_KEY_FILE]
-          [--auth-plugin AUTH_PLUGIN] [--cache-dir CACHE_DIR]
-          [--cache-requests] [--proxy-pool PROXY_POOL] [--enable-web-server]
+          [--auth-plugin AUTH_PLUGIN] [--cache-requests]
+          [--cache-by-content-type] [--cache-dir CACHE_DIR]
+          [--proxy-pool PROXY_POOL] [--enable-web-server]
           [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
           [--enable-reverse-proxy] [--pac-file PAC_FILE]
@@ -2297,7 +2298,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.0rc9.dev8+gea0253d.d20220126
+proxy.py v2.4.0rc10.dev13+g96428ae.d20220126
 
 options:
   -h, --help            show this help message and exit
@@ -2393,8 +2394,8 @@ options:
                         Default: 128 KB. Maximum amount of data received from
                         the server in a single recv() operation.
   --max-sendbuf-size MAX_SENDBUF_SIZE
-                        Default: 64 KB. Maximum amount of data to dispatch in
-                        a single send() operation.
+                        Default: 64 KB. Maximum amount of data to flush in a
+                        single send() operation.
   --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
                         inactive connection must be dropped. Inactivity is
                         defined by no data sent or received by the client.
@@ -2427,11 +2428,16 @@ options:
   --auth-plugin AUTH_PLUGIN
                         Default: proxy.http.proxy.auth.AuthPlugin. Auth plugin
                         to use instead of default basic auth plugin.
+  --cache-requests      Default: False. Whether to also write request packets
+                        in the cache file.
+  --cache-by-content-type
+                        Default: False. Whether to extract content by type
+                        from responses. Extracted content type is written to
+                        the cache directory e.g. video.mp4.
   --cache-dir CACHE_DIR
                         Default: /Users/abhinavsingh/.proxy/cache. Flag only
                         applicable when cache plugin is used with on-disk
                         storage.
-  --cache-requests      Default: False. Whether to also cache request packets.
   --proxy-pool PROXY_POOL
                         List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable

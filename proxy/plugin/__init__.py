@@ -13,6 +13,8 @@
        Cloudflare
        ws
        onmessage
+       httpbin
+       localhost
 """
 from .cache import CacheResponsesPlugin, BaseCacheResponsesPlugin
 from .shortlink import ShortLinkPlugin

@@ -12,6 +12,7 @@
 
        http
 """
+import gzip
 from typing import Dict, List, Type, Tuple, TypeVar, Optional
 
 from ..url import Url
@@ -22,7 +23,9 @@ from .protocol import ProxyProtocol
 from ..exception import HttpProtocolException
 from ..protocols import httpProtocols
 from ...common.flag import flags
-from ...common.utils import text_, build_http_request, build_http_response
+from ...common.utils import (
+    text_, bytes_, build_http_request, build_http_response,
+)
 from ...common.constants import (
     CRLF, COLON, SLASH, HTTP_1_0, HTTP_1_1, WHITESPACE, DEFAULT_HTTP_PORT,
     DEFAULT_DISABLE_HEADERS, DEFAULT_ENABLE_PROXY_PROTOCOL,
@@ -155,6 +158,33 @@ class HttpParser:
             url, allowed_url_schemes=allowed_url_schemes,
         )
         self._set_line_attributes()
+
+    def update_body(self, body: bytes, content_type: bytes) -> None:
+        """This method must be used to update body after HTTP packet has been parsed.
+
+        Along with updating the body, this method also respects original
+        request content encoding, transfer encoding settings."""
+        # If outgoing request encoding is gzip
+        # also compress the body
+        if self.has_header(b'content-encoding'):
+            if self.header(b'content-encoding') == b'gzip':
+                body = gzip.compress(body)
+            else:
+                # We only work with gzip, for any other encoding
+                # type, remove the original header
+                self.del_header(b'content-encoding')
+        # If the request is of type chunked encoding
+        # add post data as chunk
+        if self.is_chunked_encoded:
+            body = ChunkParser.to_chunks(body)
+            self.del_header(b'content-length')
+        else:
+            self.add_header(
+                b'Content-Length',
+                bytes_(len(body)),
+            )
+        self.body = body
+        self.add_header(b'Content-Type', content_type)
 
     @property
     def http_handler_protocol(self) -> int:
