@@ -9,6 +9,8 @@ steps:
   - label: ":cop::skin-tone-2: deploy check"
     command: ".buildkite/steps/deploy-test.sh"
     timeout: 90
+    agents:
+       queue: "testing"
     artifact_paths:
       - "proxy.log"
       - "solana.log"

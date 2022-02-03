@@ -46,7 +46,7 @@ class TestAirdropperIntegration(TestCase):
     def create_token_mint(self):
         self.solana_client = SolanaClient(SOLANA_URL)
 
-        with open("proxy/operator-keypair.json") as f:
+        with open("proxy/operator-keypairs/id.json") as f:
             d = json.load(f)
         self.mint_authority = SolanaAccount(d[0:32])
         self.solana_client.request_airdrop(self.mint_authority.public_key(), 1000_000_000_000, Confirmed)
