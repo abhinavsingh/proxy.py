@@ -128,7 +128,7 @@ class Test_Airdropper(unittest.TestCase):
         self.mock_pyth_client.update_mapping.assert_called_once()
         self.mock_airdrop_ready.is_airdrop_ready.assert_called_once_with(token_airdrop_address)
         self.mock_airdrop_ready.register_airdrop.assert_not_called()
-        self.mock_pyth_client.get_price.assert_called_once_with('SOL/USD')
+        self.mock_pyth_client.get_price.assert_called_once_with('Crypto.SOL/USD')
         self.faucet.request_neon_in_galans_mock.assert_not_called()
 
 
@@ -153,7 +153,7 @@ class Test_Airdropper(unittest.TestCase):
         self.mock_failed_attempts.airdrop_failed.assert_not_called()
         self.mock_pyth_client.update_mapping.assert_called_once()
         mock_is_allowed_contract.assert_called_once()
-        self.mock_pyth_client.get_price.assert_called_once_with('SOL/USD')
+        self.mock_pyth_client.get_price.assert_called_once_with('Crypto.SOL/USD')
         self.mock_airdrop_ready.is_airdrop_ready.assert_not_called()
         self.mock_airdrop_ready.register_airdrop.assert_not_called()
         self.faucet.request_neon_in_galans_mock.assert_not_called()
@@ -182,7 +182,7 @@ class Test_Airdropper(unittest.TestCase):
         self.mock_failed_attempts.airdrop_failed.assert_called_once_with(str(token_airdrop_address), ANY)
         self.mock_pyth_client.update_mapping.assert_called_once()
         self.mock_airdrop_ready.is_airdrop_ready.assert_called_once_with(token_airdrop_address)
-        self.mock_pyth_client.get_price.assert_called_once_with('SOL/USD')
+        self.mock_pyth_client.get_price.assert_called_once_with('Crypto.SOL/USD')
         self.mock_airdrop_ready.register_airdrop.assert_not_called()
         json_req = {'wallet': token_airdrop_address, 'amount': airdrop_amount}
         self.faucet.request_neon_in_galans_mock.assert_called_once_with(json_req)
@@ -206,7 +206,7 @@ class Test_Airdropper(unittest.TestCase):
         self.airdropper.process_scheduled_trxs()
 
         self.mock_pyth_client.update_mapping.assert_called_once()
-        self.mock_pyth_client.get_price.assert_called_once_with('SOL/USD')
+        self.mock_pyth_client.get_price.assert_called_once_with('Crypto.SOL/USD')
         self.mock_failed_attempts.airdrop_failed.assert_not_called()
         self.mock_airdrop_ready.is_airdrop_ready.assert_called_once_with(token_airdrop_address)
         self.mock_airdrop_ready.register_airdrop.assert_not_called()
@@ -229,7 +229,7 @@ class Test_Airdropper(unittest.TestCase):
         self.airdropper.process_scheduled_trxs()
 
         self.mock_pyth_client.update_mapping.assert_called_once()
-        self.mock_pyth_client.get_price.assert_called_once_with('SOL/USD')
+        self.mock_pyth_client.get_price.assert_called_once_with('Crypto.SOL/USD')
         self.mock_airdrop_ready.is_airdrop_ready.assert_called_once_with(token_airdrop_address)
         self.mock_airdrop_ready.register_airdrop.assert_not_called()
         self.faucet.request_neon_in_galans_mock.assert_not_called()
@@ -250,7 +250,7 @@ class Test_Airdropper(unittest.TestCase):
         try:
             self.airdropper.process_scheduled_trxs()
             self.mock_pyth_client.update_mapping.assert_called_once()
-            self.mock_pyth_client.get_price.assert_called_once_with('SOL/USD')
+            self.mock_pyth_client.get_price.assert_called_once_with('Crypto.SOL/USD')
         except Exception as err:
             self.fail(f'Excpected not throws exception but it does: {err}')
 

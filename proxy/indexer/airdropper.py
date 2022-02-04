@@ -226,7 +226,7 @@ class Airdropper(IndexerBase):
 
         if should_reload:
             try:
-                self.recent_price = self.pyth_client.get_price('SOL/USD')
+                self.recent_price = self.pyth_client.get_price('Crypto.SOL/USD')
             except Exception as err:
                 self.warning(f'Exception occured when reading price: {err}')
                 return None
