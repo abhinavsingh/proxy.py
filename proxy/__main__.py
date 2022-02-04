@@ -13,10 +13,12 @@ from solana.publickey import PublicKey
 from .proxy import entry_point
 import os
 from .indexer.airdropper import run_airdropper
+from .indexer.indexer import run_indexer
 from solana.rpc.api import Client
 
 if __name__ == '__main__':
     airdropper_mode = os.environ.get('AIRDROPPER_MODE', 'False').lower() in [1, 'true', 'True']
+    indexer_mode = os.environ.get('INDEXER_MODE', 'False').lower() in [1, 'true', 'True']
     if airdropper_mode:
         print("Will run in airdropper mode")
         solana_url = os.environ['SOLANA_URL']
@@ -39,5 +41,12 @@ if __name__ == '__main__':
                        neon_decimals,
                        pp_solana_url,
                        max_conf)
+    elif indexer_mode:
+        print("Will run in indexer mode")
+
+        solana_url = os.environ['SOLANA_URL']
+        evm_loader_id = os.environ['EVM_LOADER']
+
+        run_indexer(solana_url, evm_loader_id)
     else:
         entry_point()

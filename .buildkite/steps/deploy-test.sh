@@ -46,6 +46,7 @@ function cleanup_docker {
     if docker logs evm_loader >evm_loader.log 2>&1; then echo "evm_loader logs saved"; fi
     if docker logs faucet >faucet.log 2>&1; then echo "faucet logs saved"; fi
     if docker logs airdropper >airdropper.log 2>&1; then echo "airdropper logs saved"; fi
+    if docker logs indexer >indexer.log 2>&1; then echo "indexer logs saved"; fi
 
     echo "\nCleanup docker-compose..."
     docker-compose -f proxy/docker-compose-test.yml down

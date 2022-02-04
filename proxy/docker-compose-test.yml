@@ -76,6 +76,8 @@ services:
         condition: service_healthy
       evm_loader:
         condition: service_completed_successfully
+      indexer:
+        condition: service_started
     ports:
       - 127.0.0.1:9090:9090
     expose:
@@ -136,6 +138,25 @@ services:
         condition: service_healthy
       faucet:
         condition: service_started
+
+  indexer:
+    container_name: indexer
+    image: neonlabsorg/proxy:${REVISION}
+    environment:
+      SOLANA_URL: http://solana:8899
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
+      CONFIG: ci
+    hostname: indexer
+    depends_on:
+      postgres:
+        condition: service_healthy
+      evm_loader:
+        condition: service_completed_successfully
+    networks:
+      - net
+    entrypoint: proxy/run-indexer.sh
 
 networks:
   net:

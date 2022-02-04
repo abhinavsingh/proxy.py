@@ -18,6 +18,7 @@ steps:
       - "evm_loader.log"
       - "faucet.log"
       - "airdropper.log"
+      - "indexer.log"
 
   - wait
 
