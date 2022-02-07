@@ -507,9 +507,10 @@ class NeonTxSender:
             if account_desc['new']:
                 if account_desc['code_size']:
                     stage = NeonCreateContractTxStage(self, account_desc)
-                else:
+                    self._create_account_list.append(stage)
+                elif account_desc['writable']:
                     stage = NeonCreateAccountTxStage(self, account_desc)
-                self._create_account_list.append(stage)
+                    self._create_account_list.append(stage)
             elif account_desc['code_size'] and (account_desc['code_size_current'] < account_desc['code_size']):
                 self._resize_contract_list.append(NeonResizeContractTxStage(self, account_desc))
 
