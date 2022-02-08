@@ -1,4 +1,5 @@
-from .utils import BaseDB, str_fmt_object
+from ..indexer.utils import BaseDB, DBQuery
+from ..common_neon.utils import str_fmt_object
 
 
 class NeonAccountInfo:
@@ -70,6 +71,9 @@ class NeonAccountDB(BaseDB):
 
     def get_account_info(self, account) -> NeonAccountInfo:
         return self._acc_from_value(
-            self._fetchone(['neon_account', 'pda_account', 'code_account', 'slot', 'code'],
-                           [('neon_account', account)],
-                           ['slot desc']))
+            self._fetchone(DBQuery(
+                column_list=['neon_account', 'pda_account', 'code_account', 'slot', 'code'],
+                key_list=[('neon_account', account)],
+                order_list=['slot desc']
+            ))
+        )

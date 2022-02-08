@@ -24,12 +24,12 @@
     },
     "formatters": {
         "standard": {
-            "format": "%(asctime)s.%(msecs)03d [%(levelname)-.1s] pid:%(process)d %(name)s:%(filename)s:%(lineno)d %(context)s %(message)s",
+            "format": "%(asctime)s.%(msecs)03d [%(levelname)-.1s] P:%(process)d %(class)s:%(lineno)d %(context)s %(message)s",
             "style": "%",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         },
         "root": {
-            "format": "%(asctime)s.%(msecs)03d [%(levelname)-.1s] pid:%(process)d %(name)s:Undefined %(context)s %(message)s",
+            "format": "%(asctime)s.%(msecs)03d [%(levelname)-.1s] P:%(process)d %(name)s:%(lineno)d %(context)s %(message)s",
             "style": "%",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         }

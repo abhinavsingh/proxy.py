@@ -176,7 +176,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
 
     def test_erc20_transferFrom(self):
         approve_value = 1000
-        transfer_value = 100        
+        transfer_value = 100
         erc20 = self.wrapper.erc20_interface()
 
         nonce = proxy.eth.get_transaction_count(admin.address)

@@ -6,15 +6,10 @@ from multiprocessing.dummy import Pool as ThreadPool
 from typing import Dict, Union
 from logged_groups import logged_group
 
+from ..indexer.trx_receipts_storage import TrxReceiptsStorage
+
 from ..environment import RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
 from ..environment import HISTORY_START, PARALLEL_REQUESTS, FINALIZED
-
-try:
-    from sql_dict import SQLDict
-    from trx_receipts_storage import TrxReceiptsStorage
-except ImportError:
-    from .sql_dict import SQLDict
-    from .trx_receipts_storage import TrxReceiptsStorage
 
 
 @logged_group("neon.Indexer")

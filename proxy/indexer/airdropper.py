@@ -46,8 +46,8 @@ class FailedAttempts(BaseDB):
             ''')
 
 
-class AirdropReadySet:
-    def __init__(self) -> None:
+class AirdropReadySet(BaseDB):
+    def __init__(self):
         BaseDB.__init__(self)
 
     def _create_table_sql(self) -> str:

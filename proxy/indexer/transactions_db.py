@@ -1,16 +1,7 @@
-from .utils import BaseDB, SolanaIxSignInfo, NeonTxResultInfo, NeonTxInfo, str_fmt_object
-from .blocks_db import SolanaBlockDBInfo
+from typing import Optional
 
-
-class NeonTxDBInfo:
-    def __init__(self, neon_tx=NeonTxInfo(), neon_res=NeonTxResultInfo(), block=SolanaBlockDBInfo(), used_ixs=[]):
-        self.neon_tx = neon_tx
-        self.neon_res = neon_res
-        self.used_ixs = used_ixs
-        self.block = block
-
-    def __str__(self):
-        return str_fmt_object(self)
+from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo, NeonTxFullInfo
+from ..indexer.utils import BaseDB, DBQuery, SolanaIxSignInfo
 
 
 class SolanaNeonTxsDB(BaseDB):
@@ -37,19 +28,19 @@ class SolanaNeonTxsDB(BaseDB):
         for ix in used_ixs:
             rows.append((ix.sign, neon_sign, ix.slot, ix.idx))
 
-        cursor = self._conn.cursor()
-        cursor.executemany(f'''
-            INSERT INTO {self._table_name}(sol_sign, neon_sign, slot, idx)
-            VALUES(%s, %s, %s, %s) ON CONFLICT DO NOTHING''',
-            rows)
+        with self._conn.cursor() as cursor:
+            cursor.executemany(f'''
+                INSERT INTO {self._table_name}(sol_sign, neon_sign, slot, idx)
+                VALUES(%s, %s, %s, %s) ON CONFLICT DO NOTHING''',
+                rows)
 
 
 class NeonTxsDB(BaseDB):
     def __init__(self):
         BaseDB.__init__(self)
-        self._column_lst =  ('neon_sign', 'from_addr', 'sol_sign', 'slot', 'finalized', 'idx',
-                             'nonce', 'gas_price', 'gas_limit', 'to_addr', 'contract', 'value', 'calldata', 'v', 'r', 's',
-                             'status', 'gas_used', 'return_value', 'logs')
+        self._column_lst = ('neon_sign', 'from_addr', 'sol_sign', 'slot', 'block_height', 'block_hash', 'idx',
+                            'nonce', 'gas_price', 'gas_limit', 'to_addr', 'contract', 'value', 'calldata',
+                            'v', 'r', 's', 'status', 'gas_used', 'return_value', 'logs')
         self._sol_neon_txs_db = SolanaNeonTxsDB()
 
     def _create_table_sql(self) -> str:
@@ -60,7 +51,8 @@ class NeonTxsDB(BaseDB):
                 from_addr CHAR(42),
                 sol_sign CHAR(88),
                 slot BIGINT,
-                finalized BOOLEAN,
+                block_height BIGINT,
+                block_hash CHAR(66),
                 idx INT,
 
                 nonce VARCHAR,
@@ -86,16 +78,14 @@ class NeonTxsDB(BaseDB):
                 UNIQUE(neon_sign),
                 UNIQUE(sol_sign, idx)
             );
-            CREATE INDEX IF NOT EXISTS {self._table_name}_finalized ON {self._table_name}(slot, finalized);
             """
 
-    def _tx_from_value(self, value):
+    def _tx_from_value(self, value) -> Optional[NeonTxFullInfo]:
         if not value:
             return None
 
         neon_tx = NeonTxInfo()
         neon_res = NeonTxResultInfo()
-        block = SolanaBlockDBInfo()
 
         for idx, column in enumerate(self._column_lst):
             if column in ('neon_sign', 'from_addr', 'sol_sign', 'logs'):
@@ -104,8 +94,6 @@ class NeonTxsDB(BaseDB):
                 setattr(neon_tx, column, value[idx])
             elif hasattr(neon_res, column):
                 setattr(neon_res, column, value[idx])
-            elif hasattr(block, column):
-                setattr(block, column, value[idx])
             else:
                 assert False, f'Wrong usage {idx} -> {column}!'
 
@@ -114,11 +102,9 @@ class NeonTxsDB(BaseDB):
         neon_res.sol_sign = value[2]
         neon_res.logs = self.decode_list(value[len(self._column_lst) - 1])
 
-        block.slot = neon_res.slot
+        return NeonTxFullInfo(neon_tx=neon_tx, neon_res=neon_res)
 
-        return NeonTxDBInfo(neon_tx=neon_tx, neon_res=neon_res, block=block)
-
-    def set_tx(self, tx: NeonTxDBInfo):
+    def set_tx(self, tx: NeonTxFullInfo):
         row = [tx.neon_tx.sign, tx.neon_tx.addr, tx.neon_res.sol_sign]
         for idx, column in enumerate(self._column_lst):
             if column in ['neon_sign', 'from_addr', 'sol_sign', 'logs']:
@@ -127,8 +113,6 @@ class NeonTxsDB(BaseDB):
                 row.append(getattr(tx.neon_tx, column))
             elif hasattr(tx.neon_res, column):
                 row.append(getattr(tx.neon_res, column))
-            elif hasattr(tx.block, column):
-                row.append(getattr(tx.block, column))
             else:
                 assert False, f'Wrong usage {idx} -> {column}!'
 
@@ -139,29 +123,38 @@ class NeonTxsDB(BaseDB):
                         INSERT INTO {self._table_name}
                             ({', '.join(self._column_lst)})
                         VALUES
-                            ({', '.join(['%s' for _ in range(len(self._column_lst))])})
-                        ON CONFLICT (neon_sign)
-                        DO UPDATE SET
-                            {', '.join([col+'=EXCLUDED.'+col for col in self._column_lst])}
-                        WHERE
-                        ({self._table_name}.finalized=False AND EXCLUDED.finalized=True
-                            AND (EXCLUDED.status='0x1' OR {self._table_name}.status='0x0'))
-                        OR
-                        ({self._table_name}.status='0x0' AND EXCLUDED.status='0x1');
+                            ({', '.join(['%s' for _ in self._column_lst])})
+                        ON CONFLICT DO NOTHING;
                        ''',
                        row)
 
         self._sol_neon_txs_db.set_txs(tx.neon_tx.sign, tx.used_ixs)
 
-    def del_not_finalized(self, from_slot: int, to_slot: int):
-        cursor = self._conn.cursor()
-        cursor.execute(f'DELETE FROM {self._table_name} WHERE slot >= %s AND slot <= %s AND finalized = false',
-                       (from_slot, to_slot))
-
-    def get_tx_by_neon_sign(self, neon_sign) -> NeonTxDBInfo:
+    def get_tx_by_neon_sign(self, neon_sign) -> Optional[NeonTxFullInfo]:
         return self._tx_from_value(
-            self._fetchone(self._column_lst, [('neon_sign', neon_sign)], ['finalized desc']))
+            self._fetchone(DBQuery(
+                column_list=self._column_lst,
+                key_list=[('neon_sign', neon_sign)],
+                order_list=[],
+            ))
+        )
 
-    def get_tx_by_sol_sign(self, sol_sign) -> NeonTxDBInfo:
-        return self._tx_from_value(
-            self._fetchone(self._column_lst, [('sol_sign', sol_sign)], ['finalized desc']))
+    def get_tx_list_by_sol_sign(self, sol_sign_list: [str]) -> [NeonTxFullInfo]:
+        e = self._build_expression(DBQuery(
+            column_list=self._column_lst,
+            key_list=[],
+            order_list=[],
+        ))
+
+        request = f'''
+            SELECT {e.column_expr}
+              FROM {self._table_name} AS a
+             WHERE sol_sign in ({','.join(['%s' for _ in sol_sign_list])})
+             LIMIT {len(sol_sign_list)}
+        '''
+
+        with self._conn.cursor() as cursor:
+            cursor.execute(request, sol_sign_list)
+            values = cursor.fetchall()
+
+        return [self._tx_from_value(v) for v in values]

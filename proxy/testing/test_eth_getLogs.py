@@ -162,7 +162,7 @@ class Test_eth_getLogs(unittest.TestCase):
 
     def test_get_logs_by_fromBlock(self):
         print("\ntest_get_logs_by_fromBlock")
-        receipts = proxy.eth.get_logs({'fromBlock': self.block_numbers[0]})
+        receipts = proxy.eth.get_logs({'fromBlock': self.block_numbers[2]})
         print('receipts: ', receipts)
         self.assertEqual(len(receipts), 4)
 
@@ -175,13 +175,13 @@ class Test_eth_getLogs(unittest.TestCase):
             'topics': self.topics,
         })
         print('receipts: ', receipts)
-        self.assertEqual(len(receipts), 4)
+        self.assertEqual(len(receipts), 6)
 
     def test_get_logs_by_address(self):
         print("\ntest_get_logs_by_address")
         receipts = proxy.eth.get_logs({'address': self.storage_contract.address})
         print('receipts: ', receipts)
-        self.assertEqual(len(receipts), 4)
+        self.assertEqual(len(receipts), 6)
 
 if __name__ == '__main__':
     unittest.main()

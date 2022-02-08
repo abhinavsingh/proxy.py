@@ -15,9 +15,13 @@ from itertools import zip_longest
 from logged_groups import logged_group
 
 from .costs import update_transaction_cost
-from .utils import get_from_dict
+from .utils import get_from_dict, SolanaBlockInfo
 from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, WRITE_TRANSACTION_COST_IN_DB
-from ..environment import LOG_SENDING_SOLANA_TRANSACTION, FUZZING_BLOCKHASH, CONFIRM_TIMEOUT
+from ..environment import LOG_SENDING_SOLANA_TRANSACTION, FUZZING_BLOCKHASH, CONFIRM_TIMEOUT, FINALIZED
+
+from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT
+from ..common_neon.address import EthereumAddress, ether2program
+from ..common_neon.address import AccountInfo as NeonAccountInfo
 
 from typing import Any, List, NamedTuple, cast
 
@@ -26,6 +30,7 @@ class AccountInfo(NamedTuple):
     tag: int
     lamports: int
     owner: PublicKey
+    data: bytes
 
 
 class SendResult(NamedTuple):
@@ -78,7 +83,7 @@ class SolanaInteractor:
             "commitment": "confirmed",
             "dataSlice": {
                 "offset": 0,
-                "length": 16,
+                "length": 256,
             }
         }
 
@@ -96,13 +101,16 @@ class SolanaInteractor:
         lamports = info['lamports']
         owner = info['owner']
 
-        return AccountInfo(account_tag, lamports, owner)
+        return AccountInfo(account_tag, lamports, owner, data)
 
     def get_multiple_accounts_info(self, accounts: [PublicKey]) -> [AccountInfo]:
         options = {
             "encoding": "base64",
             "commitment": "confirmed",
-            "dataSlice": { "offset": 0, "length": 16 }
+            "dataSlice": {
+                "offset": 0,
+                "length": 16
+            }
         }
         result = self.client._provider.make_request("getMultipleAccounts", [str(a) for a in accounts], options)
         self.debug(f"\n{json.dumps(result, indent=4, sort_keys=True)}")
@@ -117,12 +125,23 @@ class SolanaInteractor:
                 accounts_info.append(None)
             else:
                 data = base64.b64decode(info['data'][0])
-                accounts_info.append(AccountInfo(tag=data[0], lamports=info['lamports'], owner=info['owner']))
+                account = AccountInfo(tag=data[0], lamports=info['lamports'], owner=info['owner'], data=data)
+                accounts_info.append(account)
 
         return accounts_info
 
     def get_sol_balance(self, account):
         return self.client.get_balance(account, commitment=Confirmed)['result']['value']
+
+    def get_neon_account_info(self, eth_account: EthereumAddress) -> NeonAccountInfo:
+        account_sol, nonce = ether2program(eth_account)
+        info = self.get_account_info(account_sol)
+        if info is None:
+            return None
+        elif len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof():
+            raise RuntimeError(f"Wrong data length for account data {account_sol}: " +
+                               f"{len(info.data)} < {ACCOUNT_INFO_LAYOUT.sizeof()}")
+        return NeonAccountInfo.frombytes(info.data)
 
     def get_multiple_rent_exempt_balances_for_size(self, size_list: [int]) -> [int]:
         opts = {"commitment": "confirmed"}
@@ -130,15 +149,45 @@ class SolanaInteractor:
         response_list = self._send_rpc_batch_request("getMinimumBalanceForRentExemption", request_list)
         return [r['result'] for r in response_list]
 
-    def _getAccountData(self, account, expected_length):
-        info = self.client.get_account_info(account, commitment=Confirmed)['result']['value']
-        if info is None:
-            raise ValueError(f"Can't get information about {account}")
+    def get_block_slot_list(self, last_block_slot, limit: int, commitment='confirmed') -> [int]:
+        opts = {
+            "commitment": commitment,
+            "enconding": "json",
+        }
+        return self.client._provider.make_request("getBlocksWithLimit", last_block_slot, limit, opts)['result']
 
-        data = base64.b64decode(info['data'][0])
-        if len(data) < expected_length:
-            raise ValueError(f"Wrong data length for account data {account}")
-        return data
+    def get_block_info_list(self, block_slot_list: [int], commitment='confirmed') -> [SolanaBlockInfo]:
+        block_list = []
+        if not len(block_slot_list):
+            return block_list
+
+        opts = {
+            "commitment": commitment,
+            "encoding": "json",
+            "transactionDetails": "signatures",
+            "rewards": False
+        }
+
+        request_list = []
+        for slot in block_slot_list:
+            request_list.append((slot, opts))
+
+        response_list = self._send_rpc_batch_request('getBlock', request_list)
+        for slot, response in zip(block_slot_list, response_list):
+            if (not response) or ('result' not in response):
+                continue
+            net_block = response['result']
+            block = SolanaBlockInfo(
+                slot=slot,
+                finalized=(commitment==FINALIZED),
+                hash='0x' + base58.b58decode(net_block['blockhash']).hex(),
+                height=net_block['blockHeight'],
+                parent_hash='0x' + base58.b58decode(net_block['previousBlockhash']).hex(),
+                time=net_block['blockTime'],
+                signs=net_block['signatures']
+            )
+            block_list.append(block)
+        return block_list
 
     def get_recent_blockslot(self) -> int:
         blockhash_resp = self.client.get_recent_blockhash(commitment=Confirmed)

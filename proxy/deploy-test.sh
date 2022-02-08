@@ -15,7 +15,9 @@ solana address
 solana airdrop 1000
 solana balance
 
-python3 -m unittest discover -v -p 'test_*.py'
+set ${TESTNAME:=*}
+
+python3 -m unittest discover -v -p "test_${TESTNAME}.py"
 
 echo "Deploy test success"
 exit 0
