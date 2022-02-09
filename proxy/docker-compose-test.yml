@@ -100,9 +100,11 @@ services:
       FAUCET_SOLANA_ENABLE: 'true'
       SOLANA_URL: 'http://solana:8899'
       NEON_OPERATOR_KEYFILE: '/root/.config/solana/id.json'
-      NEON_ETH_MAX_AMOUNT: 10
+      NEON_ETH_MAX_AMOUNT: 1000
       TEST_FAUCET_INIT_NEON_BALANCE: 10000
     hostname: faucet
+    ports:
+      - 127.0.0.1:3333:3333
     expose:
       - "3333"
     networks:
