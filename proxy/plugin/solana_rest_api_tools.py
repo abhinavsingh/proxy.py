@@ -11,7 +11,7 @@ from ..common_neon.address import ether2program, getTokenAddr, EthereumAddress
 from ..common_neon.errors import SolanaAccountNotFoundError, SolanaErrors
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.utils import get_from_dict
-from ..environment import NEW_USER_AIRDROP_AMOUNT, read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
+from ..environment import read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
 
 
 @logged_group("neon.Proxy")
@@ -59,7 +59,7 @@ def get_token_balance_gwei(client: SolanaClient, pda_account: str, *, logger) ->
 
 
 @logged_group("neon.Proxy")
-def get_token_balance_or_airdrop(client: SolanaClient, eth_account: EthereumAddress, *, logger) -> int:
+def get_token_balance_or_zero(client: SolanaClient, eth_account: EthereumAddress, *, logger) -> int:
     solana_account, nonce = ether2program(eth_account)
     logger.debug(f"Get balance for eth account: {eth_account} aka: {solana_account}")
 
@@ -67,7 +67,7 @@ def get_token_balance_or_airdrop(client: SolanaClient, eth_account: EthereumAddr
         return get_token_balance_gwei(client, solana_account)
     except SolanaAccountNotFoundError:
         logger.debug(f"Account not found:  {eth_account} aka: {solana_account} - return airdrop amount")
-        return NEW_USER_AIRDROP_AMOUNT * eth_utils.denoms.gwei
+        return 0
 
 
 def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> bool:

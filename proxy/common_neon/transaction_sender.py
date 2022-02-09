@@ -119,7 +119,7 @@ class NeonCreateAccountTxStage(NeonTxStage):
 
     def _create_account(self):
         assert self.balance > 0
-        return self.s.builder.make_trx_with_create_and_airdrop(self._address)
+        return self.s.builder.make_create_eth_account_trx(self._address)[0]
 
     def build(self):
         assert self._is_empty()
@@ -168,7 +168,7 @@ class NeonCreateContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
 
     def _create_account(self):
         assert self.sol_account
-        return self.s.builder.make_trx_with_create_and_airdrop(self._address, self.sol_account)
+        return self.s.builder.make_create_eth_account_trx(self._address, self.sol_account)[0]
 
     def build(self):
         assert self._is_empty()

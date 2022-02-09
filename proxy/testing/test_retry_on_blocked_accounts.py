@@ -22,13 +22,11 @@ from solana.rpc.commitment import Confirmed
 from solana.system_program import SYS_PROGRAM_ID
 from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from solana_utils import *
-from solcx import install_solc
 from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
 from web3 import Web3
 from web3.auto.gethdev import w3
-
-install_solc(version='0.7.0')
+from .testing_helpers import request_airdrop
 from solcx import compile_source
 
 MINIMAL_GAS_PRICE = 1
@@ -84,6 +82,7 @@ class BlockedTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("\ntest_retry_on_blocked_accounts.py setUpClass")
+        request_airdrop(eth_account.address)
 
         cls.token = SplToken(solana_url)
         wallet = WalletAccount(wallet_path())

@@ -1,11 +1,6 @@
 import unittest
 import os
 from web3 import Web3
-from solcx import install_solc
-
-# install_solc(version='latest')
-install_solc(version='0.7.0')
-from solcx import compile_source
 
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))

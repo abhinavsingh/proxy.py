@@ -74,17 +74,19 @@ echo "Wait proxy..." && wait-for-proxy "$PROXY_URL"
 
 export EVM_LOADER=$(docker exec proxy bash -c "solana address -k /spl/bin/evm_loader-keypair.json")
 export SOLANA_URL=$(docker exec solana bash -c 'echo "$SOLANA_URL"')
+export FAUCET_URL=$(docker exec proxy bash -c 'echo "$FAUCET_URL"')
 
 echo "EVM_LOADER" $EVM_LOADER
 echo "SOLANA_URL" $SOLANA_URL
+echo "FAUCET_URL" $FAUCET_URL
 
 echo "Run proxy tests..."
 docker run --rm -ti --network=container:proxy \
      -e PROXY_URL \
      -e EVM_LOADER \
      -e SOLANA_URL \
+     -e FAUCET_URL \
      -e EXTRA_GAS=100000 \
-     -e NEW_USER_AIRDROP_AMOUNT=100 \
      -e POSTGRES_DB=neon-db \
      -e POSTGRES_USER=neon-proxy \
      -e POSTGRES_PASSWORD=neon-proxy-pass \
@@ -94,7 +96,8 @@ docker run --rm -ti --network=container:proxy \
      $PROXY_IMAGE
 
 echo "Run uniswap-v2-core tests..."
-docker run --rm -ti --network=host \
+docker run --rm -ti --network=container:proxy \
+     -e FAUCET_URL \
      --entrypoint ./deploy-test.sh \
      ${EXTRA_ARGS:-} \
      $UNISWAP_V2_CORE_IMAGE \

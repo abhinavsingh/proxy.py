@@ -2,7 +2,6 @@ import os, subprocess, unittest
 from web3 import Web3
 from solana.publickey import PublicKey
 from solcx import compile_source
-from solcx import install_solc
 from solana.rpc.api import Client
 from solana.rpc.commitment import Confirmed
 from solana_utils import *
@@ -14,7 +13,6 @@ evm_loader_id = PublicKey(os.environ.get("EVM_LOADER"))
 neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
 
 proxy = Web3(Web3.HTTPProvider(proxy_url))
-install_solc(version='0.7.0')
 
 CONTRACT = '''
 pragma solidity >=0.5.12;

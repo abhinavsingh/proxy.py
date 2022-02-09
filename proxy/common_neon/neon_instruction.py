@@ -15,7 +15,7 @@ from logged_groups import logged_group
 from .address import accountWithSeed, ether2program, getTokenAddr, EthereumAddress
 from .constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PROGRAM, COLLATERALL_POOL_MAX
 from .layouts import CREATE_ACCOUNT_LAYOUT
-from ..environment import EVM_LOADER_ID, ETH_TOKEN_MINT_ID , COLLATERAL_POOL_BASE, NEW_USER_AIRDROP_AMOUNT
+from ..environment import EVM_LOADER_ID, ETH_TOKEN_MINT_ID , COLLATERAL_POOL_BASE
 
 
 obligatory_accounts = [
@@ -183,31 +183,6 @@ class NeonInstruction:
                 AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
             ]
         ))
-
-        return trx
-
-    def make_transfer_instruction(self, associated_token_account: PublicKey) -> TransactionInstruction:
-        transfer_instruction = transfer2(Transfer2Params(
-            source=self.operator_neon_address,
-            owner=self.operator_account,
-            dest=associated_token_account,
-            amount=NEW_USER_AIRDROP_AMOUNT * eth_utils.denoms.gwei,
-            decimals=9,
-            mint=ETH_TOKEN_MINT_ID,
-            program_id=TOKEN_PROGRAM_ID
-        ))
-        self.debug(f"Token transfer from token: {self.operator_neon_address}, owned by: {self.operator_account}, to token: "
-                    f"{associated_token_account}, owned by: {associated_token_account} , value: {NEW_USER_AIRDROP_AMOUNT}")
-        return transfer_instruction
-
-    def make_trx_with_create_and_airdrop(self, eth_account, code_acc=None) -> Transaction:
-        trx = Transaction()
-        create_trx, associated_token_account = self.make_create_eth_account_trx(eth_account, code_acc)
-        trx.add(create_trx)
-        if NEW_USER_AIRDROP_AMOUNT <= 0:
-            return trx
-        transfer_instruction = self.make_transfer_instruction(associated_token_account)
-        trx.add(transfer_instruction)
 
         return trx
 

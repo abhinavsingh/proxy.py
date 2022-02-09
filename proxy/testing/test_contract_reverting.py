@@ -1,12 +1,11 @@
 import unittest
 import os
 
-import eth_utils
 from web3 import exceptions as web3_exceptions
 from solana.rpc.api import Client as SolanaClient
 from eth_account.account import LocalAccount
 
-from .testing_helpers import SolidityContractDeployer
+from .testing_helpers import SolidityContractDeployer, request_airdrop
 from ..common_neon.emulator_interactor import decode_revert_message
 
 
@@ -16,9 +15,6 @@ class TestContractReverting(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls._contract_deployer = SolidityContractDeployer()
         cls._web3 = cls._contract_deployer.web3
-
-        new_user_airdrop_amount = int(os.environ.get("NEW_USER_AIRDROP_AMOUNT", "0"))
-        cls._EXPECTED_BALANCE_WEI = eth_utils.to_wei(new_user_airdrop_amount, 'ether')
 
         solana_url = os.environ.get("SOLANA_URL", "http://localhost:8899")
         cls._solana_client = SolanaClient(solana_url)
@@ -64,6 +60,7 @@ class TestContractReverting(unittest.TestCase):
 
     def test_method_raises_string_based_error(self):
         contract_owner: LocalAccount = self._web3.eth.account.create()
+        request_airdrop(contract_owner.address)
         contract = self._contract_deployer.compile_and_deploy_contract(contract_owner, self._CONTRACT_METHOD_STRING_BASED_REVERT)
         with self.assertRaises(web3_exceptions.ContractLogicError) as cm:
             contract.functions.do_string_based_revert().call()
@@ -71,6 +68,7 @@ class TestContractReverting(unittest.TestCase):
 
     def test_method_raises_trivial_error(self):
         contract_owner: LocalAccount = self._web3.eth.account.create()
+        request_airdrop(contract_owner.address)
         contract = self._contract_deployer.compile_and_deploy_contract(contract_owner, self._CONTRACT_METHOD_STRING_BASED_REVERT)
         with self.assertRaises(web3_exceptions.ContractLogicError) as cm:
             contract.functions.do_trivial_revert().call()
@@ -87,4 +85,3 @@ class TestContractReverting(unittest.TestCase):
             }
         }
     '''
-

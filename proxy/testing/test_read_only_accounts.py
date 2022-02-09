@@ -17,15 +17,13 @@ from solana.publickey import PublicKey
 from proxy.environment import EVM_LOADER_ID
 from proxy.common_neon.erc20_wrapper import ERC20Wrapper
 from proxy.common_neon.neon_instruction import NeonInstruction
-from solcx import compile_source, install_solc
+from solcx import compile_source
 
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 admin = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197/admin')
 proxy.eth.default_account = admin.address
-
-install_solc(version='0.7.0')
 
 CONTRACT = '''
 pragma solidity >= 0.7.0;

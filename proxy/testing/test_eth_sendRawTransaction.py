@@ -3,10 +3,7 @@ import os
 
 import eth_utils
 from web3 import Web3
-from solcx import install_solc
-
-# install_solc(version='latest')
-install_solc(version='0.7.0')
+from .testing_helpers import request_airdrop
 from solcx import compile_source
 
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
@@ -86,6 +83,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("\n\nhttps://github.com/neonlabsorg/proxy-model.py/issues/147")
+        request_airdrop(eth_account.address)
         print('eth_account.address:', eth_account.address)
         print('eth_account.key:', eth_account.key.hex())
         cls.deploy_storage_147_solidity_contract(cls)

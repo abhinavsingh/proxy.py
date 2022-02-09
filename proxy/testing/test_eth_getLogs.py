@@ -1,10 +1,6 @@
 import unittest
 import os
 from web3 import Web3
-from solcx import install_solc
-
-# install_solc(version='latest')
-install_solc(version='0.7.0')
 from solcx import compile_source
 
 SEED = 'https://github.com/neonlabsorg/proxy-model.py/issues/210'

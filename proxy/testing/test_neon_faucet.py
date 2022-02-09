@@ -8,8 +8,6 @@ import time
 import subprocess
 import requests
 from web3 import Web3
-from solcx import install_solc
-install_solc(version='0.7.6')
 from solcx import compile_source
 
 issue = 'https://github.com/neonlabsorg/neon-evm/issues/166'
