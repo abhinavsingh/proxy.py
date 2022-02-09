@@ -267,7 +267,14 @@ class NeonInstruction:
         trx.add(self.make_05_call_instruction())
         return trx
 
-    def make_cancel_transaction(self) -> Transaction:
+    def make_cancel_transaction(self, cancel_keys = None) -> Transaction:
+        append_keys = []
+        if cancel_keys:
+            append_keys = cancel_keys
+        else:
+            append_keys = self.eth_accounts
+            append_keys.append(AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False))
+            append_keys += obligatory_accounts
         return Transaction().add(TransactionInstruction(
             program_id = EVM_LOADER_ID,
             data = bytearray.fromhex("15") + self.eth_trx.nonce.to_bytes(8, 'little'),
@@ -279,10 +286,7 @@ class NeonInstruction:
                 AccountMeta(pubkey=INCINERATOR_PUBKEY, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
 
-            ] + self.eth_accounts + [
-
-                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
-            ] + obligatory_accounts
+            ] + append_keys
         ))
 
     def make_partial_call_or_continue_instruction(self, steps=0) -> TransactionInstruction:

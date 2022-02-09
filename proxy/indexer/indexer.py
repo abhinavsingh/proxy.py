@@ -7,8 +7,9 @@ from solana.system_program import SYS_PROGRAM_ID
 
 from ..indexer.indexer_base import IndexerBase
 from ..indexer.indexer_db import IndexerDB
-from ..indexer.utils import SolanaIxSignInfo, Canceller
+from ..indexer.utils import SolanaIxSignInfo
 from ..indexer.utils import get_accounts_from_storage, check_error
+from ..indexer.canceller import Canceller
 
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo, str_fmt_object
 

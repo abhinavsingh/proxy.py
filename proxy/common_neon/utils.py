@@ -159,6 +159,7 @@ class NeonTxInfo:
         self.__dict__ = src
 
     def _set_defaults(self):
+        self.tx = None
         self.addr = None
         self.sign = None
         self.nonce = None
@@ -174,6 +175,8 @@ class NeonTxInfo:
         self.error = None
 
     def init_from_eth_tx(self, tx: EthTx):
+        self.tx = tx
+
         self.v = hex(tx.v)
         self.r = hex(tx.r)
         self.s = hex(tx.s)
