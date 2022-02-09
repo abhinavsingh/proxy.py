@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 import time
 from logged_groups import logged_group
 from ..indexer.pythnetwork import PythNetworkClient
@@ -38,12 +39,12 @@ class GasPriceCalculator:
 
         while True:
             try:
-                price = self.pyth_network_client.get_price()
+                price = self.pyth_network_client.get_price('Crypto.SOL/USD')
                 if price['status'] != 1: # tradable
                     raise Exception('Price status is not tradable')
 
                 self.recent_sol_price_update_time = cur_time
-                self.min_gas_price = (price['price'] / NEON_PRICE_USD) * (1 + OPERATOR_FEE)
+                self.min_gas_price = (price['price'] / NEON_PRICE_USD) * (1 + OPERATOR_FEE) * pow(Decimal(10), 9)
                 return
 
             except Exception as err:
