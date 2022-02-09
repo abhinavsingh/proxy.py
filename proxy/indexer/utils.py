@@ -40,6 +40,10 @@ class SolanaIxSignInfo:
     def __eq__(self, other):
         return (self.sign, self.slot, self.idx) == (other.sign, other.slot, other.idx)
 
+    def get_req_id(self):
+        return f"{self.idx}{self.sign}"[:7]
+
+
 
 @logged_group("neon.Indexer")
 def get_accounts_from_storage(client, storage_account, *, logger):

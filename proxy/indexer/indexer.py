@@ -2,7 +2,7 @@ from typing import Optional
 
 import base58
 import time
-from logged_groups import logged_group
+from logged_groups import logged_group, logging_context
 from solana.system_program import SYS_PROGRAM_ID
 
 from ..indexer.indexer_base import IndexerBase
@@ -238,7 +238,8 @@ class ReceiptsParserState:
         for tx in self._done_tx_list:
             self.unmark_ix_used(tx)
             if tx.neon_tx.is_valid() and tx.neon_res.is_valid():
-                self._db.submit_transaction(tx.neon_tx, tx.neon_res, tx.used_ixs)
+                with logging_context(req_id=tx.neon_tx.sign[:7]):
+                    self._db.submit_transaction(tx.neon_tx, tx.neon_res, tx.used_ixs)
             self.del_tx(tx)
         self._done_tx_list.clear()
         self.debug('Receipt state stats: ' +
@@ -272,7 +273,7 @@ class DummyIxDecoder:
             blocked_accounts = ['']
         tx = self.state.get_tx(storage_account)
         if tx and neon_tx and tx.neon_tx and (neon_tx.sign != tx.neon_tx.sign):
-            self.warning(f'{self}: tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx}), storage: {storage_account}')
+            self.warning(f'tx.neon_tx({tx.neon_tx}) != neon_tx({neon_tx}), storage: {storage_account}')
             self.state.unmark_ix_used(tx)
             self.state.del_tx(tx)
             tx = None
@@ -300,7 +301,7 @@ class DummyIxDecoder:
         - log the success message.
         """
         self.state.mark_ix_used(obj)
-        self.debug(f'{self}: {msg} - {obj}')
+        self.debug(f'{msg} - {obj}')
         return True
 
     def _decoding_done(self, obj: BaseEvmObject, msg: str) -> bool:
@@ -315,12 +316,12 @@ class DummyIxDecoder:
             self.state.del_holder(obj)
         else:
             assert False, 'Unknown type of object'
-        self.debug(f'{self}: {msg} - {obj}')
+        self.debug(f'{msg} - {obj}')
         return True
 
     def _decoding_skip(self, reason: str) -> bool:
         """Skip decoding of the instruction"""
-        self.debug(f'{self}: {reason}')
+        self.debug(f'{reason}')
         return False
 
     def _decoding_fail(self, obj: BaseEvmObject, reason: str) -> bool:
@@ -331,7 +332,7 @@ class DummyIxDecoder:
 
         Show errors in warning mode because it can be a result of restarting.
         """
-        self.warning(f'{self}: {reason} - {obj}')
+        self.warning(f'{reason} - {obj}')
         self.state.unmark_ix_used(obj)
 
         if isinstance(obj, NeonTxObject):
@@ -372,7 +373,7 @@ class DummyIxDecoder:
 
         rlp_error = tx.neon_tx.decode(rlp_sign=rlp_sign, rlp_data=bytes(rlp_data)).error
         if rlp_error:
-            self.error(f'{self} Neon tx rlp error: {rlp_error}')
+            self.error(f'Neon tx rlp error: {rlp_error}')
 
         tx.holder_account = holder_account
         tx.move_ix_used(holder)
@@ -647,6 +648,7 @@ class ExecuteOrContinueIxParser(DummyIxDecoder):
 
     def execute(self) -> bool:
         self._decoding_start()
+
         blocked_accounts_start = 7
 
         if self.ix.get_account_cnt() < blocked_accounts_start + 1:
@@ -719,13 +721,16 @@ class Indexer(IndexerBase):
         self.db.fill_block_height(height, [slot])
 
     def process_functions(self):
-        self.debug("Start getting blocks")
-        self.gather_blocks()
-        IndexerBase.process_functions(self)
-        self.debug("Process receipts")
-        self.process_receipts()
-        self.debug("Unlock accounts")
-        self.canceller.unlock_accounts(self.blocked_storages)
+        with logging_context(req_id="get_blocks"):
+            self.gather_blocks()
+        with logging_context(req_id="get_history"):
+            IndexerBase.process_functions(self)
+
+        with logging_context(req_id="process_receipts"):
+            self.process_receipts()
+
+        with logging_context(req_id="cancel"):
+            self.canceller.unlock_accounts(self.blocked_storages)
         self.blocked_storages = {}
 
     def process_receipts(self):
@@ -745,8 +750,10 @@ class Indexer(IndexerBase):
             ix_info = SolanaIxInfo(sign=sign, slot=slot,  tx=tx)
 
             for _ in ix_info.iter_ixs():
-                self.state.set_ix(ix_info)
-                (self.ix_decoder_map.get(ix_info.evm_ix) or self.def_decoder).execute()
+                req_id = ix_info.sign.get_req_id()
+                with logging_context(req_id=req_id):
+                        self.state.set_ix(ix_info)
+                        (self.ix_decoder_map.get(ix_info.evm_ix) or self.def_decoder).execute()
 
         self.indexed_slot = last_block_slot
         self.db.set_min_receipt_slot(self.state.find_min_used_slot(self.indexed_slot))
