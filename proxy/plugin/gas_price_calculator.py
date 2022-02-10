@@ -9,11 +9,16 @@ from ..environment import MINIMAL_GAS_PRICE, OPERATOR_FEE, NEON_PRICE_USD, \
 
 @logged_group("neon.gas_price_calculator")
 class GasPriceCalculator:
-    def __init__(self, solana_client) -> None:
+    def __init__(self, solana_client, pyth_mapping_acc) -> None:
         self.solana_client = solana_client
+        self.mapping_account = pyth_mapping_acc
         self.pyth_network_client = PythNetworkClient(self.solana_client)
         self.recent_sol_price_update_time = None
         self.min_gas_price = None
+
+    def update_mapping(self):
+        if self.mapping_account is not None:
+            self.pyth_network_client.update_mapping(self.mapping_account)
 
     def get_min_gas_price(self):
         if MINIMAL_GAS_PRICE is not None:
