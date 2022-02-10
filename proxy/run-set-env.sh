@@ -1,8 +1,8 @@
 #!/bin/bash
-
+COMPONENT="${1:-Undefined}"
 set -xeo pipefail
 
-date
+echo "$(date "+%F %X.%3N") I $(basename "$0"):${LINENO} $$ ${COMPONENT}:StartScript {} Init environment set"
 
 if [ "$CONFIG" == "ci" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="http://solana:8899"
@@ -59,8 +59,8 @@ elif [ "$CONFIG" != "custom" ]; then
   exit 1
 fi
 
-[[ -z "$SOLANA_URL"               ]] && echo "SOLANA_URL is not set" && exit 1
-[[ -z "$EVM_LOADER"               ]] && echo "EVM_LOADER is not set" && exit 1
+[[ -z "$SOLANA_URL"               ]] && echo "$(date "+%F %X.%3N") E $(basename $0):${LINENO} $$ ${COMPONENT}:StartScript {} SOLANA_URL is not set" && exit 1
+[[ -z "$EVM_LOADER"               ]] && echo "$(date "+%F %X.%3N") E $(basename $0):${LINENO} $$ ${COMPONENT}:StartScript {} EVM_LOADER is not set" && exit 1
 
 solana config set -u $SOLANA_URL
 
