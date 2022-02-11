@@ -30,7 +30,7 @@ from .solana_interactor import get_error_definition_from_receipt, check_if_stora
 from .solana_interactor import check_if_blockhash_notfound
 from ..common_neon.eth_proto import Trx as EthTx
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo
-from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT, ACCOUNT_PERMISSION_UPDATE_INT
+from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT, ACCOUNT_PERMISSION_UPDATE_INT, MIN_OPERATOR_BALANCE_TO_WARN, MIN_OPERATOR_BALANCE_TO_ERR
 from ..memdb.memdb import MemDB, NeonPendingTxInfo
 from ..environment import get_solana_accounts
 from ..common_neon.account_whitelist import AccountWhitelist
@@ -270,7 +270,7 @@ class OperatorResourceList:
 
             with self._resource_list_len_glob.get_lock():
                 if self._resource_list_len_glob.value == 0:
-                    raise RuntimeError('No resources!')
+                    raise RuntimeError('Operator has NO resources!')
                 elif len(self._free_resource_list_glob) == 0:
                     continue
                 idx = self._free_resource_list_glob.pop(0)
@@ -289,6 +289,9 @@ class OperatorResourceList:
         raise RuntimeError('Timeout on waiting a free operator resource!')
 
     def _init_perm_accounts(self) -> bool:
+        if self._check_operator_balance() is False:
+            self._resource_list_len_glob.value -= 1
+            return False
         if self._resource and self._resource.storage and self._resource.holder:
             return True
 
@@ -307,6 +310,24 @@ class OperatorResourceList:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
             self.error(f"Fail to init accounts for resource {opkey}:{rid}, err({err}): {err_tb}")
             return False
+
+    def _min_operator_balance_to_err(self):
+        return MIN_OPERATOR_BALANCE_TO_ERR
+
+    def _min_operator_balance_to_warn(self):
+        return MIN_OPERATOR_BALANCE_TO_WARN
+
+    def _check_operator_balance(self):
+        # Validate operator's account has enough SOLs
+        sol_balance = self._s.solana.get_sol_balance(self._resource.public_key())
+        min_operator_balance_to_err = self._min_operator_balance_to_err()
+        if sol_balance <= min_operator_balance_to_err:
+            self.error(f'Operator account {self._resource.public_key()} has NOT enough SOLs; balance = {sol_balance}; min_operator_balance_to_err = {min_operator_balance_to_err}')
+            return False
+        min_operator_balance_to_warn = self._min_operator_balance_to_warn()
+        if sol_balance <= min_operator_balance_to_warn:
+            self.warning(f'Operator account {self._resource.public_key()} SOLs are running out; balance = {sol_balance}; min_operator_balance_to_warn = {min_operator_balance_to_warn}; min_operator_balance_to_err = {min_operator_balance_to_err}; ')
+        return True
 
     def _create_perm_accounts(self, seed_list):
         tx = Transaction()

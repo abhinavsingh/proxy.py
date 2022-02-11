@@ -71,6 +71,8 @@ services:
       CONFIG: ci
       PP_SOLANA_URL: https://api.devnet.solana.com
       PYTH_MAPPING_ACCOUNT: BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2
+      MIN_OPERATOR_BALANCE_TO_WARN: 4565760000 # = 913152000 * 5 (5 storage accounts) = 4.56576 SOL
+      MIN_OPERATOR_BALANCE_TO_ERR: 913152000 # = solana rent 131072 (= Rent-exempt minimum: 0.913152 SOL) SOLs to create a storage
     hostname: proxy
     depends_on:
       postgres:
@@ -102,7 +104,7 @@ services:
       SOLANA_URL: 'http://solana:8899'
       NEON_OPERATOR_KEYFILE: '/root/.config/solana/id.json'
       NEON_ETH_MAX_AMOUNT: 1000
-      TEST_FAUCET_INIT_NEON_BALANCE: 10000
+      TEST_FAUCET_INIT_NEON_BALANCE: 100000
     hostname: faucet
     ports:
       - 127.0.0.1:3333:3333
