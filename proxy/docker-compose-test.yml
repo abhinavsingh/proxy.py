@@ -73,6 +73,7 @@ services:
       PYTH_MAPPING_ACCOUNT: BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2
       MIN_OPERATOR_BALANCE_TO_WARN: 4565760000 # = 913152000 * 5 (5 storage accounts) = 4.56576 SOL
       MIN_OPERATOR_BALANCE_TO_ERR: 913152000 # = solana rent 131072 (= Rent-exempt minimum: 0.913152 SOL) SOLs to create a storage
+      MINIMAL_GAS_PRICE: 1
     hostname: proxy
     depends_on:
       postgres:

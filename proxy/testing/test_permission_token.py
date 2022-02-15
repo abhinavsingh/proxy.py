@@ -8,6 +8,9 @@ import json
 from web3 import Web3
 from solana.rpc.commitment import Confirmed
 
+from proxy.testing.testing_helpers import request_airdrop
+
+
 class TestPermissionToken(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -16,6 +19,7 @@ class TestPermissionToken(unittest.TestCase):
         proxy_url = os.environ['PROXY_URL']
         cls.proxy = Web3(Web3.HTTPProvider(proxy_url))
         cls.eth_account = cls.proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/468')
+        request_airdrop(cls.eth_account.address)
 
         cls.payer = SolanaAccount()
         cls.solana.request_airdrop(cls.payer.public_key(), 1000_000_000_000, Confirmed)

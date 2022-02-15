@@ -5,6 +5,8 @@ import eth_utils
 from web3 import Web3
 from solcx import compile_source
 
+from proxy.testing.testing_helpers import request_airdrop
+
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
@@ -32,6 +34,7 @@ class Test_eth_estimateGas(unittest.TestCase):
         print("\n\nhttps://github.com/neonlabsorg/proxy-model.py/issues/487")
         print('eth_account.address:', eth_account.address)
         print('eth_account.key:', eth_account.key.hex())
+        request_airdrop(eth_account.address)
         cls.deploy_counter_487_solidity_contract(cls)
 
     def deploy_counter_487_solidity_contract(self):
@@ -42,7 +45,7 @@ class Test_eth_estimateGas(unittest.TestCase):
             nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
             chainId=proxy.eth.chain_id,
             gas=987654321,
-            gasPrice=0,
+            gasPrice=1000000000,
             to='',
             value=0,
             data=counter.bytecode),

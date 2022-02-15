@@ -4,17 +4,22 @@ from solana.publickey import PublicKey
 from proxy.indexer.pythnetwork import PythNetworkClient
 from proxy.plugin.gas_price_calculator import GasPriceCalculator
 from solana.rpc.api import Client as SolanaClient
-from unittest.mock import patch, call
+from unittest.mock import patch, call, Mock
 from decimal import Decimal
-from ..environment import NEON_PRICE_USD, OPERATOR_FEE, GET_SOL_PRICE_MAX_RETRIES, SOL_PRICE_UPDATE_INTERVAL
+from ..environment import NEON_PRICE_USD, OPERATOR_FEE, GET_SOL_PRICE_MAX_RETRIES, SOL_PRICE_UPDATE_INTERVAL, \
+    MINIMAL_GAS_PRICE
+
+MINIMAL_GAS_PRICE = None
 
 class TestGasPriceCalculator(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.mapping_account = PublicKey('BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2') # only for devnet
+        cls.mapping_account = PublicKey('BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2')  # only for devnet
         cls.solana_url = "https://api.devnet.solana.com" # devnet
         cls.solana_client = SolanaClient(cls.solana_url)
         cls.testee = GasPriceCalculator(cls.solana_client, cls.mapping_account)
+        cls.testee.env_min_gas_price = Mock()
+        cls.testee.env_min_gas_price.return_value = None
 
 
     def setUp(self) -> None:

@@ -9,7 +9,7 @@ if [ "$CONFIG" == "ci" ]; then
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=100000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="0.5"
   [[ -z "$CONTINUE_COUNT_FACTOR"        ]] && export CONTINUE_COUNT_FACTOR="3"
-  [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=0
+  [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=1
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="postgres"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
@@ -21,7 +21,7 @@ elif [ "$CONFIG" == "local" ]; then
   [[ -z "$SOLANA_URL"                   ]] && export SOLANA_URL="http://localhost:8899"
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=0
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="0.9"
-  [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=0
+  [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=1
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=10
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10
@@ -47,7 +47,7 @@ elif [ "$CONFIG" == "testnet" ]; then
   [[ -z "$EVM_LOADER"                   ]] && export EVM_LOADER=eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU
   [[ -z "$EXTRA_GAS"                    ]] && export EXTRA_GAS=90000
   [[ -z "$NEON_CLI_TIMEOUT"             ]] && export NEON_CLI_TIMEOUT="15"
-  [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE="1"
+  [[ -z "$MINIMAL_GAS_PRICE"            ]] && export MINIMAL_GAS_PRICE=1
   [[ -z "$POSTGRES_HOST"                ]] && export POSTGRES_HOST="localhost"
   [[ -z "$CANCEL_TIMEOUT"               ]] && export CANCEL_TIMEOUT=60
   [[ -z "$RETRY_ON_FAIL"                ]] && export RETRY_ON_FAIL=10

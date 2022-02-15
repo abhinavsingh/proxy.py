@@ -10,12 +10,15 @@ import requests
 from web3 import Web3
 from solcx import compile_source
 
+from proxy.testing.testing_helpers import request_airdrop
+
 issue = 'https://github.com/neonlabsorg/neon-evm/issues/166'
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 admin = proxy.eth.account.create(issue + '/admin')
 user = proxy.eth.account.create(issue + '/user')
 proxy.eth.default_account = admin.address
+request_airdrop(admin.address)
 
 ERC20_CONTRACT_SOURCE = '''
 // SPDX-License-Identifier: MIT

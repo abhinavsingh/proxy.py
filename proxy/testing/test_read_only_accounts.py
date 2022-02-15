@@ -19,11 +19,14 @@ from proxy.common_neon.erc20_wrapper import ERC20Wrapper
 from proxy.common_neon.neon_instruction import NeonInstruction
 from solcx import compile_source
 
+from proxy.testing.testing_helpers import request_airdrop
+
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 admin = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197/admin')
 proxy.eth.default_account = admin.address
+request_airdrop(proxy.eth.default_account)
 
 CONTRACT = '''
 pragma solidity >= 0.7.0;
@@ -86,7 +89,7 @@ class Test_read_only_accounts(unittest.TestCase):
             nonce=proxy.eth.get_transaction_count(admin.address),
             chainId=proxy.eth.chain_id,
             gas=987654321,
-            gasPrice=0,
+            gasPrice=1000000000,
             to='',
             value=0,
             data=contract.bytecode),
@@ -100,7 +103,7 @@ class Test_read_only_accounts(unittest.TestCase):
             abi=contract.abi
         )
 
-    
+
     def test_balanceOf(self):
         account = proxy.eth.account.create()
 
@@ -144,7 +147,7 @@ class Test_read_only_accounts(unittest.TestCase):
         self.assertFalse(self.account_exists(solana_account))
         self.assertFalse(self.account_exists(token_account))
 
- 
+
 
 if __name__ == '__main__':
     unittest.main()

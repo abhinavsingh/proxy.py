@@ -361,8 +361,18 @@ class EthereumModel:
         min_gas_price = self.gas_price_calculator.get_min_gas_price()
 
         if trx.gasPrice < min_gas_price:
-            raise RuntimeError("The transaction gasPrice is less then the minimum allowable value" +
+            raise RuntimeError("The transaction gasPrice is less than the minimum allowable value" +
                                f"({trx.gasPrice}<{min_gas_price})")
+
+        user_balance = int(self.eth_getBalance('0x' + trx.sender(), 'latest'), 16)
+        fee = trx.gasPrice * trx.gasLimit
+        required_balance = fee + trx.value
+        if user_balance < required_balance:
+            raise RuntimeError("The account balance is less than required: " +
+                               f"Account {trx.sender()}; balance = {user_balance}; " +
+                               f"gasPrice = {trx.gasPrice}; gasLimit = {trx.gasLimit}; " +
+                               f"fee = {fee}; value = {trx.value}; " +
+                               f"required_balance = {required_balance}; ")
 
         eth_signature = '0x' + trx.hash_signed().hex()
 

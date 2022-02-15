@@ -18,12 +18,16 @@ from proxy.common_neon.erc20_wrapper import ERC20Wrapper
 from proxy.common_neon.neon_instruction import NeonInstruction
 from solana.rpc.types import TokenAccountOpts
 
+from proxy.testing.testing_helpers import request_airdrop
+
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 admin = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197/admin')
 user = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197/user')
 proxy.eth.default_account = admin.address
+request_airdrop(admin.address)
+request_airdrop(user.address)
 
 NAME = 'NEON'
 SYMBOL = 'NEO'

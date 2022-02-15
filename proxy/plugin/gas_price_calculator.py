@@ -16,13 +16,17 @@ class GasPriceCalculator:
         self.recent_sol_price_update_time = None
         self.min_gas_price = None
 
+    def env_min_gas_price(self):
+        if MINIMAL_GAS_PRICE is not None:
+            return MINIMAL_GAS_PRICE
+
     def update_mapping(self):
         if self.mapping_account is not None:
             self.pyth_network_client.update_mapping(self.mapping_account)
 
     def get_min_gas_price(self):
-        if MINIMAL_GAS_PRICE is not None:
-            return MINIMAL_GAS_PRICE
+        if self.env_min_gas_price() is not None:
+            return self.env_min_gas_price()
         self.try_update_gas_price()
         return self.min_gas_price
 

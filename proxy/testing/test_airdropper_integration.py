@@ -18,6 +18,7 @@ from web3 import Web3
 import os
 import json
 
+from proxy.testing.testing_helpers import request_airdrop
 
 MAX_AIRDROP_WAIT_TIME = 45
 EVM_LOADER_ID = PublicKey(EVM_LOADER_ID)
@@ -28,6 +29,7 @@ SYMBOL = 'TST'
 proxy = Web3(Web3.HTTPProvider(PROXY_URL))
 admin = proxy.eth.account.create('neonlabsorg/proxy-model.py/issues/344/admin20')
 proxy.eth.default_account = admin.address
+request_airdrop(admin.address)
 
 
 # Helper function calculating solana address and nonce from given NEON(Ethereum) address

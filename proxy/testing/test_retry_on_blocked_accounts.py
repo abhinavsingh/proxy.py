@@ -29,7 +29,7 @@ from web3.auto.gethdev import w3
 from .testing_helpers import request_airdrop
 from solcx import compile_source
 
-MINIMAL_GAS_PRICE = 1
+MINIMAL_GAS_PRICE = 1000000003
 SEED = 'https://github.com/neonlabsorg/proxy-model.py/issues/365'
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
@@ -63,12 +63,13 @@ def send_routine(acc_seed, contractAddress, abi, loop, return_dict, padding_stri
             abi=abi
         )
     new_eth_account = proxy.eth.account.create(acc_seed)
+    request_airdrop(new_eth_account.address)
     right_nonce = proxy.eth.get_transaction_count(new_eth_account.address)
     trx_store = storage_contract.functions.add_some(2, loop, padding_string).buildTransaction(
         {
             "chainId": proxy.eth.chain_id,
             "gas": 987654321,
-            "gasPrice": 0,
+            "gasPrice": 1000000001,
             "nonce": right_nonce,
         }
     )
@@ -135,7 +136,7 @@ class BlockedTest(unittest.TestCase):
             nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
             chainId=proxy.eth.chain_id,
             gas=987654321,
-            gasPrice=0,
+            gasPrice=1000000002,
             to='',
             value=0,
             data=storage.bytecode),

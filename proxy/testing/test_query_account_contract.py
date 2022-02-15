@@ -17,11 +17,14 @@ import os
 from web3 import Web3
 from solcx import compile_source
 
+from proxy.testing.testing_helpers import request_airdrop
+
 issue = 'https://github.com/neonlabsorg/neon-evm/issues/360'
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 admin = proxy.eth.account.create(issue + '/admin')
 proxy.eth.default_account = admin.address
+request_airdrop(admin.address)
 
 # Address: HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU (a token mint account)
 # uint256: 110178555362476360822489549210862241441608066866019832842197691544474470948129
