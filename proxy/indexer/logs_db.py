@@ -49,8 +49,6 @@ class LogsDB(BaseDB):
                             INSERT INTO {self._table_name}(address, blockHash, blockNumber,
                                             transactionHash, transactionLogIndex, topic, json)
                             VALUES (%s, %s, %s,  %s, %s,  %s, %s) ON CONFLICT DO NOTHING''', rows)
-        else:
-            self.debug("NO LOGS")
 
 
     def get_logs(self, fromBlock = None, toBlock = None, addresses = [], topics = [], blockHash = None):

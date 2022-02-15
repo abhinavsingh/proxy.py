@@ -2,6 +2,7 @@ import base58
 import traceback
 
 from logged_groups import logged_group
+from solana.rpc.api import Client
 from typing import Optional
 
 from ..common_neon.utils import NeonTxInfo, NeonTxResultInfo, NeonTxFullInfo
@@ -30,8 +31,8 @@ class IndexerDB:
             if k not in self._constants:
                 self._constants[k] = 0
 
-    def set_client(self, client):
-        self._client = client
+    def set_client(self, solana_client: Client):
+        self._client = solana_client
 
     def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo, used_ixs: [SolanaIxSignInfo]):
         try:
