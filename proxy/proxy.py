@@ -14,6 +14,7 @@ import time
 import pprint
 import signal
 import logging
+import threading
 from typing import TYPE_CHECKING, Any, List, Optional, cast
 
 from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
@@ -255,7 +256,8 @@ class Proxy:
                 ('', self.flags.tunnel_remote_port),
             )
         # TODO: May be close listener fd as we don't need it now
-        self._register_signals()
+        if threading.current_thread() == threading.main_thread():
+            self._register_signals()
 
     def shutdown(self) -> None:
         if self.flags.enable_ssh_tunnel:
