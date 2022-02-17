@@ -135,8 +135,7 @@ class PythNetworkClient:
         result = response.get('result', None)
         if result is None:
             raise RuntimeError(f'Failed to retrieve data for account(s): {acc_addrs}')
-## to remove
-        self.info(f'{result}')
+        
         acct_values = result.get("value", None)
         if acct_values is None:
             raise RuntimeError(f"Reading pyth account(s):'value' field is absent in result")
