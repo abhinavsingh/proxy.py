@@ -12,7 +12,6 @@ import eth_utils
 import json
 import threading
 import traceback
-import unittest
 import time
 import hashlib
 import multiprocessing
@@ -33,11 +32,12 @@ from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.address import EthereumAddress
 from ..common_neon.transaction_sender import SolanaTxError
 from ..common_neon.emulator_interactor import call_emulated
-from ..common_neon.errors import EthereumError
+from ..common_neon.errors import EthereumError, PendingTxError
 from ..common_neon.eth_proto import Trx as EthTrx
+from ..common_neon.utils import SolanaBlockInfo
 from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT
 from ..environment import neon_cli
-from ..memdb.memdb import MemDB, PendingTxError
+from ..memdb.memdb import MemDB
 from .gas_price_calculator import GasPriceCalculator
 
 
@@ -112,16 +112,16 @@ class EthereumModel:
 
     def process_block_tag(self, tag):
         if tag == "latest":
-            block_number = self._db.get_latest_block_height()
+            block = self._db.get_latest_block()
         elif tag in ('earliest', 'pending'):
             raise Exception("Invalid tag {}".format(tag))
         elif isinstance(tag, str):
-            block_number = int(tag, 16)
+            block = SolanaBlockInfo(height=int(tag, 16))
         elif isinstance(tag, int):
-            block_number = tag
+            block = SolanaBlockInfo(height=tag)
         else:
             raise Exception(f'Failed to parse block tag: {tag}')
-        return block_number
+        return block
 
     def eth_blockNumber(self):
         height = self._db.get_latest_block_height()
@@ -152,9 +152,9 @@ class EthereumModel:
         block_hash = None
 
         if 'fromBlock' in obj and obj['fromBlock'] != '0':
-            from_block = self.process_block_tag(obj['fromBlock'])
+            from_block = self.process_block_tag(obj['fromBlock']).height
         if 'toBlock' in obj and obj['toBlock'] != 'latest':
-            to_block = self.process_block_tag(obj['toBlock'])
+            to_block = self.process_block_tag(obj['toBlock']).height
         if 'address' in obj:
             addresses = to_list(obj['address'])
         if 'topics' in obj:
@@ -164,15 +164,19 @@ class EthereumModel:
 
         return self._db.get_logs(from_block, to_block, addresses, topics, block_hash)
 
-    def getBlockBySlot(self, slot, full):
-        block = self._db.get_full_block_by_slot(slot)
-        if block.slot is None:
-            return None
+    def getBlockBySlot(self, block: SolanaBlockInfo, full, skip_transaction):
+        if not block.time:
+            block = self._db.get_full_block_by_slot(block.slot)
+            if not block.time:
+                return None
 
         sign_list = []
         gas_used = 0
         tx_index = 0
-        tx_list = self._db.get_tx_list_by_sol_sign(block.finalized, block.signs)
+        if skip_transaction:
+            tx_list = []
+        else:
+            tx_list = self._db.get_tx_list_by_sol_sign(block.finalized, block.signs)
 
         for tx in tx_list:
             gas_used += int(tx.neon_res.gas_used, 16)
@@ -188,7 +192,7 @@ class EthereumModel:
         result = {
             "gasUsed": hex(gas_used),
             "hash": block.hash,
-            "number": hex(slot),
+            "number": hex(block.slot),
             "parentHash": block.parent_hash,
             "timestamp": hex(block.time),
             "transactions": sign_list,
@@ -218,11 +222,11 @@ class EthereumModel:
             full - If true it returns the full transaction objects, if false only the hashes of the transactions.
         """
         block_hash = block_hash.lower()
-        slot = self._db.get_block_by_hash(block_hash).slot
-        if slot is None:
+        block = self._db.get_block_by_hash(block_hash)
+        if block.slot is None:
             self.debug("Not found block by hash %s", block_hash)
             return None
-        ret = self.getBlockBySlot(slot, full)
+        ret = self.getBlockBySlot(block, full, False)
         if ret is not None:
             self.debug("eth_getBlockByHash: %s", json.dumps(ret, indent=3))
         else:
@@ -234,12 +238,13 @@ class EthereumModel:
             tag - integer of a block number, or the string "earliest", "latest" or "pending", as in the default block parameter.
             full - If true it returns the full transaction objects, if false only the hashes of the transactions.
         """
-        block_number = self.process_block_tag(tag)
-        slot = self._db.get_block_by_height(block_number).slot
-        if slot is None:
+        block = self.process_block_tag(tag)
+        if block.slot is None:
+            block = self._db.get_block_by_height(block.height)
+        if block.slot is None:
             self.debug("Not found block by number %s", tag)
             return None
-        ret = self.getBlockBySlot(slot, full)
+        ret = self.getBlockBySlot(block, full, tag == 'latest')
         if ret is not None:
             self.debug("eth_getBlockByNumber: %s", json.dumps(ret, indent=3))
         else:
@@ -276,7 +281,7 @@ class EthereumModel:
         try:
             solana = SolanaInteractor(self._client)
             acc_info = solana.get_neon_account_info(EthereumAddress(account))
-            return hex(int.from_bytes(acc_info.trx_count, 'little'))
+            return hex(acc_info.trx_count)
         except Exception as err:
             self.debug(f"eth_getTransactionCount: Can't get account info: {err}")
             return hex(0)
@@ -405,66 +410,6 @@ class JsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-@logged_group("neon.TestCases")
-class SolanaContractTests(unittest.TestCase):
-
-    def setUp(self):
-        self.model = EthereumModel()
-        self.owner = '0xc1566af4699928fdf9be097ca3dc47ece39f8f8e'
-        self.token1 = '0x49a449cd7fd8fbcf34d103d98f2c05245020e35b'
-
-    def getBalance(self, account):
-        return int(self.model.eth_getBalance(account, 'latest'), 16)
-
-    def getBlockNumber(self):
-        return int(self.model.eth_blockNumber(), 16)
-
-    def getTokenBalance(self, token, account):
-        return self.model.contracts[token].balances.get(account, 0)
-
-    def test_transferFunds(self):
-        (sender, receiver, amount) = (self.owner, '0x8d900bfa2353548a4631be870f99939575551b60', 123*10**18)
-        senderBalance = self.getBalance(sender)
-        receiverBalance = self.getBalance(receiver)
-        blockNumber = self.getBlockNumber()
-
-        receiptId = self.model.eth_sendRawTransaction('0xf8730a85174876e800825208948d900bfa2353548a4631be870f99939575551b608906aaf7c8516d0c0000808602e92be91e86a040a2a5d73931f66185e8526f09c4d0dc1f389c1b9fcd5e37a012839e6c5c70f0a00554615806c3fa7dc7c8096b3bfed5a29354045e56982bdf3ee11f649e53d51e')
-        self.debug('ReceiptId:', receiptId)
-
-        self.assertEqual(self.getBalance(sender), senderBalance - amount)
-        self.assertEqual(self.getBalance(receiver), receiverBalance + amount)
-        self.assertEqual(self.getBlockNumber(), blockNumber+1)
-
-        receipt = self.model.eth_getTransactionReceipt(receiptId)
-        self.debug('Receipt:', receipt)
-
-        block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
-        self.debug('Block:', block)
-
-        self.assertTrue(receiptId in block['transactions'])
-
-    def test_transferTokens(self):
-        (token, sender, receiver, amount) = ('0xcf73021fde8654e64421f67372a47aa53c4341a8', '0x324726ca9954ed9bd567a62ae38a7dd7b4eaad0e', '0xb937ad32debafa742907d83cb9749443160de0c4', 32)
-        senderBalance = self.getTokenBalance(token, sender)
-        receiverBalance = self.getTokenBalance(token, receiver)
-        blockNumber = self.getBlockNumber()
-
-
-        receiptId = self.model.eth_sendRawTransaction('0xf8b018850bdfd63e00830186a094b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000cac68f98c1893531df666f2d58243b27dd351a8800000000000000000000000000000000000000000000000000000000000000208602e92be91e86a05ed7d0093a991563153f59c785e989a466e5e83bddebd9c710362f5ee23f7dbaa023a641d304039f349546089bc0cb2a5b35e45619fd97661bd151183cb47f1a0a')
-        self.debug('ReceiptId:', receiptId)
-
-        self.assertEqual(self.getTokenBalance(token, sender), senderBalance - amount)
-        self.assertEqual(self.getTokenBalance(token, receiver), receiverBalance + amount)
-
-        receipt = self.model.eth_getTransactionReceipt(receiptId)
-        self.debug('Receipt:', receipt)
-
-        block = self.model.eth_getBlockByNumber(receipt['blockNumber'], False)
-        self.debug('Block:', block)
-
-        self.assertTrue(receiptId in block['transactions'])
-
-
 @logged_group("neon.Proxy")
 class SolanaProxyPlugin(HttpWebServerBasePlugin):
     """Extend in-built Web Server to add Reverse Proxy capabilities.
@@ -508,7 +453,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 response['result'] = method(*params)
         except SolanaTxError as err:
             # traceback.print_exc()
-            response['error'] = err.result
+            response['error'] = err.error
         except EthereumError as err:
             # traceback.print_exc()
             response['error'] = err.getError()
@@ -547,7 +492,6 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
 
         try:
             request = json.loads(request.body)
-            self.debug(f'Request payload: {request}')
             if isinstance(request, list):
                 response = []
                 if len(request) == 0:

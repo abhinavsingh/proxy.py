@@ -27,7 +27,7 @@ class SolanaBlockInfo:
         self.hash = hash
         self.parent_hash = parent_hash
         self.time = time
-        self.signs = signs
+        self.signs = (signs or [])
 
     def __str__(self):
         return str_fmt_object(self)

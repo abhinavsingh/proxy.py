@@ -157,4 +157,7 @@ class NeonTxsDB(BaseDB):
             cursor.execute(request, sol_sign_list)
             values = cursor.fetchall()
 
-        return [self._tx_from_value(v) for v in values]
+        if not values:
+            return []
+
+        return [self._tx_from_value(v) for v in values if v is not None]

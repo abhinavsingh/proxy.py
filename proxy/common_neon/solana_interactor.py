@@ -4,6 +4,8 @@ import json
 import re
 import time
 
+from typing import Optional
+
 from solana.blockhash import Blockhash
 from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
@@ -16,7 +18,7 @@ from logged_groups import logged_group
 
 from .costs import update_transaction_cost
 from .utils import get_from_dict, SolanaBlockInfo
-from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, WRITE_TRANSACTION_COST_IN_DB
+from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, WRITE_TRANSACTION_COST_IN_DB, SKIP_PREFLIGHT
 from ..environment import LOG_SENDING_SOLANA_TRANSACTION, FUZZING_BLOCKHASH, CONFIRM_TIMEOUT, FINALIZED
 
 from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT
@@ -77,7 +79,7 @@ class SolanaInteractor:
 
         return full_response_data
 
-    def get_account_info(self, storage_account) -> AccountInfo:
+    def get_account_info(self, storage_account) -> Optional[AccountInfo]:
         opts = {
             "encoding": "base64",
             "commitment": "confirmed",
@@ -133,7 +135,7 @@ class SolanaInteractor:
     def get_sol_balance(self, account):
         return self.client.get_balance(account, commitment=Confirmed)['result']['value']
 
-    def get_neon_account_info(self, eth_account: EthereumAddress) -> NeonAccountInfo:
+    def get_neon_account_info(self, eth_account: EthereumAddress) -> Optional[NeonAccountInfo]:
         account_sol, nonce = ether2program(eth_account)
         info = self.get_account_info(account_sol)
         if info is None:
@@ -179,7 +181,7 @@ class SolanaInteractor:
             net_block = response['result']
             block = SolanaBlockInfo(
                 slot=slot,
-                finalized=(commitment==FINALIZED),
+                finalized=(commitment == FINALIZED),
                 hash='0x' + base58.b58decode(net_block['blockhash']).hex(),
                 height=net_block['blockHeight'],
                 parent_hash='0x' + base58.b58decode(net_block['previousBlockhash']).hex(),
@@ -189,14 +191,14 @@ class SolanaInteractor:
             block_list.append(block)
         return block_list
 
-    def get_recent_blockslot(self) -> int:
-        blockhash_resp = self.client.get_recent_blockhash(commitment=Confirmed)
+    def get_recent_blockslot(self, commitment=Confirmed) -> int:
+        blockhash_resp = self.client.get_recent_blockhash(commitment=commitment)
         if not blockhash_resp["result"]:
             raise RuntimeError("failed to get recent blockhash")
         return blockhash_resp['result']['context']['slot']
 
-    def get_recent_blockhash(self) -> Blockhash:
-        blockhash_resp = self.client.get_recent_blockhash(commitment=Confirmed)
+    def get_recent_blockhash(self, commitment=Confirmed) -> Blockhash:
+        blockhash_resp = self.client.get_recent_blockhash(commitment=commitment)
         if not blockhash_resp["result"]:
             raise RuntimeError("failed to get recent blockhash")
         blockhash = blockhash_resp["result"]["value"]["blockhash"]
@@ -239,7 +241,7 @@ class SolanaInteractor:
 
     def _send_multiple_transactions_unconfirmed(self, signer: SolanaAccount, tx_list: [Transaction]) -> [str]:
         opts = {
-            "skipPreflight": False,
+            "skipPreflight": SKIP_PREFLIGHT,
             "encoding": "base64",
             "preflightCommitment": "confirmed"
         }
@@ -290,7 +292,7 @@ class SolanaInteractor:
             return
 
         try:
-            self.debug(f"send multiple transactions for reason {reason}: {eth_tx.__dict__}")
+            self.debug(f"send multiple transactions for reason {reason}")
 
             measurements = self._extract_measurements_from_receipt(receipt)
             for m in measurements:
@@ -454,9 +456,10 @@ def check_if_storage_is_empty_error(receipt):
     if error_arr is not None and isinstance(error_arr, list):
         error_dict = error_arr[1]
         if isinstance(error_dict, dict) and 'Custom' in error_dict:
-            if error_dict['Custom'] == 1 or error_dict['Custom'] == 4:
-                return True
-    return False
+            custom = error_dict['Custom']
+            if custom in (1, 4):
+                return custom
+    return 0
 
 
 def get_logs_from_receipt(receipt):
@@ -480,7 +483,7 @@ def get_logs_from_receipt(receipt):
     if log_from_prepared_receipt is not None:
         return log_from_prepared_receipt
 
-    return None
+    return []
 
 
 @logged_group("neon.Proxy")
@@ -489,6 +492,7 @@ def check_if_accounts_blocked(receipt, *, logger):
     if logs is None:
         logger.error("Can't get logs")
         logger.info("Failed result: %s"%json.dumps(receipt, indent=3))
+        return False
 
     ro_blocked = "trying to execute transaction on ro locked account"
     rw_blocked = "trying to execute transaction on rw locked account"

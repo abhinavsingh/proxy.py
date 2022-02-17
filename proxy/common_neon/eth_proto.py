@@ -1,6 +1,4 @@
-from ecdsa import SigningKey, SECP256k1, VerifyingKey
 from sha3 import keccak_256
-import json
 import rlp
 from eth_keys import keys
 
@@ -21,6 +19,9 @@ a0 5d09ca05a62935d6c2a04bfa5bfa1cb46bfcb59e3a115e0c8cceca807efb778b - s
 '''
 
 
+class InvalidTrx(Exception):
+    pass
+
 
 class Trx(rlp.Serializable):
     fields = (
@@ -35,6 +36,9 @@ class Trx(rlp.Serializable):
         ('s', rlp.codec.big_endian_int)
     )
 
+    secpk1n = 115792089237316195423570985008687907852837564279074904382605163141518161494337
+    null_address = b'\xff' * 20
+
     def __init__(self, *args, **kwargs):
         rlp.Serializable.__init__(self, *args, **kwargs)
         self._msg = None
@@ -44,29 +48,60 @@ class Trx(rlp.Serializable):
         return rlp.decode(s, Trx)
 
     def chainId(self):
-        # chainid*2 + 35  xxxxx0 + 100011   xxxx0 + 100010 +1
-        # chainid*2 + 36  xxxxx0 + 100100   xxxx0 + 100011 +1
-        return (self.v-1)//2 - 17
+        if self.v in (27, 28):
+            return None
+        elif self.v >= 37:
+            # chainid*2 + 35  xxxxx0 + 100011   xxxx0 + 100010 +1
+            # chainid*2 + 36  xxxxx0 + 100100   xxxx0 + 100011 +1
+            return ((self.v - 1) // 2) - 17
+        else:
+            raise InvalidTrx("Invalid V value")
+
+    def _unsigned_msg(self):
+        chain_id = self.chainId()
+        if chain_id is None:
+            return rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData))
+        else:
+            return rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData,
+                               chain_id, 0, 0), Trx)
 
     def unsigned_msg(self):
         if self._msg is None:
-            self._msg = rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData, self.chainId(), b"", b""))
+            self._msg = self._unsigned_msg()
         return self._msg
 
+    def _signature(self):
+        return keys.Signature(vrs=[1 if self.v % 2 == 0 else 0, self.r, self.s])
+
     def signature(self):
-        return keys.Signature(vrs=[1 if self.v % 2 == 0 else 0, self.r, self.s]).to_bytes()
+        return self._signature().to_bytes()
 
     def _sender(self):
-        hash = keccak_256(self.unsigned_msg()).digest()
-        sig = keys.Signature(vrs=[1 if self.v % 2 == 0 else 0, self.r, self.s])
-        pub = sig.recover_public_key_from_msg_hash(hash)
+        if self.r == 0 and self.s == 0:
+            return self.null_address
+        elif self.v in (27, 28):
+            pass
+        elif self.v >= 37:
+            vee = self.v - self.chainId() * 2 - 8
+            assert vee in (27, 28)
+        else:
+            raise InvalidTrx("Invalid V value")
+
+        if self.r >= self.secpk1n or self.s >= self.secpk1n or self.r == 0 or self.s == 0:
+            raise InvalidTrx("Invalid signature values!")
+
+        sighash = keccak_256(self._unsigned_msg()).digest()
+        sig = self._signature()
+        pub = sig.recover_public_key_from_msg_hash(sighash)
+
         return pub.to_canonical_address()
 
     def sender(self):
         return self._sender().hex()
 
     def hash_signed(self):
-        return keccak_256(rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData,
+        return keccak_256(rlp.encode((self.nonce, self.gasPrice, self.gasLimit,
+                                      self.toAddress, self.value, self.callData,
                                       self.v, self.r, self.s))).digest()
 
     def contract(self):
@@ -74,6 +109,7 @@ class Trx(rlp.Serializable):
             return None
         contract_addr = rlp.encode((self._sender(), self.nonce))
         return keccak_256(contract_addr).digest()[-20:].hex()
+
 
 #class JsonEncoder(json.JSONEncoder):
 #    def default(self, obj):

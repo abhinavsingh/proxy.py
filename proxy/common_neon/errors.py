@@ -21,3 +21,7 @@ class SolanaAccountNotFoundError(Exception):
     """Provides special error processing"""
     def __init__(self):
         super().__init__(SolanaErrors.AccountNotFound.value)
+
+
+class PendingTxError(Exception):
+    pass

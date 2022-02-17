@@ -93,6 +93,34 @@ class SolanaBlocksDB(BaseDB):
         q = DBQuery(column_list=[], key_list=[], order_list=['a.slot DESC'])
         return self._fetch_block(None, q)
 
+    def get_latest_block_list(self, limit: int) -> [SolanaBlockInfo]:
+        request = f'''
+            SELECT a.slot, a.height, b.hash, b.parent_hash, b.blocktime, b.signatures
+              FROM {self._table_name}_heights AS a
+         LEFT JOIN {self._table_name}_hashes AS b
+                ON a.slot = b.slot
+          ORDER BY a.slot DESC
+             LIMIT {limit}
+        '''
+
+        with self._conn.cursor() as cursor:
+            cursor.execute(request, [])
+            values = cursor.fetchall()
+
+        if not values:
+            return []
+        return [
+            SolanaBlockInfo(
+                finalized=True,
+                slot=value[0],
+                height=value[1],
+                hash=value[2],
+                parent_hash=value[3],
+                time=value[4],
+                signs=self.decode_list(value[5])
+            ) for value in values
+        ]
+
     def get_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
         q = DBQuery(column_list=[], key_list=[('a.slot', block_slot)], order_list=[])
         return self._fetch_block(block_slot, q)

@@ -1,15 +1,11 @@
-import multiprocessing
+import multiprocessing as mp
 import ctypes
 import pickle
 
 from logged_groups import logged_group
 
 from ..indexer.indexer_db import IndexerDB
-
-
-class PendingTxError(Exception):
-    def __init__(self, err):
-        super().__init__(err)
+from ..common_neon.errors import PendingTxError
 
 
 class NeonPendingTxInfo:
@@ -26,12 +22,14 @@ class NeonPendingTxInfo:
 
 
 @logged_group("neon.Proxy")
-class PendingTxsDB:
+class MemPendingTxsDB:
     # These variables are global for class, they will be initialized one time
-    _manager = multiprocessing.Manager()
+    BIG_SLOT = 1_000_000_000_000
 
-    _pending_tx_lock = _manager.Lock()
-    _pending_slot = _manager.Value(ctypes.c_ulonglong, 0)
+    _manager = mp.Manager()
+
+    _pending_slot = mp.Value(ctypes.c_ulonglong, BIG_SLOT)
+
     _pending_tx_by_hash = _manager.dict()
     _pending_slot_by_hash = _manager.dict()
 
@@ -43,21 +41,21 @@ class PendingTxsDB:
         self._pending_tx_by_hash[tx.neon_sign] = data
         self._pending_slot_by_hash[tx.neon_sign] = tx.slot
 
-        if (self._pending_slot.value == 0) or (self._pending_slot.value > tx.slot):
+        if self._pending_slot.value > tx.slot:
             self._pending_slot.value = tx.slot
 
     def _rm_finalized_txs(self, before_slot: int):
-        if (self._pending_slot.value == 0) or (self._pending_slot.value > before_slot):
+        if self._pending_slot.value > before_slot:
             return
 
         rm_sign_list = []
-        pending_slot = 0
+        pending_slot = self.BIG_SLOT
 
         # Filter tx by slot
         for sign, slot in self._pending_slot_by_hash.items():
             if slot < before_slot:
                 rm_sign_list.append(sign)
-            elif (pending_slot == 0) or (pending_slot > slot):
+            elif pending_slot > slot:
                 pending_slot = slot
 
         self._pending_slot.value = pending_slot
@@ -68,7 +66,7 @@ class PendingTxsDB:
             del self._pending_slot_by_hash[sign]
 
     def is_exist(self, neon_sign: str, before_slot) -> bool:
-        with self._pending_tx_lock:
+        with self._pending_slot.get_lock():
             self._rm_finalized_txs(before_slot)
             return neon_sign in self._pending_tx_by_hash
 
@@ -77,13 +75,16 @@ class PendingTxsDB:
         if executed_tx:
             raise PendingTxError(f'Transaction {tx.neon_sign} is already executed')
 
-        with self._pending_tx_lock:
+        with self._pending_slot.get_lock():
             self._rm_finalized_txs(before_slot)
 
             pended_data = self._pending_tx_by_hash.get(tx.neon_sign)
             if not pended_data:
-                self._set_tx(tx)
-            elif pickle.loads(pended_data).operator == tx.operator:
+                return self._set_tx(tx)
+
+            pended_operator = pickle.loads(pended_data).operator
+            if pended_operator == tx.operator:
                 self._set_tx(tx)
             else:
-                raise PendingTxError(f'Transaction {tx.neon_sign} is locked in other worker')
+                raise PendingTxError(f'Transaction {tx.neon_sign} is locked ' +
+                                     f'by other operator resource {pended_operator}')
