@@ -18,7 +18,7 @@ from solana.blockhash import Blockhash
 from solana.account import Account as SolanaAccount
 from solana.rpc.api import Client as SolanaClient
 
-from ..common_neon.address import accountWithSeed, getTokenAddr, EthereumAddress
+from .address import accountWithSeed, getTokenAddr, EthereumAddress, isPayed
 from ..common_neon.errors import EthereumError
 from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, ACCOUNT_SEED_VERSION
 from .emulator_interactor import call_emulated
@@ -30,10 +30,12 @@ from .solana_interactor import get_error_definition_from_receipt, check_if_stora
 from .solana_interactor import check_if_blockhash_notfound
 from ..common_neon.eth_proto import Trx as EthTx
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo
-from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT, ACCOUNT_PERMISSION_UPDATE_INT, MIN_OPERATOR_BALANCE_TO_WARN, MIN_OPERATOR_BALANCE_TO_ERR
+from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT, ACCOUNT_PERMISSION_UPDATE_INT, MIN_OPERATOR_BALANCE_TO_WARN, MIN_OPERATOR_BALANCE_TO_ERR, \
+    ACCOUNT_MAX_SIZE, SPL_TOKEN_ACCOUNT_SIZE, HOLDER_MSG_SIZE, ACCOUNT_STORAGE_OVERHEAD
 from ..memdb.memdb import MemDB, NeonPendingTxInfo
 from ..environment import get_solana_accounts
 from ..common_neon.account_whitelist import AccountWhitelist
+from proxy.common_neon.utils import get_holder_msg
 
 
 class SolanaTxError(Exception):
@@ -410,6 +412,7 @@ class NeonTxSender:
         self._resize_contract_list = []
         self._create_account_list = []
         self._eth_meta_list = []
+        self.unpaid_space = 0
 
     def execute(self) -> NeonTxResultInfo:
         try:
@@ -528,10 +531,9 @@ class NeonTxSender:
         self.builder.init_eth_trx(self.eth_tx, self._eth_meta_list, self._caller_token)
         self.builder.init_iterative(self.resource.storage, self.resource.holder, self.resource.rid)
 
-    def _call_emulated(self):
-        self.debug(f'sender address: {self.eth_sender}')
-
-        src = self.eth_sender[2:]
+    def _call_emulated(self, sender=None):
+        src = sender.hex() if sender else self.eth_sender[2:]
+        self.debug(f'sender address: 0x{src}')
         if self.deployed_contract:
             dst = 'deploy'
             self.debug(f'deploy contract: {self.deployed_contract}')
@@ -555,14 +557,27 @@ class NeonTxSender:
 
         for account_desc in self._emulator_json['accounts']:
             if account_desc['new']:
-                if account_desc['code_size']:
+                if account_desc['deploy']:
                     stage = NeonCreateContractTxStage(self, account_desc)
                     self._create_account_list.append(stage)
                 elif account_desc['writable']:
                     stage = NeonCreateAccountTxStage(self, account_desc)
                     self._create_account_list.append(stage)
-            elif account_desc['code_size'] and (account_desc['code_size_current'] < account_desc['code_size']):
-                self._resize_contract_list.append(NeonResizeContractTxStage(self, account_desc))
+            # TODO: this section may be moved to the estimate_gas() method
+            elif account_desc["writable"]:
+                resize_stage = None
+                if account_desc['code_size'] and (account_desc['code_size_current'] < account_desc['code_size']):
+                    resize_stage = NeonResizeContractTxStage(self, account_desc)
+                    self._resize_contract_list.append(resize_stage)
+
+                if account_desc["deploy"]:
+                    self.unpaid_space += (resize_stage.size if resize_stage else account_desc["code_size_current"]) + ACCOUNT_STORAGE_OVERHEAD
+                elif account_desc["storage_increment"]:
+                    self.unpaid_space += account_desc["storage_increment"]
+
+                if not isPayed(self.solana.client, account_desc['address']):
+                    self.debug(f'found losted account {account_desc["account"]}')
+                    self.unpaid_space += ACCOUNT_MAX_SIZE + SPL_TOKEN_ACCOUNT_SIZE + ACCOUNT_STORAGE_OVERHEAD * 2
 
             eth_address = account_desc['address']
             sol_account = account_desc["account"]
@@ -983,16 +998,13 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
         tx_list = super()._build_preparation_txs()
 
         # write eth transaction to the holder account
-        unsigned_msg = self.s.eth_tx.unsigned_msg()
-        msg = self.s.eth_tx.signature()
-        msg += len(unsigned_msg).to_bytes(8, byteorder="little")
-        msg += unsigned_msg
+        msg = get_holder_msg(self.s.eth_tx)
 
         offset = 0
         rest = msg
         cnt = 0
         while len(rest):
-            (part, rest) = (rest[:1000], rest[1000:])
+            (part, rest) = (rest[:HOLDER_MSG_SIZE], rest[HOLDER_MSG_SIZE:])
             tx_list.append(self.s.builder.make_write_transaction(offset, part))
             offset += len(part)
             cnt += 1

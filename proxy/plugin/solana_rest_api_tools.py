@@ -1,6 +1,3 @@
-import base64
-import eth_utils
-
 from datetime import datetime
 from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
@@ -9,10 +6,8 @@ from logged_groups import logged_group
 
 from ..common_neon.address import ether2program, getTokenAddr, EthereumAddress
 from ..common_neon.errors import SolanaAccountNotFoundError, SolanaErrors
-from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.utils import get_from_dict
-from ..environment import read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG, EXTRA_GAS
-
+from ..environment import  read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG
 
 @logged_group("neon.Proxy")
 def neon_config_load(ethereum_model, *, logger):
@@ -35,8 +30,6 @@ def neon_config_load(ethereum_model, *, logger):
                                                             '-' \
                                                             + ethereum_model.neon_config_dict['NEON_REVISION']
     logger.debug(ethereum_model.neon_config_dict)
-
-
 @logged_group("neon.Proxy")
 def get_token_balance_gwei(client: SolanaClient, pda_account: str, *, logger) -> int:
     neon_token_account = getTokenAddr(PublicKey(pda_account))
@@ -76,13 +69,3 @@ def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> boo
     value = get_from_dict(info, "result", "value")
     return value is not None
 
-
-@logged_group("neon.Proxy")
-def estimate_gas(contract_id: str, caller_eth_account: EthereumAddress, data: str = None, value: str = None, *, logger):
-    result = call_emulated(contract_id, str(caller_eth_account), data, value)
-    used_gas = result.get("used_gas")
-    if used_gas is None:
-        logger.error(f"Failed estimate_gas, unexpected result, by contract_id: {contract_id}, caller_eth_account: "
-                     f"{caller_eth_account}, data: {data}, value: {value}, emulation result: {result}")
-        raise Exception("Bad estimate_gas result")
-    return used_gas + EXTRA_GAS

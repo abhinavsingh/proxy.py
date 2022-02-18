@@ -26,20 +26,20 @@ from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from solana.rpc.api import Client as SolanaClient
 from typing import List, Tuple
 
-from .solana_rest_api_tools import neon_config_load, get_token_balance_or_zero, estimate_gas
+from .solana_rest_api_tools import neon_config_load, get_token_balance_or_zero
 from ..common_neon.transaction_sender import NeonTxSender
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.address import EthereumAddress
 from ..common_neon.transaction_sender import SolanaTxError
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError, PendingTxError
-from ..common_neon.eth_proto import Trx as EthTrx
+from ..common_neon.estimate import GasEstimate
 from ..common_neon.utils import SolanaBlockInfo
-from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT
+from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, EVM_STEPS
 from ..environment import neon_cli
 from ..memdb.memdb import MemDB
 from .gas_price_calculator import GasPriceCalculator
-
+from ..common_neon.eth_proto import Trx as EthTrx
 
 modelInstanceLock = threading.Lock()
 modelInstance = None
@@ -47,6 +47,7 @@ modelInstance = None
 NEON_PROXY_PKG_VERSION = '0.6.0-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
+evm_step_count = EVM_STEPS * 5  # number of evm-steps, performed by transaction  (should be >= EVM_STEPS)
 
 @logged_group("neon.Proxy")
 class EthereumModel:
@@ -95,11 +96,9 @@ class EthereumModel:
 
     def eth_estimateGas(self, param):
         try:
-            caller_id = param.get('from', "0x0000000000000000000000000000000000000000")
-            contract_id = param.get('to', "deploy")
-            data = param.get('data', "None")
-            value = param.get('value', "")
-            return estimate_gas(contract_id, EthereumAddress(caller_id), data, value)
+            calculator = GasEstimate(param,  self._db, self._client, evm_step_count)
+            return calculator.estimate()
+
         except EthereumError:
             raise
         except Exception as err:
@@ -382,7 +381,7 @@ class EthereumModel:
         eth_signature = '0x' + trx.hash_signed().hex()
 
         try:
-            tx_sender = NeonTxSender(self._db, self._client, trx, steps=500)
+            tx_sender = NeonTxSender(self._db, self._client, trx, steps=evm_step_count)
             tx_sender.execute()
             return eth_signature
 

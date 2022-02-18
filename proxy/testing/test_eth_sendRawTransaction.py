@@ -188,17 +188,18 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
     def test_03_execute_with_low_gas(self):
         print("\ntest_03_execute_with_low_gas")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
-        trx_store = self.storage_contract.functions.store(148).buildTransaction({'nonce': right_nonce, 'gasPrice': 1000000000})
-        print('trx_store:', trx_store)
-        trx_store['gas'] = trx_store['gas'] - 2 - EXTRA_GAS # less than estimated
+        trx_store = self.storage_contract.functions.store(148).buildTransaction({'nonce': right_nonce, 'gasPrice': 1000000000, 'gas': 0})
         print('trx_store:', trx_store)
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
         print('trx_store_signed:', trx_store_signed)
-        trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
-        print('trx_store_hash:', trx_store_hash.hex())
-        trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
-        print('trx_store_receipt:', trx_store_receipt)
-        self.assertEqual(trx_store_receipt['status'], 0)  # false Transaction mined but execution failed
+
+        with self.assertRaisesRegex(Exception, 'custom program error: 0x5'):
+            trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
+            print(trx_store_hash)
+        # print('trx_store_hash:', trx_store_hash.hex())
+        # trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
+        # print('trx_store_receipt (low_gas):', trx_store_receipt)
+        # self.assertEqual(trx_store_receipt['status'], 0)  # false Transaction mined but execution failed
 
     # @unittest.skip("a.i.")
     def test_04_execute_with_bad_nonce(self):

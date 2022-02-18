@@ -28,6 +28,7 @@ ACCOUNT_INFO_LAYOUT = Struct(
     "rw_blocked_acc" / Bytes(32),
     "eth_token_account" / Bytes(32),
     "ro_blocked_cnt" / Int8ul,
+    "state" / Int8ul,
 )
 
 CODE_ACCOUNT_INFO_LAYOUT = Struct(

@@ -17,6 +17,7 @@ from time import sleep
 from web3 import Web3
 import os
 import json
+import unittest
 
 from proxy.testing.testing_helpers import request_airdrop
 
