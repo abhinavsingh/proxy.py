@@ -650,6 +650,7 @@ class SolTxListSender:
         self._pending_list = []
         self._budget_exceeded_list = []
         self._storage_bad_status_list = []
+        self._unknown_error_list = []
 
         self._all_tx_list = [self._bad_block_list,
                              self._blocked_account_list,
@@ -689,7 +690,7 @@ class SolTxListSender:
                         if custom in (1, 4):
                             self._storage_bad_status_list.append(receipt)
                         else:
-                            raise SolanaTxError(receipt)
+                            self._unknown_error_list.append(receipt)
                 else:
                     success_cnt += 1
                     self._on_success_send(tx, receipt)
@@ -700,7 +701,8 @@ class SolTxListSender:
                        f'bad blocks {len(self._bad_block_list)}, ' +
                        f'blocked accounts {len(self._blocked_account_list)}, ' +
                        f'budget exceeded {len(self._budget_exceeded_list)}, ' +
-                       f'bad storage: {len(self._storage_bad_status_list)}')
+                       f'bad storage: {len(self._storage_bad_status_list)}, ' +
+                       f'unknown error: {len(self._unknown_error_list)}')
 
             self._on_post_send()
 
@@ -716,7 +718,9 @@ class SolTxListSender:
         self._blockhash = tx.recent_blockhash
 
     def _on_post_send(self):
-        if len(self._storage_bad_status_list):
+        if len(self._unknown_error_list):
+            raise SolanaTxError(self._unknown_error_list[0])
+        elif len(self._storage_bad_status_list):
             raise SolanaTxError(self._storage_bad_status_list[0])
         elif len(self._budget_exceeded_list):
             raise RuntimeError(COMPUTATION_BUDGET_EXCEEDED)
@@ -911,6 +915,13 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
         if self.neon_res.is_valid():
             self.debug(f'Got Neon tx {"cancel" if self._is_canceled else "result"}: {self.neon_res}')
             return self.clear()
+
+        # Unknown error happens - cancel the transaction
+        if len(self._unknown_error_list):
+            self._unknown_error_list.clear()
+            if not self._is_canceled:
+                self._cancel()
+            return
 
         # There is no more retries to send transactions
         if self._retry_idx == RETRY_ON_FAIL:

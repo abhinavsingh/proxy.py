@@ -69,10 +69,10 @@ def get_accounts_from_storage(client, storage_account, *, logger):
     data = base64.b64decode(info['data'][0])
 
     tag = data[0]
-    if tag == 0:
+    if tag in (0, 1, 4):
         logger.debug("Empty")
         return None
-    elif tag == 3:
+    else:
         logger.debug("Not empty storage")
 
         acc_list = []
@@ -84,9 +84,6 @@ def get_accounts_from_storage(client, storage_account, *, logger):
             offset += 32
 
         return acc_list
-    else:
-        logger.debug("Not empty other")
-        return None
 
 
 @logged_group("neon.Indexer")
