@@ -116,4 +116,4 @@ class GasEstimate:
         logger.debug(f'gas_for_space: {gas_for_space}')
         logger.debug(f'gas_for_trx: {gas_for_trx}')
         logger.debug(f'estimated gas: {gas}')
-        return gas
+        return hex(gas)

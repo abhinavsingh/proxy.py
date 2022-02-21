@@ -89,7 +89,7 @@ class TestUserStories(unittest.TestCase):
         print("expected gas", expected_gas)
         print('estimated_gas:', estimated_gas) # 11851408000
 
-        self.assertEqual(estimated_gas, expected_gas)
+        self.assertEqual(estimated_gas, hex(expected_gas))
 
     def test_02_check_eth_estimateGas_on_deploying_a_contract_with_the_empty_value(self):
         print("https://github.com/neonlabsorg/proxy-model.py/issues/122")
@@ -143,7 +143,7 @@ class TestUserStories(unittest.TestCase):
         print("expected gas ", expected_gas)
         print('estimated_gas:', estimated_gas) # 11851408000
 
-        self.assertEqual(estimated_gas, expected_gas)
+        self.assertEqual(estimated_gas, hex(expected_gas))
 
     def test_03_check_eth_estimateGas_on_deploying_a_contract_with_the_empty_data(self):
         print("https://github.com/neonlabsorg/proxy-model.py/issues/122")
@@ -190,7 +190,7 @@ class TestUserStories(unittest.TestCase):
         print("expected gas ", expected_gas)
         print('estimated_gas:', estimated_gas) # 11851408000
 
-        self.assertEqual(estimated_gas, expected_gas)
+        self.assertEqual(estimated_gas, hex(expected_gas))
 
     def test_04_check_eth_estimateGas_on_deploying_a_contract_with_the_empty_data_and_value(self):
         print("https://github.com/neonlabsorg/proxy-model.py/issues/122")
@@ -236,7 +236,7 @@ class TestUserStories(unittest.TestCase):
         print("expected gas ", expected_gas)
         print('estimated_gas:', estimated_gas)  # 11851408000
 
-        self.assertEqual(estimated_gas, expected_gas)
+        self.assertEqual(estimated_gas, hex(expected_gas))
 
     def test_05_check_params_omitted(self):
         print("https://github.com/neonlabsorg/proxy-model.py/issues/318")
