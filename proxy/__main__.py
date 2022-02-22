@@ -14,7 +14,6 @@ from .proxy import entry_point
 import os
 from .indexer.airdropper import run_airdropper
 from .indexer.indexer import run_indexer
-from solana.rpc.api import Client
 
 if __name__ == '__main__':
     airdropper_mode = os.environ.get('AIRDROPPER_MODE', 'False').lower() in [1, 'true', 'True']
@@ -22,7 +21,6 @@ if __name__ == '__main__':
     if airdropper_mode:
         print("Will run in airdropper mode")
         solana_url = os.environ['SOLANA_URL']
-        evm_loader_id = os.environ['EVM_LOADER']
         pyth_mapping_account = PublicKey(os.environ['PYTH_MAPPING_ACCOUNT'])
         faucet_url = os.environ['FAUCET_URL']
         wrapper_whitelist = os.environ['INDEXER_ERC20_WRAPPER_WHITELIST']
@@ -34,7 +32,6 @@ if __name__ == '__main__':
         max_conf = float(os.environ.get('MAX_CONFIDENCE_INTERVAL', 0.02))
 
         run_airdropper(solana_url,
-                       evm_loader_id,
                        pyth_mapping_account,
                        faucet_url,
                        wrapper_whitelist,
@@ -45,8 +42,7 @@ if __name__ == '__main__':
         print("Will run in indexer mode")
 
         solana_url = os.environ['SOLANA_URL']
-        evm_loader_id = os.environ['EVM_LOADER']
 
-        run_indexer(solana_url, evm_loader_id)
+        run_indexer(solana_url)
     else:
         entry_point()

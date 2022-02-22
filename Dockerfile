@@ -18,8 +18,9 @@ RUN apt update && \
     pip3 install --upgrade pip && \
     /bin/bash -c "source venv/bin/activate" && \
     pip install -r requirements.txt && \
+    pip3 install py-solc-x && \
+    python3 -c "import solcx; solcx.install_solc(version='0.7.6')" && \
     apt remove -y git && \
-    pip install py-solc-x && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=cli /opt/solana/bin/solana \

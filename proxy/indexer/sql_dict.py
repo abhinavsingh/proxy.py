@@ -1,6 +1,6 @@
 from collections.abc import MutableMapping
 from proxy.indexer.pg_common import encode, decode, dummy
-from proxy.indexer.utils import BaseDB
+from proxy.indexer.base_db import BaseDB
 
 
 class SQLDict(MutableMapping, BaseDB):

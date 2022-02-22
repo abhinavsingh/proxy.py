@@ -1,26 +1,17 @@
 from __future__ import annotations
 
-import base64
-import multiprocessing
-import psycopg2
 import statistics
 
-from typing import NamedTuple
-
 from solana.publickey import PublicKey
-from solana.rpc.api import Client
-from solana.rpc.commitment import Confirmed
 from logged_groups import logged_group
 from typing import Dict, Union, Callable
 
 from ..common_neon.address import ether2program
 from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT, CODE_ACCOUNT_INFO_LAYOUT, ACCOUNT_INFO_LAYOUT
-from ..common_neon.utils import get_from_dict
+from ..common_neon.solana_interactor import SolanaInteractor
 
 from ..environment import INDEXER_LOG_SKIP_COUNT
 
-from .pg_common import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST
-from .pg_common import encode, decode
 
 
 def check_error(trx):
@@ -48,38 +39,25 @@ class SolanaIxSignInfo:
         return f"{self.idx}{self.sign}"[:7]
 
 
-
 @logged_group("neon.Indexer")
-def get_accounts_from_storage(client, storage_account, *, logger):
-    opts = {
-        "encoding": "base64",
-        "commitment": "confirmed",
-        "dataSlice": {
-            "offset": 0,
-            "length": 2048,
-        }
-    }
-    result = client._provider.make_request("getAccountInfo", str(storage_account), opts)
+def get_accounts_from_storage(solana: SolanaInteractor, storage_account, *, logger):
+    info = solana.get_account_info(storage_account, length=0)
     # logger.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
 
-    info = result['result']['value']
     if info is None:
-        raise Exception("Can't get information about {}".format(storage_account))
+        raise Exception(f"Can't get information about {storage_account}")
 
-    data = base64.b64decode(info['data'][0])
-
-    tag = data[0]
-    if tag in (0, 1, 4):
+    if info.tag in (0, 1, 4):
         logger.debug("Empty")
         return None
     else:
         logger.debug("Not empty storage")
 
         acc_list = []
-        storage = STORAGE_ACCOUNT_INFO_LAYOUT.parse(data[1:])
+        storage = STORAGE_ACCOUNT_INFO_LAYOUT.parse(info.data[1:])
         offset = 1 + STORAGE_ACCOUNT_INFO_LAYOUT.sizeof()
         for _ in range(storage.accounts_len):
-            some_pubkey = PublicKey(data[offset:offset + 32])
+            some_pubkey = PublicKey(info.data[offset:offset + 32])
             acc_list.append(str(some_pubkey))
             offset += 32
 
@@ -87,18 +65,16 @@ def get_accounts_from_storage(client, storage_account, *, logger):
 
 
 @logged_group("neon.Indexer")
-def get_accounts_by_neon_address(client: Client, neon_address, *, logger):
+def get_accounts_by_neon_address(solana: SolanaInteractor, neon_address, *, logger):
     pda_address, _nonce = ether2program(neon_address)
-    reciept = client.get_account_info(pda_address, commitment=Confirmed)
-    account_info = get_from_dict(reciept, 'result', 'value')
-    if account_info is None:
-        logger.debug(f"account_info is None for pda_address({pda_address}) in reciept({reciept})")
+    info = solana.get_account_info(pda_address, length=0)
+    if info is None:
+        logger.debug(f"account_info is None for pda_address({pda_address})")
         return None, None
-    data = base64.b64decode(account_info['data'][0])
-    if len(data) < ACCOUNT_INFO_LAYOUT.sizeof():
-        logger.debug(f"{len(data)} < {ACCOUNT_INFO_LAYOUT.sizeof()}")
+    if len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof():
+        logger.debug(f"{len(info.data)} < {ACCOUNT_INFO_LAYOUT.sizeof()}")
         return None, None
-    account = ACCOUNT_INFO_LAYOUT.parse(data)
+    account = ACCOUNT_INFO_LAYOUT.parse(info.data)
     code_account = None
     if account.code_account != [0]*32:
         code_account = str(PublicKey(account.code_account))
@@ -106,23 +82,21 @@ def get_accounts_by_neon_address(client: Client, neon_address, *, logger):
 
 
 @logged_group("neon.Indexer")
-def get_code_from_account(client: Client, address, *, logger):
-    reciept = client.get_account_info(address, commitment=Confirmed)
-    code_account_info = get_from_dict(reciept, 'result', 'value')
+def get_code_from_account(solana: SolanaInteractor, address, *, logger):
+    code_account_info = solana.get_account_info(address, length=0)
     if code_account_info is None:
-        logger.debug(f"code_account_info is None for code_address({address}) in reciept({reciept})")
+        logger.debug(f"code_account_info is None for code_address({address})")
         return None
-    data = base64.b64decode(code_account_info['data'][0])
-    if len(data) < CODE_ACCOUNT_INFO_LAYOUT.sizeof():
+    if len(code_account_info.data) < CODE_ACCOUNT_INFO_LAYOUT.sizeof():
         return None
-    storage = CODE_ACCOUNT_INFO_LAYOUT.parse(data)
+    storage = CODE_ACCOUNT_INFO_LAYOUT.parse(code_account_info.data)
     offset = CODE_ACCOUNT_INFO_LAYOUT.sizeof()
-    if len(data) < offset + storage.code_size:
+    if len(code_account_info.data) < offset + storage.code_size:
         return None
-    return '0x' + data[offset:][:storage.code_size].hex()
+    return '0x' + code_account_info.data[offset:][:storage.code_size].hex()
 
 
-class MetricsToLogBuff :
+class MetricsToLogBuff:
     def __init__(self):
         self._reset()
 
@@ -151,70 +125,3 @@ class MetricsToLogBuff :
             msg += f' {key}: {value};'
         logger(msg)
         self._reset()
-
-
-class DBQuery(NamedTuple):
-    column_list: []
-    key_list: []
-    order_list: []
-
-
-class DBQueryExpression(NamedTuple):
-    column_expr: str
-    where_expr: str
-    where_keys: []
-    order_expr: str
-
-
-@logged_group("neon.Indexer")
-class BaseDB:
-    _create_table_lock = multiprocessing.Lock()
-
-    def __init__(self):
-        self._conn = psycopg2.connect(
-            dbname=POSTGRES_DB,
-            user=POSTGRES_USER,
-            password=POSTGRES_PASSWORD,
-            host=POSTGRES_HOST
-        )
-        self._conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-
-        with self._create_table_lock:
-            cursor = self._conn.cursor()
-            cursor.execute(self._create_table_sql())
-
-    def _create_table_sql(self) -> str:
-        assert False, 'No script for the table'
-
-    def _build_expression(self, q: DBQuery) -> DBQueryExpression:
-
-        return DBQueryExpression(
-            column_expr=','.join(q.column_list),
-            where_expr=' AND '.join(['1=1'] + [f'{name}=%s' for name, _ in q.key_list]),
-            where_keys=[value for _, value in q.key_list],
-            order_expr='ORDER BY ' + ', '.join(q.order_list) if len(q.order_list) else '',
-        )
-
-    def _fetchone(self, query: DBQuery) -> str:
-        e = self._build_expression(query)
-
-        request = f'''
-            SELECT {e.column_expr}
-              FROM {self._table_name} AS a
-             WHERE {e.where_expr}
-                   {e.order_expr}
-             LIMIT 1
-        '''
-
-        with self._conn.cursor() as cursor:
-            cursor.execute(request, e.where_keys)
-            return cursor.fetchone()
-
-    def __del__(self):
-        self._conn.close()
-
-    def decode_list(self, v):
-        return [] if not v else decode(v)
-
-    def encode_list(self, v: []):
-        return None if (not v) or (len(v) == 0) else encode(v)

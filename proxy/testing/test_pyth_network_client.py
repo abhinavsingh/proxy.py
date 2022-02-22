@@ -1,14 +1,14 @@
 import unittest
-from unittest.mock import patch, ANY, call
+from unittest.mock import patch, call
 from proxy.indexer.pythnetwork import PythNetworkClient
-from solana.rpc.api import Client as SolanaClient
+from proxy.common_neon.solana_interactor import SolanaInteractor
 from solana.publickey import PublicKey
 from time import sleep
 from decimal import Decimal
 
 # Will perform tests with devnet network
 # CI Airdropper that is already running in parallel (see docker-compose-test.yml)
-# uses mainnet-beta. 
+# uses mainnet-beta.
 # PythNetworkClient will fail with 'too many requests' if trying to connect
 # it to the same Solana network
 solana_url = "https://api.devnet.solana.com"
@@ -57,7 +57,7 @@ class TestPythNetworkClient(unittest.TestCase):
             'status':       1
         }
 
-        cls.testee = PythNetworkClient(SolanaClient(solana_url))
+        cls.testee = PythNetworkClient(SolanaInteractor(solana_url))
 
     def update_mapping(self):
         self.testee.update_mapping(mapping_account)
@@ -67,9 +67,9 @@ class TestPythNetworkClient(unittest.TestCase):
     @patch.object(PythNetworkClient, 'parse_mapping_account')
     @patch.object(PythNetworkClient, 'parse_prod_account')
     @patch.object(PythNetworkClient, 'parse_price_account')
-    def test_success_update_mapping(self, 
+    def test_success_update_mapping(self,
                                     mock_parse_price_account,
-                                    mock_parse_prod_account, 
+                                    mock_parse_prod_account,
                                     mock_parse_mapping_account,
                                     mock_read_pyth_acct_data):
         '''
@@ -97,9 +97,9 @@ class TestPythNetworkClient(unittest.TestCase):
     @patch.object(PythNetworkClient, 'parse_mapping_account')
     @patch.object(PythNetworkClient, 'parse_prod_account')
     @patch.object(PythNetworkClient, 'parse_price_account')
-    def test_continue_when_failed_prod_account(self, 
+    def test_continue_when_failed_prod_account(self,
                                                mock_parse_price_account,
-                                               mock_parse_prod_account, 
+                                               mock_parse_prod_account,
                                                mock_parse_mapping_account,
                                                mock_read_pyth_acct_data):
         '''
@@ -115,7 +115,7 @@ class TestPythNetworkClient(unittest.TestCase):
 
             with self.assertRaises(Exception): # get_price for 1st product should fail
                 self.assertEqual(self.testee.get_price(self.prod1_symbol), self.prod1_price_data)
-            
+
             self.assertEqual(self.testee.get_price(self.prod2_symbol), self.prod2_price_data)
 
             mock_parse_mapping_account.assert_called_once_with(mapping_account)
@@ -126,12 +126,12 @@ class TestPythNetworkClient(unittest.TestCase):
             self.fail(f"Expected not throws exception but it does: {err}")
 
 
-    @patch.object(SolanaClient, 'get_account_info')
+    @patch.object(SolanaInteractor, 'get_account_info')
     def test_forward_exception_when_reading_mapping_account(self, mock_get_account_info):
         mock_get_account_info.side_effect = Exception('TestException')
         with self.assertRaises(Exception):
             self.update_mapping()
-        mock_get_account_info.assert_called_once_with(mapping_account)
+        mock_get_account_info.assert_called_once_with(mapping_account, length=0)
 
 
     def test_integration_success_read_price(self):

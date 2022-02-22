@@ -1,13 +1,11 @@
 from datetime import datetime
 from solana.publickey import PublicKey
-from solana.rpc.api import Client as SolanaClient
-from solana.rpc.commitment import Confirmed
 from logged_groups import logged_group
 
 from ..common_neon.address import ether2program, getTokenAddr, EthereumAddress
-from ..common_neon.errors import SolanaAccountNotFoundError, SolanaErrors
-from ..common_neon.utils import get_from_dict
+from ..common_neon.solana_interactor import SolanaInteractor
 from ..environment import  read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG
+
 
 @logged_group("neon.Proxy")
 def neon_config_load(ethereum_model, *, logger):
@@ -30,42 +28,23 @@ def neon_config_load(ethereum_model, *, logger):
                                                             '-' \
                                                             + ethereum_model.neon_config_dict['NEON_REVISION']
     logger.debug(ethereum_model.neon_config_dict)
+
+
 @logged_group("neon.Proxy")
-def get_token_balance_gwei(client: SolanaClient, pda_account: str, *, logger) -> int:
+def get_token_balance_gwei(solana: SolanaInteractor, pda_account: str, *, logger) -> int:
     neon_token_account = getTokenAddr(PublicKey(pda_account))
-    rpc_response = client.get_token_account_balance(neon_token_account, commitment=Confirmed)
-    error = rpc_response.get('error')
-    if error is not None:
-        message = error.get("message")
-        if message == SolanaErrors.AccountNotFound.value:
-            raise SolanaAccountNotFoundError()
-        logger.error(f"Failed to get_token_balance_gwei by neon_token_account: {neon_token_account}, "
-                     f"got get_token_account_balance error: \"{message}\"")
-        raise Exception("Getting balance error")
-
-    balance = get_from_dict(rpc_response, "result", "value", "amount")
-    if balance is None:
-        logger.error(
-            f"Failed to get_token_balance_gwei by neon_token_account: {neon_token_account}, response: {rpc_response}")
-        raise Exception("Unexpected get_balance response")
-    return int(balance)
+    return solana.get_token_account_balance(neon_token_account)
 
 
 @logged_group("neon.Proxy")
-def get_token_balance_or_zero(client: SolanaClient, eth_account: EthereumAddress, *, logger) -> int:
+def get_token_balance_or_zero(solana: SolanaInteractor, eth_account: EthereumAddress, *, logger) -> int:
     solana_account, nonce = ether2program(eth_account)
     logger.debug(f"Get balance for eth account: {eth_account} aka: {solana_account}")
-
-    try:
-        return get_token_balance_gwei(client, solana_account)
-    except SolanaAccountNotFoundError:
-        logger.debug(f"Account not found:  {eth_account} aka: {solana_account} - return airdrop amount")
-        return 0
+    return get_token_balance_gwei(solana, solana_account)
 
 
-def is_account_exists(client: SolanaClient, eth_account: EthereumAddress) -> bool:
+def is_account_exists(solana: SolanaInteractor, eth_account: EthereumAddress) -> bool:
     pda_account, nonce = ether2program(eth_account)
-    info = client.get_account_info(pda_account, commitment=Confirmed)
-    value = get_from_dict(info, "result", "value")
-    return value is not None
+    info = solana.get_account_info(pda_account)
+    return info is not None
 

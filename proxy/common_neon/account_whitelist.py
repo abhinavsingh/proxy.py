@@ -1,14 +1,13 @@
 import traceback
 from datetime import datetime
-import time
-from proxy.environment import ELF_PARAMS, GET_WHITE_LIST_BALANCE_MAX_RETRIES, GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S
+from proxy.environment import ELF_PARAMS
 from proxy.common_neon.permission_token import PermissionToken
 from solana.publickey import PublicKey
-from solana.rpc.api import Client as SolanaClient
 from solana.account import Account as SolanaAccount
 from typing import Union
 from proxy.common_neon.address import EthereumAddress
 from logged_groups import logged_group
+from ..common_neon.solana_interactor import SolanaInteractor
 
 NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE = int(ELF_PARAMS.get("NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE", 0))
 NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE = int(ELF_PARAMS.get("NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE", 0))
@@ -18,10 +17,7 @@ DENIAL_TOKEN_ADDR = ELF_PARAMS.get("NEON_PERMISSION_DENIAL_TOKEN", '')
 
 @logged_group("neon.AccountWhitelist")
 class AccountWhitelist:
-    def __init__(self, solana: SolanaClient, payer: SolanaAccount, permission_update_int: int):
-        self.info(f'GET_WHITE_LIST_BALANCE_MAX_RETRIES={GET_WHITE_LIST_BALANCE_MAX_RETRIES}')
-        self.info(f'GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S={GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S} seconds')
-        self.info(f'permission_update_int={permission_update_int}')
+    def __init__(self, solana: SolanaInteractor, payer: SolanaAccount, permission_update_int: int):
         self.solana = solana
         self.account_cache = {}
         self.permission_update_int = permission_update_int
@@ -43,9 +39,15 @@ class AccountWhitelist:
                                             PublicKey(DENIAL_TOKEN_ADDR),
                                             payer)
 
-    def read_balance_diff(self, ether_addr: Union[str, EthereumAddress]):
-        allowance_balance = self.allowance_token.get_balance(ether_addr)
-        denial_balance = self.denial_token.get_balance(ether_addr)
+    def read_balance_diff(self, ether_addr: Union[str, EthereumAddress]) -> int:
+        token_list = [
+            self.allowance_token.get_token_account_address(ether_addr),
+            self.denial_token.get_token_account_address(ether_addr)
+        ]
+
+        balance_list = self.solana.get_token_account_balance_list(token_list)
+        allowance_balance = balance_list[0]
+        denial_balance = balance_list[1]
         return allowance_balance - denial_balance
 
     def grant_permissions(self, ether_addr: Union[str, EthereumAddress], min_balance: int):
@@ -106,27 +108,17 @@ class AccountWhitelist:
             if diff < self.permission_update_int:
                 return cached['diff'] >= min_balance
 
-        num_retries = GET_WHITE_LIST_BALANCE_MAX_RETRIES
-
-        while True:
-            try:
-                diff = self.read_balance_diff(ether_addr)
-                self.account_cache[ether_addr] = {
-                    'last_update': current_time,
-                    'diff': diff
-                }
-                return diff >= min_balance
-            except Exception as err:
-                err_tb = "".join(traceback.format_tb(err.__traceback__))
-                self.error(f'Failed to read permissions for {ether_addr}: ' +
-                           f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
-                num_retries -= 1
-                if num_retries == 0:
-                    # This error should be forwarded to client
-                    raise RuntimeError('Failed to read account permissions. Try to repeat later')
-
-                self.info(f'Will retry getting whitelist balance after {GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S} seconds')
-                time.sleep(GET_WHITE_LIST_BALANCE_RETRY_INTERVAL_S)
+        try:
+            diff = self.read_balance_diff(ether_addr)
+            self.account_cache[ether_addr] = {
+                'last_update': current_time,
+                'diff': diff
+            }
+            return diff >= min_balance
+        except Exception as err:
+            err_tb = "".join(traceback.format_tb(err.__traceback__))
+            self.error(f'Failed to read permissions for {ether_addr}: ' +
+                       f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
     def has_client_permission(self, ether_addr: Union[str, EthereumAddress]):
         return self.has_permission(ether_addr, NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE)

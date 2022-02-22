@@ -2,7 +2,6 @@ import base58
 import traceback
 
 from logged_groups import logged_group
-from solana.rpc.api import Client
 from typing import Optional
 
 from ..common_neon.utils import NeonTxInfo, NeonTxResultInfo, NeonTxFullInfo
@@ -15,24 +14,22 @@ from ..indexer.transactions_db import NeonTxsDB
 from ..indexer.logs_db import LogsDB
 from ..indexer.sql_dict import SQLDict
 from ..indexer.utils import get_code_from_account, get_accounts_by_neon_address
+from ..common_neon.solana_interactor import SolanaInteractor
 
 
 @logged_group("neon.Indexer")
 class IndexerDB:
-    def __init__(self):
+    def __init__(self, solana: SolanaInteractor):
         self._logs_db = LogsDB()
         self._blocks_db = SolanaBlocksDB()
         self._txs_db = NeonTxsDB()
         self._account_db = NeonAccountDB()
-        self._client = None
+        self._solana = solana
 
         self._constants = SQLDict(tablename="constants")
-        for k in ['min_receipt_slot']:
+        for k in ['min_receipt_slot', 'latest_slot']:
             if k not in self._constants:
                 self._constants[k] = 0
-
-    def set_client(self, solana_client: Client):
-        self._client = solana_client
 
     def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo, used_ixs: [SolanaIxSignInfo]):
         try:
@@ -50,36 +47,25 @@ class IndexerDB:
             self.error('Exception on submitting transaction. ' +
                        f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
-    def _fill_block_from_net(self, block: SolanaBlockInfo):
-        opts = {"commitment": FINALIZED, "transactionDetails": "signatures", "rewards": False}
-        net_block = self._client._provider.make_request("getBlock", block.slot, opts)
-        if (not net_block) or ('result' not in net_block):
+    def _get_block_from_net(self, block: SolanaBlockInfo) -> SolanaBlockInfo:
+        net_block = self._solana.get_block_info(block.slot, FINALIZED)
+        if not net_block.hash:
             return block
 
-        net_block = net_block['result']
-        if not net_block:
-            return block
-
-        block.hash = '0x' + base58.b58decode(net_block['blockhash']).hex()
-        block.height = net_block['blockHeight']
-        block.signs = net_block['signatures']
-        block.parent_hash = '0x' + base58.b58decode(net_block['previousBlockhash']).hex()
-        block.time = net_block['blockTime']
-        block.finalized = True
-        self.debug(f'{block}')
-        self._blocks_db.set_block(block)
-        return block
+        self.debug(f'{net_block}')
+        self._blocks_db.set_block(net_block)
+        return net_block
 
     def _fill_account_data_from_net(self, account: NeonAccountInfo):
         got_changes = False
         if not account.pda_account:
-            pda_account, code_account = get_accounts_by_neon_address(self._client, account.neon_account)
+            pda_account, code_account = get_accounts_by_neon_address(self._solana, account.neon_account)
             if pda_account:
                 account.pda_account = pda_account
                 account.code_account = code_account
                 got_changes = True
         if account.code_account:
-            code = get_code_from_account(self._client, account.code_account)
+            code = get_code_from_account(self._solana, account.code_account)
             if code:
                 account.code = code
                 got_changes = True
@@ -94,28 +80,25 @@ class IndexerDB:
     def get_block_by_slot(self, slot) -> SolanaBlockInfo:
         block = self._blocks_db.get_block_by_slot(slot)
         if not block.hash:
-            self._fill_block_from_net(block)
+            block = self._get_block_from_net(block)
         return block
 
     def get_full_block_by_slot(self, slot) -> SolanaBlockInfo:
         block = self._blocks_db.get_full_block_by_slot(slot)
         if not block.parent_hash:
-            self._fill_block_from_net(block)
+            block = self._get_block_from_net(block)
         return block
 
     def get_latest_block(self) -> SolanaBlockInfo:
-        return self._blocks_db.get_latest_block()
+        return SolanaBlockInfo(slot=self._constants['latest_slot'])
 
-    def get_latest_block_list(self, limit: int) -> [SolanaBlockInfo]:
-        return self._blocks_db.get_latest_block_list(limit)
-
-    def fill_block_height(self, number, slots):
-        self._blocks_db.fill_block_height(number, slots)
+    def set_latest_block(self, slot: int):
+        self._constants['latest_slot'] = slot
 
     def get_min_receipt_slot(self) -> int:
         return self._constants['min_receipt_slot']
 
-    def set_min_receipt_slot(self, slot):
+    def set_min_receipt_slot(self, slot: int):
         self._constants['min_receipt_slot'] = slot
 
     def get_logs(self, from_block, to_block, addresses, topics, block_hash):
@@ -123,9 +106,6 @@ class IndexerDB:
 
     def get_block_by_hash(self, block_hash: str) -> SolanaBlockInfo:
         return self._blocks_db.get_block_by_hash(block_hash)
-
-    def get_block_by_height(self, block_height: int) -> SolanaBlockInfo:
-        return self._blocks_db.get_block_by_height(block_height)
 
     def get_tx_list_by_sol_sign(self, sol_sign_list: [str]) -> [NeonTxFullInfo]:
         tx_list = self._txs_db.get_tx_list_by_sol_sign(sol_sign_list)

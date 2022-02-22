@@ -1,12 +1,12 @@
-from solana.rpc.api import Client as SolanaClient
 from solana.publickey import PublicKey
 from solana.system_program import SYS_PROGRAM_ID
 from decimal import Decimal
-import base64
-import base58
 import struct
+import traceback
 from logged_groups import logged_group
 from typing import List, Union
+
+from ..common_neon.solana_interactor import SolanaInteractor
 
 
 def read_str(pos, data):
@@ -82,8 +82,8 @@ class PythNetworkClient:
         'agg.status': { 'pos': 224, 'len': 4, 'format': '<I' },
     }
 
-    def __init__(self, client: SolanaClient):
-        self.client = client
+    def __init__(self, solana: SolanaInteractor):
+        self.solana = solana
         self.price_accounts = {}
 
     def parse_pyth_account_data(self, acct_addr, acct_info_value):
@@ -91,18 +91,7 @@ class PythNetworkClient:
         if acct_info_value is None:
             return None
 
-        data = acct_info_value.get('data', None)
-        if not isinstance(data, list) or len(data) != 2:
-            raise RuntimeError(f"Wrong account's data format")
-
-        encoding = data[1]
-        if encoding == 'base58':
-            data = base58.b58decode(data[0])
-        elif encoding == 'base64':
-            data = base64.b64decode(data[0])
-        else:
-            raise RuntimeError(f'Unknown encoding {encoding} in account {acct_addr}')
-
+        data = acct_info_value.data
         magic = unpack(self.base_account_layout, data, 'magic')
         if magic != self.PYTH_MAGIC:
             raise RuntimeError(f'Wrong magic {magic} in account {acct_addr}')
@@ -119,36 +108,27 @@ class PythNetworkClient:
         Method is possible to read one or more account data from blockchain
         Given PublicKey as argument, method will return account data as bytes or None in case if account not found
             OR throw error otherwise (e. g. wrong account data format)
-        Given list PublicKeys as argument, method will return mapping of account addresses to bytes or Nones (for not found accounts) 
+        Given list PublicKeys as argument, method will return mapping of account addresses to bytes or Nones (for not found accounts)
             OR throw error otherwise  (e. g. wrong account data format)
         """
 
-        response = None
+
         if isinstance(acc_addrs, PublicKey):
-            response = self.client.get_account_info(acc_addrs)
+            acct_values = self.solana.get_account_info(acc_addrs, length=0)
         elif isinstance(acc_addrs, list):
-            acc_addrs = [ str(addr) for addr in acc_addrs ]
-            response = self.client._provider.make_request('getMultipleAccounts', acc_addrs)
+            acct_values = self.solana.get_account_info_list(acc_addrs, length=0)
         else:
             raise Exception(f'Unsupported argument to read_pyth_acct_data: {acc_addrs}')
-
-        result = response.get('result', None)
-        if result is None:
-            raise RuntimeError(f'Failed to retrieve data for account(s): {acc_addrs}')
-
-        acct_values = result.get("value", None)
-        if acct_values is None:
-            raise RuntimeError(f"Reading pyth account(s):'value' field is absent in result")
 
         if isinstance(acc_addrs, PublicKey):
             # One PublicKey given
             return self.parse_pyth_account_data(acc_addrs, acct_values)
-        
+
         # Several accounts given
         if not isinstance(acct_values, list) or len(acct_values) != len(acc_addrs):
             raise RuntimeError(f'Wrong result.value field in response to getMultipleAccounts')
 
-        return { acct_addr: self.parse_pyth_account_data(acct_addr, acct_value) for acct_addr, acct_value in zip(acc_addrs, acct_values) }
+        return { str(acct_addr): self.parse_pyth_account_data(acct_addr, acct_value) for acct_addr, acct_value in zip(acc_addrs, acct_values) }
 
 
     def parse_mapping_account(self, acc_addr: PublicKey):
@@ -201,7 +181,9 @@ class PythNetworkClient:
                 self.info(f'Product account {acct_addr}: {symbol}')
                 self.price_accounts[symbol] = product['price_acc']
             except Exception as err:
-                self.warning(f'Failed to parse product account data {acct_addr} : {err}')
+                err_tb = "".join(traceback.format_tb(err.__traceback__))
+                self.warning(f'Failed to parse product account data {acct_addr}, ' +
+                             f'{type(err)}, Error: {err}, Traceback: {err_tb}')
         self.info('Pyth.Network update finished.\n\n\n')
 
 

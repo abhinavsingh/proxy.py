@@ -1,6 +1,8 @@
+from ..environment import EVM_LOADER_ID
+
 
 token_program = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
-evm_loader_addr = 'eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU'
+evm_loader_addr = EVM_LOADER_ID
 erc20_wrapper = '5H7kvhPD7GECAmf227vTPYTS7SC2PmyuVZaT5zVTx7vb'
 wrapper_whitelist = [erc20_wrapper]
 
@@ -65,7 +67,7 @@ pre_token_airdrop_trx = {
                 }
             ],
             'logMessages': [
-                'Program eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU invoke [1]',
+                f'Program {evm_loader_addr} invoke [1]',
                 'Program 11111111111111111111111111111111 invoke [2]',
                 'Program 11111111111111111111111111111111 success',
                 'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL invoke [2]',
@@ -86,9 +88,9 @@ pre_token_airdrop_trx = {
                 'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL consumed 24626 of 485359 compute units',
                 'Program ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL success',
                 'Program log: Total memory occupied: 1414',
-                'Program eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU consumed 40680 of 500000 compute units',
-                'Program eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU success',
-                'Program eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU invoke [1]',
+                f'Program {evm_loader_addr} consumed 40680 of 500000 compute units',
+                f'Program {evm_loader_addr} success',
+                f'Program {evm_loader_addr} invoke [1]',
                 'Program 11111111111111111111111111111111 invoke [2]',
                 'Program 11111111111111111111111111111111 success',
                 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [2]',
@@ -96,8 +98,8 @@ pre_token_airdrop_trx = {
                 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 3412 of 486179 compute units',
                 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success',
                 'Program log: Total memory occupied: 1536',
-                'Program eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU consumed 18381 of 500000 compute units',
-                'Program eeLSJgWzzxrqKv1UxtRVVH8FX3qCQWUs9QuAjJpETGU success',
+                f'Program {evm_loader_addr} consumed 18381 of 500000 compute units',
+                f'Program {evm_loader_addr} success',
                 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [1]',
                 'Program log: Instruction: Transfer',
                 'Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 3120 of 200000 compute units',

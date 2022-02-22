@@ -86,9 +86,9 @@ class MemTxsDB:
         with self._tx_slot.get_lock():
             for data in self._tx_by_neon_sign.values():
                 tx = pickle.loads(data)
-                if from_block and tx.neon_res.block_height < from_block:
+                if from_block and tx.neon_res.slot < from_block:
                     continue
-                if to_block and tx.neon_res.block_height > to_block:
+                if to_block and tx.neon_res.slot > to_block:
                     continue
                 if block_hash and tx.neon_res.block_hash != block_hash:
                     continue

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import random
-import base64
 
 from eth_keys import keys as eth_keys
 from hashlib import sha256
@@ -8,9 +9,8 @@ from spl.token.instructions import get_associated_token_address
 from typing import NamedTuple
 
 from .layouts import ACCOUNT_INFO_LAYOUT
-from ..environment import neon_cli, ETH_TOKEN_MINT_ID, EVM_LOADER_ID
+from ..environment import ETH_TOKEN_MINT_ID, EVM_LOADER_ID
 from .constants import ACCOUNT_SEED_VERSION
-from solana.rpc.commitment import Confirmed
 
 
 class EthereumAddress:
@@ -60,35 +60,17 @@ def getTokenAddr(account):
     return get_associated_token_address(PublicKey(account), ETH_TOKEN_MINT_ID)
 
 
-class AccountInfo(NamedTuple):
+class AccountInfoLayout(NamedTuple):
     ether: eth_keys.PublicKey
     trx_count: int
     code_account: PublicKey
     state: int
 
+    def is_payed(self) -> bool:
+        return self.state != 0
+
     @staticmethod
-    def frombytes(data):
+    def frombytes(data) -> AccountInfoLayout:
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
-        return AccountInfo(cont.ether, int.from_bytes(cont.trx_count, 'little'), PublicKey(cont.code_account), cont.state)
-
-
-def _getAccountData(client, account, expected_length, owner=None):
-    info = client.get_account_info(account, commitment=Confirmed)['result']['value']
-    if info is None:
-        raise Exception("Can't get information about {}".format(account))
-
-    data = base64.b64decode(info['data'][0])
-    if len(data) < expected_length:
-        raise Exception("Wrong data length for account data {}".format(account))
-    return data
-
-
-def getAccountInfo(client, eth_account: EthereumAddress):
-    account_sol, nonce = ether2program(eth_account)
-    info = _getAccountData(client, account_sol, ACCOUNT_INFO_LAYOUT.sizeof())
-    return AccountInfo.frombytes(info)
-
-
-def isPayed(client, address: str):
-    acc_info: AccountInfo = getAccountInfo(client, EthereumAddress(address))
-    return acc_info.state != 0
+        return AccountInfoLayout(cont.ether, int.from_bytes(cont.trx_count, 'little'),
+                                 PublicKey(cont.code_account), cont.state)

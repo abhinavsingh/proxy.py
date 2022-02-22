@@ -1,23 +1,18 @@
-from calendar import c
 from solana.publickey import PublicKey
 from proxy.indexer.indexer_base import IndexerBase
 from proxy.indexer.pythnetwork import PythNetworkClient
-from proxy.indexer.utils import BaseDB
-from solana.rpc.api import Client as SolanaClient
+from proxy.indexer.base_db import BaseDB
+from proxy.indexer.utils import check_error
+from proxy.indexer.sql_dict import SQLDict
 import requests
 import base58
+import traceback
 from datetime import datetime
 from decimal import Decimal
-import os
 from logged_groups import logged_group
-from ..environment import NEON_PRICE_USD
+from ..environment import NEON_PRICE_USD, EVM_LOADER_ID
+from ..common_neon.solana_interactor import SolanaInteractor
 
-try:
-    from utils import check_error
-    from sql_dict import SQLDict
-except ImportError:
-    from .utils import check_error
-    from .sql_dict import SQLDict
 
 ACCOUNT_CREATION_PRICE_SOL = Decimal('0.00472692')
 AIRDROP_AMOUNT_SOL = ACCOUNT_CREATION_PRICE_SOL / 2
@@ -76,14 +71,11 @@ class AirdropReadySet(BaseDB):
             cur.execute(f"SELECT 1 FROM {self._table_name} WHERE eth_address = '{eth_address}'")
             return cur.fetchone() is not None
 
-FINALIZED = os.environ.get('FINALIZED', 'finalized')
-
 
 @logged_group("neon.Airdropper")
 class Airdropper(IndexerBase):
     def __init__(self,
                  solana_url,
-                 evm_loader_id,
                  pyth_mapping_account: PublicKey,
                  faucet_url = '',
                  wrapper_whitelist = 'ANY',
@@ -92,8 +84,9 @@ class Airdropper(IndexerBase):
                  max_conf = 0.1): # maximum confidence interval deviation related to price
         self._constants = SQLDict(tablename="constants")
 
+        solana = SolanaInteractor(solana_url)
         last_known_slot = self._constants.get('latest_processed_slot', None)
-        IndexerBase.__init__(self, solana_url, evm_loader_id, last_known_slot)
+        IndexerBase.__init__(self, solana, last_known_slot)
         self.latest_processed_slot = self.last_slot
 
         # collection of eth-address-to-create-accout-trx mappings
@@ -113,7 +106,7 @@ class Airdropper(IndexerBase):
         # but there will be different slot numbers so price should be updated every time
         self.always_reload_price = (pp_solana_url != solana_url)
         self.pyth_mapping_account = pyth_mapping_account
-        self.pyth_client = PythNetworkClient(SolanaClient(pp_solana_url))
+        self.pyth_client = PythNetworkClient(SolanaInteractor(pp_solana_url))
         self.neon_decimals = neon_decimals
         self.max_conf = Decimal(max_conf)
         self.session = requests.Session()
@@ -122,12 +115,11 @@ class Airdropper(IndexerBase):
         self.airdrop_amount_usd = None
         self.airdrop_amount_neon = None
         self.last_update_pyth_mapping = None
-        self.max_update_pyth_mapping_int = 60 * 60 # update once an hour
+        self.max_update_pyth_mapping_int = 60 * 60  # update once an hour
 
-
-    def get_current_time(self):
+    @staticmethod
+    def get_current_time():
         return datetime.now().timestamp()
-
 
     def try_update_pyth_mapping(self):
         current_time = self.get_current_time()
@@ -136,7 +128,9 @@ class Airdropper(IndexerBase):
                 self.pyth_client.update_mapping(self.pyth_mapping_account)
                 self.last_update_pyth_mapping = current_time
             except Exception as err:
-                self.warning(f'Failed to update pyth.network mapping account data: {err}')
+                err_tb = "".join(traceback.format_tb(err.__traceback__))
+                self.warning(f'Failed to update pyth.network mapping account data ' +
+                             f'{type(err)}, Error: {err}, Traceback: {err_tb}')
                 return False
 
         return True
@@ -146,7 +140,6 @@ class Airdropper(IndexerBase):
         if self.wrapper_whitelist == 'ANY':
             return True
         return contract_addr in self.wrapper_whitelist
-
 
     # helper function checking if given 'create account' corresponds to 'create erc20 token account' instruction
     def check_create_instr(self, account_keys, create_acc, create_token_acc):
@@ -164,27 +157,24 @@ class Airdropper(IndexerBase):
             return False
         return True
 
-
     # helper function checking if given 'create erc20 token account' corresponds to 'token transfer' instruction
-    def check_transfer(self, account_keys, create_token_acc, token_transfer) -> bool:
+    @staticmethod
+    def check_transfer(account_keys, create_token_acc, token_transfer) -> bool:
         return account_keys[create_token_acc['accounts'][1]] == account_keys[token_transfer['accounts'][1]]
-
 
     def airdrop_to(self, eth_address, airdrop_galans):
         self.info(f"Airdrop {airdrop_galans} Galans to address: {eth_address}")
         json_data = { 'wallet': eth_address, 'amount': airdrop_galans }
-        resp = self.session.post(self.faucet_url + '/request_neon_in_galans', json = json_data)
+        resp = self.session.post(self.faucet_url + '/request_neon_in_galans', json=json_data)
         if not resp.ok:
             self.warning(f'Failed to airdrop: {resp.status_code}')
             return False
 
         return True
 
-
     def process_trx_airdropper_mode(self, trx):
         if check_error(trx):
             return
-
         # helper function finding all instructions that satisfies predicate
         def find_instructions(trx, predicate):
             return [instr for instr in trx['transaction']['message']['instructions'] if predicate(instr)]
@@ -195,11 +185,11 @@ class Airdropper(IndexerBase):
         # Airdrop triggers on sequence:
         # neon.CreateAccount -> neon.CreateERC20TokenAccount -> spl.Transfer (maybe shuffled)
         # First: select all instructions that can form such chains
-        predicate = lambda instr: account_keys[instr['programIdIndex']] == self.evm_loader_id \
+        predicate = lambda instr: account_keys[instr['programIdIndex']] == EVM_LOADER_ID \
                                   and base58.b58decode(instr['data'])[0] == 0x02
         create_acc_list = find_instructions(trx, predicate)
 
-        predicate = lambda  instr: account_keys[instr['programIdIndex']] == self.evm_loader_id \
+        predicate = lambda  instr: account_keys[instr['programIdIndex']] == EVM_LOADER_ID \
                                    and base58.b58decode(instr['data'])[0] == 0x0f
         create_token_acc_list = find_instructions(trx, predicate)
 
@@ -217,18 +207,19 @@ class Airdropper(IndexerBase):
                         continue
                     self.schedule_airdrop(create_acc)
 
-
     def get_sol_usd_price(self):
         should_reload = self.always_reload_price
         if not should_reload:
-            if self.recent_price == None or self.recent_price['valid_slot'] < self.current_slot:
+            if self.recent_price is None or self.recent_price['valid_slot'] < self.current_slot:
                 should_reload = True
 
         if should_reload:
             try:
                 self.recent_price = self.pyth_client.get_price('Crypto.SOL/USD')
             except Exception as err:
-                self.warning(f'Exception occured when reading price: {err}')
+                err_tb = "".join(traceback.format_tb(err.__traceback__))
+                self.warning(f'Exception occured when reading price ' +
+                             f'{type(err)}, Error: {err}, Traceback: {err_tb}')
                 return None
 
         return self.recent_price
@@ -252,7 +243,6 @@ class Airdropper(IndexerBase):
         self.info(f"Airdrop amount: ${self.airdrop_amount_usd} ({self.airdrop_amount_neon} NEONs)\n")
         return int(self.airdrop_amount_neon * pow(Decimal(10), self.neon_decimals))
 
-
     def schedule_airdrop(self, create_acc):
         eth_address = "0x" + bytearray(base58.b58decode(create_acc['data'])[20:][:20]).hex()
         if self.airdrop_ready.is_airdrop_ready(eth_address) or eth_address in self.airdrop_scheduled:
@@ -260,7 +250,6 @@ class Airdropper(IndexerBase):
             return
         self.info(f'Scheduling airdrop for {eth_address}')
         self.airdrop_scheduled[eth_address] = { 'scheduled': self.get_current_time() }
-
 
     def process_scheduled_trxs(self):
         # Pyth.network mapping account was never updated
@@ -287,8 +276,8 @@ class Airdropper(IndexerBase):
                                                 })
 
         for eth_address in success_addresses:
-            del self.airdrop_scheduled[eth_address]
-
+            if eth_address in self.airdrop_scheduled:
+                del self.airdrop_scheduled[eth_address]
 
     def process_functions(self):
         """
@@ -298,7 +287,6 @@ class Airdropper(IndexerBase):
         self.debug("Process receipts")
         self.process_receipts()
         self.process_scheduled_trxs()
-
 
     def process_receipts(self):
         max_slot = 0
@@ -312,7 +300,6 @@ class Airdropper(IndexerBase):
 
 @logged_group("neon.Airdropper")
 def run_airdropper(solana_url,
-                   evm_loader_id,
                    pyth_mapping_account: PublicKey,
                    faucet_url,
                    wrapper_whitelist = 'ANY',
@@ -321,7 +308,7 @@ def run_airdropper(solana_url,
                    max_conf = 0.1, *, logger):
     logger.info(f"""Running indexer with params:
         solana_url: {solana_url},
-        evm_loader_id: {evm_loader_id},
+        evm_loader_id: {EVM_LOADER_ID},
         pyth.network mapping account: {pyth_mapping_account},
         faucet_url: {faucet_url},
         wrapper_whitelist: {wrapper_whitelist},
@@ -331,7 +318,6 @@ def run_airdropper(solana_url,
 
     try:
         airdropper = Airdropper(solana_url,
-                                evm_loader_id,
                                 pyth_mapping_account,
                                 faucet_url,
                                 wrapper_whitelist,

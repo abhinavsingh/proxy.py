@@ -1,5 +1,5 @@
 import json
-from ..indexer.utils import BaseDB
+from ..indexer.base_db import BaseDB
 
 
 class LogsDB(BaseDB):
@@ -35,7 +35,7 @@ class LogsDB(BaseDB):
                     (
                         log['address'],
                         block.hash,
-                        block.height,
+                        block.slot,
                         log['transactionHash'],
                         int(log['transactionLogIndex'], 16),
                         topic,

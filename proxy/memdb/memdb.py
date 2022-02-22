@@ -1,5 +1,4 @@
 from logged_groups import logged_group
-from solana.rpc.api import Client as SolanaClient
 from typing import Optional
 
 from ..indexer.indexer_db import IndexerDB
@@ -14,12 +13,9 @@ from ..memdb.transactions_db import MemTxsDB
 
 @logged_group("neon.Proxy")
 class MemDB:
-    def __init__(self, client: SolanaClient):
-        self._client = client
-
-        self._db = IndexerDB()
-        self._db.set_client(self._client)
-        self._solana = SolanaInteractor(client)
+    def __init__(self, solana: SolanaInteractor):
+        self._solana = solana
+        self._db = IndexerDB(solana)
 
         self._blocks_db = MemBlocksDB(self._solana, self._db)
         self._txs_db = MemTxsDB(self._db)
@@ -31,14 +27,14 @@ class MemDB:
     def get_latest_block(self) -> SolanaBlockInfo:
         return self._blocks_db.get_latest_block()
 
-    def get_latest_block_height(self) -> int:
-        return self._blocks_db.get_latest_block_height()
+    def get_latest_block_slot(self) -> int:
+        return self._blocks_db.get_latest_block_slot()
 
-    def get_block_by_height(self, block_height: int) -> SolanaBlockInfo:
-        return self._blocks_db.get_block_by_height(block_height)
+    def get_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
+        return self._blocks_db.get_block_by_slot(block_slot)
 
     def get_full_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
-        return self._db.get_full_block_by_slot(block_slot)
+        return self._blocks_db.get_full_block_by_slot(block_slot)
 
     def get_block_by_hash(self, block_hash: str) -> SolanaBlockInfo:
         return self._blocks_db.get_block_by_hash(block_hash)

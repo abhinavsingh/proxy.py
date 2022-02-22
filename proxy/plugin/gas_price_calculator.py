@@ -3,16 +3,17 @@ from decimal import Decimal
 import time
 from logged_groups import logged_group
 from ..indexer.pythnetwork import PythNetworkClient
+from ..common_neon.solana_interactor import SolanaInteractor
 from ..environment import MINIMAL_GAS_PRICE, OPERATOR_FEE, NEON_PRICE_USD, \
     SOL_PRICE_UPDATE_INTERVAL, GET_SOL_PRICE_MAX_RETRIES, GET_SOL_PRICE_RETRY_INTERVAL
 
 
 @logged_group("neon.gas_price_calculator")
 class GasPriceCalculator:
-    def __init__(self, solana_client, pyth_mapping_acc) -> None:
-        self.solana_client = solana_client
+    def __init__(self, solana: SolanaInteractor, pyth_mapping_acc) -> None:
+        self.solana = solana
         self.mapping_account = pyth_mapping_acc
-        self.pyth_network_client = PythNetworkClient(self.solana_client)
+        self.pyth_network_client = PythNetworkClient(self.solana)
         self.recent_sol_price_update_time = None
         self.min_gas_price = None
 

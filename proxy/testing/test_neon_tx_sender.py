@@ -1,21 +1,18 @@
-import logging
 import os
 import unittest
 from solana.rpc.api import Client as SolanaClient
-from solana.account import Account as SolanaAccount
-from solana.rpc.commitment import Confirmed
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock
 
 from proxy.common_neon.eth_proto import Trx as EthTrx
 from proxy.common_neon.transaction_sender import NeonTxSender
-from proxy.indexer.indexer_db import IndexerDB
+from proxy.common_neon.solana_interactor import SolanaInteractor
 from proxy.memdb.memdb import MemDB
 
 
 class TestNeonTxSender(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.solana = SolanaClient(os.environ['SOLANA_URL'])
+        cls.solana = SolanaInteractor(os.environ['SOLANA_URL'])
 
     def setUp(self) -> None:
         trx = EthTrx.fromString(bytearray.fromhex('f8678080843ade68b194f0dafe87532d4373453b2555c644390e1b99e84c8459682f0080820102a00193e1966a82c5597942370980fb78080901ca86eb3c1b25ec600b2760cfcc94a03efcc1169e161f9a148fd4586e0bcf880648ca74075bfa7a9acc8800614fc9ff'))

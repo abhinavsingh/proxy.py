@@ -21,10 +21,9 @@ def str_fmt_object(obj):
 
 
 class SolanaBlockInfo:
-    def __init__(self, slot=None, finalized=False, height=None, hash=None, parent_hash=None, time=None, signs=None):
+    def __init__(self, slot=None, finalized=False, hash=None, parent_hash=None, time=None, signs=None):
         self.slot = slot
         self.finalized = finalized
-        self.height = height
         self.hash = hash
         self.parent_hash = parent_hash
         self.time = time
@@ -63,7 +62,6 @@ class NeonTxResultInfo:
         self.return_value = bytes()
         self.sol_sign = None
         self.slot = -1
-        self.block_height = -1
         self.block_hash = ''
         self.idx = -1
 
@@ -101,11 +99,10 @@ class NeonTxResultInfo:
 
     def fill_block_info(self, block: SolanaBlockInfo):
         self.slot = block.slot
-        self.block_height = block.height
         self.block_hash = block.hash
         for rec in self.logs:
             rec['blockHash'] = block.hash
-            rec['blockNumber'] = hex(block.height)
+            rec['blockNumber'] = hex(block.slot)
 
     def decode(self, neon_sign: str, tx: {}, ix_idx=-1) -> NeonTxResultInfo:
         self._set_defaults()

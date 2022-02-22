@@ -1,5 +1,5 @@
 from proxy.indexer.pg_common import encode, decode
-from proxy.indexer.utils import BaseDB
+from proxy.indexer.base_db import BaseDB
 
 
 class TrxReceiptsStorage(BaseDB):

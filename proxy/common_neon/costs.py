@@ -1,7 +1,7 @@
 import base58
 
 from ..environment import EVM_LOADER_ID
-from ..indexer.utils import BaseDB
+from ..indexer.base_db import BaseDB
 
 
 class SQLCost(BaseDB):

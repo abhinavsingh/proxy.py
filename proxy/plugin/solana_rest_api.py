@@ -23,14 +23,12 @@ from ..http.codes import httpStatusCodes
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
-from solana.rpc.api import Client as SolanaClient
 from typing import List, Tuple
 
 from .solana_rest_api_tools import neon_config_load, get_token_balance_or_zero
 from ..common_neon.transaction_sender import NeonTxSender
-from ..common_neon.solana_interactor import SolanaInteractor
+from ..common_neon.solana_interactor import SolanaInteractor, SolTxError
 from ..common_neon.address import EthereumAddress
-from ..common_neon.transaction_sender import SolanaTxError
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError, PendingTxError
 from ..common_neon.estimate import GasEstimate
@@ -54,13 +52,13 @@ class EthereumModel:
     proxy_id_glob = multiprocessing.Value('i', 0)
 
     def __init__(self):
-        self._client = SolanaClient(SOLANA_URL)
-        self._db = MemDB(self._client)
+        self._solana = SolanaInteractor(SOLANA_URL)
+        self._db = MemDB(self._solana)
 
         if PP_SOLANA_URL == SOLANA_URL:
-            self.gas_price_calculator = GasPriceCalculator(self._client, PYTH_MAPPING_ACCOUNT)
+            self.gas_price_calculator = GasPriceCalculator(self._solana, PYTH_MAPPING_ACCOUNT)
         else:
-            self.gas_price_calculator = GasPriceCalculator(SolanaClient(PP_SOLANA_URL), PYTH_MAPPING_ACCOUNT)
+            self.gas_price_calculator = GasPriceCalculator(SolanaInteractor(PP_SOLANA_URL), PYTH_MAPPING_ACCOUNT)
         self.gas_price_calculator.update_mapping()
 
         with self.proxy_id_glob.get_lock():
@@ -96,7 +94,7 @@ class EthereumModel:
 
     def eth_estimateGas(self, param):
         try:
-            calculator = GasEstimate(param,  self._db, self._client, evm_step_count)
+            calculator = GasEstimate(param,  self._db, self._solana, evm_step_count)
             return calculator.estimate()
 
         except EthereumError:
@@ -115,17 +113,16 @@ class EthereumModel:
         elif tag in ('earliest', 'pending'):
             raise Exception("Invalid tag {}".format(tag))
         elif isinstance(tag, str):
-            block = SolanaBlockInfo(height=int(tag, 16))
+            block = SolanaBlockInfo(slot=int(tag, 16))
         elif isinstance(tag, int):
-            block = SolanaBlockInfo(height=tag)
+            block = SolanaBlockInfo(slot=tag)
         else:
             raise Exception(f'Failed to parse block tag: {tag}')
         return block
 
     def eth_blockNumber(self):
-        height = self._db.get_latest_block_height()
-        self.debug("eth_blockNumber %s", hex(height))
-        return hex(height)
+        slot = self._db.get_latest_block_slot()
+        return hex(slot)
 
     def eth_getBalance(self, account, tag):
         """account - address to check for balance.
@@ -133,7 +130,7 @@ class EthereumModel:
         """
         eth_acc = EthereumAddress(account)
         self.debug(f'eth_getBalance: {account} {eth_acc}')
-        balance = get_token_balance_or_zero(self._client, eth_acc)
+        balance = get_token_balance_or_zero(self._solana, eth_acc)
         return hex(balance * eth_utils.denoms.gwei)
 
     def eth_getLogs(self, obj):
@@ -151,9 +148,9 @@ class EthereumModel:
         block_hash = None
 
         if 'fromBlock' in obj and obj['fromBlock'] != '0':
-            from_block = self.process_block_tag(obj['fromBlock']).height
+            from_block = self.process_block_tag(obj['fromBlock']).slot
         if 'toBlock' in obj and obj['toBlock'] != 'latest':
-            to_block = self.process_block_tag(obj['toBlock']).height
+            to_block = self.process_block_tag(obj['toBlock']).slot
         if 'address' in obj:
             addresses = to_list(obj['address'])
         if 'topics' in obj:
@@ -226,10 +223,6 @@ class EthereumModel:
             self.debug("Not found block by hash %s", block_hash)
             return None
         ret = self.getBlockBySlot(block, full, False)
-        if ret is not None:
-            self.debug("eth_getBlockByHash: %s", json.dumps(ret, indent=3))
-        else:
-            self.debug("Not found block by hash %s", block_hash)
         return ret
 
     def eth_getBlockByNumber(self, tag, full):
@@ -239,15 +232,9 @@ class EthereumModel:
         """
         block = self.process_block_tag(tag)
         if block.slot is None:
-            block = self._db.get_block_by_height(block.height)
-        if block.slot is None:
-            self.debug("Not found block by number %s", tag)
+            self.debug(f"Not found block by number {tag}")
             return None
         ret = self.getBlockBySlot(block, full, tag == 'latest')
-        if ret is not None:
-            self.debug("eth_getBlockByNumber: %s", json.dumps(ret, indent=3))
-        else:
-            self.debug("Not found block by number %s", tag)
         return ret
 
     def eth_call(self, obj, tag):
@@ -278,8 +265,7 @@ class EthereumModel:
     def eth_getTransactionCount(self, account, tag):
         self.debug('eth_getTransactionCount: %s', account)
         try:
-            solana = SolanaInteractor(self._client)
-            acc_info = solana.get_neon_account_info(EthereumAddress(account))
+            acc_info = self._solana.get_account_info_layout(EthereumAddress(account))
             return hex(acc_info.trx_count)
         except Exception as err:
             self.debug(f"eth_getTransactionCount: Can't get account info: {err}")
@@ -290,7 +276,7 @@ class EthereumModel:
             "transactionHash": tx.neon_tx.sign,
             "transactionIndex": hex(0),
             "blockHash": tx.neon_res.block_hash,
-            "blockNumber": hex(tx.neon_res.block_height),
+            "blockNumber": hex(tx.neon_res.slot),
             "from": tx.neon_tx.addr,
             "to": tx.neon_tx.to_addr,
             "gasUsed": tx.neon_res.gas_used,
@@ -301,7 +287,6 @@ class EthereumModel:
             "logsBloom": "0x"+'0'*512
         }
 
-        self.debug('RESULT: %s', json.dumps(result, indent=3))
         return result
 
     def eth_getTransactionReceipt(self, trxId):
@@ -320,7 +305,7 @@ class EthereumModel:
 
         result = {
             "blockHash": r.block_hash,
-            "blockNumber": hex(r.block_height),
+            "blockNumber": hex(r.slot),
             "hash": t.sign,
             "transactionIndex": hex(0),
             "from": t.addr,
@@ -335,7 +320,6 @@ class EthereumModel:
             "s": t.s,
         }
 
-        self.debug("_getTransaction: %s", json.dumps(result, indent=3))
         return result
 
     def eth_getTransactionByHash(self, trxId):
@@ -353,15 +337,12 @@ class EthereumModel:
         return self._db.get_contract_code(account)
 
     def eth_sendTransaction(self, trx):
-        self.debug("eth_sendTransaction")
-        self.debug("eth_sendTransaction: type(trx):%s", type(trx))
-        self.debug("eth_sendTransaction: str(trx):%s", str(trx))
-        self.debug("eth_sendTransaction: trx=%s", json.dumps(trx, cls=JsonEncoder, indent=3))
+        self.debug(f"eth_sendTransaction type(trx): {type(trx)}, str(trx): {str(trx)}")
         raise RuntimeError("eth_sendTransaction is not supported. please use eth_sendRawTransaction")
 
     def eth_sendRawTransaction(self, rawTrx):
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
-        self.debug(f"{json.dumps(trx.as_dict(), cls=JsonEncoder, indent=3)}")
+        self.debug(f"{json.dumps(trx.as_dict(), cls=JsonEncoder, sort_keys=True)}")
         min_gas_price = self.gas_price_calculator.get_min_gas_price()
 
         if trx.gasPrice < min_gas_price:
@@ -381,14 +362,14 @@ class EthereumModel:
         eth_signature = '0x' + trx.hash_signed().hex()
 
         try:
-            tx_sender = NeonTxSender(self._db, self._client, trx, steps=evm_step_count)
+            tx_sender = NeonTxSender(self._db, self._solana, trx, steps=evm_step_count)
             tx_sender.execute()
             return eth_signature
 
         except PendingTxError as err:
             self.debug(f'{err}')
             return eth_signature
-        except SolanaTxError as err:
+        except SolTxError as err:
             err_msg = json.dumps(err.result, indent=3)
             self.error(f"Got SendTransactionError: {err_msg}")
             raise
@@ -450,7 +431,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 method = getattr(self.model, request['method'])
                 params = request.get('params', [])
                 response['result'] = method(*params)
-        except SolanaTxError as err:
+        except SolTxError as err:
             # traceback.print_exc()
             response['error'] = err.error
         except EthereumError as err:
@@ -459,7 +440,7 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
         except Exception as err:
             err_tb = "".join(traceback.format_tb(err.__traceback__))
             self.error('Exception on process request. ' +
-                           f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
+                       f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
             response['error'] = {'code': -32000, 'message': str(err)}
 
         return response
@@ -506,9 +487,12 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
             response = {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': str(err)}}
 
         resp_time_ms = (time.time() - start_time)*1000  # convert this into milliseconds
-        self.info('handle_request >>> %s 0x%0x %s %s resp_time_ms= %s', threading.get_ident(), id(self.model), json.dumps(response),
-                     request.get('method', '---'),
-                     resp_time_ms)
+        self.info('handle_request >>> %s 0x%0x %s %s resp_time_ms= %s',
+                  threading.get_ident(),
+                  id(self.model),
+                  json.dumps(response),
+                  request.get('method', '---'),
+                  resp_time_ms)
 
         self.client.queue(memoryview(build_http_response(
             httpStatusCodes.OK, body=json.dumps(response).encode('utf8'),

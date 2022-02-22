@@ -1,4 +1,4 @@
-from ..indexer.utils import BaseDB, DBQuery
+from ..indexer.base_db import BaseDB, DBQuery
 from ..common_neon.utils import str_fmt_object
 
 
