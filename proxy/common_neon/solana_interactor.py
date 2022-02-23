@@ -489,6 +489,7 @@ class SolTxListSender:
 
         self._blockhash = None
         self._retry_idx = 0
+        self._total_success_cnt = 0
         self._slots_behind = 0
         self._tx_list = tx_list
         self._node_behind_list = []
@@ -554,7 +555,7 @@ class SolTxListSender:
 
             self.debug(f'retry {self._retry_idx}, ' +
                        f'total receipts {len(receipt_list)}, ' +
-                       f'success receipts {success_cnt}, ' +
+                       f'success receipts {self._total_success_cnt}(+{success_cnt}), ' +
                        f'node behind {len(self._node_behind_list)}, '
                        f'bad blocks {len(self._bad_block_list)}, ' +
                        f'blocked accounts {len(self._blocked_account_list)}, ' +
@@ -562,6 +563,7 @@ class SolTxListSender:
                        f'bad storage: {len(self._storage_bad_status_list)}, ' +
                        f'unknown error: {len(self._unknown_error_list)}')
 
+            self._total_success_cnt += success_cnt
             self._on_post_send()
 
         if len(self._tx_list):
