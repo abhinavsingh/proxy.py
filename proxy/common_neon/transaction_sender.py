@@ -302,10 +302,12 @@ class OperatorResourceList:
             self.error(f"Fail to init accounts for resource {opkey}:{rid}, err({err}): {err_tb}")
             return False
 
-    def _min_operator_balance_to_err(self):
+    @staticmethod
+    def _min_operator_balance_to_err():
         return MIN_OPERATOR_BALANCE_TO_ERR
 
-    def _min_operator_balance_to_warn(self):
+    @staticmethod
+    def _min_operator_balance_to_warn():
         return MIN_OPERATOR_BALANCE_TO_WARN
 
     def _check_operator_balance(self):
@@ -746,6 +748,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
     def __init__(self, *args, **kwargs):
         SimpleNeonTxSender.__init__(self, *args, **kwargs)
         self._is_canceled = False
+        self._postponed_error_receipt = None
 
     def _try_lock_accounts(self):
         time.sleep(0.4)  # one block time
@@ -786,10 +789,19 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
         else:
             super()._on_success_send(tx, receipt)
 
+    def _raise_error(self, error=None):
+        if self._postponed_error_receipt:
+            raise SolTxError(self._postponed_error_receipt)
+
+        assert error is not None
+        raise error
+
     def _on_post_send(self):
         # Result is received
         if self.neon_res.is_valid():
             self.debug(f'Got Neon tx {"cancel" if self._is_canceled else "result"}: {self.neon_res}')
+            if self._is_canceled and self._postponed_error_receipt:
+                self._raise_error()
             return self.clear()
 
         if len(self._node_behind_list):
@@ -798,20 +810,24 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
 
         # Unknown error happens - cancel the transaction
         if len(self._unknown_error_list):
+            if self._is_canceled:
+                self._raise_error(SolTxError(self._unknown_error_list[0]))
+
+            self._postponed_error_receipt = self._unknown_error_list[0]
             self._unknown_error_list.clear()
-            if not self._is_canceled:
-                self._cancel()
-            return
+            if self._total_success_cnt:
+                return self._cancel()
+            self._raise_error()
 
         # There is no more retries to send transactions
         if self._retry_idx >= RETRY_ON_FAIL:
-            if not self._is_canceled:
+            if (not self._is_canceled) and (self._total_success_cnt > 0):
                 self._cancel()
-            return
+            self._raise_error(RuntimeError('No more retries to complete transaction!'))
 
         # The storage has bad structure and the result isn't received! ((
         if len(self._storage_bad_status_list):
-            raise SolTxError(self._storage_bad_status_list[0])
+            self._raise_error(SolTxError(self._storage_bad_status_list[0]))
 
         # Blockhash is changed (((
         if len(self._bad_block_list):
