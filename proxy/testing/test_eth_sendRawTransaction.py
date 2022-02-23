@@ -1,10 +1,12 @@
 import unittest
 import os
+import json
 
 import eth_utils
 from web3 import Web3
 from .testing_helpers import request_airdrop
 from solcx import compile_source
+
 
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
@@ -106,9 +108,9 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             eth_account.key
         )
         print('trx_deploy:', trx_deploy)
-        trx_deploy_hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
-        print('trx_deploy_hash:', trx_deploy_hash.hex())
-        trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(trx_deploy_hash)
+        self.trx_deploy_hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
+        print('trx_deploy_hash:', self.trx_deploy_hash.hex())
+        trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(self.trx_deploy_hash)
         print('trx_deploy_receipt:', trx_deploy_receipt)
 
         self.deploy_block_hash = trx_deploy_receipt['blockHash']
@@ -151,15 +153,24 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print("\ntest_check_get_block_by_hash")
         block = proxy.eth.get_block(self.deploy_block_hash, full_transactions=True)
         print('block:', block)
-        self.assertEqual(len(block['transactions']), 1)
-        self.assertEqual(block['transactions'][0]['blockHash'], self.deploy_block_hash)
+        has_tx = False
+        for tx in block['transactions']:
+            if tx['hash'] == self.trx_deploy_hash:
+                has_tx = True
+                break
+        self.assertTrue(has_tx)
 
     # @unittest.skip("a.i.")
     def test_check_get_block_by_number(self):
         print("\ntest_check_get_block_by_number")
         block = proxy.eth.get_block(int(self.deploy_block_num))
         print('block:', block)
-        self.assertEqual(len(block['transactions']), 1)
+        has_tx = False
+        for tx in block['transactions']:
+            if tx == self.trx_deploy_hash:
+                has_tx = True
+                break
+        self.assertTrue(has_tx)
 
     # @unittest.skip("a.i.")
     def test_01_call_retrieve_right_after_deploy(self):

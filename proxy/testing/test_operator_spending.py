@@ -12,7 +12,7 @@ proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")
 evm_loader_id = PublicKey(os.environ.get("EVM_LOADER"))
 # evm_loader_id = PublicKey("qRuSs83NqmYLuUtF1WRcJ6cffqgMcusi8kr3Efchv7h")
-neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.1"))
+neon_cli_timeout = float(os.environ.get("NEON_CLI_TIMEOUT", "0.5"))
 
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 

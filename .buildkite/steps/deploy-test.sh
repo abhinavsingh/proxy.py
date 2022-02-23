@@ -80,6 +80,24 @@ echo "EVM_LOADER" $EVM_LOADER
 echo "SOLANA_URL" $SOLANA_URL
 echo "FAUCET_URL" $FAUCET_URL
 
+#echo "Run tests..."
+#echo $PROXY_IMAGE $UNISWAP_V2_CORE_IMAGE | parallel --halt now,fail=1 --jobs 2 docker run
+#         --rm -ti \
+#         --network=container:proxy \
+#         -e PROXY_URL \
+#         -e EVM_LOADER \
+#         -e SOLANA_URL \
+#         -e FAUCET_URL \
+#         -e EXTRA_GAS=100000 \
+#         -e POSTGRES_DB=neon-db \
+#         -e POSTGRES_USER=neon-proxy \
+#         -e POSTGRES_PASSWORD=neon-proxy-pass \
+#         -e POSTGRES_HOST=postgres \
+#         --entrypoint ./proxy/deploy-test.sh \
+#         ${EXTRA_ARGS:-} \
+#         {} \
+#         all
+
 echo "Run proxy tests..."
 docker run --rm -ti --network=container:proxy \
      -e PROXY_URL \

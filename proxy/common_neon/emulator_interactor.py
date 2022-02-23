@@ -3,7 +3,7 @@ from logged_groups import logged_group
 
 from typing import Optional, Dict, Any
 from .errors import EthereumError
-from ..environment import neon_cli, ETH_TOKEN_MINT_ID
+from ..environment import neon_cli, NEON_TOKEN_MINT
 
 
 @logged_group("neon.Proxy")
@@ -66,4 +66,4 @@ def decode_revert_message(data: str, *, logger) -> Optional[str]:
 def emulator(contract, sender, data, value):
     data = data or "none"
     value = value or ""
-    return neon_cli().call("emulate", "--token_mint", str(ETH_TOKEN_MINT_ID), sender, contract, data, value)
+    return neon_cli().call("emulate", "--token_mint", str(NEON_TOKEN_MINT), sender, contract, data, value)
