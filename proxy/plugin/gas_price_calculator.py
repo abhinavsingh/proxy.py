@@ -1,11 +1,12 @@
 from datetime import datetime
 from decimal import Decimal
 import time
+import math
 from logged_groups import logged_group
 from ..indexer.pythnetwork import PythNetworkClient
 from ..common_neon.solana_interactor import SolanaInteractor
-from ..environment import MINIMAL_GAS_PRICE, OPERATOR_FEE, NEON_PRICE_USD, \
-    SOL_PRICE_UPDATE_INTERVAL, GET_SOL_PRICE_MAX_RETRIES, GET_SOL_PRICE_RETRY_INTERVAL
+from ..environment import MINIMAL_GAS_PRICE, OPERATOR_FEE, NEON_PRICE_USD, GAS_PRICE_SUGGESTED_PCT
+from ..environment import SOL_PRICE_UPDATE_INTERVAL, GET_SOL_PRICE_MAX_RETRIES, GET_SOL_PRICE_RETRY_INTERVAL
 
 
 @logged_group("neon.gas_price_calculator")
@@ -30,6 +31,9 @@ class GasPriceCalculator:
             return self.env_min_gas_price()
         self.try_update_gas_price()
         return self.min_gas_price
+
+    def get_suggested_gas_price(self):
+        return math.ceil(self.get_min_gas_price() * (1 + GAS_PRICE_SUGGESTED_PCT))
 
     def try_update_gas_price(self):
         cur_time = self.get_current_time()

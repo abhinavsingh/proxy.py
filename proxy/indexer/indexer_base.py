@@ -134,8 +134,12 @@ class IndexerBase:
         )
 
     def _get_signatures(self, before, until):
-        result = self.solana.get_signatures_for_address(before, until, FINALIZED)
-        return result['result']
+        response = self.solana.get_signatures_for_address(before, until, FINALIZED)
+        error = response.get('error')
+        result = response.get('result', [])
+        if error:
+            self.warning(f'Fail to get signatures: {error}')
+        return result
 
     def _get_tx_receipts(self, solana_signature):
         # trx = None

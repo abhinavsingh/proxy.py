@@ -21,6 +21,8 @@ MINIMAL_GAS_PRICE=os.environ.get("MINIMAL_GAS_PRICE", None)
 if MINIMAL_GAS_PRICE is not None:
     MINIMAL_GAS_PRICE = int(MINIMAL_GAS_PRICE)*10**9
 
+GAS_PRICE_SUGGESTED_PCT = Decimal(os.environ.get("GAS_PRICE_SUGGEST_PCT", "0.02"))
+
 EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 LOG_SENDING_SOLANA_TRANSACTION = os.environ.get("LOG_SENDING_SOLANA_TRANSACTION", "NO") == "YES"
 LOG_NEON_CLI_DEBUG = os.environ.get("LOG_NEON_CLI_DEBUG", "NO") == "YES"
