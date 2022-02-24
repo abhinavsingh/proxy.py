@@ -345,11 +345,11 @@ class OperatorResourceList:
         stage = NeonCreateAccountTxStage(self._s, { "address": ether_address })
         stage.balance = self._s.solana.get_multiple_rent_exempt_balances_for_size([stage.size])[0]
         stage.build()
-        
+
         self.debug(f"Create new accounts for resource {opkey}:{rid}")
         SolTxListSender(self._s, [stage.tx], NeonCreateAccountTxStage.NAME).send()
 
-        return solana_address        
+        return solana_address
 
     def _create_perm_accounts(self, seed_list):
         tx = Transaction()
@@ -768,7 +768,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
         self._tx_list = [self._s.builder.make_cancel_transaction()]
 
     def _decrease_steps(self):
-        self._strategy.steps >>= 1
+        self._strategy.steps -= 150
         self.debug(f'Decrease EVM steps to {self._strategy.steps}')
         if self._strategy.steps < 50:
             return self._cancel()
@@ -821,10 +821,6 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
             if (not self._is_canceled) and (self._total_success_cnt > 0):
                 self._cancel()
             self._raise_error(RuntimeError('No more retries to complete transaction!'))
-
-        # The storage has bad structure and the result isn't received! ((
-        if len(self._storage_bad_status_list):
-            self._raise_error(SolTxError(self._storage_bad_status_list[0]))
 
         # Blockhash is changed (((
         if len(self._bad_block_list):
@@ -895,7 +891,11 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
         return self._validate_txsize()
 
     def build_tx(self) -> Transaction:
-        self._tx_idx += 1  # generate unique tx
+        # generate unique tx
+        if self.steps < 50:
+            self.steps += 1
+        else:
+            self.steps -= 1
         return self.s.builder.make_partial_call_or_continue_from_account_data(self.steps, self._tx_idx)
 
     def _build_preparation_txs(self) -> [Transaction]:

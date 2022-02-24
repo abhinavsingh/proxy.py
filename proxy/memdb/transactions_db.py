@@ -5,7 +5,7 @@ import ctypes
 from typing import Optional
 from logged_groups import logged_group
 
-from ..common_neon.utils import NeonTxInfo, NeonTxResultInfo, NeonTxFullInfo, SolanaBlockInfo
+from ..common_neon.utils import NeonTxInfo, NeonTxResultInfo, NeonTxFullInfo
 
 from ..indexer.indexer_db import IndexerDB
 
@@ -48,8 +48,8 @@ class MemTxsDB:
             del self._tx_by_sol_sign[sol_sign]
             del self._slot_by_sol_sign[sol_sign]
 
-    def get_tx_list_by_sol_sign(self, finalized, sol_sign_list: [str], before_slot: int) -> [NeonTxFullInfo]:
-        if finalized:
+    def get_tx_list_by_sol_sign(self, is_finalized, sol_sign_list: [str], before_slot: int) -> [NeonTxFullInfo]:
+        if is_finalized:
             return self._db.get_tx_list_by_sol_sign(sol_sign_list)
 
         tx_list = []

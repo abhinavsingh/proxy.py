@@ -31,7 +31,7 @@ class SolanaBlocksDB(BaseDB):
             return SolanaBlockInfo(slot=slot)
 
         return SolanaBlockInfo(
-            finalized=True,
+            is_finalized=True,
             slot=values[0],
             hash=values[1],
         )
@@ -41,7 +41,7 @@ class SolanaBlocksDB(BaseDB):
             return SolanaBlockInfo(slot=slot)
 
         return SolanaBlockInfo(
-            finalized=True,
+            is_finalized=True,
             slot=values[0],
             hash=values[1],
             parent_hash=values[2],

@@ -20,15 +20,14 @@ class GasEstimate:
 
         self.solana = solana
 
-    @logged_group("neon.Proxy")
-    def execution_cost(self, *, logger) -> int:
+    def execution_cost(self) -> int:
         result = call_emulated(self.contract or "deploy", self.sender, self.data, self.value)
         self.debug(f'emulator returns: {json.dumps(result, indent=3)}')
 
         # Gas used in emulatation
         cost = result['used_gas']
 
-        # Some accounts may not exist at the emulation time 
+        # Some accounts may not exist at the emulation time
         # Calculate gas for them separately
         accounts_size = [
             a["code_size"] + CONTRACT_EXTRA_SPACE
@@ -48,8 +47,7 @@ class GasEstimate:
 
         return cost
 
-    @logged_group("neon.Proxy")
-    def trx_size_cost(self, *, logger) -> int:
+    def trx_size_cost(self) -> int:
         u256_max = int.from_bytes(bytes([0xFF] * 32), "big")
 
         trx = EthTrx(
@@ -66,15 +64,13 @@ class GasEstimate:
         msg = get_holder_msg(trx)
         return ((len(msg) // HOLDER_MSG_SIZE) + 1) * 5000
 
-    @logged_group("neon.Proxy")
-    def iterative_overhead_cost(self, *, logger) -> int:
+    def iterative_overhead_cost(self) -> int:
         last_iteration_cost = 5000
         cancel_cost = 5000
 
         return last_iteration_cost + cancel_cost
 
-    @logged_group("neon.Proxy")
-    def estimate(self, *, logger):
+    def estimate(self):
         execution_cost = self.execution_cost()
         trx_size_cost = self.trx_size_cost()
         overhead = self.iterative_overhead_cost()
@@ -85,10 +81,10 @@ class GasEstimate:
         # if gas < 21000:
         #     gas = 21000
 
-        logger.debug(f'execution_cost: {execution_cost}')
-        logger.debug(f'trx_size_cost: {trx_size_cost}')
-        logger.debug(f'iterative_overhead: {overhead}')
-        logger.debug(f'extra_gas: {EXTRA_GAS}')
-        logger.debug(f'estimated gas: {gas}')
+        self.debug(f'execution_cost: {execution_cost}, ' +
+                   f'trx_size_cost: {trx_size_cost}, ' +
+                   f'iterative_overhead: {overhead}, ' +
+                   f'extra_gas: {EXTRA_GAS}, ' +
+                   f'estimated gas: {gas}')
 
         return hex(gas)
