@@ -19,7 +19,7 @@ from ..environment import FINALIZED
 
 @logged_group("neon.Proxy")
 class RequestSolanaBlockList:
-    BLOCK_CACHE_LIMIT = (32 + 16)
+    BLOCK_CACHE_LIMIT = 100
 
     def __init__(self, blocks_db: MemBlocksDB):
         self._b = blocks_db
@@ -63,8 +63,8 @@ class RequestSolanaBlockList:
 
         max_slot = max(latest_db_slot + self.BLOCK_CACHE_LIMIT, latest_slot)
         for slot in range(max_slot, latest_db_slot - 1, -1):
-            block = exist_block_dict.get(slot)
-            if block is None:
+            block = exist_block_dict.get(slot, SolanaBlockInfo(slot=slot, is_fake=True))
+            if block.is_empty_fake():
                 slot_list.append(slot)
             else:
                 self.block_list.append(block)
@@ -72,12 +72,10 @@ class RequestSolanaBlockList:
 
         solana_block_list = self._b.solana.get_block_info_list(slot_list)
         for block in solana_block_list:
-            if not block.time:
+            if block.is_empty():
                 if block.slot > latest_slot:
                     continue
-                block.time = block_time
-                block.hash = '0x' + os.urandom(32).hex()
-                block.parent_hash = '0x' + os.urandom(32).hex()
+                block = self._b.generate_fake_block(block.slot, block_time)
             else:
                 block_time = max(block_time, block.time)
                 latest_slot = max(block.slot, latest_slot)
@@ -134,7 +132,8 @@ class MemBlocksDB:
                    f'latest block - {self._latest_block}, ' +
                    f'latest db block slot - {self._latest_db_block_slot}')
 
-    def _get_now(self) -> int:
+    @staticmethod
+    def _get_now() -> int:
         return math.ceil(time.time_ns() / 10_000_000)
 
     def _set_block_list(self, request: RequestSolanaBlockList):
@@ -258,19 +257,15 @@ class MemBlocksDB:
         self._update_block_dicts()
         return self._latest_db_block_slot
 
-    def get_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
-        self._update_block_dicts()
-        if block_slot > self._first_block.slot:
-            return self._block_by_slot.get(block_slot, SolanaBlockInfo())
-
-        return self.db.get_block_by_slot(block_slot)
-
     def get_full_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
         self._update_block_dicts()
         if block_slot > self._first_block.slot:
-            return self._block_by_slot.get(block_slot, SolanaBlockInfo())
+            return self._block_by_slot.get(block_slot, SolanaBlockInfo(slot=block_slot))
 
-        return self.db.get_full_block_by_slot(block_slot)
+        block = self.db.get_full_block_by_slot(block_slot)
+        if block.is_empty():
+            block = self.generate_fake_block(block.slot, self._latest_block.time)
+        return block
 
     def get_block_by_hash(self, block_hash: str) -> SolanaBlockInfo:
         self._update_block_dicts()
@@ -280,39 +275,60 @@ class MemBlocksDB:
 
         return self.db.get_block_by_hash(block_hash)
 
-    def _generate_fake_block(self, neon_res: NeonTxResultInfo) -> SolanaBlockInfo:
-        data = self._pending_block_by_slot.get(neon_res.slot)
-        if data:
-            block = pickle.loads(data)
-        else:
-            block = SolanaBlockInfo(
-                slot=neon_res.slot,
-                time=self._latest_block.time,
-                hash='0x' + os.urandom(32).hex(),
-                parent_hash='0x' + os.urandom(32).hex(),
-            )
-            self.debug(f'Generate fake block {block} for {neon_res.sol_sign}')
-
-        block.signs.append(neon_res.sol_sign)
-        return block
+    @staticmethod
+    def generate_fake_block(block_slot: int, block_time=1) -> SolanaBlockInfo:
+        # TODO: return predictable information about block hashes and block time
+        return SolanaBlockInfo(
+            slot=block_slot,
+            time=(block_time or 1),
+            hash='0x' + os.urandom(32).hex(),
+            parent_hash='0x' + os.urandom(32).hex(),
+            is_fake=True
+        )
 
     def submit_block(self, neon_res: NeonTxResultInfo) -> SolanaBlockInfo:
-        block = self.solana.get_block_info(neon_res.slot)
+        self._try_to_fill_blocks_from_pending_list()
+
+        data = None
+        block = self._block_by_slot.get(neon_res.slot, SolanaBlockInfo(slot=neon_res.slot, is_fake=True))
+        # if block doesn't exist, or it's a fake block without signatures
+        if block.is_empty_fake():
+            block = self.solana.get_block_info(neon_res.slot)
+            if not block.is_empty():
+                data = pickle.dumps(block)
 
         with self._last_time.get_lock():
-            if not block.time:
-                block = self._generate_fake_block(neon_res)
-                data = pickle.dumps(block)
-                is_new_block = True
-            else:
-                data = pickle.dumps(block)
-                is_new_block = neon_res.slot not in self._pending_block_by_slot
+            # get the latest version of the fake block with signatures
+            latest_data = self._pending_block_by_slot.get(neon_res.slot)
+            if latest_data:
+                block = pickle.loads(latest_data)
+                data = None
 
-            if is_new_block:
-                self._pending_block_by_slot[block.slot] = data
-                self._pending_block_list.append(data)
+            # self.solana.get_block_info() returns empty block, and there is no block in the cache
+            if block.is_empty():
+                block = self.generate_fake_block(neon_res.slot, self._latest_block.time)
 
-                # Force updating of block dictionaries in workers
-                self._pending_block_revision.value += 1
+            if block.is_fake:
+                block.signs.append(neon_res.sol_sign)
+                data = pickle.dumps(block)
+
+            if not data:
+                return block
+
+            if self._latest_block.slot < block.slot:
+                self._pending_latest_block.value = data
+
+                # generate list of fake blocks
+                if self._latest_block.slot:
+                    for slot in range(self._latest_block.slot + 1, block.slot):
+                        fake_block = self.generate_fake_block(slot, self._latest_block.time)
+                        fake_data = pickle.dumps(fake_block)
+                        self._pending_block_list.append(fake_data)
+
+            self._pending_block_by_slot[block.slot] = data
+            self._pending_block_list.append(data)
+
+            # Force updating of block dictionaries in other workers
+            self._pending_block_revision.value += 1
 
         return block

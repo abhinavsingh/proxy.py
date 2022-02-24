@@ -30,9 +30,6 @@ class MemDB:
     def get_latest_block_slot(self) -> int:
         return self._blocks_db.get_latest_block_slot()
 
-    def get_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
-        return self._blocks_db.get_block_by_slot(block_slot)
-
     def get_full_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
         return self._blocks_db.get_full_block_by_slot(block_slot)
 
@@ -47,10 +44,10 @@ class MemDB:
         neon_res.fill_block_info(block)
         self._txs_db.submit_transaction(neon_tx, neon_res, self._before_slot())
 
-    def get_tx_list_by_sol_sign(self, finalized: bool, sol_sign_list: [str]) -> [NeonTxFullInfo]:
+    def get_tx_list_by_sol_sign(self, is_finalized: bool, sol_sign_list: [str]) -> [NeonTxFullInfo]:
         if (not sol_sign_list) or (not len(sol_sign_list)):
             return []
-        return self._txs_db.get_tx_list_by_sol_sign(finalized, sol_sign_list, self._before_slot())
+        return self._txs_db.get_tx_list_by_sol_sign(is_finalized, sol_sign_list, self._before_slot())
 
     def get_tx_by_neon_sign(self, neon_sign: str) -> Optional[NeonTxFullInfo]:
         before_slot = self._before_slot()

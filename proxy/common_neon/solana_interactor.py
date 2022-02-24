@@ -78,12 +78,12 @@ class SolanaInteractor:
                 raw_response.raise_for_status()
                 return raw_response
 
-            except requests.exceptions.ConnectionError as err:
+            except requests.exceptions.RequestException as err:
                 if retry > RETRY_ON_FAIL:
                     raise
 
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
-                self.error(f'ConnectionError({retry}) on send request to Solana. ' +
+                self.error(f'Connection exception({retry}) on send request to Solana. ' +
                            f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
                 time.sleep(1)
 
@@ -284,7 +284,7 @@ class SolanaInteractor:
 
         return SolanaBlockInfo(
             slot=slot,
-            finalized=(commitment == FINALIZED),
+            is_finalized=(commitment == FINALIZED),
             hash='0x' + base58.b58decode(net_block['blockhash']).hex(),
             parent_hash='0x' + base58.b58decode(net_block['previousBlockhash']).hex(),
             time=net_block['blockTime'],
@@ -312,13 +312,13 @@ class SolanaInteractor:
             if (not response) or ('result' not in response):
                 block = SolanaBlockInfo(
                     slot=slot,
-                    finalized=(commitment == FINALIZED),
+                    is_finalized=(commitment == FINALIZED),
                 )
             else:
                 net_block = response['result']
                 block = SolanaBlockInfo(
                     slot=slot,
-                    finalized=(commitment == FINALIZED),
+                    is_finalized=(commitment == FINALIZED),
                     hash='0x' + base58.b58decode(net_block['blockhash']).hex(),
                     parent_hash='0x' + base58.b58decode(net_block['previousBlockhash']).hex(),
                     time=net_block['blockTime'],
@@ -497,7 +497,6 @@ class SolTxListSender:
         self._blocked_account_list = []
         self._pending_list = []
         self._budget_exceeded_list = []
-        self._storage_bad_status_list = []
         self._unknown_error_list = []
 
         self._all_tx_list = [self._node_behind_list,
@@ -544,11 +543,7 @@ class SolTxListSender:
                     if check_if_program_exceeded_instructions(receipt):
                         self._budget_exceeded_list.append(tx)
                     else:
-                        custom = check_if_storage_is_empty_error(receipt)
-                        if custom in (1, 4):
-                            self._storage_bad_status_list.append(receipt)
-                        else:
-                            self._unknown_error_list.append(receipt)
+                        self._unknown_error_list.append(receipt)
                 else:
                     success_cnt += 1
                     self._on_success_send(tx, receipt)
@@ -560,7 +555,6 @@ class SolTxListSender:
                        f'bad blocks {len(self._bad_block_list)}, ' +
                        f'blocked accounts {len(self._blocked_account_list)}, ' +
                        f'budget exceeded {len(self._budget_exceeded_list)}, ' +
-                       f'bad storage: {len(self._storage_bad_status_list)}, ' +
                        f'unknown error: {len(self._unknown_error_list)}')
 
             self._total_success_cnt += success_cnt
@@ -590,8 +584,6 @@ class SolTxListSender:
         elif len(self._node_behind_list):
             self.warning(f'Node is behind by {self._slots_behind} slots')
             time.sleep(1)
-        elif len(self._storage_bad_status_list):
-            raise SolTxError(self._storage_bad_status_list[0])
         elif len(self._budget_exceeded_list):
             raise RuntimeError(COMPUTATION_BUDGET_EXCEEDED)
 
@@ -757,17 +749,6 @@ def check_if_program_exceeded_instructions(receipt):
     if isinstance(error_type, str):
         return error_type in [PROGRAM_FAILED_TO_COMPLETE, COMPUTATION_BUDGET_EXCEEDED]
     return False
-
-
-def check_if_storage_is_empty_error(receipt):
-    error_arr = get_error_definition_from_receipt(receipt)
-    if error_arr is not None and isinstance(error_arr, list):
-        error_dict = error_arr[1]
-        if isinstance(error_dict, dict) and 'Custom' in error_dict:
-            custom = error_dict['Custom']
-            if custom in (1, 4):
-                return custom
-    return 0
 
 
 def get_logs_from_receipt(receipt):

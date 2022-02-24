@@ -167,9 +167,9 @@ class EthereumModel:
         return self._db.get_logs(from_block, to_block, addresses, topics, block_hash)
 
     def getBlockBySlot(self, block: SolanaBlockInfo, full, skip_transaction):
-        if not block.time:
+        if block.is_empty():
             block = self._db.get_full_block_by_slot(block.slot)
-            if not block.time:
+            if block.is_empty():
                 return None
 
         sign_list = []
@@ -178,7 +178,7 @@ class EthereumModel:
         if skip_transaction:
             tx_list = []
         else:
-            tx_list = self._db.get_tx_list_by_sol_sign(block.finalized, block.signs)
+            tx_list = self._db.get_tx_list_by_sol_sign(block.is_finalized, block.signs)
 
         for tx in tx_list:
             gas_used += int(tx.neon_res.gas_used, 16)
