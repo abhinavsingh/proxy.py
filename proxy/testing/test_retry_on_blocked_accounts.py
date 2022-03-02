@@ -207,21 +207,16 @@ class BlockedTest(unittest.TestCase):
                 AccountMeta(pubkey=self.acc.public_key(), is_signer=True, is_writable=True),
                 # Collateral pool address:
                 AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
-                # Operator's NEON token account:
-                AccountMeta(pubkey=get_associated_token_address(self.acc.public_key(), ETH_TOKEN_MINT_ID), is_signer=False, is_writable=True),
-                # User's NEON token account:
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
+                # Operator's NEON token account: pay gas to caller
+                AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
                 # System program account:
                 AccountMeta(pubkey=PublicKey(SYS_PROGRAM_ID), is_signer=False, is_writable=False),
+                # NeonEVM program account:
+                AccountMeta(pubkey=self.loader.loader_id, is_signer=False, is_writable=False),
 
                 AccountMeta(pubkey=self.reId, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.re_code, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
-
-                AccountMeta(pubkey=self.loader.loader_id, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
             ])
 
 

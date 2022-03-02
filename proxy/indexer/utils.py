@@ -47,16 +47,21 @@ def get_accounts_from_storage(solana: SolanaInteractor, storage_account, *, logg
     if info is None:
         raise Exception(f"Can't get information about {storage_account}")
 
-    if info.tag == 3:
+    if info.tag == 30:
         logger.debug("Not empty storage")
 
         acc_list = []
         storage = STORAGE_ACCOUNT_INFO_LAYOUT.parse(info.data[1:])
         offset = 1 + STORAGE_ACCOUNT_INFO_LAYOUT.sizeof()
         for _ in range(storage.accounts_len):
+            writable = (info.data[offset] > 0)
+            offset += 1
+
             some_pubkey = PublicKey(info.data[offset:offset + 32])
             acc_list.append(str(some_pubkey))
             offset += 32
+
+            acc_list.append((writable, str(some_pubkey)))
 
         return acc_list
     else:

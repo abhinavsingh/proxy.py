@@ -166,7 +166,7 @@ class SolanaInteractor:
             }
 
         result = self._send_rpc_request('getAccountInfo', str(pubkey), opts)
-        self.debug(f"{json.dumps(result, sort_keys=True)}")
+        # self.debug(f"{json.dumps(result, sort_keys=True)}")
 
         info = result['result']['value']
         if info is None:
@@ -194,7 +194,7 @@ class SolanaInteractor:
             }
 
         result = self._send_rpc_request("getMultipleAccounts", [str(a) for a in accounts], opts)
-        self.debug(f"{json.dumps(result, sort_keys=True)}")
+        # self.debug(f"{json.dumps(result, sort_keys=True)}")
 
         if result['result']['value'] is None:
             self.debug(f"Can't get information about {accounts}")

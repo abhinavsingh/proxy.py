@@ -2,8 +2,6 @@ from datetime import datetime
 from solana.publickey import PublicKey
 from logged_groups import logged_group
 
-from ..common_neon.address import ether2program, getTokenAddr, EthereumAddress
-from ..common_neon.solana_interactor import SolanaInteractor
 from ..environment import  read_elf_params, TIMEOUT_TO_RELOAD_NEON_CONFIG
 
 
@@ -28,23 +26,3 @@ def neon_config_load(ethereum_model, *, logger):
                                                             '-' \
                                                             + ethereum_model.neon_config_dict['NEON_REVISION']
     logger.debug(ethereum_model.neon_config_dict)
-
-
-@logged_group("neon.Proxy")
-def get_token_balance_gwei(solana: SolanaInteractor, pda_account: str, *, logger) -> int:
-    neon_token_account = getTokenAddr(PublicKey(pda_account))
-    return solana.get_token_account_balance(neon_token_account)
-
-
-@logged_group("neon.Proxy")
-def get_token_balance_or_zero(solana: SolanaInteractor, eth_account: EthereumAddress, *, logger) -> int:
-    solana_account, nonce = ether2program(eth_account)
-    logger.debug(f"Get balance for eth account: {eth_account} aka: {solana_account}")
-    return get_token_balance_gwei(solana, solana_account)
-
-
-def is_account_exists(solana: SolanaInteractor, eth_account: EthereumAddress) -> bool:
-    pda_account, nonce = ether2program(eth_account)
-    info = solana.get_account_info(pda_account)
-    return info is not None
-

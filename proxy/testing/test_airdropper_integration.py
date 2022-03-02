@@ -78,19 +78,13 @@ class TestAirdropperIntegration(TestCase):
 
     def create_account_instruction(self, eth_address: str, payer: PublicKey):
         dest_address_solana, nonce = get_evm_loader_account_address(eth_address)
-        neon_token_account = get_associated_token_address(dest_address_solana, ETH_TOKEN_MINT_ID)
         return TransactionInstruction(
             program_id=EVM_LOADER_ID,
-            data=create_account_layout(0, 0, bytes.fromhex(eth_address[2:]), nonce),
+            data=create_account_layout(bytes.fromhex(eth_address[2:]), nonce),
             keys=[
                 AccountMeta(pubkey=payer, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=dest_address_solana, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=neon_token_account, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
+                AccountMeta(pubkey=dest_address_solana, is_signer=False, is_writable=True),
             ])
 
     def create_sol_account(self):

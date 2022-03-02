@@ -25,7 +25,7 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from typing import List, Tuple
 
-from .solana_rest_api_tools import neon_config_load, get_token_balance_or_zero
+from .solana_rest_api_tools import neon_config_load
 from ..common_neon.transaction_sender import NeonTxSender
 from ..common_neon.solana_interactor import SolanaInteractor, SolTxError
 from ..common_neon.address import EthereumAddress
@@ -33,7 +33,7 @@ from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError, PendingTxError
 from ..common_neon.estimate import GasEstimate
 from ..common_neon.utils import SolanaBlockInfo
-from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, EVM_STEPS
+from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT
 from ..environment import neon_cli
 from ..memdb.memdb import MemDB
 from .gas_price_calculator import GasPriceCalculator
@@ -45,7 +45,7 @@ modelInstance = None
 NEON_PROXY_PKG_VERSION = '0.6.0-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
-evm_step_count = EVM_STEPS * 5  # number of evm-steps, performed by transaction  (should be >= EVM_STEPS)
+evm_step_count = 500  # number of evm-steps, performed by transaction
 
 @logged_group("neon.Proxy")
 class EthereumModel:
@@ -95,7 +95,7 @@ class EthereumModel:
 
     def eth_estimateGas(self, param):
         try:
-            calculator = GasEstimate(param,  self._db, self._solana, evm_step_count)
+            calculator = GasEstimate(param, self._solana)
             return calculator.estimate()
 
         except EthereumError:
@@ -129,10 +129,16 @@ class EthereumModel:
         """account - address to check for balance.
            tag - integer block number, or the string "latest", "earliest" or "pending"
         """
-        eth_acc = EthereumAddress(account)
-        self.debug(f'eth_getBalance: {account} {eth_acc}')
-        balance = get_token_balance_or_zero(self._solana, eth_acc)
-        return hex(balance * eth_utils.denoms.gwei)
+        self.debug(f'eth_getBalance: {account}')
+        try:
+            acc_info = self._solana.get_account_info_layout(EthereumAddress(account))
+            if acc_info is None:
+                return hex(0)
+
+            return hex(acc_info.balance)
+        except Exception as err:
+            self.debug(f"eth_getBalance: Can't get account info: {err}")
+            return hex(0)
 
     def eth_getLogs(self, obj):
         def to_list(items):

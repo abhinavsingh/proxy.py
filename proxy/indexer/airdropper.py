@@ -144,13 +144,10 @@ class Airdropper(IndexerBase):
     # helper function checking if given 'create account' corresponds to 'create erc20 token account' instruction
     def check_create_instr(self, account_keys, create_acc, create_token_acc):
         # Must use the same Ethereum account
-        if account_keys[create_acc['accounts'][1]] != account_keys[create_token_acc['accounts'][2]]:
-            return False
-        # Must use the same token program
-        if account_keys[create_acc['accounts'][5]] != account_keys[create_token_acc['accounts'][6]]:
+        if account_keys[create_acc['accounts'][2]] != account_keys[create_token_acc['accounts'][2]]:
             return False
         # Token program must be system token program
-        if account_keys[create_acc['accounts'][5]] != 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA':
+        if account_keys[create_token_acc['accounts'][6]] != 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA':
             return False
         # CreateERC20TokenAccount instruction must use ERC20-wrapper from whitelist
         if not self.is_allowed_wrapper_contract(account_keys[create_token_acc['accounts'][3]]):
@@ -186,7 +183,7 @@ class Airdropper(IndexerBase):
         # neon.CreateAccount -> neon.CreateERC20TokenAccount -> spl.Transfer (maybe shuffled)
         # First: select all instructions that can form such chains
         predicate = lambda instr: account_keys[instr['programIdIndex']] == EVM_LOADER_ID \
-                                  and base58.b58decode(instr['data'])[0] == 0x02
+                                  and base58.b58decode(instr['data'])[0] == 0x18
         create_acc_list = find_instructions(trx, predicate)
 
         predicate = lambda  instr: account_keys[instr['programIdIndex']] == EVM_LOADER_ID \
@@ -244,7 +241,7 @@ class Airdropper(IndexerBase):
         return int(self.airdrop_amount_neon * pow(Decimal(10), self.neon_decimals))
 
     def schedule_airdrop(self, create_acc):
-        eth_address = "0x" + bytearray(base58.b58decode(create_acc['data'])[20:][:20]).hex()
+        eth_address = "0x" + bytearray(base58.b58decode(create_acc['data'])[1:][:20]).hex()
         if self.airdrop_ready.is_airdrop_ready(eth_address) or eth_address in self.airdrop_scheduled:
             # Target account already supplied with airdrop or airdrop already scheduled
             return

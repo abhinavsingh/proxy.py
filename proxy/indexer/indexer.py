@@ -483,6 +483,29 @@ class CreateAccountIxDecoder(DummyIxDecoder):
         self.state.add_account_to_db(neon_account, pda_account, code_account, self.ix.sign.slot)
         return True
 
+class CreateAccount2IxDecoder(DummyIxDecoder):
+    def __init__(self, state: ReceiptsParserState):
+        DummyIxDecoder.__init__(self, 'CreateAccount2', state)
+
+    def execute(self) -> bool:
+        self._decoding_start()
+
+        if check_error(self.ix.tx):
+            return self._decoding_skip("Ignore failed create account")
+
+        if len(self.ix.ix_data) < 21:
+            return self._decoding_skip(f'not enough data to get the Neon account {len(self.ix.ix_data)}')
+
+        neon_account = "0x" + self.ix.ix_data[1:][:20].hex()
+        pda_account = self.ix.get_account(2)
+        code_account = self.ix.get_account(3)
+        if code_account == '':
+            code_account = None
+
+        self.debug(f"neon_account({neon_account}), pda_account({pda_account}), code_account({code_account}), slot({self.ix.sign.slot})")
+
+        self.state.add_account_to_db(neon_account, pda_account, code_account, self.ix.sign.slot)
+        return True
 
 class ResizeStorageAccountIxDecoder(DummyIxDecoder):
     def __init__(self, state: ReceiptsParserState):
@@ -727,7 +750,10 @@ class Indexer(IndexerBase):
             0x13: PartialCallV02IxDecoder(self.state),
             0x14: ContinueV02IxDecoder(self.state),
             0x15: CancelV02IxDecoder(self.state),
-            0x16: ExecuteTrxFromAccountV02IxDecoder(self.state)
+            0x16: ExecuteTrxFromAccountV02IxDecoder(self.state),
+            0x17: DummyIxDecoder('UpdateValidsTable', self.state),
+            0x18: CreateAccount2IxDecoder(self.state),
+            0x19: DummyIxDecoder('Deposit', self.state),
         }
         self.def_decoder = DummyIxDecoder('Unknown', self.state)
 
@@ -798,12 +824,17 @@ class Indexer(IndexerBase):
             self.warning(f"Transaction {tx.neon_tx} has empty storage.")
             return False
 
-        if storage_accounts_list != tx.blocked_accounts:
+        if len(storage_accounts_list) != len(tx.blocked_accounts):
             self.warning(f"Transaction {tx.neon_tx} has another list of accounts than storage.")
             return False
 
+        for (writable, account), tx_account in zip(storage_accounts_list, tx.blocked_accounts):
+            if account != tx_account:
+                self.warning(f"Transaction {tx.neon_tx} has another list of accounts than storage.")
+                return False
+
         self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
-        self.blocked_storages[tx.storage_account] = (tx.neon_tx, tx.blocked_accounts)
+        self.blocked_storages[tx.storage_account] = (tx.neon_tx, storage_accounts_list)
         tx.canceled = True
         return True
 

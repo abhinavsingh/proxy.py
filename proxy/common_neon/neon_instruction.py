@@ -1,25 +1,22 @@
-import eth_utils
 import struct
 
 from sha3 import keccak_256
 from solana._layouts.system_instructions import SYSTEM_INSTRUCTIONS_LAYOUT, InstructionType
 from solana.publickey import PublicKey
 from solana.system_program import SYS_PROGRAM_ID
-from solana.sysvar import SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY
+from solana.sysvar import  SYSVAR_RENT_PUBKEY
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
-from spl.token.constants import ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID
-from spl.token.instructions import transfer2, Transfer2Params
-from typing import Tuple
+from spl.token.constants import TOKEN_PROGRAM_ID
+from typing import Tuple, Optional
 from logged_groups import logged_group
 
-from .address import accountWithSeed, ether2program, getTokenAddr, EthereumAddress
+from .address import accountWithSeed, ether2program, EthereumAddress
 from .constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PROGRAM, COLLATERALL_POOL_MAX
 from .layouts import CREATE_ACCOUNT_LAYOUT
-from ..environment import EVM_LOADER_ID, ETH_TOKEN_MINT_ID , COLLATERAL_POOL_BASE
+from ..environment import EVM_LOADER_ID,  COLLATERAL_POOL_BASE
 
 
 obligatory_accounts = [
-    AccountMeta(pubkey=EVM_LOADER_ID, is_signer=False, is_writable=False),
     AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
 ]
 
@@ -39,10 +36,8 @@ def create_account_with_seed_layout(base, seed, lamports, space):
     )
 
 
-def create_account_layout(lamports, space, ether, nonce):
-    return bytes.fromhex("02000000")+CREATE_ACCOUNT_LAYOUT.build(dict(
-        lamports=lamports,
-        space=space,
+def create_account_layout(ether, nonce):
+    return bytes.fromhex("18")+CREATE_ACCOUNT_LAYOUT.build(dict(
         ether=ether,
         nonce=nonce
     ))
@@ -81,13 +76,12 @@ def make_keccak_instruction_data(check_instruction_index, msg_len, data_start):
 
 @logged_group("neon.Proxy")
 class NeonInstruction:
-    def __init__(self, operator):
+    def __init__(self, operator: PublicKey, operator_ether: Optional[EthereumAddress] = None):
         self.operator_account = operator
-        self.operator_neon_address = getTokenAddr(self.operator_account)
+        self.operator_neon_address = ether2program(operator_ether)[0] if operator_ether else None
 
-    def init_eth_trx(self, eth_trx, eth_accounts, caller_token):
+    def init_eth_trx(self, eth_trx, eth_accounts):
         self.eth_accounts = eth_accounts
-        self.caller_token = caller_token
 
         self.eth_trx = eth_trx
 
@@ -126,15 +120,14 @@ class NeonInstruction:
             data=create_account_with_seed_layout(self.operator_account, seed_str, lamports, space)
         )
 
-    def make_create_eth_account_trx(self, eth_address: EthereumAddress, code_acc=None) -> Tuple[Transaction, PublicKey]:
+    def make_create_eth_account_trx(self, eth_address: EthereumAddress, code_acc=None) -> Transaction:
         if isinstance(eth_address, str):
             eth_address = EthereumAddress(eth_address)
         pda_account, nonce = ether2program(eth_address)
-        neon_token_account = getTokenAddr(PublicKey(pda_account))
-        self.debug(f'Create eth account: {eth_address}, sol account: {pda_account}, neon_token_account: {neon_token_account}, nonce: {nonce}')
+        self.debug(f'Create eth account: {eth_address}, sol account: {pda_account}, nonce: {nonce}')
 
         base = self.operator_account
-        data = create_account_layout(0, 0, bytes(eth_address), nonce)
+        data = create_account_layout(bytes(eth_address), nonce)
         trx = Transaction()
         if code_acc is None:
             trx.add(TransactionInstruction(
@@ -142,13 +135,8 @@ class NeonInstruction:
                 data=data,
                 keys=[
                     AccountMeta(pubkey=base, is_signer=True, is_writable=True),
-                    AccountMeta(pubkey=PublicKey(pda_account), is_signer=False, is_writable=True),
-                    AccountMeta(pubkey=neon_token_account, is_signer=False, is_writable=True),
                     AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-                    AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
-                    AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                    AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                    AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
+                    AccountMeta(pubkey=PublicKey(pda_account), is_signer=False, is_writable=True),
                 ]))
         else:
             trx.add(TransactionInstruction(
@@ -156,16 +144,11 @@ class NeonInstruction:
                 data=data,
                 keys=[
                     AccountMeta(pubkey=base, is_signer=True, is_writable=True),
-                    AccountMeta(pubkey=PublicKey(pda_account), is_signer=False, is_writable=True),
-                    AccountMeta(pubkey=neon_token_account, is_signer=False, is_writable=True),
-                    AccountMeta(pubkey=PublicKey(code_acc), is_signer=False, is_writable=True),
                     AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-                    AccountMeta(pubkey=ETH_TOKEN_MINT_ID, is_signer=False, is_writable=False),
-                    AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                    AccountMeta(pubkey=ASSOCIATED_TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                    AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
+                    AccountMeta(pubkey=PublicKey(pda_account), is_signer=False, is_writable=True),
+                    AccountMeta(pubkey=PublicKey(code_acc), is_signer=False, is_writable=True),
                 ]))
-        return trx, neon_token_account
+        return trx
 
     def createERC20TokenAccountTrx(self, token_info) -> Transaction:
         trx = Transaction()
@@ -230,9 +213,8 @@ class NeonInstruction:
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
                 AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-
+                AccountMeta(pubkey=EVM_LOADER_ID, is_signer=False, is_writable=False),
             ] + self.eth_accounts + obligatory_accounts
         )
 
@@ -248,7 +230,6 @@ class NeonInstruction:
             append_keys = cancel_keys
         else:
             append_keys = self.eth_accounts
-            append_keys.append(AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False))
             append_keys += obligatory_accounts
         return Transaction().add(TransactionInstruction(
             program_id = EVM_LOADER_ID,
@@ -256,11 +237,7 @@ class NeonInstruction:
             keys = [
                 AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=INCINERATOR_PUBKEY, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-
             ] + append_keys
         ))
 
@@ -276,13 +253,9 @@ class NeonInstruction:
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
                 AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-
-            ] + self.eth_accounts + [
-
-                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
-            ] + obligatory_accounts
+                AccountMeta(pubkey=EVM_LOADER_ID, is_signer=False, is_writable=False),
+            ] + self.eth_accounts + obligatory_accounts
         )
 
     def make_partial_call_or_continue_transaction(self, steps=0, length_before=0) -> Transaction:
@@ -305,11 +278,7 @@ class NeonInstruction:
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
                 AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.caller_token, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-
-            ] + self.eth_accounts + [
-
-                AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
-            ] + obligatory_accounts
+                AccountMeta(pubkey=EVM_LOADER_ID, is_signer=False, is_writable=False),
+            ] + self.eth_accounts + obligatory_accounts
         ))

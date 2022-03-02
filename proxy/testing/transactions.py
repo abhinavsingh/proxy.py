@@ -183,8 +183,8 @@ pre_token_airdrop_trx = {
                 },
                 'instructions': [
                     {
-                        'accounts': [0, 1, 2, 7, 8, 9, 10, 11],
-                        'data': 'SSX8YzB3JHrjo6vdi3AMoi7zpcPrQv1EF4uXaNUgBSq2E3sfp7PKeAH',
+                        'accounts': [0, 7, 1, 3],
+                        'data': '7mzxmWe9X6hGhfpmntNbEtuDfUgC9T',
                         'programIdIndex': 12
                     },
                     {

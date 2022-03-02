@@ -74,6 +74,7 @@ services:
       MIN_OPERATOR_BALANCE_TO_WARN: 4565760000 # = 913152000 * 5 (5 storage accounts) = 4.56576 SOL
       MIN_OPERATOR_BALANCE_TO_ERR: 913152000 # = solana rent 131072 (= Rent-exempt minimum: 0.913152 SOL) SOLs to create a storage
       MINIMAL_GAS_PRICE: 1
+      OPERATOR_GAS_ACCOUNTS: 0x8966Ef2ae7A109Fd0977F5151b4607dc42929fBD;0x619d670152103a972B67a45b9Be764FF11979E4E
     hostname: proxy
     depends_on:
       postgres:
