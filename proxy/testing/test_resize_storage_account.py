@@ -9,7 +9,7 @@ from proxy.testing.testing_helpers import request_airdrop
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")
 evm_loader_id = PublicKey(os.environ.get("EVM_LOADER"))
-ETH_TOKEN_MINT_ID: PublicKey = PublicKey("HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU")
+NEON_TOKEN_MINT: PublicKey = PublicKey("HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU")
 
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 install_solc(version='0.7.0')
