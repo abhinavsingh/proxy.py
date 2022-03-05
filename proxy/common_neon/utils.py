@@ -21,22 +21,29 @@ def str_fmt_object(obj):
 
 
 class SolanaBlockInfo:
-    def __init__(self, slot=None, finalized=False, hash=None, parent_hash=None, time=None, signs=None):
+    def __init__(self, slot: int, is_finalized=False, hash=None, parent_hash=None, time=None, signs=None, is_fake=False):
         self.slot = slot
-        self.finalized = finalized
+        self.is_finalized = is_finalized
+        self.is_fake = is_fake
         self.hash = hash
         self.parent_hash = parent_hash
         self.time = time
         self.signs = (signs or [])
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str_fmt_object(self)
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict:
         return self.__dict__
 
     def __setstate__(self, src):
         self.__dict__ = src
+
+    def is_empty_fake(self) -> bool:
+        return self.is_fake and (len(self.signs) == 0)
+
+    def is_empty(self) -> bool:
+        return self.time is None
 
 
 class NeonTxResultInfo:
