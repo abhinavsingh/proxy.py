@@ -118,7 +118,7 @@ class SolanaInteractor:
             full_request_data.append(request)
 
             # Protection from big payload
-            if len(request_data) == 30 or len(full_request_data) == len(params_list):
+            if len(request_data) >= 25 or len(full_request_data) == len(params_list):
                 raw_response = self._make_request(request_data)
                 response_data = cast(List[RPCResponse], raw_response.json())
 
@@ -586,12 +586,6 @@ class SolTxListSender:
             time.sleep(1)
         elif len(self._budget_exceeded_list):
             raise RuntimeError(COMPUTATION_BUDGET_EXCEEDED)
-
-        # There is no more retries to send transactions
-        if self._retry_idx >= RETRY_ON_FAIL:
-            if not self._is_canceled:
-                self._cancel()
-            return
 
         if len(self._blocked_account_list):
             time.sleep(0.4)  # one block time

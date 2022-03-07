@@ -205,8 +205,8 @@ class OperatorResourceInfo:
         self.rid = rid
         self.idx = idx
         self.ether_key: PublicKey = None
-        self.storage = None
-        self.holder = None
+        self.storage: PublicKey = None
+        self.holder: PublicKey = None
 
     def public_key(self) -> PublicKey:
         return self.signer.public_key()
@@ -274,9 +274,9 @@ class OperatorResourceList:
                 self._s.clear_resource()
                 continue
 
-            rid = self._resource.rid
-            opkey = str(self._resource.public_key())
-            self.debug(f'Resource is selected: {opkey}:{rid}')
+            self.debug(f'Resource is selected: {str(self._resource.public_key())}:{self._resource.rid}, ' +
+                       f'storage: {str(self._resource.storage)}, ' +
+                       f'holder: {str(self._resource.holder)}')
             return self._resource
 
         raise RuntimeError('Timeout on waiting a free operator resource!')
@@ -341,8 +341,7 @@ class OperatorResourceList:
             self.debug(f"Use existing ether account for resource {opkey}:{rid}")
             return solana_address
 
-
-        stage = NeonCreateAccountTxStage(self._s, { "address": ether_address })
+        stage = NeonCreateAccountTxStage(self._s, {"address": ether_address})
         stage.balance = self._s.solana.get_multiple_rent_exempt_balances_for_size([stage.size])[0]
         stage.build()
 
@@ -394,6 +393,7 @@ class OperatorResourceList:
             return
 
         self._free_resource_list_glob.append(resource.idx)
+
 
 @logged_group("neon.Proxy")
 class NeonTxSender:
@@ -849,17 +849,19 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
 
     def __init__(self, *args, **kwargs):
         BaseNeonTxStrategy.__init__(self, *args, **kwargs)
-        self.steps += 1
 
     def _validate(self) -> bool:
-        return self._validate_notdeploy_tx() and self._validate_txsize()
+        return self._validate_notdeploy_tx() and self._validate_txsize() and self._validate_evm_steps()
+
+    def _validate_evm_steps(self):
+        if self.s.steps_emulated > (self.s.steps * 25):
+            self.error = 'Big number of EVM steps'
+            return False
+        return True
 
     def build_tx(self) -> Transaction:
         # generate unique tx
-        if self.steps < 50:
-            self.steps += 1
-        else:
-            self.steps -= 1
+        self.steps -= 1
         return self.s.builder.make_partial_call_or_continue_transaction(self.steps)
 
     def _build_preparation_txs(self) -> [Transaction]:
@@ -891,11 +893,7 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
         return self._validate_txsize()
 
     def build_tx(self) -> Transaction:
-        # generate unique tx
-        if self.steps < 50:
-            self.steps += 1
-        else:
-            self.steps -= 1
+        self._tx_idx += 1
         return self.s.builder.make_partial_call_or_continue_from_account_data(self.steps, self._tx_idx)
 
     def _build_preparation_txs(self) -> [Transaction]:
