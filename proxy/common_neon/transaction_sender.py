@@ -8,8 +8,11 @@ import time
 import base58
 import sha3
 import traceback
-import multiprocessing
+import multiprocessing as mp
+import ctypes
 
+
+from datetime import datetime
 from logged_groups import logged_group
 from typing import Dict, Optional
 
@@ -28,10 +31,10 @@ from .solana_interactor import check_if_big_transaction, check_if_program_exceed
 from ..common_neon.eth_proto import Trx as EthTx
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo
 from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT, ACCOUNT_PERMISSION_UPDATE_INT
-from ..environment import MIN_OPERATOR_BALANCE_TO_WARN, MIN_OPERATOR_BALANCE_TO_ERR
+from ..environment import MIN_OPERATOR_BALANCE_TO_WARN, MIN_OPERATOR_BALANCE_TO_ERR, RECHECK_RESOURCE_LIST_INTERVAL
 from ..environment import HOLDER_MSG_SIZE, CONTRACT_EXTRA_SPACE
 from ..memdb.memdb import MemDB, NeonPendingTxInfo
-from ..environment import get_solana_accounts, get_operator_ethereum_accounts
+from ..environment import get_solana_accounts
 from ..common_neon.account_whitelist import AccountWhitelist
 from proxy.common_neon.utils import get_holder_msg
 
@@ -199,30 +202,42 @@ class NeonResizeContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
 
 
 class OperatorResourceInfo:
-    def __init__(self, signer: SolanaAccount, ether: EthereumAddress, rid: int, idx: int):
+    def __init__(self, signer: SolanaAccount, rid: int, idx: int):
         self.signer = signer
-        self.ether = ether
         self.rid = rid
         self.idx = idx
-        self.ether_key: PublicKey = None
+        self.ether: EthereumAddress = None
         self.storage: PublicKey = None
         self.holder: PublicKey = None
 
     def public_key(self) -> PublicKey:
         return self.signer.public_key()
 
+    def secret_key(self) -> bytes:
+        return self.signer.secret_key()
+
 
 @logged_group("neon.Proxy")
 class OperatorResourceList:
     # These variables are global for class, they will be initialized one time
-    _manager = multiprocessing.Manager()
-    _free_resource_list_glob = _manager.list()
-    _resource_list_len_glob = multiprocessing.Value('i', 0)
+    _manager = mp.Manager()
+    _free_resource_list = _manager.list()
+    _bad_resource_list = _manager.list()
+    _check_time_resource_list = _manager.list()
+    _resource_list_len = mp.Value(ctypes.c_uint, 0)
+    _last_checked_time = mp.Value(ctypes.c_ulonglong, 0)
     _resource_list = []
 
     def __init__(self, sender: NeonTxSender):
         self._s = sender
         self._resource: Optional[OperatorResourceInfo] = None
+
+    def reset(self):
+        self._last_checked_time.value = 0
+
+    @staticmethod
+    def _get_current_time() -> int:
+        return math.ceil(datetime.now().timestamp())
 
     def _init_resource_list(self):
         if len(self._resource_list):
@@ -230,29 +245,56 @@ class OperatorResourceList:
 
         idx = 0
         signer_list = get_solana_accounts()
-        ether_list = get_operator_ethereum_accounts()
         for rid in range(PERM_ACCOUNT_LIMIT):
-            for signer, ether in zip(signer_list, ether_list):
-                info = OperatorResourceInfo(signer=signer, ether=ether, rid=rid, idx=idx)
+            for signer in signer_list:
+                info = OperatorResourceInfo(signer=signer, rid=rid, idx=idx)
                 self._resource_list.append(info)
                 idx += 1
 
-        with self._resource_list_len_glob.get_lock():
-            if self._resource_list_len_glob.value != 0:
+        with self._resource_list_len.get_lock():
+            if self._resource_list_len.value != 0:
                 return True
 
             for idx in range(len(self._resource_list)):
-                self._free_resource_list_glob.append(idx)
+                self._free_resource_list.append(idx)
+                self._check_time_resource_list.append(0)
 
-            self._resource_list_len_glob.value = len(self._resource_list)
-            if self._resource_list_len_glob.value == 0:
-                raise RuntimeError('No resources!')
+            self._resource_list_len.value = len(self._resource_list)
+            if self._resource_list_len.value == 0:
+                raise RuntimeError('Operator has NO resources!')
+
+    def _recheck_bad_resource_list(self):
+        def is_time_come(now, prev_time):
+            time_diff = now - prev_time
+            return time_diff > RECHECK_RESOURCE_LIST_INTERVAL
+
+        now = self._get_current_time()
+        prev_time = self._last_checked_time.value
+        if not is_time_come(now, prev_time):
+            return prev_time
+
+        with self._last_checked_time.get_lock():
+            prev_time = self._last_checked_time.value
+            if not is_time_come(now, prev_time):
+                return prev_time
+            self._last_checked_time.value = now
+
+        with self._resource_list_len.get_lock():
+            if not len(self._bad_resource_list):
+                return now
+
+            for idx in self._bad_resource_list:
+                self._free_resource_list.append(idx)
+
+            del self._bad_resource_list[:]
+        return now
 
     def init_resource_info(self) -> OperatorResourceInfo:
         if self._resource:
             return self._resource
 
         self._init_resource_list()
+        check_time = self._recheck_bad_resource_list()
 
         timeout = 0.01
         for i in range(400_000):  # 10'000 blocks!
@@ -261,47 +303,54 @@ class OperatorResourceList:
                     self.debug(f'Waiting for a free operator resource ({i * timeout})...')
                 time.sleep(timeout)
 
-            with self._resource_list_len_glob.get_lock():
-                if self._resource_list_len_glob.value == 0:
+            with self._resource_list_len.get_lock():
+                if self._resource_list_len.value == 0:
                     raise RuntimeError('Operator has NO resources!')
-                elif len(self._free_resource_list_glob) == 0:
+                elif len(self._free_resource_list) == 0:
                     continue
-                idx = self._free_resource_list_glob.pop(0)
+                idx = self._free_resource_list.pop(0)
 
             self._resource = self._resource_list[idx]
             self._s.set_resource(self._resource)
-            if not self._init_perm_accounts():
+            if not self._init_perm_accounts(check_time):
                 self._s.clear_resource()
                 continue
 
             self.debug(f'Resource is selected: {str(self._resource.public_key())}:{self._resource.rid}, ' +
                        f'storage: {str(self._resource.storage)}, ' +
-                       f'holder: {str(self._resource.holder)}')
+                       f'holder: {str(self._resource.holder)}, ' +
+                       f'ether: {str(self._resource.ether)}')
             return self._resource
 
         raise RuntimeError('Timeout on waiting a free operator resource!')
 
-    def _init_perm_accounts(self) -> bool:
-        if self._check_operator_balance() is False:
-            self._resource_list_len_glob.value -= 1
-            return False
-
-        if self._resource.storage and self._resource.holder and self._resource.ether_key:
-            return True
-
+    def _init_perm_accounts(self, check_time) -> bool:
+        opkey = str(self._resource.public_key())
         rid = self._resource.rid
+
+        resource_check_time = self._check_time_resource_list[self._resource.idx]
+
+        if check_time != resource_check_time:
+            self._check_time_resource_list[self._resource.idx] = check_time
+            self.debug(f'Rechecking of accounts for resource {opkey}:{rid} {resource_check_time} != {check_time}')
+        elif self._resource.storage and self._resource.holder and self._resource.ether:
+            return True
 
         aid = rid.to_bytes(math.ceil(rid.bit_length() / 8), 'big')
         seed_list = [prefix + aid for prefix in [b"storage", b"holder"]]
+
         try:
+            self._validate_operator_balance()
+
             storage, holder = self._create_perm_accounts(seed_list)
-            self._resource.ether_key = self._create_ether_account()
+            ether = self._create_ether_account()
+            self._resource.ether = ether
             self._resource.storage = storage
             self._resource.holder = holder
             return True
         except Exception as err:
-            self._resource_list_len_glob.value -= 1
-            opkey = str(self._resource.public_key())
+            self._resource_list_len.value -= 1
+            self._bad_resource_list.append(self._resource.idx)
             err_tb = "".join(traceback.format_tb(err.__traceback__))
             self.error(f"Fail to init accounts for resource {opkey}:{rid}, err({err}): {err_tb}")
             return False
@@ -314,41 +363,43 @@ class OperatorResourceList:
     def _min_operator_balance_to_warn():
         return MIN_OPERATOR_BALANCE_TO_WARN
 
-    def _check_operator_balance(self):
+    def _validate_operator_balance(self):
         # Validate operator's account has enough SOLs
         sol_balance = self._s.solana.get_sol_balance(self._resource.public_key())
         min_operator_balance_to_err = self._min_operator_balance_to_err()
+        rid = self._resource.rid
+        opkey = str(self._resource.public_key())
         if sol_balance <= min_operator_balance_to_err:
-            self.error(f'Operator account {self._resource.public_key()} has NOT enough SOLs; balance = {sol_balance}; min_operator_balance_to_err = {min_operator_balance_to_err}')
-            return False
+            self.error(f'Operator account {opkey}:{rid} has NOT enough SOLs; balance = {sol_balance}; ' +
+                       f'min_operator_balance_to_err = {min_operator_balance_to_err}')
+            raise RuntimeError('Not enough SOLs')
+
         min_operator_balance_to_warn = self._min_operator_balance_to_warn()
         if sol_balance <= min_operator_balance_to_warn:
-            self.warning(f'Operator account {self._resource.public_key()} SOLs are running out; balance = {sol_balance}; min_operator_balance_to_warn = {min_operator_balance_to_warn}; min_operator_balance_to_err = {min_operator_balance_to_err}; ')
-        return True
+            self.warning(f'Operator account {opkey}:{rid} SOLs are running out; balance = {sol_balance}; ' +
+                         f'min_operator_balance_to_warn = {min_operator_balance_to_warn}; ' +
+                         f'min_operator_balance_to_err = {min_operator_balance_to_err}; ')
 
-    def _create_ether_account(self) -> PublicKey:
-        if self._resource.ether_key is not None:
-            return self._resource.ether_key
-
+    def _create_ether_account(self) -> EthereumAddress:
         rid = self._resource.rid
         opkey = str(self._resource.public_key())
 
-        ether_address = self._resource.ether
+        ether_address = EthereumAddress.from_private_key(self._resource.secret_key())
         solana_address = ether2program(ether_address)[0]
 
         account_info = self._s.solana.get_account_info(solana_address)
         if account_info is not None:
-            self.debug(f"Use existing ether account for resource {opkey}:{rid}")
-            return solana_address
+            self.debug(f"Use existing ether account {str(solana_address)} for resource {opkey}:{rid}")
+            return ether_address
 
         stage = NeonCreateAccountTxStage(self._s, {"address": ether_address})
         stage.balance = self._s.solana.get_multiple_rent_exempt_balances_for_size([stage.size])[0]
         stage.build()
 
-        self.debug(f"Create new accounts for resource {opkey}:{rid}")
+        self.debug(f"Create new ether account {str(solana_address)} for resource {opkey}:{rid}")
         SolTxListSender(self._s, [stage.tx], NeonCreateAccountTxStage.NAME).send()
 
-        return solana_address
+        return ether_address
 
     def _create_perm_accounts(self, seed_list):
         tx = Transaction()
@@ -363,11 +414,11 @@ class OperatorResourceList:
                 stage.build()
                 tx.add(stage.tx)
             elif account.lamports < balance:
-                raise RuntimeError(f"insufficient balance")
+                raise RuntimeError(f"insufficient balance of {str(stage.sol_account)}")
             elif PublicKey(account.owner) != PublicKey(EVM_LOADER_ID):
-                raise RuntimeError(f"wrong owner")
+                raise RuntimeError(f"wrong owner for: {str(stage.sol_account)}")
             elif account.tag not in {EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG}:
-                raise RuntimeError(f"not empty, not finalized")
+                raise RuntimeError(f"not empty, not finalized: {str(stage.sol_account)}")
 
         rid = self._resource.rid
         opkey = str(self._resource.public_key())
@@ -384,15 +435,7 @@ class OperatorResourceList:
         resource = self._resource
         self._resource = None
         self._s.clear_resource()
-
-        rid = resource.rid
-        opkey = str(resource.public_key())
-
-        if (not resource.storage) or (not resource.holder):
-            self.warning(f"Skip freeing bad accounts for resource {opkey}:{rid}")
-            return
-
-        self._free_resource_list_glob.append(resource.idx)
+        self._free_resource_list.append(resource.idx)
 
 
 @logged_group("neon.Proxy")
@@ -439,7 +482,7 @@ class NeonTxSender:
         self.resource = resource
         self.signer = resource.signer
         self.operator_key = resource.public_key()
-        self.builder = NeonIxBuilder(self.operator_key, resource.ether)
+        self.builder = NeonIxBuilder(self.operator_key)
 
     def clear_resource(self):
         self.resource = None
@@ -542,6 +585,7 @@ class NeonTxSender:
         # Build all instructions
         self._build_txs()
 
+        self.builder.init_operator_ether(self.resource.ether)
         self.builder.init_eth_trx(self.eth_tx, eth_meta_list)
         self.builder.init_iterative(self.resource.storage, self.resource.holder, self.resource.rid)
 

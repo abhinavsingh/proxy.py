@@ -190,7 +190,7 @@ class Test_Neon_Faucet(unittest.TestCase):
             print('Response:', r.status_code)
         assert(r.ok)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("a.i.")
     def test_neon_faucet_01_neon_in_galans(self):
         print()
         url = 'http://localhost:{}/request_neon_in_galans'.format(os.environ['FAUCET_RPC_PORT'])
@@ -207,7 +207,7 @@ class Test_Neon_Faucet(unittest.TestCase):
         print('NEO balance difference:', balance_before - balance_after)
         self.assertEqual(balance_after, 99999000000000)
 
-    # @unittest.skip("a.i.")
+    @unittest.skip("a.i.")
     def test_neon_faucet_02_neon(self):
         print()
         url = 'http://localhost:{}/request_neon'.format(os.environ['FAUCET_RPC_PORT'])

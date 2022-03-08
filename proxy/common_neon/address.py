@@ -7,18 +7,24 @@ from hashlib import sha256
 from solana.publickey import PublicKey
 from typing import NamedTuple
 
+
 class EthereumAddress:
-    def __init__(self, data, private=None):
+    def __init__(self, data, private: eth_keys.PrivateKey = None):
         if isinstance(data, str):
             data = bytes(bytearray.fromhex(data[2:]))
         self.data = data
         self.private = private
 
     @staticmethod
-    def random():
+    def random() -> EthereumAddress:
         letters = '0123456789abcdef'
         data = bytearray.fromhex(''.join([random.choice(letters) for k in range(64)]))
         pk = eth_keys.PrivateKey(data)
+        return EthereumAddress(pk.public_key.to_canonical_address(), pk)
+
+    @staticmethod
+    def from_private_key(pk_data: bytes) -> EthereumAddress:
+        pk = eth_keys.PrivateKey(pk_data)
         return EthereumAddress(pk.public_key.to_canonical_address(), pk)
 
     def __str__(self):
@@ -70,7 +76,7 @@ class AccountInfoLayout(NamedTuple):
 
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
         return AccountInfoLayout(
-            ether=cont.ether, 
+            ether=cont.ether,
             balance=int.from_bytes(cont.balance, "little"),
             trx_count=int.from_bytes(cont.trx_count, "little"),
             code_account=PublicKey(cont.code_account)

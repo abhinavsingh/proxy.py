@@ -38,6 +38,7 @@ class TestGasPriceCalculator(unittest.TestCase):
         mock_get_current_time.side_effect = [1234]
         mock_get_price.side_effect = [{'status': 1, 'price': sol_price}]
 
+        self.testee.reset()
         gas_price = self.testee.get_min_gas_price()
         expected_price = (sol_price / NEON_PRICE_USD) * (1 + OPERATOR_FEE) * pow(Decimal(10), 9)
         self.assertEqual(gas_price, expected_price)
@@ -60,6 +61,7 @@ class TestGasPriceCalculator(unittest.TestCase):
             {'status': 1, 'price': sol_price}
         ]
 
+        self.testee.reset()
         gas_price = self.testee.get_min_gas_price()
         expected_price = (sol_price / NEON_PRICE_USD) * (1 + OPERATOR_FEE) * pow(Decimal(10), 9)
         self.assertEqual(gas_price, expected_price)
@@ -83,6 +85,7 @@ class TestGasPriceCalculator(unittest.TestCase):
             {'status': 1, 'price': sol_price}
         ]
 
+        self.testee.reset()
         gas_price = self.testee.get_min_gas_price()
         expected_price = (sol_price / NEON_PRICE_USD) * (1 + OPERATOR_FEE) * pow(Decimal(10), 9)
         self.assertEqual(gas_price, expected_price)
