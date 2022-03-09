@@ -283,6 +283,7 @@ class OperatorResourceList:
             if not len(self._bad_resource_list):
                 return now
 
+            self._resource_list_len.value += len(self._bad_resource_list)
             for idx in self._bad_resource_list:
                 self._free_resource_list.append(idx)
 
@@ -408,7 +409,7 @@ class OperatorResourceList:
         account_list = [s.sol_account for s in stage_list]
         info_list = self._s.solana.get_account_info_list(account_list)
         balance = self._s.solana.get_multiple_rent_exempt_balances_for_size([STORAGE_SIZE])[0]
-        for account, stage in zip(info_list, stage_list):
+        for idx, account, stage in zip(range(2), info_list, stage_list):
             if not account:
                 stage.balance = balance
                 stage.build()
@@ -417,7 +418,7 @@ class OperatorResourceList:
                 raise RuntimeError(f"insufficient balance of {str(stage.sol_account)}")
             elif PublicKey(account.owner) != PublicKey(EVM_LOADER_ID):
                 raise RuntimeError(f"wrong owner for: {str(stage.sol_account)}")
-            elif account.tag not in {EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG}:
+            elif (idx == 0) and (account.tag not in {EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG}):
                 raise RuntimeError(f"not empty, not finalized: {str(stage.sol_account)}")
 
         rid = self._resource.rid
