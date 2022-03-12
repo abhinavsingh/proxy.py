@@ -3,7 +3,7 @@ import unittest
 
 from solana.publickey import PublicKey
 from proxy.testing.mock_server import MockServer
-from proxy.indexer.airdropper import Airdropper, AIRDROP_AMOUNT_SOL, NEON_PRICE_USD
+from proxy.airdropper import Airdropper, AIRDROP_AMOUNT_SOL, NEON_PRICE_USD
 from proxy.indexer.sql_dict import SQLDict
 from proxy.common_neon.solana_interactor import SolanaInteractor
 import time

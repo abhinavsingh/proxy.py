@@ -1,9 +1,4 @@
 from solana.publickey import PublicKey
-from proxy.indexer.indexer_base import IndexerBase
-from proxy.indexer.pythnetwork import PythNetworkClient
-from proxy.indexer.base_db import BaseDB
-from proxy.indexer.utils import check_error
-from proxy.indexer.sql_dict import SQLDict
 import requests
 import base58
 import traceback
@@ -13,6 +8,11 @@ from logged_groups import logged_group
 
 from ..environment import NEON_PRICE_USD, EVM_LOADER_ID
 from ..common_neon.solana_interactor import SolanaInteractor
+from ..indexer.indexer_base import IndexerBase
+from ..indexer.pythnetwork import PythNetworkClient
+from ..indexer.base_db import BaseDB
+from ..indexer.utils import check_error
+from ..indexer.sql_dict import SQLDict
 
 
 ACCOUNT_CREATION_PRICE_SOL = Decimal('0.00472692')
@@ -271,34 +271,3 @@ class Airdropper(IndexerBase):
                 self.process_trx_airdropper_mode(trx)
         self.latest_processed_slot = max(self.latest_processed_slot, max_slot)
         self._constants['latest_processed_slot'] = self.latest_processed_slot
-
-
-@logged_group("neon.Airdropper")
-def run_airdropper(solana_url,
-                   pyth_mapping_account: PublicKey,
-                   faucet_url,
-                   wrapper_whitelist = 'ANY',
-                   neon_decimals = 9,
-                   pp_solana_url = None,
-                   max_conf = 0.1, *, logger):
-    logger.info(f"""Running indexer with params:
-        solana_url: {solana_url},
-        evm_loader_id: {EVM_LOADER_ID},
-        pyth.network mapping account: {pyth_mapping_account},
-        faucet_url: {faucet_url},
-        wrapper_whitelist: {wrapper_whitelist},
-        NEON decimals: {neon_decimals},
-        Price provider solana: {pp_solana_url},
-        Max confidence interval: {max_conf}""")
-
-    try:
-        airdropper = Airdropper(solana_url,
-                                pyth_mapping_account,
-                                faucet_url,
-                                wrapper_whitelist,
-                                neon_decimals,
-                                pp_solana_url,
-                                max_conf)
-        airdropper.run()
-    except Exception as err:
-        logger.error(f'Failed to start Airdropper: {err}')
