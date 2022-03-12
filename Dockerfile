@@ -13,7 +13,7 @@ WORKDIR /opt
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive apt install -y git software-properties-common openssl curl parallel \
-                                                  ca-certificates python3-pip python3-venv && \
+                                                  ca-certificates python3-pip python3-venv postgresql-client && \
     python3 -m venv venv && \
     pip3 install --upgrade pip && \
     /bin/bash -c "source venv/bin/activate" && \

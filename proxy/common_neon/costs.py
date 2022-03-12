@@ -6,23 +6,7 @@ from ..indexer.base_db import BaseDB
 
 class SQLCost(BaseDB):
     def __init__(self):
-        BaseDB.__init__(self)
-
-    def _create_table_sql(self) -> str:
-        self._table_name = 'OPERATOR_COST'
-        return f"""
-            CREATE TABLE IF NOT EXISTS {self._table_name} (
-                id SERIAL PRIMARY KEY,
-                hash char(64),
-                cost bigint,
-                used_gas bigint,
-                sender char(40),
-                to_address char(40) ,
-                sig char(100),
-                status varchar(100),
-                reason varchar(100)
-            );
-            """
+        BaseDB.__init__(self, 'OPERATOR_COST')
 
     def insert(self, hash, cost, used_gas, sender, to_address, sig, status, reason):
         with self._conn.cursor() as cur:

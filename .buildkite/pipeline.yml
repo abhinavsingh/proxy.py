@@ -16,6 +16,7 @@ steps:
       - "solana.log"
       - "measurements.log"
       - "evm_loader.log"
+      - "dbcreation.log"
       - "faucet.log"
       - "airdropper.log"
       - "indexer.log"

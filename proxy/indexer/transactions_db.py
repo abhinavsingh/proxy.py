@@ -7,20 +7,7 @@ from ..indexer.utils import SolanaIxSignInfo
 
 class SolanaNeonTxsDB(BaseDB):
     def __init__(self):
-        BaseDB.__init__(self)
-
-    def _create_table_sql(self) -> str:
-        self._table_name = 'solana_neon_transactions'
-        return f"""
-            CREATE TABLE IF NOT EXISTS {self._table_name} (
-                sol_sign CHAR(88),
-                neon_sign CHAR(66),
-                slot BIGINT,
-                idx INT,
-
-                UNIQUE(sol_sign, neon_sign, idx),
-                UNIQUE(neon_sign, sol_sign, idx)
-            );"""
+        BaseDB.__init__(self, 'solana_neon_transactions')
 
     def set_txs(self, neon_sign: str, used_ixs: [SolanaIxSignInfo]):
 
@@ -38,47 +25,11 @@ class SolanaNeonTxsDB(BaseDB):
 
 class NeonTxsDB(BaseDB):
     def __init__(self):
-        BaseDB.__init__(self)
+        BaseDB.__init__(self, 'neon_transactions')
         self._column_lst = ('neon_sign', 'from_addr', 'sol_sign', 'slot', 'block_hash', 'idx',
                             'nonce', 'gas_price', 'gas_limit', 'to_addr', 'contract', 'value', 'calldata',
                             'v', 'r', 's', 'status', 'gas_used', 'return_value', 'logs')
         self._sol_neon_txs_db = SolanaNeonTxsDB()
-
-    def _create_table_sql(self) -> str:
-        self._table_name = 'neon_transactions'
-        return f"""
-            CREATE TABLE IF NOT EXISTS {self._table_name} (
-                neon_sign CHAR(66),
-                from_addr CHAR(42),
-                sol_sign CHAR(88),
-                slot BIGINT,
-                block_hash CHAR(66),
-                idx INT,
-
-                nonce VARCHAR,
-                gas_price VARCHAR,
-                gas_limit VARCHAR,
-                value VARCHAR,
-                gas_used VARCHAR,
-
-                to_addr CHAR(42),
-                contract CHAR(42),
-
-                status CHAR(3),
-
-                return_value TEXT,
-
-                v TEXT,
-                r TEXT,
-                s TEXT,
-
-                calldata TEXT,
-                logs BYTEA,
-
-                UNIQUE(neon_sign),
-                UNIQUE(sol_sign, idx)
-            );
-            """
 
     def _tx_from_value(self, value) -> Optional[NeonTxFullInfo]:
         if not value:

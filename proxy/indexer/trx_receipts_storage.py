@@ -4,18 +4,7 @@ from proxy.indexer.base_db import BaseDB
 
 class TrxReceiptsStorage(BaseDB):
     def __init__(self, table_name):
-        self._table_name = table_name
-        BaseDB.__init__(self)
-
-    def _create_table_sql(self) -> str:
-        return f'''
-        CREATE TABLE IF NOT EXISTS {self._table_name} (
-            slot        BIGINT,
-            signature   VARCHAR(88),
-            trx         BYTEA,
-            PRIMARY KEY (slot, signature)
-        );
-        '''
+        BaseDB.__init__(self, table_name)
 
     def clear(self):
         with self._conn.cursor() as cur:

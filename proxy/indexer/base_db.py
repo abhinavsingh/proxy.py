@@ -23,9 +23,9 @@ class DBQueryExpression(NamedTuple):
 
 @logged_group("neon.Indexer")
 class BaseDB:
-    _create_table_lock = multiprocessing.Lock()
 
-    def __init__(self):
+    def __init__(self, table_name):
+        self._table_name = table_name
         self._conn = psycopg2.connect(
             dbname=POSTGRES_DB,
             user=POSTGRES_USER,
@@ -33,13 +33,6 @@ class BaseDB:
             host=POSTGRES_HOST
         )
         self._conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-
-        with self._create_table_lock:
-            cursor = self._conn.cursor()
-            cursor.execute(self._create_table_sql())
-
-    def _create_table_sql(self) -> str:
-        assert False, 'No script for the table'
 
     def _build_expression(self, q: DBQuery) -> DBQueryExpression:
 

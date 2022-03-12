@@ -16,20 +16,7 @@ class NeonAccountInfo:
 
 class NeonAccountDB(BaseDB):
     def __init__(self):
-        BaseDB.__init__(self)
-
-    def _create_table_sql(self) -> str:
-        self._table_name = 'neon_accounts'
-        return f"""
-            CREATE TABLE IF NOT EXISTS {self._table_name} (
-                neon_account CHAR(42),
-                pda_account VARCHAR(50),
-                code_account VARCHAR(50),
-                slot BIGINT,
-                code TEXT,
-
-                UNIQUE(pda_account, code_account)
-            );"""
+        BaseDB.__init__(self, 'neon_accounts')
 
     def set_acc_by_request(self, neon_account: str, pda_account: str, code_account: str, code: str):
         with self._conn.cursor() as cursor:
