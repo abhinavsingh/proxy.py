@@ -95,7 +95,7 @@ jobs:
     - name: Check out src from Git
       if: >-
         steps.request-check.outputs.release-requested != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
         ref: ${{ github.event.inputs.release-commitish }}
@@ -266,7 +266,7 @@ jobs:
         tox
 
     - name: Grab the source from Git
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
         ref: ${{ github.event.inputs.release-commitish }}
@@ -391,7 +391,7 @@ jobs:
         tox
 
     - name: Grab the source from Git
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
 
@@ -508,7 +508,7 @@ jobs:
         tox
 
     - name: Grab the source from Git
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
 
@@ -553,7 +553,7 @@ jobs:
     name: 🐳 Build & Test
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
@@ -621,7 +621,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         # We must fetch at least the immediate parents so that if this is
         # a pull request then we can checkout the head.
@@ -668,7 +668,7 @@ jobs:
       # max-parallel: 1
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
@@ -690,9 +690,9 @@ jobs:
       # max-parallel: 4
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Setup Node
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node }}
     - name: Install Dependencies
@@ -720,7 +720,7 @@ jobs:
         python: ['3.10']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Setup Python
@@ -750,7 +750,7 @@ jobs:
     name: 🐳 ghcr:latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
@@ -832,7 +832,7 @@ jobs:
     name: 🐳 ghcr:openssl
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
@@ -912,7 +912,7 @@ jobs:
     name: 🐳 docker:latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
@@ -1052,7 +1052,7 @@ jobs:
 
     steps:
     - name: Fetch the src snapshot
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 1
         ref: ${{ github.event.inputs.release-commitish }}
