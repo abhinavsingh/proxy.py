@@ -145,13 +145,13 @@ markupsafe==2.0.1 \
     --hash=sha256:f9081981fe268bd86831e5c75f7de206ef275defcb82bc70740ae6dc507aee51 \
     --hash=sha256:fa130dd50c57d53368c9d59395cb5526eda596d3ffe36666cd81a44d56e48872
     # via jinja2
-mdit-py-plugins==0.2.8 \
-    --hash=sha256:1833bf738e038e35d89cb3a07eb0d227ed647ce7dd357579b65343740c6d249c \
-    --hash=sha256:5991cef645502e80a5388ec4fc20885d2313d4871e8b8e320ca2de14ac0c015f
+mdit-py-plugins==0.3.0 \
+    --hash=sha256:b1279701cee2dbf50e188d3da5f51fee8d78d038cdf99be57c6b9d1aa93b4073 \
+    --hash=sha256:ecc24f51eeec6ab7eecc2f9724e8272c2fb191c2e93cf98109120c2cace69750
     # via myst-parser
-myst-parser==0.15.2 \
-    --hash=sha256:40124b6f27a4c42ac7f06b385e23a9dcd03d84801e9c7130b59b3729a554b1f9 \
-    --hash=sha256:f7f3b2d62db7655cde658eb5d62b2ec2a4631308137bd8d10f296a40d57bbbeb
+myst-parser==0.16.1 \
+    --hash=sha256:617a90ceda2162ebf81cd13ad17d879bd4f49e7fb5c4f177bb905272555a2268 \
+    --hash=sha256:a6473b9735c8c74959b49b36550725464f4aecc4481340c9a5f9153829191f83
     # via -r docs/requirements.in
 packaging==21.2 \
     --hash=sha256:096d689d78ca690e4cd8a89568ba06d07ca097e3306a4381635073ca91479966 \

@@ -1,4 +1,4 @@
-myst-parser[linkify] >= 0.15.2
+myst-parser[linkify] == 0.16.1
 setuptools-scm >= 6.3.2
 Sphinx == 4.3.2
 furo >= 2021.11.15
