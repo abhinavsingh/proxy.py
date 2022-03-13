@@ -178,6 +178,6 @@ class WebsocketFrame:
 
     @staticmethod
     def key_to_accept(key: bytes) -> bytes:
-        sha1 = hashlib.sha1()
+        sha1 = hashlib.sha1()   # noqa: S324
         sha1.update(key + WebsocketFrame.GUID)
         return base64.b64encode(sha1.digest())
