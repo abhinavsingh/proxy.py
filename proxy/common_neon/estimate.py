@@ -13,11 +13,20 @@ from .layouts import ACCOUNT_INFO_LAYOUT
 @logged_group("neon.Proxy")
 class GasEstimate:
     def __init__(self, request: dict, solana: SolanaInteractor):
-        self.sender = request.get('from', "0x0000000000000000000000000000000000000000")[2:]
-        self.contract = request.get('to', '0x')[2:]
-        self.value = request.get('value', '0x00')
-        self.data = request.get('data', '0x')[2:]
+        self.sender = request.get('from') or '0x0000000000000000000000000000000000000000'
+        if self.sender:
+            self.sender = self.sender[2:]
 
+        self.contract = request.get('to') or ''
+        if self.contract:
+            self.contract = self.contract[2:]
+
+        self.data = request.get('data') or ''
+        if self.data:
+            self.data = self.data[2:]
+
+        self.value = request.get('value') or '0x00'
+        
         self.solana = solana
 
     def execution_cost(self) -> int:
@@ -76,10 +85,8 @@ class GasEstimate:
         overhead = self.iterative_overhead_cost()
 
         gas = execution_cost + trx_size_cost + overhead + EXTRA_GAS
-
-        # TODO: MM restriction. Uncomment ?
-        # if gas < 21000:
-        #     gas = 21000
+        if gas < 21000:
+            gas = 21000
 
         self.debug(f'execution_cost: {execution_cost}, ' +
                    f'trx_size_cost: {trx_size_cost}, ' +
