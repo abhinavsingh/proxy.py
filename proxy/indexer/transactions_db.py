@@ -22,6 +22,22 @@ class SolanaNeonTxsDB(BaseDB):
                 VALUES(%s, %s, %s, %s) ON CONFLICT DO NOTHING''',
                 rows)
 
+    def get_sol_sign_list_by_neon_sign(self, neon_sign: str) -> [str]:
+        request = f'''
+            SELECT sol_sign
+              FROM {self._table_name} AS a
+             WHERE neon_sign = %s
+        '''
+
+        with self._conn.cursor() as cursor:
+            cursor.execute(request, [neon_sign])
+            values = cursor.fetchall()
+
+        if not values:
+            return []
+
+        return [v[0] for v in values]
+
 
 class NeonTxsDB(BaseDB):
     def __init__(self):
@@ -112,3 +128,6 @@ class NeonTxsDB(BaseDB):
             return []
 
         return [self._tx_from_value(v) for v in values if v is not None]
+
+    def get_sol_sign_list_by_neon_sign(self, neon_sign: str) -> [str]:
+        return self._sol_neon_txs_db.get_sol_sign_list_by_neon_sign(neon_sign)

@@ -59,3 +59,6 @@ class MemDB:
 
     def get_contract_code(self, address: str) -> str:
         return self._db.get_contract_code(address)
+
+    def get_sol_sign_list_by_neon_sign(self, neon_sign: str) -> [str]:
+        return self._db.get_sol_sign_list_by_neon_sign(neon_sign)

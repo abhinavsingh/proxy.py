@@ -134,3 +134,6 @@ class IndexerDB:
 
     def fill_account_info_by_indexer(self, neon_account: str, pda_account: str, code_account: str, slot: int):
         self._account_db.set_acc_indexer(neon_account, pda_account, code_account, slot)
+
+    def get_sol_sign_list_by_neon_sign(self, neon_sign: str) -> [str]:
+        return self._txs_db.get_sol_sign_list_by_neon_sign(neon_sign)
