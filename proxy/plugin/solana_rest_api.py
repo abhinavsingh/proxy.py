@@ -386,6 +386,12 @@ class EthereumModel:
             # self.error(f"eth_sendRawTransaction type(err): {type(err}}, Exception: {err}")
             raise
 
+    def neon_getSolanaTransactionByNeonTransaction(self, neonTxId: str) -> [str]:
+        if not isinstance(neonTxId, str):
+            return []
+        return self._db.get_sol_sign_list_by_neon_sign(neonTxId)
+
+
 
 class JsonEncoder(json.JSONEncoder):
     def default(self, obj):
