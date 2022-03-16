@@ -40,7 +40,7 @@ COPY --from=spl /opt/solana_utils.py \
                 /spl/bin/
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 
-COPY proxy/operator-keypairs/* /root/.config/solana/
+COPY proxy/operator-keypairs/id.json /root/.config/solana/
 
 COPY . /opt
 ARG PROXY_REVISION

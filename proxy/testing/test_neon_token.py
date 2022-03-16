@@ -62,7 +62,7 @@ class TestNeonToken(unittest.TestCase):
         artifacts = compile_source(NEON_TOKEN_CONTRACT)
         _, self.neon_token_iface = artifacts.popitem()
 
-        self.neon_contract = proxy.eth.contract(abi=self.neon_token_iface['abi'], 
+        self.neon_contract = proxy.eth.contract(abi=self.neon_token_iface['abi'],
                                                 bytecode=self.neon_token_iface['bin'])
 
         deployer = self.create_eth_account(self, 100)
@@ -79,7 +79,7 @@ class TestNeonToken(unittest.TestCase):
         print(f'deploy status: {tx_deploy_receipt.status}')
         self.neon_token_address = tx_deploy_receipt.contractAddress
         print(f'NeonToken contract address is: {self.neon_token_address}')
-        self.neon_contract = proxy.eth.contract(address=self.neon_token_address, 
+        self.neon_contract = proxy.eth.contract(address=self.neon_token_address,
                                                 abi=self.neon_token_iface['abi'])
 
     def withdraw(self, source_acc: NeonAccount, dest_acc: SolanaAccount, withdraw_amount_alan: int):
@@ -92,7 +92,7 @@ class TestNeonToken(unittest.TestCase):
         withdraw_tx_receipt = proxy.eth.wait_for_transaction_receipt(withdraw_tx_hash)
         print(f'withdraw_tx_receipt: {withdraw_tx_receipt}')
         print(f'deploy status: {withdraw_tx_receipt.status}')
-    
+
     def test_success_withdraw_to_non_existing_account(self):
         """
         Should succesfully withdraw NEON tokens to previously non-existing Associated Token Account
@@ -102,7 +102,7 @@ class TestNeonToken(unittest.TestCase):
 
         dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
         print(f"Destination token account: {dest_token_acc}")
-        
+
         withdraw_amount_alan = pow(10, 18) # 1 NEON
         withdraw_amount_galan = int(withdraw_amount_alan / 1_000_000_000)
 
@@ -126,7 +126,7 @@ class TestNeonToken(unittest.TestCase):
         destination_balance_after_galan = self.spl_neon_token.get_balance(dest_token_acc, commitment=Confirmed)
         print(f'Destination account balance after (Galan): {destination_balance_after_galan}')
         self.assertEqual(int(destination_balance_after_galan['result']['value']['amount']), withdraw_amount_galan)
-    
+
     def test_success_withdraw_to_existing_account(self):
         """
         Should succesfully withdraw NEON tokens to existing Associated Token Account
@@ -138,17 +138,17 @@ class TestNeonToken(unittest.TestCase):
         trx = Transaction()
         trx.add(
             create_associated_token_account(
-                dest_acc.public_key(), 
-                dest_acc.public_key(), 
+                dest_acc.public_key(),
+                dest_acc.public_key(),
                 NEON_TOKEN_MINT
             )
         )
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         solana.send_transaction(trx, dest_acc, opts=opts)
-        
+
         dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
         print(f"Destination token account: {dest_token_acc}")
-        
+
         withdraw_amount_alan = 2_123_000_321_000_000_000
         withdraw_amount_galan = int(withdraw_amount_alan / 1_000_000_000)
 
@@ -174,7 +174,7 @@ class TestNeonToken(unittest.TestCase):
         destination_balance_after_galan = int(resp['result']['value']['amount'])
         print(f'Destination account balance after (Galan): {destination_balance_after_galan}')
         self.assertEqual(destination_balance_after_galan, withdraw_amount_galan)
-    
+
     def test_failed_withdraw_non_divisible_amount(self):
         """
         Should fail withdrawal because amount not divised by 1 billion
@@ -184,7 +184,7 @@ class TestNeonToken(unittest.TestCase):
 
         dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
         print(f"Destination token account: {dest_token_acc}")
-        
+
         withdraw_amount_alan = pow(10, 18) + 123 # NEONs
 
         # Check source balance
@@ -209,7 +209,7 @@ class TestNeonToken(unittest.TestCase):
         destination_balance_after_galan = self.spl_neon_token.get_balance(dest_token_acc, commitment=Confirmed)
         print(f'Destination account balance after (Galan): {destination_balance_after_galan}')
         self.assertTrue(destination_balance_after_galan['error'] is not None)
-    
+
     def test_failed_withdraw_insufficient_balance(self):
         """
         Should fail withdrawal because of insufficient balance
@@ -219,7 +219,7 @@ class TestNeonToken(unittest.TestCase):
 
         dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
         print(f"Destination token account: {dest_token_acc}")
-        
+
         withdraw_amount_alan = 2 * pow(10, 18) # 2 NEONs
 
         # Check source balance
@@ -244,7 +244,7 @@ class TestNeonToken(unittest.TestCase):
         destination_balance_after_galan = self.spl_neon_token.get_balance(dest_token_acc, commitment=Confirmed)
         print(f'Destination account balance after (Galan): {destination_balance_after_galan}')
         self.assertTrue(destination_balance_after_galan['error'] is not None)
-    
+
     def test_failed_withdraw_all_balance(self):
         """
         Should fail withdrawal all balance
@@ -254,7 +254,7 @@ class TestNeonToken(unittest.TestCase):
 
         dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
         print(f"Destination token account: {dest_token_acc}")
-        
+
         withdraw_amount_alan = 1_000_000_000_000_000_000 # 1 NEON
 
         # Check source balance

@@ -8,6 +8,7 @@ if [ -z "$SOLANA_URL" ]; then
 fi
 
 solana config set -u $SOLANA_URL
+ln -s /opt/proxy/operator-keypairs/id?*.json /root/.config/solana/
 
 echo "$(date "+%F %X.%3N") I $(basename "$0"):${LINENO} $$ ${COMPONENT}:StartScript {} Dumping evm_loader and extracting ELF parameters"
 export EVM_LOADER=$(solana address -k /spl/bin/evm_loader-keypair.json)
