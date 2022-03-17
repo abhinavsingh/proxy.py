@@ -135,13 +135,13 @@ class SolanaInteractor:
 
         return full_response_data
 
-    def get_signatures_for_address(self, before, until, commitment='confirmed'):
+    def get_signatures_for_address(self, before: Optional[str], limit: int, commitment='confirmed') -> []:
         opts: Dict[str, Union[int, str]] = {}
-        if until is not None:
-            opts["until"] = until
         if before is not None:
             opts["before"] = before
+        opts["limit"] = limit
         opts["commitment"] = commitment
+
         return self._send_rpc_request("getSignaturesForAddress", EVM_LOADER_ID, opts)
 
     def get_confirmed_transaction(self, sol_sign: str, encoding: str = "json"):

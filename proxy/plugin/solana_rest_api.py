@@ -42,7 +42,7 @@ from ..common_neon.eth_proto import Trx as EthTrx
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
-NEON_PROXY_PKG_VERSION = '0.7.1-dev'
+NEON_PROXY_PKG_VERSION = '0.7.2-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
