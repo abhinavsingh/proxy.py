@@ -1,2 +1,2 @@
-paramiko==2.9.2
+paramiko==2.10.3
 types-paramiko==2.8.9
