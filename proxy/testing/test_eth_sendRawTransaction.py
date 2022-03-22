@@ -501,6 +501,37 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
             self.assertTrue(substring_err_484 in message)
             self.assertGreater(len(message), len(substring_err_484))
 
+    # @unittest.skip("a.i.")
+    def test_09_prior_eip_155(self):
+        print("\ntest_09_prior_eip_155")
+
+        eth_test_account = proxy.eth.account.create('eth_test_account')
+        print('eth_test_account.address:', eth_test_account.address)
+
+        balance_before_transfer = proxy.eth.get_balance(eth_test_account.address)
+        print('balance_before_transfer:', balance_before_transfer)
+
+        print("transfer 1 gwei to eth_test_account")
+        trx_transfer = proxy.eth.account.sign_transaction(dict(
+            nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
+            gas=987654321,
+            gasPrice=1000000000,
+            to=eth_test_account.address,
+            value=eth_utils.denoms.gwei),
+            eth_account.key
+        )
+
+        print('trx_transfer:', trx_transfer)
+        trx_transfer_hash = proxy.eth.send_raw_transaction(trx_transfer.rawTransaction)
+        print('trx_transfer_hash:', trx_transfer_hash.hex())
+        trx_transfer_receipt = proxy.eth.wait_for_transaction_receipt(trx_transfer_hash)
+        print('trx_transfer_receipt:', trx_transfer_receipt)
+
+        balance_after_transfer = proxy.eth.get_balance(eth_test_account.address)
+        print('balance_after_transfer:', balance_after_transfer)
+
+        self.assertLessEqual(balance_after_transfer, balance_before_transfer + eth_utils.denoms.gwei)
+
 
 if __name__ == '__main__':
     unittest.main()
