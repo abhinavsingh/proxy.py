@@ -125,8 +125,7 @@ class IndexerBase:
                     continue_flag = False
                     break
 
-                if solana_signature in [ HISTORY_START, self._maximum_tx]:
-                    self.debug(solana_signature)
+                if solana_signature in [HISTORY_START, self._maximum_tx]:
                     continue_flag = False
                     break
 

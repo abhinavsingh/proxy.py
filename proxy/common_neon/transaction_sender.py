@@ -206,9 +206,9 @@ class OperatorResourceInfo:
         self.signer = signer
         self.rid = rid
         self.idx = idx
-        self.ether: EthereumAddress = None
-        self.storage: PublicKey = None
-        self.holder: PublicKey = None
+        self.ether: Optional[EthereumAddress] = None
+        self.storage: Optional[PublicKey] = None
+        self.holder: Optional[PublicKey] = None
 
     def public_key(self) -> PublicKey:
         return self.signer.public_key()
@@ -231,9 +231,6 @@ class OperatorResourceList:
     def __init__(self, sender: NeonTxSender):
         self._s = sender
         self._resource: Optional[OperatorResourceInfo] = None
-
-    def reset(self):
-        self._last_checked_time.value = 0
 
     @staticmethod
     def _get_current_time() -> int:

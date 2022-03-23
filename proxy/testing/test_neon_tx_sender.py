@@ -28,6 +28,7 @@ class TestNeonTxSender(unittest.TestCase):
         self.neon_tx_sender._validate_tx_count.side_effect = [None]
         self.neon_tx_sender._resource_list._min_operator_balance_to_warn = Mock()
         self.neon_tx_sender._resource_list._min_operator_balance_to_err = Mock()
+        self.neon_tx_sender._resource_list._recheck_bad_resource_list = Mock()
 
     def tearDown(self) -> None:
         self.neon_tx_sender._resource_list.free_resource_info()
@@ -40,7 +41,7 @@ class TestNeonTxSender(unittest.TestCase):
         then an error is returned to the client who requested the execution of the transaction
         and an error is written to the log.
         """
-        self.neon_tx_sender._resource_list.reset()
+        self.neon_tx_sender._resource_list._recheck_bad_resource_list.return_value = 1
         self.neon_tx_sender._resource_list._min_operator_balance_to_warn.side_effect = [1_049_000_000 * 1_000_000_000 * 1_000_000_000 * 2, 1_000_000_000 * 2]
         self.neon_tx_sender._resource_list._min_operator_balance_to_err.side_effect = [1_049_000_000 * 1_000_000_000 * 1_000_000_000, 1_000_000_000]
 
@@ -56,7 +57,7 @@ class TestNeonTxSender(unittest.TestCase):
         the value of the variable MIN_OPERATOR_BALANCE_TO_WARN or less,
         then a warning is written to the log.:
         """
-        self.neon_tx_sender._resource_list.reset()
+        self.neon_tx_sender._resource_list._recheck_bad_resource_list.return_value = 2
         self.neon_tx_sender._resource_list._min_operator_balance_to_warn.side_effect = [1_049_000_000 * 1_000_000_000 * 1_000_000_000, 1_000_000_000 * 2]
         self.neon_tx_sender._resource_list._min_operator_balance_to_err.side_effect = [1_049_049_000, 1_000_000_000]
 
@@ -75,16 +76,13 @@ class TestNeonTxSender(unittest.TestCase):
         who requested the execution of the transaction
         and an error is written to the log.
         """
-        self.neon_tx_sender._resource_list.reset()
+        self.neon_tx_sender._resource_list._recheck_bad_resource_list.return_value = 3
         self.neon_tx_sender._resource_list._min_operator_balance_to_warn.return_value = 1_049_000_000 * 1_000_000_000 * 1_000_000_000 * 2
         self.neon_tx_sender._resource_list._min_operator_balance_to_err.return_value = 1_049_000_000 * 1_000_000_000 * 1_000_000_000
 
         with self.assertLogs('neon', level='ERROR') as logs:
-            try:
+            with self.assertRaises(RuntimeError, msg='Operator has NO resources!'):
                 self.neon_tx_sender._validate_execution()
-            except RuntimeError:
-                # TODO: get rid of this eventual raising. Look at https://github.com/neonlabsorg/proxy-model.py/issues/629
-                self.error("NeonTxSender has raised eventual (flaky) RuntimeError: `Operator has NO resources!` error")
 
             print('logs.output:', str(logs.output))
             self.assertRegex(str(logs.output), 'ERROR:neon.Proxy:Operator account [A-Za-z0-9]{40,}:[0-9]+ has NOT enough SOLs; balance = [0-9]+; min_operator_balance_to_err = 1049000000000000000000000000')
