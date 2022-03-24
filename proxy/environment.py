@@ -149,11 +149,14 @@ class neon_cli(CliBase):
             raise
 
 
-def read_elf_params(out_dict):
+@logged_group("neon.Proxy")
+def read_elf_params(out_dict, *, logger):
+    logger.debug("Read ELF params")
     for param in neon_cli().call("neon-elf-params").splitlines():
         if param.startswith('NEON_') and '=' in param:
             v = param.split('=')
             out_dict[v[0]] = v[1]
+            logger.debug(f"ELF param: {v[0]}: {v[1]}")
 
 
 ELF_PARAMS = {}

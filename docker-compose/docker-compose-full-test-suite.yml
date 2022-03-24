@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+
+  full_test_suite:
+    container_name: ${FTS_CONTAINER_NAME:-full_test_suite}
+    image: ${FTS_IMAGE:-neonlabsorg/develop}
+    entrypoint: ./run-full-test-suite.sh 2>/dev/null
+    environment:
+      - NETWORK_NAME=${NETWORK_NAME}
+      - PROXY_URL=${PROXY_URL}
+      - NETWORK_ID=${NETWORK_ID}
+      - REQUEST_AMOUNT=${REQUEST_AMOUNT}
+      - FAUCET_URL=${FAUCET_URL}
+      - USE_FAUCET=${USE_FAUCET}
+      - SOLANA_URL=${SOLANA_URL}
+      - FTS_USERS_NUMBER=${FTS_USERS_NUMBER}
+      - FTS_JOBS_NUMBER=${FTS_JOBS_NUMBER}
+    network_mode: host

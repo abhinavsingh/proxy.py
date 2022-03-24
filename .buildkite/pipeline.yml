@@ -4,7 +4,19 @@ steps:
       - ".buildkite/steps/build-image.sh"
       - ".buildkite/steps/upload-image.sh"
 
+  - label: ":terraform: build infrastructure"
+    key: "create_infrastructure"
+    if: &is_fts_enabled |
+        (build.pull_request.base_branch == "develop" && !build.pull_request.draft) ||
+        (build.source == "trigger_job" && build.env("NEON_EVM_FULL_TEST_SUITE") == "true")
+    agents:
+      queue: "testing"
+    command:
+      - ".buildkite/steps/full_test_suite/terraform-build.sh"
+
+
   - wait
+
 
   - label: ":cop::skin-tone-2: deploy check"
     command: ".buildkite/steps/deploy-test.sh"
@@ -21,10 +33,47 @@ steps:
       - "airdropper.log"
       - "indexer.log"
 
+
+  - label: ":coverage: full test suite (FTS)"
+    key: "full_test_suite"
+    if: *is_fts_enabled
+    commands:
+      - ".buildkite/steps/full_test_suite/run_full_test_suite.sh"
+    env:
+      FTS_THRESHOLD: 1700
+      FTS_CONTAINER_NAME: fts_${BUILDKITE_BUILD_NUMBER}
+      FTS_IMAGE: neonlabsorg/full_test_suite:develop
+      FTS_USERS_NUMBER: 15
+      FTS_JOBS_NUMBER: 8
+      NETWORK_NAME: full-test-suite-${BUILDKITE_BUILD_NUMBER}
+      NETWORK_ID: 111
+      REQUEST_AMOUNT: 20000
+      USE_FAUCET: true
+    agents:
+       queue: "testing"
+    artifact_paths:
+      - allure-reports.tar.gz
+      - fts_${BUILDKITE_BUILD_NUMBER}.log
+
+
   - wait
+
 
   - label: ":floppy_disk: publish image"
     command: ".buildkite/steps/publish-image.sh"
     if: |
         build.branch =~ /^(master|develop|^ci-.+|v[0-9]+\.[0-9]+\..+)$$/ &&
-        (build.env("EVM_LOADER_BRANCH") == "develop" || build.env("EVM_LOADER_BRANCH") == null)
+        (build.env("NEON_EVM_BRANCH") == "develop" || build.env("NEON_EVM_BRANCH") == null)
+
+  - label: ":terraform: destroy infrastructure"
+    agents:
+      queue: "testing"
+    if: *is_fts_enabled
+    command:
+      - ".buildkite/steps/full_test_suite/terraform-destroy.sh"
+    depends_on:
+      - "full_test_suite"
+      - "create_infrastructure"
+    allow_dependency_failure: true
+    artifact_paths:
+      - ".buildkite/steps/full_test_suite/logs/*"
