@@ -83,6 +83,7 @@ class SolTxListSender:
                     self._unknown_error_list.append(receipt)
                 else:
                     success_cnt += 1
+                    self._retry_idx = 0
                     self._on_success_send(tx, receipt)
 
             self.debug(f'retry {self._retry_idx}, ' +

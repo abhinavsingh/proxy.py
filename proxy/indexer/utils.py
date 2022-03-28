@@ -58,7 +58,6 @@ def get_accounts_from_storage(solana: SolanaInteractor, storage_account, *, logg
             offset += 1
 
             some_pubkey = PublicKey(info.data[offset:offset + 32])
-            acc_list.append(str(some_pubkey))
             offset += 32
 
             acc_list.append((writable, str(some_pubkey)))

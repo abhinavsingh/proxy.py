@@ -651,7 +651,7 @@ class CancelIxDecoder(DummyIxDecoder):
     def execute(self) -> bool:
         self._decoding_start()
 
-        blocked_accounts_start = 6
+        blocked_accounts_start = 3
         if self.ix.get_account_cnt() < blocked_accounts_start + 1:
             return self._decoding_skip('no enough accounts')
 
@@ -828,12 +828,13 @@ class Indexer(IndexerBase):
             self.warning(f"Transaction {tx.neon_tx} has another list of accounts than storage.")
             return False
 
-        for (writable, account), tx_account in zip(storage_accounts_list, tx.blocked_accounts):
+        for (writable, account), (idx, tx_account) in zip(storage_accounts_list, enumerate(tx.blocked_accounts)):
             if account != tx_account:
-                self.warning(f"Transaction {tx.neon_tx} has another list of accounts than storage.")
+                self.warning(f"Transaction {tx.neon_tx} has another list of accounts than storage: " +
+                             f"{idx}: {account} != {tx_account}")
                 return False
 
-        self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}')
+        self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}, {storage_accounts_list}')
         self.blocked_storages[tx.storage_account] = (tx.neon_tx, storage_accounts_list)
         tx.canceled = True
         return True
