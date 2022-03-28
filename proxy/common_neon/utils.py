@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Dict, Optional, Any
-from .eth_proto import Trx as EthTx
 
 import json
 import base58
@@ -241,7 +240,7 @@ class NeonTxFullInfo:
         self.__dict__ = src
 
 
-def get_from_dict(src: Dict, *path) -> Optional[Any]:
+def get_from_dict(src: Dict, *path) -> Any:
     """Provides smart getting values from python dictionary"""
     val = src
     for key in path:

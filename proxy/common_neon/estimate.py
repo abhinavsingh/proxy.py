@@ -13,34 +13,37 @@ from .layouts import ACCOUNT_INFO_LAYOUT
 @logged_group("neon.Proxy")
 class GasEstimate:
     def __init__(self, request: dict, solana: SolanaInteractor):
-        self.sender = request.get('from') or '0x0000000000000000000000000000000000000000'
-        if self.sender:
-            self.sender = self.sender[2:]
+        self._sender = request.get('from') or '0x0000000000000000000000000000000000000000'
+        if self._sender:
+            self._sender = self._sender[2:]
 
-        self.contract = request.get('to') or ''
-        if self.contract:
-            self.contract = self.contract[2:]
+        self._contract = request.get('to') or ''
+        if self._contract:
+            self._contract = self._contract[2:]
 
-        self.data = request.get('data') or ''
-        if self.data:
-            self.data = self.data[2:]
+        self._data = request.get('data') or ''
+        if self._data:
+            self._data = self._data[2:]
 
-        self.value = request.get('value') or '0x00'
-        
-        self.solana = solana
+        self._value = request.get('value') or '0x00'
 
-    def execution_cost(self) -> int:
-        result = call_emulated(self.contract or "deploy", self.sender, self.data, self.value)
-        self.debug(f'emulator returns: {json.dumps(result, indent=3)}')
+        self._solana = solana
 
+        self.emulator_json = {}
+
+    def execute(self):
+        self.emulator_json = call_emulated(self._contract or "deploy", self._sender, self._data, self._value)
+        self.debug(f'emulator returns: {json.dumps(self.emulator_json, sort_keys=True)}')
+
+    def _execution_cost(self) -> int:
         # Gas used in emulatation
-        cost = result['used_gas']
+        cost = self.emulator_json.get('used_gas', 0)
 
         # Some accounts may not exist at the emulation time
         # Calculate gas for them separately
         accounts_size = [
             a["code_size"] + CONTRACT_EXTRA_SPACE
-            for a in result["accounts"]
+            for a in self.emulator_json.get("accounts", [])
             if (not a["code_size_current"]) and a["code_size"]
         ]
 
@@ -48,7 +51,7 @@ class GasEstimate:
             return cost
 
         accounts_size.append(ACCOUNT_INFO_LAYOUT.sizeof())
-        balances = self.solana.get_multiple_rent_exempt_balances_for_size(accounts_size)
+        balances = self._solana.get_multiple_rent_exempt_balances_for_size(accounts_size)
 
         for balance in balances[:-1]:
             cost += balances[-1]
@@ -56,33 +59,34 @@ class GasEstimate:
 
         return cost
 
-    def trx_size_cost(self) -> int:
+    def _trx_size_cost(self) -> int:
         u256_max = int.from_bytes(bytes([0xFF] * 32), "big")
 
         trx = EthTrx(
-            nonce = u256_max,
-            gasPrice = u256_max,
-            gasLimit = u256_max,
-            toAddress = bytes.fromhex(self.contract),
-            value = int(self.value, 16),
-            callData = bytes.fromhex(self.data),
-            v = CHAIN_ID * 2 + 35,
-            r = 0x1820182018201820182018201820182018201820182018201820182018201820,
-            s = 0x1820182018201820182018201820182018201820182018201820182018201820
+            nonce=u256_max,
+            gasPrice=u256_max,
+            gasLimit=u256_max,
+            toAddress=bytes.fromhex(self._contract),
+            value=int(self._value, 16),
+            callData=bytes.fromhex(self._data),
+            v=CHAIN_ID * 2 + 35,
+            r=0x1820182018201820182018201820182018201820182018201820182018201820,
+            s=0x1820182018201820182018201820182018201820182018201820182018201820
         )
         msg = get_holder_msg(trx)
         return ((len(msg) // HOLDER_MSG_SIZE) + 1) * 5000
 
-    def iterative_overhead_cost(self) -> int:
+    @staticmethod
+    def _iterative_overhead_cost() -> int:
         last_iteration_cost = 5000
         cancel_cost = 5000
 
         return last_iteration_cost + cancel_cost
 
     def estimate(self):
-        execution_cost = self.execution_cost()
-        trx_size_cost = self.trx_size_cost()
-        overhead = self.iterative_overhead_cost()
+        execution_cost = self._execution_cost()
+        trx_size_cost = self._trx_size_cost()
+        overhead = self._iterative_overhead_cost()
 
         gas = execution_cost + trx_size_cost + overhead + EXTRA_GAS
         if gas < 21000:
@@ -94,4 +98,4 @@ class GasEstimate:
                    f'extra_gas: {EXTRA_GAS}, ' +
                    f'estimated gas: {gas}')
 
-        return hex(gas)
+        return gas

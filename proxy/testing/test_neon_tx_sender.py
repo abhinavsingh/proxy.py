@@ -46,7 +46,7 @@ class TestNeonTxSender(unittest.TestCase):
         self.neon_tx_sender._resource_list._min_operator_balance_to_err.side_effect = [1_049_000_000 * 1_000_000_000 * 1_000_000_000, 1_000_000_000]
 
         with self.assertLogs('neon', level='ERROR') as logs:
-            self.neon_tx_sender._validate_execution()
+            self.neon_tx_sender._resource_list.init_resource_info()
             print('logs.output:', str(logs.output))
             self.assertRegex(str(logs.output), 'ERROR:neon.Proxy:Operator account [A-Za-z0-9]{40,}:[0-9]+ has NOT enough SOLs; balance = [0-9]+; min_operator_balance_to_err = 1049000000000000000000000000')
 
@@ -62,8 +62,7 @@ class TestNeonTxSender(unittest.TestCase):
         self.neon_tx_sender._resource_list._min_operator_balance_to_err.side_effect = [1_049_049_000, 1_000_000_000]
 
         with self.assertLogs('neon', level='WARNING') as logs:
-            # self.testee._resource_list.free_resource_info()
-            self.neon_tx_sender._validate_execution()
+            self.neon_tx_sender._resource_list.init_resource_info()
             print('logs.output:', str(logs.output))
             self.assertRegex(str(logs.output), 'WARNING:neon.Proxy:Operator account [A-Za-z0-9]{40,}:[0-9]+ SOLs are running out; balance = [0-9]+; min_operator_balance_to_warn = 1049000000000000000000000000; min_operator_balance_to_err = 1049049000;')
 
@@ -82,7 +81,7 @@ class TestNeonTxSender(unittest.TestCase):
 
         with self.assertLogs('neon', level='ERROR') as logs:
             with self.assertRaises(RuntimeError, msg='Operator has NO resources!'):
-                self.neon_tx_sender._validate_execution()
+                self.neon_tx_sender._resource_list.init_resource_info()
 
             print('logs.output:', str(logs.output))
             self.assertRegex(str(logs.output), 'ERROR:neon.Proxy:Operator account [A-Za-z0-9]{40,}:[0-9]+ has NOT enough SOLs; balance = [0-9]+; min_operator_balance_to_err = 1049000000000000000000000000')

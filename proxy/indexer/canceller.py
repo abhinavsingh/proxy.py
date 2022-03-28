@@ -4,8 +4,8 @@ import traceback
 from logged_groups import logged_group
 from solana.transaction import AccountMeta
 from proxy.common_neon.neon_instruction import NeonInstruction
-from proxy.common_neon.solana_interactor import SolanaInteractor, SolTxListSender
-from proxy.common_neon.utils import get_from_dict
+from proxy.common_neon.solana_interactor import SolanaInteractor
+from proxy.common_neon.solana_tx_list_sender import SolTxListSender
 from proxy.environment import SOLANA_URL, get_solana_accounts
 
 

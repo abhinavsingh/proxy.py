@@ -42,7 +42,7 @@ class TestUserStories(unittest.TestCase):
         print('response:', response)
         estimated_gas = response['result']
 
-        self.assertEqual(estimated_gas, "0x19f91f0")
+        self.assertEqual(estimated_gas, "0x19e0b50")
 
     def test_02_check_eth_estimateGas_on_deploying_a_contract_with_the_empty_value(self):
         print("https://github.com/neonlabsorg/proxy-model.py/issues/122")
@@ -58,7 +58,7 @@ class TestUserStories(unittest.TestCase):
         print('response:', response)
         estimated_gas = response['result']
 
-        self.assertEqual(estimated_gas, "0x19f91f0")
+        self.assertEqual(estimated_gas, "0x19e0b50")
 
     def test_03_check_eth_estimateGas_on_deploying_a_contract_with_the_empty_data(self):
         print("https://github.com/neonlabsorg/proxy-model.py/issues/122")
@@ -74,7 +74,7 @@ class TestUserStories(unittest.TestCase):
         print('response:', response)
         estimated_gas = response['result']
 
-        self.assertEqual(estimated_gas, "0x13b3368")
+        self.assertEqual(estimated_gas, "0x139acc8")
 
     def test_04_check_eth_estimateGas_on_deploying_a_contract_with_the_empty_data_and_value(self):
         print("https://github.com/neonlabsorg/proxy-model.py/issues/122")
@@ -89,7 +89,7 @@ class TestUserStories(unittest.TestCase):
         print('response:', response)
         estimated_gas = response['result']
 
-        self.assertEqual(estimated_gas, "0x13b3368")
+        self.assertEqual(estimated_gas, "0x139acc8")
 
     def test_05_check_params_omitted(self):
         print("https://github.com/neonlabsorg/proxy-model.py/issues/318")

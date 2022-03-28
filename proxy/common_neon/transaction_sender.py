@@ -21,21 +21,20 @@ from solana.blockhash import Blockhash
 from solana.account import Account as SolanaAccount
 
 from .address import accountWithSeed, EthereumAddress, ether2program
-from ..common_neon.errors import EthereumError
 from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, ACCOUNT_SEED_VERSION
 from .emulator_interactor import call_emulated
 from .neon_instruction import NeonInstruction as NeonIxBuilder
-from .solana_interactor import COMPUTATION_BUDGET_EXCEEDED
-from .solana_interactor import SolanaInteractor, Measurements, SolTxListSender, SolTxError
-from .solana_interactor import check_if_big_transaction, check_if_program_exceeded_instructions
+from .solana_interactor import SolanaInteractor
+from .solana_tx_list_sender import SolTxListSender
+from .solana_receipt_parser import SolTxError, SolReceiptParser, Measurements
+from .transaction_validator import NeonTxValidator
 from ..common_neon.eth_proto import Trx as EthTx
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo
-from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT, ACCOUNT_PERMISSION_UPDATE_INT
+from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT
 from ..environment import MIN_OPERATOR_BALANCE_TO_WARN, MIN_OPERATOR_BALANCE_TO_ERR, RECHECK_RESOURCE_LIST_INTERVAL
 from ..environment import HOLDER_MSG_SIZE, CONTRACT_EXTRA_SPACE
 from ..memdb.memdb import MemDB, NeonPendingTxInfo
 from ..environment import get_solana_accounts
-from ..common_neon.account_whitelist import AccountWhitelist
 from proxy.common_neon.utils import get_holder_msg
 
 
@@ -468,11 +467,16 @@ class NeonTxSender:
         self._create_account_list = []
         self._eth_meta_dict: Dict[str, AccountMeta] = dict()
 
+        self._neon_tx_validator = NeonTxValidator(self.solana, eth_tx)
+
     def execute(self) -> NeonTxResultInfo:
         try:
             self._validate_execution()
             self._prepare_execution()
             return self._execute()
+        except Exception as e:
+            self._neon_tx_validator.extract_ethereum_error(e)
+            raise
         finally:
             self._resource_list.free_resource_info()
 
@@ -492,42 +496,13 @@ class NeonTxSender:
         self._resource_list.init_resource_info()
 
         self._validate_pend_tx()
-        self._validate_whitelist()
-        self._validate_tx_count()
+        self._call_emulated()
+        self._neon_tx_validator.prevalidate_tx(self.signer, self._emulator_json)
 
     def _validate_pend_tx(self):
         operator = f'{str(self.resource.public_key())}:{self.resource.rid}'
         self._pending_tx = NeonPendingTxInfo(neon_sign=self.neon_sign, operator=operator, slot=0)
         self._pend_tx_into_db(self.solana.get_recent_blockslot())
-
-    def _validate_whitelist(self):
-        whitelist = AccountWhitelist(self.solana, ACCOUNT_PERMISSION_UPDATE_INT, self.resource.signer)
-        if not whitelist.has_client_permission(self.eth_sender[2:]):
-            self.warning(f'Sender account {self.eth_sender} is not allowed to execute transactions')
-            raise Exception(f'Sender account {self.eth_sender} is not allowed to execute transactions')
-
-        if (self.deployed_contract is not None) and (not whitelist.has_contract_permission(self.deployed_contract[2:])):
-            self.warning(f'Contract account {self.deployed_contract} is not allowed for deployment')
-            raise Exception(f'Contract account {self.deployed_contract} is not allowed for deployment')
-
-    def _validate_tx_count(self):
-        info = self.solana.get_account_info_layout(EthereumAddress(self.eth_sender))
-        if not info:
-            return
-
-        tx_nonce = int(self.eth_tx.nonce)
-        if info.trx_count == tx_nonce:
-            return
-
-        raise EthereumError(
-            -32002,
-            'Verifying nonce before send transaction: Error processing Instruction 1: invalid program argument',
-            {
-                'logs': [
-                    f'/src/entrypoint.rs Invalid Ethereum transaction nonce: acc {info.trx_count}, trx {tx_nonce}',
-                ]
-            }
-        )
 
     def _execute(self):
         for Strategy in [SimpleNeonTxStrategy, IterativeNeonTxStrategy, HolderNeonTxStrategy]:
@@ -542,7 +517,7 @@ class NeonTxSender:
                 self._submit_tx_into_db(neon_res)
                 return neon_res
             except Exception as e:
-                if (not Strategy.IS_SIMPLE) or (not check_if_program_exceeded_instructions(e)):
+                if (not Strategy.IS_SIMPLE) or (not SolReceiptParser(e).check_if_budget_exceeded()):
                     raise
 
         self.error(f'No strategy to execute the Neon transaction: {self.eth_tx}')
@@ -570,8 +545,6 @@ class NeonTxSender:
         self._db.submit_transaction(neon_tx, neon_res)
 
     def _prepare_execution(self):
-        self._call_emulated()
-
         # Parse information from the emulator output
         self._parse_accounts_list()
         self._parse_token_list()
@@ -706,7 +679,7 @@ class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
             tx.serialize()
             return True
         except Exception as err:
-            if check_if_big_transaction(err):
+            if SolReceiptParser(err).check_if_big_transaction():
                 self.error = 'Too big transaction size'
                 return False
             self.error = str(err)
@@ -778,7 +751,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
 
         tx_sender = SimpleNeonTxSender(self, self.s, [self.build_tx()], self.NAME).send()
         if not tx_sender.neon_res.is_valid():
-            raise RuntimeError(COMPUTATION_BUDGET_EXCEEDED)
+            raise tx_sender.raise_budget_exceeded()
         return tx_sender.neon_res
 
 

@@ -42,7 +42,7 @@ class SolanaBlocksDB(BaseDB):
         return self._block_from_value(block_slot, self._fetchone(q))
 
     def get_block_by_hash(self, block_hash) -> SolanaBlockInfo:
-        q = DBQuery(column_list=self._column_lst, key_list=[('block_hash', block_hash)], order_list=[])
+        q = DBQuery(column_list=self._column_lst, key_list=[('hash', block_hash)], order_list=[])
         return self._block_from_value(None, self._fetchone(q))
 
     def set_block(self, block: SolanaBlockInfo):

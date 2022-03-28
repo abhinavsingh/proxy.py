@@ -3,6 +3,7 @@
 
 # Except proxy
 !proxy
+!proxy-cli
 !requirements.txt
 !setup.py
 !README.md
@@ -11,6 +12,7 @@
 !run-airdropper.sh
 !log_cfg.json
 !pretty_log_cfg.json
+!proxy-cli.sh
 
 # Ignore __pycache__ directory
 proxy/__pycache__

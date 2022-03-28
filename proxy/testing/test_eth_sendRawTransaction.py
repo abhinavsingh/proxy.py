@@ -14,10 +14,6 @@ proxy = Web3(Web3.HTTPProvider(proxy_url))
 eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
 proxy.eth.default_account = eth_account.address
 
-SUBSTRING_LOG_ERR_147 = 'Invalid Ethereum transaction nonce:'
-
-SUBSTRING_ERR_484 = 'The account balance is less than required:'
-
 STORAGE_SOLIDITY_SOURCE_147 = '''
 pragma solidity >=0.7.0 <0.9.0;
 /**
@@ -126,7 +122,8 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
     def deploy_test_185_solidity_contract(self):
         compiled_sol = compile_source(SOLIDITY_SOURCE_185)
         contract_id, contract_interface = compiled_sol.popitem()
-        test_185_solidity_contract = proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
+        test_185_solidity_contract = proxy.eth.contract(
+            abi=contract_interface['abi'], bytecode=contract_interface['bin'])
         trx_deploy = proxy.eth.account.sign_transaction(dict(
             nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
             chainId=proxy.eth.chain_id,
@@ -199,25 +196,36 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
     def test_03_execute_with_low_gas(self):
         print("\ntest_03_execute_with_low_gas")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
-        trx_store = self.storage_contract.functions.store(148).buildTransaction({'nonce': right_nonce, 'gasPrice': 1000000000, 'gas': 0})
+        trx_store = self.storage_contract.functions.store(148).buildTransaction({
+            'nonce': right_nonce,
+            'gasPrice': 1000000000,
+            'gas': 0})
         print('trx_store:', trx_store)
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
         print('trx_store_signed:', trx_store_signed)
 
-        trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
-        print(trx_store_hash)
-        print('trx_store_hash:', trx_store_hash.hex())
-        trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
-        print('trx_store_receipt (low_gas):', trx_store_receipt)
-        self.assertEqual(trx_store_receipt['status'], 0)  # false Transaction mined but execution failed
+        try:
+            trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
+            print('trx_store_hash:', trx_store_hash)
+            self.assertTrue(False)
+        except Exception as e:
+            print('type(e):', type(e))
+            print('e:', e)
+            response = json.loads(str(e).replace('\'', '\"').replace('None', 'null'))
+            print('response:', response)
+            print('code:', response['code'])
+            self.assertEqual(response['code'], -32000)
+            print('message:', response['message'])
+            message = 'gas limit reached'
+            self.assertEqual(response['message'][:len(message)], message)
 
     # @unittest.skip("a.i.")
     def test_04_execute_with_bad_nonce(self):
-        test_nonce_map = {
-            'grade_up_one': 1,
-            'grade_down_one': -1,
-        }
-        for name, offset in test_nonce_map.items():
+        test_nonce_list = [
+            ('grade_up_one', 1, 'nonce too high:'),
+            ('grade_down_one', -1, 'nonce too low: ')
+        ]
+        for name, offset, message in test_nonce_list:
             with self.subTest(name=name):
                 print("\ntest_04_execute_with_bad_nonce {} offsets".format(offset))
                 bad_nonce = offset + proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -232,19 +240,12 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
                 except Exception as e:
                     print('type(e):', type(e))
                     print('e:', e)
-                    import json
                     response = json.loads(str(e).replace('\'', '\"').replace('None', 'null'))
                     print('response:', response)
                     print('code:', response['code'])
                     self.assertEqual(response['code'], -32002)
-                    print('substring_err_147:', SUBSTRING_LOG_ERR_147)
-                    logs = response['data']['logs']
-                    print('logs:', logs)
-                    log = [s for s in logs if SUBSTRING_LOG_ERR_147 in s][0]
-                    print(log)
-                    self.assertGreater(len(log), len(SUBSTRING_LOG_ERR_147))
-                    file_name = 'src/entrypoint.rs'
-                    self.assertTrue(file_name in log)
+                    print('message:', response['message'])
+                    self.assertEqual(response['message'][:len(message)], message)
 
     # @unittest.skip("a.i.")
     def test_05_transfer_one_gwei(self):
@@ -404,10 +405,12 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         self.assertEqual(alice_balance_after_transfer, alice_balance_before_transfer - one_and_a_half_gweis - gas_cost)
         self.assertEqual(bob_balance_after_transfer, bob_balance_before_transfer + one_and_a_half_gweis)
 
-    @unittest.skip("a.i.")
+    # @unittest.skip("a.i.")
     def test_07_execute_long_transaction(self):
         print("\ntest_07_execute_long_transaction")
-        trx_initValue = self.test_185_solidity_contract.functions.initValue('185 init value').buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
+        contract = self.test_185_solidity_contract
+        trx_initValue = contract.functions.initValue('185 init value').buildTransaction({
+            'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
         print('trx_initValue:', trx_initValue)
         trx_initValue_signed = proxy.eth.account.sign_transaction(trx_initValue, eth_account.key)
         print('trx_initValue_signed:', trx_initValue_signed)
@@ -416,15 +419,16 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         trx_initValue_receipt = proxy.eth.wait_for_transaction_receipt(trx_initValue_hash)
         print('trx_initValue_hash_receipt:', trx_initValue_receipt)
 
-        value = self.test_185_solidity_contract.functions.getValue().call()
+        value = contract.functions.getValue().call()
         print('value:', value.hex())
         self.assertEqual(value.hex(), '36fb9ea61aba18555110881836366c8d7701685174abe4926673754580ee26c5')
 
         from datetime import datetime
         start = datetime.now()
 
-        times_to_calculate = 10
-        trx_calculate = self.test_185_solidity_contract.functions.calculateKeccakAndStore(times_to_calculate).buildTransaction({'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
+        times_to_calculate = 1000
+        trx_calculate = contract.functions.calculateKeccakAndStore(times_to_calculate).buildTransaction({
+            'nonce': proxy.eth.get_transaction_count(proxy.eth.default_account)})
         print('trx_calculate:', trx_calculate)
         trx_calculate_signed = proxy.eth.account.sign_transaction(trx_calculate, eth_account.key)
         print('trx_calculate_signed:', trx_calculate_signed)
@@ -435,12 +439,13 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
 
         time_duration = datetime.now() - start
 
-        value = self.test_185_solidity_contract.functions.getValue().call()
+        value = contract.functions.getValue().call()
         print('value:', value.hex())
-        self.assertEqual(value.hex(), 'e6d201b1e3aab3b3cc100ea7a0b76fcbb3c2fef88fc4e540f9866d8d2e6e2131')
+        self.assertEqual(value.hex(), 'a6bfac152f9071fbc21a73ca991a28898ec14f4df54c01cad49daf05d4012b4c')
         print('times_to_calculate:', times_to_calculate)
         print('time_duration:', time_duration)
 
+    # @unittest.skip("a.i.")
     def test_get_storage_at(self):
         print("\nhttps://github.com/neonlabsorg/proxy-model.py/issues/289")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
@@ -478,7 +483,10 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
     def test_08_execute_with_huge_gas(self):
         print("\ntest_08_execute_with_huge_gas_limit")
         nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
-        trx_store = self.storage_contract.functions.store(147).buildTransaction({'gas': 987654321987654321, 'nonce': nonce, 'gasPrice': 1000000000})
+        trx_store = self.storage_contract.functions.store(147).buildTransaction({
+            'nonce': nonce,
+            'gas': 987654321987654321,
+            'gasPrice': 1000000000})
         print('trx_store:', trx_store)
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
         print('trx_store_signed:', trx_store_signed)
@@ -489,17 +497,13 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         except Exception as e:
             print('type(e):', type(e))
             print('e:', e)
-            import json
             response = json.loads(str(e).replace('\'', '\"').replace('None', 'null'))
             print('response:', response)
             print('code:', response['code'])
             self.assertEqual(response['code'], -32000)
-            substring_err_484 = SUBSTRING_ERR_484
-            print('substring_err_484:', substring_err_484)
             print('message:', response['message'])
-            message = response['message']
-            self.assertTrue(substring_err_484 in message)
-            self.assertGreater(len(message), len(substring_err_484))
+            message = 'insufficient funds for gas * price + value'
+            self.assertEqual(response['message'][:len(message)], message)
 
     # @unittest.skip("a.i.")
     def test_09_prior_eip_155(self):
@@ -531,6 +535,43 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
         print('balance_after_transfer:', balance_after_transfer)
 
         self.assertLessEqual(balance_after_transfer, balance_before_transfer + eth_utils.denoms.gwei)
+
+    # @unittest.skip("a.i.")
+    def test_10_transfer_not_enough_funds(self):
+        print("\ntest_10_transfer_not_enough_funds")
+
+        eth_account_alice = proxy.eth.account.create('alice.whale')
+        eth_account_bob = proxy.eth.account.create('bob.carp')
+        print('eth_account_alice.address:', eth_account_alice.address)
+        print('eth_account_bob.address:', eth_account_bob.address)
+        request_airdrop(eth_account_alice.address)
+
+        tx_transfer = proxy.eth.account.sign_transaction(
+            {
+                "nonce": proxy.eth.get_transaction_count(eth_account_alice.address),
+                "chainId": proxy.eth.chain_id,
+                "gas": 987654321,
+                "gasPrice": 1000000000,
+                "to": eth_account_bob.address,
+                "value": proxy.eth.get_balance(eth_account_alice.address) + 1,
+            },
+            eth_account_alice.key
+        )
+        print('trx_transfer:', tx_transfer)
+        try:
+            tx_transfer_hash = proxy.eth.send_raw_transaction(tx_transfer.rawTransaction)
+            print('trx_transfer_hash:', tx_transfer_hash.hex())
+            self.assertTrue(False)
+        except Exception as e:
+            print('type(e):', type(e))
+            print('e:', e)
+            response = json.loads(str(e).replace('\'', '\"').replace('None', 'null'))
+            print('response:', response)
+            print('code:', response['code'])
+            self.assertEqual(response['code'], -32000)
+            print('message:', response['message'])
+            message = 'insufficient funds for transfer'
+            self.assertEqual(response['message'][:len(message)], message)
 
 
 if __name__ == '__main__':
