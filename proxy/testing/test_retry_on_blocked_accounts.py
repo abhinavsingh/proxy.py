@@ -17,6 +17,7 @@ from eth_tx_utils import make_instruction_data_from_tx, make_keccak_instruction_
 from eth_utils import big_endian_to_int
 from ethereum.transactions import Transaction as EthTrx
 from ethereum.utils import sha3
+from proxy.common_neon.compute_budget import TransactionWithComputeBudget
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Confirmed
 from solana.system_program import SYS_PROGRAM_ID
@@ -227,8 +228,8 @@ class BlockedTest(unittest.TestCase):
 
     def make_combined_transaction(self, storage, steps, msg, instruction):
         print("make_combined_transaction")
-        trx = Transaction()
-        trx.add(self.sol_instr_keccak(make_keccak_instruction_data(1, len(msg), 13)))
+        trx = TransactionWithComputeBudget()
+        trx.add(self.sol_instr_keccak(make_keccak_instruction_data(len(trx.instructions) + 1, len(msg), 13)))
         trx.add(self.sol_instr_partial_call_or_continue(storage, steps, instruction))
         print(trx.__dict__)
         return trx
@@ -239,7 +240,7 @@ class BlockedTest(unittest.TestCase):
         print("Storage", storage)
 
         if getBalance(storage) == 0:
-            trx = Transaction()
+            trx = TransactionWithComputeBudget()
             trx.add(createAccountWithSeed(self.acc.public_key(), self.acc.public_key(), seed, 10**9, 128*1024, PublicKey(EVM_LOADER)))
             send_transaction(client, trx, self.acc)
 

@@ -3,13 +3,12 @@ from solana.account import Account as SolanaAccount
 from spl.token.instructions import get_associated_token_address
 from proxy.common_neon.address import EthereumAddress, ether2program
 from typing import Union
-from solana.transaction import Transaction
 import spl.token.instructions as spl_token
 from proxy.common_neon.solana_interactor import SolanaInteractor
 from proxy.common_neon.solana_tx_list_sender import SolTxListSender
 from decimal import Decimal
 import os
-
+from .compute_budget import TransactionWithComputeBudget
 
 class PermissionToken:
     def __init__(self,
@@ -36,7 +35,7 @@ class PermissionToken:
         if info is not None:
             return token_account
 
-        txn = Transaction()
+        txn = TransactionWithComputeBudget()
         create_txn = spl_token.create_associated_token_account(
             payer=self.signer.public_key(),
             owner=PublicKey(ether2program(ether_addr)[0]),

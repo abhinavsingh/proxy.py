@@ -13,6 +13,7 @@ from solana.rpc.types import TxOpts
 from solana.transaction import TransactionInstruction, Transaction, AccountMeta
 from proxy.common_neon.neon_instruction import create_account_layout
 from proxy.common_neon.erc20_wrapper import ERC20Wrapper
+from proxy.common_neon.compute_budget import TransactionWithComputeBudget
 from time import sleep
 from web3 import Web3
 import os
@@ -114,7 +115,7 @@ class TestAirdropperIntegration(TestCase):
         self.assertEqual(self.wrapper.get_balance(to_neon_acc), 0)
 
         TRANSFER_AMOUNT = 123456
-        trx = Transaction()
+        trx = TransactionWithComputeBudget()
         trx.add(self.create_account_instruction(to_neon_acc, from_owner.public_key()))
         trx.add(self.wrapper.create_neon_erc20_account_instruction(from_owner.public_key(), to_neon_acc))
         trx.add(self.wrapper.create_input_liquidity_instruction(from_owner.public_key(),
@@ -156,7 +157,7 @@ class TestAirdropperIntegration(TestCase):
 
         TRANSFER_AMOUNT1 = 123456
         TRANSFER_AMOUNT2 = 654321
-        trx = Transaction()
+        trx = TransactionWithComputeBudget()
         trx.add(self.create_account_instruction(to_neon_acc1, from_owner.public_key()))
         trx.add(self.create_account_instruction(to_neon_acc2, from_owner.public_key()))
         trx.add(self.wrapper.create_neon_erc20_account_instruction(from_owner.public_key(), to_neon_acc1))
@@ -208,7 +209,7 @@ class TestAirdropperIntegration(TestCase):
         self.assertEqual(self.wrapper.get_balance(from_spl_token_acc), mint_amount)
         self.assertEqual(self.wrapper.get_balance(to_neon_acc), 0)
 
-        trx = Transaction()
+        trx = TransactionWithComputeBudget()
         trx.add(self.create_account_instruction(to_neon_acc, from_owner.public_key()))
         trx.add(self.wrapper.create_neon_erc20_account_instruction(from_owner.public_key(), to_neon_acc))
         # No input liquidity

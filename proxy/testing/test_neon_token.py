@@ -17,6 +17,7 @@ from time import sleep
 from web3 import exceptions as web3_exceptions
 from random import uniform
 from eth_account.signers.local import LocalAccount as NeonAccount
+from proxy.common_neon.compute_budget import TransactionWithComputeBudget
 
 NEON_TOKEN_CONTRACT = '''
 // SPDX-License-Identifier: MIT
@@ -135,7 +136,7 @@ class TestNeonToken(unittest.TestCase):
         dest_acc = self.create_sol_account()
 
         # Creating destination Associated Token Account
-        trx = Transaction()
+        trx = TransactionWithComputeBudget()
         trx.add(
             create_associated_token_account(
                 dest_acc.public_key(),

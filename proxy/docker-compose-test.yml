@@ -3,7 +3,7 @@ version: "3"
 services:
   solana:
     container_name: solana
-    image: neonlabsorg/solana:${SOLANA_REVISION:-v1.9.12-testnet}
+    image: neonlabsorg/solana:${SOLANA_REVISION:-v1.9.12-testnet-with_trx_cap}
     environment:
       SOLANA_URL: http://solana:8899
       RUST_LOG: solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=debug,solana_bpf_loader=debug,solana_rbpf=debug

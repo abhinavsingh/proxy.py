@@ -21,6 +21,7 @@ from solana.blockhash import Blockhash
 from solana.account import Account as SolanaAccount
 
 from .address import accountWithSeed, EthereumAddress, ether2program
+from .compute_budget import TransactionWithComputeBudget
 from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, ACCOUNT_SEED_VERSION
 from .emulator_interactor import call_emulated
 from .neon_instruction import NeonInstruction as NeonIxBuilder
@@ -178,6 +179,7 @@ class NeonResizeContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
 
     def __init__(self, sender, account_desc):
         NeonCreateAccountWithSeedStage.__init__(self, sender)
+        self.tx = TransactionWithComputeBudget()
         self._account_desc = account_desc
         self._seed_base = ACCOUNT_SEED_VERSION + os.urandom(20)
         self._init_sol_account()
@@ -400,7 +402,7 @@ class OperatorResourceList:
         return ether_address
 
     def _create_perm_accounts(self, seed_list):
-        tx = Transaction()
+        tx = TransactionWithComputeBudget()
 
         stage_list = [NeonCreatePermAccount(self._s, seed, STORAGE_SIZE) for seed in seed_list]
         account_list = [s.sol_account for s in stage_list]
@@ -462,7 +464,7 @@ class NeonTxSender:
             self.to_address = '0x' + self.to_address
         self.steps_emulated = 0
 
-        self.create_account_tx = Transaction()
+        self.create_account_tx = TransactionWithComputeBudget()
         self.account_txs_name = ''
         self._resize_contract_list = []
         self._create_account_list = []
@@ -658,7 +660,7 @@ class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def build_tx(self) -> Transaction:
-        return Transaction()
+        return TransactionWithComputeBudget()
 
     @abc.abstractmethod
     def _validate(self) -> bool:
@@ -738,7 +740,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         return True
 
     def build_tx(self) -> Transaction:
-        tx = Transaction()
+        tx = TransactionWithComputeBudget()
         if not self._skip_create_account:
             tx.add(self.s.create_account_tx)
         tx.add(self.s.builder.make_noniterative_call_transaction(len(tx.instructions)))

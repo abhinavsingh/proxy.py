@@ -1,4 +1,3 @@
-
 import traceback
 
 from logged_groups import logged_group

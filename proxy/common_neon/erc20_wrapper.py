@@ -14,6 +14,7 @@ import spl.token.instructions as spl_token
 from typing import Union, Dict
 import struct
 from logged_groups import logged_group
+from .compute_budget import TransactionWithComputeBudget
 
 install_solc(version='0.7.6')
 from solcx import compile_source
@@ -144,7 +145,7 @@ class ERC20Wrapper:
         # Construct transaction
         # This part of code is based on original implementation of Token.create_associated_token_account
         # except that skip_preflight is set to True
-        txn = Transaction()
+        txn = TransactionWithComputeBudget()
         create_txn = spl_token.create_associated_token_account(
             payer=payer.public_key(), owner=owner, mint=self.token.pubkey
         )
