@@ -48,7 +48,10 @@ class RequestSolanaBlockList:
         return False
 
     def _get_latest_db_block(self):
-        self.latest_db_block_slot = self._b.solana.get_recent_blockslot(commitment=FINALIZED)
+        self.latest_db_block_slot = self._b.db.get_latest_block().slot
+        latest_solana_block_slot = self._b.solana.get_recent_blockslot(commitment=FINALIZED)
+        if not self.latest_db_block_slot or (latest_solana_block_slot - self.latest_db_block_slot > 300):
+            self.latest_db_block_slot = latest_solana_block_slot
 
     def _get_solana_block_list(self) -> bool:
         latest_db_slot = self.latest_db_block_slot

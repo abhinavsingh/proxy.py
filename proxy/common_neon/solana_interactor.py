@@ -467,4 +467,4 @@ class SolanaInteractor:
         opts = {"encoding": "json", "commitment": "confirmed"}
         request_list = [(sign, opts) for sign in sign_list]
         response_list = self._send_rpc_batch_request("getTransaction", request_list)
-        return [r['result'] for r in response_list]
+        return [r.get('result') for r in response_list]

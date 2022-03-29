@@ -64,8 +64,10 @@ class CliBase:
         proc_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
         if proc_result.stderr is not None:
             print(proc_result.stderr, file=sys.stderr)
-        proc_result.check_returncode()
-        return proc_result.stdout
+        output = proc_result.stdout
+        if not output:
+            proc_result.check_returncode()
+        return output
 
 
 @logged_group("neon.Proxy")

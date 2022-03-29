@@ -59,9 +59,16 @@ class SolReceiptParser:
         })
 
     def _get_value(self, *path) -> Any:
+        if not self._receipt:
+            return None
+        if isinstance(self._receipt, Exception):
+            return None
+
         return get_from_dict(self._receipt, *path)
 
     def _get_error(self) -> Union[str, list, None]:
+        if not self._receipt:
+            return None
         if isinstance(self._receipt, Exception):
             return str(self._receipt)
 
@@ -94,9 +101,9 @@ class SolReceiptParser:
         return self._error
 
     def _get_log_list(self) -> [str]:
-        if isinstance(self._receipt, Exception):
+        if not self._receipt:
             return []
-        if self._receipt is None:
+        if isinstance(self._receipt, Exception):
             return []
 
         log_from_receipt = self._get_value('result', 'meta', 'logMessages')
@@ -139,6 +146,8 @@ class SolReceiptParser:
     def check_if_budget_exceeded(self) -> bool:
         """Error can be received as receipt or can be result of throwing an Exception"""
         error_type = self.get_error()
+        if not error_type:
+            return False
         if isinstance(error_type, list):
             error_type = error_type[1]
 
@@ -158,11 +167,11 @@ class SolReceiptParser:
         return False
 
     def check_if_blockhash_notfound(self) -> bool:
+        if not self._receipt:
+            return True
         return self.get_error() == self.BLOCKHASH_NOTFOUND
 
     def get_slots_behind(self) -> Optional[int]:
-        if not self._receipt:
-            return None
         return self._get_value('data', self.NUMSLOTS_BEHIND)
 
     def get_nonce_error(self) -> Optional[(int, int)]:

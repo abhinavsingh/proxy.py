@@ -102,7 +102,7 @@ class NeonTxValidator:
 
         required_balance = self._tx.gasPrice * self._tx.gasLimit + self._tx.value
 
-        if required_balance < user_balance:
+        if required_balance <= user_balance:
             return
 
         if len(self._tx.callData) == 0:
