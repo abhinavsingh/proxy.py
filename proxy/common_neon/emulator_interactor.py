@@ -4,7 +4,7 @@ from logged_groups import logged_group
 
 from typing import Optional, Dict, Any
 from .errors import EthereumError
-from ..environment import neon_cli, NEON_TOKEN_MINT
+from ..environment import neon_cli, NEON_TOKEN_MINT, CHAIN_ID
 
 
 @logged_group("neon.Proxy")
@@ -79,7 +79,7 @@ def emulator(contract, sender, data, value):
     data = data or "none"
     value = value or ""
     try:
-        return neon_cli().call("emulate", "--token_mint", str(NEON_TOKEN_MINT), sender, contract, data, value)
+        return neon_cli().call("emulate", "--token_mint", str(NEON_TOKEN_MINT), "--chain_id", str(CHAIN_ID), sender, contract, data, value)
     except subprocess.CalledProcessError as err:
         if err.returncode == 111:
             message = parse_emulator_program_error(err.stderr)
