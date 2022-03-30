@@ -8,6 +8,7 @@ from solana.transaction import Transaction
 
 from .costs import update_transaction_cost
 from .solana_receipt_parser import SolReceiptParser, SolTxError
+from .errors import EthereumError
 
 from ..environment import WRITE_TRANSACTION_COST_IN_DB, SKIP_PREFLIGHT, RETRY_ON_FAIL
 
@@ -99,7 +100,7 @@ class SolTxListSender:
             self._on_post_send()
 
         if len(self._tx_list):
-            raise RuntimeError('Run out of attempts to execute transaction')
+            raise EthereumError(message='No more retries to complete transaction!')
         return self
 
     def update_transaction_cost(self, receipt_list):

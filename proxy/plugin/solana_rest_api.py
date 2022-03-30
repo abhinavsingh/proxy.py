@@ -26,7 +26,6 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from typing import List, Tuple
 
-from .solana_rest_api_tools import neon_config_load
 from ..common_neon.transaction_sender import NeonTxSender
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.solana_receipt_parser import SolTxError
@@ -37,6 +36,7 @@ from ..common_neon.estimate import GasEstimate
 from ..common_neon.utils import SolanaBlockInfo
 from ..common_neon.keys_storage import KeyStorage
 from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, EVM_STEP_COUNT, CHAIN_ID, ENABLE_PRIVATE_API
+from ..environment import NEON_EVM_VERSION, NEON_EVM_REVISION
 from ..environment import neon_cli
 from ..memdb.memdb import MemDB
 from .gas_price_calculator import GasPriceCalculator
@@ -46,7 +46,7 @@ from web3.auto import w3
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
-NEON_PROXY_PKG_VERSION = '0.7.2-dev'
+NEON_PROXY_PKG_VERSION = '0.7.5-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
@@ -71,27 +71,20 @@ class EthereumModel:
 
         self.debug(f"Worker id {self.proxy_id}")
 
-        neon_config_load(self)
-
     def neon_proxy_version(self):
         return 'Neon-proxy/v' + NEON_PROXY_PKG_VERSION + '-' + NEON_PROXY_REVISION
 
     def web3_clientVersion(self):
-        neon_config_load(self)
-        return self.neon_config_dict['web3_clientVersion']
+        return 'Neon/v' + NEON_EVM_VERSION + '-' + NEON_EVM_REVISION
 
     def eth_chainId(self):
-        neon_config_load(self)
-        # NEON_CHAIN_ID is a string in decimal form
-        return hex(int(self.neon_config_dict['NEON_CHAIN_ID']))
+        return hex(int(CHAIN_ID))
 
     def neon_cli_version(self):
         return neon_cli().version()
 
     def net_version(self):
-        neon_config_load(self)
-        # NEON_CHAIN_ID is a string in decimal form
-        return self.neon_config_dict['NEON_CHAIN_ID']
+        return str(CHAIN_ID)
 
     def eth_gasPrice(self):
         return hex(int(self.gas_price_calculator.get_suggested_gas_price()))

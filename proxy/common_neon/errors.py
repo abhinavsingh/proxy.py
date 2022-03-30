@@ -1,6 +1,3 @@
-from enum import Enum
-
-
 class EthereumError(Exception):
     def __init__(self, message, code=-32000, data=None):
         self.code = code
