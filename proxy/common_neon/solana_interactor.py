@@ -27,6 +27,7 @@ from ..environment import RETRY_ON_FAIL
 from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT
 from ..common_neon.address import EthereumAddress, ether2program
 from ..common_neon.address import AccountInfoLayout
+from ..common_neon.utils import get_from_dict
 
 
 class AccountInfo(NamedTuple):
@@ -397,7 +398,15 @@ class SolanaInteractor:
 
         request_list = self._fuzzing_transactions(signer, tx_list, opts, request_list)
         response_list = self._send_rpc_batch_request('sendTransaction', request_list)
-        return [SendResult(result=r.get('result'), error=r.get('error')) for r in response_list]
+        result_list = []
+        for response, tx in zip(response_list, tx_list):
+            result = response.get('result')
+            error = response.get('error')
+            if error and get_from_dict('data', 'err') == 'AlreadyProcessed':
+                error = None
+                result = tx.signature()
+            result_list.append(SendResult(result=result, error=error))
+        return result_list
 
     def send_multiple_transactions(self, signer: SolanaAccount, tx_list: [], waiter,
                                    skip_preflight: bool, preflight_commitment: str) -> [{}]:
