@@ -10,6 +10,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docke
 sudo apt-get update
 sudo apt-get -y install docker-ce docker-ce-cli containerd.io
 
+sudo apt-get -y install pbzip2
 
 # Install docker-compose
 sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -52,7 +53,7 @@ services:
       - SOLANA_URL=$SOLANA_URL
       - NEON_ETH_MAX_AMOUNT=50000
       - EVM_LOADER=53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
-      - NEON_TOKEN_MINT=HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU   
+      - NEON_TOKEN_MINT=HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU
       - FAUCET_RPC_ALLOWED_ORIGINS=["https://neonswap.live"]
       - FAUCET_WEB3_ENABLE=false
       - FAUCET_SOLANA_ENABLE=true

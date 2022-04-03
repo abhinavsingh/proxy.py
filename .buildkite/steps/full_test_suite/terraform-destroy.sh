@@ -11,22 +11,23 @@ mkdir -p $ARTIFACTS_LOGS
 
 
 # solana
-export REMOTE_HOST=`buildkite-agent meta-data get "SOLANA_IP"`
-ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
-ssh -i ${SSH_KEY} ubuntu@${REMOTE_HOST} 'sudo docker logs solana > /tmp/solana.log 2>&1'
-scp -i ${SSH_KEY} ubuntu@${REMOTE_HOST}:/tmp/solana.log ${ARTIFACTS_LOGS}
+export SOLANA_HOST=`buildkite-agent meta-data get "SOLANA_IP"`
+ssh-keyscan -H $SOLANA_HOST >> ~/.ssh/known_hosts
+echo "Upload logs for service: solana"
+ssh -i ${SSH_KEY} ubuntu@${SOLANA_HOST} 'sudo docker logs solana 2>&1 | pbzip2 > /tmp/solana.log.bz2'
+scp -i ${SSH_KEY} ubuntu@${SOLANA_HOST}:/tmp/solana.log.bz2 ${ARTIFACTS_LOGS}
 
 
 # proxy
-export REMOTE_HOST=`buildkite-agent meta-data get "PROXY_IP"`
-ssh-keyscan -H $REMOTE_HOST >> ~/.ssh/known_hosts
+export PROXY_HOST=`buildkite-agent meta-data get "PROXY_IP"`
+ssh-keyscan -H $PROXY_HOST >> ~/.ssh/known_hosts
 declare -a services=("evm_loader" "postgres" "dbcreation" "indexer" "proxy" "faucet" "airdropper")
 
 for service in "${services[@]}"
 do
-   echo "$service"
-   ssh -i ${SSH_KEY} ubuntu@${REMOTE_HOST} "sudo docker logs $service > /tmp/$service.log 2>&1"
-   scp -i ${SSH_KEY} ubuntu@${REMOTE_HOST}:/tmp/$service.log ${ARTIFACTS_LOGS}
+   echo "Upload logs for service: $service"
+   ssh -i ${SSH_KEY} ubuntu@${PROXY_HOST} "sudo docker logs $service 2>&1 | pbzip2 > /tmp/$service.log.bz2"
+   scp -i ${SSH_KEY} ubuntu@${PROXY_HOST}:/tmp/$service.log.bz2 ${ARTIFACTS_LOGS}
 done
 
 export NEON_EVM_COMMIT=${NEON_EVM_COMMIT:-latest}
