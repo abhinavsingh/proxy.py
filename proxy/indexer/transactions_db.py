@@ -42,9 +42,9 @@ class SolanaNeonTxsDB(BaseDB):
 class NeonTxsDB(BaseDB):
     def __init__(self):
         BaseDB.__init__(self, 'neon_transactions')
-        self._column_lst = ('neon_sign', 'from_addr', 'sol_sign', 'slot', 'block_hash', 'idx',
+        self._column_lst = ['neon_sign', 'from_addr', 'sol_sign', 'slot', 'block_hash', 'idx', 'tx_idx',
                             'nonce', 'gas_price', 'gas_limit', 'to_addr', 'contract', 'value', 'calldata',
-                            'v', 'r', 's', 'status', 'gas_used', 'return_value', 'logs')
+                            'v', 'r', 's', 'status', 'gas_used', 'return_value', 'logs']
         self._sol_neon_txs_db = SolanaNeonTxsDB()
 
     def _tx_from_value(self, value) -> Optional[NeonTxFullInfo]:

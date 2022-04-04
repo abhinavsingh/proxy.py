@@ -116,33 +116,20 @@
         UNIQUE(sol_sign, idx)
     );
 
-    CREATE TABLE IF NOT EXISTS transaction_receipts (
+    ALTER TABLE neon_transactions ADD COLUMN IF NOT EXISTS tx_idx INT DEFAULT 0;
+
+    CREATE TABLE IF NOT EXISTS solana_transaction_receipts (
         slot        BIGINT,
+        tx_idx      INT,
         signature   VARCHAR(88),
-        trx         BYTEA,
-        PRIMARY KEY (slot, signature)
-    );
-
-    CREATE TABLE IF NOT EXISTS constants (
-        key TEXT UNIQUE,
-        value BYTEA
-    )
-
-    CREATE TABLE IF NOT EXISTS airdrop_scheduled (
-        key TEXT UNIQUE,
-        value BYTEA
-    )
-
-    CREATE TABLE IF NOT EXISTS transaction_receipts (
-        slot        BIGINT,
-        signature   VARCHAR(88),
-        trx         BYTEA,
+        tx          BYTEA,
         PRIMARY KEY (slot, signature)
     );
 
     CREATE TABLE IF NOT EXISTS test_storage (
         slot        BIGINT,
+        tx_idx      INT,
         signature   VARCHAR(88),
-        trx         BYTEA,
+        tx          BYTEA,
         PRIMARY KEY (slot, signature)
     );

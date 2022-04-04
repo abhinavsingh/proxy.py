@@ -48,7 +48,7 @@ class RequestSolanaBlockList:
         return False
 
     def _get_latest_db_block(self):
-        self.latest_db_block_slot = self._b.db.get_latest_block().slot
+        self.latest_db_block_slot = self._b.db.get_latest_block_slot()
         latest_solana_block_slot = self._b.solana.get_recent_blockslot(commitment=FINALIZED)
         if not self.latest_db_block_slot or (latest_solana_block_slot - self.latest_db_block_slot > 300):
             self.latest_db_block_slot = latest_solana_block_slot
@@ -254,6 +254,9 @@ class MemBlocksDB:
         self._update_block_dicts()
         return self._latest_block.slot
 
+    def get_staring_block_slot(self) -> int:
+        return self.db.get_starting_block().slot
+
     def get_db_block_slot(self) -> int:
         self._update_block_dicts()
         return self._latest_db_block_slot
@@ -278,12 +281,18 @@ class MemBlocksDB:
 
     @staticmethod
     def generate_fake_block(block_slot: int, block_time=1) -> SolanaBlockInfo:
-        # TODO: return predictable information about block hashes and block time
+        def slot_hash(slot: int):
+            hex_num = hex(slot)[2:]
+            num_len = len(hex_num)
+            hex_num = '00' + hex_num.rjust(((num_len >> 1) + (num_len % 2)) << 1, '0')
+            return '0x' + hex_num.rjust(64, 'f')
+
+        # TODO: return predictable information about block time
         return SolanaBlockInfo(
             slot=block_slot,
             time=(block_time or 1),
-            hash='0x' + os.urandom(32).hex(),
-            parent_hash='0x' + os.urandom(32).hex(),
+            hash=slot_hash(block_slot),
+            parent_hash=slot_hash(block_slot - 1),
             is_fake=True
         )
 

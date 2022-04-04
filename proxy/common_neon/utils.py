@@ -149,6 +149,8 @@ class NeonTxResultInfo:
 
 class NeonTxInfo:
     def __init__(self, rlp_sign=None, rlp_data=None):
+        self.tx_idx = 0
+
         self._set_defaults()
         if isinstance(rlp_sign, bytes) and isinstance(rlp_data, bytes):
             self.decode(rlp_sign, rlp_data)
@@ -163,7 +165,6 @@ class NeonTxInfo:
         self.__dict__ = src
 
     def _set_defaults(self):
-        self.tx = None
         self.addr = None
         self.sign = None
         self.nonce = None
@@ -179,8 +180,6 @@ class NeonTxInfo:
         self.error = None
 
     def init_from_eth_tx(self, tx: EthTx):
-        self.tx = tx
-
         self.v = hex(tx.v)
         self.r = hex(tx.r)
         self.s = hex(tx.s)

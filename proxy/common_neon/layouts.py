@@ -3,14 +3,14 @@ from construct import Bytes, Int8ul, Int32ul, Int64ul
 from construct import Struct
 
 STORAGE_ACCOUNT_INFO_LAYOUT = Struct(
-    # "tag" / Int8ul,
+    "tag" / Int8ul,
     "caller" / Bytes(20),
     "nonce" / Int64ul,
     "gas_limit" / Bytes(32),
     "gas_price" / Bytes(32),
     "slot" / Int64ul,
     "operator" / Bytes(32),
-    "accounts_len" / Int64ul,
+    "account_list_len" / Int64ul,
     "executor_data_size" / Int64ul,
     "evm_data_size" / Int64ul,
     "gas_used_and_paid" / Bytes(32),

@@ -101,8 +101,19 @@ class MemTxsDB:
 
         return result_list + self._db.get_logs(from_block, to_block, addresses, topics, block_hash)
 
-    def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo, before_slot: int):
-        tx = NeonTxFullInfo(neon_tx=neon_tx, neon_res=neon_res)
+    def get_sol_sign_list_by_neon_sign(self, neon_sign: str, is_pended_tx: bool, before_slot: int) -> [str]:
+        if not is_pended_tx:
+            return self._db.get_sol_sign_list_by_neon_sign(neon_sign)
+
+        with self._tx_slot.get_lock():
+            self._rm_finalized_txs(before_slot)
+            data = self._tx_by_neon_sign.get(neon_sign)
+            if data:
+                return pickle.loads(data).used_ixs
+        return None
+
+    def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo, sign_list: [str], before_slot: int):
+        tx = NeonTxFullInfo(neon_tx=neon_tx, neon_res=neon_res, used_ixs=sign_list)
         data = pickle.dumps(tx)
 
         with self._tx_slot.get_lock():

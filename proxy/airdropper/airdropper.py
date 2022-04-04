@@ -265,7 +265,7 @@ class Airdropper(IndexerBase):
 
     def process_receipts(self):
         max_slot = 0
-        for slot, _, trx in self.transaction_receipts.get_trxs(self.latest_processed_slot):
+        for slot, _, trx in self.transaction_receipts.get_txs(self.latest_processed_slot):
             max_slot = max(max_slot, slot)
             if trx['transaction']['message']['instructions'] is not None:
                 self.process_trx_airdropper_mode(trx)

@@ -236,17 +236,21 @@ class NeonInstruction:
         trx.add(self.make_05_call_instruction())
         return trx
 
-    def make_cancel_transaction(self, cancel_keys=None) -> Transaction:
+    def make_cancel_transaction(self, storage=None, nonce=None, cancel_keys=None) -> Transaction:
         if cancel_keys:
             append_keys = cancel_keys
         else:
             append_keys = self.eth_accounts
             append_keys += obligatory_accounts
+        if not nonce:
+            nonce = self.eth_trx.nonce
+        if not storage:
+            storage = self.storage
         return TransactionWithComputeBudget().add(TransactionInstruction(
             program_id = EVM_LOADER_ID,
-            data = bytearray.fromhex("15") + self.eth_trx.nonce.to_bytes(8, 'little'),
+            data = bytearray.fromhex("15") + nonce.to_bytes(8, 'little'),
             keys=[
-                AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=storage, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
                 AccountMeta(pubkey=INCINERATOR_PUBKEY, is_signer=False, is_writable=True),
             ] + append_keys

@@ -5,6 +5,7 @@ import time
 from logged_groups import logged_group
 from typing import Optional
 from solana.transaction import Transaction
+from base58 import b58encode
 
 from .costs import update_transaction_cost
 from .solana_receipt_parser import SolReceiptParser, SolTxError
@@ -24,9 +25,9 @@ class SolTxListSender:
 
         self._blockhash = None
         self._retry_idx = 0
-        self._total_success_cnt = 0
         self._slots_behind = 0
         self._tx_list = tx_list
+        self.success_sign_list = []
         self._node_behind_list = []
         self._bad_block_list = []
         self._blocked_account_list = []
@@ -66,7 +67,7 @@ class SolTxListSender:
             receipt_list = solana.send_multiple_transactions(signer, self._tx_list, waiter, skip, commitment)
             self.update_transaction_cost(receipt_list)
 
-            success_cnt = 0
+            success_sign_list = []
             for receipt, tx in zip(receipt_list, self._tx_list):
                 receipt_parser = SolReceiptParser(receipt)
                 slots_behind = receipt_parser.get_slots_behind()
@@ -83,20 +84,20 @@ class SolTxListSender:
                 elif receipt_parser.check_if_error():
                     self._unknown_error_list.append(receipt)
                 else:
-                    success_cnt += 1
+                    success_sign_list.append(b58encode(tx.signature()).decode("utf-8"))
                     self._retry_idx = 0
                     self._on_success_send(tx, receipt)
 
             self.debug(f'retry {self._retry_idx}, ' +
                        f'total receipts {len(receipt_list)}, ' +
-                       f'success receipts {self._total_success_cnt}(+{success_cnt}), ' +
+                       f'success receipts {len(self.success_sign_list)}(+{len(success_sign_list)}), ' +
                        f'node behind {len(self._node_behind_list)}, '
                        f'bad blocks {len(self._bad_block_list)}, ' +
                        f'blocked accounts {len(self._blocked_account_list)}, ' +
                        f'budget exceeded {len(self._budget_exceeded_list)}, ' +
                        f'unknown error: {len(self._unknown_error_list)}')
 
-            self._total_success_cnt += success_cnt
+            self.success_sign_list += success_sign_list
             self._on_post_send()
 
         if len(self._tx_list):

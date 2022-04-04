@@ -22,13 +22,16 @@ class MemDB:
         self._pending_tx_db = MemPendingTxsDB(self._db)
 
     def _before_slot(self) -> int:
-        return self._blocks_db.get_db_block_slot()
+        return self._blocks_db.get_db_block_slot() - 5
 
     def get_latest_block(self) -> SolanaBlockInfo:
         return self._blocks_db.get_latest_block()
 
     def get_latest_block_slot(self) -> int:
         return self._blocks_db.get_latest_block_slot()
+
+    def get_starting_block_slot(self) -> int:
+        return self._blocks_db.get_staring_block_slot()
 
     def get_full_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
         return self._blocks_db.get_full_block_by_slot(block_slot)
@@ -39,10 +42,10 @@ class MemDB:
     def pend_transaction(self, tx: NeonPendingTxInfo):
         self._pending_tx_db.pend_transaction(tx, self._before_slot())
 
-    def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo):
+    def submit_transaction(self, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo, sign_list: [str]):
         block = self._blocks_db.submit_block(neon_res)
         neon_res.fill_block_info(block)
-        self._txs_db.submit_transaction(neon_tx, neon_res, self._before_slot())
+        self._txs_db.submit_transaction(neon_tx, neon_res, sign_list, self._before_slot())
 
     def get_tx_list_by_sol_sign(self, is_finalized: bool, sol_sign_list: [str]) -> [NeonTxFullInfo]:
         if (not sol_sign_list) or (not len(sol_sign_list)):
@@ -61,4 +64,6 @@ class MemDB:
         return self._db.get_contract_code(address)
 
     def get_sol_sign_list_by_neon_sign(self, neon_sign: str) -> [str]:
-        return self._db.get_sol_sign_list_by_neon_sign(neon_sign)
+        before_slot = self._before_slot()
+        is_pended_tx = self._pending_tx_db.is_exist(neon_sign, before_slot)
+        return self._txs_db.get_sol_sign_list_by_neon_sign(neon_sign, is_pended_tx, before_slot)

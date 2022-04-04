@@ -5,7 +5,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from logged_groups import logged_group
 from typing import Optional
 
-from .trx_receipts_storage import TrxReceiptsStorage
+from .trx_receipts_storage import TxReceiptsStorage
 from .utils import MetricsToLogBuff
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..indexer.sql_dict import SQLDict
@@ -20,7 +20,7 @@ class IndexerBase:
                  solana: SolanaInteractor,
                  last_slot: int):
         self.solana = solana
-        self.transaction_receipts = TrxReceiptsStorage('transaction_receipts')
+        self.transaction_receipts = TxReceiptsStorage('solana_transaction_receipts')
         self.last_slot = self._init_last_slot('receipt', last_slot)
         self.current_slot = 0
         self.counter_ = 0
@@ -92,7 +92,7 @@ class IndexerBase:
 
     def gather_unknown_transactions(self):
         start_time = time.time()
-        poll_txs = set()
+        poll_txs = []
 
         minimal_tx = None
         maximum_tx = None
@@ -117,20 +117,27 @@ class IndexerBase:
             gathered_signatures += len_results
             counter += 1
 
+            tx_idx = 0
+            prev_slot = 0
+
             for tx in results:
-                solana_signature = tx["signature"]
+                sol_sign = tx["signature"]
                 slot = tx["slot"]
+
+                if slot != prev_slot:
+                    tx_idx = 0
+                prev_slot = slot
 
                 if slot < self.last_slot:
                     continue_flag = False
                     break
 
-                if solana_signature in [HISTORY_START, self._maximum_tx]:
+                if sol_sign in [HISTORY_START, self._maximum_tx]:
                     continue_flag = False
                     break
 
-                if not self.transaction_receipts.contains(slot, solana_signature):
-                    poll_txs.add(solana_signature)
+                if not self.transaction_receipts.contains(slot, sol_sign):
+                    poll_txs.append((sol_sign, slot, tx_idx))
 
         pool = ThreadPool(PARALLEL_REQUESTS)
         pool.map(self._get_tx_receipts, poll_txs)
@@ -154,14 +161,15 @@ class IndexerBase:
             self.warning(f'Fail to get signatures: {error}')
         return result
 
-    def _get_tx_receipts(self, solana_signature):
-        # trx = None
+    def _get_tx_receipts(self, param):
+        # tx = None
         retry = RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
 
+        (sol_sign, slot, tx_idx) = param
         while retry > 0:
             try:
-                trx = self.solana.get_confirmed_transaction(solana_signature)['result']
-                self._add_trx(solana_signature, trx)
+                tx = self.solana.get_confirmed_transaction(sol_sign)['result']
+                self._add_tx(sol_sign, tx, slot, tx_idx)
                 retry = 0
             except Exception as err:
                 self.debug(f'Exception on get_confirmed_transaction: "{err}"')
@@ -174,15 +182,16 @@ class IndexerBase:
         if self.counter_ % 100 == 0:
             self.debug(f"Acquired {self.counter_} receipts")
 
-    def _add_trx(self, solana_signature, trx):
-        if trx is not None:
+    def _add_tx(self, sol_sign, tx, slot, tx_idx):
+        if tx is not None:
             add = False
-            for instruction in trx['transaction']['message']['instructions']:
-                if trx["transaction"]["message"]["accountKeys"][instruction["programIdIndex"]] == EVM_LOADER_ID:
+            msg = tx['transaction']['message']
+            for instruction in msg['instructions']:
+                if msg["accountKeys"][instruction["programIdIndex"]] == EVM_LOADER_ID:
                     add = True
             if add:
-                self.debug((trx['slot'], solana_signature))
-                self.transaction_receipts.add_trx(trx['slot'], solana_signature, trx)
+                self.debug((slot, tx_idx, sol_sign))
+                self.transaction_receipts.add_tx(slot, tx_idx, sol_sign, tx)
         else:
-            self.debug(f"trx is None {solana_signature}")
+            self.debug(f"trx is None {sol_sign}")
 

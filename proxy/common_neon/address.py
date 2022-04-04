@@ -5,7 +5,6 @@ import random
 from eth_keys import keys as eth_keys
 from hashlib import sha256
 from solana.publickey import PublicKey
-from typing import NamedTuple
 
 
 class EthereumAddress:
@@ -36,7 +35,7 @@ class EthereumAddress:
     def __bytes__(self): return self.data
 
 
-def accountWithSeed(base, seed):
+def accountWithSeed(base: bytes, seed: bytes) -> PublicKey:
     from ..environment import EVM_LOADER_ID
 
     result = PublicKey(sha256(bytes(base) + bytes(seed) + bytes(PublicKey(EVM_LOADER_ID))).digest())
@@ -59,25 +58,3 @@ def ether2program(ether):
     seed = [ACCOUNT_SEED_VERSION,  bytes.fromhex(ether)]
     (pda, nonce) = PublicKey.find_program_address(seed, PublicKey(EVM_LOADER_ID))
     return str(pda), nonce
-
-
-class AccountInfoLayout(NamedTuple):
-    ether: eth_keys.PublicKey
-    balance: int
-    trx_count: int
-    code_account: PublicKey
-
-    def is_payed(self) -> bool:
-        return self.state != 0
-
-    @staticmethod
-    def frombytes(data) -> AccountInfoLayout:
-        from .layouts import ACCOUNT_INFO_LAYOUT
-
-        cont = ACCOUNT_INFO_LAYOUT.parse(data)
-        return AccountInfoLayout(
-            ether=cont.ether,
-            balance=int.from_bytes(cont.balance, "little"),
-            trx_count=int.from_bytes(cont.trx_count, "little"),
-            code_account=PublicKey(cont.code_account)
-        )

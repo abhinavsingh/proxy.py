@@ -40,35 +40,6 @@ class SolanaIxSignInfo:
 
 
 @logged_group("neon.Indexer")
-def get_accounts_from_storage(solana: SolanaInteractor, storage_account, *, logger):
-    info = solana.get_account_info(storage_account, length=0)
-    # logger.debug("\n{}".format(json.dumps(result, indent=4, sort_keys=True)))
-
-    if info is None:
-        raise Exception(f"Can't get information about {storage_account}")
-
-    if info.tag == 30:
-        logger.debug("Not empty storage")
-
-        acc_list = []
-        storage = STORAGE_ACCOUNT_INFO_LAYOUT.parse(info.data[1:])
-        offset = 1 + STORAGE_ACCOUNT_INFO_LAYOUT.sizeof()
-        for _ in range(storage.accounts_len):
-            writable = (info.data[offset] > 0)
-            offset += 1
-
-            some_pubkey = PublicKey(info.data[offset:offset + 32])
-            offset += 32
-
-            acc_list.append((writable, str(some_pubkey)))
-
-        return acc_list
-    else:
-        logger.debug("Empty")
-        return None
-
-
-@logged_group("neon.Indexer")
 def get_accounts_by_neon_address(solana: SolanaInteractor, neon_address, *, logger):
     pda_address, _nonce = ether2program(neon_address)
     info = solana.get_account_info(pda_address, length=0)

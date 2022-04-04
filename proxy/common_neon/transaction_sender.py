@@ -22,10 +22,10 @@ from solana.account import Account as SolanaAccount
 
 from .address import accountWithSeed, EthereumAddress, ether2program
 from .compute_budget import TransactionWithComputeBudget
-from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, ACCOUNT_SEED_VERSION
+from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, ACTIVE_STORAGE_TAG, ACCOUNT_SEED_VERSION
 from .emulator_interactor import call_emulated
 from .neon_instruction import NeonInstruction as NeonIxBuilder
-from .solana_interactor import SolanaInteractor
+from .solana_interactor import SolanaInteractor, StorageAccountInfo
 from .solana_tx_list_sender import SolTxListSender
 from .solana_receipt_parser import SolTxError, SolReceiptParser, Measurements
 from .transaction_validator import NeonTxValidator
@@ -53,6 +53,28 @@ class NeonTxStage(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def build(self):
         pass
+
+
+@logged_group("neon.Proxy")
+class NeonCancelTxStage(NeonTxStage, abc.ABC):
+    NAME = 'cancelWithNonce'
+
+    def __init__(self, sender, account: PublicKey):
+        NeonTxStage.__init__(self, sender)
+        self._account = account
+        self._storage = self.s.solana.get_storage_account_account(account)
+
+    def _cancel_tx(self):
+        return self.s.builder.make_cancel_transaction(storage=self._account,
+                                                      nonce=self._storage.nonce,
+                                                      cancel_keys=self._storage.account_list)
+
+    def build(self):
+        assert self._is_empty()
+        assert self._storage is not None
+
+        self.debug(f'Cancel transaction in storage account {str(self._account)}')
+        self.tx = self._cancel_tx()
 
 
 class NeonCreateAccountWithSeedStage(NeonTxStage, abc.ABC):
@@ -402,29 +424,42 @@ class OperatorResourceList:
         return ether_address
 
     def _create_perm_accounts(self, seed_list):
+        rid = self._resource.rid
+        opkey = str(self._resource.public_key())
+
         tx = TransactionWithComputeBudget()
+        tx_name_list = set()
 
         stage_list = [NeonCreatePermAccount(self._s, seed, STORAGE_SIZE) for seed in seed_list]
         account_list = [s.sol_account for s in stage_list]
         info_list = self._s.solana.get_account_info_list(account_list)
         balance = self._s.solana.get_multiple_rent_exempt_balances_for_size([STORAGE_SIZE])[0]
-        for idx, account, stage in zip(range(2), info_list, stage_list):
+        for idx, account, stage in zip(range(len(seed_list)), info_list, stage_list):
             if not account:
+                self.debug(f"Create new accounts for resource {opkey}:{rid}")
                 stage.balance = balance
                 stage.build()
+                tx_name_list.add(stage.NAME)
                 tx.add(stage.tx)
+                continue
             elif account.lamports < balance:
                 raise RuntimeError(f"insufficient balance of {str(stage.sol_account)}")
             elif PublicKey(account.owner) != PublicKey(EVM_LOADER_ID):
                 raise RuntimeError(f"wrong owner for: {str(stage.sol_account)}")
-            elif (idx == 0) and (account.tag not in {EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG}):
+            elif idx != 0:
+                continue
+
+            if account.tag == ACTIVE_STORAGE_TAG:
+                self.debug(f"Cancel transaction in {str(stage.sol_account)} for resource {opkey}:{rid}")
+                cancel_stage = NeonCancelTxStage(self._s, stage.sol_account)
+                cancel_stage.build()
+                tx_name_list.add(cancel_stage.NAME)
+                tx.add(cancel_stage.tx)
+            elif account.tag not in (FINALIZED_STORAGE_TAG, EMPTY_STORAGE_TAG):
                 raise RuntimeError(f"not empty, not finalized: {str(stage.sol_account)}")
 
-        rid = self._resource.rid
-        opkey = str(self._resource.public_key())
         if len(tx.instructions):
-            self.debug(f"Create new accounts for resource {opkey}:{rid}")
-            SolTxListSender(self._s, [tx], NeonCreatePermAccount.NAME).send()
+            SolTxListSender(self._s, [tx], ' + '.join(tx_name_list)).send()
         else:
             self.debug(f"Use existing accounts for resource {opkey}:{rid}")
         return account_list
@@ -499,8 +534,9 @@ class NeonTxSender:
         self._resource_list.init_resource_info()
 
         self._validate_pend_tx()
+        self._neon_tx_validator.prevalidate_tx(self.signer)
         self._call_emulated()
-        self._neon_tx_validator.prevalidate_tx(self.signer, self._emulator_json)
+        self._neon_tx_validator.prevalidate_emulator(self._emulator_json)
 
     def _validate_pend_tx(self):
         operator = f'{str(self.resource.public_key())}:{self.resource.rid}'
@@ -516,8 +552,8 @@ class NeonTxSender:
                     continue
 
                 self.debug(f'Use strategy {Strategy.NAME}')
-                neon_res = strategy.execute()
-                self._submit_tx_into_db(neon_res)
+                neon_res, sign_list = strategy.execute()
+                self._submit_tx_into_db(neon_res, sign_list)
                 return neon_res
             except Exception as e:
                 if (not Strategy.IS_SIMPLE) or (not SolReceiptParser(e).check_if_budget_exceeded()):
@@ -542,10 +578,10 @@ class NeonTxSender:
             self._pending_tx.slot = slot
             self._db.pend_transaction(self._pending_tx)
 
-    def _submit_tx_into_db(self, neon_res: NeonTxResultInfo):
+    def _submit_tx_into_db(self, neon_res: NeonTxResultInfo, sign_list: [str]):
         neon_tx = NeonTxInfo()
         neon_tx.init_from_eth_tx(self.eth_tx)
-        self._db.submit_transaction(neon_tx, neon_res)
+        self._db.submit_transaction(neon_tx, neon_res, sign_list)
 
     def _prepare_execution(self):
         # Parse information from the emulator output
@@ -655,8 +691,8 @@ class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
         self.is_valid = self._validate()
 
     @abc.abstractmethod
-    def execute(self) -> NeonTxResultInfo:
-        return NeonTxResultInfo()
+    def execute(self) -> (NeonTxResultInfo, [str]):
+        return NeonTxResultInfo(), []
 
     @abc.abstractmethod
     def build_tx(self) -> Transaction:
@@ -746,7 +782,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         tx.add(self.s.builder.make_noniterative_call_transaction(len(tx.instructions)))
         return tx
 
-    def execute(self) -> NeonTxResultInfo:
+    def execute(self) -> (NeonTxResultInfo, [str]):
         tx_list = self.s.build_account_txs(not self._skip_create_account)
         if len(tx_list) > 0:
             SolTxListSender(self.s, tx_list, self.s.account_txs_name).send()
@@ -755,7 +791,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         tx_sender = SimpleNeonTxSender(self, self.s, [self.build_tx()], self.NAME).send()
         if not tx_sender.neon_res.is_valid():
             raise tx_sender.raise_budget_exceeded()
-        return tx_sender.neon_res
+        return tx_sender.neon_res, tx_sender.success_sign_list
 
 
 @logged_group("neon.Proxy")
@@ -831,14 +867,14 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
                 self._raise_error()
 
             self._unknown_error_list.clear()
-            if self._total_success_cnt:
+            if len(self.success_sign_list):
                 return self._cancel()
             self._raise_error()
 
         # There is no more retries to send transactions
         if self._retry_idx >= RETRY_ON_FAIL:
             self._set_postponed_exception(EthereumError(message='No more retries to complete transaction!'))
-            if (not self._is_canceled) and (self._total_success_cnt > 0):
+            if (not self._is_canceled) and len(self.success_sign_list):
                 return self._cancel()
             self._raise_error()
 
@@ -888,7 +924,7 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         self._preparation_txs_name = self.s.account_txs_name
         return self.s.build_account_txs(False)
 
-    def execute(self) -> NeonTxResultInfo:
+    def execute(self) -> (NeonTxResultInfo, [str]):
         tx_list = self._build_preparation_txs()
         if len(tx_list):
             SolTxListSender(self.s, tx_list, self._preparation_txs_name).send()
@@ -898,7 +934,9 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         cnt = math.ceil(self.s.steps_emulated / (self.steps - cnt)) + 2  # +1 on begin, +1 on end
         tx_list = [self.build_tx() for _ in range(cnt)]
         self.debug(f'Total iterations {len(tx_list)} for {self.s.steps_emulated} ({self.steps}) EVM steps')
-        return IterativeNeonTxSender(self, self.s, tx_list, self.NAME).send().neon_res
+        tx_sender = IterativeNeonTxSender(self, self.s, tx_list, self.NAME)
+        tx_sender.send()
+        return tx_sender.neon_res, tx_sender.success_sign_list
 
 
 @logged_group("neon.Proxy")

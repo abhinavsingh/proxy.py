@@ -24,7 +24,7 @@ class NeonTxValidator:
         self._tx = tx
 
         self._sender = '0x' + tx.sender()
-        self._account_info = self._solana.get_account_info_layout(EthereumAddress(self._sender))
+        self._neon_account_info = self._solana.get_neon_account_info(EthereumAddress(self._sender))
 
         self._deployed_contract = tx.contract()
         if self._deployed_contract:
@@ -36,7 +36,7 @@ class NeonTxValidator:
 
         self._tx_hash = '0x' + self._tx.hash_signed().hex()
 
-    def prevalidate_tx(self, signer: SolanaAccount, emulator_json: dict):
+    def prevalidate_tx(self, signer: SolanaAccount):
         self._prevalidate_whitelist(signer)
 
         self._prevalidate_tx_nonce()
@@ -44,6 +44,8 @@ class NeonTxValidator:
         self._prevalidate_tx_chain_id()
         self._prevalidate_tx_size()
         self._prevalidate_sender_balance()
+
+    def prevalidate_emulator(self, emulator_json: dict):
         self._prevalidate_gas_usage(emulator_json)
 
     def extract_ethereum_error(self, e: Exception):
@@ -77,26 +79,26 @@ class NeonTxValidator:
             raise EthereumError(message='transaction size is too big')
 
     def _prevalidate_tx_nonce(self):
-        if not self._account_info:
+        if not self._neon_account_info:
             return
 
         tx_nonce = int(self._tx.nonce)
-        if self.MAX_U64 not in (self._account_info.trx_count, tx_nonce):
-            if tx_nonce == self._account_info.trx_count:
+        if self.MAX_U64 not in (self._neon_account_info.trx_count, tx_nonce):
+            if tx_nonce == self._neon_account_info.trx_count:
                 return
 
-        self._raise_nonce_error(self._account_info.trx_count, tx_nonce)
+        self._raise_nonce_error(self._neon_account_info.trx_count, tx_nonce)
 
     def _prevalidate_sender_eoa(self):
-        if not self._account_info:
+        if not self._neon_account_info:
             return
 
-        if self._account_info.code_account:
+        if self._neon_account_info.code_account:
             raise EthereumError("sender not an eoa")
 
     def _prevalidate_sender_balance(self):
-        if self._account_info:
-            user_balance = self._account_info.balance
+        if self._neon_account_info:
+            user_balance = self._neon_account_info.balance
         else:
             user_balance = 0
 

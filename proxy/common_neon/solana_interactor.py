@@ -5,6 +5,7 @@ import base64
 import time
 import traceback
 import requests
+import json
 
 from typing import Optional
 
@@ -24,9 +25,8 @@ from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY
 from ..environment import FUZZING_BLOCKHASH, CONFIRM_TIMEOUT, FINALIZED
 from ..environment import RETRY_ON_FAIL
 
-from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT
+from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT, STORAGE_ACCOUNT_INFO_LAYOUT
 from ..common_neon.address import EthereumAddress, ether2program
-from ..common_neon.address import AccountInfoLayout
 from ..common_neon.utils import get_from_dict
 
 
@@ -35,6 +35,78 @@ class AccountInfo(NamedTuple):
     lamports: int
     owner: PublicKey
     data: bytes
+
+
+class NeonAccountInfo(NamedTuple):
+    ether: str
+    nonce: int
+    trx_count: int
+    balance: int
+    code_account: PublicKey
+    is_rw_blocked: bool
+    ro_blocked_cnt: int
+
+    @staticmethod
+    def frombytes(data) -> NeonAccountInfo:
+        cont = ACCOUNT_INFO_LAYOUT.parse(data)
+        return NeonAccountInfo(
+            ether=cont.ether.hex(),
+            nonce=cont.nonce,
+            trx_count=int.from_bytes(cont.trx_count, "little"),
+            balance=int.from_bytes(cont.balance, "little"),
+            code_account=PublicKey(cont.code_account),
+            is_rw_blocked=(cont.is_rw_blocked != 0),
+            ro_blocked_cnt=cont.ro_blocked_cnt
+        )
+
+
+class StorageAccountInfo(NamedTuple):
+    tag: int
+    caller: str
+    nonce: int
+    gas_limit: int
+    gas_price: int
+    slot: int
+    operator: PublicKey
+    account_list_len: int
+    executor_data_size: int
+    evm_data_size: int
+    gas_used_and_paid: int
+    number_of_payments: int
+    sign: bytes
+    account_list: [str]
+
+    @staticmethod
+    def frombytes(data) -> StorageAccountInfo:
+        storage = STORAGE_ACCOUNT_INFO_LAYOUT.parse(data)
+
+        account_list = []
+        offset = STORAGE_ACCOUNT_INFO_LAYOUT.sizeof()
+        for _ in range(storage.account_list_len):
+            writable = (data[offset] > 0)
+            offset += 1
+
+            some_pubkey = PublicKey(data[offset:offset + 32])
+            offset += 32
+
+            account_list.append((writable, str(some_pubkey)))
+
+        return StorageAccountInfo(
+            tag=storage.tag,
+            caller=storage.caller.hex(),
+            nonce=storage.nonce,
+            gas_limit=int.from_bytes(storage.gas_limit, "little"),
+            gas_price=int.from_bytes(storage.gas_price, "little"),
+            slot=storage.slot,
+            operator=PublicKey(storage.operator),
+            account_list_len=storage.account_list_len,
+            executor_data_size=storage.executor_data_size,
+            evm_data_size=storage.evm_data_size,
+            gas_used_and_paid=int.from_bytes(storage.gas_used_and_paid, "little"),
+            number_of_payments=storage.number_of_payments,
+            sign=storage.sign,
+            account_list=account_list
+        )
 
 
 class SendResult(NamedTuple):
@@ -124,9 +196,15 @@ class SolanaInteractor:
     def get_cluster_nodes(self) -> [dict]:
         return self._send_rpc_request("getClusterNodes").get('result', [])
 
-    def is_health(self) -> bool:
-        status = self._send_rpc_request('getHealth').get('result', 'bad')
-        return status == 'ok'
+    def get_slots_behind(self) -> Optional[int]:
+        response = self._send_rpc_request('getHealth')
+        status = response.get('result')
+        if status == 'ok':
+            return 0
+        slots_behind = get_from_dict(response, 'error', 'data', 'numSlotsBehind')
+        if slots_behind:
+            return int(slots_behind)
+        return None
 
     def get_signatures_for_address(self, before: Optional[str], limit: int, commitment='confirmed') -> []:
         opts: Dict[str, Union[int, str]] = {}
@@ -237,7 +315,7 @@ class SolanaInteractor:
 
         return balance_list
 
-    def get_account_info_layout(self, eth_account: EthereumAddress) -> Optional[AccountInfoLayout]:
+    def get_neon_account_info(self, eth_account: EthereumAddress) -> Optional[NeonAccountInfo]:
         account_sol, nonce = ether2program(eth_account)
         info = self.get_account_info(account_sol)
         if info is None:
@@ -245,7 +323,18 @@ class SolanaInteractor:
         elif len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof():
             raise RuntimeError(f"Wrong data length for account data {account_sol}: " +
                                f"{len(info.data)} < {ACCOUNT_INFO_LAYOUT.sizeof()}")
-        return AccountInfoLayout.frombytes(info.data)
+        return NeonAccountInfo.frombytes(info.data)
+
+    def get_storage_account_info(self, storage_account: PublicKey) -> Optional[StorageAccountInfo]:
+        info = self.get_account_info(storage_account, length=0)
+        if info is None:
+            return None
+        elif info.tag != 30:
+            return None
+        elif len(info.data) < STORAGE_ACCOUNT_INFO_LAYOUT.sizeof():
+            raise RuntimeError(f"Wrong data length for storage data {storage_account}: " +
+                               f"{len(info.data)} < {STORAGE_ACCOUNT_INFO_LAYOUT.sizeof()}")
+        return StorageAccountInfo.frombytes(info.data)
 
     def get_multiple_rent_exempt_balances_for_size(self, size_list: [int], commitment='confirmed') -> [int]:
         opts = {
@@ -402,7 +491,7 @@ class SolanaInteractor:
         for response, tx in zip(response_list, tx_list):
             result = response.get('result')
             error = response.get('error')
-            if error and get_from_dict('data', 'err') == 'AlreadyProcessed':
+            if error and get_from_dict(error, 'data', 'err') == 'AlreadyProcessed':
                 error = None
                 result = tx.signature()
             result_list.append(SendResult(result=result, error=error))
@@ -420,7 +509,7 @@ class SolanaInteractor:
         receipt_list = []
         for s in send_result_list:
             if s.error:
-                self.debug(f'Got error on preflight check of transaction: {s.error}')
+                self.debug(f'Got error on preflight check of transaction: {json.dumps(s.error, sort_keys=True)}')
                 receipt_list.append(s.error)
             else:
                 receipt_list.append(confirmed_list.pop(0))

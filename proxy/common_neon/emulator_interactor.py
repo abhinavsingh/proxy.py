@@ -207,31 +207,27 @@ class FindAccount(BaseNeonCliErrorParser):
         return account
 
 
-class AccountUninitializedParser(FindAccount):
-    def execute(self, err: subprocess.CalledProcessError) -> str:
-        msg = 'error on trying to call the not-initialized contract: '
-        hdr = 'NeonCli Error (212): Uninitialized account.  account='
-        account = self._find_account(err.stderr.split('\n'), hdr)
-        return msg + account
-
-
 class AccountAlreadyInitializedParser(FindAccount):
-    def execute(self, err: subprocess.CalledProcessError) -> str:
+    def execute(self, err: subprocess.CalledProcessError) -> (str, int):
         msg = 'error on trying to initialize already initialized contract: '
         hdr = 'NeonCli Error (213): Account is already initialized.  account='
         account = self._find_account(err.stderr.split('\n'), hdr)
-        return msg + account
+        return msg + account, self._code
 
 
 class DeployToExistingAccountParser(FindAccount):
-    def execute(self, err: subprocess.CalledProcessError) -> str:
+    def execute(self, err: subprocess.CalledProcessError) -> (str, int):
         msg = 'error on trying to deploy contract to user account: '
         hdr = 'NeonCli Error (221): Attempt to deploy to existing account at address '
         account = self._find_account(err.stderr.split('\n'), hdr)
-        return msg + account
+        return msg + account, self._code
 
 
 class TooManyStepsErrorParser(BaseNeonCliErrorParser):
+    pass
+
+
+class TrxCountOverflowErrorParser(BaseNeonCliErrorParser):
     pass
 
 
@@ -254,13 +250,13 @@ class NeonCliErrorParser:
         208: StorageErrorParser('code account required'),
         215: StorageErrorParser('contract account expected'),
 
-        212: AccountUninitializedParser('AccountUninitialized'),
-
         213: AccountAlreadyInitializedParser('AccountAlreadyInitialized'),
 
         221: DeployToExistingAccountParser('DeployToExistingAccount'),
 
         245: TooManyStepsErrorParser('execution requires too lot of EVM steps'),
+
+        249: TrxCountOverflowErrorParser('transaction counter overflow')
     }
 
     def execute(self, caption: str, err: subprocess.CalledProcessError) -> (str, int):

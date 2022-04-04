@@ -8,7 +8,7 @@ from solana.system_program import SYS_PROGRAM_ID
 from ..indexer.indexer_base import IndexerBase
 from ..indexer.indexer_db import IndexerDB
 from ..indexer.utils import SolanaIxSignInfo, MetricsToLogBuff
-from ..indexer.utils import get_accounts_from_storage, check_error
+from ..indexer.utils import check_error
 from ..indexer.canceller import Canceller
 
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo, str_fmt_object
@@ -132,6 +132,7 @@ class NeonTxObject(BaseEvmObject):
         self.holder_account = ''
         self.blocked_accounts = []
         self.canceled = False
+        self.done = False
 
     def __str__(self):
         return str_fmt_object(self)
@@ -230,6 +231,9 @@ class ReceiptsParserState:
         Continue waiting of ixs in the slot with the same neon tx,
         because the parsing order can be other than the execution order.
         """
+        if tx.done:
+            return
+        tx.done = True
         self._done_tx_list.append(tx)
 
     def complete_done_txs(self):
@@ -723,7 +727,7 @@ class Indexer(IndexerBase):
         last_known_slot = self.db.get_min_receipt_slot()
         IndexerBase.__init__(self, solana, last_known_slot)
         self.indexed_slot = self.last_slot
-        self.canceller = Canceller()
+        self.canceller = Canceller(solana)
         self.blocked_storages = {}
         self.block_indexer = BlocksIndexer(db=self.db, solana=solana)
         self.counted_logger = MetricsToLogBuff()
@@ -768,9 +772,9 @@ class Indexer(IndexerBase):
         start_time = time.time()
 
         max_slot = 0
-        last_block_slot = self.db.get_latest_block().slot
+        last_block_slot = self.db.get_latest_block_slot()
 
-        for slot, sign, tx in self.transaction_receipts.get_trxs(self.indexed_slot, reverse=False):
+        for slot, sign, tx in self.transaction_receipts.get_txs(self.indexed_slot):
             if slot > last_block_slot:
                 break
 
@@ -819,23 +823,37 @@ class Indexer(IndexerBase):
             self.warning(f"Transaction {tx.neon_tx} hasn't blocked accounts.")
             return False
 
-        storage_accounts_list = get_accounts_from_storage(self.solana, tx.storage_account)
-        if storage_accounts_list is None:
-            self.warning(f"Transaction {tx.neon_tx} has empty storage.")
+        storage = self.solana.get_storage_account_info(tx.storage_account)
+        if not storage:
+            self.warning(f"Storage {str(tx.storage_account)} for tx {tx.neon_tx.sign} is empty")
             return False
 
-        if len(storage_accounts_list) != len(tx.blocked_accounts):
+        if storage.caller != tx.neon_tx.addr[2:]:
+            self.warning(f"Storage {str(tx.storage_account)} for tx {tx.neon_tx.sign} has another caller: "+
+                         f"{str(storage.caller)} != {tx.neon_tx.addr[2:]}")
+            return False
+
+        if storage.caller != int(tx.neon_tx.nonce[2:]):
+            self.warning(f"Storage {str(tx.storage_account)} for tx {tx.neon_tx.sign} has another nonce: " +
+                         f"0x{hex(storage.nonce)} != {tx.neon_tx.nonce}")
+            return False
+
+        if not len(storage.account_list):
+            self.warning(f"Storage {str(tx.storage_account)} for tx {tx.neon_tx.sign} has empty account list.")
+            return False
+
+        if len(storage.account_list) != len(tx.blocked_accounts):
             self.warning(f"Transaction {tx.neon_tx} has another list of accounts than storage.")
             return False
 
-        for (writable, account), (idx, tx_account) in zip(storage_accounts_list, enumerate(tx.blocked_accounts)):
+        for (writable, account), (idx, tx_account) in zip(storage.account_list, enumerate(tx.blocked_accounts)):
             if account != tx_account:
                 self.warning(f"Transaction {tx.neon_tx} has another list of accounts than storage: " +
                              f"{idx}: {account} != {tx_account}")
                 return False
 
-        self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}, {storage_accounts_list}')
-        self.blocked_storages[tx.storage_account] = (tx.neon_tx, storage_accounts_list)
+        self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}, {storage.account_list}')
+        self.blocked_storages[tx.storage_account] = (tx.neon_tx, storage.account_list)
         tx.canceled = True
         return True
 
