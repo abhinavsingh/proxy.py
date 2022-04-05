@@ -34,7 +34,7 @@ COPY --from=spl /opt/solana/bin/solana /cli/bin/
 COPY --from=spl /opt/spl-token \
                 /opt/create-test-accounts.sh \
                 /opt/evm_loader-keypair.json /spl/bin/
-COPY --from=spl /opt/neon-cli /opt/faucet /spl/bin/
+COPY --from=spl /opt/neon-cli /spl/bin/
 COPY --from=spl /opt/solana_utils.py \
                 /opt/eth_tx_utils.py \
                 /spl/bin/

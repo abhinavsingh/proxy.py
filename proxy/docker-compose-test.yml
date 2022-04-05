@@ -115,15 +115,11 @@ services:
 
   faucet:
     container_name: faucet
-    image: neonlabsorg/proxy:${REVISION}
+    image: neonlabsorg/faucet:latest
     environment:
       FAUCET_RPC_PORT: 3333
       FAUCET_RPC_ALLOWED_ORIGINS: '["http://airdropper"]'
       FAUCET_WEB3_ENABLE: 'false'
-      WEB3_RPC_URL: 'http://proxy:9090/solana'
-      WEB3_PRIVATE_KEY: ''
-      NEON_ERC20_TOKENS:
-      NEON_ERC20_MAX_AMOUNT: 1000
       FAUCET_SOLANA_ENABLE: 'true'
       SOLANA_URL: 'http://solana:8899'
       NEON_OPERATOR_KEYFILE: '/root/.config/solana/id.json'

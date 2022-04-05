@@ -141,8 +141,6 @@ class Test_Neon_Faucet(unittest.TestCase):
         cls.compile_erc20_contract(cls)
         cls.token_a = cls.deploy_erc20_token(cls, 'A')
         cls.token_b = cls.deploy_erc20_token(cls, 'B')
-        cls.start_faucet(cls)
-        time.sleep(1)
 
     def compile_erc20_contract(self):
         print('Compiling ERC20 contract...')
@@ -162,38 +160,30 @@ class Test_Neon_Faucet(unittest.TestCase):
         print('Token', name, '=', tx_deploy_receipt.contractAddress)
         return tx_deploy_receipt.contractAddress
 
-    def start_faucet(self):
-        os.environ['FAUCET_RPC_BIND'] = '0.0.0.0'
-        os.environ['FAUCET_RPC_PORT'] = '3333'
-        os.environ['FAUCET_RPC_ALLOWED_ORIGINS'] = '["http://localhost"]'
-        os.environ['FAUCET_WEB3_ENABLE'] = 'true'
-        os.environ['WEB3_RPC_URL'] = proxy_url
-        os.environ['WEB3_PRIVATE_KEY'] = admin.key.hex()
-        os.environ['NEON_ERC20_TOKENS'] = '["' + self.token_a + '", "' + self.token_b + '"]'
-        os.environ['NEON_ERC20_MAX_AMOUNT'] = '1000'
-        os.environ['FAUCET_SOLANA_ENABLE'] = 'true'
-        os.environ['SOLANA_URL'] = os.environ.get('SOLANA_URL', 'http://solana:8899')
-        os.environ['EVM_LOADER'] = os.environ.get('EVM_LOADER', '53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io')
-        os.environ['NEON_TOKEN_MINT'] = 'HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU'
-        os.environ['NEON_TOKEN_MINT_DECIMALS'] = '9'
-        os.environ['NEON_OPERATOR_KEYFILE'] = '/root/.config/solana/id.json'
-        os.environ['NEON_ETH_MAX_AMOUNT'] = '10'
-        self.faucet = subprocess.Popen(['faucet', 'run', '--workers', '1'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
     # @unittest.skip("a.i.")
     def test_neon_faucet_00_ping(self):
         print()
-        url = 'http://localhost:{}/request_ping'.format(os.environ['FAUCET_RPC_PORT'])
+        url = '{}/request_ping'.format(os.environ['FAUCET_URL'])
+        print(url)
         data = '{"ping": "Hello"}'
         r = requests.post(url, data=data)
         if not r.ok:
             print('Response:', r.status_code)
         assert(r.ok)
 
-    @unittest.skip("a.i.")
-    def test_neon_faucet_01_neon_in_galans(self):
+    # @unittest.skip("a.i.")
+    def test_neon_faucet_01_version(self):
         print()
-        url = 'http://localhost:{}/request_neon_in_galans'.format(os.environ['FAUCET_RPC_PORT'])
+        url = '{}/request_version'.format(os.environ['FAUCET_URL'])
+        r = requests.post(url)
+        if not r.ok:
+            print('Response:', r.status_code)
+        assert(r.ok)
+
+    # @unittest.skip("a.i.")
+    def test_neon_faucet_02_neon_in_galans(self):
+        print()
+        url = '{}/request_neon_in_galans'.format(os.environ['FAUCET_URL'])
         balance_before = proxy.eth.get_balance(user.address)
         print('NEO balance before:', balance_before)
         data = '{"wallet": "' + user.address + '", "amount": 99999}'
@@ -207,10 +197,10 @@ class Test_Neon_Faucet(unittest.TestCase):
         print('NEO balance difference:', balance_before - balance_after)
         self.assertEqual(balance_after, 99999000000000)
 
-    @unittest.skip("a.i.")
-    def test_neon_faucet_02_neon(self):
+    # @unittest.skip("a.i.")
+    def test_neon_faucet_03_neon(self):
         print()
-        url = 'http://localhost:{}/request_neon'.format(os.environ['FAUCET_RPC_PORT'])
+        url = '{}/request_neon'.format(os.environ['FAUCET_URL'])
         balance_before = proxy.eth.get_balance(user.address)
         print('NEO balance before:', balance_before)
         data = '{"wallet": "' + user.address + '", "amount": 1}'
@@ -224,10 +214,10 @@ class Test_Neon_Faucet(unittest.TestCase):
         print('NEO balance difference:', balance_after - balance_before)
         self.assertEqual(balance_after - balance_before, 1000000000000000000)
 
-    # @unittest.skip("a.i.")
-    def test_neon_faucet_03_erc20(self):
+    @unittest.skip("a.i.")
+    def test_neon_faucet_04_erc20(self):
         print()
-        url = 'http://localhost:{}/request_erc20'.format(os.environ['FAUCET_RPC_PORT'])
+        url = '{}/request_erc20'.format(os.environ['FAUCET_URL'])
         a_before = self.get_token_balance(self.token_a, user.address)
         b_before = self.get_token_balance(self.token_b, user.address)
         print('token A balance before:', a_before)
@@ -249,20 +239,6 @@ class Test_Neon_Faucet(unittest.TestCase):
     def get_token_balance(self, token_address, address):
         erc20 = proxy.eth.contract(address=token_address, abi=self.contract['abi'])
         return erc20.functions.balanceOf(address).call()
-
-    def stop_faucet(self):
-        url = 'http://localhost:{}/request_stop'.format(os.environ['FAUCET_RPC_PORT'])
-        data = '{"delay": 1000}' # 1 second
-        r = requests.post(url, data=data)
-        if not r.ok:
-            self.faucet.terminate
-        with io.TextIOWrapper(self.faucet.stdout, encoding="utf-8") as out:
-            for line in out:
-                print(line.strip())
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.stop_faucet(cls)
 
 if __name__ == '__main__':
     unittest.main()
