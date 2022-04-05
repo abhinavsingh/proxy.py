@@ -51,6 +51,7 @@ steps:
     artifact_paths:
       - allure-reports.tar.gz
       - fts_${BUILDKITE_BUILD_NUMBER}.log
+      - "./logs/*"
 
   - wait
 
@@ -70,5 +71,5 @@ steps:
       - "full_test_suite"
       - "create_infrastructure"
     allow_dependency_failure: true
-    artifact_paths:
-      - ".buildkite/steps/full_test_suite/logs/*"
+
+      
