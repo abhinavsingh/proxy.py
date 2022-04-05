@@ -111,7 +111,7 @@ class StorageAccountInfo(NamedTuple):
 
 class SendResult(NamedTuple):
     error: dict
-    result: dict
+    result: Optional[str]
 
 
 @logged_group("neon.Proxy")
@@ -488,12 +488,29 @@ class SolanaInteractor:
         request_list = self._fuzzing_transactions(signer, tx_list, opts, request_list)
         response_list = self._send_rpc_batch_request('sendTransaction', request_list)
         result_list = []
+
         for response, tx in zip(response_list, tx_list):
-            result = response.get('result')
+            raw_result = response.get('result')
+
+            result = None
+            if isinstance(raw_result, dict):
+                self.debug(f'Got strange result on transaction execution: {json.dumps(raw_result)}')
+            elif isinstance(raw_result, str):
+                result = b58encode(b58decode(raw_result)).decode("utf-8")
+            elif isinstance(raw_result, bytes):
+                result = b58encode(raw_result).decode("utf-8")
+            elif raw_result is not None:
+                self.debug(f'Got strange result on transaction execution: {str(raw_result)}')
+
             error = response.get('error')
-            if error and get_from_dict(error, 'data', 'err') == 'AlreadyProcessed':
-                error = None
-                result = tx.signature()
+            if error:
+                if get_from_dict(error, 'data', 'err') == 'AlreadyProcessed':
+                    result = tx.signature()
+                    error = None
+                else:
+                    self.debug(f'Got error on transaction execution: {json.dumps(error)}')
+                    result = None
+
             result_list.append(SendResult(result=result, error=error))
         return result_list
 
@@ -509,7 +526,6 @@ class SolanaInteractor:
         receipt_list = []
         for s in send_result_list:
             if s.error:
-                self.debug(f'Got error on preflight check of transaction: {json.dumps(s.error, sort_keys=True)}')
                 receipt_list.append(s.error)
             else:
                 receipt_list.append(confirmed_list.pop(0))
@@ -522,13 +538,6 @@ class SolanaInteractor:
             self.debug('No confirmations, because transaction list is empty')
             return
 
-        base58_sign_list: List[str] = []
-        for sign in sign_list:
-            if isinstance(sign, str):
-                base58_sign_list.append(b58encode(b58decode(sign)).decode("utf-8"))
-            else:
-                base58_sign_list.append(b58encode(sign).decode("utf-8"))
-
         opts = {
             "searchTransactionHistory": False
         }
@@ -539,7 +548,7 @@ class SolanaInteractor:
                 time.sleep(CONFIRMATION_CHECK_DELAY)
             elapsed_time += CONFIRMATION_CHECK_DELAY
 
-            response = self._send_rpc_request("getSignatureStatuses", base58_sign_list, opts)
+            response = self._send_rpc_request("getSignatureStatuses", sign_list, opts)
             result = response.get('result', None)
             if not result:
                 continue

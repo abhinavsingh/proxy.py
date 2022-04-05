@@ -10,6 +10,7 @@ from decimal import Decimal
 import os
 from .compute_budget import TransactionWithComputeBudget
 
+
 class PermissionToken:
     def __init__(self,
                  solana: SolanaInteractor,

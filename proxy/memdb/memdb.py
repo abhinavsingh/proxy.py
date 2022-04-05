@@ -33,6 +33,9 @@ class MemDB:
     def get_starting_block_slot(self) -> int:
         return self._blocks_db.get_staring_block_slot()
 
+    def get_starting_block(self) -> SolanaBlockInfo:
+        return self._db.get_starting_block()
+
     def get_full_block_by_slot(self, block_slot: int) -> SolanaBlockInfo:
         return self._blocks_db.get_full_block_by_slot(block_slot)
 

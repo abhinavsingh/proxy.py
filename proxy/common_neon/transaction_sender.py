@@ -62,7 +62,7 @@ class NeonCancelTxStage(NeonTxStage, abc.ABC):
     def __init__(self, sender, account: PublicKey):
         NeonTxStage.__init__(self, sender)
         self._account = account
-        self._storage = self.s.solana.get_storage_account_account(account)
+        self._storage = self.s.solana.get_storage_account_info(account)
 
     def _cancel_tx(self):
         return self.s.builder.make_cancel_transaction(storage=self._account,

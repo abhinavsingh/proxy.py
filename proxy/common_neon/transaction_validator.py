@@ -47,6 +47,7 @@ class NeonTxValidator:
 
     def prevalidate_emulator(self, emulator_json: dict):
         self._prevalidate_gas_usage(emulator_json)
+        self._prevalidate_account_sizes(emulator_json)
 
     def extract_ethereum_error(self, e: Exception):
         receipt_parser = SolReceiptParser(e)
@@ -130,6 +131,17 @@ class NeonTxValidator:
 
         message = 'gas limit reached'
         raise EthereumError(f"{message}: have {self._tx.gasLimit} want {gas}")
+
+    def _prevalidate_account_sizes(self, emulator_json: dict):
+        for account_desc in emulator_json['accounts']:
+            if ('code_size' not in account_desc) or ('address' not in account_desc):
+                continue
+            if (not account_desc['code_size']) or (not account_desc['address']):
+                continue
+            if account_desc['code_size'] > ((9 * 1024 + 512) * 1024):
+                raise EthereumError(f"contract {self._account_desc['address']} " +
+                                    f"requests a size increase to more than 9.5Mb")
+
 
     def _raise_nonce_error(self, account_tx_count: int, tx_nonce: int):
         if self.MAX_U64 in (account_tx_count, tx_nonce):

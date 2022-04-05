@@ -138,6 +138,7 @@ class IndexerBase:
 
                 if not self.transaction_receipts.contains(slot, sol_sign):
                     poll_txs.append((sol_sign, slot, tx_idx))
+                tx_idx += 1
 
         pool = ThreadPool(PARALLEL_REQUESTS)
         pool.map(self._get_tx_receipts, poll_txs)

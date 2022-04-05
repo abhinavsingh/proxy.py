@@ -833,9 +833,10 @@ class Indexer(IndexerBase):
                          f"{str(storage.caller)} != {tx.neon_tx.addr[2:]}")
             return False
 
-        if storage.caller != int(tx.neon_tx.nonce[2:]):
+        tx_nonce = int(tx.neon_tx.nonce[2:], 16)
+        if storage.nonce != tx_nonce:
             self.warning(f"Storage {str(tx.storage_account)} for tx {tx.neon_tx.sign} has another nonce: " +
-                         f"0x{hex(storage.nonce)} != {tx.neon_tx.nonce}")
+                         f"{storage.nonce} != {tx_nonce}")
             return False
 
         if not len(storage.account_list):

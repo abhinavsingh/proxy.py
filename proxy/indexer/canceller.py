@@ -31,7 +31,7 @@ class Canceller:
 
                 self.builder.init_iterative(storage, None, 0)
 
-                tx = self.builder.make_cancel_transaction(nonce=int(neon_tx.nonce[2:]), cancel_keys=keys)
+                tx = self.builder.make_cancel_transaction(nonce=int(neon_tx.nonce[2:], 16), cancel_keys=keys)
                 tx_list.append(tx)
 
         if not len(tx_list):
