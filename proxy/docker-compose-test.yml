@@ -108,6 +108,7 @@ services:
     ports:
       - 127.0.0.1:9090:9090
     expose:
+      - "8888"
       - "9090"
     networks:
       - net
@@ -187,6 +188,23 @@ services:
       - net
     entrypoint: proxy/run-indexer.sh
 
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    privileged: true
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 127.0.0.1:9009:9090
+    expose:
+      - "9009"
+    networks:
+      - net
+    depends_on:
+      proxy:
+        condition: service_started
+
 networks:
   net:
-

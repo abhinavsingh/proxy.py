@@ -21,6 +21,9 @@ class GasPriceCalculator:
         self.solana = solana
         self.mapping_account = pyth_mapping_acc
         self.pyth_network_client = PythNetworkClient(self.solana)
+        self.recent_sol_price_update_time = None
+        self.min_gas_price = None
+        self.sol_price_usd = None
 
     def reset(self):
         self._last_time.value = 0
@@ -85,14 +88,25 @@ class GasPriceCalculator:
                 price = self.pyth_network_client.get_price('Crypto.SOL/USD')
                 if price['status'] != 1:  # tradable
                     raise RuntimeError('Price status is not tradable')
+                self.sol_price_usd = Decimal(price['price'])
 
-                return (price['price'] / NEON_PRICE_USD) * pow(Decimal(10), 9)
+                return (self.sol_price_usd / NEON_PRICE_USD) * pow(Decimal(10), 9)
             except Exception as err:
                 self.error(f'Failed to retrieve SOL price: {err}')
                 self.info(f'Will retry getting price after {GET_SOL_PRICE_RETRY_INTERVAL} seconds')
                 time.sleep(GET_SOL_PRICE_RETRY_INTERVAL)
-
         with self._last_time.get_lock():
             self._last_time.value = 0
         self.error('Failed to estimate gas price. Try again later')
         return 0
+
+    def get_sol_price_usd(self) -> Decimal:
+        if self.sol_price_usd:
+            return self.sol_price_usd
+        return Decimal(0)
+
+    def get_neon_price_usd(self) -> Decimal:
+        return NEON_PRICE_USD
+
+    def get_operator_fee(self) -> Decimal:
+        return OPERATOR_FEE

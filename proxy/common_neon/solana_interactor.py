@@ -282,11 +282,28 @@ class SolanaInteractor:
 
         return accounts_info
 
-    def get_sol_balance(self, account, commitment='confirmed'):
+    def get_sol_balance(self, account, commitment='confirmed') -> int:
         opts = {
             "commitment": commitment
         }
         return self._send_rpc_request('getBalance', str(account), opts)['result']['value']
+
+    def get_sol_balance_list(self, accounts_list: List[Union[str, PublicKey]], commitment='confirmed') -> List[int]:
+        opts = {
+            'commitment': commitment
+        }
+        requests_list = []
+        for account in accounts_list:
+            requests_list.append((str(account), opts))
+
+        balances_list = []
+        response_list = self._send_rpc_batch_request('getBalance', requests_list)
+        for response in response_list:
+            value = get_from_dict(response, 'result', 'value')
+            balance = int(value) if value else 0
+            balances_list.append(balance)
+
+        return balances_list
 
     def get_token_account_balance(self, pubkey: Union[str, PublicKey], commitment='confirmed') -> int:
         opts = {
@@ -335,6 +352,20 @@ class SolanaInteractor:
             raise RuntimeError(f"Wrong data length for storage data {storage_account}: " +
                                f"{len(info.data)} < {STORAGE_ACCOUNT_INFO_LAYOUT.sizeof()}")
         return StorageAccountInfo.frombytes(info.data)
+
+    def get_account_info_layout_list(self, eth_accounts: List[EthereumAddress]) -> List[Optional[AccountInfoLayout]]:
+        requests_list = []
+        for eth_account in eth_accounts:
+            account_sol, _nonce = ether2program(eth_account)
+            requests_list.append(account_sol)
+        responses_list = self.get_account_info_list(requests_list)
+        accounts_list = []
+        for info in responses_list:
+            if info is None or len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof():
+                accounts_list.append(None)
+                continue
+            accounts_list.append(AccountInfoLayout.frombytes(info.data))
+        return accounts_list
 
     def get_multiple_rent_exempt_balances_for_size(self, size_list: [int], commitment='confirmed') -> [int]:
         opts = {

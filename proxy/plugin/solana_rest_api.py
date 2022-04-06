@@ -24,7 +24,7 @@ from ..http.codes import httpStatusCodes
 from ..http.parser import HttpParser
 from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 from ..common_neon.transaction_sender import NeonTxSender
 from ..common_neon.solana_interactor import SolanaInteractor
@@ -38,10 +38,14 @@ from ..common_neon.keys_storage import KeyStorage
 from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, EVM_STEP_COUNT, CHAIN_ID, ENABLE_PRIVATE_API
 from ..environment import NEON_EVM_VERSION, NEON_EVM_REVISION
 from ..environment import neon_cli
+from ..environment import get_solana_accounts
 from ..memdb.memdb import MemDB
 from .gas_price_calculator import GasPriceCalculator
 from ..common_neon.eth_proto import Trx as EthTrx
 from web3.auto import w3
+
+from ..statistics_exporter.proxy_metrics_interface import StatisticsExporter
+from ..statistics_exporter.prometheus_proxy_exporter import PrometheusExporter
 
 modelInstanceLock = threading.Lock()
 modelInstance = None
@@ -71,6 +75,9 @@ class EthereumModel:
 
         self.debug(f"Worker id {self.proxy_id}")
 
+    def set_stat_exporter(self, stat_exporter: StatisticsExporter):
+        self.stat_exporter = stat_exporter
+
     @staticmethod
     def neon_proxy_version():
         return 'Neon-proxy/v' + NEON_PROXY_PKG_VERSION + '-' + NEON_PROXY_REVISION
@@ -92,7 +99,8 @@ class EthereumModel:
         return str(CHAIN_ID)
 
     def eth_gasPrice(self):
-        return hex(int(self.gas_price_calculator.get_suggested_gas_price()))
+        gas_price = self.gas_price_calculator.get_suggested_gas_price()
+        return hex(gas_price)
 
     def eth_estimateGas(self, param):
         try:
@@ -431,11 +439,14 @@ class EthereumModel:
         return self._db.get_contract_code(account)
 
     def eth_sendRawTransaction(self, rawTrx: str) -> str:
+        self._stat_tx_begin()
+
         trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
         self.debug(f"{json.dumps(trx.as_dict(), cls=JsonEncoder, sort_keys=True)}")
         min_gas_price = self.gas_price_calculator.get_min_gas_price()
 
         if trx.gasPrice < min_gas_price:
+            self._stat_tx_failed()
             raise EthereumError(message="The transaction gasPrice is less than the minimum allowable value" +
                                 f"({trx.gasPrice}<{min_gas_price})")
 
@@ -444,17 +455,30 @@ class EthereumModel:
         try:
             tx_sender = NeonTxSender(self._db, self._solana, trx, steps=EVM_STEP_COUNT)
             tx_sender.execute()
+            self._stat_tx_success()
             return eth_signature
 
         except PendingTxError as err:
+            self._stat_tx_failed()
             self.debug(f'{err}')
             return eth_signature
         except EthereumError as err:
+            self._stat_tx_failed()
             # self.debug(f"eth_sendRawTransaction EthereumError: {err}")
             raise
         except Exception as err:
+            self._stat_tx_failed()
             # self.error(f"eth_sendRawTransaction type(err): {type(err}}, Exception: {err}")
             raise
+
+    def _stat_tx_begin(self):
+        self.stat_exporter.stat_commit_tx_begin()
+
+    def _stat_tx_success(self):
+        self.stat_exporter.stat_commit_tx_end_success()
+
+    def _stat_tx_failed(self):
+        self.stat_exporter.stat_commit_tx_end_failed(None)
 
     def _get_transaction_by_index(self, block: SolanaBlockInfo, tx_idx: int) -> Optional[dict]:
         try:
@@ -646,7 +670,9 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
 
     def __init__(self, *args):
         HttpWebServerBasePlugin.__init__(self, *args)
+        self.stat_exporter = PrometheusExporter()
         self.model = SolanaProxyPlugin.getModel()
+        self.model.set_stat_exporter(self.stat_exporter)
 
     @classmethod
     def getModel(cls):
@@ -765,6 +791,8 @@ class SolanaProxyPlugin(HttpWebServerBasePlugin):
                 b'Content-Type': b'application/json',
                 b'Access-Control-Allow-Origin': b'*',
             })))
+
+        self.stat_exporter.stat_commit_request_and_timeout(method, resp_time_ms)
 
     def on_websocket_open(self) -> None:
         pass
