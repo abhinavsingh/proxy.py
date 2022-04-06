@@ -1,10 +1,12 @@
 from __future__ import annotations
+import re
 
 import statistics
 
 from solana.publickey import PublicKey
 from logged_groups import logged_group
-from typing import Dict, Union, Callable
+from typing import Any, Dict, List, Union, Callable
+from dataclasses import astuple, dataclass
 
 from ..common_neon.address import ether2program
 from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT, CODE_ACCOUNT_INFO_LAYOUT, ACCOUNT_INFO_LAYOUT
@@ -25,6 +27,7 @@ class SolanaIxSignInfo:
         self.sign = sign  # Solana transaction signature
         self.slot = slot  # Solana block slot
         self.idx  = idx   # Instruction index
+        self.steps = None # Instruction index
 
     def __str__(self):
         return f'{self.slot} {self.sign} {self.idx}'
@@ -37,6 +40,60 @@ class SolanaIxSignInfo:
 
     def get_req_id(self):
         return f"{self.idx}{self.sign}"[:7]
+
+    def set_steps(self, steps: int):
+        self.steps = steps
+
+
+@dataclass
+class CostInfo:
+    sign: str = None
+    operator: str = None
+    heap: int = 0
+    bpf: int = 0
+    sol_spent: int = 0
+    neon_income: int = 0
+
+    def __init__(self, sign: str, tx: Dict[str, Any], program: PublicKey):
+        self.sign = sign
+        if tx:
+            self.init_from_tx(tx, program)
+
+    def __iter__(self):
+        return iter(astuple(self))
+
+    def init_from_tx(self, tx: dict, program: PublicKey):
+        self.operator = tx['transaction']['message']['accountKeys'][0]
+        self.sol_spent = tx['meta']['preBalances'][0] - tx['meta']['postBalances'][0]
+
+        self.fill_heap_bpf_from_logs(tx['meta']['logMessages'], program)
+        self.fill_neon_income(tx['meta']['preTokenBalances'], tx['meta']['postTokenBalances'])
+
+    def fill_heap_bpf_from_logs(self, log_messages: List[str], program: PublicKey):
+        for log in log_messages:
+            self.bpf = max(self.bpf, CostInfo.bpf_log(program, log))
+            self.heap = max(self.heap, CostInfo.heap_log(log))
+
+    def fill_neon_income(self, pre_balances: List[str], post_balances: List[str]):
+        pre_token = 0
+        post_token = 0
+        for balance in pre_balances:
+            if balance['owner'] == self.operator:
+                pre_token = int(balance["uiTokenAmount"]["amount"])
+        for balance in post_balances:
+            if balance['owner'] == self.operator:
+                post_token = int(balance["uiTokenAmount"]["amount"])
+        self.neon_income = post_token - pre_token
+
+    @staticmethod
+    def bpf_log(program: PublicKey, logging_note: str):
+        match = re.match(f"Program {program} consumed (\d+) of \d+ compute units", logging_note)
+        return 0 if match is None else int(match[1])
+
+    @staticmethod
+    def heap_log(logging_note: str):
+        match = re.match(f"Program log: Total memory occupied: (\d+)", logging_note)
+        return 0 if match is None else int(match[1])
 
 
 @logged_group("neon.Indexer")

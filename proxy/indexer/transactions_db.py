@@ -10,16 +10,15 @@ class SolanaNeonTxsDB(BaseDB):
         BaseDB.__init__(self, 'solana_neon_transactions')
 
     def set_txs(self, neon_sign: str, used_ixs: [SolanaIxSignInfo]):
-
         used_ixs = set(used_ixs)
         rows = []
         for ix in used_ixs:
-            rows.append((ix.sign, neon_sign, ix.slot, ix.idx))
+            rows.append((ix.sign, neon_sign, ix.slot, ix.idx, ix.steps))
 
         with self._conn.cursor() as cursor:
             cursor.executemany(f'''
-                INSERT INTO {self._table_name}(sol_sign, neon_sign, slot, idx)
-                VALUES(%s, %s, %s, %s) ON CONFLICT DO NOTHING''',
+                INSERT INTO {self._table_name}(sol_sign, neon_sign, slot, idx, neon_steps)
+                VALUES(%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING''',
                 rows)
 
     def get_sol_sign_list_by_neon_sign(self, neon_sign: str) -> [str]:

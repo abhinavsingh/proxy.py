@@ -1,46 +1,62 @@
+from dataclasses import astuple, dataclass
 from ..indexer.base_db import BaseDB, DBQuery
 from ..common_neon.utils import str_fmt_object
 
 
+@dataclass
 class NeonAccountInfo:
-    def __init__(self, neon_account: str = None, pda_account: str = None, code_account: str = None, slot: int = 0, code: str = None):
-        self.neon_account = neon_account
-        self.pda_account = pda_account
-        self.code_account = code_account
-        self.slot = slot
-        self.code = code
+    neon_address: str = None
+    pda_address: str = None
+    code_address: str = None
+    slot: int = 0
+    code: str = None
+    sol_sign: str = None
 
     def __str__(self):
         return str_fmt_object(self)
+
+    def __iter__(self):
+        return iter(astuple(self))
 
 
 class NeonAccountDB(BaseDB):
     def __init__(self):
         BaseDB.__init__(self, 'neon_accounts')
 
-    def set_acc_by_request(self, neon_account: str, pda_account: str, code_account: str, code: str):
+    def set_acc_by_request(self, neon_account: NeonAccountInfo):
         with self._conn.cursor() as cursor:
             cursor.execute(f'''
-                INSERT INTO {self._table_name}(neon_account, pda_account, code_account, slot, code)
-                VALUES(%s, %s, %s, %s, %s)
-                ON CONFLICT (pda_account, code_account) DO UPDATE
+                INSERT INTO neon_accounts (neon_address, pda_address, code_address, slot, code, sol_sign)
+                VALUES(%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (pda_address, code_address) DO UPDATE
                 SET
                     code=EXCLUDED.code
                 ;
                 ''',
-                (neon_account, pda_account, code_account, 0, code))
+                tuple(neon_account))
 
-    def set_acc_indexer(self, neon_account: str, pda_account: str, code_account: str, slot: int):
+    def set_acc_indexer(self, neon_account: NeonAccountInfo):
+        if not self.fill_neon_address_if_missing(neon_account):
+            return
         with self._conn.cursor() as cursor:
             cursor.execute(f'''
-                INSERT INTO {self._table_name}(neon_account, pda_account, code_account, slot)
-                VALUES(%s, %s, %s, %s)
-                ON CONFLICT (pda_account, code_account) DO UPDATE
+                INSERT INTO neon_accounts (neon_address, pda_address, code_address, slot,  code, sol_sign)
+                VALUES(%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (pda_address, code_address) DO UPDATE
                 SET
                     slot=EXCLUDED.slot
                 ;
                 ''',
-                (neon_account, pda_account, code_account, slot))
+                tuple(neon_account))
+
+    def fill_neon_address_if_missing(self, neon_account: NeonAccountInfo) -> bool:
+        if neon_account.neon_address is None:
+            value = self.get_account_info_by_pda_address(neon_account.pda_address)
+            if not value.neon_address:
+                self.error(f"Not found account for pda_address: {neon_account.pda_address}")
+                return False
+            neon_account.neon_address = value.neon_address
+        return True
 
     def _acc_from_value(self, value) -> NeonAccountInfo:
         self.debug(f"accounts db returned {value}")
@@ -49,18 +65,28 @@ class NeonAccountDB(BaseDB):
             return NeonAccountInfo()
 
         return NeonAccountInfo(
-            neon_account=value[0],
-            pda_account=value[1],
-            code_account=value[2],
+            neon_address=value[0],
+            pda_address=value[1],
+            code_address=value[2],
             slot=value[3],
-            code=value[4]
+            code=value[4],
+            sol_sign=value[5]
         )
 
-    def get_account_info(self, account) -> NeonAccountInfo:
+    def get_account_info_by_neon_address(self, neon_address) -> NeonAccountInfo:
         return self._acc_from_value(
             self._fetchone(DBQuery(
-                column_list=['neon_account', 'pda_account', 'code_account', 'slot', 'code'],
-                key_list=[('neon_account', account)],
+                column_list=['neon_address', 'pda_address', 'code_address', 'slot', 'code', 'sol_sign'],
+                key_list=[('neon_address', neon_address)],
+                order_list=['slot desc']
+            ))
+        )
+
+    def get_account_info_by_pda_address(self, pda_address) -> NeonAccountInfo:
+        return self._acc_from_value(
+            self._fetchone(DBQuery(
+                column_list=['neon_address', 'pda_address', 'code_address', 'slot', 'code', 'sol_sign'],
+                key_list=[('pda_address', pda_address)],
                 order_list=['slot desc']
             ))
         )

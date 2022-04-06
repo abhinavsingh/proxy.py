@@ -21,13 +21,14 @@
     );
 
     CREATE TABLE IF NOT EXISTS neon_accounts (
-        neon_account CHAR(42),
-        pda_account VARCHAR(50),
-        code_account VARCHAR(50),
+        neon_address CHAR(42),
+        pda_address VARCHAR(50),
+        code_address VARCHAR(50),
         slot BIGINT,
         code TEXT,
+        sol_sign CHAR(88),
 
-        UNIQUE(pda_account, code_account)
+        UNIQUE(pda_address, code_address)
     );
 
     CREATE TABLE IF NOT EXISTS failed_airdrop_attempts (
@@ -79,6 +80,7 @@
         neon_sign CHAR(66),
         slot BIGINT,
         idx INT,
+        neon_steps INT,
 
         UNIQUE(sol_sign, neon_sign, idx),
         UNIQUE(neon_sign, sol_sign, idx)
@@ -117,6 +119,17 @@
     );
 
     ALTER TABLE neon_transactions ADD COLUMN IF NOT EXISTS tx_idx INT DEFAULT 0;
+
+    CREATE TABLE IF NOT EXISTS solana_neon_transactions_costs (
+        sol_sign CHAR(88) UNIQUE,
+        operator VARCHAR(50),
+
+        heap_size INT,
+        bpf_instructions INT,
+
+        sol_cost BIGINT,
+        neon_income BIGINT
+    );
 
     CREATE TABLE IF NOT EXISTS solana_transaction_receipts (
         slot        BIGINT,
