@@ -26,10 +26,14 @@
         code_address VARCHAR(50),
         slot BIGINT,
         code TEXT,
-        sol_sign CHAR(88),
-
-        UNIQUE(pda_address, code_address)
+        sol_sign CHAR(88)
     );
+    ALTER TABLE neon_accounts ADD COLUMN IF NOT EXISTS neon_address CHAR(42);
+    ALTER TABLE neon_accounts ADD COLUMN IF NOT EXISTS pda_address VARCHAR(50);
+    ALTER TABLE neon_accounts ADD COLUMN IF NOT EXISTS code_address VARCHAR(50);
+    ALTER TABLE neon_accounts ADD COLUMN IF NOT EXISTS sol_sign CHAR(88);
+    CREATE UNIQUE INDEX IF NOT EXISTS neon_accounts_pda_address_code_address_key ON neon_accounts (pda_address, code_address);
+    CREATE INDEX IF NOT EXISTS neon_accounts_neon_address_idx ON neon_accounts (neon_address);
 
     CREATE TABLE IF NOT EXISTS failed_airdrop_attempts (
         attempt_time    BIGINT,
@@ -85,6 +89,8 @@
         UNIQUE(sol_sign, neon_sign, idx),
         UNIQUE(neon_sign, sol_sign, idx)
     );
+
+    ALTER TABLE solana_neon_transactions ADD COLUMN IF NOT EXISTS neon_steps INT DEFAULT 0;
 
     CREATE TABLE IF NOT EXISTS neon_transactions (
         neon_sign CHAR(66),
