@@ -50,7 +50,7 @@ from ..statistics_exporter.prometheus_proxy_exporter import PrometheusExporter
 modelInstanceLock = threading.Lock()
 modelInstance = None
 
-NEON_PROXY_PKG_VERSION = '0.7.9-dev'
+NEON_PROXY_PKG_VERSION = '0.7.14-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
@@ -439,18 +439,19 @@ class EthereumModel:
         return self._db.get_contract_code(account)
 
     def eth_sendRawTransaction(self, rawTrx: str) -> str:
-        self._stat_tx_begin()
-
-        trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
-        self.debug(f"{json.dumps(trx.as_dict(), cls=JsonEncoder, sort_keys=True)}")
-        min_gas_price = self.gas_price_calculator.get_min_gas_price()
-
-        if trx.gasPrice < min_gas_price:
-            self._stat_tx_failed()
-            raise EthereumError(message="The transaction gasPrice is less than the minimum allowable value" +
-                                f"({trx.gasPrice}<{min_gas_price})")
+        try:
+            trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
+        except:
+            raise EthereumError(message="wrong transaction format")
 
         eth_signature = '0x' + trx.hash_signed().hex()
+        self.debug(f"sendRawTransaction {eth_signature}: {json.dumps(trx.as_dict(), cls=JsonEncoder, sort_keys=True)}")
+
+        min_gas_price = self.gas_price_calculator.get_min_gas_price()
+        if trx.gasPrice < min_gas_price:
+            raise EthereumError(message="The transaction gasPrice is less than the minimum allowable value" +
+                                f"({trx.gasPrice}<{min_gas_price})")
+        self._stat_tx_begin()
 
         try:
             tx_sender = NeonTxSender(self._db, self._solana, trx, steps=EVM_STEP_COUNT)

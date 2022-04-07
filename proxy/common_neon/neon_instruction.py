@@ -242,9 +242,9 @@ class NeonInstruction:
         else:
             append_keys = self.eth_accounts
             append_keys += obligatory_accounts
-        if not nonce:
+        if nonce is None:
             nonce = self.eth_trx.nonce
-        if not storage:
+        if storage is None:
             storage = self.storage
         return TransactionWithComputeBudget().add(TransactionInstruction(
             program_id = EVM_LOADER_ID,

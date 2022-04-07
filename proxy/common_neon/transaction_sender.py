@@ -65,9 +65,13 @@ class NeonCancelTxStage(NeonTxStage, abc.ABC):
         self._storage = self.s.solana.get_storage_account_info(account)
 
     def _cancel_tx(self):
+        key_list = []
+        for is_writable, account in self._storage.account_list:
+            key_list.append(AccountMeta(pubkey=account, is_signer=False, is_writable=is_writable))
+
         return self.s.builder.make_cancel_transaction(storage=self._account,
                                                       nonce=self._storage.nonce,
-                                                      cancel_keys=self._storage.account_list)
+                                                      cancel_keys=key_list)
 
     def build(self):
         assert self._is_empty()
@@ -458,7 +462,7 @@ class OperatorResourceList:
             elif account.tag not in (FINALIZED_STORAGE_TAG, EMPTY_STORAGE_TAG):
                 raise RuntimeError(f"not empty, not finalized: {str(stage.sol_account)}")
 
-        if len(tx.instructions):
+        if len(tx_name_list):
             SolTxListSender(self._s, [tx], ' + '.join(tx_name_list)).send()
         else:
             self.debug(f"Use existing accounts for resource {opkey}:{rid}")
@@ -560,7 +564,7 @@ class NeonTxSender:
                     raise
 
         self.error(f'No strategy to execute the Neon transaction: {self.eth_tx}')
-        raise RuntimeError('No strategy to execute the Neon transaction')
+        raise EthereumError(message="transaction is too big for execution")
 
     def on_wait_confirm(self, _, slot: int):
         self._pend_tx_into_db(slot)
@@ -668,7 +672,7 @@ class NeonTxSender:
 
     def build_account_txs(self, skip_create_accounts=False) -> [Transaction]:
         tx_list = [s.tx for s in self._resize_contract_list]
-        if (not skip_create_accounts) and len(self.create_account_tx.instructions):
+        if (not skip_create_accounts) and len(self._create_account_list):
             tx_list.append(self.create_account_tx)
         return tx_list
 
@@ -695,7 +699,7 @@ class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
         return NeonTxResultInfo(), []
 
     @abc.abstractmethod
-    def build_tx(self) -> Transaction:
+    def build_tx(self, _=0) -> Transaction:
         return TransactionWithComputeBudget()
 
     @abc.abstractmethod
@@ -775,7 +779,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
             return False
         return True
 
-    def build_tx(self) -> Transaction:
+    def build_tx(self, _=0) -> Transaction:
         tx = TransactionWithComputeBudget()
         if not self._skip_create_account:
             tx.add(self.s.create_account_tx)
@@ -822,15 +826,24 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
         self._tx_list = [self._s.builder.make_cancel_transaction()]
 
     def _decrease_steps(self):
-        self._strategy.steps -= 150
-        self.debug(f'Decrease EVM steps to {self._strategy.steps}')
-        if self._strategy.steps < 50:
+        prev_total_cnt = len(self._get_full_list())
+        prev_steps = self._strategy.steps
+        total_steps = prev_total_cnt * self._strategy.steps
+
+        if self._strategy.steps <= 10:
             return self._cancel()
 
-        total_cnt = len(self._get_full_list()) * 2
+        if self._strategy.steps > 170:
+            self._strategy.steps -= 150
+        else:
+            self._strategy.steps = 10
+        total_cnt = math.ceil(total_steps / self._strategy.steps)
+
+        self.debug(f'Decrease EVM steps from {prev_steps} to {self._strategy.steps}, ' +
+                   f'iterations increase from {prev_total_cnt} to {total_cnt}')
 
         self.clear()
-        self._tx_list = [self._strategy.build_tx() for _ in range(total_cnt)]
+        self._tx_list = [self._strategy.build_tx(idx) for idx in range(total_cnt)]
 
     def _on_success_send(self, tx: Transaction, receipt: {}):
         if self._is_canceled:
@@ -915,10 +928,9 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
             return False
         return True
 
-    def build_tx(self) -> Transaction:
+    def build_tx(self, idx=0) -> Transaction:
         # generate unique tx
-        self.steps -= 1
-        return self.s.builder.make_partial_call_or_continue_transaction(self.steps)
+        return self.s.builder.make_partial_call_or_continue_transaction(self.steps + idx)
 
     def _build_preparation_txs(self) -> [Transaction]:
         self._preparation_txs_name = self.s.account_txs_name
@@ -932,7 +944,7 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
 
         cnt = math.ceil(self.s.steps_emulated / self.steps)
         cnt = math.ceil(self.s.steps_emulated / (self.steps - cnt)) + 2  # +1 on begin, +1 on end
-        tx_list = [self.build_tx() for _ in range(cnt)]
+        tx_list = [self.build_tx(idx) for idx in range(cnt)]
         self.debug(f'Total iterations {len(tx_list)} for {self.s.steps_emulated} ({self.steps}) EVM steps')
         tx_sender = IterativeNeonTxSender(self, self.s, tx_list, self.NAME)
         tx_sender.send()
@@ -944,15 +956,13 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
     NAME = 'ExecuteTrxFromAccountDataIterativeOrContinue'
 
     def __init__(self, *args, **kwargs):
-        self._tx_idx = 0
         IterativeNeonTxStrategy.__init__(self, *args, **kwargs)
 
     def _validate(self) -> bool:
         return self._validate_txsize()
 
-    def build_tx(self) -> Transaction:
-        self._tx_idx += 1
-        return self.s.builder.make_partial_call_or_continue_from_account_data(self.steps, self._tx_idx)
+    def build_tx(self, idx=0) -> Transaction:
+        return self.s.builder.make_partial_call_or_continue_from_account_data(self.steps, idx)
 
     def _build_preparation_txs(self) -> [Transaction]:
         tx_list = super()._build_preparation_txs()

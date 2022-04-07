@@ -12,7 +12,7 @@ class EthereumError(Exception):
 
 class InvalidParamError(EthereumError):
     def __init__(self, message, data=None):
-        EthereumError.__init__(message=message, code=-32602, data=data)
+        EthereumError.__init__(self, message=message, code=-32602, data=data)
 
 
 class PendingTxError(Exception):
