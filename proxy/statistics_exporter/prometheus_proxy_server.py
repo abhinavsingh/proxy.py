@@ -1,17 +1,19 @@
-from decimal import Decimal
-from multiprocessing import Process
 import time
 import traceback
-from typing import Dict, Tuple
+from decimal import Decimal
+from logged_groups import logged_group
+from multiprocessing import Process
+
 from prometheus_client import start_http_server
 from proxy.common_neon.address import EthereumAddress
 from proxy.common_neon.solana_interactor import SolanaInteractor
-
 from proxy.environment import PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, SOLANA_URL, get_solana_accounts
 from proxy.plugin.gas_price_calculator import GasPriceCalculator
+
 from .prometheus_proxy_exporter import PrometheusExporter
 
 
+@logged_group("neon.ProxyStatExporter")
 class PrometheusProxyServer:
     def __init__(self):
         self.start_http_server()
@@ -54,7 +56,7 @@ class PrometheusProxyServer:
             self.stat_exporter.stat_commit_operator_sol_balance(str(account), Decimal(balance) / 1_000_000_000)
 
         neon_accounts = [str(EthereumAddress.from_private_key(neon_account.secret_key())) for neon_account in operator_accounts]
-        neon_layouts = self._solana.get_account_info_layout_list(neon_accounts)
+        neon_layouts = self._solana.get_neon_account_info_list(neon_accounts)
         for sol_account, neon_account, neon_layout in zip(operator_accounts, neon_accounts, neon_layouts):
             if neon_layout:
                 neon_balance = Decimal(neon_layout.balance) / 1_000_000_000 / 1_000_000_000

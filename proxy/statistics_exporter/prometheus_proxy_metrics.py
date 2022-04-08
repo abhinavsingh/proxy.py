@@ -27,21 +27,6 @@ OPERATOR_NEON_BALANCE = Gauge(
     ['operator_sol_wallet', 'operator_neon_wallet'],
     registry=registry,
 )
-OPERATOR_SOL_BALANCE_DIFF = Gauge(
-    'operator_sol_balance_diff', 'Operator Sol Balance Diff On TX',
-    ['operator_sol_wallet'],
-    registry=registry,
-)
-OPERATOR_NEON_BALANCE_DIFF = Gauge(
-    'operator_neon_balance_diff', 'Operator Neon Balance Diff On TX',
-    ['operator_neon_wallet'],
-    registry=registry,
-)
-OPERATOR_ACCOUNT_RENT = Gauge(
-    'operator_account_rent', 'Operator Account Rent',
-    ['account'],
-    registry=registry,
-)
 USD_PRICE_SOL = Gauge(
     'usd_price_sol', 'Sol Price USD',
     registry=registry,
