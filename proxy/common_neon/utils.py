@@ -114,28 +114,18 @@ class NeonTxResultInfo:
         self._set_defaults()
         meta_ixs = tx['meta']['innerInstructions']
         msg = tx['transaction']['message']
-        msg_ixs = msg["instructions"]
         accounts = msg['accountKeys']
-
-        evm_ix_idxs = []
-        if ix_idx == -1:
-            for idx, ix in enumerate(msg_ixs):
-                if accounts[ix["programIdIndex"]] == EVM_LOADER_ID:
-                    evm_ix_idxs.append(idx)
-        else:
-            evm_ix_idxs.append(ix_idx)
 
         for inner_ix in meta_ixs:
             ix_idx = inner_ix['index']
-            if ix_idx in evm_ix_idxs:
-                for event in inner_ix['instructions']:
-                    if accounts[event['programIdIndex']] == EVM_LOADER_ID:
-                        log = base58.b58decode(event['data'])
-                        evm_ix = int(log[0])
-                        if evm_ix == 7:
-                            self._decode_event(neon_sign, log, ix_idx)
-                        elif evm_ix == 6:
-                            self._decode_return(log, ix_idx, tx)
+            for event in inner_ix['instructions']:
+                if accounts[event['programIdIndex']] == EVM_LOADER_ID:
+                    log = base58.b58decode(event['data'])
+                    evm_ix = int(log[0])
+                    if evm_ix == 7:
+                        self._decode_event(neon_sign, log, ix_idx)
+                    elif evm_ix == 6:
+                        self._decode_return(log, ix_idx, tx)
         return self
 
     def canceled(self, tx: {}):
