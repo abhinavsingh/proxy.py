@@ -73,4 +73,4 @@ See `pyproject.toml` for all available categories
 [MyST Markdown]:
 https://myst-parser.rtfd.io/en/latest/syntax/syntax.html
 [Towncrier philosophy]:
-https://towncrier.rtfd.io/en/actual-freaking-docs/#philosophy
+https://towncrier.readthedocs.io/en/latest/index.html#philosophy
