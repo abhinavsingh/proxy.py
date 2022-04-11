@@ -206,6 +206,10 @@ class SolanaInteractor:
             return int(slots_behind)
         return None
 
+    def is_healthy(self) -> bool:
+        status = self._send_rpc_request('getHealth').get('result', 'bad')
+        return status == 'ok'
+
     def get_signatures_for_address(self, before: Optional[str], limit: int, commitment='confirmed') -> []:
         opts: Dict[str, Union[int, str]] = {}
         if before is not None:

@@ -1,5 +1,5 @@
-from prometheus_client import multiprocess
-from prometheus_client import Gauge, Counter, Histogram, REGISTRY
+from prometheus_client import Gauge, Counter, Histogram, REGISTRY, multiprocess
+
 
 registry = REGISTRY
 multiprocess_registry = multiprocess.MultiProcessCollector(registry)
@@ -13,7 +13,7 @@ REQUEST_LATENCY = Histogram('request_latency_seconds', 'Request latency',
     ['endpoint'],
     registry=registry,
 )
-TX_TOTAL = Counter('tx_count', 'Incoming TX Count', registry=registry)
+TX_TOTAL = Counter('tx_total', 'Incoming TX Count', registry=registry)
 TX_SUCCESS = Counter('tx_success_count', 'Count Of Succeeded Txs', registry=registry)
 TX_FAILED = Counter('tx_failed_count', 'Count Of Failed Txs', registry=registry)
 TX_IN_PROGRESS = Gauge('tx_in_progress', 'Count Of Txs Currently Processed', registry=registry)

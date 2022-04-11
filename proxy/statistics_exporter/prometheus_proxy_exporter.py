@@ -52,3 +52,21 @@ class PrometheusExporter(StatisticsExporter):
         OPERATOR_FEE.set(operator_fee)
         GAS_PRICE.set(gas_price)
 
+    def stat_commit_tx_sol_spent(self, *args):
+        pass
+
+    def stat_commit_tx_steps_bpf(self, *args):
+        pass
+
+    def stat_commit_tx_count(self, *args):
+        pass
+
+    def stat_commit_count_sol_tx_per_neon_tx(self, *args):
+        pass
+
+    def stat_commit_postgres_availability(self, *args):
+        pass
+
+    def stat_commit_solana_rpc_health(self, *args):
+        pass
+

@@ -11,7 +11,7 @@
 
 from .proxy import entry_point
 import os
-from .indexer.indexer import run_indexer
+from .indexer.indexer_app import run_indexer
 
 
 if __name__ == '__main__':

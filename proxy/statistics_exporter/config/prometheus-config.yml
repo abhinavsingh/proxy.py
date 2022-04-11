@@ -1,0 +1,17 @@
+# my global config
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'proxy-monitor'
+    metrics_path: '/'
+    scrape_interval: 5s
+    static_configs:
+    - targets: ['proxy:8888']
+
+  - job_name: 'indexer-monitor'
+    metrics_path: '/'
+    scrape_interval: 5s
+    static_configs:
+    - targets: ['indexer:8887']

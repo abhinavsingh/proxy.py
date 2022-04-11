@@ -1,10 +1,13 @@
-from typing import Optional
+import copy
+from typing import Iterator, Optional
 
 import base58
 import time
 from logged_groups import logged_group, logging_context
 from solana.system_program import SYS_PROGRAM_ID
 
+from ..common_neon.data import NeonTxStatData
+from ..indexer.i_inidexer_user import IIndexerUser
 from ..indexer.accounts_db import NeonAccountInfo
 from ..indexer.indexer_base import IndexerBase
 from ..indexer.indexer_db import IndexerDB
@@ -15,7 +18,7 @@ from ..indexer.canceller import Canceller
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo, str_fmt_object
 from ..common_neon.solana_interactor import SolanaInteractor
 
-from ..environment import EVM_LOADER_ID, FINALIZED, CANCEL_TIMEOUT, SOLANA_URL
+from ..environment import EVM_LOADER_ID, FINALIZED, CANCEL_TIMEOUT
 
 
 @logged_group("neon.Indexer")
@@ -100,15 +103,19 @@ class SolanaIxInfo:
 class BaseEvmObject:
     def __init__(self):
         self.used_ixs = []
+        self.ixs_cost = []
         self.slot = 0
 
     def mark_ix_used(self, ix_info: SolanaIxInfo):
         self.used_ixs.append(ix_info.sign)
+        self.ixs_cost.append(ix_info.cost_info)
         self.slot = max(self.slot, ix_info.sign.slot)
 
     def move_ix_used(self, obj):
         self.used_ixs += obj.used_ixs
+        self.ixs_cost += obj.ixs_cost
         obj.used_ixs.clear()
+        obj.ixs_cost.clear()
         self.slot = max(self.slot, obj.slot)
 
 
@@ -124,13 +131,12 @@ class NeonHolderObject(BaseEvmObject):
         return str_fmt_object(self)
 
 
-class NeonTxObject(BaseEvmObject):
+class NeonTxResult(BaseEvmObject):
     def __init__(self, storage_account: str, neon_tx: NeonTxInfo, neon_res: NeonTxResultInfo):
         BaseEvmObject.__init__(self)
         self.storage_account = storage_account
         self.neon_tx = (neon_tx or NeonTxInfo())
         self.neon_res = (neon_res or NeonTxResultInfo())
-        self.step_count = []
         self.holder_account = ''
         self.blocked_accounts = []
         self.canceled = False
@@ -177,6 +183,7 @@ class ReceiptsParserState:
         self._holder_table = {}
         self._tx_table = {}
         self._done_tx_list = []
+        self.neon_tx_result = []
         self._used_ixs = {}
         self.ix = SolanaIxInfo(sign='', slot=-1, tx=None)
 
@@ -214,21 +221,21 @@ class ReceiptsParserState:
     def del_holder(self, holder: NeonHolderObject):
         self._holder_table.pop(holder.account, None)
 
-    def get_tx(self, storage_account: str) -> Optional[NeonTxObject]:
+    def get_tx(self, storage_account: str) -> Optional[NeonTxResult]:
         return self._tx_table.get(storage_account)
 
-    def add_tx(self, storage_account: str, neon_tx=None, neon_res=None) -> NeonTxObject:
+    def add_tx(self, storage_account: str, neon_tx=None, neon_res=None) -> NeonTxResult:
         if storage_account in self._tx_table:
             self.debug(f'{self.ix} ATTENTION: the tx {storage_account} is already used!')
 
-        tx = NeonTxObject(storage_account=storage_account, neon_tx=neon_tx, neon_res=neon_res)
+        tx = NeonTxResult(storage_account=storage_account, neon_tx=neon_tx, neon_res=neon_res)
         self._tx_table[storage_account] = tx
         return tx
 
-    def del_tx(self, tx: NeonTxObject):
+    def del_tx(self, tx: NeonTxResult):
         self._tx_table.pop(tx.storage_account, None)
 
-    def done_tx(self, tx: NeonTxObject):
+    def done_tx(self, tx: NeonTxResult):
         """
         Continue waiting of ixs in the slot with the same neon tx,
         because the parsing order can be other than the execution order.
@@ -247,6 +254,7 @@ class ReceiptsParserState:
             if tx.neon_tx.is_valid() and tx.neon_res.is_valid():
                 with logging_context(neon_tx=tx.neon_tx.sign[:7]):
                     self._db.submit_transaction(tx.neon_tx, tx.neon_res, tx.used_ixs)
+                    self.neon_tx_result.append(copy.deepcopy(tx))
             self.del_tx(tx)
         self._done_tx_list.clear()
 
@@ -266,6 +274,11 @@ class ReceiptsParserState:
     def add_account_to_db(self, neon_account: NeonAccountInfo):
         self._db.fill_account_info_by_indexer(neon_account)
 
+    def iter_neon_tx_results(self) -> Iterator[NeonTxResult]:
+        for tx in self.neon_tx_result:
+            yield tx
+        self.neon_tx_result.clear()
+
 
 @logged_group("neon.Indexer")
 class DummyIxDecoder:
@@ -280,7 +293,7 @@ class DummyIxDecoder:
     def neon_addr_fmt(neon_tx: NeonTxInfo):
         return f'Neon tx {neon_tx.sign}, Neon addr {neon_tx.addr}'
 
-    def _getadd_tx(self, storage_account, neon_tx=None, blocked_accounts=None) -> NeonTxObject:
+    def _getadd_tx(self, storage_account, neon_tx=None, blocked_accounts=None) -> NeonTxResult:
         if blocked_accounts is None:
             blocked_accounts = ['']
         tx = self.state.get_tx(storage_account)
@@ -320,7 +333,7 @@ class DummyIxDecoder:
         """
         Assembling of the object has been successfully finished.
         """
-        if isinstance(obj, NeonTxObject):
+        if isinstance(obj, NeonTxResult):
             self.state.mark_ix_used(obj)
             self.state.done_tx(obj)
         elif isinstance(obj, NeonHolderObject):
@@ -347,7 +360,7 @@ class DummyIxDecoder:
         self.warning(f'{reason} - {obj}')
         self.state.unmark_ix_used(obj)
 
-        if isinstance(obj, NeonTxObject):
+        if isinstance(obj, NeonTxResult):
             self.state.del_tx(obj)
         elif isinstance(obj, NeonHolderObject):
             self.state.del_holder(obj)
@@ -355,7 +368,7 @@ class DummyIxDecoder:
             assert False, 'Unknown type of object'
         return False
 
-    def _decode_tx(self, tx: NeonTxObject):
+    def _decode_tx(self, tx: NeonTxResult):
         """
         If the transaction doesn't have results, then try to get results for the transaction.
         If the transaction has received results, then call done for the transaction.
@@ -368,7 +381,7 @@ class DummyIxDecoder:
                 return self._decoding_done(tx, 'found Neon results')
         return self._decoding_success(tx, 'mark ix used')
 
-    def _init_tx_from_holder(self, holder_account: str, storage_account: str, blocked_accounts: [str]) -> Optional[NeonTxObject]:
+    def _init_tx_from_holder(self, holder_account: str, storage_account: str, blocked_accounts: [str]) -> Optional[NeonTxResult]:
         tx = self._getadd_tx(storage_account, blocked_accounts=blocked_accounts)
         if tx.holder_account:
             return tx
@@ -550,7 +563,7 @@ class CallFromRawIxDecoder(DummyIxDecoder):
             return self._decoding_skip(f'Neon tx rlp error "{neon_tx.error}"')
 
         neon_res = NeonTxResultInfo(neon_tx.sign, self.ix.tx, self.ix.sign.idx)
-        tx = NeonTxObject('', neon_tx=neon_tx, neon_res=neon_res)
+        tx = NeonTxResult('', neon_tx=neon_tx, neon_res=neon_res)
 
         return self._decoding_done(tx, 'call success')
 
@@ -580,7 +593,6 @@ class PartialCallIxDecoder(DummyIxDecoder):
             return self._decoding_skip(f'Neon tx rlp error "{neon_tx.error}"')
 
         tx = self._getadd_tx(storage_account, neon_tx=neon_tx, blocked_accounts=blocked_accounts)
-        tx.step_count.append(step_count)
 
         self.ix.sign.set_steps(step_count)
         return self._decode_tx(tx)
@@ -614,7 +626,6 @@ class ContinueIxDecoder(DummyIxDecoder):
         step_count = int.from_bytes(self.ix.ix_data[5:13], 'little')
 
         tx = self._getadd_tx(storage_account, blocked_accounts=blocked_accounts)
-        tx.step_count.append(step_count)
 
         self.ix.sign.set_steps(step_count)
         return self._decode_tx(tx)
@@ -645,7 +656,6 @@ class ExecuteTrxFromAccountIxDecoder(DummyIxDecoder):
         tx = self._init_tx_from_holder(holder_account, storage_account, blocked_accounts)
         if not tx:
             return self._decoding_skip(f'fail to init in storage {storage_account} from holder {holder_account}')
-        tx.step_count.append(step_count)
 
         self.ix.sign.set_steps(step_count)
         return self._decode_tx(tx)
@@ -705,7 +715,6 @@ class ExecuteOrContinueIxParser(DummyIxDecoder):
         tx = self._init_tx_from_holder(holder_account, storage_account, blocked_accounts)
         if not tx:
             return self._decoding_skip(f'fail to init the storage {storage_account} from the holder {holder_account}')
-        tx.step_count.append(step_count)
 
         self.ix.sign.set_steps(step_count)
         return self._decode_tx(tx)
@@ -732,7 +741,7 @@ class BlocksIndexer:
 
 @logged_group("neon.Indexer")
 class Indexer(IndexerBase):
-    def __init__(self, solana_url):
+    def __init__(self, solana_url, indexer_user: IIndexerUser):
         self.debug(f'Finalized commitment: {FINALIZED}')
         solana = SolanaInteractor(solana_url)
         self.db = IndexerDB(solana)
@@ -743,6 +752,7 @@ class Indexer(IndexerBase):
         self.blocked_storages = {}
         self.block_indexer = BlocksIndexer(db=self.db, solana=solana)
         self.counted_logger = MetricsToLogBuff()
+        self._user = indexer_user
 
         self.state = ReceiptsParserState(db=self.db, solana=solana)
         self.ix_decoder_map = {
@@ -779,6 +789,7 @@ class Indexer(IndexerBase):
         self.process_receipts()
         self.canceller.unlock_accounts(self.blocked_storages)
         self.blocked_storages = {}
+        self.process_neon_tx_results()
 
     def process_receipts(self):
         tx_costs = []
@@ -805,7 +816,6 @@ class Indexer(IndexerBase):
                         (self.ix_decoder_map.get(ix_info.evm_ix) or self.def_decoder).execute()
 
             tx_costs.append(ix_info.cost_info)
-
 
         self.indexed_slot = last_block_slot
         self.db.set_min_receipt_slot(self.state.find_min_used_slot(self.indexed_slot))
@@ -876,17 +886,25 @@ class Indexer(IndexerBase):
         tx.canceled = True
         return True
 
+    def process_neon_tx_results(self):
+        for neon_tx_result in self.state.iter_neon_tx_results():
+            neon_tx_hash = neon_tx_result.neon_tx.sign
+            neon_income = int(neon_tx_result.neon_res.gas_used, 0) * int(neon_tx_result.neon_tx.gas_price, 0)
+            if neon_tx_result.holder_account != '':
+                tx_type = 'holder'
+            elif neon_tx_result.storage_account != '':
+                tx_type = 'iterative'
+            else:
+                tx_type = 'single'
+            is_canceled = neon_tx_result.neon_res.status == '0x0'
+            neon_tx_stat_data = NeonTxStatData(neon_tx_hash, neon_income, tx_type, is_canceled)
+            for sign_info, cost_info in zip(neon_tx_result.used_ixs, neon_tx_result.ixs_cost):
+                sol_tx_hash = sign_info.sign
+                sol_spent = cost_info.sol_spent
+                steps = sign_info.steps
+                bpf = cost_info.bpf
+                neon_tx_stat_data.add_instruction(sol_tx_hash, sol_spent, steps, bpf)
 
-@logged_group("neon.Indexer")
-def run_indexer(solana_url, *, logger):
-    logger.info(f"""Running indexer with params:
-        solana_url: {solana_url},
-        evm_loader_id: {EVM_LOADER_ID}""")
-
-    indexer = Indexer(solana_url)
-    indexer.run()
-
-
-if __name__ == "__main__":
-    solana_url = SOLANA_URL
-    run_indexer(solana_url)
+            self._user.on_neon_tx_result(neon_tx_stat_data)
+        self._user.on_db_status(self.db.status())
+        self._user.on_solana_rpc_status(self.solana.is_healthy())
