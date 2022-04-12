@@ -158,11 +158,11 @@ class InfoHandler:
             ret_js['total_balance'] += acc_info_js['balance']
             self._print(f"holder:")
             for holder_account in acc_info_js['holder']:
-                self._print(f"    {acc_info_js['address']}    {acc_info_js['balance']:,.9f}")
+                self._print(f"    {holder_account['address']}    {holder_account['balance']:,.9f}")
                 ret_js['resource_balance'] += holder_account['balance']
             self._print(f"storage:")
             for storage_account in acc_info_js['storage']:
-                self._print(f"    {acc_info_js['address']}    {acc_info_js['balance']:,.9f}")
+                self._print(f"    {storage_account['address']}    {storage_account['balance']:,.9f}")
                 ret_js['resource_balance'] += storage_account['balance']
 
             ret_js['accounts'].append(acc_info_js)
