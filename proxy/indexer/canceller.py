@@ -5,7 +5,8 @@ from solana.transaction import AccountMeta
 from proxy.common_neon.neon_instruction import NeonInstruction
 from proxy.common_neon.solana_interactor import SolanaInteractor
 from proxy.common_neon.solana_tx_list_sender import SolTxListSender
-from proxy.environment import SOLANA_URL, get_solana_accounts
+from proxy.common_neon.compute_budget import TransactionWithComputeBudget
+from proxy.environment import get_solana_accounts
 
 
 @logged_group("neon.Indexer")
@@ -31,7 +32,8 @@ class Canceller:
 
                 self.builder.init_iterative(storage, None, 0)
 
-                tx = self.builder.make_cancel_transaction(nonce=int(neon_tx.nonce[2:], 16), cancel_keys=keys)
+                tx = TransactionWithComputeBudget()
+                tx.add(self.builder.make_cancel_instruction(nonce=int(neon_tx.nonce[2:], 16), cancel_keys=keys))
                 tx_list.append(tx)
 
         if not len(tx_list):

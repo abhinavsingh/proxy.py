@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
+from typing import Optional
 
 
 class StatisticsExporter(ABC):
@@ -17,7 +18,7 @@ class StatisticsExporter(ABC):
         """Add successfully finished TX"""
 
     @abstractmethod
-    def stat_commit_tx_end_failed(self, err: Exception):
+    def stat_commit_tx_end_failed(self, err: Optional[Exception]):
         """Add failed TX"""
 
     @abstractmethod

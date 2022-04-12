@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Optional
 from .proxy_metrics_interface import StatisticsExporter
 
 
@@ -24,7 +25,7 @@ class PrometheusExporter(StatisticsExporter):
         TX_SUCCESS.inc()
         TX_IN_PROGRESS.dec()
 
-    def stat_commit_tx_end_failed(self, _err: Exception):
+    def stat_commit_tx_end_failed(self, _err: Optional[Exception]):
         from .prometheus_proxy_metrics import (
             TX_FAILED, TX_IN_PROGRESS
         )

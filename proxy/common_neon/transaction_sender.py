@@ -25,9 +25,9 @@ from .compute_budget import TransactionWithComputeBudget
 from .constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, ACTIVE_STORAGE_TAG, ACCOUNT_SEED_VERSION
 from .emulator_interactor import call_emulated
 from .neon_instruction import NeonInstruction as NeonIxBuilder
-from .solana_interactor import SolanaInteractor, StorageAccountInfo
+from .solana_interactor import SolanaInteractor
 from .solana_tx_list_sender import SolTxListSender
-from .solana_receipt_parser import SolTxError, SolReceiptParser, Measurements
+from .solana_receipt_parser import SolTxError, SolReceiptParser
 from .transaction_validator import NeonTxValidator
 from ..common_neon.eth_proto import Trx as EthTx
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo
@@ -45,7 +45,7 @@ class NeonTxStage(metaclass=abc.ABCMeta):
 
     def __init__(self, sender):
         self.s = sender
-        self.tx = Transaction()
+        self.tx = TransactionWithComputeBudget()
 
     def _is_empty(self):
         return not len(self.tx.signatures)
@@ -64,12 +64,12 @@ class NeonCancelTxStage(NeonTxStage, abc.ABC):
         self._account = account
         self._storage = self.s.solana.get_storage_account_info(account)
 
-    def _cancel_tx(self):
+    def _cancel_ix(self):
         key_list = []
         for is_writable, account in self._storage.account_list:
             key_list.append(AccountMeta(pubkey=account, is_signer=False, is_writable=is_writable))
 
-        return self.s.builder.make_cancel_transaction(storage=self._account,
+        return self.s.builder.make_cancel_instruction(storage=self._account,
                                                       nonce=self._storage.nonce,
                                                       cancel_keys=key_list)
 
@@ -78,7 +78,7 @@ class NeonCancelTxStage(NeonTxStage, abc.ABC):
         assert self._storage is not None
 
         self.debug(f'Cancel transaction in storage account {str(self._account)}')
-        self.tx = self._cancel_tx()
+        self.tx.add(self._cancel_ix())
 
 
 class NeonCreateAccountWithSeedStage(NeonTxStage, abc.ABC):
@@ -101,7 +101,7 @@ class NeonCreateAccountWithSeedStage(NeonTxStage, abc.ABC):
         assert self.size > 0
         assert self.balance > 0
 
-        return self.s.builder.create_account_with_seed_trx(self.sol_account, self._seed, self.balance, self.size)
+        return self.s.builder.create_account_with_seed_instruction(self.sol_account, self._seed, self.balance, self.size)
 
 
 @logged_group("neon.Proxy")
@@ -139,7 +139,7 @@ class NeonCreateAccountTxStage(NeonTxStage):
 
     def _create_account(self):
         assert self.balance > 0
-        return self.s.builder.make_create_eth_account_trx(self._address)
+        return self.s.builder.make_create_eth_account_instruction(self._address)
 
     def build(self):
         assert self._is_empty()
@@ -159,7 +159,7 @@ class NeonCreateERC20TxStage(NeonTxStage, abc.ABC):
 
     def _create_erc20_account(self):
         assert self.balance > 0
-        return self.s.builder.createERC20TokenAccountTrx(self._token_account)
+        return self.s.builder.make_erc20token_account_instruction(self._token_account)
 
     def build(self):
         assert self._is_empty()
@@ -188,7 +188,7 @@ class NeonCreateContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
 
     def _create_account(self):
         assert self.sol_account
-        return self.s.builder.make_create_eth_account_trx(self._address, self.sol_account)
+        return self.s.builder.make_create_eth_account_instruction(self._address, self.sol_account)
 
     def build(self):
         assert self._is_empty()
@@ -205,7 +205,6 @@ class NeonResizeContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
 
     def __init__(self, sender, account_desc):
         NeonCreateAccountWithSeedStage.__init__(self, sender)
-        self.tx = TransactionWithComputeBudget()
         self._account_desc = account_desc
         self._seed_base = ACCOUNT_SEED_VERSION + os.urandom(20)
         self._init_sol_account()
@@ -597,7 +596,7 @@ class NeonTxSender:
         self.debug('metas: ' + ', '.join([f'{m.pubkey, m.is_signer, m.is_writable}' for m in eth_meta_list]))
 
         # Build all instructions
-        self._build_txs()
+        self._build_account_stage_list()
 
         self.builder.init_operator_ether(self.resource.ether)
         self.builder.init_eth_trx(self.eth_tx, eth_meta_list)
@@ -651,7 +650,7 @@ class NeonTxSender:
         for account_desc in self._emulator_json['solana_accounts']:
             self._add_meta(account_desc['pubkey'], account_desc['is_writable'])
 
-    def _build_txs(self):
+    def _build_account_stage_list(self):
         all_stages = self._create_account_list + self._resize_contract_list
         if not len(all_stages):
             return
@@ -670,13 +669,13 @@ class NeonTxSender:
             self.create_account_tx.add(s.tx)
         self.account_txs_name = ' + '.join([f'{name}({cnt})' for name, cnt in name_dict.items()])
 
-    def build_account_txs(self, skip_create_accounts=False) -> [Transaction]:
+    def build_account_tx_list(self, skip_create_accounts=False) -> [TransactionWithComputeBudget]:
         tx_list = [s.tx for s in self._resize_contract_list]
         if (not skip_create_accounts) and len(self._create_account_list):
             tx_list.append(self.create_account_tx)
         return tx_list
 
-    def done_account_txs(self, skip_create_accounts=False):
+    def done_account_tx_list(self, skip_create_accounts=False):
         self._resize_contract_list.clear()
         if not skip_create_accounts:
             self._create_account_list.clear()
@@ -699,7 +698,7 @@ class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
         return NeonTxResultInfo(), []
 
     @abc.abstractmethod
-    def build_tx(self, _=0) -> Transaction:
+    def build_tx(self, _=0) -> TransactionWithComputeBudget:
         return TransactionWithComputeBudget()
 
     @abc.abstractmethod
@@ -738,8 +737,7 @@ class SimpleNeonTxSender(SolTxListSender):
 
     def _on_success_send(self, tx: Transaction, receipt: {}):
         if not self.neon_res.is_valid():
-            if self.neon_res.decode(self._s.neon_sign, receipt).is_valid():
-                Measurements().extract(self._name, receipt)
+            self.neon_res.decode(self._s.neon_sign, receipt).is_valid()
         super()._on_success_send(tx, receipt)
 
     def _on_post_send(self):
@@ -779,7 +777,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
             return False
         return True
 
-    def build_tx(self, _=0) -> Transaction:
+    def build_tx(self, _=0) -> TransactionWithComputeBudget:
         tx = TransactionWithComputeBudget()
         if not self._skip_create_account:
             tx.add(self.s.create_account_tx)
@@ -787,10 +785,10 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         return tx
 
     def execute(self) -> (NeonTxResultInfo, [str]):
-        tx_list = self.s.build_account_txs(not self._skip_create_account)
+        tx_list = self.s.build_account_tx_list(not self._skip_create_account)
         if len(tx_list) > 0:
             SolTxListSender(self.s, tx_list, self.s.account_txs_name).send()
-            self.s.done_account_txs(self._skip_create_account)
+            self.s.done_account_tx_list(self._skip_create_account)
 
         tx_sender = SimpleNeonTxSender(self, self.s, [self.build_tx()], self.NAME).send()
         if not tx_sender.neon_res.is_valid():
@@ -823,7 +821,9 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
         self._name = 'CancelWithNonce'
         self._is_canceled = True
         self._retry_idx = 0  # force the cancel sending
-        self._tx_list = [self._s.builder.make_cancel_transaction()]
+        tx = TransactionWithComputeBudget()
+        tx.add(self._s.builder.make_cancel_instruction())
+        self._tx_list = [tx]
 
     def _decrease_steps(self):
         prev_total_cnt = len(self._get_full_list())
@@ -849,7 +849,6 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
         if self._is_canceled:
             # Transaction with cancel is confirmed
             self.neon_res.canceled(receipt)
-            Measurements().extract(self._name, receipt)
         else:
             super()._on_success_send(tx, receipt)
 
@@ -928,19 +927,21 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
             return False
         return True
 
-    def build_tx(self, idx=0) -> Transaction:
+    def build_tx(self, idx=0) -> TransactionWithComputeBudget:
         # generate unique tx
-        return self.s.builder.make_partial_call_or_continue_transaction(self.steps + idx)
+        tx = TransactionWithComputeBudget()
+        tx.add(self.s.builder.make_partial_call_or_continue_transaction(self.steps + idx, len(tx.instructions)))
+        return tx
 
-    def _build_preparation_txs(self) -> [Transaction]:
+    def _build_preparation_tx_list(self) -> [TransactionWithComputeBudget]:
         self._preparation_txs_name = self.s.account_txs_name
-        return self.s.build_account_txs(False)
+        return self.s.build_account_tx_list(False)
 
     def execute(self) -> (NeonTxResultInfo, [str]):
-        tx_list = self._build_preparation_txs()
+        tx_list = self._build_preparation_tx_list()
         if len(tx_list):
             SolTxListSender(self.s, tx_list, self._preparation_txs_name).send()
-            self.s.done_account_txs()
+            self.s.done_account_tx_list()
 
         cnt = math.ceil(self.s.steps_emulated / self.steps)
         cnt = math.ceil(self.s.steps_emulated / (self.steps - cnt)) + 2  # +1 on begin, +1 on end
@@ -961,11 +962,13 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
     def _validate(self) -> bool:
         return self._validate_txsize()
 
-    def build_tx(self, idx=0) -> Transaction:
-        return self.s.builder.make_partial_call_or_continue_from_account_data(self.steps, idx)
+    def build_tx(self, idx=0) -> TransactionWithComputeBudget:
+        tx = TransactionWithComputeBudget()
+        tx.add(self.s.builder.make_partial_call_or_continue_from_account_data_instruction(self.steps, idx))
+        return tx
 
-    def _build_preparation_txs(self) -> [Transaction]:
-        tx_list = super()._build_preparation_txs()
+    def _build_preparation_tx_list(self) -> [TransactionWithComputeBudget]:
+        tx_list = super()._build_preparation_tx_list()
 
         # write eth transaction to the holder account
         msg = get_holder_msg(self.s.eth_tx)
@@ -975,7 +978,9 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
         cnt = 0
         while len(rest):
             (part, rest) = (rest[:HOLDER_MSG_SIZE], rest[HOLDER_MSG_SIZE:])
-            tx_list.append(self.s.builder.make_write_transaction(offset, part))
+            tx = TransactionWithComputeBudget()
+            tx.add(self.s.builder.make_write_instruction(offset, part))
+            tx_list.append(tx)
             offset += len(part)
             cnt += 1
 

@@ -16,6 +16,23 @@ from .prometheus_proxy_exporter import PrometheusExporter
 @logged_group("neon.ProxyStatExporter")
 class PrometheusProxyServer:
     def __init__(self):
+        self._stat_exporter = PrometheusExporter()
+        self._solana = SolanaInteractor(SOLANA_URL)
+        if PP_SOLANA_URL == SOLANA_URL:
+            self._gas_price_calculator = GasPriceCalculator(self._solana, PYTH_MAPPING_ACCOUNT)
+        else:
+            self._gas_price_calculator = GasPriceCalculator(SolanaInteractor(PP_SOLANA_URL), PYTH_MAPPING_ACCOUNT)
+
+        self._gas_price_calculator.update_mapping()
+        self._gas_price_calculator.try_update_gas_price()
+
+        self._operator_accounts = get_solana_accounts()
+        self._sol_accounts = []
+        self._neon_accounts = []
+        for account in self._operator_accounts:
+            self._sol_accounts.append(str(account.public_key()))
+            self._neon_accounts.append(EthereumAddress.from_private_key(account.secret_key()))
+
         self.start_http_server()
         self.run_commit_process()
 
@@ -29,15 +46,6 @@ class PrometheusProxyServer:
         p.start()
 
     def commit_loop(self):
-        self.stat_exporter = PrometheusExporter()
-        self._solana = SolanaInteractor(SOLANA_URL)
-        if PP_SOLANA_URL == SOLANA_URL:
-            self.gas_price_calculator = GasPriceCalculator(self._solana, PYTH_MAPPING_ACCOUNT)
-        else:
-            self.gas_price_calculator = GasPriceCalculator(SolanaInteractor(PP_SOLANA_URL), PYTH_MAPPING_ACCOUNT)
-        self.gas_price_calculator.update_mapping()
-        self.gas_price_calculator.try_update_gas_price()
-
         while True:
             time.sleep(5)
             try:
@@ -48,24 +56,21 @@ class PrometheusProxyServer:
                              f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
     def _stat_operator_balance(self):
-        operator_accounts = get_solana_accounts()
-        sol_accounts = [str(sol_account.public_key()) for sol_account in operator_accounts]
-        sol_balances = self._solana.get_sol_balance_list(sol_accounts)
-        operator_sol_balance = dict(zip(sol_accounts, sol_balances))
+        sol_balances = self._solana.get_sol_balance_list(self._sol_accounts)
+        operator_sol_balance = dict(zip(self._sol_accounts, sol_balances))
         for account, balance in operator_sol_balance.items():
-            self.stat_exporter.stat_commit_operator_sol_balance(str(account), Decimal(balance) / 1_000_000_000)
+            self._stat_exporter.stat_commit_operator_sol_balance(str(account), Decimal(balance) / 1_000_000_000)
 
-        neon_accounts = [str(EthereumAddress.from_private_key(neon_account.secret_key())) for neon_account in operator_accounts]
-        neon_layouts = self._solana.get_neon_account_info_list(neon_accounts)
-        for sol_account, neon_account, neon_layout in zip(operator_accounts, neon_accounts, neon_layouts):
+        neon_layouts = self._solana.get_neon_account_info_list(self._neon_accounts)
+        for sol_account, neon_account, neon_layout in zip(self._operator_accounts, self._neon_accounts, neon_layouts):
             if neon_layout:
                 neon_balance = Decimal(neon_layout.balance) / 1_000_000_000 / 1_000_000_000
-                self.stat_exporter.stat_commit_operator_neon_balance(str(sol_account), str(neon_account), neon_balance)
+                self._stat_exporter.stat_commit_operator_neon_balance(str(sol_account), str(neon_account), neon_balance)
 
     def _stat_gas_price(self):
-        self.stat_exporter.stat_commit_gas_parameters(
-            self.gas_price_calculator.get_suggested_gas_price(),
-            self.gas_price_calculator.get_sol_price_usd(),
-            self.gas_price_calculator.get_neon_price_usd(),
-            self.gas_price_calculator.get_operator_fee(),
+        self._stat_exporter.stat_commit_gas_parameters(
+            self._gas_price_calculator.get_suggested_gas_price(),
+            self._gas_price_calculator.get_sol_price_usd(),
+            self._gas_price_calculator.get_neon_price_usd(),
+            self._gas_price_calculator.get_operator_fee(),
         )

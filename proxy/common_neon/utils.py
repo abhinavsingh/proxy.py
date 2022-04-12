@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Optional, Any
+from typing import Dict, Any
 
 import json
 import base58
@@ -196,7 +196,10 @@ class NeonTxInfo:
         try:
             utx = EthTx.fromString(rlp_data)
 
-            uv = int(rlp_sign[64]) + 35 + 2 * utx.v
+            if utx.v == 0:
+                uv = int(rlp_sign[64]) + 27
+            else:
+                uv = int(rlp_sign[64]) + 35 + 2 * utx.v
             ur = big_endian_to_int(rlp_sign[0:32])
             us = big_endian_to_int(rlp_sign[32:64])
 
@@ -241,6 +244,6 @@ def get_from_dict(src: Dict, *path) -> Any:
     return val
 
 
-def get_holder_msg(eth_trx: EthTx):
+def get_holder_msg(eth_trx: EthTx) -> bytes:
     unsigned_msg = eth_trx.unsigned_msg()
-    return  eth_trx.signature() + len(unsigned_msg).to_bytes(8, byteorder="little") + unsigned_msg
+    return eth_trx.signature() + len(unsigned_msg).to_bytes(8, byteorder="little") + unsigned_msg

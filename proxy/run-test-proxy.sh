@@ -14,7 +14,7 @@ echo "$(date "+%F %X.%3N") I $(basename "$0"):${LINENO} $$ ${COMPONENT}:StartScr
 export EVM_LOADER=$(solana address -k /spl/bin/evm_loader-keypair.json)
 export $(/spl/bin/neon-cli --commitment confirmed --url $SOLANA_URL --evm_loader="$EVM_LOADER" neon-elf-params)
 
-export NUM_ACCOUNTS=15
+export NUM_ACCOUNTS=30
 /spl/bin/create-test-accounts.sh $NUM_ACCOUNTS
 
 echo "$(date "+%F %X.%3N") I $(basename "$0"):${LINENO} $$ ${COMPONENT}:StartScript {} NEON_TOKEN_MINT=$NEON_TOKEN_MINT"

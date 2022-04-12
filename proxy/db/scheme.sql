@@ -8,18 +8,6 @@
         value BYTEA
     );
 
-    CREATE TABLE IF NOT EXISTS OPERATOR_COST (
-        id SERIAL PRIMARY KEY,
-        hash char(64),
-        cost bigint,
-        used_gas bigint,
-        sender char(40),
-        to_address char(40) ,
-        sig char(100),
-        status varchar(100),
-        reason varchar(100)
-    );
-
     CREATE TABLE IF NOT EXISTS neon_accounts (
         neon_address CHAR(42),
         pda_address VARCHAR(50),

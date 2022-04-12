@@ -21,9 +21,8 @@ from proxy.common_neon.compute_budget import TransactionWithComputeBudget
 from solana.publickey import PublicKey
 from solana.rpc.commitment import Confirmed
 from solana.system_program import SYS_PROGRAM_ID
-from solana.transaction import AccountMeta, Transaction, TransactionInstruction
+from solana.transaction import AccountMeta, TransactionInstruction
 from solana_utils import *
-from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
 from web3 import Web3
 from web3.auto.gethdev import w3

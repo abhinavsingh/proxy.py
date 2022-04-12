@@ -5,7 +5,7 @@ from time import sleep
 import unittest
 import os
 import json
-from solana.rpc.commitment import Commitment, Confirmed, Recent
+from solana.rpc.commitment import Confirmed, Recent
 from solana.rpc.types import TxOpts
 from web3 import Web3
 from spl.token.client import Token as SplToken
@@ -19,6 +19,7 @@ from proxy.common_neon.neon_instruction import NeonInstruction
 from solana.rpc.types import TokenAccountOpts
 
 from proxy.testing.testing_helpers import request_airdrop
+from proxy.common_neon.compute_budget import TransactionWithComputeBudget
 
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")
@@ -84,8 +85,10 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
                              "contract": self.wrapper.solana_contract_address,
                              "mint": self.token.pubkey }
 
-        instr = NeonInstruction(self.solana_account.public_key()).createERC20TokenAccountTrx(admin_token_info)
-        self.solana_client.send_transaction(instr, self.solana_account, opts=TxOpts(skip_preflight=True, skip_confirmation=False))
+        tx = TransactionWithComputeBudget()
+        ix = NeonInstruction(self.solana_account.public_key()).make_erc20token_account_instruction(admin_token_info)
+        tx.add(ix)
+        self.solana_client.send_transaction(tx, self.solana_account, opts=TxOpts(skip_preflight=True, skip_confirmation=False))
         self.wrapper.mint_to(admin_token_key, 10_000_000_000_000)
 
     def test_erc20_name(self):

@@ -137,18 +137,21 @@ class SolanaInteractor:
                 return raw_response
 
             except requests.exceptions.RequestException as err:
-                if retry > RETRY_ON_FAIL:
-                    raise
+                if retry <= RETRY_ON_FAIL:
+                    self.debug(f'Receive connection error {str(err)} on connection to Solana. ' +
+                               f'Attempt {retry + 1} to send the request to Solana node...')
+                    time.sleep(1)
+                    continue
 
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
-                self.error(f'Connection exception({retry}) on send request to Solana. ' +
-                           f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
-                time.sleep(1)
+                self.error(f'Connection exception({retry}) on send request to Solana. Retry {retry}' +
+                           f'Type(err): {type(err)}, Error: {str(err)}, Traceback: {err_tb}')
+                raise
 
             except Exception as err:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
                 self.error('Unknown exception on send request to Solana. ' +
-                           f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
+                           f'Type(err): {type(err)}, Error: {str(err)}, Traceback: {err_tb}')
                 raise
 
     def _send_rpc_request(self, method: str, *params: Any) -> RPCResponse:

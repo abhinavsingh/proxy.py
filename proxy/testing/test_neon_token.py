@@ -5,15 +5,12 @@ import os
 from .testing_helpers import request_airdrop
 from solana.account import Account as SolanaAccount
 from solana.rpc.api import Client as SolanaClient
-from solana.transaction import Transaction
 from solana.rpc.types import TxOpts
-from solana.rpc.commitment import Confirmed
 from spl.token.client import Token as SplToken
 from spl.token.instructions import get_associated_token_address, create_associated_token_account
 from proxy.environment import NEON_TOKEN_MINT
 from spl.token.constants import TOKEN_PROGRAM_ID
 from solana.rpc.commitment import Confirmed
-from time import sleep
 from web3 import exceptions as web3_exceptions
 from random import uniform
 from eth_account.signers.local import LocalAccount as NeonAccount

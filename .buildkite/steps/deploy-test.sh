@@ -39,7 +39,6 @@ docker-compose -f proxy/docker-compose-test.yml pull
 function cleanup_docker {
     if docker logs proxy >proxy.log 2>&1; then
       echo "proxy logs saved";
-      grep 'get_measurements' <proxy.log >measurements.log
     fi
 
     if docker logs solana >solana.log 2>&1; then echo "solana logs saved"; fi
@@ -54,11 +53,6 @@ function cleanup_docker {
     echo "Cleanup docker-compose done."
     echo "\nRemoving temporary data volumes..."
     docker volume prune -f
-
-    if grep 'ERROR.*get_measurements' <measurements.log; then
-        echo 'Failed to get measurements'
-        exit 1
-    fi
 }
 trap cleanup_docker EXIT
 

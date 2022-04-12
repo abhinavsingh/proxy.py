@@ -7,11 +7,10 @@ from typing import Optional
 from solana.transaction import Transaction
 from base58 import b58encode
 
-from .costs import update_transaction_cost
 from .solana_receipt_parser import SolReceiptParser, SolTxError
 from .errors import EthereumError
 
-from ..environment import WRITE_TRANSACTION_COST_IN_DB, SKIP_PREFLIGHT, RETRY_ON_FAIL
+from ..environment import SKIP_PREFLIGHT, RETRY_ON_FAIL
 
 
 @logged_group("neon.Proxy")
@@ -65,7 +64,6 @@ class SolTxListSender:
             self._slots_behind = 0
 
             receipt_list = solana.send_multiple_transactions(signer, self._tx_list, waiter, skip, commitment)
-            self.update_transaction_cost(receipt_list)
 
             success_sign_list = []
             for receipt, tx in zip(receipt_list, self._tx_list):
@@ -103,15 +101,6 @@ class SolTxListSender:
         if len(self._tx_list):
             raise EthereumError(message='No more retries to complete transaction!')
         return self
-
-    def update_transaction_cost(self, receipt_list):
-        if not WRITE_TRANSACTION_COST_IN_DB:
-            return False
-        if not hasattr(self._s, 'eth_tx'):
-            return False
-
-        for receipt in receipt_list:
-            update_transaction_cost(receipt, self._s.eth_tx, reason=self._name)
 
     def _on_success_send(self, tx: Transaction, receipt: {}) -> bool:
         """Store the last successfully blockhash and set it in _set_tx_blockhash"""

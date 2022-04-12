@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import json
 import re
-import base58
 
 from logged_groups import logged_group
 from typing import Union, Optional, Any
 from .utils import get_from_dict
-
-from ..environment import LOG_SENDING_SOLANA_TRANSACTION, EVM_LOADER_ID
 
 
 class SolTxError(Exception):
@@ -23,10 +20,18 @@ class SolTxError(Exception):
         super().__init__(self.error)
 
     @staticmethod
-    def _is_program_log(log):
-        PROGRAM_LOG = 'Program log: '
-        TOTAL_MEMORY = 'Program log: Total memory occupied: '
-        return log.startswith(PROGRAM_LOG) and (not log.startswith(TOTAL_MEMORY))
+    def _is_program_log(log: str) -> bool:
+        if log.startswith('Program log: Total memory occupied: '):
+            return False
+
+        prefix_list = (
+            'Program log: ',
+            'Program failed to complete: '
+        )
+        for prefix in prefix_list:
+            if log.startswith(prefix):
+                return True
+        return False
 
 
 @logged_group("neon.Proxy")
@@ -181,85 +186,3 @@ class SolReceiptParser:
             if s is not None:
                 return s.groups()
         return None
-
-@logged_group("neon.Proxy")
-class Measurements:
-    def __init__(self):
-        pass
-
-    # Do not change headers in info logs! This name used in CI measurements (see function `cleanup_docker` in
-    # .buildkite/steps/deploy-test.sh)
-    def extract(self, reason: str, receipt: {}):
-        if not LOG_SENDING_SOLANA_TRANSACTION:
-            return
-
-        try:
-            self.debug(f"send multiple transactions for reason {reason}")
-
-            measurements = self._extract_measurements_from_receipt(receipt)
-            for m in measurements:
-                self.info(f'get_measurements: {json.dumps(m)}')
-        except Exception as err:
-            self.error(f"get_measurements: can't get measurements {err}")
-            self.info(f"get measurements: failed result {json.dumps(receipt, indent=3)}")
-
-    def _extract_measurements_from_receipt(self, receipt):
-        if SolReceiptParser(receipt).check_if_error():
-            self.warning("Can't get measurements from receipt with error")
-            self.info(f"Failed result: {json.dumps(receipt, indent=3)}")
-            return []
-
-        log_messages = receipt['meta']['logMessages']
-        transaction = receipt['transaction']
-        accounts = transaction['message']['accountKeys']
-        instructions = []
-        for instr in transaction['message']['instructions']:
-            instructions.append({
-                'accs': [accounts[acc] for acc in instr['accounts']],
-                'program': accounts[instr['programIdIndex']],
-                'data': base58.b58decode(instr['data']).hex()
-            })
-
-        pattern = re.compile('Program ([0-9A-Za-z]+) (.*)')
-        messages = []
-        for log in log_messages:
-            res = pattern.match(log)
-            if res:
-                (program, reason) = res.groups()
-                if reason == 'invoke [1]':
-                    messages.append({'program': program, 'logs': []})
-            messages[-1]['logs'].append(log)
-
-        for instr in instructions:
-            if instr['program'] in ('KeccakSecp256k11111111111111111111111111111',):
-                continue
-            if messages[0]['program'] != instr['program']:
-                raise ValueError('Invalid program in log messages: expect %s, actual %s' % (
-                    messages[0]['program'], instr['program']))
-            instr['logs'] = messages.pop(0)['logs']
-            exit_result = re.match(r'Program %s (success)' % instr['program'], instr['logs'][-1])
-            if not exit_result:
-                raise ValueError("Can't get exit result")
-            instr['result'] = exit_result.group(1)
-
-            if instr['program'] == EVM_LOADER_ID:
-                memory_result = re.match(r'Program log: Total memory occupied: ([0-9]+)', instr['logs'][-3])
-                instruction_result = re.match(
-                    r'Program %s consumed ([0-9]+) of ([0-9]+) compute units' % instr['program'], instr['logs'][-2])
-                if not (memory_result and instruction_result):
-                    raise ValueError("Can't parse measurements for evm_loader")
-                instr['measurements'] = {
-                    'instructions': instruction_result.group(1),
-                    'memory': memory_result.group(1)
-                }
-
-        result = []
-        for instr in instructions:
-            if instr['program'] == EVM_LOADER_ID:
-                result.append({
-                    'program': instr['program'],
-                    'measurements': instr['measurements'],
-                    'result': instr['result'],
-                    'data': instr['data']
-                })
-        return result
