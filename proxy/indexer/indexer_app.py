@@ -1,6 +1,6 @@
 from logged_groups import logged_group
 
-from ..environment import EVM_LOADER_ID, SOLANA_URL
+from ..environment import EVM_LOADER_ID, SOLANA_URL, GATHER_STATISTICS
 from ..statistics_exporter.prometheus_indexer_exporter import IndexerStatistics
 from ..common_neon.data import NeonTxStatData
 from .indexer import Indexer
@@ -11,7 +11,7 @@ from .i_inidexer_user import IIndexerUser
 class IndexerApp(IIndexerUser):
 
     def __init__(self, solana_url: str):
-        self.neon_statistics = IndexerStatistics()
+        self.neon_statistics = IndexerStatistics(GATHER_STATISTICS)
         indexer = Indexer(solana_url, self)
         indexer.run()
 

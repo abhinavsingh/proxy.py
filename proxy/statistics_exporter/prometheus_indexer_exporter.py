@@ -41,8 +41,10 @@ class IndexerStatistics(StatisticsExporter):
     POSTGRES_AVAILABILITY = Gauge('postgres_availability', 'Postgres availability', registry=registry)
     SOLANA_RPC_HEALTH = Gauge('solana_rpc_health', 'Solana Node status', registry=registry)
 
-    def __init__(self):
-        start_http_server(8887, registry=self.registry)
+    def __init__(self, do_work: bool = True):
+        self.do_work = do_work
+        if self.do_work:
+            start_http_server(8887, registry=self.registry)
 
     def on_neon_tx_result(self, tx_stat: NeonTxStatData):
         for instruction_info in tx_stat.instructions:
@@ -54,31 +56,38 @@ class IndexerStatistics(StatisticsExporter):
         self.stat_commit_count_sol_tx_per_neon_tx(tx_stat.tx_type, len(tx_stat.instructions))
 
     def stat_commit_tx_sol_spent(self, neon_tx_hash: str, sol_tx_hash: str, sol_spent: int):
-        self.TX_SOL_SPENT.labels(neon_tx_hash, sol_tx_hash).observe(sol_spent)
+        if self.do_work:
+            self.TX_SOL_SPENT.labels(neon_tx_hash, sol_tx_hash).observe(sol_spent)
 
     def stat_commit_tx_neon_income(self, neon_tx_hash: str, neon_income: int):
-        self.TX_NEON_INCOME.labels(neon_tx_hash).observe(neon_income)
+        if self.do_work:
+            self.TX_NEON_INCOME.labels(neon_tx_hash).observe(neon_income)
 
     def stat_commit_tx_steps_bpf(self, neon_tx_hash: str, sol_tx_hash: str, steps: int, bpf: int):
-        if bpf:
-            self.TX_BPF_PER_ITERATION.labels(neon_tx_hash, sol_tx_hash).observe(bpf)
-        if steps:
-            self.TX_STEPS_PER_ITERATION.labels(neon_tx_hash, sol_tx_hash).observe(steps)
+        if self.do_work:
+            if bpf:
+                self.TX_BPF_PER_ITERATION.labels(neon_tx_hash, sol_tx_hash).observe(bpf)
+            if steps:
+                self.TX_STEPS_PER_ITERATION.labels(neon_tx_hash, sol_tx_hash).observe(steps)
 
     def stat_commit_tx_count(self, canceled: bool = False):
-        self.TX_COUNT.inc()
-        if canceled:
-            self.TX_CANCELED.inc()
+        if self.do_work:
+            self.TX_COUNT.inc()
+            if canceled:
+                self.TX_CANCELED.inc()
 
     def stat_commit_count_sol_tx_per_neon_tx(self, type: str, sol_tx_count: int):
-        self.COUNT_TX_COUNT_BY_TYPE.labels(type).inc()
-        self.COUNT_SOL_TX_PER_NEON_TX.labels(type).observe(sol_tx_count)
+        if self.do_work:
+            self.COUNT_TX_COUNT_BY_TYPE.labels(type).inc()
+            self.COUNT_SOL_TX_PER_NEON_TX.labels(type).observe(sol_tx_count)
 
     def stat_commit_postgres_availability(self, status: bool):
-        self.POSTGRES_AVAILABILITY.set(1 if status else 0)
+        if self.do_work:
+            self.POSTGRES_AVAILABILITY.set(1 if status else 0)
 
     def stat_commit_solana_rpc_health(self, status: bool):
-        self.SOLANA_RPC_HEALTH.set(1 if status else 0)
+        if self.do_work:
+            self.SOLANA_RPC_HEALTH.set(1 if status else 0)
 
     def stat_commit_request_and_timeout(self, *args):
         pass
