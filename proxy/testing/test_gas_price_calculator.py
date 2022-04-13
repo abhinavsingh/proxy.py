@@ -1,13 +1,12 @@
 import unittest
 
 from solana.publickey import PublicKey
-from proxy.indexer.pythnetwork import PythNetworkClient
-from proxy.plugin.gas_price_calculator import GasPriceCalculator
+from ..indexer.pythnetwork import PythNetworkClient
+from ..common_neon.gas_price_calculator import GasPriceCalculator
 from solana.rpc.api import Client as SolanaClient
 from unittest.mock import patch, call, Mock
 from decimal import Decimal
-from ..environment import NEON_PRICE_USD, OPERATOR_FEE, GET_SOL_PRICE_MAX_RETRIES, SOL_PRICE_UPDATE_INTERVAL, \
-    MINIMAL_GAS_PRICE
+from ..environment import NEON_PRICE_USD, OPERATOR_FEE, GET_SOL_PRICE_MAX_RETRIES, SOL_PRICE_UPDATE_INTERVAL
 
 MINIMAL_GAS_PRICE = None
 

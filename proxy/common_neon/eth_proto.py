@@ -141,25 +141,3 @@ class Trx(rlp.Serializable):
             return None
         contract_addr = rlp.encode((self._sender(), self.nonce))
         return keccak_256(contract_addr).digest()[-20:].hex()
-
-
-#class JsonEncoder(json.JSONEncoder):
-#    def default(self, obj):
-#        if isinstance(obj, bytes):
-#            return obj.hex()
-#        return json.JSONEncoder.default(self.obj)
-#
-#trx = '0xf8af098539f98e7a0082bfd194b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000c1566af4699928fdf9be097ca3dc47ece39f8f8e00000000000000000000000000000000000000000000000000000000000000328602e92be91e86a0e2c683a38606033cf416cca55575b4080465f1a275aff080b2af1a264b24d56ca02e48a4cb63d8549610d070b02e272ab6a3a680e677c7d7f51045a9cbcf218f0d'
-#trx = '0xf8af098539f98e7a0082bfd194b80102fd2d3d1be86823dd36f9c783ad0ee7d89880b844a9059cbb000000000000000000000000c1566af4699928fdf9be097ca3dc47ece39f8f8e00000000000000000000000000000000000000000000000000000000000000328602e92be91e86a0e2c683a38606033cf416cca55575b4080465f1a275aff080b2af1a264b24d56ca02e48a4cb63d8549610d070b02e272ab6a3a680e677c7d7f51045a9cbcf218f0d'
-#trx = '0xf87202853946be1c0082520894c1566af4699928fdf9be097ca3dc47ece39f8f8e880de0b6b3a7640000808602e92be91e85a06f350382938df92b987681de78d81f0490ee1d26b18ea968ae42ee4a800711a6a0641672e91b735bd6badd2c51b6a6ecdcd740b78c8bf581aa3f1431cd0f8c02f3'
-#
-#_trx = Trx.fromString(bytearray.fromhex(trx[2:]))
-#print(json.dumps(_trx.__dict__, cls=JsonEncoder, indent=3))
-#print(str(_trx))
-#print(trx[2:])
-#
-#msgHash = _trx.hash()
-#sig = keys.Signature(vrs=[1 if _trx.v%2==0 else 0, _trx.r, _trx.s])
-#pub = sig.recover_public_key_from_msg_hash(msgHash)
-#print('SENDER', pub.to_canonical_address().hex())
-#print("VERIFY", sig.verify_msg_hash(msgHash, pub))

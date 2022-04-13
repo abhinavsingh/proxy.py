@@ -5,10 +5,10 @@ from logged_groups import logged_group
 from multiprocessing import Process
 
 from prometheus_client import start_http_server
-from proxy.common_neon.address import EthereumAddress
-from proxy.common_neon.solana_interactor import SolanaInteractor
-from proxy.environment import PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, SOLANA_URL, get_solana_accounts
-from proxy.plugin.gas_price_calculator import GasPriceCalculator
+from ..common_neon.address import EthereumAddress
+from ..common_neon.solana_interactor import SolanaInteractor
+from ..environment import PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, SOLANA_URL, get_solana_accounts
+from ..common_neon.gas_price_calculator import GasPriceCalculator
 
 from .prometheus_proxy_exporter import PrometheusExporter
 

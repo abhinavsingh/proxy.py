@@ -1,13 +1,13 @@
 import unittest
 from logged_groups import logged_group
-from ..plugin.solana_rest_api import EthereumModel
+from ..neon_rpc_api_model import NeonRpcApiModel
 
 
 @logged_group("neon.TestCases")
 class SolanaContractTests(unittest.TestCase):
 
     def setUp(self):
-        self.model = EthereumModel()
+        self.model = NeonRpcApiModel()
         self.owner = '0xc1566af4699928fdf9be097ca3dc47ece39f8f8e'
         self.token1 = '0x49a449cd7fd8fbcf34d103d98f2c05245020e35b'
 

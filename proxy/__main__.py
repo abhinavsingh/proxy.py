@@ -9,8 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 
-from .proxy import entry_point
+
 import os
+from .neon_proxy_app import NeonProxyApp
 from .indexer.indexer_app import run_indexer
 
 
@@ -25,8 +26,5 @@ if __name__ == '__main__':
         print("Will run in indexer mode")
         run_indexer(solana_url)
     else:
-        from .statistics_exporter.prometheus_proxy_server import PrometheusProxyServer
-        PrometheusProxyServer()
-
-        print("Will run in proxy mode")
-        entry_point()
+        neon_proxy_app = NeonProxyApp()
+        neon_proxy_app.start()

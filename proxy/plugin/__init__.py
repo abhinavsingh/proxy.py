@@ -18,7 +18,7 @@ from .shortlink import ShortLinkPlugin
 from .web_server_route import WebServerPlugin
 from .reverse_proxy import ReverseProxyPlugin
 from .proxy_pool import ProxyPoolPlugin
-from .solana_rest_api import SolanaProxyPlugin
+from .neon_rpc_api_plugin import NeonRpcApiPlugin
 
 __all__ = [
     'CacheResponsesPlugin',

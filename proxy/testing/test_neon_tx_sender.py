@@ -5,7 +5,7 @@ import logged_groups
 from unittest.mock import Mock
 
 from ..common_neon.eth_proto import Trx as EthTrx
-from ..common_neon.transaction_sender import NeonTxSender
+from ..neon_rpc_api_model.transaction_sender import NeonTxSender
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..memdb.memdb import MemDB
 

@@ -1,59 +1,43 @@
-# -*- coding: utf-8 -*-
-"""
-    proxy.py
-    ~~~~~~~~
-    ⚡⚡⚡ Fast, Lightweight, Pluggable, TLS interception capable proxy server focused on
-    Network monitoring, controls & Application development, testing, debugging.
-
-    :copyright: (c) 2013-present by Abhinav Singh and contributors.
-    :license: BSD, see LICENSE for more details.
-"""
 import json
-import threading
-import traceback
-import time
-import hashlib
 import multiprocessing
+import traceback
+from typing import Optional, Union
+
 import sha3
+from logged_groups import logged_group
+from web3.auto import w3
 
-from logged_groups import logged_group, logging_context
-
-from ..common.utils import build_http_response
-from ..http.codes import httpStatusCodes
-from ..http.parser import HttpParser
-from ..http.websocket import WebsocketFrame
-from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
-from typing import Union, List, Tuple, Optional
-
-from ..common_neon.transaction_sender import NeonTxSender
-from ..common_neon.solana_interactor import SolanaInteractor
-from ..common_neon.solana_receipt_parser import SolTxError
 from ..common_neon.address import EthereumAddress
 from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.errors import EthereumError, InvalidParamError, PendingTxError
 from ..common_neon.estimate import GasEstimate
-from ..common_neon.utils import SolanaBlockInfo
-from ..common_neon.keys_storage import KeyStorage
-from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, EVM_STEP_COUNT, CHAIN_ID, ENABLE_PRIVATE_API
-from ..environment import NEON_EVM_VERSION, NEON_EVM_REVISION
-from ..environment import neon_cli
-from ..memdb.memdb import MemDB
-from .gas_price_calculator import GasPriceCalculator
 from ..common_neon.eth_proto import Trx as EthTrx
-from web3.auto import w3
-
+from ..common_neon.keys_storage import KeyStorage
+from ..common_neon.solana_interactor import SolanaInteractor
+from ..common_neon.utils import SolanaBlockInfo
+from ..environment import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, NEON_EVM_VERSION, NEON_EVM_REVISION, \
+                          CHAIN_ID, neon_cli, EVM_STEP_COUNT
+from ..memdb.memdb import MemDB
+from ..common_neon.gas_price_calculator import GasPriceCalculator
 from ..statistics_exporter.proxy_metrics_interface import StatisticsExporter
-from ..statistics_exporter.prometheus_proxy_exporter import PrometheusExporter
 
-modelInstanceLock = threading.Lock()
-modelInstance = None
+from .transaction_sender import NeonTxSender
 
 NEON_PROXY_PKG_VERSION = '0.7.15-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
+class JsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bytearray):
+            return obj.hex()
+        if isinstance(obj, bytes):
+            return obj.hex()
+        return json.JSONEncoder.default(self, obj)
+
+
 @logged_group("neon.Proxy")
-class EthereumModel:
+class NeonRpcApiModel:
     proxy_id_glob = multiprocessing.Value('i', 0)
 
     def __init__(self):
@@ -464,11 +448,9 @@ class EthereumModel:
             return eth_signature
         except EthereumError:
             self._stat_tx_failed()
-            # self.debug(f"eth_sendRawTransaction EthereumError: {err}")
             raise
         except Exception:
             self._stat_tx_failed()
-            # self.error(f"eth_sendRawTransaction type(err): {type(err}}, Exception: {err}")
             raise
 
     def _stat_tx_begin(self):
@@ -647,161 +629,3 @@ class EthereumModel:
     def neon_getSolanaTransactionByNeonTransaction(self, NeonTxId: str) -> Union[str, list]:
         neon_sign = self._normalize_tx_id(NeonTxId)
         return self._db.get_sol_sign_list_by_neon_sign(neon_sign)
-
-
-class JsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, bytearray):
-            return obj.hex()
-        if isinstance(obj, bytes):
-            return obj.hex()
-        return json.JSONEncoder.default(self, obj)
-
-
-@logged_group("neon.Proxy")
-class SolanaProxyPlugin(HttpWebServerBasePlugin):
-    """Extend in-built Web Server to add Reverse Proxy capabilities.
-    """
-
-    SOLANA_PROXY_LOCATION: str = r'/solana$'
-    SOLANA_PROXY_PASS = [
-        b'http://localhost:8545/'
-    ]
-
-    def __init__(self, *args):
-        HttpWebServerBasePlugin.__init__(self, *args)
-        self._stat_exporter = PrometheusExporter()
-        self.model = SolanaProxyPlugin.getModel()
-        self.model.set_stat_exporter(self._stat_exporter)
-
-    @classmethod
-    def getModel(cls):
-        global modelInstanceLock
-        global modelInstance
-        with modelInstanceLock:
-            if modelInstance is None:
-                modelInstance = EthereumModel()
-            return modelInstance
-
-    def routes(self) -> List[Tuple[int, str]]:
-        return [
-            (httpProtocolTypes.HTTP, SolanaProxyPlugin.SOLANA_PROXY_LOCATION),
-            (httpProtocolTypes.HTTPS, SolanaProxyPlugin.SOLANA_PROXY_LOCATION)
-        ]
-
-    def process_request(self, request):
-        response = {
-            'jsonrpc': '2.0',
-            'id': request.get('id', None),
-        }
-
-        def is_private_api(method_name: str) -> bool:
-            for prefix in ('eth_', 'net_', 'web3_', 'neon_'):
-                if method_name.startswith(prefix):
-                    break
-            else:
-                return True
-
-            if ENABLE_PRIVATE_API:
-                return False
-
-            private_method_map = (
-                "eth_accounts",
-                "eth_sign",
-                "eth_sendTransaction",
-                "eth_signTransaction",
-            )
-            return method_name in private_method_map
-
-        try:
-            if (not hasattr(self.model, request['method'])) or is_private_api(request["method"]):
-                response['error'] = {'code': -32601, 'message': f'method {request["method"]} is not supported'}
-            else:
-                method = getattr(self.model, request['method'])
-                params = request.get('params', [])
-                response['result'] = method(*params)
-        except SolTxError as err:
-            # traceback.print_exc()
-            response['error'] = {'code': -32000, 'message': err.error}
-        except EthereumError as err:
-            # traceback.print_exc()
-            response['error'] = err.getError()
-        except Exception as err:
-            err_tb = "".join(traceback.format_tb(err.__traceback__))
-            self.error('Exception on process request. ' +
-                       f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
-            response['error'] = {'code': -32000, 'message': str(err)}
-
-        return response
-
-    def handle_request(self, request: HttpParser) -> None:
-        unique_req_id = self.get_unique_id()
-        with logging_context(req_id=unique_req_id):
-            self.handle_request_impl(request)
-            self.info("Request processed")
-
-    @staticmethod
-    def get_unique_id():
-        return hashlib.md5((time.time_ns()).to_bytes(16, 'big')).hexdigest()[:7]
-
-    def handle_request_impl(self, request: HttpParser) -> None:
-        if request.method == b'OPTIONS':
-            self.client.queue(memoryview(build_http_response(
-                httpStatusCodes.OK, body=None,
-                headers={
-                    b'Access-Control-Allow-Origin': b'*',
-                    b'Access-Control-Allow-Methods': b'POST, GET, OPTIONS',
-                    b'Access-Control-Allow-Headers': b'Content-Type',
-                    b'Access-Control-Max-Age': b'86400'
-                })))
-            return
-        start_time = time.time()
-
-        try:
-            self.info('handle_request <<< %s 0x%x %s', threading.get_ident(), id(self.model),
-                      request.body.decode('utf8'))
-            request = json.loads(request.body)
-            if isinstance(request, list):
-                response = []
-                if len(request) == 0:
-                    raise Exception("Empty batch request")
-                for r in request:
-                    response.append(self.process_request(r))
-            elif isinstance(request, dict):
-                response = self.process_request(request)
-            else:
-                raise Exception("Invalid request")
-        except Exception as err:
-            # traceback.print_exc()
-            response = {'jsonrpc': '2.0', 'error': {'code': -32000, 'message': str(err)}}
-
-        resp_time_ms = (time.time() - start_time)*1000  # convert this into milliseconds
-
-        method = '---'
-        if isinstance(request, dict):
-            method = request.get('method', '---')
-
-        self.info('handle_request >>> %s 0x%0x %s %s resp_time_ms= %s',
-                  threading.get_ident(),
-                  id(self.model),
-                  json.dumps(response),
-                  method,
-                  resp_time_ms)
-
-        self.client.queue(memoryview(build_http_response(
-            httpStatusCodes.OK, body=json.dumps(response).encode('utf8'),
-            headers={
-                b'Content-Type': b'application/json',
-                b'Access-Control-Allow-Origin': b'*',
-            })))
-
-        self._stat_exporter.stat_commit_request_and_timeout(method, resp_time_ms)
-
-    def on_websocket_open(self) -> None:
-        pass
-
-    def on_websocket_message(self, frame: WebsocketFrame) -> None:
-        pass
-
-    def on_websocket_close(self) -> None:
-        pass

@@ -12,7 +12,7 @@ For run internal implementation for Ethereum tokens start proxy with:
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python3 -m proxy --hostname 127.0.0.1 --port 9090 --enable-web-server --plugins proxy.plugin.SolanaProxyPlugin --num-workers=1
+python3 -m proxy --hostname 127.0.0.1 --port 9090 --enable-web-server --plugins proxy.plugin.NeonRpcApiPlugin --num-workers=1
 ```
 (for more information see [From command line using repo source](#from-command-line-using-repo-source)).
 

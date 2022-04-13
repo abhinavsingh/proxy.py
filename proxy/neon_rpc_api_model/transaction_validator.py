@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from logged_groups import logged_group
-from .eth_proto import Trx as EthTx
-from .address import EthereumAddress
-from .errors import EthereumError
-from .account_whitelist import AccountWhitelist
-from .solana_receipt_parser import SolReceiptParser
-from .solana_interactor import SolanaInteractor
-from .estimate import GasEstimate
-
 from solana.account import Account as SolanaAccount
+from logged_groups import logged_group
+
+from ..common_neon.eth_proto import Trx as EthTx
+from ..common_neon.address import EthereumAddress
+from ..common_neon.errors import EthereumError
+from ..common_neon.account_whitelist import AccountWhitelist
+from ..common_neon.solana_receipt_parser import SolReceiptParser
+from ..common_neon.solana_interactor import SolanaInteractor
+from ..common_neon.estimate import GasEstimate
 
 from ..environment import ACCOUNT_PERMISSION_UPDATE_INT, CHAIN_ID
 
