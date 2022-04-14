@@ -41,7 +41,11 @@ class NeonTxValidator:
         self._estimated_gas = 0
 
         self._tx_gas_limit = self._tx.gasLimit
+
         if self._tx.hasChainId() or (not ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID):
+            return
+
+        if len(self._tx.callData) == 0:
             return
 
         tx_gas_limit = self._tx_gas_limit * NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID
@@ -174,7 +178,7 @@ class NeonTxValidator:
             if (not account_desc['code_size']) or (not account_desc['address']):
                 continue
             if account_desc['code_size'] > ((9 * 1024 + 512) * 1024):
-                raise EthereumError(f"contract {self._account_desc['address']} " +
+                raise EthereumError(f"contract {account_desc['address']} " +
                                     f"requests a size increase to more than 9.5Mb")
 
 
