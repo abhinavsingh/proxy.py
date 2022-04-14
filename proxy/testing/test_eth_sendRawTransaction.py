@@ -83,7 +83,7 @@ class Test_eth_sendRawTransaction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print("\n\nhttps://github.com/neonlabsorg/proxy-model.py/issues/147")
-        request_airdrop(eth_account.address)
+        request_airdrop(eth_account.address, 100)
         print('eth_account.address:', eth_account.address)
         print('eth_account.key:', eth_account.key.hex())
         cls.deploy_storage_147_solidity_contract(cls)

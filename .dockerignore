@@ -3,7 +3,6 @@
 
 # Except proxy
 !proxy
-!proxy-cli
 !requirements.txt
 !setup.py
 !README.md
@@ -13,6 +12,8 @@
 !log_cfg.json
 !pretty_log_cfg.json
 !proxy-cli.sh
+!health_check_proxy.sh
+!health_check_faucet.sh
 
 # Ignore __pycache__ directory
 proxy/__pycache__

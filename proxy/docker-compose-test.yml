@@ -113,6 +113,25 @@ services:
     networks:
       - net
     entrypoint: proxy/run-test-proxy.sh
+    healthcheck:
+      test: [ CMD-SHELL, "/opt/health_check_proxy.sh" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 5s
+
+  deploy_contracts:
+    container_name: deploy_contracts
+    image: neonlabsorg/evm_loader:${NEON_EVM_COMMIT:-latest}
+    environment:
+      - SOLANA_URL=http://solana:8899
+      - SPL_TOKEN_AUTHORITY=/opt/contracts/ci-tokens/owner-keypair.json
+    networks:
+      - net
+    depends_on:
+      proxy:
+        condition: service_healthy
+    command: bash -c "create-test-accounts.sh 1 && deploy-contracts.sh"
 
   faucet:
     container_name: faucet
@@ -136,7 +155,9 @@ services:
     entrypoint: ./run-test-faucet.sh
     depends_on:
       proxy:
-        condition: service_started
+        condition: service_healthy
+      deploy_contracts:
+        condition: service_completed_successfully
 
   airdropper:
     container_name: airdropper
