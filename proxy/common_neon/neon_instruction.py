@@ -272,21 +272,34 @@ class NeonInstruction:
         trx.add(self.make_partial_call_or_continue_instruction(steps))
         return trx
 
-    def make_partial_call_or_continue_from_account_data_instruction(self, steps: int, index: int) -> TransactionInstruction:
-        data = bytearray.fromhex("0E") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder='little')
+    def _make_partial_call_or_continue_from_account_data(self,
+                                                         ix_id: str,
+                                                         steps: int,
+                                                         index: int) -> TransactionInstruction:
+        data = bytearray.fromhex(ix_id) + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder='little')
         if index:
             data = data + index.to_bytes(8, byteorder="little")
         return TransactionInstruction(
-            program_id = EVM_LOADER_ID,
-            data = data,
-            keys = [
-                AccountMeta(pubkey=self.holder, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
+            program_id=EVM_LOADER_ID,
+            data=data,
+            keys=[
+                     AccountMeta(pubkey=self.holder, is_signer=False, is_writable=True),
+                     AccountMeta(pubkey=self.storage, is_signer=False, is_writable=True),
 
-                AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=EVM_LOADER_ID, is_signer=False, is_writable=False),
-            ] + self.eth_accounts + obligatory_accounts
+                     AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
+                     AccountMeta(pubkey=self.collateral_pool_address, is_signer=False, is_writable=True),
+                     AccountMeta(pubkey=self.operator_neon_address, is_signer=False, is_writable=True),
+                     AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
+                     AccountMeta(pubkey=EVM_LOADER_ID, is_signer=False, is_writable=False),
+                 ] + self.eth_accounts + obligatory_accounts
         )
+
+    def make_partial_call_or_continue_from_account_data_instruction(self,
+                                                                    steps: int,
+                                                                    index: int) -> TransactionInstruction:
+        return self._make_partial_call_or_continue_from_account_data('0E', steps, index)
+
+    def make_partial_call_or_continue_from_account_data_no_chainid_instruction(self,
+                                                                               steps: int,
+                                                                               index: int) -> TransactionInstruction:
+        return self._make_partial_call_or_continue_from_account_data('1B', steps, index)

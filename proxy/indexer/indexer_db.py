@@ -13,7 +13,6 @@ from ..indexer.blocks_db import SolanaBlocksDB, SolanaBlockInfo
 from ..indexer.transactions_db import NeonTxsDB
 from ..indexer.logs_db import LogsDB
 from ..indexer.sql_dict import SQLDict
-from ..indexer.utils import get_code_from_account, get_accounts_by_neon_address
 from ..common_neon.solana_interactor import SolanaInteractor
 
 
@@ -75,23 +74,6 @@ class IndexerDB:
         self._blocks_db.set_block(net_block)
         return net_block
 
-    def _fill_account_data_from_net(self, account: NeonAccountInfo):
-        got_changes = False
-        if not account.pda_address:
-            pda_address, code_address = get_accounts_by_neon_address(self._solana, account.neon_address)
-            if pda_address:
-                account.pda_address = pda_address
-                account.code_address = code_address
-                got_changes = True
-        if account.code_address:
-            code = get_code_from_account(self._solana, account.code_address)
-            if code:
-                account.code = code
-                got_changes = True
-        if got_changes:
-            self._account_db.set_acc_by_request(account)
-        return account
-
     def get_block_by_slot(self, slot) -> SolanaBlockInfo:
         block = self._blocks_db.get_block_by_slot(slot)
         if not block.hash:
@@ -152,16 +134,6 @@ class IndexerDB:
         if tx:
             tx.block = self.get_block_by_slot(tx.neon_res.slot)
         return tx
-
-    def get_contract_code(self, address) -> str:
-        account = self._account_db.get_account_info_by_neon_address(address)
-        if not account.neon_address or (account.code_address and not account.code):
-            if not account.neon_address:
-                account.neon_address = address
-            account = self._fill_account_data_from_net(account)
-        if account.code:
-            return account.code
-        return '0x'
 
     def fill_account_info_by_indexer(self, neon_account: NeonAccountInfo):
         self._account_db.set_acc_indexer(neon_account)

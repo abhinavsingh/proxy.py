@@ -1,16 +1,17 @@
 from dataclasses import astuple, dataclass
+from typing import Optional
 from ..indexer.base_db import BaseDB, DBQuery
 from ..common_neon.utils import str_fmt_object
 
 
 @dataclass
 class NeonAccountInfo:
-    neon_address: str = None
+    neon_address: Optional[str] = None
     pda_address: str = None
-    code_address: str = None
+    code_address: Optional[str] = None
     slot: int = 0
-    code: str = None
-    sol_sign: str = None
+    code: Optional[str] = None
+    sol_sign: Optional[str] = None
 
     def __str__(self):
         return str_fmt_object(self)
@@ -22,18 +23,6 @@ class NeonAccountInfo:
 class NeonAccountDB(BaseDB):
     def __init__(self):
         BaseDB.__init__(self, 'neon_accounts')
-
-    def set_acc_by_request(self, neon_account: NeonAccountInfo):
-        with self._conn.cursor() as cursor:
-            cursor.execute(f'''
-                INSERT INTO neon_accounts (neon_address, pda_address, code_address, slot, code, sol_sign)
-                VALUES(%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (pda_address, code_address) DO UPDATE
-                SET
-                    code=EXCLUDED.code
-                ;
-                ''',
-                tuple(neon_account))
 
     def set_acc_indexer(self, neon_account: NeonAccountInfo):
         if not self.fill_neon_address_if_missing(neon_account):
@@ -71,15 +60,6 @@ class NeonAccountDB(BaseDB):
             slot=value[3],
             code=value[4],
             sol_sign=value[5]
-        )
-
-    def get_account_info_by_neon_address(self, neon_address) -> NeonAccountInfo:
-        return self._acc_from_value(
-            self._fetchone(DBQuery(
-                column_list=['neon_address', 'pda_address', 'code_address', 'slot', 'code', 'sol_sign'],
-                key_list=[('neon_address', neon_address)],
-                order_list=['slot desc']
-            ))
         )
 
     def get_account_info_by_pda_address(self, pda_address) -> NeonAccountInfo:

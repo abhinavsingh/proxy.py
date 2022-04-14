@@ -25,7 +25,8 @@ from ..environment import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY
 from ..environment import FUZZING_BLOCKHASH, CONFIRM_TIMEOUT, FINALIZED
 from ..environment import RETRY_ON_FAIL
 
-from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT, STORAGE_ACCOUNT_INFO_LAYOUT
+from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT, CODE_ACCOUNT_INFO_LAYOUT, STORAGE_ACCOUNT_INFO_LAYOUT
+from ..common_neon.constants import CONTRACT_ACCOUNT_TAG, ACTIVE_STORAGE_TAG, NEON_ACCOUNT_TAG
 from ..common_neon.address import EthereumAddress, ether2program
 from ..common_neon.utils import get_from_dict
 
@@ -38,25 +39,55 @@ class AccountInfo(NamedTuple):
 
 
 class NeonAccountInfo(NamedTuple):
+    pda_address: PublicKey
     ether: str
     nonce: int
     trx_count: int
     balance: int
-    code_account: PublicKey
+    code_account: Optional[PublicKey]
     is_rw_blocked: bool
     ro_blocked_cnt: int
 
     @staticmethod
-    def frombytes(data) -> NeonAccountInfo:
+    def frombytes(pda_address: PublicKey, data: bytes) -> NeonAccountInfo:
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
+
+        code_account = None
+        if cont.code_account != [0] * 32:
+            code_account = PublicKey(cont.code_account)
+
         return NeonAccountInfo(
+            pda_address=pda_address,
             ether=cont.ether.hex(),
             nonce=cont.nonce,
             trx_count=int.from_bytes(cont.trx_count, "little"),
             balance=int.from_bytes(cont.balance, "little"),
-            code_account=PublicKey(cont.code_account),
+            code_account=code_account,
             is_rw_blocked=(cont.is_rw_blocked != 0),
             ro_blocked_cnt=cont.ro_blocked_cnt
+        )
+
+
+class NeonCodeInfo(NamedTuple):
+    pda_address: PublicKey
+    owner: PublicKey
+    code_size: int
+    code: Optional[str]
+
+    @staticmethod
+    def frombytes(pda_address: PublicKey, data: bytes) -> NeonCodeInfo:
+        cont = CODE_ACCOUNT_INFO_LAYOUT.parse(data)
+
+        offset = CODE_ACCOUNT_INFO_LAYOUT.sizeof()
+        code = None
+        if len(data) >= offset + cont.code_size:
+            code = '0x' + data[offset:][:cont.code_size].hex()
+
+        return NeonCodeInfo(
+            pda_address=pda_address,
+            owner=PublicKey(cont.owner),
+            code_size=cont.code_size,
+            code=code
         )
 
 
@@ -339,15 +370,37 @@ class SolanaInteractor:
 
         return balance_list
 
-    def get_neon_account_info(self, eth_account: EthereumAddress) -> Optional[NeonAccountInfo]:
+    def get_neon_account_info(self, eth_account: Union[str, EthereumAddress]) -> Optional[NeonAccountInfo]:
+        if isinstance(eth_account, str):
+            eth_account = EthereumAddress(eth_account)
         account_sol, nonce = ether2program(eth_account)
         info = self.get_account_info(account_sol)
         if info is None:
             return None
+        elif info.tag != NEON_ACCOUNT_TAG:
+            raise RuntimeError(f"Wrong tag {info.tag} for neon account info {str(account_sol)}")
         elif len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof():
             raise RuntimeError(f"Wrong data length for account data {account_sol}: " +
                                f"{len(info.data)} < {ACCOUNT_INFO_LAYOUT.sizeof()}")
-        return NeonAccountInfo.frombytes(info.data)
+        return NeonAccountInfo.frombytes(PublicKey(account_sol), info.data)
+
+    def get_neon_code_info(self, account: Union[str, EthereumAddress, NeonAccountInfo, PublicKey, None]) -> Optional[NeonCodeInfo]:
+        if isinstance(account, str) or isinstance(account, EthereumAddress):
+            account = self.get_neon_account_info(account)
+        if isinstance(account, NeonAccountInfo):
+            account = account.code_account
+        if not isinstance(account, PublicKey):
+            return None
+
+        info = self.get_account_info(account, length=0)
+        if info is None:
+            return None
+        elif info.tag != CONTRACT_ACCOUNT_TAG:
+            raise RuntimeError(f"Wrong tag {info.tag} for code account {str(account)}")
+        elif len(info.data) < CODE_ACCOUNT_INFO_LAYOUT.sizeof():
+            raise RuntimeError(f"Wrong data length for account data {str(account)}: " +
+                               f"{len(info.data)} < {CODE_ACCOUNT_INFO_LAYOUT.sizeof()}")
+        return NeonCodeInfo.frombytes(account, info.data)
 
     def get_neon_account_info_list(self, eth_accounts: List[EthereumAddress]) -> List[Optional[NeonAccountInfo]]:
         requests_list = []
@@ -356,18 +409,18 @@ class SolanaInteractor:
             requests_list.append(account_sol)
         responses_list = self.get_account_info_list(requests_list)
         accounts_list = []
-        for info in responses_list:
-            if info is None or len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof():
+        for account_sol, info in zip(requests_list, responses_list):
+            if info is None or len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof() or info.tag != NEON_ACCOUNT_TAG:
                 accounts_list.append(None)
                 continue
-            accounts_list.append(NeonAccountInfo.frombytes(info.data))
+            accounts_list.append(NeonAccountInfo.frombytes(PublicKey(account_sol), info.data))
         return accounts_list
 
     def get_storage_account_info(self, storage_account: PublicKey) -> Optional[StorageAccountInfo]:
         info = self.get_account_info(storage_account, length=0)
         if info is None:
             return None
-        elif info.tag != 30:
+        elif info.tag != ACTIVE_STORAGE_TAG:
             self.debug(f'Storage account {str(storage_account)} has tag {info.tag}')
             return None
         elif len(info.data) < STORAGE_ACCOUNT_INFO_LAYOUT.sizeof():

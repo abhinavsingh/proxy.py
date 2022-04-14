@@ -726,6 +726,11 @@ class ExecuteOrContinueIxParser(DummyIxDecoder):
         return self._decode_tx(tx)
 
 
+class ExecuteOrContinueNoChainIdIxParser(ExecuteOrContinueIxParser):
+    def __init__(self, state: ReceiptsParserState):
+        DummyIxDecoder.__init__(self, 'ExecuteTrxFromAccountDataIterativeOrContinueNoChainId', state)
+
+
 @logged_group("neon.Indexer")
 class BlocksIndexer:
     def __init__(self, db: IndexerDB, solana: SolanaInteractor):
@@ -786,6 +791,8 @@ class Indexer(IndexerBase):
             0x17: DummyIxDecoder('UpdateValidsTable', self.state),
             0x18: CreateAccount2IxDecoder(self.state),
             0x19: DummyIxDecoder('Deposit', self.state),
+            0x1a: DummyIxDecoder('MigrateAccount', self.state),
+            0x1b: ExecuteOrContinueNoChainIdIxParser(self.state)
         }
         self.def_decoder = DummyIxDecoder('Unknown', self.state)
 

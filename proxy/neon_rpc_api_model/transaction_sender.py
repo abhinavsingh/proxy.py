@@ -479,7 +479,7 @@ class OperatorResourceList:
 
 @logged_group("neon.Proxy")
 class NeonTxSender:
-    def __init__(self, db: MemDB, solana: SolanaInteractor, eth_tx: EthTx, steps: int):
+    def __init__(self, db: MemDB, solana: SolanaInteractor, eth_tx: EthTx, min_gas_price: int, steps: int):
         self._db = db
         self.eth_tx = eth_tx
         self.neon_sign = '0x' + eth_tx.hash_signed().hex()
@@ -509,7 +509,7 @@ class NeonTxSender:
         self._create_account_list = []
         self._eth_meta_dict: Dict[str, AccountMeta] = dict()
 
-        self._neon_tx_validator = NeonTxValidator(self.solana, eth_tx)
+        self.tx_validator = NeonTxValidator(self.solana, eth_tx, min_gas_price)
 
     def execute(self) -> NeonTxResultInfo:
         try:
@@ -517,7 +517,7 @@ class NeonTxSender:
             self._prepare_execution()
             return self._execute()
         except Exception as e:
-            self._neon_tx_validator.extract_ethereum_error(e)
+            self.tx_validator.extract_ethereum_error(e)
             raise
         finally:
             self._resource_list.free_resource_info()
@@ -538,9 +538,9 @@ class NeonTxSender:
         self._resource_list.init_resource_info()
 
         self._validate_pend_tx()
-        self._neon_tx_validator.prevalidate_tx(self.signer)
+        self.tx_validator.prevalidate_tx(self.signer)
         self._call_emulated()
-        self._neon_tx_validator.prevalidate_emulator(self._emulator_json)
+        self.tx_validator.prevalidate_emulator(self._emulator_json)
 
     def _validate_pend_tx(self):
         operator = f'{str(self.resource.public_key())}:{self.resource.rid}'
@@ -548,7 +548,7 @@ class NeonTxSender:
         self._pend_tx_into_db(self.solana.get_recent_blockslot())
 
     def _execute(self):
-        for Strategy in [SimpleNeonTxStrategy, IterativeNeonTxStrategy, HolderNeonTxStrategy]:
+        for Strategy in [SimpleNeonTxStrategy, IterativeNeonTxStrategy, HolderNeonTxStrategy, NoChainIdNeonTxStrategy]:
             try:
                 strategy = Strategy(self)
                 if not strategy.is_valid:
@@ -728,6 +728,13 @@ class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
             self.error = str(err)
             raise
 
+    def _validate_gas_limit(self):
+        if not self.s.tx_validator.is_underpriced_tx_without_chainid():
+            return True
+
+        self.error = "Underpriced transaction without chain-id"
+        return False
+
 
 @logged_group("neon.Proxy")
 class SimpleNeonTxSender(SolTxListSender):
@@ -762,7 +769,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         BaseNeonTxStrategy.__init__(self, *args, **kwargs)
 
     def _validate(self) -> bool:
-        if (not self._validate_steps()) or (not self._validate_notdeploy_tx()):
+        if (not self._validate_steps()) or (not self._validate_notdeploy_tx()) or (not self._validate_gas_limit()):
             return False
 
         # Attempting to include create accounts instructions into the transaction
@@ -920,7 +927,10 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         BaseNeonTxStrategy.__init__(self, *args, **kwargs)
 
     def _validate(self) -> bool:
-        return self._validate_notdeploy_tx() and self._validate_txsize() and self._validate_evm_steps()
+        return (self._validate_notdeploy_tx() and
+                self._validate_txsize() and
+                self._validate_evm_steps() and
+                self._validate_gas_limit())
 
     def _validate_evm_steps(self):
         if self.s.steps_emulated > (self.s.steps * 25):
@@ -945,7 +955,9 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
             self.s.done_account_tx_list()
 
         cnt = math.ceil(self.s.steps_emulated / self.steps)
-        cnt = math.ceil(self.s.steps_emulated / (self.steps - cnt)) + 2  # +1 on begin, +1 on end
+        cnt = math.ceil(self.s.steps_emulated / (self.steps - cnt))
+        if self.s.steps_emulated > 200:
+            cnt += 2  # +1 on begin, +1 on end
         tx_list = [self.build_tx(idx) for idx in range(cnt)]
         self.debug(f'Total iterations {len(tx_list)} for {self.s.steps_emulated} ({self.steps}) EVM steps')
         tx_sender = IterativeNeonTxSender(self, self.s, tx_list, self.NAME)
@@ -961,7 +973,8 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
         IterativeNeonTxStrategy.__init__(self, *args, **kwargs)
 
     def _validate(self) -> bool:
-        return self._validate_txsize()
+        return (self._validate_txsize() and
+                self._validate_gas_limit())
 
     def build_tx(self, idx=0) -> TransactionWithComputeBudget:
         tx = TransactionWithComputeBudget()
@@ -989,3 +1002,23 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
             self._preparation_txs_name += ' + '
         self._preparation_txs_name += f'WriteWithHolder({cnt})'
         return tx_list
+
+
+@logged_group("neon.Proxy")
+class NoChainIdNeonTxStrategy(HolderNeonTxStrategy, abc.ABC):
+    NAME = 'ExecuteTrxFromAccountDataIterativeOrContinueNoChainId'
+
+    def __init__(self, *args, **kwargs):
+        HolderNeonTxStrategy.__init__(self, *args, **kwargs)
+
+    def _validate(self) -> bool:
+        if not self.s.tx_validator.is_underpriced_tx_without_chainid():
+            self.error = 'Normal transaction'
+            return False
+
+        return self._validate_txsize()
+
+    def build_tx(self, idx=0) -> TransactionWithComputeBudget:
+        tx = TransactionWithComputeBudget()
+        tx.add(self.s.builder.make_partial_call_or_continue_from_account_data_no_chainid_instruction(self.steps, idx))
+        return tx

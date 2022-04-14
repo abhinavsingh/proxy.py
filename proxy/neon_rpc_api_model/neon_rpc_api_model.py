@@ -23,7 +23,7 @@ from ..statistics_exporter.proxy_metrics_interface import StatisticsExporter
 
 from .transaction_sender import NeonTxSender
 
-NEON_PROXY_PKG_VERSION = '0.7.15-dev'
+NEON_PROXY_PKG_VERSION = '0.7.16-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
@@ -349,7 +349,7 @@ class NeonRpcApiModel:
         account = self._normalize_account(account)
 
         try:
-            neon_account_info = self._solana.get_neon_account_info(EthereumAddress(account))
+            neon_account_info = self._solana.get_neon_account_info(account)
             return hex(neon_account_info.trx_count)
         except (Exception,):
             # self.debug(f"eth_getTransactionCount: Can't get account info: {err}")
@@ -419,25 +419,30 @@ class NeonRpcApiModel:
     def eth_getCode(self, account: str, tag) -> str:
         self._validate_block_tag(tag)
         account = self._normalize_account(account)
-        return self._db.get_contract_code(account)
+
+        try:
+            code_info = self._solana.get_neon_code_info(account)
+            if (not code_info) or (not code_info.code):
+                return '0x'
+            return code_info.code
+        except (Exception,):
+            return '0x'
 
     def eth_sendRawTransaction(self, rawTrx: str) -> str:
         try:
             trx = EthTrx.fromString(bytearray.fromhex(rawTrx[2:]))
         except (Exception,):
-            raise EthereumError(message="wrong transaction format")
+            raise InvalidParamError(message="wrong transaction format")
 
         eth_signature = '0x' + trx.hash_signed().hex()
         self.debug(f"sendRawTransaction {eth_signature}: {json.dumps(trx.as_dict(), cls=JsonEncoder, sort_keys=True)}")
 
         min_gas_price = self.gas_price_calculator.get_min_gas_price()
-        if trx.gasPrice < min_gas_price:
-            raise EthereumError(message="The transaction gasPrice is less than the minimum allowable value" +
-                                f"({trx.gasPrice}<{min_gas_price})")
+
         self._stat_tx_begin()
 
         try:
-            tx_sender = NeonTxSender(self._db, self._solana, trx, steps=EVM_STEP_COUNT)
+            tx_sender = NeonTxSender(self._db, self._solana, trx, steps=EVM_STEP_COUNT, min_gas_price=min_gas_price)
             tx_sender.execute()
             self._stat_tx_success()
             return eth_signature
@@ -528,7 +533,7 @@ class NeonRpcApiModel:
         try:
             data = bytes.fromhex(data[2:])
         except (Exception,):
-            raise EthereumError(message='data is not hex string')
+            raise InvalidParamError(message='data is not hex string')
 
         account = KeyStorage().get_key(address)
         if not account:

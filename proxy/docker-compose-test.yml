@@ -94,6 +94,7 @@ services:
       MIN_OPERATOR_BALANCE_TO_ERR: 913152000 # = solana rent 131072 (= Rent-exempt minimum: 0.913152 SOL) SOLs to create a storage
       MINIMAL_GAS_PRICE: 1
       ENABLE_PRIVATE_API: "YES"
+      ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID: "YES"
     hostname: proxy
     depends_on:
       dbcreation:

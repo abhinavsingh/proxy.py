@@ -79,8 +79,11 @@ class Trx(rlp.Serializable):
         value_list += [0, 0, 0]
         return cls(*value_list)
 
+    def hasChainId(self) -> bool:
+        return self.v not in (0, 27, 28)
+
     def chainId(self) -> Optional[int]:
-        if self.v in (0, 27, 28):
+        if not self.hasChainId():
             return None
         elif self.v >= 37:
             # chainid*2 + 35  xxxxx0 + 100011   xxxx0 + 100010 +1
@@ -91,7 +94,7 @@ class Trx(rlp.Serializable):
 
     def _unsigned_msg(self) -> bytes:
         chain_id = self.chainId()
-        if chain_id is None:
+        if not self.hasChainId():
             return rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData))
         else:
             return rlp.encode((self.nonce, self.gasPrice, self.gasLimit, self.toAddress, self.value, self.callData,
@@ -111,7 +114,7 @@ class Trx(rlp.Serializable):
     def _sender(self) -> bytes:
         if self.r == 0 and self.s == 0:
             return self.null_address
-        elif self.v in (0, 27, 28):
+        elif not self.hasChainId():
             pass
         elif self.v >= 37:
             vee = self.v - self.chainId() * 2 - 8

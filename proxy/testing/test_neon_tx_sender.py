@@ -18,7 +18,7 @@ class TestNeonTxSender(unittest.TestCase):
 
     def setUp(self) -> None:
         trx = EthTrx.fromString(bytearray.fromhex('f8678080843ade68b194f0dafe87532d4373453b2555c644390e1b99e84c8459682f0080820102a00193e1966a82c5597942370980fb78080901ca86eb3c1b25ec600b2760cfcc94a03efcc1169e161f9a148fd4586e0bcf880648ca74075bfa7a9acc8800614fc9ff'))
-        self.neon_tx_sender = NeonTxSender(MemDB(self.solana), self.solana, trx, 500)
+        self.neon_tx_sender = NeonTxSender(MemDB(self.solana), self.solana, trx, steps=500, min_gas_price=0)
         self.neon_tx_sender._resource_list.free_resource_info()
         self.neon_tx_sender._validate_pend_tx = Mock()
         self.neon_tx_sender._validate_whitelist = Mock()

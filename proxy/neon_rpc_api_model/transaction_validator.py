@@ -12,6 +12,7 @@ from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.estimate import GasEstimate
 
 from ..environment import ACCOUNT_PERMISSION_UPDATE_INT, CHAIN_ID
+from ..environment import NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID, ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID
 
 
 @logged_group("neon.Proxy")
@@ -19,7 +20,7 @@ class NeonTxValidator:
     MAX_U64 = pow(2, 64)
     MAX_U256 = pow(2, 256)
 
-    def __init__(self, solana: SolanaInteractor, tx: EthTx):
+    def __init__(self, solana: SolanaInteractor, tx: EthTx, min_gas_price: int):
         self._solana = solana
         self._tx = tx
 
@@ -36,6 +37,22 @@ class NeonTxValidator:
 
         self._tx_hash = '0x' + self._tx.hash_signed().hex()
 
+        self._min_gas_price = min_gas_price
+        self._estimated_gas = 0
+
+        self._tx_gas_limit = self._tx.gasLimit
+        if self._tx.hasChainId() or (not ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID):
+            return
+
+        tx_gas_limit = self._tx_gas_limit * NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID
+        if self.MAX_U64 > tx_gas_limit:
+            self._tx_gas_limit = tx_gas_limit
+
+    def is_underpriced_tx_without_chainid(self) -> bool:
+        if self._tx.hasChainId():
+            return False
+        return (self._tx.gasPrice < self._min_gas_price) or (self._tx.gasLimit < self._estimated_gas)
+
     def prevalidate_tx(self, signer: SolanaAccount):
         self._prevalidate_whitelist(signer)
 
@@ -48,6 +65,7 @@ class NeonTxValidator:
     def prevalidate_emulator(self, emulator_json: dict):
         self._prevalidate_gas_usage(emulator_json)
         self._prevalidate_account_sizes(emulator_json)
+        self._prevalidate_underpriced_tx_without_chainid()
 
     def extract_ethereum_error(self, e: Exception):
         receipt_parser = SolReceiptParser(e)
@@ -66,10 +84,17 @@ class NeonTxValidator:
             raise EthereumError(message=f'Contract account {self._deployed_contract} is not allowed for deployment')
 
     def _prevalidate_tx_gas(self):
-        if self._tx.gasLimit > self.MAX_U64:
+        if self._tx_gas_limit > self.MAX_U64:
             raise EthereumError(message='gas uint64 overflow')
-        if (self._tx.gasLimit * self._tx.gasPrice) > self.MAX_U256 - 1:
+        if (self._tx_gas_limit * self._tx.gasPrice) > (self.MAX_U256 - 1):
             raise EthereumError(message='max fee per gas higher than 2^256-1')
+        if self._tx.gasPrice >= self._min_gas_price:
+            return
+
+        if ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID and (not self._tx.hasChainId()) and (self._tx.gasPrice >= 10**10):
+            return
+
+        raise EthereumError(message=f"transaction underpriced: have {self._tx.gasPrice} want {self._min_gas_price}")
 
     def _prevalidate_tx_chain_id(self):
         if self._tx.chainId() not in (None, CHAIN_ID):
@@ -103,7 +128,7 @@ class NeonTxValidator:
         else:
             user_balance = 0
 
-        required_balance = self._tx.gasPrice * self._tx.gasLimit + self._tx.value
+        required_balance = self._tx.gasPrice * self._tx_gas_limit + self._tx.value
 
         if required_balance <= user_balance:
             return
@@ -125,14 +150,24 @@ class NeonTxValidator:
 
         calculator = GasEstimate(request, self._solana)
         calculator.emulator_json = emulator_json
-        gas = calculator.estimate()
-        if gas <= self._tx.gasLimit:
+        self._estimated_gas = calculator.estimate()
+
+        if self._estimated_gas <= self._tx_gas_limit:
             return
 
         message = 'gas limit reached'
-        raise EthereumError(f"{message}: have {self._tx.gasLimit} want {gas}")
+        raise EthereumError(f"{message}: have {self._tx_gas_limit} want {self._estimated_gas}")
 
-    def _prevalidate_account_sizes(self, emulator_json: dict):
+    def _prevalidate_underpriced_tx_without_chainid(self):
+        if not self.is_underpriced_tx_without_chainid():
+            return
+        if ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID:
+            return
+
+        raise EthereumError(f"proxy configuration doesn't allow underpriced transaction without chain-id")
+
+    @staticmethod
+    def _prevalidate_account_sizes(emulator_json: dict):
         for account_desc in emulator_json['accounts']:
             if ('code_size' not in account_desc) or ('address' not in account_desc):
                 continue

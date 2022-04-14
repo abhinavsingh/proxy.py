@@ -96,38 +96,6 @@ class CostInfo:
         return 0 if match is None else int(match[1])
 
 
-@logged_group("neon.Indexer")
-def get_accounts_by_neon_address(solana: SolanaInteractor, neon_address, *, logger):
-    pda_address, _nonce = ether2program(neon_address)
-    info = solana.get_account_info(pda_address, length=0)
-    if info is None:
-        logger.debug(f"account_info is None for pda_address({pda_address})")
-        return None, None
-    if len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof():
-        logger.debug(f"{len(info.data)} < {ACCOUNT_INFO_LAYOUT.sizeof()}")
-        return None, None
-    account = ACCOUNT_INFO_LAYOUT.parse(info.data)
-    code_account = None
-    if account.code_account != [0]*32:
-        code_account = str(PublicKey(account.code_account))
-    return pda_address, code_account
-
-
-@logged_group("neon.Indexer")
-def get_code_from_account(solana: SolanaInteractor, address, *, logger):
-    code_account_info = solana.get_account_info(address, length=0)
-    if code_account_info is None:
-        logger.debug(f"code_account_info is None for code_address({address})")
-        return None
-    if len(code_account_info.data) < CODE_ACCOUNT_INFO_LAYOUT.sizeof():
-        return None
-    storage = CODE_ACCOUNT_INFO_LAYOUT.parse(code_account_info.data)
-    offset = CODE_ACCOUNT_INFO_LAYOUT.sizeof()
-    if len(code_account_info.data) < offset + storage.code_size:
-        return None
-    return '0x' + code_account_info.data[offset:][:storage.code_size].hex()
-
-
 class MetricsToLogBuff:
     def __init__(self):
         self._reset()
