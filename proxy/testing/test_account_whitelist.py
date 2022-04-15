@@ -17,7 +17,7 @@ class TestAccountWhitelist(unittest.TestCase):
         client.request_airdrop(cls.payer.public_key(), 1000_000_000_000, Confirmed)
 
         cls.permission_update_int = 10
-        cls.testee = AccountWhitelist(cls.solana, cls.payer, cls.permission_update_int)
+        cls.testee = AccountWhitelist(cls.solana, cls.permission_update_int)
 
         mock_allowance_token = Mock()
         mock_allowance_token.get_token_account_address = MagicMock()
@@ -50,11 +50,11 @@ class TestAccountWhitelist(unittest.TestCase):
 
         mock_get_token_account_balance_list.side_effect = [[allowance_balance, denial_balance]]
 
-        self.assertTrue(self.testee.grant_permissions(ether_address, min_balance))
+        self.assertTrue(self.testee.grant_permissions(ether_address, min_balance, self.payer))
 
         self.testee.allowance_token.get_token_account_address.assert_called_once_with(ether_address)
         self.testee.denial_token.get_token_account_address.assert_called_once_with(ether_address)
-        self.testee.allowance_token.mint_to.assert_called_once_with(expected_mint, ether_address)
+        self.testee.allowance_token.mint_to.assert_called_once_with(expected_mint, ether_address, self.payer)
 
     @patch.object(SolanaInteractor, 'get_token_account_balance_list')
     def test_grant_permissions_positive_difference(self, mock_get_token_account_balance_list):
@@ -68,7 +68,7 @@ class TestAccountWhitelist(unittest.TestCase):
 
         mock_get_token_account_balance_list.side_effect = [[allowance_balance, denial_balance]]
 
-        self.assertTrue(self.testee.grant_permissions(ether_address, min_balance))
+        self.assertTrue(self.testee.grant_permissions(ether_address, min_balance, self.payer))
 
         self.testee.allowance_token.get_token_account_address.assert_called_once_with(ether_address)
         self.testee.denial_token.get_token_account_address.assert_called_once_with(ether_address)
@@ -88,11 +88,11 @@ class TestAccountWhitelist(unittest.TestCase):
 
         mock_get_token_account_balance_list.side_effect = [[allowance_balance, denial_balance]]
 
-        self.assertTrue(self.testee.deprive_permissions(ether_address, min_balance))
+        self.assertTrue(self.testee.deprive_permissions(ether_address, min_balance, self.payer))
 
         self.testee.allowance_token.get_token_account_address.assert_called_once_with(ether_address)
         self.testee.denial_token.get_token_account_address.assert_called_once_with(ether_address)
-        self.testee.denial_token.mint_to.assert_called_once_with(expected_mint, ether_address)
+        self.testee.denial_token.mint_to.assert_called_once_with(expected_mint, ether_address, self.payer)
 
     @patch.object(SolanaInteractor, 'get_token_account_balance_list')
     def test_deprive_permissions_negative_difference(self, mock_get_token_account_balance_list):
@@ -106,7 +106,7 @@ class TestAccountWhitelist(unittest.TestCase):
 
         mock_get_token_account_balance_list.side_effect = [[allowance_balance, denial_balance]]
 
-        self.assertTrue(self.testee.deprive_permissions(ether_address, min_balance))
+        self.assertTrue(self.testee.deprive_permissions(ether_address, min_balance, self.payer))
 
         self.testee.allowance_token.get_token_account_address.assert_called_once_with(ether_address)
         self.testee.denial_token.get_token_account_address.assert_called_once_with(ether_address)

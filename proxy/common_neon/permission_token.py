@@ -12,12 +12,8 @@ from .compute_budget import TransactionWithComputeBudget
 
 
 class PermissionToken:
-    def __init__(self,
-                 solana: SolanaInteractor,
-                 token_mint: PublicKey,
-                 payer: SolanaAccount):
+    def __init__(self, solana: SolanaInteractor, token_mint: PublicKey):
         self.solana = solana
-        self.signer = payer
         self.waiter = None
         self.token_mint = token_mint
 
@@ -29,8 +25,7 @@ class PermissionToken:
         token_account = self.get_token_account_address(ether_addr)
         return self.solana.get_token_account_balance(token_account)
 
-    def create_account_if_needed(self,
-                                 ether_addr: Union[str, EthereumAddress]):
+    def create_account_if_needed(self, ether_addr: Union[str, EthereumAddress], signer: SolanaAccount):
         token_account = self.get_token_account_address(ether_addr)
         info = self.solana.get_account_info(token_account)
         if info is not None:
@@ -38,19 +33,16 @@ class PermissionToken:
 
         txn = TransactionWithComputeBudget()
         create_txn = spl_token.create_associated_token_account(
-            payer=self.signer.public_key(),
+            payer=signer.public_key(),
             owner=PublicKey(ether2program(ether_addr)[0]),
             mint=self.token_mint
         )
         txn.add(create_txn)
-        SolTxListSender(self, [txn], 'CreateAssociatedTokenAccount(1)', skip_preflight=True).send()
+        SolTxListSender(self, [txn], 'CreateAssociatedTokenAccount(1)', skip_preflight=True).send(signer)
         return token_account
 
-    def mint_to(self,
-                amount: int,
-                ether_addr: Union[str, EthereumAddress],
-                mint_authority_file: str):
-        token_account = self.create_account_if_needed(ether_addr)
+    def mint_to(self, amount: int, ether_addr: Union[str, EthereumAddress], mint_authority_file: str, signer: SolanaAccount):
+        token_account = self.create_account_if_needed(ether_addr, signer)
         mint_command = f'spl-token mint "{str(self.token_mint)}" {Decimal(amount) * pow(Decimal(10), -9)}'
         mint_command += f' --owner {mint_authority_file} -- "{str(token_account)}"'
         os.system(mint_command)

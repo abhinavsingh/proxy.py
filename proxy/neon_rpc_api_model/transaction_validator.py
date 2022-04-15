@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from solana.account import Account as SolanaAccount
 from logged_groups import logged_group
 
 from ..common_neon.eth_proto import Trx as EthTx
@@ -11,8 +10,11 @@ from ..common_neon.solana_receipt_parser import SolReceiptParser
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.estimate import GasEstimate
 
-from ..environment import ACCOUNT_PERMISSION_UPDATE_INT, CHAIN_ID
-from ..environment import NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID, ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID
+from ..environment import ACCOUNT_PERMISSION_UPDATE_INT, CHAIN_ID, NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID,\
+                          ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID
+
+from ..common_neon.emulator_interactor import call_trx_emulated
+from ..common_neon.types import NeonTxPrecheckResult, NeonEmulatingResult
 
 
 @logged_group("neon.Proxy")
@@ -36,7 +38,6 @@ class NeonTxValidator:
             self._to_address = '0x' + self._to_address
 
         self._tx_hash = '0x' + self._tx.hash_signed().hex()
-
         self._min_gas_price = min_gas_price
         self._estimated_gas = 0
 
@@ -57,16 +58,30 @@ class NeonTxValidator:
             return False
         return (self._tx.gasPrice < self._min_gas_price) or (self._tx.gasLimit < self._estimated_gas)
 
-    def prevalidate_tx(self, signer: SolanaAccount):
-        self._prevalidate_whitelist(signer)
+    def precheck(self) -> NeonTxPrecheckResult:
+        try:
+            self._prevalidate_tx()
+            emulating_result: NeonEmulatingResult = call_trx_emulated(self._tx)
+            self._prevalidate_emulator(emulating_result)
 
+            is_underpriced_tx_without_chainid = self.is_underpriced_tx_without_chainid()
+            precheck_result = NeonTxPrecheckResult(emulating_result=emulating_result,
+                                                   is_underpriced_tx_without_chainid=is_underpriced_tx_without_chainid)
+            return precheck_result
+
+        except Exception as e:
+            self.extract_ethereum_error(e)
+            raise
+
+    def _prevalidate_tx(self):
+        self._prevalidate_whitelist()
         self._prevalidate_tx_nonce()
         self._prevalidate_tx_gas()
         self._prevalidate_tx_chain_id()
         self._prevalidate_tx_size()
         self._prevalidate_sender_balance()
 
-    def prevalidate_emulator(self, emulator_json: dict):
+    def _prevalidate_emulator(self, emulator_json: dict):
         self._prevalidate_gas_usage(emulator_json)
         self._prevalidate_account_sizes(emulator_json)
         self._prevalidate_underpriced_tx_without_chainid()
@@ -77,8 +92,8 @@ class NeonTxValidator:
         if nonce_error:
             self._raise_nonce_error(nonce_error[0], nonce_error[1])
 
-    def _prevalidate_whitelist(self, signer):
-        w = AccountWhitelist(self._solana, ACCOUNT_PERMISSION_UPDATE_INT, signer)
+    def _prevalidate_whitelist(self):
+        w = AccountWhitelist(self._solana, ACCOUNT_PERMISSION_UPDATE_INT)
         if not w.has_client_permission(self._sender[2:]):
             self.warning(f'Sender account {self._sender} is not allowed to execute transactions')
             raise EthereumError(message=f'Sender account {self._sender} is not allowed to execute transactions')

@@ -1,29 +1,20 @@
 from __future__ import annotations
 
 import abc
-import json
 import math
-import os
 import time
-import base58
-import sha3
-import traceback
-import multiprocessing as mp
-import ctypes
 
-
-from datetime import datetime
 from logged_groups import logged_group
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from solana.transaction import AccountMeta, Transaction, PublicKey
 from solana.blockhash import Blockhash
-from solana.account import Account as SolanaAccount
 
-from ..common_neon.address import accountWithSeed, EthereumAddress, ether2program
+from .neon_tx_stages import NeonCreateAccountTxStage, NeonCreateERC20TxStage, NeonCreateContractTxStage, \
+                            NeonResizeContractTxStage
+
+from .operator_resource_list import OperatorResourceInfo
 from ..common_neon.compute_budget import TransactionWithComputeBudget
-from ..common_neon.constants import STORAGE_SIZE, EMPTY_STORAGE_TAG, FINALIZED_STORAGE_TAG, ACTIVE_STORAGE_TAG, ACCOUNT_SEED_VERSION
-from ..common_neon.emulator_interactor import call_emulated
 from ..common_neon.neon_instruction import NeonInstruction as NeonIxBuilder
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.solana_tx_list_sender import SolTxListSender
@@ -31,462 +22,23 @@ from ..common_neon.solana_receipt_parser import SolTxError, SolReceiptParser
 from ..common_neon.eth_proto import Trx as EthTx
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo
 from ..common_neon.errors import EthereumError
-from ..environment import RETRY_ON_FAIL, EVM_LOADER_ID, PERM_ACCOUNT_LIMIT
-from ..environment import MIN_OPERATOR_BALANCE_TO_WARN, MIN_OPERATOR_BALANCE_TO_ERR, RECHECK_RESOURCE_LIST_INTERVAL
-from ..environment import HOLDER_MSG_SIZE, CONTRACT_EXTRA_SPACE
+from ..common_neon.types import NeonTxPrecheckResult, NeonEmulatingResult
+from ..environment import RETRY_ON_FAIL
+from ..environment import HOLDER_MSG_SIZE
 from ..memdb.memdb import MemDB, NeonPendingTxInfo
-from ..environment import get_solana_accounts
 from ..common_neon.utils import get_holder_msg
-
-from .transaction_validator import NeonTxValidator
-
-
-class NeonTxStage(metaclass=abc.ABCMeta):
-    NAME = 'UNKNOWN'
-
-    def __init__(self, sender):
-        self.s = sender
-        self.tx = TransactionWithComputeBudget()
-
-    def _is_empty(self):
-        return not len(self.tx.signatures)
-
-    @abc.abstractmethod
-    def build(self):
-        pass
-
-
-@logged_group("neon.Proxy")
-class NeonCancelTxStage(NeonTxStage, abc.ABC):
-    NAME = 'cancelWithNonce'
-
-    def __init__(self, sender, account: PublicKey):
-        NeonTxStage.__init__(self, sender)
-        self._account = account
-        self._storage = self.s.solana.get_storage_account_info(account)
-
-    def _cancel_ix(self):
-        key_list = []
-        for is_writable, account in self._storage.account_list:
-            key_list.append(AccountMeta(pubkey=account, is_signer=False, is_writable=is_writable))
-
-        return self.s.builder.make_cancel_instruction(storage=self._account,
-                                                      nonce=self._storage.nonce,
-                                                      cancel_keys=key_list)
-
-    def build(self):
-        assert self._is_empty()
-        assert self._storage is not None
-
-        self.debug(f'Cancel transaction in storage account {str(self._account)}')
-        self.tx.add(self._cancel_ix())
-
-
-class NeonCreateAccountWithSeedStage(NeonTxStage, abc.ABC):
-    def __init__(self, sender):
-        NeonTxStage.__init__(self, sender)
-        self._seed = bytes()
-        self._seed_base = bytes()
-        self.sol_account = None
-        self.size = 0
-        self.balance = 0
-
-    def _init_sol_account(self):
-        assert len(self._seed_base) > 0
-
-        self._seed = base58.b58encode(self._seed_base)
-        self.sol_account = accountWithSeed(self.s.operator_key, self._seed)
-
-    def _create_account_with_seed(self):
-        assert len(self._seed) > 0
-        assert self.size > 0
-        assert self.balance > 0
-
-        return self.s.builder.create_account_with_seed_instruction(self.sol_account, self._seed, self.balance, self.size)
-
-
-@logged_group("neon.Proxy")
-class NeonCreatePermAccount(NeonCreateAccountWithSeedStage, abc.ABC):
-    NAME = 'createPermAccount'
-
-    def __init__(self, sender, seed_base: bytes, size: int):
-        NeonCreateAccountWithSeedStage.__init__(self, sender)
-        self._seed_base = seed_base
-        self.size = size
-        self._init_sol_account()
-
-    def _init_sol_account(self):
-        assert len(self._seed_base) > 0
-        seed = sha3.keccak_256(self._seed_base).hexdigest()[:32]
-        self._seed = bytes(seed, 'utf8')
-        self.sol_account = accountWithSeed(self.s.operator_key, self._seed)
-
-    def build(self):
-        assert self._is_empty()
-
-        self.debug(f'Create perm account {self.sol_account}')
-        self.tx.add(self._create_account_with_seed())
-
-
-@logged_group("neon.Proxy")
-class NeonCreateAccountTxStage(NeonTxStage):
-    NAME = 'createNeonAccount'
-
-    def __init__(self, sender, account_desc):
-        NeonTxStage.__init__(self, sender)
-        self._address = account_desc['address']
-        self.size = 95
-        self.balance = 0
-
-    def _create_account(self):
-        assert self.balance > 0
-        return self.s.builder.make_create_eth_account_instruction(self._address)
-
-    def build(self):
-        assert self._is_empty()
-        self.debug(f'Create user account {self._address}')
-        self.tx.add(self._create_account())
-
-
-@logged_group("neon.Proxy")
-class NeonCreateERC20TxStage(NeonTxStage, abc.ABC):
-    NAME = 'createERC20Account'
-
-    def __init__(self, sender, token_account):
-        NeonTxStage.__init__(self, sender)
-        self._token_account = token_account
-        self.size = 124
-        self.balance = 0
-
-    def _create_erc20_account(self):
-        assert self.balance > 0
-        return self.s.builder.make_erc20token_account_instruction(self._token_account)
-
-    def build(self):
-        assert self._is_empty()
-
-        self.debug(f'Create ERC20 token account: ' +
-                   f'key {self._token_account["key"]}, ' +
-                   f'owner: {self._token_account["owner"]}, ' +
-                   f'contact: {self._token_account["contract"]}, ' +
-                   f'mint: {self._token_account["mint"]}')
-
-        self.tx.add(self._create_erc20_account())
-
-
-@logged_group("neon.Proxy")
-class NeonCreateContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
-    NAME = 'createNeonContract'
-
-    def __init__(self, sender, account_desc):
-        NeonCreateAccountWithSeedStage.__init__(self, sender)
-        self._account_desc = account_desc
-        self._address = account_desc["address"]
-        self._seed_base = ACCOUNT_SEED_VERSION + bytes.fromhex(self._address[2:])
-        self._init_sol_account()
-        self._account_desc['contract'] = self.sol_account
-        self.size = account_desc['code_size'] + CONTRACT_EXTRA_SPACE
-
-    def _create_account(self):
-        assert self.sol_account
-        return self.s.builder.make_create_eth_account_instruction(self._address, self.sol_account)
-
-    def build(self):
-        assert self._is_empty()
-
-        self.debug(f'Create contact {self._address}: {self.sol_account} (size {self.size})')
-
-        self.tx.add(self._create_account_with_seed())
-        self.tx.add(self._create_account())
-
-
-@logged_group("neon.Proxy")
-class NeonResizeContractTxStage(NeonCreateAccountWithSeedStage, abc.ABC):
-    NAME = 'resizeNeonContract'
-
-    def __init__(self, sender, account_desc):
-        NeonCreateAccountWithSeedStage.__init__(self, sender)
-        self._account_desc = account_desc
-        self._seed_base = ACCOUNT_SEED_VERSION + os.urandom(20)
-        self._init_sol_account()
-        # Replace the old code account with the new code account
-        self._old_sol_account = account_desc['contract']
-        account_desc['contract'] = self.sol_account
-        self.size = account_desc['code_size'] + CONTRACT_EXTRA_SPACE
-
-    def _resize_account(self):
-        account = self._account_desc['account']
-        return self.s.builder.make_resize_instruction(account, self._old_sol_account, self.sol_account, self._seed)
-
-    def build(self):
-        assert self._is_empty()
-
-        self.debug(f'Resize contact {self._account_desc["address"]}: ' +
-                   f'{self._old_sol_account} (size {self._account_desc["code_size_current"]}) -> ' +
-                   f'{self.sol_account} (size {self.size})')
-
-        self.tx.add(self._create_account_with_seed())
-        self.tx.add(self._resize_account())
-
-
-class OperatorResourceInfo:
-    def __init__(self, signer: SolanaAccount, rid: int, idx: int):
-        self.signer = signer
-        self.rid = rid
-        self.idx = idx
-        self.ether: Optional[EthereumAddress] = None
-        self.storage: Optional[PublicKey] = None
-        self.holder: Optional[PublicKey] = None
-
-    def public_key(self) -> PublicKey:
-        return self.signer.public_key()
-
-    def secret_key(self) -> bytes:
-        return self.signer.secret_key()
-
-
-@logged_group("neon.Proxy")
-class OperatorResourceList:
-    # These variables are global for class, they will be initialized one time
-    _manager = mp.Manager()
-    _free_resource_list = _manager.list()
-    _bad_resource_list = _manager.list()
-    _check_time_resource_list = _manager.list()
-    _resource_list_len = mp.Value(ctypes.c_uint, 0)
-    _last_checked_time = mp.Value(ctypes.c_ulonglong, 0)
-    _resource_list = []
-
-    def __init__(self, sender: NeonTxSender):
-        self._s = sender
-        self._resource: Optional[OperatorResourceInfo] = None
-
-    @staticmethod
-    def _get_current_time() -> int:
-        return math.ceil(datetime.now().timestamp())
-
-    def _init_resource_list(self):
-        if len(self._resource_list):
-            return
-
-        idx = 0
-        signer_list = get_solana_accounts()
-        for rid in range(PERM_ACCOUNT_LIMIT):
-            for signer in signer_list:
-                info = OperatorResourceInfo(signer=signer, rid=rid, idx=idx)
-                self._resource_list.append(info)
-                idx += 1
-
-        with self._resource_list_len.get_lock():
-            if self._resource_list_len.value != 0:
-                return True
-
-            for idx in range(len(self._resource_list)):
-                self._free_resource_list.append(idx)
-                self._check_time_resource_list.append(0)
-
-            self._resource_list_len.value = len(self._resource_list)
-            if self._resource_list_len.value == 0:
-                raise RuntimeError('Operator has NO resources!')
-
-    def _recheck_bad_resource_list(self):
-        def is_time_come(now, prev_time):
-            time_diff = now - prev_time
-            return time_diff > RECHECK_RESOURCE_LIST_INTERVAL
-
-        now = self._get_current_time()
-        prev_time = self._last_checked_time.value
-        if not is_time_come(now, prev_time):
-            return prev_time
-
-        with self._last_checked_time.get_lock():
-            prev_time = self._last_checked_time.value
-            if not is_time_come(now, prev_time):
-                return prev_time
-            self._last_checked_time.value = now
-
-        with self._resource_list_len.get_lock():
-            if not len(self._bad_resource_list):
-                return now
-
-            self._resource_list_len.value += len(self._bad_resource_list)
-            for idx in self._bad_resource_list:
-                self._free_resource_list.append(idx)
-
-            del self._bad_resource_list[:]
-        return now
-
-    def init_resource_info(self) -> OperatorResourceInfo:
-        if self._resource:
-            return self._resource
-
-        self._init_resource_list()
-        check_time = self._recheck_bad_resource_list()
-
-        timeout = 0.01
-        for i in range(400_000):  # 10'000 blocks!
-            if i > 0:
-                if i % 40 == 0:  # one block time
-                    self.debug(f'Waiting for a free operator resource ({i * timeout})...')
-                time.sleep(timeout)
-
-            with self._resource_list_len.get_lock():
-                if self._resource_list_len.value == 0:
-                    raise RuntimeError('Operator has NO resources!')
-                elif len(self._free_resource_list) == 0:
-                    continue
-                idx = self._free_resource_list.pop(0)
-
-            self._resource = self._resource_list[idx]
-            self._s.set_resource(self._resource)
-            if not self._init_perm_accounts(check_time):
-                self._s.clear_resource()
-                continue
-
-            self.debug(f'Resource is selected: {str(self._resource.public_key())}:{self._resource.rid}, ' +
-                       f'storage: {str(self._resource.storage)}, ' +
-                       f'holder: {str(self._resource.holder)}, ' +
-                       f'ether: {str(self._resource.ether)}')
-            return self._resource
-
-        raise RuntimeError('Timeout on waiting a free operator resource!')
-
-    def _init_perm_accounts(self, check_time) -> bool:
-        opkey = str(self._resource.public_key())
-        rid = self._resource.rid
-
-        resource_check_time = self._check_time_resource_list[self._resource.idx]
-
-        if check_time != resource_check_time:
-            self._check_time_resource_list[self._resource.idx] = check_time
-            self.debug(f'Rechecking of accounts for resource {opkey}:{rid} {resource_check_time} != {check_time}')
-        elif self._resource.storage and self._resource.holder and self._resource.ether:
-            return True
-
-        aid = rid.to_bytes(math.ceil(rid.bit_length() / 8), 'big')
-        seed_list = [prefix + aid for prefix in [b"storage", b"holder"]]
-
-        try:
-            self._validate_operator_balance()
-
-            storage, holder = self._create_perm_accounts(seed_list)
-            ether = self._create_ether_account()
-            self._resource.ether = ether
-            self._resource.storage = storage
-            self._resource.holder = holder
-            return True
-        except Exception as err:
-            self._resource_list_len.value -= 1
-            self._bad_resource_list.append(self._resource.idx)
-            err_tb = "".join(traceback.format_tb(err.__traceback__))
-            self.error(f"Fail to init accounts for resource {opkey}:{rid}, err({err}): {err_tb}")
-            return False
-
-    @staticmethod
-    def _min_operator_balance_to_err():
-        return MIN_OPERATOR_BALANCE_TO_ERR
-
-    @staticmethod
-    def _min_operator_balance_to_warn():
-        return MIN_OPERATOR_BALANCE_TO_WARN
-
-    def _validate_operator_balance(self):
-        # Validate operator's account has enough SOLs
-        sol_balance = self._s.solana.get_sol_balance(self._resource.public_key())
-        min_operator_balance_to_err = self._min_operator_balance_to_err()
-        rid = self._resource.rid
-        opkey = str(self._resource.public_key())
-        if sol_balance <= min_operator_balance_to_err:
-            self.error(f'Operator account {opkey}:{rid} has NOT enough SOLs; balance = {sol_balance}; ' +
-                       f'min_operator_balance_to_err = {min_operator_balance_to_err}')
-            raise RuntimeError('Not enough SOLs')
-
-        min_operator_balance_to_warn = self._min_operator_balance_to_warn()
-        if sol_balance <= min_operator_balance_to_warn:
-            self.warning(f'Operator account {opkey}:{rid} SOLs are running out; balance = {sol_balance}; ' +
-                         f'min_operator_balance_to_warn = {min_operator_balance_to_warn}; ' +
-                         f'min_operator_balance_to_err = {min_operator_balance_to_err}; ')
-
-    def _create_ether_account(self) -> EthereumAddress:
-        rid = self._resource.rid
-        opkey = str(self._resource.public_key())
-
-        ether_address = EthereumAddress.from_private_key(self._resource.secret_key())
-        solana_address = ether2program(ether_address)[0]
-
-        account_info = self._s.solana.get_account_info(solana_address)
-        if account_info is not None:
-            self.debug(f"Use existing ether account {str(solana_address)} for resource {opkey}:{rid}")
-            return ether_address
-
-        stage = NeonCreateAccountTxStage(self._s, {"address": ether_address})
-        stage.balance = self._s.solana.get_multiple_rent_exempt_balances_for_size([stage.size])[0]
-        stage.build()
-
-        self.debug(f"Create new ether account {str(solana_address)} for resource {opkey}:{rid}")
-        SolTxListSender(self._s, [stage.tx], NeonCreateAccountTxStage.NAME).send()
-
-        return ether_address
-
-    def _create_perm_accounts(self, seed_list):
-        rid = self._resource.rid
-        opkey = str(self._resource.public_key())
-
-        tx = TransactionWithComputeBudget()
-        tx_name_list = set()
-
-        stage_list = [NeonCreatePermAccount(self._s, seed, STORAGE_SIZE) for seed in seed_list]
-        account_list = [s.sol_account for s in stage_list]
-        info_list = self._s.solana.get_account_info_list(account_list)
-        balance = self._s.solana.get_multiple_rent_exempt_balances_for_size([STORAGE_SIZE])[0]
-        for idx, account, stage in zip(range(len(seed_list)), info_list, stage_list):
-            if not account:
-                self.debug(f"Create new accounts for resource {opkey}:{rid}")
-                stage.balance = balance
-                stage.build()
-                tx_name_list.add(stage.NAME)
-                tx.add(stage.tx)
-                continue
-            elif account.lamports < balance:
-                raise RuntimeError(f"insufficient balance of {str(stage.sol_account)}")
-            elif PublicKey(account.owner) != PublicKey(EVM_LOADER_ID):
-                raise RuntimeError(f"wrong owner for: {str(stage.sol_account)}")
-            elif idx != 0:
-                continue
-
-            if account.tag == ACTIVE_STORAGE_TAG:
-                self.debug(f"Cancel transaction in {str(stage.sol_account)} for resource {opkey}:{rid}")
-                cancel_stage = NeonCancelTxStage(self._s, stage.sol_account)
-                cancel_stage.build()
-                tx_name_list.add(cancel_stage.NAME)
-                tx.add(cancel_stage.tx)
-            elif account.tag not in (FINALIZED_STORAGE_TAG, EMPTY_STORAGE_TAG):
-                raise RuntimeError(f"not empty, not finalized: {str(stage.sol_account)}")
-
-        if len(tx_name_list):
-            SolTxListSender(self._s, [tx], ' + '.join(tx_name_list)).send()
-        else:
-            self.debug(f"Use existing accounts for resource {opkey}:{rid}")
-        return account_list
-
-    def free_resource_info(self):
-        if not self._resource:
-            return
-        resource = self._resource
-        self._resource = None
-        self._s.clear_resource()
-        self._free_resource_list.append(resource.idx)
 
 
 @logged_group("neon.Proxy")
 class NeonTxSender:
-    def __init__(self, db: MemDB, solana: SolanaInteractor, eth_tx: EthTx, min_gas_price: int, steps: int):
+    def __init__(self, db: MemDB, solana: SolanaInteractor, eth_tx: EthTx, steps: int):
         self._db = db
         self.eth_tx = eth_tx
         self.neon_sign = '0x' + eth_tx.hash_signed().hex()
         self.steps = steps
         self.waiter = self
         self.solana = solana
-        self._resource_list = OperatorResourceList(self)
+        self._resource_list = None
         self.resource = None
         self.signer = None
         self.operator_key = None
@@ -501,7 +53,7 @@ class NeonTxSender:
         self.to_address = eth_tx.toAddress.hex()
         if self.to_address:
             self.to_address = '0x' + self.to_address
-        self.steps_emulated = 0
+
 
         self.create_account_tx = TransactionWithComputeBudget()
         self.account_txs_name = ''
@@ -509,18 +61,10 @@ class NeonTxSender:
         self._create_account_list = []
         self._eth_meta_dict: Dict[str, AccountMeta] = dict()
 
-        self.tx_validator = NeonTxValidator(self.solana, eth_tx, min_gas_price)
-
-    def execute(self) -> NeonTxResultInfo:
-        try:
-            self._validate_execution()
-            self._prepare_execution()
-            return self._execute()
-        except Exception as e:
-            self.tx_validator.extract_ethereum_error(e)
-            raise
-        finally:
-            self._resource_list.free_resource_info()
+    def execute(self, precheck_result: NeonTxPrecheckResult) -> NeonTxResultInfo:
+        self._validate_pend_tx()
+        self._prepare_execution(precheck_result.emulating_result)
+        return self._execute(precheck_result)
 
     def set_resource(self, resource: Optional[OperatorResourceInfo]):
         self.resource = resource
@@ -533,24 +77,16 @@ class NeonTxSender:
         self.operator_key = None
         self.builder = None
 
-    def _validate_execution(self):
-        # Validate that operator has available resources: operator key, holder/storage accounts
-        self._resource_list.init_resource_info()
-
-        self._validate_pend_tx()
-        self.tx_validator.prevalidate_tx(self.signer)
-        self._call_emulated()
-        self.tx_validator.prevalidate_emulator(self._emulator_json)
-
     def _validate_pend_tx(self):
         operator = f'{str(self.resource.public_key())}:{self.resource.rid}'
         self._pending_tx = NeonPendingTxInfo(neon_sign=self.neon_sign, operator=operator, slot=0)
         self._pend_tx_into_db(self.solana.get_recent_blockslot())
 
-    def _execute(self):
+    def _execute(self, precheck_result: NeonTxPrecheckResult):
+
         for Strategy in [SimpleNeonTxStrategy, IterativeNeonTxStrategy, HolderNeonTxStrategy, NoChainIdNeonTxStrategy]:
             try:
-                strategy = Strategy(self)
+                strategy = Strategy(precheck_result, self)
                 if not strategy.is_valid:
                     self.debug(f'Skip strategy {Strategy.NAME}: {strategy.error}')
                     continue
@@ -587,11 +123,11 @@ class NeonTxSender:
         neon_tx.init_from_eth_tx(self.eth_tx)
         self._db.submit_transaction(neon_tx, neon_res, sign_list)
 
-    def _prepare_execution(self):
+    def _prepare_execution(self, emulating_result: NeonEmulatingResult):
         # Parse information from the emulator output
-        self._parse_accounts_list()
-        self._parse_token_list()
-        self._parse_solana_list()
+        self._parse_accounts_list(emulating_result['accounts'])
+        self._parse_token_list(emulating_result['token_accounts'])
+        self._parse_solana_list(emulating_result['solana_accounts'])
 
         eth_meta_list = list(self._eth_meta_dict.values())
         self.debug('metas: ' + ', '.join([f'{m.pubkey, m.is_signer, m.is_writable}' for m in eth_meta_list]))
@@ -603,21 +139,6 @@ class NeonTxSender:
         self.builder.init_eth_trx(self.eth_tx, eth_meta_list)
         self.builder.init_iterative(self.resource.storage, self.resource.holder, self.resource.rid)
 
-    def _call_emulated(self, sender=None):
-        src = sender.hex() if sender else self.eth_sender[2:]
-        self.debug(f'sender address: 0x{src}')
-        if self.deployed_contract:
-            dst = 'deploy'
-            self.debug(f'deploy contract: {self.deployed_contract}')
-        else:
-            dst = self.to_address[2:]
-            self.debug(f'destination address {self.to_address}')
-
-        self._emulator_json = call_emulated(dst, src, self.eth_tx.callData.hex(), hex(self.eth_tx.value))
-        self.debug(f'emulator returns: {json.dumps(self._emulator_json, sort_keys=True)}')
-
-        self.steps_emulated = self._emulator_json['steps_executed']
-
     def _add_meta(self, pubkey: PublicKey, is_writable: bool):
         key = str(pubkey)
         if key in self._eth_meta_dict:
@@ -625,8 +146,8 @@ class NeonTxSender:
         else:
             self._eth_meta_dict[key] = AccountMeta(pubkey=pubkey, is_signer=False, is_writable=is_writable)
 
-    def _parse_accounts_list(self):
-        for account_desc in self._emulator_json['accounts']:
+    def _parse_accounts_list(self, emulated_result_accounts):
+        for account_desc in emulated_result_accounts:
             if account_desc['new']:
                 if account_desc['code_size']:
                     stage = NeonCreateContractTxStage(self, account_desc)
@@ -641,14 +162,14 @@ class NeonTxSender:
             if account_desc['contract']:
                 self._add_meta(account_desc['contract'], account_desc['writable'])
 
-    def _parse_token_list(self):
-        for token_account in self._emulator_json['token_accounts']:
+    def _parse_token_list(self, emulated_result_token_accounts):
+        for token_account in emulated_result_token_accounts:
             self._add_meta(token_account['key'], True)
             if token_account['new']:
                 self._create_account_list.append(NeonCreateERC20TxStage(self, token_account))
 
-    def _parse_solana_list(self):
-        for account_desc in self._emulator_json['solana_accounts']:
+    def _parse_solana_list(self, emulated_result_solana_accounts):
+        for account_desc in emulated_result_solana_accounts:
             self._add_meta(account_desc['pubkey'], account_desc['is_writable'])
 
     def _build_account_stage_list(self):
@@ -687,10 +208,11 @@ class NeonTxSender:
 class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
     NAME = 'UNKNOWN STRATEGY'
 
-    def __init__(self, sender: NeonTxSender):
+    def __init__(self, precheck_result: NeonTxPrecheckResult, neon_tx_sender: NeonTxSender):
+        self._precheck_result = precheck_result
         self.is_valid = False
         self.error = None
-        self.s = sender
+        self.s = neon_tx_sender
         self.steps = self.s.steps
         self.is_valid = self._validate()
 
@@ -729,7 +251,7 @@ class BaseNeonTxStrategy(metaclass=abc.ABCMeta):
             raise
 
     def _validate_gas_limit(self):
-        if not self.s.tx_validator.is_underpriced_tx_without_chainid():
+        if not self._precheck_result.is_underpriced_tx_without_chainid:
             return True
 
         self.error = "Underpriced transaction without chain-id"
@@ -780,7 +302,8 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         return self._validate_txsize()
 
     def _validate_steps(self) -> bool:
-        if self.s.steps_emulated > self.steps:
+        steps_emulated = self._precheck_result.emulating_result["steps_executed"]
+        if steps_emulated > self.steps:
             self.error = 'Too big number of EVM steps'
             return False
         return True
@@ -793,12 +316,13 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         return tx
 
     def execute(self) -> (NeonTxResultInfo, [str]):
+        signer = self.s.resource.signer
         tx_list = self.s.build_account_tx_list(self._skip_create_account)
         if len(tx_list) > 0:
-            SolTxListSender(self.s, tx_list, self.s.account_txs_name).send()
+            SolTxListSender(self.s, tx_list, self.s.account_txs_name).send(signer)
             self.s.done_account_tx_list(self._skip_create_account)
 
-        tx_sender = SimpleNeonTxSender(self, self.s, [self.build_tx()], self.NAME).send()
+        tx_sender = SimpleNeonTxSender(self, self.s, [self.build_tx()], self.NAME).send(signer)
         if not tx_sender.neon_res.is_valid():
             raise tx_sender.raise_budget_exceeded()
         return tx_sender.neon_res, tx_sender.success_sign_list
@@ -933,7 +457,7 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
                 self._validate_gas_limit())
 
     def _validate_evm_steps(self):
-        if self.s.steps_emulated > (self.s.steps * 25):
+        if self._precheck_result.emulating_result["steps_executed"] > (self.s.steps * 25):
             self.error = 'Big number of EVM steps'
             return False
         return True
@@ -949,19 +473,21 @@ class IterativeNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         return self.s.build_account_tx_list(False)
 
     def execute(self) -> (NeonTxResultInfo, [str]):
+        signer = self.s.resource.signer
         tx_list = self._build_preparation_tx_list()
         if len(tx_list):
-            SolTxListSender(self.s, tx_list, self._preparation_txs_name).send()
+            SolTxListSender(self.s, tx_list, self._preparation_txs_name).send(signer)
             self.s.done_account_tx_list()
 
-        cnt = math.ceil(self.s.steps_emulated / self.steps)
-        cnt = math.ceil(self.s.steps_emulated / (self.steps - cnt))
-        if self.s.steps_emulated > 200:
+        steps_emulated = self._precheck_result.emulating_result["steps_executed"]
+        cnt = math.ceil(steps_emulated / self.steps)
+        cnt = math.ceil(steps_emulated / (self.steps - cnt))
+        if steps_emulated > 200:
             cnt += 2  # +1 on begin, +1 on end
         tx_list = [self.build_tx(idx) for idx in range(cnt)]
-        self.debug(f'Total iterations {len(tx_list)} for {self.s.steps_emulated} ({self.steps}) EVM steps')
+        self.debug(f'Total iterations {len(tx_list)} for {steps_emulated} ({self.steps}) EVM steps')
         tx_sender = IterativeNeonTxSender(self, self.s, tx_list, self.NAME)
-        tx_sender.send()
+        tx_sender.send(signer)
         return tx_sender.neon_res, tx_sender.success_sign_list
 
 
@@ -1012,7 +538,7 @@ class NoChainIdNeonTxStrategy(HolderNeonTxStrategy, abc.ABC):
         HolderNeonTxStrategy.__init__(self, *args, **kwargs)
 
     def _validate(self) -> bool:
-        if not self.s.tx_validator.is_underpriced_tx_without_chainid():
+        if not self._precheck_result.is_underpriced_tx_without_chainid:
             self.error = 'Normal transaction'
             return False
 

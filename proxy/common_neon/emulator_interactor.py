@@ -3,17 +3,38 @@ import subprocess
 from logged_groups import logged_group
 
 from typing import Optional, Dict, Any
-from .errors import EthereumError
+from ethereum.transactions import Transaction as NeonTrx
+
 from ..environment import neon_cli, NEON_TOKEN_MINT, CHAIN_ID
+
+from .errors import EthereumError
+from .types import NeonEmulatingResult
 
 
 @logged_group("neon.Proxy")
-def call_emulated(contract_id, caller_id, data=None, value=None, *, logger):
+def call_emulated(contract_id, caller_id, data=None, value=None, *, logger) -> NeonEmulatingResult:
     output = emulator(contract_id, caller_id, data, value)
     logger.debug(f"Call emulated. contract_id: {contract_id}, caller_id: {caller_id}, data: {data}, value: {value}, return: {output}")
     result = json.loads(output)
     check_emulated_exit_status(result)
     return result
+
+
+@logged_group("neon.Proxy")
+def call_trx_emulated(neon_trx: NeonTrx, *, logger) -> NeonEmulatingResult:
+    neon_sender_acc = neon_trx.sender()
+    contract = neon_trx.contract()
+    logger.debug(f'sender address: 0x{neon_sender_acc}')
+    if contract:
+        dst = 'deploy'
+        logger.debug(f'deploy contract: {contract}')
+    else:
+        dst = neon_trx.toAddress.hex()
+        logger.debug(f'destination address {dst}')
+    logger.debug(f"Calling data: {(dst, neon_sender_acc, neon_trx.callData.hex(), hex(neon_trx.value))}")
+    emulator_json = call_emulated(dst, neon_sender_acc, neon_trx.callData.hex(), hex(neon_trx.value))
+    logger.debug(f'emulator returns: {json.dumps(emulator_json, sort_keys=True)}')
+    return emulator_json
 
 
 @logged_group("neon.Proxy")

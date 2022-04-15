@@ -17,7 +17,7 @@ DENIAL_TOKEN_ADDR = ELF_PARAMS.get("NEON_PERMISSION_DENIAL_TOKEN", '')
 
 @logged_group("neon.AccountWhitelist")
 class AccountWhitelist:
-    def __init__(self, solana: SolanaInteractor, payer: SolanaAccount, permission_update_int: int):
+    def __init__(self, solana: SolanaInteractor, permission_update_int: int):
         self.solana = solana
         self.account_cache = {}
         self.permission_update_int = permission_update_int
@@ -31,13 +31,8 @@ class AccountWhitelist:
             self.error(f'Wrong proxy configuration: allowance and denial tokens must both exist or absent!')
             raise Exception("NEON service is unhealthy. Try again later")
 
-        self.allowance_token = PermissionToken(self.solana,
-                                               PublicKey(ALLOWANCE_TOKEN_ADDR),
-                                               payer)
-
-        self.denial_token = PermissionToken(self.solana,
-                                            PublicKey(DENIAL_TOKEN_ADDR),
-                                            payer)
+        self.allowance_token = PermissionToken(self.solana, PublicKey(ALLOWANCE_TOKEN_ADDR))
+        self.denial_token = PermissionToken(self.solana, PublicKey(DENIAL_TOKEN_ADDR))
 
     def read_balance_diff(self, ether_addr: Union[str, EthereumAddress]) -> int:
         token_list = [
@@ -50,7 +45,7 @@ class AccountWhitelist:
         denial_balance = balance_list[1]
         return allowance_balance - denial_balance
 
-    def grant_permissions(self, ether_addr: Union[str, EthereumAddress], min_balance: int):
+    def grant_permissions(self, ether_addr: Union[str, EthereumAddress], min_balance: int, signer: SolanaAccount):
         try:
             diff = self.read_balance_diff(ether_addr)
             if diff >= min_balance:
@@ -58,14 +53,14 @@ class AccountWhitelist:
                 return True
 
             to_mint = min_balance - diff
-            self.allowance_token.mint_to(to_mint, ether_addr)
+            self.allowance_token.mint_to(to_mint, ether_addr, signer)
             self.info(f'Permissions granted to {ether_addr}')
             return True
         except Exception as err:
             self.error(f'Failed to grant permissions to {ether_addr}: {type(err)}: {err}')
             return False
 
-    def deprive_permissions(self, ether_addr: Union[str, EthereumAddress], min_balance: int):
+    def deprive_permissions(self, ether_addr: Union[str, EthereumAddress], min_balance: int, signer: SolanaAccount):
         try:
             diff = self.read_balance_diff(ether_addr)
             if diff < min_balance:
@@ -73,7 +68,7 @@ class AccountWhitelist:
                 return True
 
             to_mint = diff - min_balance + 1
-            self.denial_token.mint_to(to_mint, ether_addr)
+            self.denial_token.mint_to(to_mint, ether_addr, signer)
             self.info(f'Permissions deprived to {ether_addr}')
             return True
         except Exception as err:
