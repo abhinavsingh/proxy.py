@@ -69,6 +69,9 @@ services:
   indexer:
     environment:
       - SOLANA_URL=$SOLANA_URL
+  deploy_contracts:
+    environment:
+      - SOLANA_URL=$SOLANA_URL
 EOF
 
 

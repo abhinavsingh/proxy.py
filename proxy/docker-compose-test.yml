@@ -155,6 +155,7 @@ services:
     entrypoint: ./run-test-faucet.sh
     depends_on:
       proxy:
+        condition: service_started
         condition: service_healthy
       deploy_contracts:
         condition: service_completed_successfully
