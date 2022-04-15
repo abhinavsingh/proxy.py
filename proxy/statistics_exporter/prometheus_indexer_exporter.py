@@ -8,22 +8,18 @@ class IndexerStatistics(StatisticsExporter):
     registry = CollectorRegistry()
     TX_SOL_SPENT = Histogram(
         'tx_sol_spent', 'How many lamports being spend in Neon transaction per iteration',
-        ['neon_tx_hash', 'sol_tx_hash'],
         registry=registry
     )
     TX_NEON_INCOME = Histogram(
         'tx_neon_income', 'Neon payed for transaction',
-        ['neon_tx_hash'],
         registry=registry
     )
     TX_BPF_PER_ITERATION = Histogram(
         'tx_bpf_per_iteration', 'How many BPF cycles was used in each iteration',
-        ['neon_tx_hash', 'sol_tx_hash'],
         registry=registry
     )
     TX_STEPS_PER_ITERATION = Histogram(
         'tx_steps_per_iteration', 'How many steps was used in each iteration',
-        ['neon_tx_hash', 'sol_tx_hash'],
         registry=registry
     )
     TX_COUNT = Counter('tx_count', 'Count of Neon transactions were completed (independent on status)', registry=registry)
@@ -57,18 +53,18 @@ class IndexerStatistics(StatisticsExporter):
 
     def stat_commit_tx_sol_spent(self, neon_tx_hash: str, sol_tx_hash: str, sol_spent: int):
         if self.do_work:
-            self.TX_SOL_SPENT.labels(neon_tx_hash, sol_tx_hash).observe(sol_spent)
+            self.TX_SOL_SPENT.observe(sol_spent)
 
     def stat_commit_tx_neon_income(self, neon_tx_hash: str, neon_income: int):
         if self.do_work:
-            self.TX_NEON_INCOME.labels(neon_tx_hash).observe(neon_income)
+            self.TX_NEON_INCOME.observe(neon_income)
 
     def stat_commit_tx_steps_bpf(self, neon_tx_hash: str, sol_tx_hash: str, steps: int, bpf: int):
         if self.do_work:
             if bpf:
-                self.TX_BPF_PER_ITERATION.labels(neon_tx_hash, sol_tx_hash).observe(bpf)
+                self.TX_BPF_PER_ITERATION.observe(bpf)
             if steps:
-                self.TX_STEPS_PER_ITERATION.labels(neon_tx_hash, sol_tx_hash).observe(steps)
+                self.TX_STEPS_PER_ITERATION.observe(steps)
 
     def stat_commit_tx_count(self, canceled: bool = False):
         if self.do_work:
