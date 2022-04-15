@@ -793,7 +793,7 @@ class SimpleNeonTxStrategy(BaseNeonTxStrategy, abc.ABC):
         return tx
 
     def execute(self) -> (NeonTxResultInfo, [str]):
-        tx_list = self.s.build_account_tx_list(not self._skip_create_account)
+        tx_list = self.s.build_account_tx_list(self._skip_create_account)
         if len(tx_list) > 0:
             SolTxListSender(self.s, tx_list, self.s.account_txs_name).send()
             self.s.done_account_tx_list(self._skip_create_account)
