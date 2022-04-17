@@ -3,14 +3,14 @@ import time
 import traceback
 from multiprocessing.dummy import Pool as ThreadPool
 from logged_groups import logged_group
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from .trx_receipts_storage import TxReceiptsStorage
 from .utils import MetricsToLogBuff
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..indexer.sql_dict import SQLDict
 
-from ..environment import RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
+from ..environment import INDEXER_POLL_COUNT, RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
 from ..environment import HISTORY_START, PARALLEL_REQUESTS, FINALIZED, EVM_LOADER_ID
 
 
@@ -138,10 +138,14 @@ class IndexerBase:
 
                 if not self.transaction_receipts.contains(slot, sol_sign):
                     poll_txs.append((sol_sign, slot, tx_idx))
+
+                if len(poll_txs) >= INDEXER_POLL_COUNT:
+                    self._get_txs(poll_txs)
+
                 tx_idx += 1
 
-        pool = ThreadPool(PARALLEL_REQUESTS)
-        pool.map(self._get_tx_receipts, poll_txs)
+        if len(poll_txs) > 0:
+            self._get_txs(poll_txs)
 
         self.current_slot = current_slot
         self.counter_ = 0
@@ -162,7 +166,12 @@ class IndexerBase:
             self.warning(f'Fail to get signatures: {error}')
         return result
 
-    def _get_tx_receipts(self, param):
+    def _get_txs(self, poll_txs: List[Tuple[str, int, int]]) -> None:
+        pool = ThreadPool(PARALLEL_REQUESTS)
+        pool.map(self._get_tx_receipts, poll_txs)
+        poll_txs.clear()
+
+    def _get_tx_receipts(self, param: Tuple[str, int, int]) -> None:
         # tx = None
         retry = RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
 

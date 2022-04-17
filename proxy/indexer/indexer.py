@@ -1,5 +1,5 @@
 import copy
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Dict
 
 import base58
 import time
@@ -19,7 +19,7 @@ from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo, str_fmt_object
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.solana_receipt_parser import SolReceiptParser
 
-from ..environment import EVM_LOADER_ID, FINALIZED, CANCEL_TIMEOUT
+from ..environment import EVM_LOADER_ID, FINALIZED, CANCEL_TIMEOUT, HOLDER_TIMEOUT
 
 
 @logged_group("neon.Indexer")
@@ -128,8 +128,19 @@ class NeonHolderObject(BaseEvmObject):
         self.count_written = 0
         self.max_written = 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str_fmt_object(self)
+
+    def __str_dict__(self) -> Dict:
+        return {
+            'len(used_ixs)': len(self.used_ixs),
+            'len(ixs_cost)': len(self.ixs_cost),
+            'slot': self.slot,
+            'account': str(self.account),
+            'len(self.data)': len(self.data),
+            'count_written': self.count_written,
+            'max_written': self.max_written
+        }
 
 
 class NeonTxResult(BaseEvmObject):
@@ -146,6 +157,19 @@ class NeonTxResult(BaseEvmObject):
     def __str__(self):
         return str_fmt_object(self)
 
+    def __str_dict__(self) -> Dict:
+        return {
+            'len(used_ixs)': len(self.used_ixs),
+            'len(ixs_cost)': len(self.ixs_cost),
+            'slot': self.slot,
+            'storage_account': str(self.storage_account),
+            'holder_account': str(self.holder_account),
+            'neon_tx': self.neon_tx,
+            'neon_res': self.neon_res,
+            'len(blocked_accounts)': len(self.blocked_accounts),
+            'canceled': self.canceled,
+            'done': self.done
+        }
 
 @logged_group("neon.Indexer")
 class ReceiptsParserState:
@@ -184,6 +208,7 @@ class ReceiptsParserState:
         self._holder_table = {}
         self._tx_table = {}
         self._done_tx_list = []
+        self._done_holder_list = []
         self.neon_tx_result = []
         self._used_ixs = {}
         self.ix = SolanaIxInfo(sign='', slot=-1, tx=None)
@@ -203,7 +228,7 @@ class ReceiptsParserState:
             if self._used_ixs[ix] == 0:
                 del self._used_ixs[ix]
 
-    def find_min_used_slot(self, min_slot):
+    def find_min_used_slot(self, min_slot) -> int:
         for ix in self._used_ixs:
             min_slot = min(min_slot, ix.slot)
         return min_slot
@@ -246,7 +271,10 @@ class ReceiptsParserState:
         tx.done = True
         self._done_tx_list.append(tx)
 
-    def complete_done_txs(self):
+    def done_holder(self, holder: NeonHolderObject):
+        self._done_holder_list.append(holder)
+
+    def complete_done_objects(self, min_used_slot: int):
         """
         Slot is done, store all done neon txs into the DB.
         """
@@ -259,18 +287,28 @@ class ReceiptsParserState:
             self.del_tx(tx)
         self._done_tx_list.clear()
 
+        for holder in self._done_holder_list:
+            self.unmark_ix_used(holder)
+            self.del_holder(holder)
+        self._done_holder_list.clear()
+
         holders = len(self._holder_table)
         transactions = len(self._tx_table)
         used_ixs = len(self._used_ixs)
-        if holders > 0 or transactions > 0 or used_ixs > 0:
+        if ((holders > 0) or (transactions > 0) or (used_ixs > 0)) and (min_used_slot != 0):
             self.debug('Receipt state stats: ' +
-                        f'holders {holders}, ' +
-                        f'transactions {transactions}, ' +
-                        f'used ixs {used_ixs}')
+                       f'holders {holders}, ' +
+                       f'transactions {transactions}, ' +
+                       f'used ixs {used_ixs}, ' +
+                       f'min_used_slot {min_used_slot}')
 
-    def iter_txs(self):
+    def iter_txs(self) -> Iterator[NeonTxResult]:
         for tx in self._tx_table.values():
             yield tx
+
+    def iter_holders(self) -> Iterator[NeonHolderObject]:
+        for holder in self._holder_table.values():
+            yield holder
 
     def add_account_to_db(self, neon_account: NeonAccountInfo):
         self._db.fill_account_info_by_indexer(neon_account)
@@ -759,6 +797,7 @@ class Indexer(IndexerBase):
         last_known_slot = self.db.get_min_receipt_slot()
         IndexerBase.__init__(self, solana, last_known_slot)
         self.indexed_slot = self.last_slot
+        self.min_used_slot = 0
         self.canceller = Canceller(solana)
         self.blocked_storages = {}
         self.block_indexer = BlocksIndexer(db=self.db, solana=solana)
@@ -817,7 +856,7 @@ class Indexer(IndexerBase):
                 break
 
             if max_slot != slot:
-                self.state.complete_done_txs()
+                self.state.complete_done_objects(self.min_used_slot)
                 max_slot = max(max_slot, slot)
 
             ix_info = SolanaIxInfo(sign=sign, slot=slot, tx=tx)
@@ -830,8 +869,10 @@ class Indexer(IndexerBase):
 
             tx_costs.append(ix_info.cost_info)
 
-        self.indexed_slot = last_block_slot
-        self.db.set_min_receipt_slot(self.state.find_min_used_slot(self.indexed_slot))
+        if max_slot:
+            self.indexed_slot = max_slot + 1
+            self.min_used_slot = self.state.find_min_used_slot(self.indexed_slot)
+            self.db.set_min_receipt_slot(self.state.find_min_used_slot(self.indexed_slot))
 
         # cancel transactions with long inactive time
         for tx in self.state.iter_txs():
@@ -840,15 +881,28 @@ class Indexer(IndexerBase):
                     tx.neon_res.slot = self.indexed_slot
                     self.state.done_tx(tx)
 
+        # remove old holders with long inactive time
+        for holder in self.state.iter_holders():
+            if abs(holder.slot - self.current_slot) > HOLDER_TIMEOUT:
+                self.state.done_holder(holder)
+
         # after last instruction and slot
-        self.state.complete_done_txs()
-        self.db.add_tx_costs(tx_costs)
+        self.state.complete_done_objects(self.min_used_slot)
+
+        if max_slot:
+            self.db.add_tx_costs(tx_costs)
 
         process_receipts_ms = (time.time() - start_time) * 1000  # convert this into milliseconds
         self.counted_logger.print(
             self.debug,
-            list_params={"process_receipts_ms": process_receipts_ms, "processed_slots": self.current_slot - self.indexed_slot},
-            latest_params={"transaction_receipts.len": self.transaction_receipts.size(), "indexed_slot": self.indexed_slot}
+            list_params={
+                "process_receipts_ms": process_receipts_ms,
+                "processed_slots": self.current_slot - self.indexed_slot
+            },
+            latest_params={
+                "transaction_receipts.len": self.transaction_receipts.size(),
+                "indexed_slot": self.indexed_slot
+            }
         )
 
     def unlock_accounts(self, tx) -> bool:

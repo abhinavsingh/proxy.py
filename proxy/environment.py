@@ -29,9 +29,12 @@ FUZZING_BLOCKHASH = os.environ.get("FUZZING_BLOCKHASH", "NO") == "YES"
 CONFIRM_TIMEOUT = max(int(os.environ.get("CONFIRM_TIMEOUT", 10)), 10)
 PARALLEL_REQUESTS = int(os.environ.get("PARALLEL_REQUESTS", "2"))
 HISTORY_START = "7BdwyUQ61RUZP63HABJkbW66beLk22tdXnP69KsvQBJekCPVaHoJY47Rw68b3VV1UbQNHxX3uxUSLfiJrfy2bTn"
+INDEXER_POLL_COUNT = int(os.environ.get("INDEXER_POLL_COUNT", "1000"))
 START_SLOT = os.environ.get('START_SLOT', 0)
+INDEXER_RECEIPTS_COUNT_LIMIT = int(os.environ.get("INDEXER_RECEIPTS_COUNT_LIMIT", "1000"))
 FINALIZED = os.environ.get('FINALIZED', 'finalized')
 CANCEL_TIMEOUT = int(os.environ.get("CANCEL_TIMEOUT", "60"))
+HOLDER_TIMEOUT = int(os.environ.get("HOLDER_TIMEOUT", "216000"))  # 1 day by default
 ACCOUNT_PERMISSION_UPDATE_INT = int(os.environ.get("ACCOUNT_PERMISSION_UPDATE_INT", 60 * 5))
 PERM_ACCOUNT_LIMIT = max(int(os.environ.get("PERM_ACCOUNT_LIMIT", 2)), 2)
 OPERATOR_FEE = Decimal(os.environ.get("OPERATOR_FEE", "0.1"))

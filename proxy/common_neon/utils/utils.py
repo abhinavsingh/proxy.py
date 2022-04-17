@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import json
 import base58
@@ -12,11 +12,17 @@ from ...environment import EVM_LOADER_ID
 from ..eth_proto import Trx as EthTx
 
 
-def str_fmt_object(obj):
+def str_fmt_object(obj) -> str:
+    def lookup(o) -> Optional[Dict]:
+        if hasattr(o, '__str_dict__'):
+            return o.__str_dict__()
+        elif hasattr(o, '__dict__'):
+            return o.__dict__
+        return None
+
     name = f'{type(obj)}'
     name = name[name.rfind('.') + 1:-2]
-    lookup = lambda o: o.__dict__ if hasattr(o, '__dict__') else None
-    members = {json.dumps(obj, skipkeys=True, default=lookup, sort_keys=True)}
+    members = json.dumps(obj, skipkeys=True, default=lookup, sort_keys=True)
     return f'{name}: {members}'
 
 
@@ -32,6 +38,17 @@ class SolanaBlockInfo:
 
     def __str__(self) -> str:
         return str_fmt_object(self)
+
+    def __str_dict__(self) -> Dict:
+        return {
+            'slot': self.slot,
+            'is_finalized': self.is_finalized,
+            'is_fake': self.is_fake,
+            'hash': self.hash,
+            'parent_hash': self.parent_hash,
+            'time': self.time,
+            'len(signs)': len(self.signs)
+        }
 
     def __getstate__(self) -> Dict:
         return self.__dict__

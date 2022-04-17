@@ -1,3 +1,4 @@
+from proxy.environment import INDEXER_RECEIPTS_COUNT_LIMIT
 from proxy.indexer.pg_common import encode, decode
 from proxy.indexer.base_db import BaseDB
 
@@ -44,8 +45,31 @@ class TxReceiptsStorage(BaseDB):
 
     def get_txs(self, start_slot=0):
         with self._conn.cursor() as cur:
-            cur.execute(f'SELECT slot, signature, tx FROM {self._table_name}' +
-                        f' WHERE slot >= {start_slot} ORDER BY slot ASC, tx_idx DESC')
+            cur.execute(f'SELECT MIN(slot) FROM {self._table_name} WHERE slot > %s', (start_slot,))
+            min_slot_row = cur.fetchone()
+            min_slot = (min_slot_row[0] if min_slot_row and min_slot_row[0] else 0)
+
+            cur.execute(f'''
+                    SELECT MAX(t.slot) FROM (
+                            SELECT slot FROM {self._table_name}
+                             WHERE slot > %s
+                             ORDER BY slot
+                             LIMIT {INDEXER_RECEIPTS_COUNT_LIMIT}
+                        ) AS t
+                ''',
+                (start_slot,))
+            limit_slot_row = cur.fetchone()
+            limit_slot = (limit_slot_row[0] if limit_slot_row and limit_slot_row[0] else 0)
+
+            stop_slot = max(min_slot, limit_slot, start_slot + 1)
+
+            cur.execute(f'''
+                    SELECT slot, signature, tx FROM {self._table_name}
+                     WHERE slot >= %s AND slot <= %s
+                     ORDER BY slot ASC, tx_idx DESC
+                ''',
+                (start_slot, stop_slot,))
             rows = cur.fetchall()
+
             for row in rows:
                 yield int(row[0]), row[1], decode(row[2])
