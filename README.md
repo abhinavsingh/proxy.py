@@ -2295,10 +2295,11 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--pac-file-url-path PAC_FILE_URL_PATH]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
           [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
+          [--filtered-client-ips-mode FILTERED_CLIENT_IPS_MODE]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.0rc10.dev13+g96428ae.d20220126
+proxy.py v2.4.2.dev11+g0beb02d.d20220420
 
 options:
   -h, --help            show this help message and exit
@@ -2470,7 +2471,9 @@ options:
                         Default: Blocks Facebook. Comma separated list of IPv4
                         and IPv6 addresses.
   --filtered-client-ips-mode FILTERED_CLIENT_IPS_MODE
-                        Default: "blacklist". Can be either "whitelist" (restrict access to specific IPs) or "blacklist" (allow everything except specific IPs).
+                        Default: blacklist. Can be either "whitelist"
+                        (restrict access to specific IPs)or "blacklist" (allow
+                        everything except specific IPs).
   --filtered-client-ips FILTERED_CLIENT_IPS
                         Default: 127.0.0.1,::1. Comma separated list of IPv4
                         and IPv6 addresses.
