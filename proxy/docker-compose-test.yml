@@ -95,6 +95,7 @@ services:
       MINIMAL_GAS_PRICE: 1
       ENABLE_PRIVATE_API: "YES"
       ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID: "YES"
+      LOG_FULL_OBJECT_INFO: "YES"
     hostname: proxy
     depends_on:
       dbcreation:
@@ -198,6 +199,7 @@ services:
       POSTGRES_USER: neon-proxy
       POSTGRES_PASSWORD: neon-proxy-pass
       GATHER_STATISTICS: "YES"
+      LOG_FULL_OBJECT_INFO: "YES"
       CONFIG: ci
     hostname: indexer
     depends_on:

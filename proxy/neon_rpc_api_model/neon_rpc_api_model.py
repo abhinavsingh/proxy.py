@@ -26,7 +26,7 @@ from .transaction_sender import NeonTxSender
 from .operator_resource_list import OperatorResourceList
 from .transaction_validator import NeonTxValidator
 
-NEON_PROXY_PKG_VERSION = '0.7.16-dev'
+NEON_PROXY_PKG_VERSION = '0.7.18-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
@@ -59,6 +59,8 @@ class NeonRpcApiModel:
             self.proxy_id = self.proxy_id_glob.value
             self.proxy_id_glob.value += 1
 
+        if self.proxy_id == 0:
+            self.debug(f'Neon Proxy version: {self.neon_proxy_version()}')
         self.debug(f"Worker id {self.proxy_id}")
 
     def set_stat_exporter(self, stat_exporter: StatisticsExporter):

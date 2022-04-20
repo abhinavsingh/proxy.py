@@ -4,16 +4,10 @@ import re
 import statistics
 
 from solana.publickey import PublicKey
-from logged_groups import logged_group
 from typing import Any, Dict, List, Union, Callable
 from dataclasses import astuple, dataclass
 
-from ..common_neon.address import ether2program
-from ..common_neon.layouts import STORAGE_ACCOUNT_INFO_LAYOUT, CODE_ACCOUNT_INFO_LAYOUT, ACCOUNT_INFO_LAYOUT
-from ..common_neon.solana_interactor import SolanaInteractor
-
 from ..environment import INDEXER_LOG_SKIP_COUNT
-
 
 
 def check_error(trx):
@@ -74,7 +68,7 @@ class CostInfo:
             self.bpf = max(self.bpf, CostInfo.bpf_log(program, log))
             self.heap = max(self.heap, CostInfo.heap_log(log))
 
-    def fill_neon_income(self, pre_balances: List[str], post_balances: List[str]):
+    def fill_neon_income(self, pre_balances: Dict, post_balances: Dict):
         pre_token = 0
         post_token = 0
         for balance in pre_balances:
@@ -105,7 +99,9 @@ class MetricsToLogBuff:
         self.items_list = {}
         self.items_latest = {}
 
-    def print(self, logger: Callable[[str], None], list_params: Dict[str, Union[int, float]], latest_params: Dict[str, int]):
+    def print(self, logger: Callable[[str], None],
+              list_params: Dict[str, Union[int, float]],
+              latest_params: Dict[str, int]):
         for key, value in list_params.items():
             metric_list = self.items_list.setdefault(key, [])
             metric_list.append(value)

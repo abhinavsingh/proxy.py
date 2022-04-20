@@ -13,7 +13,7 @@ class NeonAccountInfo:
     code: Optional[str] = None
     sol_sign: Optional[str] = None
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str_fmt_object(self)
 
     def __iter__(self):

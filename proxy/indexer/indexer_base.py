@@ -93,12 +93,14 @@ class IndexerBase:
     def gather_unknown_transactions(self):
         start_time = time.time()
         poll_txs = []
+        tx_list = []
 
         minimal_tx = None
         maximum_tx = None
         maximum_slot = None
         continue_flag = True
         current_slot = self.solana.get_slot(commitment=FINALIZED)["result"]
+        tx_per_request = 20
 
         counter = 0
         gathered_signatures = 0
@@ -136,14 +138,17 @@ class IndexerBase:
                     continue_flag = False
                     break
 
-                if not self.transaction_receipts.contains(slot, sol_sign):
-                    poll_txs.append((sol_sign, slot, tx_idx))
-
-                if len(poll_txs) >= INDEXER_POLL_COUNT:
-                    self._get_txs(poll_txs)
+                tx_list.append((sol_sign, slot, tx_idx))
+                if len(tx_list) >= tx_per_request:
+                    poll_txs.append(tx_list)
+                    tx_list = []
+                    if len(poll_txs) >= INDEXER_POLL_COUNT / tx_per_request:
+                        self._get_txs(poll_txs)
 
                 tx_idx += 1
 
+        if len(tx_list) > 0:
+            poll_txs.append(tx_list)
         if len(poll_txs) > 0:
             self._get_txs(poll_txs)
 
@@ -166,27 +171,36 @@ class IndexerBase:
             self.warning(f'Fail to get signatures: {error}')
         return result
 
-    def _get_txs(self, poll_txs: List[Tuple[str, int, int]]) -> None:
+    def _get_txs(self, poll_txs: List[List[Tuple[str, int, int]]]) -> None:
         pool = ThreadPool(PARALLEL_REQUESTS)
         pool.map(self._get_tx_receipts, poll_txs)
         poll_txs.clear()
 
-    def _get_tx_receipts(self, param: Tuple[str, int, int]) -> None:
-        # tx = None
-        retry = RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
+    def _get_tx_receipts(self, full_list: List[Tuple[str, int, int]]) -> None:
+        sign_list = []
+        filtered_list = []
+        for sol_sign, slot, tx_idx in full_list:
+            if not self.transaction_receipts.contains(slot, sol_sign):
+                sign_list.append(sol_sign)
+                filtered_list.append((sol_sign, slot, tx_idx))
+        if len(sign_list) == 0:
+            return
 
-        (sol_sign, slot, tx_idx) = param
+        retry = RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
         while retry > 0:
             try:
-                tx = self.solana.get_confirmed_transaction(sol_sign)['result']
-                self._add_tx(sol_sign, tx, slot, tx_idx)
+                tx_list = self.solana.get_multiple_receipts(sign_list)
+                for tx_info, tx in zip(filtered_list, tx_list):
+                    sol_sign, slot, tx_idx = tx_info
+                    self._add_tx(sol_sign, tx, slot, tx_idx)
                 retry = 0
             except Exception as err:
-                self.debug(f'Exception on get_confirmed_transaction: "{err}"')
-                time.sleep(1)
                 retry -= 1
                 if retry == 0:
-                    self.error(f'Exception on get_confirmed_transaction: "{err}"')
+                    self.error(f'Fail to get solana receipts: "{err}"')
+                else:
+                    self.debug(f'Fail to get solana receipts: "{err}"')
+                    time.sleep(3)
 
         self.counter_ += 1
         if self.counter_ % 100 == 0:
@@ -200,7 +214,7 @@ class IndexerBase:
                 if msg["accountKeys"][instruction["programIdIndex"]] == EVM_LOADER_ID:
                     add = True
             if add:
-                self.debug((slot, tx_idx, sol_sign))
+                self.debug(f'{(slot, tx_idx, sol_sign)}')
                 self.transaction_receipts.add_tx(slot, tx_idx, sol_sign, tx)
         else:
             self.debug(f"trx is None {sol_sign}")

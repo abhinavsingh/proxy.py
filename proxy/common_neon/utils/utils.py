@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 import json
 import base58
@@ -7,18 +7,39 @@ import base58
 from eth_utils import big_endian_to_int
 
 #TODO: move it out from here
-from ...environment import EVM_LOADER_ID
+from ...environment import EVM_LOADER_ID, LOG_FULL_OBJECT_INFO
 
 from ..eth_proto import Trx as EthTx
 
 
 def str_fmt_object(obj) -> str:
-    def lookup(o) -> Optional[Dict]:
-        if hasattr(o, '__str_dict__'):
-            return o.__str_dict__()
-        elif hasattr(o, '__dict__'):
-            return o.__dict__
-        return None
+    def lookup(obj) -> Optional[Dict]:
+        if not hasattr(obj, '__dict__'):
+            return None
+
+        result = {}
+        for key, value in obj.__dict__.items():
+            if LOG_FULL_OBJECT_INFO:
+                result[key] = value
+            elif value is None:
+                pass
+            elif isinstance(value, bool):
+                if value:
+                    result[key] = value
+            elif isinstance(value, List):
+                if len(value) > 0:
+                    result[f'len({key})'] = len(value)
+            elif isinstance(value, str) or isinstance(value, bytes) or isinstance(value, bytearray):
+                if len(value) == 0:
+                    continue
+                if isinstance(value, bytes) or isinstance(value, bytearray):
+                    value = '0x' + value.hex()
+                if len(value) > 130:
+                    value = value[:130] + '...'
+                result[key] = value
+            else:
+                result[key] = value
+        return result
 
     name = f'{type(obj)}'
     name = name[name.rfind('.') + 1:-2]
@@ -38,17 +59,6 @@ class SolanaBlockInfo:
 
     def __str__(self) -> str:
         return str_fmt_object(self)
-
-    def __str_dict__(self) -> Dict:
-        return {
-            'slot': self.slot,
-            'is_finalized': self.is_finalized,
-            'is_fake': self.is_fake,
-            'hash': self.hash,
-            'parent_hash': self.parent_hash,
-            'time': self.time,
-            'len(signs)': len(self.signs)
-        }
 
     def __getstate__(self) -> Dict:
         return self.__dict__

@@ -253,9 +253,6 @@ class SolanaInteractor:
 
         return self._send_rpc_request("getSignaturesForAddress", EVM_LOADER_ID, opts)
 
-    def get_confirmed_transaction(self, sol_sign: str, encoding: str = "json"):
-        return self._send_rpc_request("getConfirmedTransaction", sol_sign, encoding)
-
     def get_slot(self, commitment='confirmed') -> RPCResponse:
         opts = {
             'commitment': commitment
@@ -614,7 +611,7 @@ class SolanaInteractor:
         sign_list = [s.result for s in send_result_list if s.result]
         self._confirm_multiple_transactions(sign_list, waiter)
         # Get receipts for good transactions
-        confirmed_list = self._get_multiple_receipts(sign_list)
+        confirmed_list = self.get_multiple_receipts(sign_list)
         # Mix errors with receipts for good transactions
         receipt_list = []
         for s in send_result_list:
@@ -661,10 +658,10 @@ class SolanaInteractor:
 
         self.warning(f'No confirmed status for transactions: {sign_list}')
 
-    def _get_multiple_receipts(self, sign_list: [str]) -> [Any]:
+    def get_multiple_receipts(self, sign_list: [str], commitment='confirmed') -> List[Optional[Dict]]:
         if not len(sign_list):
             return []
-        opts = {"encoding": "json", "commitment": "confirmed"}
+        opts = {"encoding": "json", "commitment": commitment}
         request_list = [(sign, opts) for sign in sign_list]
         response_list = self._send_rpc_batch_request("getTransaction", request_list)
         return [r.get('result') for r in response_list]
