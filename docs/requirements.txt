@@ -149,9 +149,9 @@ mdit-py-plugins==0.3.0 \
     --hash=sha256:b1279701cee2dbf50e188d3da5f51fee8d78d038cdf99be57c6b9d1aa93b4073 \
     --hash=sha256:ecc24f51eeec6ab7eecc2f9724e8272c2fb191c2e93cf98109120c2cace69750
     # via myst-parser
-myst-parser==0.16.1 \
-    --hash=sha256:617a90ceda2162ebf81cd13ad17d879bd4f49e7fb5c4f177bb905272555a2268 \
-    --hash=sha256:a6473b9735c8c74959b49b36550725464f4aecc4481340c9a5f9153829191f83
+myst-parser==0.17.2 \
+    --hash=sha256:1635ce3c18965a528d6de980f989ff64d6a1effb482e1f611b1bfb79e38f3d98 \
+    --hash=sha256:4c076d649e066f9f5c7c661bae2658be1ca06e76b002bb97f02a09398707686c
     # via -r docs/requirements.in
 packaging==21.2 \
     --hash=sha256:096d689d78ca690e4cd8a89568ba06d07ca097e3306a4381635073ca91479966 \
@@ -281,6 +281,10 @@ towncrier==21.3.0 \
     --hash=sha256:6eed0bc924d72c98c000cb8a64de3bd566e5cb0d11032b73fcccf8a8f956ddfe \
     --hash=sha256:e6ccec65418bbcb8de5c908003e130e37fe0e9d6396cb77c1338241071edc082
     # via sphinxcontrib-towncrier
+typing-extensions==4.2.0 \
+    --hash=sha256:6657594ee297170d19f67d55c05852a874e7eb634f4f753dbd667855e07c1708 \
+    --hash=sha256:f1c24655a0da0d1b67f07e17a5e6b2a105894e6824b92096378bb3668ef02376
+    # via myst-parser
 uc-micro-py==1.0.1 \
     --hash=sha256:316cfb8b6862a0f1d03540f0ae6e7b033ff1fa0ddbe60c12cbe0d4cec846a69f \
     --hash=sha256:b7cdf4ea79433043ddfe2c82210208f26f7962c0cfbe3bacb05ee879a7fdb596
