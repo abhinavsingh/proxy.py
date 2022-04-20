@@ -25,7 +25,8 @@ flags.add_argument(
     '--filtered-client-ips-mode',
     type=str,
     default='blacklist',
-    help='Default: blacklist.  Can be either "whitelist" (restrict access to specific IPs) or "blacklist" (allow everything except specific IPs).',
+    help='Default: blacklist.  Can be either "whitelist" (restrict access to specific IPs)'
+    'or "blacklist" (allow everything except specific IPs).',
 )
 
 flags.add_argument(
@@ -42,7 +43,8 @@ class FilterByClientIpPlugin(HttpProxyBasePlugin):
     def before_upstream_connection(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
-        assert not self.flags.unix_socket_path and self.client.addr and self.flags.filtered_client_ips_mode in ('blacklist','whitelist')
+        assert not self.flags.unix_socket_path and self.client.addr
+        assert self.flags.filtered_client_ips_mode in ('blacklist', 'whitelist')
         if self.flags.filtered_client_ips_mode == 'blacklist':
             if self.client.addr[0] in self.flags.filtered_client_ips.split(','):
                 raise HttpRequestRejected(
