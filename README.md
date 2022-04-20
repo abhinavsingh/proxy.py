@@ -2469,6 +2469,8 @@ options:
   --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
                         Default: Blocks Facebook. Comma separated list of IPv4
                         and IPv6 addresses.
+  --filtered-client-ips-mode FILTERED_CLIENT_IPS_MODE
+                        Default: "blacklist". Can be either "whitelist" (restrict access to specific IPs) or "blacklist" (allow everything except specific IPs).
   --filtered-client-ips FILTERED_CLIENT_IPS
                         Default: 127.0.0.1,::1. Comma separated list of IPv4
                         and IPv6 addresses.
