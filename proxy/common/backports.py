@@ -80,7 +80,7 @@ class cached_property:      # pragma: no cover
             except AttributeError:
                 cache, inst._cached_properties = {}, {}
             finally:
-                cache[self.__name__] = (value, now)
+                cache[self.__name__] = (value, now)  # pylint: disable=E0601
         return value
 
 
