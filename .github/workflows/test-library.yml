@@ -537,7 +537,7 @@ jobs:
         --skip-missing-interpreters false
         --skip-pkg-install
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v3
       with:
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
