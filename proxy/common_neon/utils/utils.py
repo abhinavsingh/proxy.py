@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional, List
 import json
 import base58
 
+from enum import Enum
 from eth_utils import big_endian_to_int
 
 #TODO: move it out from here
@@ -19,7 +20,13 @@ def str_fmt_object(obj) -> str:
 
         result = {}
         for key, value in obj.__dict__.items():
-            if LOG_FULL_OBJECT_INFO:
+            if isinstance(value, Enum):
+                value = str(value)
+                idx = value.find('.')
+                if idx != -1:
+                    value = value[idx + 1:]
+                result[key] = value
+            elif LOG_FULL_OBJECT_INFO:
                 result[key] = value
             elif value is None:
                 pass

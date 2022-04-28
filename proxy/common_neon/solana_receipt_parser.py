@@ -36,8 +36,9 @@ class SolTxError(Exception):
 
 @logged_group("neon.Proxy")
 class SolReceiptParser:
-    PROGRAM_FAILED_TO_COMPLETE = 'ProgramFailedToComplete'
     COMPUTATION_BUDGET_EXCEEDED = 'ComputationalBudgetExceeded'
+    PROGRAM_FAILED_TO_COMPLETE = 'ProgramFailedToComplete'
+    PROGRAM_EXCEED_INSTRUCTIONS = 'Program failed to complete: exceeded maximum number of instructions allowed'
     READ_ONLY_BLOCKED = "trying to execute transaction on ro locked account"
     READ_WRITE_BLOCKED = "trying to execute transaction on rw locked account"
     BLOCKHASH_NOTFOUND = 'BlockhashNotFound'
@@ -156,8 +157,16 @@ class SolReceiptParser:
         if isinstance(error_type, list):
             error_type = error_type[1]
 
-        if isinstance(error_type, str):
-            return error_type in (self.PROGRAM_FAILED_TO_COMPLETE, self.COMPUTATION_BUDGET_EXCEEDED)
+        if not isinstance(error_type, str):
+            return False
+
+        if error_type == self.COMPUTATION_BUDGET_EXCEEDED:
+            return True
+        if error_type == self.PROGRAM_FAILED_TO_COMPLETE:
+            log_list = self.get_log_list()
+            for log in log_list:
+                if log.startswith(self.PROGRAM_EXCEED_INSTRUCTIONS):
+                    return True
         return False
 
     def check_if_accounts_blocked(self) -> bool:

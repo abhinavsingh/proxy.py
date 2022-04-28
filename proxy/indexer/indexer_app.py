@@ -18,7 +18,6 @@ class IndexerApp(IIndexerUser):
     def on_neon_tx_result(self, tx_stat: NeonTxStatData):
         self.neon_statistics.on_neon_tx_result(tx_stat)
 
-
     def on_db_status(self, neon_db_status: bool):
         self.neon_statistics.stat_commit_postgres_availability(neon_db_status)
 

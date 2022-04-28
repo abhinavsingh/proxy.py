@@ -26,7 +26,7 @@ from .transaction_sender import NeonTxSender
 from .operator_resource_list import OperatorResourceList
 from .transaction_validator import NeonTxValidator
 
-NEON_PROXY_PKG_VERSION = '0.7.18-dev'
+NEON_PROXY_PKG_VERSION = '0.7.21-dev'
 NEON_PROXY_REVISION = 'NEON_PROXY_REVISION_TO_BE_REPLACED'
 
 
@@ -252,14 +252,29 @@ class NeonRpcApiModel:
                 sign_list.append(tx.neon_tx.sign)
 
         result = {
+            "difficulty": '0x20000',
+            "totalDifficulty": '0x20000',
+            "extraData": "0x" + '0' * 63 + '1',
+            "logsBloom": '0x' + '0' * 512,
+            "gasLimit": '0xec8563e271ac',
+            "transactionsRoot": '0x' + '0' * 63 + '1',
+            "receiptsRoot": '0x' + '0' * 63 + '1',
+            "stateRoot": '0x' + '0' * 64 + '1',
+
+            "uncles": [],
+            "sha3Uncles": '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347',
+
+            "miner": '0x' + '0' * 40,
+            "nonce": '0x0',
+            "mixHash": '0x0',
+            "size": '0x0',
+
             "gasUsed": hex(gas_used),
             "hash": block.hash,
             "number": hex(block.slot),
             "parentHash": block.parent_hash,
             "timestamp": hex(block.time),
             "transactions": sign_list,
-            "logsBloom": '0x'+'0'*512,
-            "gasLimit": '0x6691b7',
         }
         return result
 
@@ -365,6 +380,7 @@ class NeonRpcApiModel:
         result = {
             "transactionHash": tx.neon_tx.sign,
             "transactionIndex": hex(tx.neon_tx.tx_idx),
+            "type": "0x0",
             "blockHash": tx.neon_res.block_hash,
             "blockNumber": hex(tx.neon_res.slot),
             "from": tx.neon_tx.addr,
@@ -398,6 +414,7 @@ class NeonRpcApiModel:
             "blockNumber": hex(r.slot),
             "hash": t.sign,
             "transactionIndex": hex(t.tx_idx),
+            "type": "0x0",
             "from": t.addr,
             "nonce":  t.nonce,
             "gasPrice": t.gas_price,

@@ -43,7 +43,7 @@ class TxReceiptsStorage(BaseDB):
             cur.execute(f'SELECT 1 FROM {self._table_name} WHERE slot = %s AND signature = %s', (slot, signature,))
             return cur.fetchone() is not None
 
-    def get_txs(self, start_slot=0):
+    def get_txs(self, start_slot=0, stop_slot=0):
         with self._conn.cursor() as cur:
             cur.execute(f'SELECT MIN(slot) FROM {self._table_name} WHERE slot > %s', (start_slot,))
             min_slot_row = cur.fetchone()
@@ -61,14 +61,16 @@ class TxReceiptsStorage(BaseDB):
             limit_slot_row = cur.fetchone()
             limit_slot = (limit_slot_row[0] if limit_slot_row and limit_slot_row[0] else 0)
 
-            stop_slot = max(min_slot, limit_slot, start_slot + 1)
+            limit_slot = max(min_slot, limit_slot, start_slot + 1)
+            if stop_slot > 0:
+                limit_slot = min(stop_slot, limit_slot)
 
             cur.execute(f'''
                     SELECT slot, signature, tx FROM {self._table_name}
                      WHERE slot >= %s AND slot <= %s
                      ORDER BY slot ASC, tx_idx DESC
                 ''',
-                (start_slot, stop_slot,))
+                (start_slot, limit_slot,))
             rows = cur.fetchall()
 
             for row in rows:

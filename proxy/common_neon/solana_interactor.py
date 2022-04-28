@@ -151,7 +151,7 @@ class SolanaInteractor:
         self._client = SolanaClient(solana_url)._provider
         self._fuzzing_hash_cycle = False
 
-    def _make_request(self, request) -> RPCResponse:
+    def _send_post_request(self, request) -> RPCResponse:
         """This method is used to make retries to send request to Solana"""
 
         headers = {
@@ -168,16 +168,19 @@ class SolanaInteractor:
                 return raw_response
 
             except requests.exceptions.RequestException as err:
+                # Hide the Solana URL
+                str_err = str(err).replace(client.endpoint_uri, 'XXXXX')
+
                 if retry <= RETRY_ON_FAIL:
-                    self.debug(f'Receive connection error {str(err)} on connection to Solana. ' +
+                    self.debug(f'Receive connection error {str_err} on connection to Solana. ' +
                                f'Attempt {retry + 1} to send the request to Solana node...')
                     time.sleep(1)
                     continue
 
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
                 self.error(f'Connection exception({retry}) on send request to Solana. Retry {retry}' +
-                           f'Type(err): {type(err)}, Error: {str(err)}, Traceback: {err_tb}')
-                raise
+                           f'Type(err): {type(err)}, Error: {str_err}, Traceback: {err_tb}')
+                raise Exception(str_err)
 
             except Exception as err:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
@@ -194,38 +197,41 @@ class SolanaInteractor:
             "method": method,
             "params": params
         }
-        raw_response = self._make_request(request)
+        raw_response = self._send_post_request(request)
         return cast(RPCResponse, raw_response.json())
 
     def _send_rpc_batch_request(self, method: str, params_list: List[Any]) -> List[RPCResponse]:
-        full_request_data = []
-        full_response_data = []
-        request_data = []
+        full_request_list = []
+        full_response_list = []
+        request_list = []
+        request_data = ''
         client = self._client
 
         for params in params_list:
             request_id = next(client._request_counter) + 1
             request = {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}
-            request_data.append(request)
-            full_request_data.append(request)
+            request_list.append(request)
+            request_data += ', ' + json.dumps(request)
+            full_request_list.append(request)
 
             # Protection from big payload
-            if len(request_data) >= 25 or len(full_request_data) == len(params_list):
-                raw_response = self._make_request(request_data)
+            if len(request_data) >= 48 * 1024 or len(full_request_list) == len(params_list):
+                raw_response = self._send_post_request(request_list)
                 response_data = cast(List[RPCResponse], raw_response.json())
 
-                full_response_data += response_data
-                request_data.clear()
+                full_response_list += response_data
+                request_list.clear()
+                request_data = ''
 
-        full_response_data.sort(key=lambda r: r["id"])
+        full_response_list.sort(key=lambda r: r["id"])
 
-        for request, response in zip_longest(full_request_data, full_response_data):
+        for request, response in zip_longest(full_request_list, full_response_list):
             # self.debug(f'Request: {request}')
             # self.debug(f'Response: {response}')
             if request["id"] != response["id"]:
                 raise RuntimeError(f"Invalid RPC response: request {request} response {response}")
 
-        return full_response_data
+        return full_response_list
 
     def get_cluster_nodes(self) -> [dict]:
         return self._send_rpc_request("getClusterNodes").get('result', [])
@@ -498,21 +504,24 @@ class SolanaInteractor:
             block_list.append(block)
         return block_list
 
-    def get_recent_blockslot(self, commitment='confirmed') -> int:
+    def get_recent_blockslot(self, commitment='confirmed', default: Optional[int] = None) -> int:
         opts = {
             'commitment': commitment
         }
-        blockhash_resp = self._send_rpc_request('getRecentBlockhash', opts)
-        if not blockhash_resp["result"]:
-            raise RuntimeError("failed to get recent blockhash")
+        blockhash_resp = self._send_rpc_request('getLatestBlockhash', opts)
+        if not blockhash_resp.get("result"):
+            if default:
+                return default
+            self.debug(f'{blockhash_resp}')
+            raise RuntimeError("failed to get latest blockhash")
         return blockhash_resp['result']['context']['slot']
 
     def get_recent_blockhash(self, commitment='confirmed') -> Blockhash:
         opts = {
             'commitment': commitment
         }
-        blockhash_resp = self._send_rpc_request('getRecentBlockhash', opts)
-        if not blockhash_resp["result"]:
+        blockhash_resp = self._send_rpc_request('getLatestBlockhash', opts)
+        if not blockhash_resp.get("result"):
             raise RuntimeError("failed to get recent blockhash")
         blockhash = blockhash_resp["result"]["value"]["blockhash"]
         return Blockhash(blockhash)
@@ -622,15 +631,35 @@ class SolanaInteractor:
 
         return receipt_list
 
+    def _get_confirmed_slot_for_transactions(self, sign_list: [str]) -> (int, bool):
+        opts = {
+            "searchTransactionHistory": False
+        }
+
+        slot = 0
+        while len(sign_list):
+            (part_sign_list, sign_list) = (sign_list[:100], sign_list[100:])
+            response = self._send_rpc_request("getSignatureStatuses", part_sign_list, opts)
+
+            result = response.get('result', None)
+            if not result:
+                return slot, False
+
+            slot = result['context']['slot']
+
+            for status in result['value']:
+                if not status:
+                    return slot, False
+                if status['confirmationStatus'] == 'processed':
+                    return slot, False
+
+        return slot, (slot != 0)
+
     def _confirm_multiple_transactions(self, sign_list: [str], waiter=None):
         """Confirm a transaction."""
         if not len(sign_list):
             self.debug('No confirmations, because transaction list is empty')
             return
-
-        opts = {
-            "searchTransactionHistory": False
-        }
 
         elapsed_time = 0
         while elapsed_time < CONFIRM_TIMEOUT:
@@ -638,21 +667,11 @@ class SolanaInteractor:
                 time.sleep(CONFIRMATION_CHECK_DELAY)
             elapsed_time += CONFIRMATION_CHECK_DELAY
 
-            response = self._send_rpc_request("getSignatureStatuses", sign_list, opts)
-            result = response.get('result', None)
-            if not result:
-                continue
-
+            slot, is_confirmed = self._get_confirmed_slot_for_transactions(sign_list)
             if waiter:
-                slot = result['context']['slot']
                 waiter.on_wait_confirm(elapsed_time, slot)
 
-            for status in result['value']:
-                if not status:
-                    break
-                if status['confirmationStatus'] == 'processed':
-                    break
-            else:
+            if is_confirmed:
                 self.debug(f'Got confirmed status for transactions: {sign_list}')
                 return
 
