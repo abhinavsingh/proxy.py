@@ -50,7 +50,11 @@ class KeyStorage:
     def get_list(self) -> [EthereumAddress]:
         return [EthereumAddress.from_private_key(bytes.fromhex(p)) for p in self._key_list]
 
-    def get_key(self, address) -> Optional[EthereumAddress]:
+    def get_key(self, address: str) -> Optional[EthereumAddress]:
+        if not isinstance(address, str):
+            return None
+
+        address = address.lower()
         account_list = self.get_list()
         for account in account_list:
             if str(account) == address:

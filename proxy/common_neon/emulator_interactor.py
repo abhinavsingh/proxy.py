@@ -3,7 +3,7 @@ import subprocess
 from logged_groups import logged_group
 
 from typing import Optional, Dict, Any
-from ethereum.transactions import Transaction as NeonTrx
+from ..common_neon.eth_proto import Trx as NeonTrx
 
 from ..environment import neon_cli, NEON_TOKEN_MINT, CHAIN_ID
 
