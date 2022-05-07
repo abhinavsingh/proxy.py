@@ -286,13 +286,15 @@ class MemBlocksDB:
             num_len = len(hex_num)
             hex_num = '00' + hex_num.rjust(((num_len >> 1) + (num_len % 2)) << 1, '0')
             return '0x' + hex_num.rjust(64, 'f')
-
+        hash = slot_hash(block_slot)
         # TODO: return predictable information about block time
         return SolanaBlockInfo(
             slot=block_slot,
             time=(block_time or 1),
-            hash=slot_hash(block_slot),
-            parent_hash=slot_hash(block_slot - 1),
+            hash=hash,
+            # return the prev block's computed hash if the block is not the first block
+            # if the block is the first block (0x0) -- then just return the hash of this block itself
+            parent_hash=slot_hash(block_slot - 1) if block_slot > 0 else hash,
             is_fake=True
         )
 
