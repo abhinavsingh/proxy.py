@@ -124,6 +124,7 @@
     - [Setup Local Environment](#setup-local-environment)
     - [Setup Git Hooks](#setup-git-hooks)
     - [Sending a Pull Request](#sending-a-pull-request)
+- [Projects Using Proxy.Py](#projects-using-proxypy)
 - [Benchmarks](#benchmarks)
 - [Flags](#flags)
 - [Changelog](https://proxypy.rtfd.io/en/latest/changelog)
@@ -2248,6 +2249,21 @@ Every pull request is tested using GitHub actions.
 
 See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
 for list of tests.
+
+# Projects Using Proxy.Py
+
+Some of the projects using `proxy.py`
+
+1. [ray-project](https://github.com/ray-project/ray)
+2. [aio-libs](https://github.com/aio-libs/aiohttp)
+3. [wifipumpkin3](https://github.com/P0cL4bs/wifipumpkin3)
+4. [MerossIot](https://github.com/albertogeniola/MerossIot)
+5. [pyshorteners](https://github.com/ellisonleao/pyshorteners)
+6. [Slack API](https://github.com/slackapi/python-slack-events-api)
+7. [ibeam](https://github.com/Voyz/ibeam)
+8. [PyPaperBot](https://github.com/ferru97/PyPaperBot)
+
+For full list see [used by](https://github.com/abhinavsingh/proxy.py/network/dependents?package_id=UGFja2FnZS01MjQ0MDY5Ng%3D%3D)
 
 # Benchmarks
 
