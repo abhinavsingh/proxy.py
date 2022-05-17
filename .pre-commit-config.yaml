@@ -156,7 +156,7 @@ repos:
   hooks:
   - id: mypy
     additional_dependencies:
-    - paramiko == 2.8.0
+    - paramiko == 2.11.0
     - types-paramiko == 2.7.3
     - types-setuptools == 57.4.2
     args:
