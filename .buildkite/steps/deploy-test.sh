@@ -43,6 +43,7 @@ function cleanup_docker {
 
     if docker logs solana >solana.log 2>&1; then echo "solana logs saved"; fi
     if docker logs evm_loader >evm_loader.log 2>&1; then echo "evm_loader logs saved"; fi
+    if docker logs proxy_program_loader >proxy_program_loader.log 2>&1; then echo "proxy_program_loader logs saved"; fi
     if docker logs dbcreation >dbcreation.log 2>&1; then echo "dbcreation logs saved"; fi
     if docker logs faucet >faucet.log 2>&1; then echo "faucet logs saved"; fi
     if docker logs airdropper >airdropper.log 2>&1; then echo "airdropper logs saved"; fi

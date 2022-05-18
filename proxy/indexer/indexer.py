@@ -1,5 +1,5 @@
 import copy
-from typing import Iterator, Optional, List
+from typing import Iterator, List, Optional, Dict
 
 import base58
 import time
@@ -25,7 +25,7 @@ from ..environment import EVM_LOADER_ID, FINALIZED, CANCEL_TIMEOUT, SKIP_CANCEL_
 
 @logged_group("neon.Indexer")
 class SolanaIxInfo:
-    def __init__(self, sign: str, slot: int, tx: {}):
+    def __init__(self, sign: str, slot: int, tx: Dict):
         self.sign = SolanaIxSignInfo(sign=sign, slot=slot, idx=-1)
         self.cost_info = CostInfo(sign, tx, EVM_LOADER_ID)
         self.tx = tx
@@ -38,6 +38,7 @@ class SolanaIxInfo:
 
     def _set_defaults(self):
         self.ix = {}
+        self.neon_obj = None
         self.evm_ix = 0xFF
         self.ix_data = None
 
@@ -52,6 +53,17 @@ class SolanaIxInfo:
             self.ix_data = None
         return False
 
+    def _get_neon_instruction(self) -> bool:
+        accounts = self._msg['accountKeys']
+        if 'programIdIndex' not in self.ix:
+            self.debug(f'{self} error: fail to get program id')
+            return False
+        if accounts[self.ix['programIdIndex']] != EVM_LOADER_ID:
+            return False
+        if not self._decode_ixdata():
+            return False
+        return True
+
     def clear(self):
         self._set_defaults()
 
@@ -60,23 +72,23 @@ class SolanaIxInfo:
             return
 
         self._set_defaults()
-        accounts = self._msg['accountKeys']
         tx_ixs = enumerate(self._msg['instructions'])
 
         evm_ix_idx = -1
         for ix_idx, self.ix in tx_ixs:
             # Make a new object to keep values in existing
             self.sign = SolanaIxSignInfo(sign=self.sign.sign, slot=self.sign.slot, idx=ix_idx)
-            if 'programIdIndex' not in self.ix:
-                self.debug(f'{self} error: fail to get program id')
-                continue
-            if accounts[self.ix['programIdIndex']] != EVM_LOADER_ID:
-                continue
-            if not self._decode_ixdata():
-                continue
 
-            evm_ix_idx += 1
-            yield evm_ix_idx
+            if self._get_neon_instruction():
+                evm_ix_idx += 1
+                yield evm_ix_idx
+
+            for inner_tx in self.tx['meta']['innerInstructions']:
+                if inner_tx['index'] == ix_idx:
+                    for self.ix in inner_tx['instructions']:
+                        if self._get_neon_instruction():
+                            evm_ix_idx += 1
+                            yield evm_ix_idx
 
         self._set_defaults()
 
@@ -94,7 +106,7 @@ class SolanaIxInfo:
             return msg_keys[ix_accounts[idx]]
         return ''
 
-    def get_account_list(self, start: int) -> [str]:
+    def get_account_list(self, start: int) -> List[str]:
         assert self._is_valid
 
         msg_keys = self._msg['accountKeys']
@@ -450,10 +462,7 @@ class DummyIxDecoder:
         The transaction can already have results, because parser waits all ixs in the slot, because
         the parsing order can be other than the execution order
         """
-        if not tx.neon_res.is_valid():
-            tx.neon_res.decode(tx.neon_tx.sign, self.ix.tx, self.ix.sign.idx)
-            if tx.neon_res.is_valid():
-                return self._decoding_done(tx, 'found Neon results')
+        self.ix.neon_obj = tx
         return self._decoding_success(tx, 'mark ix used')
 
     def _init_tx_from_holder(self,
@@ -653,12 +662,65 @@ class CallFromRawIxDecoder(DummyIxDecoder):
         if neon_tx.error:
             return self._decoding_skip(f'Neon tx rlp error "{neon_tx.error}"')
 
-        neon_res = NeonTxResultInfo(neon_tx.sign, self.ix.tx, self.ix.sign.idx)
         tx = NeonTxResult('')
         tx.neon_tx = neon_tx
-        tx.neon_res = neon_res
 
-        return self._decoding_done(tx, 'call success')
+        return self._decode_tx(tx)
+
+
+class OnResultIxDecoder(DummyIxDecoder):
+    def __init__(self, state: ReceiptsParserState):
+        DummyIxDecoder.__init__(self, 'OnResult', state)
+
+    def execute(self) -> bool:
+        self._decoding_start()
+
+        if self.ix.neon_obj is None:
+            return self._decoding_skip('no transaction to add result')
+
+        log = self.ix.ix_data
+
+        status = '0x1' if log[1] < 0xd0 else '0x0'
+        gas_used = hex(int.from_bytes(log[2:10], 'little'))
+        return_value = log[10:].hex()
+
+        self.ix.neon_obj.neon_res.set_result(self.ix.sign, status, gas_used, return_value)
+        return self._decoding_done(self.ix.neon_obj, 'found Neon results')
+
+
+class OnEventIxDecoder(DummyIxDecoder):
+    def __init__(self, state: ReceiptsParserState):
+        DummyIxDecoder.__init__(self, 'OnEvent', state)
+
+    def execute(self) -> bool:
+        self._decoding_start()
+
+        if self.ix.neon_obj is None:
+            return self._decoding_skip('no transaction to add events')
+
+        log = self.ix.ix_data
+
+        address = log[1:21]
+        count_topics = int().from_bytes(log[21:29], 'little')
+        topics = []
+        pos = 29
+        for _ in range(count_topics):
+            topic_bin = log[pos:pos + 32]
+            topics.append('0x' + topic_bin.hex())
+            pos += 32
+        data = log[pos:]
+        rec = {
+            'address': '0x' + address.hex(),
+            'topics': topics,
+            'data': '0x' + data.hex(),
+            'transactionIndex': hex(self.ix.sign.idx),
+            'transactionHash': self.ix.neon_obj.neon_tx.sign,
+            # 'blockNumber': block_number, # set when transaction found
+            # 'blockHash': block_hash # set when transaction found
+        }
+
+        self.ix.neon_obj.neon_res.append_record(rec)
+        return True
 
 
 class PartialCallIxDecoder(DummyIxDecoder):
@@ -877,8 +939,8 @@ class Indexer(IndexerBase):
             0x03: DummyIxDecoder('Call', self.state),
             0x04: DummyIxDecoder('CreateAccountWithSeed', self.state),
             0x05: CallFromRawIxDecoder(self.state),
-            0x06: DummyIxDecoder('OnEvent', self.state),
-            0x07: DummyIxDecoder('OnResult', self.state),
+            0x06: OnResultIxDecoder(self.state),
+            0x07: OnEventIxDecoder(self.state),
             0x09: PartialCallIxDecoder(self.state),
             0x0a: ContinueIxDecoder(self.state),
             0x0b: ExecuteTrxFromAccountIxDecoder(self.state),

@@ -163,7 +163,7 @@ class IndexerBase:
             latest_params={"maximum_tx": maximum_tx, "maximum_slot": maximum_slot}
         )
 
-    def _get_signatures(self, before: Optional[str], limit: int) -> []:
+    def _get_signatures(self, before: Optional[str], limit: int) -> List:
         response = self.solana.get_signatures_for_address(before, limit, FINALIZED)
         error = response.get('error')
         result = response.get('result', [])
@@ -208,14 +208,7 @@ class IndexerBase:
 
     def _add_tx(self, sol_sign, tx, slot, tx_idx):
         if tx is not None:
-            add = False
-            msg = tx['transaction']['message']
-            for instruction in msg['instructions']:
-                if msg["accountKeys"][instruction["programIdIndex"]] == EVM_LOADER_ID:
-                    add = True
-            if add:
-                self.debug(f'{(slot, tx_idx, sol_sign)}')
-                self.transaction_receipts.add_tx(slot, tx_idx, sol_sign, tx)
+            self.debug(f'{(slot, tx_idx, sol_sign)}')
+            self.transaction_receipts.add_tx(slot, tx_idx, sol_sign, tx)
         else:
             self.debug(f"trx is None {sol_sign}")
-

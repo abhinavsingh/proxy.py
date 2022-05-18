@@ -11,6 +11,8 @@ docker pull neonlabsorg/solana:${SOLANA_REVISION}
 
 # Refreshing neonlabsorg/evm_loader:latest image is required to run .buildkite/steps/build-image.sh locally
 docker pull neonlabsorg/evm_loader:${NEON_EVM_COMMIT}
+# Refreshing neonlabsorg/evm_loader:ci-proxy-caller-program image is required to run .buildkite/steps/build-image.sh locally
+docker pull neonlabsorg/evm_loader:ci-proxy-caller-program
 
 docker build -t neonlabsorg/proxy:${REVISION} \
     --build-arg SOLANA_REVISION=${SOLANA_REVISION} \

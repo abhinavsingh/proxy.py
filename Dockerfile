@@ -4,6 +4,7 @@ ARG NEON_EVM_COMMIT=latest
 FROM neonlabsorg/solana:${SOLANA_REVISION} AS cli
 
 FROM neonlabsorg/evm_loader:${NEON_EVM_COMMIT} AS spl
+FROM neonlabsorg/evm_loader:ci-proxy-caller-program AS proxy_program
 
 FROM ubuntu:20.04
 
@@ -39,6 +40,7 @@ COPY --from=spl /opt/solana_utils.py \
                 /opt/eth_tx_utils.py \
                 /spl/bin/
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
+COPY --from=proxy_program /opt/proxy_program-keypair.json /spl/bin/
 
 COPY proxy/operator-keypairs/id.json /root/.config/solana/
 
