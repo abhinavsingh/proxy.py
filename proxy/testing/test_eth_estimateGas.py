@@ -24,6 +24,12 @@ contract Reverting {
         require(2>3, 'revert');
         return 1;
     }
+
+    function consume_a_lot() public returns (uint256) {
+        uint256 SOME_BIG_INT = 800000;
+        require(gasleft() >= SOME_BIG_INT, "!gas");
+        return 1;
+    }
 }
 '''
 
@@ -69,7 +75,7 @@ class Test_eth_estimateGas(unittest.TestCase):
 
     # @unittest.skip("a.i.")
     def test_01_check_do_revert(self):
-        print("\ntest_check_get_block_by_number")
+        print("\ntest_01_check_do_revert")
         try:
             nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
             trx_revert = self.reverting_contract.functions.do_revert().buildTransaction({'nonce': nonce})
@@ -81,6 +87,15 @@ class Test_eth_estimateGas(unittest.TestCase):
             print('type(e):', type(e))
             print('e:', e)
             self.assertTrue(True)
+
+    # @unittest.skip("a.i.")
+    def test_02_check_no_revert_big_gas(self):
+        print("\ntest_02_check_no_revert_big_gas")
+        nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
+        trx_big_gas = self.reverting_contract.functions.consume_a_lot().buildTransaction({'nonce': nonce})
+        print('trx_big_gas:', trx_big_gas)
+        trx_estimate_gas_response = proxy.eth.estimate_gas(trx_big_gas)
+        print('trx_estimate_gas_response:', trx_estimate_gas_response)
 
 
 if __name__ == '__main__':
