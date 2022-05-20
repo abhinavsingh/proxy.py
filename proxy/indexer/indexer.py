@@ -964,7 +964,6 @@ class Indexer(IndexerBase):
 
     def process_functions(self):
         self.block_indexer.gather_blocks()
-        IndexerBase.process_functions(self)
         self.process_receipts()
         self.canceller.unlock_accounts(self.blocked_storages)
         self.blocked_storages = {}
@@ -977,7 +976,7 @@ class Indexer(IndexerBase):
         max_slot = 1
         while max_slot > 0:
             max_slot = 0
-            for slot, sign, tx in self.transaction_receipts.get_txs(self.indexed_slot, last_block_slot):
+            for slot, sign, tx in self.get_tx_receipts(last_block_slot):
                 max_slot = max(max_slot, slot)
 
                 ix_info = SolanaIxInfo(sign=sign, slot=slot, tx=tx)
@@ -1017,7 +1016,6 @@ class Indexer(IndexerBase):
                 "processed slots": self.indexed_slot - start_indexed_slot
             },
             latest_params={
-                "transaction receipts len": self.transaction_receipts.size(),
                 "indexed slot": self.indexed_slot,
                 "min used slot": self.min_used_slot
             }
