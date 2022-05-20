@@ -11,12 +11,12 @@ autopep8==1.6.0
 mypy==0.940
 py-spy==0.3.11
 codecov==2.1.12
-tox==3.24.5
+tox==3.25.0
 mccabe==0.6.1
 pylint==2.13.7
 rope==0.22.0
 # Required by test_http2.py
-httpx==0.21.3
+httpx==0.22.0
 h2==4.1.0
 hpack==4.0.0
 hyperframe==6.0.1
