@@ -124,6 +124,7 @@
     - [Setup Local Environment](#setup-local-environment)
     - [Setup Git Hooks](#setup-git-hooks)
     - [Sending a Pull Request](#sending-a-pull-request)
+- [Projects Using Proxy.Py](#projects-using-proxypy)
 - [Benchmarks](#benchmarks)
 - [Flags](#flags)
 - [Changelog](https://proxypy.rtfd.io/en/latest/changelog)
@@ -2249,6 +2250,21 @@ Every pull request is tested using GitHub actions.
 See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
 for list of tests.
 
+# Projects Using Proxy.Py
+
+Some of the projects using `proxy.py`
+
+1. [ray-project](https://github.com/ray-project/ray)
+2. [aio-libs](https://github.com/aio-libs/aiohttp)
+3. [wifipumpkin3](https://github.com/P0cL4bs/wifipumpkin3)
+4. [MerossIot](https://github.com/albertogeniola/MerossIot)
+5. [pyshorteners](https://github.com/ellisonleao/pyshorteners)
+6. [Slack API](https://github.com/slackapi/python-slack-events-api)
+7. [ibeam](https://github.com/Voyz/ibeam)
+8. [PyPaperBot](https://github.com/ferru97/PyPaperBot)
+
+For full list see [used by](https://github.com/abhinavsingh/proxy.py/network/dependents?package_id=UGFja2FnZS01MjQ0MDY5Ng%3D%3D)
+
 # Benchmarks
 
 See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisons with other OSS web servers.
@@ -2295,10 +2311,11 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--pac-file-url-path PAC_FILE_URL_PATH]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
           [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
+          [--filtered-client-ips-mode FILTERED_CLIENT_IPS_MODE]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.0rc10.dev13+g96428ae.d20220126
+proxy.py v2.4.2.dev11+g0beb02d.d20220420
 
 options:
   -h, --help            show this help message and exit
@@ -2469,6 +2486,10 @@ options:
   --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
                         Default: Blocks Facebook. Comma separated list of IPv4
                         and IPv6 addresses.
+  --filtered-client-ips-mode FILTERED_CLIENT_IPS_MODE
+                        Default: blacklist. Can be either "whitelist"
+                        (restrict access to specific IPs)or "blacklist" (allow
+                        everything except specific IPs).
   --filtered-client-ips FILTERED_CLIENT_IPS
                         Default: 127.0.0.1,::1. Comma separated list of IPv4
                         and IPv6 addresses.

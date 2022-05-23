@@ -149,15 +149,16 @@ repos:
     - flake8-2020 >= 1.6.0
     - flake8-docstrings >= 1.5.0
     - flake8-pytest-style >= 1.2.2
-    - wemake-python-styleguide ~= 0.15.0
+    - wemake-python-styleguide >= 0.16.1
 
 - repo: https://github.com/pre-commit/mirrors-mypy.git
   rev: v0.910
   hooks:
   - id: mypy
     additional_dependencies:
-    - paramiko == 2.8.0
+    - paramiko == 2.11.0
     - types-paramiko == 2.7.3
+    - cryptography==36.0.2; python_version <= '3.6'
     - types-setuptools == 57.4.2
     args:
     # FIXME: get rid of missing imports ignore

@@ -72,7 +72,7 @@ jobs:
       container-platforms: ${{ steps.container.outputs.platforms }}
     steps:
     - name: Switch to using Python 3.9 by default
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.9
     - name: >-
@@ -95,7 +95,7 @@ jobs:
     - name: Check out src from Git
       if: >-
         steps.request-check.outputs.release-requested != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
         ref: ${{ github.event.inputs.release-commitish }}
@@ -135,7 +135,7 @@ jobs:
     - name: Set up pip cache
       if: >-
         steps.request-check.outputs.release-requested != 'true'
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3.0.2
       with:
         path: ${{ steps.pip-cache-dir.outputs.dir }}
         key: >-
@@ -225,7 +225,7 @@ jobs:
 
     steps:
     - name: Switch to using Python v3.10
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: '3.10'
     - name: >-
@@ -244,7 +244,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3.0.2
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
@@ -266,7 +266,7 @@ jobs:
         tox
 
     - name: Grab the source from Git
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
         ref: ${{ github.event.inputs.release-commitish }}
@@ -313,7 +313,7 @@ jobs:
         'dist/${{ needs.pre-setup.outputs.sdist-artifact-name }}'
         'dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}'
     - name: Store the distribution packages
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: python-package-distributions
         # NOTE: Exact expected file names are specified here
@@ -350,7 +350,7 @@ jobs:
 
     steps:
     - name: Switch to using Python v3.10
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: '3.10'
     - name: >-
@@ -369,7 +369,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3.0.2
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
@@ -391,7 +391,7 @@ jobs:
         tox
 
     - name: Grab the source from Git
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
 
@@ -403,7 +403,7 @@ jobs:
       shell: bash
     - name: Download all the dists
       if: matrix.toxenv == 'metadata-validation'
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
@@ -467,7 +467,7 @@ jobs:
 
     steps:
     - name: Switch to using Python v${{ matrix.python }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python }}
     - name: >-
@@ -486,7 +486,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3.0.2
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
@@ -508,12 +508,12 @@ jobs:
         tox
 
     - name: Grab the source from Git
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
 
     - name: Download all the dists
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
@@ -537,7 +537,7 @@ jobs:
         --skip-missing-interpreters false
         --skip-pkg-install
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v3
       with:
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
@@ -553,17 +553,17 @@ jobs:
     name: 🐳 Build & Test
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
     - name: Set up Docker Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
       # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
       with:
         version: v0.7.0
@@ -621,7 +621,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         # We must fetch at least the immediate parents so that if this is
         # a pull request then we can checkout the head.
@@ -629,7 +629,7 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v1
+      uses: github/codeql-action/init@v2
       with:
         languages: ${{ matrix.language }}
         # If you wish to specify custom queries, you can do so here or in a
@@ -656,7 +656,7 @@ jobs:
     #    make release
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v1
+      uses: github/codeql-action/analyze@v2
 
   brew:
     runs-on: ${{ matrix.os }}-latest
@@ -668,9 +668,9 @@ jobs:
       # max-parallel: 1
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Setup Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python }}
     - name: Brew
@@ -690,9 +690,9 @@ jobs:
       # max-parallel: 4
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Setup Node
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node }}
     - name: Install Dependencies
@@ -720,11 +720,11 @@ jobs:
         python: ['3.10']
       fail-fast: false
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Setup Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python }}
     - name: Install Pip Dependencies
@@ -750,23 +750,23 @@ jobs:
     name: 🐳 ghcr:latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
     - name: Login to GHCR
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Set up Docker Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
       # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
       with:
         version: v0.7.0
@@ -832,23 +832,23 @@ jobs:
     name: 🐳 ghcr:openssl
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
     - name: Login to GHCR
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Set up Docker Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
       # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
       with:
         version: v0.7.0
@@ -912,17 +912,17 @@ jobs:
     name: 🐳 docker:latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
     - name: Set up Docker Buildx
       id: buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
       # See https://github.com/docker/buildx/issues/850#issuecomment-996408167
       with:
         version: v0.7.0
@@ -939,7 +939,7 @@ jobs:
         docker buildx inspect
         docker buildx ls
     - name: Login to DockerHub
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         username: abhinavsingh
         password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
@@ -1001,7 +1001,7 @@ jobs:
 
     steps:
     - name: Download all the dists
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
@@ -1030,7 +1030,7 @@ jobs:
 
     steps:
     - name: Download all the dists
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
@@ -1052,7 +1052,7 @@ jobs:
 
     steps:
     - name: Fetch the src snapshot
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 1
         ref: ${{ github.event.inputs.release-commitish }}
@@ -1089,7 +1089,7 @@ jobs:
 
     steps:
     - name: Download all the dists
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: python-package-distributions
         path: dist/
@@ -1097,7 +1097,7 @@ jobs:
     - name: >-
         Publish a GitHub Release for
         ${{ needs.pre-setup.outputs.git-tag }}
-      uses: ncipollo/release-action@v1.9.0
+      uses: ncipollo/release-action@v1.10.0
       with:
         allowUpdates: false
         artifactErrorsFailBuild: false

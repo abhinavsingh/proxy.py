@@ -9,7 +9,7 @@ This document describes how contributors can participate and iterate quickly whi
 
 ## Environment Setup
 
-Contributors must start `proxy.py` from source to verify and develop new features / fixes.  See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for usage instructions.
+Contributors must start `proxy.py` from source to verify and develop new features / fixes.  See `Run proxy.py from command line using repo source` in README.md for usage instructions.
 
 [![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS` you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends to be problematic.  See linked thread for more details.
 

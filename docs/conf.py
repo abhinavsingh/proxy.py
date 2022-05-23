@@ -254,6 +254,7 @@ myst_substitutions = {
   'release_l': f'`v{release}`',
   'version': version,
 }
+myst_heading_anchors = 3
 
 # -- Strict mode -------------------------------------------------------------
 
