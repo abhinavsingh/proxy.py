@@ -48,8 +48,8 @@
     "rollup-plugin-copy": "^3.4.0",
     "rollup-plugin-javascript-obfuscator": "^1.0.4",
     "rollup-plugin-typescript": "^1.0.1",
-    "ts-node": "^10.7.0",
+    "ts-node": "^10.8.0",
     "typescript": "^4.5.4",
-    "ws": "^8.5.0"
+    "ws": "^8.6.0"
   }
 }
