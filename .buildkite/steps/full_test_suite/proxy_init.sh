@@ -51,11 +51,13 @@ services:
       - SOLANA_URL=$SOLANA_URL
   deploy_contracts:
     command: bash -c "echo done"
+  proxy_program_loader:
+    command: bash -c "echo done"
 EOF
 
 
 # Get list of services
-SERVICES=$(docker-compose -f docker-compose-test.yml config --services | grep -vP "solana|airdropper|prometheus|deploy_contracts")
+SERVICES=$(docker-compose -f docker-compose-test.yml config --services | grep -vP "solana|airdropper|prometheus|deploy_contracts|proxy_program_loader")
 
 
 # Pull latest versions

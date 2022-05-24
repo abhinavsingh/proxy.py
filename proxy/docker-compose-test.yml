@@ -35,8 +35,6 @@ services:
     depends_on:
       solana:
         condition: service_healthy
-      evm_loader:
-        condition: service_completed_successfully
     command: bash -c "deploy-proxy_program.sh"
 
   postgres:

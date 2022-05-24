@@ -27,12 +27,12 @@ steps:
       - "proxy.log"
       - "solana.log"
       - "measurements.log"
-      - "evm_loader.log"
       - "dbcreation.log"
       - "faucet.log"
       - "airdropper.log"
       - "indexer.log"
       - "deploy_contracts.log"
+      - "proxy_program_loader.log"
 
   - label: ":coverage: full test suite (FTS)"
     key: "full_test_suite"
