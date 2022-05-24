@@ -7,7 +7,7 @@ PROXY_ADDR=`buildkite-agent meta-data get 'PROXY_IP'`
 SOLANA_ADDR=`buildkite-agent meta-data get 'SOLANA_IP'`
 
 # Create envirinment variables for tests
-export PROXY_URL="http://${PROXY_ADDR}:9091/solana"
+export PROXY_URL="http://${PROXY_ADDR}:9090/solana"
 export FAUCET_URL="http://${PROXY_ADDR}:3333/request_neon"
 export SOLANA_URL="http://${SOLANA_ADDR}:8899"
 
@@ -51,7 +51,7 @@ export PROXY_ADDR=`buildkite-agent meta-data get "PROXY_IP"`
 ssh-keyscan -H $PROXY_ADDR >> ~/.ssh/known_hosts
 handle_error "Failed to retrieve ssh fingerprint"
 
-declare -a services=("evm_loader" "postgres" "dbcreation" "indexer" "proxy" "faucet" "airdropper")
+declare -a services=("postgres" "dbcreation" "indexer" "proxy" "faucet")
 for service in "${services[@]}"
 do
    echo "Upload logs for service: $service"

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-REVISION=$(git rev-parse HEAD)
+. .buildkite/steps/revision.sh
 
 docker images
 

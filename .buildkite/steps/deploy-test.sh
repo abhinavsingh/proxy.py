@@ -28,7 +28,7 @@ case "${option}" in
 esac
 done
 
-export REVISION=$(git rev-parse HEAD)
+. .buildkite/steps/revision.sh
 PROXY_IMAGE=neonlabsorg/proxy:${IMAGETAG:-$REVISION}
 
 UNISWAP_V2_CORE_IMAGE=neonlabsorg/uniswap-v2-core:stable
@@ -51,7 +51,7 @@ function cleanup_docker {
     if docker logs deploy_contracts >deploy_contracts.log 2>&1; then echo "deploy_contracts logs saved"; fi
 
     echo "\nCleanup docker-compose..."
-    docker-compose -f proxy/docker-compose-test.yml down
+    docker-compose -f proxy/docker-compose-test.yml down -t 1
     echo "Cleanup docker-compose done."
     echo "\nRemoving temporary data volumes..."
     docker volume prune -f
@@ -59,7 +59,7 @@ function cleanup_docker {
 trap cleanup_docker EXIT
 
 echo "\nCleanup docker-compose..."
-docker-compose -f proxy/docker-compose-test.yml down
+docker-compose -f proxy/docker-compose-test.yml down -t 1
 if ! docker-compose -f proxy/docker-compose-test.yml up -d; then
   echo "docker-compose failed to start"
   exit 1;

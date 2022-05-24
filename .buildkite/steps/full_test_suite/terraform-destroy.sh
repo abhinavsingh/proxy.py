@@ -1,17 +1,15 @@
 #!/bin/bash
 
 source .buildkite/steps/full_test_suite/utils.sh
-
+source .buildkite/steps/revision.sh
 
 cd .buildkite/steps/full_test_suite
-
-export NEON_EVM_COMMIT=${NEON_EVM_COMMIT:-latest}
-export PROXY_MODEL_COMMIT=${BUILDKITE_COMMIT}
 
 ### Clean infrastructure by terraform
 export TF_VAR_branch=${BUILDKITE_BRANCH}
 export TF_VAR_neon_evm_commit=${NEON_EVM_COMMIT}
-export TF_VAR_proxy_model_commit=${PROXY_MODEL_COMMIT}
+export TF_VAR_proxy_model_commit=${REVISION}
+export TF_VAR_faucet_model_commit=${FAUCET_COMMIT}
 export TFSTATE_BUCKET="nl-ci-stands"
 export TFSTATE_KEY="tests/test-$BUILDKITE_COMMIT"
 export TFSTATE_REGION="us-east-2"

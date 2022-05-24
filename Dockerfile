@@ -1,7 +1,4 @@
-ARG SOLANA_REVISION=v1.9.12-testnet-with_trx_cap
-ARG NEON_EVM_COMMIT=latest
-
-FROM neonlabsorg/solana:${SOLANA_REVISION} AS cli
+ARG NEON_EVM_COMMIT
 
 FROM neonlabsorg/evm_loader:${NEON_EVM_COMMIT} AS spl
 FROM neonlabsorg/evm_loader:ci-proxy-caller-program AS proxy_program
@@ -24,21 +21,18 @@ RUN apt update && \
     apt remove -y git && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=cli /opt/solana/bin/solana \
-                /opt/solana/bin/solana-faucet \
+COPY --from=spl /opt/solana/bin/solana \
                 /opt/solana/bin/solana-keygen \
-                /opt/solana/bin/solana-validator \
-                /opt/solana/bin/solana-genesis \
                 /cli/bin/
 
-COPY --from=spl /opt/solana/bin/solana /cli/bin/
 COPY --from=spl /opt/spl-token \
                 /opt/create-test-accounts.sh \
-                /opt/evm_loader-keypair.json /spl/bin/
-COPY --from=spl /opt/neon-cli /spl/bin/
-COPY --from=spl /opt/solana_utils.py \
+                /opt/neon-cli \
+                /opt/solana_utils.py \
                 /opt/eth_tx_utils.py \
+                /opt/evm_loader-keypair.json \
                 /spl/bin/
+
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 COPY --from=proxy_program /opt/proxy_program-keypair.json /spl/bin/
 

@@ -4,6 +4,8 @@ steps:
       - ".buildkite/steps/build-image.sh"
       - ".buildkite/steps/upload-image.sh"
 
+  - wait
+
   - label: ":terraform: build infrastructure"
     key: "create_infrastructure"
     if: &is_fts_enabled |

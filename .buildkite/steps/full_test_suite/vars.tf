@@ -35,3 +35,7 @@ variable "neon_evm_commit" {
   type = string
 }
 
+
+variable "faucet_model_commit" {
+  type = string
+}

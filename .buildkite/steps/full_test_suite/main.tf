@@ -27,7 +27,10 @@ data "template_file" "solana_init" {
   template = file("solana_init.sh")
 
   vars = {
-    branch = "${var.branch}"
+    branch              = "${var.branch}"
+    proxy_model_commit  = "${var.proxy_model_commit}"
+    neon_evm_commit     = "${var.neon_evm_commit}"
+    faucet_model_commit = "${var.faucet_model_commit}"
   }
 }
 
@@ -35,10 +38,11 @@ data "template_file" "proxy_init" {
   template = file("proxy_init.sh")
 
   vars = {
-    branch             = "${var.branch}"
-    proxy_model_commit = "${var.proxy_model_commit}"
-    solana_ip          = aws_instance.solana.private_ip
-    neon_evm_commit    = "${var.neon_evm_commit}"
+    branch              = "${var.branch}"
+    proxy_model_commit  = "${var.proxy_model_commit}"
+    solana_ip           = aws_instance.solana.private_ip
+    neon_evm_commit     = "${var.neon_evm_commit}"
+    faucet_model_commit = "${var.faucet_model_commit}"
   }
 }
 

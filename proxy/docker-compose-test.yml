@@ -3,7 +3,7 @@ version: "3"
 services:
   solana:
     container_name: solana
-    image: neonlabsorg/solana:${SOLANA_REVISION:-v1.9.12-testnet-with_trx_cap}
+    image: neonlabsorg/evm_loader:${NEON_EVM_COMMIT}
     environment:
       SOLANA_URL: http://solana:8899
       RUST_LOG: solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=debug,solana_bpf_loader=debug,solana_rbpf=debug
@@ -18,23 +18,12 @@ services:
       - net
     healthcheck:
       # Must be available from outside (calling without -u causes premature result)
-      test: [ CMD-SHELL, "solana cluster-version -u http://solana:8899" ]
+      test: [ CMD-SHELL, "./wait-for-neon.sh" ]
       interval: 5s
-      timeout: 10s
-      retries: 10
-      start_period: 10s
-
-  evm_loader:
-    container_name: evm_loader
-    image: neonlabsorg/evm_loader:${NEON_EVM_COMMIT:-latest}
-    environment:
-      - SOLANA_URL=http://solana:8899
-    networks:
-      - net
-    depends_on:
-      solana:
-        condition: service_healthy
-    command: bash -c "create-test-accounts.sh 1 && deploy-evm.sh"
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    entrypoint: /opt/solana/bin/solana-run-neon.sh
 
   proxy_program_loader:
     container_name: proxy_program_loader
@@ -61,8 +50,8 @@ services:
     hostname: postgres
     healthcheck:
       test: [ CMD-SHELL, "pg_isready -h postgres -p 5432" ]
-      interval: 5s
-      timeout: 10s
+      interval: 3s
+      timeout: 3s
       retries: 10
       start_period: 5s
     expose:
@@ -81,14 +70,13 @@ services:
       POSTGRES_USER: neon-proxy
       POSTGRES_PASSWORD: neon-proxy-pass
       POSTGRES_HOST: postgres
-    entrypoint: proxy/run-dbcreation.sh
+    entrypoint: /bin/sh
+    command: proxy/run-dbcreation.sh
     networks:
       - net
     depends_on:
       postgres:
         condition: service_healthy
-      evm_loader:
-        condition: service_completed_successfully
 
   proxy:
     container_name: proxy
@@ -110,18 +98,15 @@ services:
       ENABLE_PRIVATE_API: "YES"
       ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID: "YES"
       LOG_FULL_OBJECT_INFO: "YES"
+      EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
     hostname: proxy
     depends_on:
+      solana:
+        condition: service_healthy
       dbcreation:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      evm_loader:
-        condition: service_completed_successfully
-      indexer:
-        condition: service_started
     ports:
-      - 127.0.0.1:9090:9090
+      - 9090:9090
     expose:
       - "8888"
       - "9090"
@@ -130,14 +115,14 @@ services:
     entrypoint: proxy/run-test-proxy.sh
     healthcheck:
       test: [ CMD-SHELL, "/opt/health_check_proxy.sh" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
+      interval: 5s
+      timeout: 3s
+      retries: 20
       start_period: 5s
 
   deploy_contracts:
     container_name: deploy_contracts
-    image: neonlabsorg/evm_loader:${NEON_EVM_COMMIT:-latest}
+    image: neonlabsorg/evm_loader:${NEON_EVM_COMMIT}
     environment:
       - SOLANA_URL=http://solana:8899
       - SPL_TOKEN_AUTHORITY=/opt/contracts/ci-tokens/owner-keypair.json
@@ -150,8 +135,9 @@ services:
 
   faucet:
     container_name: faucet
-    image: neonlabsorg/faucet:latest
+    image: neonlabsorg/faucet:${FAUCET_COMMIT}
     environment:
+      FAUCET_RPC_BIND: 0.0.0.0
       FAUCET_RPC_PORT: 3333
       FAUCET_RPC_ALLOWED_ORIGINS: '["http://airdropper"]'
       FAUCET_WEB3_ENABLE: 'true'
@@ -162,19 +148,22 @@ services:
       FAUCET_SOLANA_ENABLE: 'true'
       SOLANA_URL: http://solana:8899
       NEON_OPERATOR_KEYFILE: /root/.config/solana/id.json
-      NEON_ETH_MAX_AMOUNT: 1000
-      TEST_FAUCET_INIT_NEON_BALANCE: 100000
+      NEON_ETH_MAX_AMOUNT: 50000
+      TEST_FAUCET_INIT_NEON_BALANCE: 100000000
+      EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
+      NEON_TOKEN_MINT: HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU
+      NEON_TOKEN_MINT_DECIMALS: 9
+      SOLANA_COMMITMENT: confirmed
     hostname: faucet
     ports:
-      - 3333
+      - 3333:3333
     expose:
       - "3333"
     networks:
       - net
     entrypoint: ./run-test-faucet.sh
     depends_on:
-      proxy:
-        condition: service_started
+      solana:
         condition: service_healthy
       deploy_contracts:
         condition: service_completed_successfully
@@ -201,7 +190,7 @@ services:
     networks:
       - net
     depends_on:
-      postgres:
+      solana:
         condition: service_healthy
       dbcreation:
         condition: service_completed_successfully
@@ -219,12 +208,11 @@ services:
       GATHER_STATISTICS: "YES"
       LOG_FULL_OBJECT_INFO: "YES"
       CONFIG: ci
+      EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
     hostname: indexer
     depends_on:
-      postgres:
+      solana:
         condition: service_healthy
-      evm_loader:
-        condition: service_completed_successfully
       dbcreation:
         condition: service_completed_successfully
     expose:
@@ -242,14 +230,11 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus-config.yml'
     ports:
-      - 127.0.0.1:9009:9090
+      - 9009:9090
     expose:
       - "9009"
     networks:
       - net
-    depends_on:
-      proxy:
-        condition: service_started
 
 networks:
   net:
