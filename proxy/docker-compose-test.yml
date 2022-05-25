@@ -219,20 +219,5 @@ services:
       - net
     entrypoint: proxy/run-indexer.sh
 
-  prometheus:
-    container_name: prometheus
-    image: prom/prometheus
-    privileged: true
-    volumes:
-      - ./statistics_exporter/config/prometheus-config.yml:/etc/prometheus/prometheus-config.yml:ro
-    command:
-      - '--config.file=/etc/prometheus/prometheus-config.yml'
-    ports:
-      - 9009:9090
-    expose:
-      - "9009"
-    networks:
-      - net
-
 networks:
   net:
