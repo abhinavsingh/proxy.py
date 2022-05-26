@@ -1,5 +1,5 @@
 aiohttp==3.8.1
 blacksheep==1.2.7
-starlette==0.17.1
+starlette==0.19.1
 tornado==6.1
 uvicorn==0.16.0
