@@ -66,7 +66,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             pattern = re.compile(route)
             if pattern.match(text_(request.path)):
                 self.choice = Url.from_bytes(
-                    self.reverse[route]
+                    self.reverse[route],
                 )
                 result = re.search(pattern, request.path.decode())
                 replacements = result.groups()[1:]
