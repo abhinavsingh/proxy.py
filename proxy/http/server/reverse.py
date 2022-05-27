@@ -66,8 +66,12 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             pattern = re.compile(route)
             if pattern.match(text_(request.path)):
                 self.choice = Url.from_bytes(
-                    random.choice(self.reverse[route]),
+                    self.reverse[route]
                 )
+                result = re.search(pattern, request.path.decode())
+                replacements = result.groups()[1:]
+                rewrite = request.path.decode().format(replacements)
+                self.choice.remainder = rewrite.encode()
                 break
         assert self.choice and self.choice.hostname
         port = self.choice.port or \
