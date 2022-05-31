@@ -662,13 +662,13 @@ class NeonRpcApiModel:
             first_slot = self._db.get_starting_block_slot()
 
             self.debug(f'slots_behind: {slots_behind}, latest_slot: {latest_slot}, first_slot: {first_slot}')
-            if (slots_behind is None) or (latest_slot is None) or (first_slot is None):
+            if (slots_behind == 0) or (slots_behind is None) or (latest_slot is None) or (first_slot is None):
                 return False
 
             return {
-                'startingblock': first_slot,
-                'currentblock': latest_slot,
-                'highestblock': latest_slot + slots_behind
+                'startingBlock': first_slot,
+                'currentBlock': latest_slot,
+                'highestBlock': latest_slot + slots_behind
             }
         except (Exception,):
             return False
