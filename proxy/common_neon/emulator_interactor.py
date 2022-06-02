@@ -5,8 +5,9 @@ from logged_groups import logged_group
 from typing import Optional, Dict, Any
 from ..common_neon.eth_proto import Trx as NeonTrx
 
-from ..environment import neon_cli, NEON_TOKEN_MINT, CHAIN_ID
+from ..common_neon.elf_params import ElfParams
 
+from .environment_utils import neon_cli
 from .errors import EthereumError
 from .types import NeonEmulatingResult
 
@@ -291,7 +292,9 @@ def emulator(contract, sender, data, value):
     data = data or "none"
     value = value or ""
     try:
-        return neon_cli().call("emulate", "--token_mint", str(NEON_TOKEN_MINT), "--chain_id", str(CHAIN_ID), sender, contract, data, value)
+        neon_token_mint = ElfParams().neon_token_mint
+        chain_id = ElfParams().chain_id
+        return neon_cli().call("emulate", "--token_mint", str(neon_token_mint), "--chain_id", str(chain_id), sender, contract, data, value)
     except subprocess.CalledProcessError as err:
         msg, code = NeonCliErrorParser().execute('emulator', err)
         raise EthereumError(message=msg, code=code)

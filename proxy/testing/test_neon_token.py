@@ -8,7 +8,7 @@ from solana.rpc.api import Client as SolanaClient
 from solana.rpc.types import TxOpts
 from spl.token.client import Token as SplToken
 from spl.token.instructions import get_associated_token_address, create_associated_token_account
-from proxy.environment import NEON_TOKEN_MINT
+from ..common_neon.elf_params import ElfParams
 from spl.token.constants import TOKEN_PROGRAM_ID
 from solana.rpc.commitment import Confirmed
 from web3 import exceptions as web3_exceptions
@@ -41,7 +41,7 @@ class TestNeonToken(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.sol_payer = SolanaAccount()
         cls.deploy_contract(cls)
-        cls.spl_neon_token = SplToken(solana, NEON_TOKEN_MINT, TOKEN_PROGRAM_ID, cls.sol_payer)
+        cls.spl_neon_token = SplToken(solana, ElfParams().neon_token_mint, TOKEN_PROGRAM_ID, cls.sol_payer)
 
     def create_eth_account(self, balance):
         seed = f'TestAccount{uniform(0, 10000)}'
@@ -98,7 +98,7 @@ class TestNeonToken(unittest.TestCase):
         source_acc = self.create_eth_account(10)
         dest_acc = self.create_sol_account()
 
-        dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
+        dest_token_acc = get_associated_token_address(dest_acc.public_key(), ElfParams().neon_token_mint)
         print(f"Destination token account: {dest_token_acc}")
 
         withdraw_amount_alan = pow(10, 18) # 1 NEON
@@ -138,13 +138,13 @@ class TestNeonToken(unittest.TestCase):
             create_associated_token_account(
                 dest_acc.public_key(),
                 dest_acc.public_key(),
-                NEON_TOKEN_MINT
+                ElfParams().neon_token_mint
             )
         )
         opts = TxOpts(skip_preflight=True, skip_confirmation=False)
         solana.send_transaction(trx, dest_acc, opts=opts)
 
-        dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
+        dest_token_acc = get_associated_token_address(dest_acc.public_key(), ElfParams().neon_token_mint)
         print(f"Destination token account: {dest_token_acc}")
 
         withdraw_amount_alan = 2_123_000_321_000_000_000
@@ -180,7 +180,7 @@ class TestNeonToken(unittest.TestCase):
         source_acc = self.create_eth_account(10)
         dest_acc = self.create_sol_account()
 
-        dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
+        dest_token_acc = get_associated_token_address(dest_acc.public_key(), ElfParams().neon_token_mint)
         print(f"Destination token account: {dest_token_acc}")
 
         withdraw_amount_alan = pow(10, 18) + 123 # NEONs
@@ -215,7 +215,7 @@ class TestNeonToken(unittest.TestCase):
         source_acc = self.create_eth_account(1)
         dest_acc = self.create_sol_account()
 
-        dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
+        dest_token_acc = get_associated_token_address(dest_acc.public_key(), ElfParams().neon_token_mint)
         print(f"Destination token account: {dest_token_acc}")
 
         withdraw_amount_alan = 2 * pow(10, 18) # 2 NEONs
@@ -250,7 +250,7 @@ class TestNeonToken(unittest.TestCase):
         source_acc = self.create_eth_account(1) # 1 NEON
         dest_acc = self.create_sol_account()
 
-        dest_token_acc = get_associated_token_address(dest_acc.public_key(), NEON_TOKEN_MINT)
+        dest_token_acc = get_associated_token_address(dest_acc.public_key(), ElfParams().neon_token_mint)
         print(f"Destination token account: {dest_token_acc}")
 
         withdraw_amount_alan = 1_000_000_000_000_000_000 # 1 NEON

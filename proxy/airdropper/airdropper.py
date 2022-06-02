@@ -6,7 +6,7 @@ from datetime import datetime
 from decimal import Decimal
 from logged_groups import logged_group
 
-from ..environment import NEON_PRICE_USD, EVM_LOADER_ID
+from ..common_neon.environment_data import EVM_LOADER_ID, NEON_PRICE_USD
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..indexer.indexer_base import IndexerBase
 from ..indexer.pythnetwork import PythNetworkClient

@@ -2,7 +2,7 @@ import os
 from logged_groups import logged_group
 from solana.publickey import PublicKey
 
-from ..environment import EVM_LOADER_ID
+from ..common_neon.environment_data import EVM_LOADER_ID
 
 from .airdropper import Airdropper
 

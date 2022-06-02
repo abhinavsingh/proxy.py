@@ -1,5 +1,4 @@
-from ..environment import EVM_LOADER_ID
-
+from ..common_neon.environment_data import EVM_LOADER_ID
 
 token_program = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
 evm_loader_addr = EVM_LOADER_ID

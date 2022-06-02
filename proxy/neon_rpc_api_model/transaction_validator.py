@@ -10,8 +10,8 @@ from ..common_neon.solana_receipt_parser import SolReceiptParser
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.estimate import GasEstimate
 
-from ..environment import ACCOUNT_PERMISSION_UPDATE_INT, CHAIN_ID, NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID,\
-                          ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID
+from ..common_neon.elf_params import ElfParams
+from ..common_neon.environment_data import ACCOUNT_PERMISSION_UPDATE_INT, ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID
 
 from ..common_neon.emulator_interactor import call_trx_emulated
 from ..common_neon.types import NeonTxPrecheckResult, NeonEmulatingResult
@@ -48,8 +48,8 @@ class NeonTxValidator:
 
         if len(self._tx.callData) == 0:
             return
-
-        tx_gas_limit = self._tx_gas_limit * NEON_GAS_LIMIT_MULTIPLIER_NO_CHAINID
+        no_chainid_gas_limit_multiplier = ElfParams().neon_gas_limit_multiplier_no_chainid
+        tx_gas_limit = self._tx_gas_limit * no_chainid_gas_limit_multiplier
         if self.MAX_U64 > tx_gas_limit:
             self._tx_gas_limit = tx_gas_limit
 
@@ -116,7 +116,7 @@ class NeonTxValidator:
         raise EthereumError(message=f"transaction underpriced: have {self._tx.gasPrice} want {self._min_gas_price}")
 
     def _prevalidate_tx_chain_id(self):
-        if self._tx.chainId() not in (None, CHAIN_ID):
+        if self._tx.chainId() not in (None, ElfParams().chain_id):
             raise EthereumError(message='wrong chain id')
 
     def _prevalidate_tx_size(self):

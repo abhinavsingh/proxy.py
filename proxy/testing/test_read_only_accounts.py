@@ -7,19 +7,18 @@ import os
 import json
 from xmlrpc.client import Boolean
 from solana.rpc.commitment import Confirmed
-from solana.rpc.types import TxOpts
 from web3 import Web3
 from spl.token.client import Token as SplToken
 from spl.token.constants import TOKEN_PROGRAM_ID
 from solana.rpc.api import Client as SolanaClient
 from solana.account import Account as SolanaAccount
 from solana.publickey import PublicKey
-from proxy.environment import EVM_LOADER_ID
-from proxy.common_neon.erc20_wrapper import ERC20Wrapper
-from proxy.common_neon.neon_instruction import NeonInstruction
 from solcx import compile_source
 
-from proxy.testing.testing_helpers import request_airdrop
+from ..common_neon.environment_data import EVM_LOADER_ID
+from ..common_neon.erc20_wrapper import ERC20Wrapper
+
+from .testing_helpers import request_airdrop
 
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")

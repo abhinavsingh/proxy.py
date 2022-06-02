@@ -13,13 +13,13 @@ from spl.token.constants import TOKEN_PROGRAM_ID
 from solana.rpc.api import Client as SolanaClient
 from solana.account import Account as SolanaAccount
 from solana.publickey import PublicKey
-from proxy.environment import EVM_LOADER_ID
-from proxy.common_neon.erc20_wrapper import ERC20Wrapper
-from proxy.common_neon.neon_instruction import NeonInstruction
 from solana.rpc.types import TokenAccountOpts
 
-from proxy.testing.testing_helpers import request_airdrop
-from proxy.common_neon.compute_budget import TransactionWithComputeBudget
+from ..testing.testing_helpers import request_airdrop
+from ..common_neon.environment_data import EVM_LOADER_ID
+from ..common_neon.erc20_wrapper import ERC20Wrapper
+from ..common_neon.neon_instruction import NeonInstruction
+from ..common_neon.compute_budget import TransactionWithComputeBudget
 
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")

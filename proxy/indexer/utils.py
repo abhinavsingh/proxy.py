@@ -7,7 +7,7 @@ from solana.publickey import PublicKey
 from typing import Any, Dict, List, Union, Callable
 from dataclasses import astuple, dataclass
 
-from ..environment import INDEXER_LOG_SKIP_COUNT
+from ..common_neon.environment_data import INDEXER_LOG_SKIP_COUNT
 
 
 def check_error(trx):

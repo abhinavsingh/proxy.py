@@ -6,6 +6,9 @@ from eth_keys import keys as eth_keys
 from hashlib import sha256
 from solana.publickey import PublicKey
 
+from .environment_data import EVM_LOADER_ID
+from .constants import ACCOUNT_SEED_VERSION
+
 
 class EthereumAddress:
     def __init__(self, data, private: eth_keys.PrivateKey = None):
@@ -36,15 +39,11 @@ class EthereumAddress:
 
 
 def accountWithSeed(base: bytes, seed: bytes) -> PublicKey:
-    from ..environment import EVM_LOADER_ID
-
     result = PublicKey(sha256(bytes(base) + bytes(seed) + bytes(PublicKey(EVM_LOADER_ID))).digest())
     return result
 
 
 def ether2program(ether):
-    from .constants import ACCOUNT_SEED_VERSION
-    from ..environment import EVM_LOADER_ID
 
     if isinstance(ether, str):
         pass

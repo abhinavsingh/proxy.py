@@ -15,7 +15,8 @@ neon_logger.setLevel(logging.CRITICAL)
 
 from proxy.common_neon.address import EthereumAddress, accountWithSeed
 from proxy.common_neon.solana_interactor import SolanaInteractor
-from proxy.environment import PERM_ACCOUNT_LIMIT, SOLANA_URL, get_solana_accounts
+from proxy.common_neon.environment_utils import get_solana_accounts
+from proxy.common_neon.environment_data import SOLANA_URL, PERM_ACCOUNT_LIMIT
 
 
 class DecimalEncoder(json.JSONEncoder):

@@ -19,9 +19,9 @@ from ..common_neon.address import EthereumAddress, ether2program, accountWithSee
 from ..common_neon.compute_budget import TransactionWithComputeBudget
 from ..common_neon.constants import STORAGE_SIZE, ACTIVE_STORAGE_TAG, FINALIZED_STORAGE_TAG, EMPTY_STORAGE_TAG
 from ..common_neon.solana_tx_list_sender import SolTxListSender
-from ..environment import get_solana_accounts, PERM_ACCOUNT_LIMIT, RECHECK_RESOURCE_LIST_INTERVAL, \
-                          MIN_OPERATOR_BALANCE_TO_ERR, MIN_OPERATOR_BALANCE_TO_WARN, EVM_LOADER_ID
-
+from ..common_neon.environment_utils import get_solana_accounts
+from ..common_neon.environment_data import EVM_LOADER_ID, PERM_ACCOUNT_LIMIT, RECHECK_RESOURCE_LIST_INTERVAL, \
+                                           MIN_OPERATOR_BALANCE_TO_WARN, MIN_OPERATOR_BALANCE_TO_ERR
 
 ## TODO: DIP corruption, get rid of back dependency
 # from .transaction_sender import NeonTxSender

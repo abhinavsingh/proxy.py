@@ -1,18 +1,13 @@
 import traceback
 from datetime import datetime
-from proxy.environment import ELF_PARAMS
 from proxy.common_neon.permission_token import PermissionToken
 from solana.publickey import PublicKey
 from solana.account import Account as SolanaAccount
 from typing import Union
 from proxy.common_neon.address import EthereumAddress
 from logged_groups import logged_group
+from ..common_neon.elf_params import ElfParams
 from ..common_neon.solana_interactor import SolanaInteractor
-
-NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE = int(ELF_PARAMS.get("NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE", 0))
-NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE = int(ELF_PARAMS.get("NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE", 0))
-ALLOWANCE_TOKEN_ADDR = ELF_PARAMS.get("NEON_PERMISSION_ALLOWANCE_TOKEN", '')
-DENIAL_TOKEN_ADDR = ELF_PARAMS.get("NEON_PERMISSION_DENIAL_TOKEN", '')
 
 
 @logged_group("neon.AccountWhitelist")
@@ -24,15 +19,17 @@ class AccountWhitelist:
         self.allowance_token = None
         self.denial_token = None
 
-        if ALLOWANCE_TOKEN_ADDR == '' and DENIAL_TOKEN_ADDR == '':
+        allowance_token_addr = ElfParams().allowance_token_addr
+        denial_token_addr = ElfParams().denial_token_addr
+        if allowance_token_addr == '' and denial_token_addr == '':
             return
 
-        if ALLOWANCE_TOKEN_ADDR == '' or DENIAL_TOKEN_ADDR == '':
+        if allowance_token_addr == '' or denial_token_addr == '':
             self.error(f'Wrong proxy configuration: allowance and denial tokens must both exist or absent!')
             raise Exception("NEON service is unhealthy. Try again later")
 
-        self.allowance_token = PermissionToken(self.solana, PublicKey(ALLOWANCE_TOKEN_ADDR))
-        self.denial_token = PermissionToken(self.solana, PublicKey(DENIAL_TOKEN_ADDR))
+        self.allowance_token = PermissionToken(self.solana, PublicKey(allowance_token_addr))
+        self.denial_token = PermissionToken(self.solana, PublicKey(denial_token_addr))
 
     def read_balance_diff(self, ether_addr: Union[str, EthereumAddress]) -> int:
         token_list = [
@@ -78,16 +75,16 @@ class AccountWhitelist:
             return False
 
     def grant_client_permissions(self, ether_addr: Union[str, EthereumAddress]):
-        return self.grant_permissions(ether_addr, NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE)
+        return self.grant_permissions(ether_addr, ElfParams().neon_minimal_client_allowance_balance)
 
     def grant_contract_permissions(self, ether_addr: Union[str, EthereumAddress]):
-        return self.grant_permissions(ether_addr, NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE)
+        return self.grant_permissions(ether_addr, ElfParams().neon_minimal_contract_allowance_balance)
 
     def deprive_client_permissions(self, ether_addr: Union[str, EthereumAddress]):
-        return self.deprive_permissions(ether_addr, NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE)
+        return self.deprive_permissions(ether_addr, ElfParams().neon_minimal_client_allowance_balance)
 
     def deprive_contract_permissions(self, ether_addr: Union[str, EthereumAddress]):
-        return self.deprive_permissions(ether_addr, NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE)
+        return self.deprive_permissions(ether_addr, ElfParams().neon_minimal_contract_allowance_balance)
 
     def get_current_time(self):
         return datetime.now().timestamp()
@@ -116,7 +113,7 @@ class AccountWhitelist:
                        f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
 
     def has_client_permission(self, ether_addr: Union[str, EthereumAddress]):
-        return self.has_permission(ether_addr, NEON_MINIMAL_CLIENT_ALLOWANCE_BALANCE)
+        return self.has_permission(ether_addr, ElfParams().neon_minimal_client_allowance_balance)
 
     def has_contract_permission(self, ether_addr: Union[str, EthereumAddress]):
-        return self.has_permission(ether_addr, NEON_MINIMAL_CONTRACT_ALLOWANCE_BALANCE)
+        return self.has_permission(ether_addr, ElfParams().neon_minimal_contract_allowance_balance)

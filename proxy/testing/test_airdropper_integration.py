@@ -3,7 +3,7 @@ from solana.rpc.api import Client as SolanaClient
 from solana.account import Account as SolanaAccount
 from spl.token.client import Token as SplToken
 from spl.token.instructions import get_associated_token_address
-from proxy.environment import SOLANA_URL, EVM_LOADER_ID
+from ..common_neon.environment_data import SOLANA_URL, EVM_LOADER_ID
 from solana.system_program import SYS_PROGRAM_ID
 from solana.sysvar import SYSVAR_RENT_PUBKEY
 from spl.token.constants import TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID

@@ -3,7 +3,9 @@ from logged_groups import logged_group
 
 from proxy.common_neon.emulator_interactor import call_emulated
 from ..common_neon.utils import get_holder_msg
-from ..environment import CONTRACT_EXTRA_SPACE, EXTRA_GAS, CHAIN_ID, HOLDER_MSG_SIZE
+from ..common_neon.elf_params import ElfParams
+
+from .environment_data import CONTRACT_EXTRA_SPACE, EXTRA_GAS
 from .eth_proto import Trx as EthTrx
 from .solana_interactor import SolanaInteractor
 from .layouts import ACCOUNT_INFO_LAYOUT
@@ -69,12 +71,12 @@ class GasEstimate:
             toAddress=bytes.fromhex(self._contract),
             value=int(self._value, 16),
             callData=bytes.fromhex(self._data),
-            v=CHAIN_ID * 2 + 35,
+            v=ElfParams().chain_id * 2 + 35,
             r=0x1820182018201820182018201820182018201820182018201820182018201820,
             s=0x1820182018201820182018201820182018201820182018201820182018201820
         )
         msg = get_holder_msg(trx)
-        return ((len(msg) // HOLDER_MSG_SIZE) + 1) * 5000
+        return ((len(msg) // ElfParams().holder_msg_size) + 1) * 5000
 
     @staticmethod
     def _iterative_overhead_cost() -> int:

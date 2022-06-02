@@ -11,7 +11,7 @@ from base58 import b58encode
 from .solana_receipt_parser import SolReceiptParser, SolTxError
 from .errors import EthereumError
 
-from ..environment import SKIP_PREFLIGHT, RETRY_ON_FAIL
+from .environment_data import SKIP_PREFLIGHT, RETRY_ON_FAIL
 
 
 @logged_group("neon.Proxy")

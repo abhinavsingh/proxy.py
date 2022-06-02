@@ -27,12 +27,12 @@ from solcx import compile_source
 from web3 import Web3
 from web3.auto.gethdev import w3
 
-from proxy.common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY
-from proxy.environment import EVM_LOADER_ID
-from proxy.common_neon.address import EthereumAddress
-from proxy.common_neon.compute_budget import TransactionWithComputeBudget
-from proxy.common_neon.neon_instruction import NeonInstruction
-from proxy.common_neon.eth_proto import Trx
+from ..common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY
+from ..common_neon.environment_data import EVM_LOADER_ID
+from ..common_neon.address import EthereumAddress
+from ..common_neon.compute_budget import TransactionWithComputeBudget
+from ..common_neon.neon_instruction import NeonInstruction
+from ..common_neon.eth_proto import Trx
 
 from .testing_helpers import request_airdrop
 

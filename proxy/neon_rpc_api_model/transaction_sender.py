@@ -23,8 +23,8 @@ from ..common_neon.eth_proto import Trx as EthTx
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo
 from ..common_neon.errors import EthereumError
 from ..common_neon.types import NeonTxPrecheckResult, NeonEmulatingResult
-from ..environment import RETRY_ON_FAIL
-from ..environment import HOLDER_MSG_SIZE
+from ..common_neon.environment_data import RETRY_ON_FAIL
+from ..common_neon.elf_params import ElfParams
 from ..memdb.memdb import MemDB, NeonPendingTxInfo
 from ..common_neon.utils import get_holder_msg
 
@@ -516,8 +516,9 @@ class HolderNeonTxStrategy(IterativeNeonTxStrategy, abc.ABC):
         offset = 0
         rest = msg
         cnt = 0
+        holder_msg_size = ElfParams().holder_msg_size
         while len(rest):
-            (part, rest) = (rest[:HOLDER_MSG_SIZE], rest[HOLDER_MSG_SIZE:])
+            (part, rest) = (rest[:holder_msg_size], rest[holder_msg_size:])
             tx = TransactionWithComputeBudget()
             tx.add(self.s.builder.make_write_instruction(offset, part))
             tx_list.append(tx)

@@ -2,11 +2,12 @@ import traceback
 
 from logged_groups import logged_group
 from solana.transaction import AccountMeta
-from proxy.common_neon.neon_instruction import NeonInstruction
-from proxy.common_neon.solana_interactor import SolanaInteractor
-from proxy.common_neon.solana_tx_list_sender import SolTxListSender
-from proxy.common_neon.compute_budget import TransactionWithComputeBudget
-from proxy.environment import get_solana_accounts
+
+from ..common_neon.neon_instruction import NeonInstruction
+from ..common_neon.solana_interactor import SolanaInteractor
+from ..common_neon.solana_tx_list_sender import SolTxListSender
+from ..common_neon.compute_budget import TransactionWithComputeBudget
+from ..common_neon.environment_utils import get_solana_accounts
 
 
 @logged_group("neon.Indexer")

@@ -5,7 +5,7 @@ from typing import Optional, List
 
 from ..common_neon.utils import NeonTxInfo, NeonTxResultInfo, NeonTxFullInfo
 
-from ..environment import FINALIZED
+from ..common_neon.environment_data import FINALIZED
 from ..indexer.utils import SolanaIxSignInfo, CostInfo
 from ..indexer.accounts_db import NeonAccountDB, NeonAccountInfo
 from ..indexer.costs_db import CostsDB

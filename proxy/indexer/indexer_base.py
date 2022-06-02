@@ -10,8 +10,8 @@ from .utils import MetricsToLogBuff
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..indexer.sql_dict import SQLDict
 
-from ..environment import INDEXER_POLL_COUNT, RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
-from ..environment import HISTORY_START, PARALLEL_REQUESTS, FINALIZED, EVM_LOADER_ID
+from ..common_neon.environment_data import INDEXER_POLL_COUNT, RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION, \
+                                           HISTORY_START, PARALLEL_REQUESTS, FINALIZED, EVM_LOADER_ID
 
 
 @logged_group("neon.Indexer")

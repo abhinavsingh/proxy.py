@@ -24,7 +24,7 @@ from ..http.websocket import WebsocketFrame
 from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from ..common_neon.solana_receipt_parser import SolTxError
 from ..common_neon.errors import EthereumError
-from ..environment import ENABLE_PRIVATE_API
+from ..common_neon.environment_data import ENABLE_PRIVATE_API
 from ..neon_rpc_api_model import NeonRpcApiModel
 from ..statistics_exporter.prometheus_proxy_exporter import PrometheusExporter
 

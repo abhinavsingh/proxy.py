@@ -7,8 +7,8 @@ import multiprocessing as mp
 import ctypes
 from ..indexer.pythnetwork import PythNetworkClient
 from ..common_neon.solana_interactor import SolanaInteractor
-from ..environment import MINIMAL_GAS_PRICE, OPERATOR_FEE, NEON_PRICE_USD, GAS_PRICE_SUGGESTED_PCT
-from ..environment import SOL_PRICE_UPDATE_INTERVAL, GET_SOL_PRICE_MAX_RETRIES, GET_SOL_PRICE_RETRY_INTERVAL
+from .environment_data import MINIMAL_GAS_PRICE, OPERATOR_FEE, GAS_PRICE_SUGGESTED_PCT, NEON_PRICE_USD, \
+                              SOL_PRICE_UPDATE_INTERVAL, GET_SOL_PRICE_MAX_RETRIES, GET_SOL_PRICE_RETRY_INTERVAL
 
 
 @logged_group("neon.gas_price_calculator")

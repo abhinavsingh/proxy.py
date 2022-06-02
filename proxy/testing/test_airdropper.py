@@ -2,16 +2,18 @@ import os
 import unittest
 
 from solana.publickey import PublicKey
-from proxy.testing.mock_server import MockServer
-from proxy.airdropper import Airdropper, AIRDROP_AMOUNT_SOL, NEON_PRICE_USD
-from proxy.indexer.sql_dict import SQLDict
-from proxy.common_neon.solana_interactor import SolanaInteractor
 import time
 from flask import request, Response
 from unittest.mock import Mock, MagicMock, patch, ANY
 from decimal import Decimal
 import itertools
-from proxy.testing.transactions import pre_token_airdrop_trx, wrapper_whitelist, evm_loader_addr, token_airdrop_address
+
+from ..testing.mock_server import MockServer
+from ..airdropper import Airdropper, AIRDROP_AMOUNT_SOL
+from ..common_neon.environment_data import NEON_PRICE_USD
+from ..indexer.sql_dict import SQLDict
+from ..common_neon.solana_interactor import SolanaInteractor
+from ..testing.transactions import pre_token_airdrop_trx, wrapper_whitelist, evm_loader_addr, token_airdrop_address
 
 
 SOLANA_URL = os.environ.get("SOLANA_URL", "http://solana:8899")

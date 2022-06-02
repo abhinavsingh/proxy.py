@@ -7,7 +7,8 @@ from multiprocessing import Process
 from prometheus_client import start_http_server
 from ..common_neon.address import EthereumAddress
 from ..common_neon.solana_interactor import SolanaInteractor
-from ..environment import PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT, SOLANA_URL, get_solana_accounts
+from ..common_neon.environment_utils import get_solana_accounts
+from ..common_neon.environment_data import SOLANA_URL, PP_SOLANA_URL, PYTH_MAPPING_ACCOUNT
 from ..common_neon.gas_price_calculator import GasPriceCalculator
 
 from .prometheus_proxy_exporter import PrometheusExporter

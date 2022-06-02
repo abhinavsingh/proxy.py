@@ -6,9 +6,11 @@ from ..common_neon.gas_price_calculator import GasPriceCalculator
 from solana.rpc.api import Client as SolanaClient
 from unittest.mock import patch, call, Mock
 from decimal import Decimal
-from ..environment import NEON_PRICE_USD, OPERATOR_FEE, GET_SOL_PRICE_MAX_RETRIES, SOL_PRICE_UPDATE_INTERVAL
+from ..common_neon.environment_data import OPERATOR_FEE, NEON_PRICE_USD, SOL_PRICE_UPDATE_INTERVAL, \
+                                           GET_SOL_PRICE_MAX_RETRIES
 
 MINIMAL_GAS_PRICE = None
+
 
 class TestGasPriceCalculator(unittest.TestCase):
     @classmethod
