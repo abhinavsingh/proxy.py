@@ -8,11 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import re
 import argparse
 import mimetypes
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional
 
+from proxy.http.url import Url
 from ..parser import HttpParser
 from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
 from ..websocket import WebsocketFrame
@@ -127,6 +129,36 @@ class ReverseProxyBasePlugin(ABC):
     """ReverseProxy base plugin class."""
 
     @abstractmethod
-    def routes(self) -> List[Tuple[str, List[bytes]]]:
-        """Return List(path, List(upstream)) reverse proxy config."""
+    def routes(self) -> List[Union[str, Tuple[str, List[bytes]]]]:
+        """List of routes registered by plugin.
+
+        There are 2 types of routes:
+
+        1) Dynamic routes (str): Should be a regular expression
+        2) Static routes (tuple): Contain 2 elements, a route regular expression
+           and list of upstream urls to serve when the route matches.
+
+        Static routes doesn't require you to implement the `handle_route` method.
+        Reverse proxy core will automatically pick one of the configured upstream URL
+        and serve it out-of-box.
+
+        Dynamic routes are helpful when you want to dynamically match and serve upstream urls.
+        To handle dynamic routes, you must implement the `handle_route` method, which
+        must return the url to serve."""
         raise NotImplementedError()     # pragma: no cover
+
+    def handle_route(self, request: HttpParser, pattern: re.Pattern) -> Url:
+        """Implement this method if you have configured dynamic routes."""
+        pass
+
+    def regexes(self) -> List[str]:
+        """Helper method to return list of route regular expressions."""
+        routes = []
+        for route in self.routes():
+            if isinstance(route, str):
+                routes.append(route)
+            elif isinstance(route, tuple):
+                routes.append(route[0])
+            else:
+                raise ValueError("Invalid route type")
+        return routes

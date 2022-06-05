@@ -38,37 +38,40 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.choice: Optional[Url] = None
-        self.reverse: Dict[str, List[bytes]] = {}
+        self.plugins: List['ReverseProxyBasePlugin'] = []
+        for klass in self.flags.plugins[b'ReverseProxyBasePlugin']:
+            plugin: 'ReverseProxyBasePlugin' = klass()
+            self.plugins.append(plugin)
 
     def handle_upstream_data(self, raw: memoryview) -> None:
         self.client.queue(raw)
 
     def routes(self) -> List[Tuple[int, str]]:
-        reverse: List[Tuple[str, List[bytes]]] = []
-        for klass in self.flags.plugins[b'ReverseProxyBasePlugin']:
-            instance: 'ReverseProxyBasePlugin' = klass()
-            reverse.extend(instance.routes())
         r = []
-        for (route, upstreams) in reverse:
-            r.append((httpProtocolTypes.HTTP, route))
-            r.append((httpProtocolTypes.HTTPS, route))
-            self.reverse[route] = upstreams
+        for plugin in self.plugins:
+            for route in plugin.regexes():
+                r.append((httpProtocolTypes.HTTP, route))
+                r.append((httpProtocolTypes.HTTPS, route))
         return r
 
     def handle_request(self, request: HttpParser) -> None:
-        # TODO: Core must be capable of dispatching a context
-        # with each invocation of handle request callback.
-        #
-        # Example, here we don't know which of our registered
-        # route actually matched.
-        #
-        for route in self.reverse:
-            pattern = re.compile(route)
-            if pattern.match(text_(request.path)):
-                self.choice = Url.from_bytes(
-                    random.choice(self.reverse[route]),
-                )
-                break
+        for plugin in self.plugins:
+            for route in plugin.routes():
+                if isinstance(route, tuple):
+                    pattern = re.compile(route[0])
+                    if pattern.match(text_(request.path)):
+                        self.choice = Url.from_bytes(
+                            random.choice(route[1]),
+                        )
+                        break
+                elif isinstance(route, str):
+                    pattern = re.compile(route)
+                    if pattern.match(text_(request.path)):
+                        self.choice = plugin.handle_route(request, pattern)
+                        break
+                else:
+                    raise ValueError("Invalid route")
+        print(self.choice)
         assert self.choice and self.choice.hostname
         port = self.choice.port or \
             DEFAULT_HTTP_PORT \
@@ -85,12 +88,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                     ),
                     as_non_blocking=True,
                 )
-            # Update Host header
-            # if request.has_header(b'Host'):
-            #     request.del_header(b'Host')
-            # request.add_header(
-            #     b'Host', ('%s:%d' % self.upstream.addr).encode('utf-8'),
-            # )
+            request.path = self.choice.remainder
             self.upstream.queue(memoryview(request.build()))
         except ConnectionRefusedError:
             raise HttpProtocolException(    # pragma: no cover
