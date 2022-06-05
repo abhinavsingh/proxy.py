@@ -70,7 +70,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                         self.choice = plugin.handle_route(request, pattern)
                         break
                 else:
-                    raise ValueError("Invalid route")
+                    raise ValueError('Invalid route')
         print(self.choice)
         assert self.choice and self.choice.hostname
         port = self.choice.port or \

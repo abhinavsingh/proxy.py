@@ -160,5 +160,5 @@ class ReverseProxyBasePlugin(ABC):
             elif isinstance(route, tuple):
                 routes.append(route[0])
             else:
-                raise ValueError("Invalid route type")
+                raise ValueError('Invalid route type')
         return routes

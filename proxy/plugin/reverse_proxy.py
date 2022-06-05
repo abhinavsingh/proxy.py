@@ -36,7 +36,7 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
             # A static route
             (
                 r'/get$',
-                [b'http://httpbin.org/get', b'https://httpbin.org/get']
+                [b'http://httpbin.org/get', b'https://httpbin.org/get'],
             ),
             # A dynamic route to catch requests on `/get/<int>`
             # See `handle_route` method for what we do when a pattern matches.
@@ -51,7 +51,7 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
         assert request.path
         result = re.search(pattern, request.path.decode())
         if not result or len(result.groups()) != 1:
-            raise HttpProtocolException("Invalid request")
+            raise HttpProtocolException('Invalid request')
         assert choice.remainder == b'/get'
         # NOTE: Internally, reverse proxy core replaces
         # original request.path with the choice.remainder value.
