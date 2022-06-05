@@ -147,7 +147,7 @@ class ReverseProxyBasePlugin(ABC):
         must return the url to serve."""
         raise NotImplementedError()     # pragma: no cover
 
-    def handle_route(self, request: HttpParser, pattern: re.Pattern) -> Url:
+    def handle_route(self, request: HttpParser, pattern: re.Pattern[Any]) -> Url:
         """Implement this method if you have configured dynamic routes."""
         pass
 
@@ -160,5 +160,5 @@ class ReverseProxyBasePlugin(ABC):
             elif isinstance(route, tuple):
                 routes.append(route[0])
             else:
-                raise ValueError("Invalid route type")
+                raise ValueError('Invalid route type')
         return routes

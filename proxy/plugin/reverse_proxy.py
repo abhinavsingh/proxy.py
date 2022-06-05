@@ -7,9 +7,13 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    .. spelling::
+
+       Lua
 """
 import re
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 from ..http import Url
 from ..http.parser import HttpParser
@@ -36,27 +40,28 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
             # A static route
             (
                 r'/get$',
-                [b'http://httpbin.org/get', b'https://httpbin.org/get']
+                [b'http://httpbin.org/get', b'https://httpbin.org/get'],
             ),
-            # A dynamic route to catch requests on `/get/<int>`
-            # See `handle_route` method for what we do when a pattern matches.
+            # A dynamic route to catch requests on "/get/<int>""
+            # See "handle_route" method below for what we do when
+            # this pattern matches.
             r'/get/(\d+)$',
         ]
 
-    def handle_route(self, request: HttpParser, pattern: re.Pattern) -> Url:
+    def handle_route(self, request: HttpParser, pattern: re.Pattern[Any]) -> Url:
         """For our example dynamic route, we want to simply convert
-        any incoming request to `/get/1` into `/get?id=1` when serving from upstream.
+        any incoming request to "/get/1" into "/get?id=1" when serving from upstream.
         """
         choice: Url = Url.from_bytes(b'http://httpbin.org/get')
         assert request.path
         result = re.search(pattern, request.path.decode())
         if not result or len(result.groups()) != 1:
-            raise HttpProtocolException("Invalid request")
+            raise HttpProtocolException('Invalid request')
         assert choice.remainder == b'/get'
         # NOTE: Internally, reverse proxy core replaces
         # original request.path with the choice.remainder value.
-        # e.g. for this example, request.path will be `/get/1`.
-        # Core will automatically replace that with `/get?id=1`
+        # e.g. for this example, request.path will be "/get/1".
+        # Core will automatically replace that with "/get?id=1"
         # before dispatching request to choice of upstream server.
         choice.remainder += f'?id={result.groups()[0]}'.encode()
         return choice
