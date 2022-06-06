@@ -33,6 +33,7 @@ CODE_ACCOUNT_INFO_LAYOUT = Struct(
     "type" / Int8ul,
     "owner" / Bytes(32),
     "code_size" / Int32ul,
+    "generation" / Int32ul,
 )
 
 
