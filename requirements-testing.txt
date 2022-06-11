@@ -2,19 +2,19 @@ wheel==0.37.1
 python-coveralls==2.9.3
 coverage==6.2
 flake8==4.0.1
-pytest==6.2.5
+pytest==7.0.1
 pytest-cov==3.0.0
 pytest-xdist == 2.5.0
 pytest-mock==3.6.1
 pytest-asyncio==0.16.0
 autopep8==1.6.0
-mypy==0.940
-py-spy==0.3.11
+mypy==0.961
+py-spy==0.3.12
 codecov==2.1.12
 tox==3.25.0
 mccabe==0.6.1
 pylint==2.13.7
-rope==0.22.0
+rope==1.1.1
 # Required by test_http2.py
 httpx==0.22.0
 h2==4.1.0

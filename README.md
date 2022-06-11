@@ -2315,9 +2315,9 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.2.dev11+g0beb02d.d20220420
+proxy.py v2.4.3.dev14+gc6b2de6.d20220605
 
-options:
+optional arguments:
   -h, --help            show this help message and exit
   --tunnel-hostname TUNNEL_HOSTNAME
                         Default: None. Remote hostname or IP address to which
@@ -2334,11 +2334,11 @@ options:
   --tunnel-remote-port TUNNEL_REMOTE_PORT
                         Default: 8899. Remote port which will be forwarded
                         locally for proxy.
-  --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
-                        linux). When disabled a new thread is spawned to
+  --threadless          Default: False. Enabled by default on Python 3.8+
+                        (mac, linux). When disabled a new thread is spawned to
                         handle each client connection.
-  --threaded            Default: False. Disabled by default on Python < 3.8
-                        and windows. When enabled a new thread is spawned to
+  --threaded            Default: True. Disabled by default on Python < 3.8 and
+                        windows. When enabled a new thread is spawned to
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
@@ -2434,8 +2434,8 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv310/lib/
-                        python3.10/site-packages/certifi/cacert.pem. Provide
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv373/lib/
+                        python3.7/site-packages/certifi/cacert.pem. Provide
                         path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
