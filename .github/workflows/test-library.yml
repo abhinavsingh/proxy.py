@@ -72,7 +72,7 @@ jobs:
       container-platforms: ${{ steps.container.outputs.platforms }}
     steps:
     - name: Switch to using Python 3.9 by default
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: 3.9
     - name: >-
@@ -135,7 +135,7 @@ jobs:
     - name: Set up pip cache
       if: >-
         steps.request-check.outputs.release-requested != 'true'
-      uses: actions/cache@v3.0.2
+      uses: actions/cache@v3.0.4
       with:
         path: ${{ steps.pip-cache-dir.outputs.dir }}
         key: >-
@@ -225,7 +225,7 @@ jobs:
 
     steps:
     - name: Switch to using Python v3.10
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
     - name: >-
@@ -244,7 +244,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v3.0.2
+      uses: actions/cache@v3.0.4
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
@@ -350,7 +350,7 @@ jobs:
 
     steps:
     - name: Switch to using Python v3.10
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
     - name: >-
@@ -369,7 +369,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v3.0.2
+      uses: actions/cache@v3.0.4
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
@@ -467,7 +467,7 @@ jobs:
 
     steps:
     - name: Switch to using Python v${{ matrix.python }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
     - name: >-
@@ -486,7 +486,7 @@ jobs:
       run: >-
         echo "::set-output name=dir::$(pip cache dir)"
     - name: Set up pip cache
-      uses: actions/cache@v3.0.2
+      uses: actions/cache@v3.0.4
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: >-
@@ -670,7 +670,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Setup Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
     - name: Brew
@@ -724,7 +724,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Setup Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python }}
     - name: Install Pip Dependencies
