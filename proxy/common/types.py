@@ -35,7 +35,7 @@ HostPort = Tuple[str, int]
 
 if sys.version_info.minor == 6:
     RePattern = Any
-elif sys.version_info.minor == 7:
+elif sys.version_info.minor in (7, 8):
     RePattern = re.Pattern  # type: ignore
 else:
     RePattern = re.Pattern[Any]  # type: ignore
