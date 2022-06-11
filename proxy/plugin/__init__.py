@@ -15,6 +15,7 @@
        onmessage
        httpbin
        localhost
+       Lua
 """
 from .cache import CacheResponsesPlugin, BaseCacheResponsesPlugin
 from .shortlink import ShortLinkPlugin
