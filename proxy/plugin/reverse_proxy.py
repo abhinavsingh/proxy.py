@@ -18,8 +18,8 @@ from typing import List, Tuple, Union
 from ..http import Url
 from ..http.parser import HttpParser
 from ..http.server import ReverseProxyBasePlugin
-from ..http.exception.base import HttpProtocolException
 from ..common.types import RePattern
+from ..http.exception.base import HttpProtocolException
 
 
 class ReverseProxyPlugin(ReverseProxyBasePlugin):

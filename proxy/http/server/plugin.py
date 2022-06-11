@@ -20,8 +20,8 @@ from ..websocket import WebsocketFrame
 from ..connection import HttpClientConnection
 from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
-from ...common.utils import bytes_
 from ...common.types import RePattern
+from ...common.utils import bytes_
 
 
 if TYPE_CHECKING:   # pragma: no cover
