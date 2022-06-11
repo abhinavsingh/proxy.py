@@ -8,10 +8,12 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import re
 import ssl
 import queue
 import socket
 import ipaddress
+import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 
@@ -30,3 +32,10 @@ Descriptors = Tuple[Readables, Writables]
 IpAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 TcpOrTlsSocket = Union[ssl.SSLSocket, socket.socket]
 HostPort = Tuple[str, int]
+
+if sys.version_info.minor == 6:
+    RePattern = Any
+elif sys.version_info.minor == 7:
+    RePattern = re.Pattern  # type: ignore
+else:
+    RePattern = re.Pattern[Any]  # type: ignore

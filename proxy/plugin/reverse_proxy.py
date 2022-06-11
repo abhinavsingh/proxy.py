@@ -13,12 +13,13 @@
        Lua
 """
 import re
-from typing import Any, List, Tuple, Union
+from typing import List, Tuple, Union
 
 from ..http import Url
 from ..http.parser import HttpParser
 from ..http.server import ReverseProxyBasePlugin
 from ..http.exception.base import HttpProtocolException
+from ..common.types import RePattern
 
 
 class ReverseProxyPlugin(ReverseProxyBasePlugin):
@@ -48,7 +49,7 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
             r'/get/(\d+)$',
         ]
 
-    def handle_route(self, request: HttpParser, pattern: re.Pattern[Any]) -> Url:
+    def handle_route(self, request: HttpParser, pattern: RePattern) -> Url:
         """For our example dynamic route, we want to simply convert
         any incoming request to "/get/1" into "/get?id=1" when serving from upstream.
         """

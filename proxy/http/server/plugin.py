@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import re
 import argparse
 import mimetypes
 from abc import ABC, abstractmethod
@@ -22,6 +21,7 @@ from ..connection import HttpClientConnection
 from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
 from ...common.utils import bytes_
+from ...common.types import RePattern
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -147,7 +147,7 @@ class ReverseProxyBasePlugin(ABC):
         must return the url to serve."""
         raise NotImplementedError()     # pragma: no cover
 
-    def handle_route(self, request: HttpParser, pattern: re.Pattern[Any]) -> Url:
+    def handle_route(self, request: HttpParser, pattern: RePattern) -> Url:
         """Implement this method if you have configured dynamic routes."""
         pass
 
