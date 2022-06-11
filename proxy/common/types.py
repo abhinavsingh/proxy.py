@@ -10,10 +10,10 @@
 """
 import re
 import ssl
+import sys
 import queue
 import socket
 import ipaddress
-import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 
