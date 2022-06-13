@@ -4,7 +4,7 @@ from solana.publickey import PublicKey
 from solcx import compile_source
 from solana.rpc.api import Client
 from solana.rpc.commitment import Confirmed
-from solana_utils import *
+from .solana_utils import *
 
 from proxy.testing.testing_helpers import request_airdrop
 

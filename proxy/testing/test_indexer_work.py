@@ -11,7 +11,7 @@ import base64
 import unittest
 
 import rlp
-from eth_tx_utils import (make_instruction_data_from_tx,
+from .eth_tx_utils import (make_instruction_data_from_tx,
                           make_keccak_instruction_data)
 from eth_utils import big_endian_to_int
 from ethereum.transactions import Transaction as EthTrx
@@ -22,7 +22,7 @@ from solana.rpc.commitment import Confirmed
 from solana.rpc.types import TxOpts
 from solana.system_program import SYS_PROGRAM_ID
 from solana.transaction import AccountMeta, TransactionInstruction, Transaction
-from solana_utils import *
+from .solana_utils import *
 from solcx import compile_source
 from web3 import Web3
 from web3.auto.gethdev import w3
