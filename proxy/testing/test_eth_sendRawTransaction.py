@@ -66,9 +66,12 @@ contract test_185 {
     }
 
     function calculateKeccakAndStore(uint256 times) public {
+        bytes32 v = value;
         for(;times > 0; --times) {
-            value = keccak256(abi.encodePacked(value));
+            v = keccak256(abi.encodePacked(v));
         }
+
+        value = v;
     }
 
     function getValue() public view returns (bytes32) {

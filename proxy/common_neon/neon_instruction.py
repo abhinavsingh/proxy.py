@@ -16,9 +16,7 @@ from .constants import SYSVAR_INSTRUCTION_PUBKEY, INCINERATOR_PUBKEY, KECCAK_PRO
 from .layouts import CREATE_ACCOUNT_LAYOUT
 from .environment_data import EVM_LOADER_ID
 
-obligatory_accounts = [
-    AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-]
+obligatory_accounts = []
 
 
 def create_account_with_seed_layout(base, seed, lamports, space):

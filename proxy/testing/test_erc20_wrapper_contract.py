@@ -147,7 +147,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         admin_balance_before = erc20.functions.balanceOf(admin.address).call()
         user_balance_before = erc20.functions.balanceOf(user.address).call()
 
-        with self.assertRaisesRegex(Exception, "ERC20 transfer failed"):
+        with self.assertRaisesRegex(Exception, "ERC20 execution reverted"):
             erc20.functions.transfer(user.address, transfer_value).buildTransaction()
 
         admin_balance_after = erc20.functions.balanceOf(admin.address).call()
@@ -160,7 +160,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         transfer_value = 0xFFFF_FFFF_FFFF_FFFF + 1
         erc20 = self.wrapper.erc20_interface()
 
-        with self.assertRaisesRegex(Exception, "ERC20 transfer failed"):
+        with self.assertRaisesRegex(Exception, "ERC20 execution reverted"):
             erc20.functions.transfer(user.address, transfer_value).buildTransaction()
 
     def test_erc20_approve(self):
@@ -220,7 +220,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         transfer_value = 10_000_000
         erc20 = self.wrapper.erc20_interface()
 
-        with self.assertRaisesRegex(Exception, "ERC20 transferFrom failed"):
+        with self.assertRaisesRegex(Exception, "ERC20 execution reverted"):
             erc20.functions.transferFrom(admin.address, user.address, transfer_value).buildTransaction(
                 {'from': user.address}
             )
@@ -229,7 +229,7 @@ class Test_erc20_wrapper_contract(unittest.TestCase):
         transfer_value = 0xFFFF_FFFF_FFFF_FFFF + 1
         erc20 = self.wrapper.erc20_interface()
 
-        with self.assertRaisesRegex(Exception, "ERC20 transferFrom failed"):
+        with self.assertRaisesRegex(Exception, "ERC20 execution reverted"):
             erc20.functions.transferFrom(admin.address, user.address, transfer_value).buildTransaction(
                 {'from': user.address}
             )
