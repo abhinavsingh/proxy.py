@@ -22,10 +22,5 @@ hpack==4.0.0
 hyperframe==6.0.1
 pre-commit==2.16.0
 # Types
-types-cryptography==3.3.8
-types-enum34==1.1.1
-types-ipaddress==1.0.1
-types-paramiko==2.8.9
 types-requests==2.27.30
 types-setuptools==57.4.10
-types-urllib3==1.26.15
