@@ -14,7 +14,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-from proxy.proxy import main, entry_point
+import requests
+
+from proxy.proxy import Proxy, main, entry_point
 from proxy.common.utils import bytes_
 from proxy.core.work.fd import RemoteFdExecutor
 from proxy.common.constants import (  # noqa: WPS450
@@ -368,3 +370,23 @@ class TestMain(unittest.TestCase):
         mock_ssh_tunnel_listener.return_value.shutdown.assert_called_once()
         # shutdown will internally call stop port forward
         mock_ssh_tunnel_listener.return_value.stop_port_forward.assert_not_called()
+
+
+class TestProxyContextManager(unittest.TestCase):
+
+    def test_proxy_context_manager(self) -> None:
+        with Proxy(port=8888):
+            response = requests.get(
+                'http://httpbin.org/get', proxies={
+                    'http': 'http://127.0.0.1:8888',
+                    'https': 'http://127.0.0.1:8888',
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            response = requests.get(
+                'https://httpbin.org/get', proxies={
+                    'http': 'http://127.0.0.1:8888',
+                    'https': 'http://127.0.0.1:8888',
+                },
+            )
+            self.assertEqual(response.status_code, 200)
