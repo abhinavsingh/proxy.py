@@ -126,7 +126,7 @@ class AcceptorPool:
         for acceptor in self.acceptors:
             acceptor.running.set()
         for acceptor in self.acceptors:
-            acceptor.join()
+            acceptor.join(timeout=10)
         logger.debug('Acceptors shutdown')
 
     def _start(self) -> None:
