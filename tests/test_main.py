@@ -16,7 +16,7 @@ from unittest import mock
 
 import requests
 
-from proxy.proxy import main, entry_point, Proxy
+from proxy.proxy import Proxy, main, entry_point
 from proxy.common.utils import bytes_
 from proxy.core.work.fd import RemoteFdExecutor
 from proxy.common.constants import (  # noqa: WPS450
@@ -376,13 +376,17 @@ class TestProxyContextManager(unittest.TestCase):
 
     def test_proxy_context_manager(self) -> None:
         with Proxy(port=8888):
-            response = requests.get("http://httpbin.org/get", proxies={
-                "http": "http://127.0.0.1:8888",
-                "https": "http://127.0.0.1:8888",
-            })
+            response = requests.get(
+                'http://httpbin.org/get', proxies={
+                    'http': 'http://127.0.0.1:8888',
+                    'https': 'http://127.0.0.1:8888',
+                },
+            )
             self.assertEqual(response.status_code, 200)
-            response = requests.get("https://httpbin.org/get", proxies={
-                "http": "http://127.0.0.1:8888",
-                "https": "http://127.0.0.1:8888",
-            })
+            response = requests.get(
+                'https://httpbin.org/get', proxies={
+                    'http': 'http://127.0.0.1:8888',
+                    'https': 'http://127.0.0.1:8888',
+                },
+            )
             self.assertEqual(response.status_code, 200)
