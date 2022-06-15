@@ -375,7 +375,7 @@ class TestMain(unittest.TestCase):
 class TestProxyContextManager(unittest.TestCase):
 
     def test_proxy_context_manager(self) -> None:
-        with Proxy(port=8888):
+        with Proxy(port=8888, num_acceptors=1):
             response = requests.get(
                 'http://httpbin.org/get', proxies={
                     'http': 'http://127.0.0.1:8888',
