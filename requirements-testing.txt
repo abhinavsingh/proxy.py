@@ -23,4 +23,4 @@ hyperframe==6.0.1
 pre-commit==2.16.0
 # Types
 types-requests==2.27.30
-types-setuptools==57.4.10
+types-setuptools==57.4.17
