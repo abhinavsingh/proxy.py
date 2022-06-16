@@ -49,7 +49,7 @@
     "rollup-plugin-javascript-obfuscator": "^1.0.4",
     "rollup-plugin-typescript": "^1.0.1",
     "ts-node": "^10.8.0",
-    "typescript": "^4.5.4",
+    "typescript": "^4.7.3",
     "ws": "^8.6.0"
   }
 }
