@@ -4,6 +4,7 @@ import subprocess
 import sys
 from typing import List, Optional
 
+import logging
 from logged_groups import logged_group, LogMng
 from solana.account import Account as SolanaAccount
 
@@ -79,6 +80,10 @@ def get_solana_accounts(*, logger) -> [SolanaAccount]:
 
 @logged_group("neon.Proxy")
 class neon_cli(CliBase):
+
+    EMULATOR_LOGLEVEL = { logging.CRITICAL: "off", logging.ERROR: "error", logging.WARNING: "warn",
+                          logging.INFO: "info", logging.DEBUG: "debug", logging.NOTSET: "warn" }
+
     def call(self, *args):
         try:
             ctx = json.dumps(LogMng.get_logging_context())
@@ -86,7 +91,8 @@ class neon_cli(CliBase):
                    "--commitment=recent",
                    "--url", SOLANA_URL,
                    f"--evm_loader={EVM_LOADER_ID}",
-                   f"--logging_ctx={ctx}"
+                   f"--logging_ctx={ctx}",
+                   f"--loglevel={self._emulator_logging_level}"
                    ]\
                   + (["-vvv"] if LOG_NEON_CLI_DEBUG else [])\
                   + list(args)
@@ -94,6 +100,12 @@ class neon_cli(CliBase):
         except subprocess.CalledProcessError as err:
             self.error("ERR: neon-cli error {}".format(err))
             raise
+
+    @property
+    def _emulator_logging_level(self):
+        level = logging.getLogger("neon.Emulator").getEffectiveLevel()
+        cli_level = self.EMULATOR_LOGLEVEL.get(level, "warn")
+        return cli_level
 
     def version(self):
         try:
