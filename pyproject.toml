@@ -4,8 +4,8 @@ requires = [
   "setuptools",
 
   # Plugins
-  "setuptools-scm[toml] >= 6",
-  "setuptools-scm-git-archive >= 1.1",
+  "setuptools-scm[toml]>=6,!=7.0.0,!=7.0.1,!=7.0.2",
+  "setuptools-scm-git-archive>=1.1",
 ]
 build-backend = "setuptools.build_meta"
 
