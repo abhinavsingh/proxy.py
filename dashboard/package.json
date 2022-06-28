@@ -38,7 +38,7 @@
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^5.0.0",
     "http-server": "^14.1.0",
-    "jasmine": "^4.1.0",
+    "jasmine": "^4.2.0",
     "jasmine-ts": "^0.4.0",
     "jquery": "^3.6.0",
     "js-cookie": "^3.0.1",
@@ -49,7 +49,7 @@
     "rollup-plugin-javascript-obfuscator": "^1.0.4",
     "rollup-plugin-typescript": "^1.0.1",
     "ts-node": "^10.8.0",
-    "typescript": "^4.5.4",
+    "typescript": "^4.7.3",
     "ws": "^8.6.0"
   }
 }

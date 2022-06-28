@@ -659,27 +659,27 @@ jobs:
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
 
-  brew:
-    runs-on: ${{ matrix.os }}-latest
-    name: 🍺 🐍${{ matrix.python }} @ ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macOS]
-        python: ['3.10']
-      # max-parallel: 1
-      fail-fast: false
-    steps:
-    - uses: actions/checkout@v3
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python }}
-    - name: Brew
-      run: |
-        brew install ./helper/homebrew/develop/proxy.rb
-    - name: Verify
-      run: |
-        proxy -h
+  # brew:
+  #   runs-on: ${{ matrix.os }}-latest
+  #   name: 🍺 🐍${{ matrix.python }} @ ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [macOS]
+  #       python: ['3.10']
+  #     # max-parallel: 1
+  #     fail-fast: false
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   - name: Setup Python
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: ${{ matrix.python }}
+  #   - name: Brew
+  #     run: |
+  #       brew install ./helper/homebrew/develop/proxy.rb
+  #   - name: Verify
+  #     run: |
+  #       proxy -h
 
   dashboard:
     runs-on: ${{ matrix.os }}-latest
@@ -970,7 +970,7 @@ jobs:
     - test
     - lint
     - dashboard
-    - brew
+    # - brew
     - developer
     - ghcr-latest
     - ghcr-openssl
