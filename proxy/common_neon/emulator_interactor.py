@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any
 from ..common_neon.eth_proto import Trx as NeonTrx
 
 from ..common_neon.elf_params import ElfParams
+from ..common_neon.environment_data import MAX_EVM_STEPS_TO_EXECUTE
 
 from .environment_utils import neon_cli
 from .errors import EthereumError
@@ -294,7 +295,15 @@ def emulator(contract, sender, data, value):
     try:
         neon_token_mint = ElfParams().neon_token_mint
         chain_id = ElfParams().chain_id
-        return neon_cli().call("emulate", "--token_mint", str(neon_token_mint), "--chain_id", str(chain_id), sender, contract, data, value)
+        max_evm_steps_to_execute = MAX_EVM_STEPS_TO_EXECUTE
+        return neon_cli().call("emulate",
+                               "--token_mint", str(neon_token_mint),
+                               "--chain_id", str(chain_id),
+                               "--max_steps_to_execute", str(max_evm_steps_to_execute),
+                               sender,
+                               contract,
+                               data,
+                               value)
     except subprocess.CalledProcessError as err:
         msg, code = NeonCliErrorParser().execute('emulator', err)
         raise EthereumError(message=msg, code=code)
