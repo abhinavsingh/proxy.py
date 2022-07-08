@@ -1,0 +1,99 @@
+version: "3"
+
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:14.0
+    command: postgres -c 'max_connections=1000'
+    environment:
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
+    hostname: postgres
+    healthcheck:
+      test: [ CMD-SHELL, "pg_isready -h postgres -p 5432" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - net
+    ports:
+      - "127.0.0.1:5432:5432"
+    expose:
+      - "5432"
+
+  dbcreation:
+    container_name: dbcreation
+    image: neonlabsorg/proxy:${PROXY_VERSION}
+    environment:
+      SOLANA_URL: ${SOLANA_URL}
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
+      POSTGRES_HOST: postgres
+    entrypoint: proxy/run-dbcreation.sh
+    networks:
+      - net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  indexer:
+    container_name: indexer
+    image: neonlabsorg/proxy:${PROXY_VERSION}
+    environment:
+      SOLANA_URL: ${SOLANA_URL}
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_HOST: postgres
+      POSTGRES_PASSWORD: neon-proxy-pass
+      CONFIG: devnet
+      START_SLOT: LATEST
+      EVM_LOADER: ${EVM_LOADER}
+    hostname: indexer
+    entrypoint: proxy/run-indexer.sh
+    depends_on:
+      dbcreation:
+        condition: service_completed_successfully
+    networks:
+      - net
+    volumes:
+      - "./keys:/root/.config/solana/"
+
+  proxy:
+    container_name: proxy
+    image: neonlabsorg/proxy:${PROXY_VERSION}
+    environment:
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
+      POSTGRES_HOST: postgres
+      SOLANA_URL: ${SOLANA_URL}
+      EXTRA_GAS: 5000
+      EVM_LOADER: ${EVM_LOADER}
+      CONFIG: devnet
+      LOG_NEON_CLI_DEBUG: "YES"
+      USE_COMBINED_START_CONTINUE: "yes"
+      NEON_CLI_TIMEOUT: 60
+      NEW_USER_AIRDROP_AMOUNT: 0
+      WRITE_TRANSACTION_COST_IN_DB: "NO"
+      START_SLOT: LATEST
+      PERM_ACCOUNT_LIMIT: 16
+    hostname: proxy
+    entrypoint: ./proxy/run-proxy.sh
+    ports:
+      - "9090:9090"
+    expose:
+      - "9090"
+    networks:
+      - net
+    depends_on:
+      dbcreation:
+        condition: service_completed_successfully
+    volumes:
+      - "./keys:/root/.config/solana/"
+
+
+networks:
+  net:
+
