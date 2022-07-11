@@ -31,6 +31,8 @@ COPY --from=spl /opt/spl-token \
                 /opt/evm_loader-keypair.json \
                 /spl/bin/
 
+COPY --from=spl /opt/contracts/contracts/ /opt/contracts/
+
 COPY --from=spl /opt/neon-cli /spl/bin/emulator
 COPY --from=proxy_program /opt/proxy_program-keypair.json /spl/bin/
 

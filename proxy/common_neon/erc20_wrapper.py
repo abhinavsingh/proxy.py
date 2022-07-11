@@ -1,5 +1,4 @@
 from solcx import install_solc
-from web3 import Web3
 from spl.token.client import Token
 from spl.token.constants import TOKEN_PROGRAM_ID
 from eth_account.signers.local import LocalAccount as NeonAccount
@@ -14,72 +13,49 @@ from typing import Union, Dict
 import struct
 from logged_groups import logged_group
 from .compute_budget import TransactionWithComputeBudget
+from sha3 import keccak_256
+from proxy.common_neon.eth_proto import Trx
+from ..common_neon.neon_instruction import NeonInstruction
+from ..common_neon.web3 import NeonWeb3
+from proxy.common_neon.address import EthereumAddress
 
 install_solc(version='0.7.6')
 from solcx import compile_source
 
 # Standard interface of ERC20 contract to generate ABI for wrapper
-ERC20_INTERFACE_SOURCE = '''
+ERC20FORSPL_INTERFACE_SOURCE = '''
 pragma solidity >=0.7.0;
 
-interface IERC20 {
+interface IERC20ForSpl {
+
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+    event Approval(address indexed owner, address indexed spender, uint256 amount);
+
+    event ApprovalSolana(address indexed owner, bytes32 indexed spender, uint64 amount);
+    event TransferSolana(address indexed from, bytes32 indexed to, uint64 amount);
+
+    function name() external  view returns (string memory);
+    function symbol() external view returns (string memory);
+    function tokenMint() external view returns (bytes32);
     function decimals() external view returns (uint8);
     function totalSupply() external view returns (uint256);
     function balanceOf(address who) external view returns (uint256);
     function allowance(address owner, address spender) external view returns (uint256);
-    function transfer(address to, uint256 value) external returns (bool);
-    function approve(address spender, uint256 value) external returns (bool);
-    function transferFrom(address from, address to, uint256 value) external returns (bool);
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-
-
-    function approveSolana(bytes32 spender, uint64 value) external returns (bool);
-    event ApprovalSolana(address indexed owner, bytes32 indexed spender, uint64 value);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function burn(uint256 amount) external returns (bool);
+    function burnFrom(address from, uint256 amount) external returns (bool);
+    function approveSolana(bytes32 spender, uint64 amount) external returns (bool);
+    function transferSolana(bytes32 to, uint64 amount) external returns (bool);
+    function claim(bytes32 from, uint64 amount) external returns (bool);
 }
+
 '''
-
-# Copy of contract: https://github.com/neonlabsorg/neon-evm/blob/develop/evm_loader/SPL_ERC20_Wrapper.sol
-ERC20_CONTRACT_SOURCE = '''
-// SPDX-License-Identifier: MIT
-
-pragma solidity >=0.5.12;
-
-/*abstract*/ contract NeonERC20Wrapper /*is IERC20*/ {
-    address constant NeonERC20 = 0xff00000000000000000000000000000000000001;
-
-    string public name;
-    string public symbol;
-    bytes32 public tokenMint;
-
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        bytes32 _tokenMint
-    ) {
-        name = _name;
-        symbol = _symbol;
-        tokenMint = _tokenMint;
-    }
-
-    fallback() external {
-        bytes memory call_data = abi.encodePacked(tokenMint, msg.data);
-        (bool success, bytes memory result) = NeonERC20.delegatecall(call_data);
-
-        require(success, string(result));
-
-        assembly {
-            return(add(result, 0x20), mload(result))
-        }
-    }
-}
-'''
-
 
 @logged_group("neon.Proxy")
 class ERC20Wrapper:
-    proxy: Web3
+    proxy: NeonWeb3
     name: str
     symbol: str
     token: Token
@@ -91,7 +67,7 @@ class ERC20Wrapper:
     interface: Dict
     wrapper: Dict
 
-    def __init__(self, proxy: Web3,
+    def __init__(self, proxy: NeonWeb3,
                  name: str, symbol: str,
                  token: Token,
                  admin: NeonAccount,
@@ -110,12 +86,14 @@ class ERC20Wrapper:
         return PublicKey.find_program_address([b"\1", neon_account_addressbytes], self.evm_loader_id)[0]
 
     def deploy_wrapper(self):
-        compiled_interface = compile_source(ERC20_INTERFACE_SOURCE)
+        compiled_interface = compile_source(ERC20FORSPL_INTERFACE_SOURCE)
         interface_id, interface = compiled_interface.popitem()
         self.interface = interface
 
-        compiled_wrapper = compile_source(ERC20_CONTRACT_SOURCE)
-        wrapper_id, wrapper_interface = compiled_wrapper.popitem()
+        with open('/opt/contracts/erc20_for_spl.sol', 'r') as file:
+            source = file.read()
+        compiled_wrapper = compile_source(source)
+        wrapper_interface = compiled_wrapper["<stdin>:ERC20ForSpl"]
         self.wrapper = wrapper_interface
 
         erc20 = self.proxy.eth.contract(abi=self.wrapper['abi'], bytecode=wrapper_interface['bin'])
@@ -151,6 +129,34 @@ class ERC20Wrapper:
         tx.add(create_ix)
         self.token._conn.send_transaction(tx, payer, opts=TxOpts(skip_preflight = True, skip_confirmation=False))
         return create_ix.keys[1].pubkey
+
+    def create_claim_instruction(self, owner: PublicKey, from_acc: PublicKey, to_acc: NeonAccount, amount: int):
+        erc20 = self.proxy.eth.contract(address=self.neon_contract_address, abi=self.wrapper['abi'])
+        nonce = self.proxy.eth.get_transaction_count(to_acc.address)
+        claim_tx = erc20.functions.claim(bytes(from_acc), amount).buildTransaction({'nonce': nonce, 'gasPrice': 0})
+        claim_tx = self.proxy.eth.account.sign_transaction(claim_tx, to_acc.key)
+
+        eth_trx = bytearray.fromhex(claim_tx.rawTransaction.hex()[2:])
+        emulating_result = self.proxy.neon.emulate(eth_trx)
+
+        eth_accounts = dict()
+        for account in emulating_result['accounts']:
+            key = account['account']
+            eth_accounts[key] = AccountMeta(pubkey=PublicKey(key), is_signer=False, is_writable=True)
+            if account['contract']:
+                key = account['contract']
+                eth_accounts[key] = AccountMeta(pubkey=PublicKey(key), is_signer=False, is_writable=True)
+
+        for account in emulating_result['solana_accounts']:
+            key = account['pubkey']
+            eth_accounts[key] = AccountMeta(pubkey=PublicKey(key), is_signer=False, is_writable=True)
+
+        eth_accounts = list(eth_accounts.values())
+
+        neon = NeonInstruction(owner)
+        neon.init_operator_ether(EthereumAddress(to_acc.address))
+        neon.init_eth_trx(Trx.fromString(eth_trx), eth_accounts)
+        return neon
 
     def create_neon_erc20_account_instruction(self, payer: PublicKey, eth_address: str):
         return TransactionInstruction(

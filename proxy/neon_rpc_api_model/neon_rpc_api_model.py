@@ -686,3 +686,11 @@ class NeonRpcApiModel:
     def neon_getSolanaTransactionByNeonTransaction(self, NeonTxId: str) -> Union[str, list]:
         neon_sign = self._normalize_tx_id(NeonTxId)
         return self._db.get_sol_sign_list_by_neon_sign(neon_sign)
+
+    def neon_emulate(self, raw_signed_trx):
+        """Executes emulator with given transaction
+        """
+        self.debug(f"Call neon_emulate: {raw_signed_trx}")
+        eth_trx = EthTrx.fromString(bytearray.fromhex(raw_signed_trx))
+        emulation_result = call_trx_emulated(eth_trx)
+        return emulation_result

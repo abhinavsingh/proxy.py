@@ -14,6 +14,11 @@ from ..indexer.base_db import BaseDB
 from ..indexer.utils import check_error
 from ..indexer.sql_dict import SQLDict
 
+EVM_LOADER_CREATE_ACC           = 0x18
+SPL_TOKEN_APPROVE               = 0x04
+EVM_LOADER_CALL_FROM_RAW_TRX    = 0x05
+SPL_TOKEN_INIT_ACC_2            = 0x10
+SPL_TOKEN_TRANSFER              = 0x03
 
 ACCOUNT_CREATION_PRICE_SOL = Decimal('0.00472692')
 AIRDROP_AMOUNT_SOL = ACCOUNT_CREATION_PRICE_SOL / 2
@@ -119,23 +124,54 @@ class Airdropper(IndexerBase):
             return True
         return contract_addr in self.wrapper_whitelist
 
-    # helper function checking if given 'create account' corresponds to 'create erc20 token account' instruction
-    def check_create_instr(self, account_keys, create_acc, create_token_acc):
+
+    # helper function checking if given 'create account' corresponds to 'approve' instruction
+    def check_create_approve_instr(self, account_keys, create_acc, approve):
         # Must use the same Ethereum account
-        if account_keys[create_acc['accounts'][2]] != account_keys[create_token_acc['accounts'][2]]:
+        if account_keys[create_acc['accounts'][2]] != account_keys[approve['accounts'][1]]:
             return False
-        # Token program must be system token program
-        if account_keys[create_token_acc['accounts'][6]] != 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA':
-            return False
-        # CreateERC20TokenAccount instruction must use ERC20-wrapper from whitelist
-        if not self.is_allowed_wrapper_contract(account_keys[create_token_acc['accounts'][3]]):
+        
+        # Must use the same Operator account
+        if account_keys[create_acc['accounts'][0]] != account_keys[approve['accounts'][2]]:
             return False
         return True
 
-    # helper function checking if given 'create erc20 token account' corresponds to 'token transfer' instruction
-    @staticmethod
-    def check_transfer(account_keys, create_token_acc, token_transfer) -> bool:
-        return account_keys[create_token_acc['accounts'][1]] == account_keys[token_transfer['accounts'][1]]
+    # helper function checking if given 'approve' corresponds to 'call' instruction
+    def check_create_approve_call_instr(self, account_keys, create_acc, approve, call):
+        # Must use the same Operator account
+        if account_keys[approve['accounts'][2]] != account_keys[call['accounts'][1]]:
+            return False
+
+        data = base58.b58decode(call['data'])
+        caller = data[5:25]
+        erc20 = data[90:122]
+        method_id = data[122:126]
+        source_token = data[126:158]
+
+
+        created_account = base58.b58decode(create_acc['data'])[1:][:20]
+        if created_account != caller:
+            self.debug(f"Created account {created_account.hex()} and caller {caller.hex()} are different")
+            return False
+
+        sol_caller, _ = PublicKey.find_program_address([b"\1", caller], PublicKey(EVM_LOADER_ID))
+        if PublicKey(account_keys[approve['accounts'][1]]) != sol_caller:
+            self.debug(f"account_keys[approve['accounts'][1]] != sol_caller")
+            return False
+
+        # CreateERC20TokenAccount instruction must use ERC20-wrapper from whitelist
+        if not self.is_allowed_wrapper_contract("0x" + erc20.hex()):
+            self.debug(f"{erc20.hex()} Is not whitelisted ERC20 contract")
+            return False
+
+        if method_id != b'\\\xa3\xe1\xe9':
+            return False
+
+        if base58.b58decode(account_keys[approve['accounts'][0]]) != source_token:
+            self.debug(f"Claim token account {account_keys[approve['accounts'][0]]} != approve token account {source_token.hex()}")
+            return False
+
+        return True
 
     def airdrop_to(self, eth_address, airdrop_galans):
         self.info(f"Airdrop {airdrop_galans} Galans to address: {eth_address}")
@@ -150,37 +186,77 @@ class Airdropper(IndexerBase):
     def process_trx_airdropper_mode(self, trx):
         if check_error(trx):
             return
+        
+        self.debug(f"Processing transaction: {trx}")
         # helper function finding all instructions that satisfies predicate
-        def find_instructions(trx, predicate):
-            return [instr for instr in trx['transaction']['message']['instructions'] if predicate(instr)]
+        def find_instructions(instructions, predicate):
+            return [(number, instr) for number, instr in instructions if predicate(instr)]
+
+        def find_inner_instructions(trx, instr_idx, predicate):
+            inner_insturctions = None
+            for entry in trx['meta']['innerInstructions']:
+                if entry['index'] == instr_idx:
+                    inner_insturctions = entry['instructions']
+                    break
+
+            if inner_insturctions is None:
+                self.debug(f'Inner instructions for instruction {instr_idx} not found')
+                return []
+
+            return [instruction for instruction in inner_insturctions if predicate(instruction)]
+
+        
+        def isRequiredInstruction(instr, req_program_id, req_tag_id):
+            return account_keys[instr['programIdIndex']] == req_program_id \
+                and base58.b58decode(instr['data'])[0] == req_tag_id
+
 
         account_keys = trx["transaction"]["message"]["accountKeys"]
+        instructions = [(number, entry) for number, entry in enumerate(trx['transaction']['message']['instructions'])]
 
         # Finding instructions specific for airdrop.
         # Airdrop triggers on sequence:
-        # neon.CreateAccount -> neon.CreateERC20TokenAccount -> spl.Transfer (maybe shuffled)
+        # neon.CreateAccount -> token.Approve -> neon.callFromRawEthereumTrx (call claim method of ERC20)
+        # Additionaly:
+        # call instruction internally must:
+        #   1. Create token account (token.init_v2)
+        #   2. Transfer tokens (token.transfer)
         # First: select all instructions that can form such chains
-        predicate = lambda instr: account_keys[instr['programIdIndex']] == EVM_LOADER_ID \
-                                  and base58.b58decode(instr['data'])[0] == 0x18
-        create_acc_list = find_instructions(trx, predicate)
+        predicate = lambda instr: isRequiredInstruction(instr, EVM_LOADER_ID, EVM_LOADER_CREATE_ACC)
+        create_acc_list = find_instructions(instructions, predicate)
+        self.debug(f'create_acc_list: {create_acc_list}')
 
-        predicate = lambda  instr: account_keys[instr['programIdIndex']] == EVM_LOADER_ID \
-                                   and base58.b58decode(instr['data'])[0] == 0x0f
-        create_token_acc_list = find_instructions(trx, predicate)
+        predicate = lambda  instr: isRequiredInstruction(instr, 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', SPL_TOKEN_APPROVE)
+        approve_list = find_instructions(instructions, predicate)
+        self.debug(f'approve_list: {approve_list}')
 
-        predicate = lambda instr: account_keys[instr['programIdIndex']] == 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' \
-                                  and base58.b58decode(instr['data'])[0] == 0x03
-        token_transfer_list = find_instructions(trx, predicate)
+        predicate = lambda  instr: isRequiredInstruction(instr, EVM_LOADER_ID, EVM_LOADER_CALL_FROM_RAW_TRX)
+        call_list = find_instructions(instructions, predicate)
+        self.debug(f'call_list: {call_list}')
 
         # Second: Find exact chains of instructions in sets created previously
-        for create_acc in create_acc_list:
-            for create_token_acc in create_token_acc_list:
-                if not self.check_create_instr(account_keys, create_acc, create_token_acc):
+        for _, create_acc in create_acc_list:
+            for _, approve in approve_list:
+                if not self.check_create_approve_instr(account_keys, create_acc, approve):
+                    self.debug(f'check_create_approve_instr failed')
                     continue
-                for token_transfer in token_transfer_list:
-                    if not self.check_transfer(account_keys, create_token_acc, token_transfer):
+                for call_idx, call in call_list:
+                    if not self.check_create_approve_call_instr(account_keys, create_acc, approve, call):
+                        self.debug(f'check_create_approve_call_instr failed')
                         continue
-                    self.schedule_airdrop(create_acc)
+
+                    predicate = lambda  instr: isRequiredInstruction(instr, 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', SPL_TOKEN_INIT_ACC_2)
+                    init_token2_list = find_inner_instructions(trx, call_idx, predicate)
+
+                    self.debug(f'init_token2_list = {init_token2_list}')
+
+                    predicate = lambda  instr: isRequiredInstruction(instr, 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', SPL_TOKEN_TRANSFER)
+                    token_transfer_list = find_inner_instructions(trx, call_idx, predicate)
+
+                    self.debug(f'token_transfer_list = {token_transfer_list}')
+
+                    if len(init_token2_list) > 0 and len(token_transfer_list) > 0:
+                        self.schedule_airdrop(create_acc)
 
     def get_sol_usd_price(self):
         should_reload = self.always_reload_price
