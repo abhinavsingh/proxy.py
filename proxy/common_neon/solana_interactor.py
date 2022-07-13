@@ -294,7 +294,7 @@ class SolanaInteractor:
 
         return AccountInfo(account_tag, lamports, owner, data)
 
-    def get_account_info_list(self, accounts: [PublicKey], length=256, commitment='confirmed') -> [AccountInfo]:
+    def get_account_info_list(self, src_account_list: List[PublicKey], length=256, commitment='confirmed') -> List[AccountInfo]:
         opts = {
             "encoding": "base64",
             "commitment": commitment,
@@ -306,23 +306,25 @@ class SolanaInteractor:
                 'length': length
             }
 
-        result = self._send_rpc_request("getMultipleAccounts", [str(a) for a in accounts], opts)
-        # self.debug(f"{json.dumps(result, sort_keys=True)}")
+        account_info_list = []
+        while len(src_account_list) > 0:
+            account_list = [str(a) for a in src_account_list[:50]]
+            src_account_list = src_account_list[50:]
+            result = self._send_rpc_request("getMultipleAccounts", account_list, opts)
 
-        if result['result']['value'] is None:
-            self.debug(f"Can't get information about {accounts}")
-            return []
+            error = result.get('error', None)
+            if error:
+                self.debug(f"Can't get information about accounts {account_list}: {error}")
+                return account_info_list
 
-        accounts_info = []
-        for pubkey, info in zip(accounts, result['result']['value']):
-            if info is None:
-                accounts_info.append(None)
-            else:
-                data = base64.b64decode(info['data'][0])
-                account = AccountInfo(tag=data[0], lamports=info['lamports'], owner=info['owner'], data=data)
-                accounts_info.append(account)
-
-        return accounts_info
+            for pubkey, info in zip(account_list, result['result']['value']):
+                if info is None:
+                    account_info_list.append(None)
+                else:
+                    data = base64.b64decode(info['data'][0])
+                    account = AccountInfo(tag=data[0], lamports=info['lamports'], owner=info['owner'], data=data)
+                    account_info_list.append(account)
+        return account_info_list
 
     def get_sol_balance(self, account, commitment='confirmed') -> int:
         opts = {
