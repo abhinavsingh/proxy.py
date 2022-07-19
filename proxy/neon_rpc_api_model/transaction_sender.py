@@ -25,8 +25,9 @@ from ..common_neon.errors import EthereumError
 from ..common_neon.types import NeonTxPrecheckResult, NeonEmulatingResult
 from ..common_neon.environment_data import RETRY_ON_FAIL
 from ..common_neon.elf_params import ElfParams
-from ..memdb.memdb import MemDB, NeonPendingTxInfo
 from ..common_neon.utils import get_holder_msg
+from ..common_neon.evm_decoder import decode_neon_tx_result
+from ..memdb.memdb import MemDB, NeonPendingTxInfo
 
 
 @logged_group("neon.Proxy")
@@ -267,7 +268,7 @@ class SimpleNeonTxSender(SolTxListSender):
 
     def _on_success_send(self, tx: Transaction, receipt: {}):
         if not self.neon_res.is_valid():
-            self.neon_res.decode(self._s.neon_sign, receipt).is_valid()
+            decode_neon_tx_result(self.neon_res, self._s.neon_sign, receipt).is_valid()
         super()._on_success_send(tx, receipt)
 
     def _on_post_send(self):

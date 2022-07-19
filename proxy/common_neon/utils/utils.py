@@ -1,17 +1,15 @@
 from __future__ import annotations
+
 from typing import Dict, Any, Optional, List
-
 import json
-import base58
-
 from enum import Enum
+
+from logged_groups import logged_group
 from eth_utils import big_endian_to_int
 
 from proxy.indexer.utils import SolanaIxSignInfo
-
-#TODO: move it out from here
+# TODO: move it out from here
 from ..environment_data import EVM_LOADER_ID, LOG_FULL_OBJECT_INFO
-
 from ..eth_proto import Trx as EthTx
 
 
@@ -82,6 +80,7 @@ class SolanaBlockInfo:
         return self.time is None
 
 
+@logged_group("neon.Parser")
 class NeonTxResultInfo:
     def __init__(self):
         self._set_defaults()
@@ -105,43 +104,11 @@ class NeonTxResultInfo:
         self.block_hash = ''
         self.idx = -1
 
-    def _decode_event(self, neon_sign, log, tx_idx):
-        log_idx = len(self.logs)
-        address = log[1:21]
-        count_topics = int().from_bytes(log[21:29], 'little')
-        topics = []
-        pos = 29
-        for _ in range(count_topics):
-            topic_bin = log[pos:pos + 32]
-            topics.append('0x' + topic_bin.hex())
-            pos += 32
-        data = log[pos:]
-        rec = {
-            'address': '0x' + address.hex(),
-            'topics': topics,
-            'data': '0x' + data.hex(),
-            'transactionLogIndex': hex(log_idx),
-            'transactionIndex': hex(tx_idx),
-            'logIndex': hex(log_idx),
-            'transactionHash': neon_sign,
-            # 'blockNumber': block_number, # set when transaction found
-            # 'blockHash': block_hash # set when transaction found
-        }
-        self.logs.append(rec)
-
     def append_record(self, rec):
         log_idx = len(self.logs)
         rec['transactionLogIndex'] = hex(log_idx)
         rec['logIndex'] = hex(log_idx)
         self.logs.append(rec)
-
-    def _decode_return(self, log: bytes, ix_idx: int, tx: {}):
-        self.status = '0x1' if log[1] < 0xd0 else '0x0'
-        self.gas_used = hex(int.from_bytes(log[2:10], 'little'))
-        self.return_value = log[10:].hex()
-        self.sol_sign = tx['transaction']['signatures'][0]
-        self.slot = tx['slot']
-        self.idx = ix_idx
 
     def set_result(self, sign: SolanaIxSignInfo, status, gas_used, return_value):
         self.status = status
@@ -158,25 +125,7 @@ class NeonTxResultInfo:
             rec['blockHash'] = block.hash
             rec['blockNumber'] = hex(block.slot)
 
-    def decode(self, neon_sign: str, tx: {}, ix_idx=-1) -> NeonTxResultInfo:
-        self._set_defaults()
-        meta_ixs = tx['meta']['innerInstructions']
-        msg = tx['transaction']['message']
-        accounts = msg['accountKeys']
-
-        for inner_ix in meta_ixs:
-            ix_idx = inner_ix['index']
-            for event in inner_ix['instructions']:
-                if accounts[event['programIdIndex']] == EVM_LOADER_ID:
-                    log = base58.b58decode(event['data'])
-                    evm_ix = int(log[0])
-                    if evm_ix == 7:
-                        self._decode_event(neon_sign, log, ix_idx)
-                    elif evm_ix == 6:
-                        self._decode_return(log, ix_idx, tx)
-        return self
-
-    def canceled(self, tx: {}):
+    def canceled(self, tx: Dict[Any, Any]):
         self._set_defaults()
         self.sol_sign = tx['transaction']['signatures'][0]
         self.slot = tx['slot']

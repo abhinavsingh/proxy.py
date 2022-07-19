@@ -1,10 +1,9 @@
-import copy
 from typing import Iterator, List, Optional, Dict
+import time
+from enum import Enum
 
 import base58
-import time
 import sha3
-from enum import Enum
 from logged_groups import logged_group, logging_context
 from solana.system_program import SYS_PROGRAM_ID
 
@@ -15,11 +14,10 @@ from ..indexer.indexer_base import IndexerBase
 from ..indexer.indexer_db import IndexerDB
 from ..indexer.utils import SolanaIxSignInfo, MetricsToLogBuff, CostInfo
 from ..indexer.canceller import Canceller
-
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo, str_fmt_object
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.solana_receipt_parser import SolReceiptParser
-
+from ..common_neon.evm_decoder import decode_neon_tx_result
 from ..common_neon.environment_data import EVM_LOADER_ID, FINALIZED, CANCEL_TIMEOUT, SKIP_CANCEL_TIMEOUT, HOLDER_TIMEOUT
 
 
@@ -40,6 +38,7 @@ class SolanaIxInfo:
         self.ix = {}
         self.neon_obj = None
         self.evm_ix = 0xFF
+        self.evm_ix_idx = -1
         self.ix_data = None
 
     def _decode_ixdata(self) -> bool:
@@ -81,14 +80,16 @@ class SolanaIxInfo:
 
             if self._get_neon_instruction():
                 evm_ix_idx += 1
-                yield evm_ix_idx
+                self.evm_ix_idx = evm_ix_idx
+                yield self.evm_ix_idx
 
             for inner_tx in self.tx['meta']['innerInstructions']:
                 if inner_tx['index'] == ix_idx:
                     for self.ix in inner_tx['instructions']:
                         if self._get_neon_instruction():
                             evm_ix_idx += 1
-                            yield evm_ix_idx
+                            self.evm_ix_idx = evm_ix_idx
+                            yield self.evm_ix_idx
 
         self._set_defaults()
 
@@ -198,6 +199,7 @@ class ReceiptsParserState:
     - All instructions are removed from the _used_ixs;
     - If number of the smallest slot in the _used_ixs is changed, it's stored into the DB for the future restart.
     """
+
     def __init__(self, db: IndexerDB, solana: SolanaInteractor, indexer_user: IIndexerUser):
         self._db = db
         self._solana = solana
@@ -460,7 +462,7 @@ class DummyIxDecoder:
         If the transaction doesn't have results, then try to get results for the transaction.
         If the transaction has received results, then call done for the transaction.
         The transaction can already have results, because parser waits all ixs in the slot, because
-        the parsing order can be other than the execution order
+        the parsing order can be other than the execution order.
         """
         self.ix.neon_obj = tx
         return self._decoding_success(tx, 'mark ix used')
@@ -583,7 +585,7 @@ class CreateAccountIxDecoder(DummyIxDecoder):
         if len(self.ix.ix_data) < 41:
             return self._decoding_skip(f'not enough data to get the Neon account {len(self.ix.ix_data)}')
 
-        neon_account = "0x" + self.ix.ix_data[8+8+4:][:20].hex()
+        neon_account = "0x" + self.ix.ix_data[8 + 8 + 4:][:20].hex()
         pda_account = self.ix.get_account(1)
         code_account = self.ix.get_account(3)
         if code_account == str(SYS_PROGRAM_ID) or code_account == '':
@@ -665,6 +667,9 @@ class CallFromRawIxDecoder(DummyIxDecoder):
         tx = NeonTxResult('')
         tx.neon_tx = neon_tx
 
+        if decode_neon_tx_result(tx.neon_res, tx.neon_tx.sign, self.ix.tx, self.ix.evm_ix_idx).is_valid():
+            return self._decoding_done(tx, 'found Neon results')
+
         return self._decode_tx(tx)
 
 
@@ -715,8 +720,6 @@ class OnEventIxDecoder(DummyIxDecoder):
             'data': '0x' + data.hex(),
             'transactionIndex': hex(self.ix.sign.idx),
             'transactionHash': self.ix.neon_obj.neon_tx.sign,
-            # 'blockNumber': block_number, # set when transaction found
-            # 'blockHash': block_hash # set when transaction found
         }
 
         self.ix.neon_obj.neon_res.append_record(rec)
@@ -751,8 +754,11 @@ class PartialCallIxDecoder(DummyIxDecoder):
             return self._decoding_skip(f'Neon tx rlp error "{neon_tx.error}"')
 
         tx = self._getadd_tx(storage_account, blocked_accounts, neon_tx)
-
         self.ix.sign.set_steps(step_count)
+
+        if decode_neon_tx_result(tx.neon_res, tx.neon_tx.sign, self.ix.tx, self.ix.evm_ix_idx).is_valid():
+            return self._decoding_done(tx, 'found Neon results')
+
         return self._decode_tx(tx)
 
 
@@ -791,6 +797,10 @@ class ContinueIxDecoder(DummyIxDecoder):
             return self._decode_skip(f'no transaction at the storage {storage_account}')
 
         self.ix.sign.set_steps(step_count)
+
+        if decode_neon_tx_result(tx.neon_res, tx.neon_tx.sign, self.ix.tx, self.ix.evm_ix_idx).is_valid():
+            return self._decoding_done(tx, 'found Neon results')
+
         return self._decode_tx(tx)
 
 
@@ -824,6 +834,7 @@ class ExecuteTrxFromAccountIxDecoder(DummyIxDecoder):
             return self._decoding_skip(f'fail to init in storage {storage_account} from holder {holder_account}')
 
         self.ix.sign.set_steps(step_count)
+
         return self._decode_tx(tx)
 
 
@@ -888,6 +899,10 @@ class ExecuteOrContinueIxParser(DummyIxDecoder):
             return self._decoding_skip(f'fail to init the storage {storage_account} from the holder {holder_account}')
 
         self.ix.sign.set_steps(step_count)
+
+        if decode_neon_tx_result(tx.neon_res, tx.neon_tx.sign, self.ix.tx, self.ix.evm_ix_idx).is_valid():
+            return self._decoding_done(tx, 'found Neon results')
+
         return self._decode_tx(tx)
 
 
