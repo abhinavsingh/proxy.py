@@ -10,18 +10,13 @@ os.environ['COLLATERAL_POOL_BASE'] = "4sW3SZDJB7qXUyCYKA7pFL8eCTfm3REr8oSiKkww7M
 import base64
 import unittest
 
-import rlp
-from .eth_tx_utils import (make_instruction_data_from_tx,
-                          make_keccak_instruction_data)
+from .eth_tx_utils import make_instruction_data_from_tx
 from eth_utils import big_endian_to_int
 from ethereum.transactions import Transaction as EthTrx
 from ethereum.utils import sha3
-from solana.publickey import PublicKey
 from solana.rpc.api import Client as SolanaClient
 from solana.rpc.commitment import Confirmed
-from solana.rpc.types import TxOpts
 from solana.system_program import SYS_PROGRAM_ID
-from solana.transaction import AccountMeta, TransactionInstruction, Transaction
 from .solana_utils import *
 from solcx import compile_source
 from web3 import Web3
@@ -31,7 +26,7 @@ from ..common_neon.constants import SYSVAR_INSTRUCTION_PUBKEY
 from ..common_neon.environment_data import EVM_LOADER_ID
 from ..common_neon.address import EthereumAddress
 from ..common_neon.compute_budget import TransactionWithComputeBudget
-from ..common_neon.neon_instruction import NeonInstruction
+from ..common_neon.neon_instruction import NeonIxBuilder, make_keccak_instruction_data
 from ..common_neon.eth_proto import Trx
 
 from .testing_helpers import request_airdrop
@@ -213,9 +208,10 @@ class CancelTest(unittest.TestCase):
         eth_tx = Trx.fromString(bytearray.fromhex(trx_transfer_signed.rawTransaction.hex()[2:]))
 
         tx = TransactionWithComputeBudget()
-        builder = NeonInstruction(self.acc.public_key())
+        builder = NeonIxBuilder(self.acc.public_key())
         builder.init_operator_ether(self.caller_ether)
-        builder.init_eth_trx(eth_tx, eth_meta_list)
+        builder.init_eth_tx(eth_tx)
+        builder.init_eth_accounts(eth_meta_list)
         noniterative_transaction = builder.make_noniterative_call_transaction(len(tx.instructions))
 
         # noniterative_transaction.instructions[-1].program_id = proxy_program
@@ -261,9 +257,10 @@ class CancelTest(unittest.TestCase):
         eth_tx = Trx.fromString(bytearray.fromhex(trx_transfer_signed.rawTransaction.hex()[2:]))
 
         tx = TransactionWithComputeBudget()
-        builder = NeonInstruction(self.acc.public_key())
+        builder = NeonIxBuilder(self.acc.public_key())
         builder.init_operator_ether(self.caller_ether)
-        builder.init_eth_trx(eth_tx, eth_meta_list)
+        builder.init_eth_tx(eth_tx)
+        builder.init_eth_accounts(eth_meta_list)
         builder.init_iterative(storage_for_invoked, None, None)
         # builder.make_partial_call_or_continue_transaction(250, len(tx.instructions))
 

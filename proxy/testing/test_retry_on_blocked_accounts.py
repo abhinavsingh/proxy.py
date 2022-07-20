@@ -8,22 +8,18 @@ os.environ['EVM_LOADER'] = "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io"
 os.environ['ETH_TOKEN_MINT'] = "HPsV9Deocecw3GeZv1FkAPNCBRfuVyfw9MMwjwRe1xaU"
 os.environ['COLLATERAL_POOL_BASE'] = "4sW3SZDJB7qXUyCYKA7pFL8eCTfm3REr8oSiKkww7MaT"
 
-import base64
 import datetime
 import multiprocessing
 import unittest
-import rlp
-from .eth_tx_utils import make_instruction_data_from_tx, make_keccak_instruction_data
+from .eth_tx_utils import make_instruction_data_from_tx
 from eth_utils import big_endian_to_int
 from ethereum.transactions import Transaction as EthTrx
 from ethereum.utils import sha3
-from proxy.common_neon.compute_budget import TransactionWithComputeBudget
-from solana.publickey import PublicKey
+from ..common_neon.compute_budget import TransactionWithComputeBudget
+from ..common_neon.neon_instruction import make_keccak_instruction_data
 from solana.rpc.commitment import Confirmed
 from solana.system_program import SYS_PROGRAM_ID
-from solana.transaction import AccountMeta, Transaction, TransactionInstruction
 from .solana_utils import *
-from spl.token.constants import TOKEN_PROGRAM_ID
 from spl.token.instructions import get_associated_token_address
 from web3 import Web3
 from web3.auto.gethdev import w3

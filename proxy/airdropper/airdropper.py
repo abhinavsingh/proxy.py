@@ -334,13 +334,14 @@ class Airdropper(IndexerBase):
         """
         Overrides IndexerBase.process_functions
         """
+        IndexerBase.process_functions(self)
         self.debug("Process receipts")
         self.process_receipts()
         self.process_scheduled_trxs()
 
     def process_receipts(self):
         max_slot = 0
-        for slot, _, trx in self.get_tx_receipts():
+        for slot, _, trx in self.transaction_receipts.get_txs(self.latest_processed_slot):
             max_slot = max(max_slot, slot)
             if trx['transaction']['message']['instructions'] is not None:
                 self.process_trx_airdropper_mode(trx)

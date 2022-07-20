@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import random
 
+from typing import Tuple
+
 from eth_keys import keys as eth_keys
 from hashlib import sha256
 from solana.publickey import PublicKey
@@ -43,7 +45,7 @@ def accountWithSeed(base: bytes, seed: bytes) -> PublicKey:
     return result
 
 
-def ether2program(ether):
+def ether2program(ether) -> Tuple[PublicKey, int]:
 
     if isinstance(ether, str):
         pass
@@ -56,4 +58,4 @@ def ether2program(ether):
         ether = ether[2:]
     seed = [ACCOUNT_SEED_VERSION,  bytes.fromhex(ether)]
     (pda, nonce) = PublicKey.find_program_address(seed, PublicKey(EVM_LOADER_ID))
-    return str(pda), nonce
+    return pda, nonce

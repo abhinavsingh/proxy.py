@@ -15,7 +15,7 @@ from logged_groups import logged_group
 from .compute_budget import TransactionWithComputeBudget
 from sha3 import keccak_256
 from proxy.common_neon.eth_proto import Trx
-from ..common_neon.neon_instruction import NeonInstruction
+from ..common_neon.neon_instruction import NeonIxBuilder
 from ..common_neon.web3 import NeonWeb3
 from proxy.common_neon.address import EthereumAddress
 
@@ -153,9 +153,10 @@ class ERC20Wrapper:
 
         eth_accounts = list(eth_accounts.values())
 
-        neon = NeonInstruction(owner)
+        neon = NeonIxBuilder(owner)
         neon.init_operator_ether(EthereumAddress(to_acc.address))
-        neon.init_eth_trx(Trx.fromString(eth_trx), eth_accounts)
+        neon.init_eth_tx(Trx.fromString(eth_trx))
+        neon.init_eth_accounts(eth_accounts)
         return neon
 
     def create_neon_erc20_account_instruction(self, payer: PublicKey, eth_address: str):

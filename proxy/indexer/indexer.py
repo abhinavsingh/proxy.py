@@ -14,12 +14,13 @@ from ..indexer.accounts_db import NeonAccountInfo
 from ..indexer.indexer_base import IndexerBase
 from ..indexer.indexer_db import IndexerDB
 from ..indexer.utils import SolanaIxSignInfo, MetricsToLogBuff, CostInfo
-from ..indexer.canceller import Canceller
 
 from ..common_neon.utils import NeonTxResultInfo, NeonTxInfo, str_fmt_object
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.solana_receipt_parser import SolReceiptParser
+from ..common_neon.cancel_transaction_executor import CancelTxExecutor
 
+from ..common_neon.environment_utils import get_solana_accounts
 from ..common_neon.environment_data import EVM_LOADER_ID, FINALIZED, CANCEL_TIMEOUT, SKIP_CANCEL_TIMEOUT, HOLDER_TIMEOUT
 
 
@@ -31,6 +32,7 @@ class SolanaIxInfo:
         self.tx = tx
         self._is_valid = isinstance(tx, dict)
         self._msg = self.tx['transaction']['message'] if self._is_valid else None
+        self._meta = self.tx['meta'] if self._is_valid else None
         self._set_defaults()
 
     def __str__(self):
@@ -83,7 +85,7 @@ class SolanaIxInfo:
                 evm_ix_idx += 1
                 yield evm_ix_idx
 
-            for inner_tx in self.tx['meta']['innerInstructions']:
+            for inner_tx in self._meta['innerInstructions']:
                 if inner_tx['index'] == ix_idx:
                     for self.ix in inner_tx['instructions']:
                         if self._get_neon_instruction():
@@ -100,18 +102,27 @@ class SolanaIxInfo:
     def get_account(self, idx: int) -> str:
         assert self._is_valid
 
-        msg_keys = self._msg['accountKeys']
+        all_keys = self._get_msg_account_key_list()
         ix_accounts = self.ix['accounts']
         if len(ix_accounts) > idx:
-            return msg_keys[ix_accounts[idx]]
+            return all_keys[ix_accounts[idx]]
         return ''
+
+    def _get_msg_account_key_list(self) -> List[str]:
+        assert self._is_valid
+
+        all_keys = self._msg['accountKeys']
+        lookup_keys = self._meta.get('loadedAddresses', None)
+        if lookup_keys is not None:
+            all_keys += lookup_keys['writable'] + lookup_keys['readonly']
+        return all_keys
 
     def get_account_list(self, start: int) -> List[str]:
         assert self._is_valid
 
-        msg_keys = self._msg['accountKeys']
+        all_keys = self._get_msg_account_key_list()
         ix_accounts = self.ix['accounts']
-        return [msg_keys[idx] for idx in ix_accounts[start:]]
+        return [all_keys[idx] for idx in ix_accounts[start:]]
 
 
 class BaseEvmObject:
@@ -925,8 +936,7 @@ class Indexer(IndexerBase):
         IndexerBase.__init__(self, solana, last_known_slot)
         self.indexed_slot = self.last_slot
         self.min_used_slot = 0
-        self.canceller = Canceller(solana)
-        self.blocked_storages = {}
+        self._cancel_tx_executor = CancelTxExecutor(solana, get_solana_accounts()[0])
         self.block_indexer = BlocksIndexer(db=self.db, solana=solana)
         self.counted_logger = MetricsToLogBuff()
         self._user = indexer_user
@@ -964,9 +974,10 @@ class Indexer(IndexerBase):
 
     def process_functions(self):
         self.block_indexer.gather_blocks()
+        IndexerBase.process_functions(self)
         self.process_receipts()
-        self.canceller.unlock_accounts(self.blocked_storages)
-        self.blocked_storages = {}
+        self._cancel_tx_executor.execute_tx_list()
+        self._cancel_tx_executor.clear()
 
     def process_receipts(self):
         start_time = time.time()
@@ -976,7 +987,7 @@ class Indexer(IndexerBase):
         max_slot = 1
         while max_slot > 0:
             max_slot = 0
-            for slot, sign, tx in self.get_tx_receipts(last_block_slot):
+            for slot, sign, tx in self.transaction_receipts.get_txs(self.indexed_slot, last_block_slot):
                 max_slot = max(max_slot, slot)
 
                 ix_info = SolanaIxInfo(sign=sign, slot=slot, tx=tx)
@@ -1016,6 +1027,7 @@ class Indexer(IndexerBase):
                 "processed slots": self.indexed_slot - start_indexed_slot
             },
             latest_params={
+                "transaction receipts len": self.transaction_receipts.size(),
                 "indexed slot": self.indexed_slot,
                 "min used slot": self.min_used_slot
             }
@@ -1065,7 +1077,7 @@ class Indexer(IndexerBase):
                 return False
 
         self.debug(f'Neon tx is blocked: storage {tx.storage_account}, {tx.neon_tx}, {storage.account_list}')
-        self.blocked_storages[tx.storage_account] = (tx.neon_tx, storage.account_list)
+        self._cancel_tx_executor.add_blocked_storage_account(storage)
         tx.canceled = True
         return True
 

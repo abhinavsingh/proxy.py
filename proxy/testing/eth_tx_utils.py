@@ -201,29 +201,6 @@ def make_instruction_data_from_tx(instruction, private_key=None):
     else:
         raise Exception("function gets ")
 
-
-def make_keccak_instruction_data(check_instruction_index, msg_len, data_start):
-    if 255 < check_instruction_index < 0:
-        raise Exception("Invalid index for instruction - {}".format(check_instruction_index))
-
-    check_count = 1
-    eth_address_size = 20
-    signature_size = 65
-    eth_address_offset = data_start
-    signature_offset = eth_address_offset + eth_address_size
-    message_data_offset = signature_offset + signature_size
-
-    data = struct.pack("B", check_count)
-    data += struct.pack("<H", signature_offset)
-    data += struct.pack("B", check_instruction_index)
-    data += struct.pack("<H", eth_address_offset)
-    data += struct.pack("B", check_instruction_index)
-    data += struct.pack("<H", message_data_offset)
-    data += struct.pack("<H", msg_len)
-    data += struct.pack("B", check_instruction_index)
-
-    return data
-
 # tx_1 = {
 #     'to': '0x2ccb0f131443b797b46dd9690a7dec9e6eeee309',
 #     'value': 0,

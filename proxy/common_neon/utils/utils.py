@@ -105,7 +105,7 @@ class NeonTxResultInfo:
         self.block_hash = ''
         self.idx = -1
 
-    def _decode_event(self, neon_sign, log, tx_idx):
+    def _decode_event(self, neon_sig, log, tx_idx):
         log_idx = len(self.logs)
         address = log[1:21]
         count_topics = int().from_bytes(log[21:29], 'little')
@@ -123,7 +123,7 @@ class NeonTxResultInfo:
             'transactionLogIndex': hex(log_idx),
             'transactionIndex': hex(tx_idx),
             'logIndex': hex(log_idx),
-            'transactionHash': neon_sign,
+            'transactionHash': neon_sig,
             # 'blockNumber': block_number, # set when transaction found
             # 'blockHash': block_hash # set when transaction found
         }
@@ -158,11 +158,16 @@ class NeonTxResultInfo:
             rec['blockHash'] = block.hash
             rec['blockNumber'] = hex(block.slot)
 
-    def decode(self, neon_sign: str, tx: {}, ix_idx=-1) -> NeonTxResultInfo:
+    def decode(self, neon_sig: str, tx: {}, ix_idx=-1) -> NeonTxResultInfo:
         self._set_defaults()
-        meta_ixs = tx['meta']['innerInstructions']
+        meta = tx['meta']
+        meta_ixs = meta['innerInstructions']
         msg = tx['transaction']['message']
+
         accounts = msg['accountKeys']
+        lookup_accounts = meta.get('loadedAddresses', None)
+        if lookup_accounts is not None:
+            accounts += lookup_accounts['writable'] + lookup_accounts['readonly']
 
         for inner_ix in meta_ixs:
             ix_idx = inner_ix['index']
@@ -171,7 +176,7 @@ class NeonTxResultInfo:
                     log = base58.b58decode(event['data'])
                     evm_ix = int(log[0])
                     if evm_ix == 7:
-                        self._decode_event(neon_sign, log, ix_idx)
+                        self._decode_event(neon_sig, log, ix_idx)
                     elif evm_ix == 6:
                         self._decode_return(log, ix_idx, tx)
         return self
