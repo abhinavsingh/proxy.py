@@ -88,7 +88,7 @@ contract ReturnsEvents {
 class CancelTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        print("\ntest_indexer_work.py setUpClass")
+        print("\ntest_cancel_hanged.py setUpClass")
 
         request_airdrop(eth_account.address)
         request_airdrop(eth_account_invoked.address)
@@ -134,7 +134,6 @@ class CancelTest(unittest.TestCase):
         cls.create_hanged_transaction(cls)
         cls.create_invoked_transaction(cls)
         cls.create_invoked_transaction_combined(cls)
-        cls.create_two_calls_in_transaction(cls)
 
     def get_accounts(self, ether):
         (sol_address, _) = self.loader.ether2program(str(ether))
@@ -286,51 +285,6 @@ class CancelTest(unittest.TestCase):
 
         SolanaClient(solana_url).send_transaction(tx, self.acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
 
-    def create_two_calls_in_transaction(self):
-        print("\ncreate_two_calls_in_transaction")
-
-        account_list = [
-            AccountMeta(pubkey=self.caller, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=self.reId, is_signer=False, is_writable=True),
-            AccountMeta(pubkey=self.re_code, is_signer=False, is_writable=True),
-        ]
-
-        nonce1 = proxy.eth.get_transaction_count(proxy.eth.default_account)
-        tx = {'nonce': nonce1, 'gasPrice': MINIMAL_GAS_PRICE}
-        call1_dict = self.storage_contract.functions.addReturn(1, 1).buildTransaction(tx)
-        call1_signed = proxy.eth.account.sign_transaction(call1_dict, eth_account.key)
-        (from_addr, sign1, msg1) = make_instruction_data_from_tx(call1_signed.rawTransaction.hex())
-        (raw, self.tx_hash_call1, from_addr) = self.get_trx_receipts(self, msg1, sign1)
-        print('tx_hash_call1:', self.tx_hash_call1)
-
-        nonce2 = nonce1 + 1
-        tx = {'nonce': nonce2, 'gasPrice': MINIMAL_GAS_PRICE}
-        call2_dict = self.storage_contract.functions.addReturnEvent(2, 2).buildTransaction(tx)
-        call2_signed = proxy.eth.account.sign_transaction(call2_dict, eth_account.key)
-        (from_addr, sign2, msg2) = make_instruction_data_from_tx(call2_signed.rawTransaction.hex())
-        (raw, self.tx_hash_call2, from_addr) = self.get_trx_receipts(self, msg2, sign2)
-        print('tx_hash_call2:', self.tx_hash_call2)
-
-        tx = TransactionWithComputeBudget()
-
-        call1_tx = Trx.fromString(bytearray.fromhex(call1_signed.rawTransaction.hex()[2:]))
-        builder = NeonInstruction(self.acc.public_key())
-        builder.init_operator_ether(self.caller_ether)
-        builder.init_eth_trx(call1_tx, account_list)
-        noniterative1 = builder.make_noniterative_call_transaction(len(tx.instructions))
-        tx.add(noniterative1)
-
-        call2_tx = Trx.fromString(bytearray.fromhex(call2_signed.rawTransaction.hex()[2:]))
-        builder = NeonInstruction(self.acc.public_key())
-        builder.init_operator_ether(self.caller_ether)
-        builder.init_eth_trx(call2_tx, account_list)
-        noniterative2 = builder.make_noniterative_call_transaction(len(tx.instructions))
-        tx.add(noniterative2)
-
-        #print(tx.__dict__)
-        opts=TxOpts(skip_preflight=False, skip_confirmation=False, preflight_commitment=Confirmed)
-        SolanaClient(solana_url).send_transaction(tx, self.acc, opts=opts)
-
     def get_trx_receipts(self, unsigned_msg, signature):
         trx = rlp.decode(unsigned_msg, EthTrx)
 
@@ -413,15 +367,6 @@ class CancelTest(unittest.TestCase):
         print("\ntest_04_right_result_for_invoked")
         trx_receipt = proxy.eth.wait_for_transaction_receipt(self.tx_hash_invoked_combined)
         print('trx_receipt:', trx_receipt)
-
-    def test_05_check_two_calls_in_transaction(self):
-        print("\ntest_05_check_two_calls_in_transaction")
-        call1_receipt = proxy.eth.wait_for_transaction_receipt(self.tx_hash_call1)
-        print('test_05 receipt1:', call1_receipt)
-        self.assertEqual(len(call1_receipt['logs']), 0)
-        call2_receipt = proxy.eth.wait_for_transaction_receipt(self.tx_hash_call2)
-        print('test_05 receipt2:', call2_receipt)
-        self.assertEqual(len(call2_receipt['logs']), 1)
 
 
 if __name__ == '__main__':
