@@ -27,6 +27,58 @@ from ..common_neon.errors import EthereumError
 from ..common_neon.types import NeonTxPrecheckResult, NeonEmulatingResult
 from ..common_neon.environment_data import RETRY_ON_FAIL, EVM_STEP_COUNT
 from ..common_neon.elf_params import ElfParams
+from ..common_neon.utils import get_holder_msg
+from ..common_neon.evm_decoder import decode_neon_tx_result
+from ..memdb.memdb import MemDB, NeonPendingTxInfo
+
+
+@logged_group("neon.Proxy")
+class NeonTxSender:
+    def __init__(self, db: MemDB, solana: SolanaInteractor, eth_tx: EthTx, steps: int):
+        self._db = db
+        self.eth_tx = eth_tx
+        self.neon_sign = '0x' + eth_tx.hash_signed().hex()
+        self.steps = steps
+        self.waiter = self
+        self.solana = solana
+        self._resource_list = None
+        self.resource = None
+        self.signer = None
+        self.operator_key = None
+        self.builder = None
+
+        self._pending_tx = None
+
+        self.eth_sender = '0x' + eth_tx.sender()
+        self.deployed_contract = eth_tx.contract()
+        if self.deployed_contract:
+            self.deployed_contract = '0x' + self.deployed_contract
+        self.to_address = eth_tx.toAddress.hex()
+        if self.to_address:
+            self.to_address = '0x' + self.to_address
+
+
+        self.create_account_tx = TransactionWithComputeBudget()
+        self.account_txs_name = ''
+        self._resize_contract_list = []
+        self._create_account_list = []
+        self._eth_meta_dict: Dict[str, AccountMeta] = dict()
+
+    def execute(self, precheck_result: NeonTxPrecheckResult) -> NeonTxResultInfo:
+        self._validate_pend_tx()
+        self._prepare_execution(precheck_result.emulating_result)
+        return self._execute(precheck_result)
+
+    def set_resource(self, resource: Optional[OperatorResourceInfo]):
+        self.resource = resource
+        self.signer = resource.signer
+        self.operator_key = resource.public_key()
+        self.builder = NeonIxBuilder(self.operator_key)
+
+    def clear_resource(self):
+        self.resource = None
+        self.operator_key = None
+        self.builder = None
 
 from ..common_neon.solana_alt import AddressLookupTableInfo
 from ..common_neon.solana_alt_builder import AddressLookupTableTxBuilder, AddressLookupTableTxList
@@ -299,7 +351,7 @@ class SimpleNeonTxSender(SolTxListSender):
 
     def _on_success_send(self, tx: Transaction, receipt: {}) -> None:
         if not self.neon_res.is_valid():
-            self.neon_res.decode(self._strategy.neon_sig, receipt).is_valid()
+            decode_neon_tx_result(self.neon_res, self._strategy.neon_sig, receipt).is_valid()
         super()._on_success_send(tx, receipt)
 
     def _on_post_send(self) -> None:
