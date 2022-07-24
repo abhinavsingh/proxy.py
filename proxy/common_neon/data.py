@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 class NeonTxStatData:
@@ -33,3 +35,14 @@ class NeonEvent:
 class NeonLogIx:
     neon_return: Optional[NeonTxReturn] = None
     neon_events: List[NeonEvent] = field(default_factory=list)
+
+
+@dataclass
+class NeonTxExecCfg:
+    is_underpriced_tx_wo_chainid: bool
+    steps_executed: int
+    accounts_data: NeonAccountsData
+
+
+NeonEmulatingResult = Dict[str, Any]
+NeonAccountsData = Dict[str, Any]

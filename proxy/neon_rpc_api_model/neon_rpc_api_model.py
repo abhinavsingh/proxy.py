@@ -17,7 +17,7 @@ from ..common_neon.eth_proto import Trx as EthTrx
 from ..common_neon.keys_storage import KeyStorage
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.utils import SolanaBlockInfo
-from ..common_neon.types import NeonTxPrecheckResult
+from ..common_neon.data import NeonTxExecCfg
 from ..common_neon.elf_params import ElfParams
 from ..common_neon.environment_utils import neon_cli
 from ..common_neon.environment_data import SOLANA_URL, PP_SOLANA_URL, USE_EARLIEST_BLOCK_IF_0_PASSED, \
@@ -479,13 +479,13 @@ class NeonRpcApiModel:
 
         self._stat_tx_begin()
         try:
-            neon_tx_precheck_result = self.precheck(trx)
+            neon_tx_exec_cfg = self.precheck(trx)
 
             resource_list = OperatorResourceList(self._solana)
             resource = OperatorResourceList(self._solana).get_available_resource_info()
             try:
                 tx_sender = NeonTxSendStrategySelector(self._db, self._solana, resource, trx)
-                tx_sender.execute(neon_tx_precheck_result)
+                tx_sender.execute(neon_tx_exec_cfg)
             finally:
                 resource_list.free_resource_info(resource)
 
@@ -503,13 +503,12 @@ class NeonRpcApiModel:
             self._stat_tx_failed()
             raise
 
-    def precheck(self, neon_trx: EthTrx) -> NeonTxPrecheckResult:
+    def precheck(self, neon_trx: EthTrx) -> NeonTxExecCfg:
 
         min_gas_price = self.gas_price_calculator.get_min_gas_price()
         neon_validator = NeonTxValidator(self._solana, neon_trx, min_gas_price)
-        precheck_result = neon_validator.precheck()
-
-        return precheck_result
+        neon_tx_exec_cfg = neon_validator.precheck()
+        return neon_tx_exec_cfg
 
     def _stat_tx_begin(self):
         self._stat_exporter.stat_commit_tx_begin()

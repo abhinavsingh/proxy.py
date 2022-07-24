@@ -10,7 +10,7 @@ from ..common_neon.environment_data import MAX_EVM_STEPS_TO_EXECUTE
 
 from .environment_utils import neon_cli
 from .errors import EthereumError
-from .types import NeonEmulatingResult
+from .data import NeonEmulatingResult
 
 
 @logged_group("neon.Proxy")
