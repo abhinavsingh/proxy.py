@@ -16,6 +16,9 @@ echo "External URL for proxy service: ${PROXY_URL}"
 echo "External URL for faucet: ${FAUCET_URL}"
 echo "External URL for solana: ${SOLANA_URL}"
 
+# Set debug fts image name
+export FTS_IMAGE="neonlabsorg/full_test_suite:debug"
+
 # Start tests
 echo Full test suite container name - ${FTS_CONTAINER_NAME}
 docker-compose -f docker-compose/docker-compose-full-test-suite.yml pull
