@@ -1,5 +1,5 @@
 
-from construct import Bytes, Int8ul, Int32ul, Int64ul
+from construct import Bytes, Int8ul, Int16ul, Int32ul, Int64ul
 from construct import Struct
 
 STORAGE_ACCOUNT_INFO_LAYOUT = Struct(
@@ -40,4 +40,15 @@ CODE_ACCOUNT_INFO_LAYOUT = Struct(
 CREATE_ACCOUNT_LAYOUT = Struct(
     "ether" / Bytes(20),
     "nonce" / Int8ul
+)
+
+
+ACCOUNT_LOOKUP_TABLE_LAYOUT = Struct(
+    "type" / Int32ul,
+    "deactivation_slot" / Int64ul,
+    "last_extended_slot" / Int64ul,
+    "last_extended_slot_start_index" / Int8ul,
+    "has_authority" / Int8ul,
+    "authority" / Bytes(32),
+    "padding" / Int16ul
 )

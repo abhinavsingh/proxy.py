@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import base58
 import base64
 import time
@@ -17,15 +19,15 @@ from solana.rpc.types import RPCResponse
 from solana.transaction import Transaction
 from itertools import zip_longest
 from logged_groups import logged_group
-from typing import Dict, Union, Any, List, NamedTuple, cast
+from typing import Dict, Union, Any, List, NamedTuple, Tuple, cast
 from base58 import b58decode, b58encode
 
 from .utils import SolanaBlockInfo
-from .environment_data import EVM_LOADER_ID, CONFIRMATION_CHECK_DELAY, RETRY_ON_FAIL, FUZZING_BLOCKHASH, \
-                              CONFIRM_TIMEOUT, FINALIZED
+from .environment_data import EVM_LOADER_ID, RETRY_ON_FAIL, FUZZING_BLOCKHASH, FINALIZED
 
 from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT, CODE_ACCOUNT_INFO_LAYOUT, STORAGE_ACCOUNT_INFO_LAYOUT
-from ..common_neon.constants import CONTRACT_ACCOUNT_TAG, ACTIVE_STORAGE_TAG, NEON_ACCOUNT_TAG
+from ..common_neon.layouts import ACCOUNT_LOOKUP_TABLE_LAYOUT
+from ..common_neon.constants import CONTRACT_ACCOUNT_TAG, ACTIVE_STORAGE_TAG, NEON_ACCOUNT_TAG, LOOKUP_ACCOUNT_TAG
 from ..common_neon.address import EthereumAddress, ether2program
 from ..common_neon.utils import get_from_dict
 
@@ -52,7 +54,7 @@ class NeonAccountInfo(NamedTuple):
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
 
         code_account = None
-        if cont.code_account != [0] * 32:
+        if cont.code_account != [0] * PublicKey.LENGTH:
             code_account = PublicKey(cont.code_account)
 
         return NeonAccountInfo(
@@ -93,6 +95,7 @@ class NeonCodeInfo(NamedTuple):
 
 
 class StorageAccountInfo(NamedTuple):
+    storage_account: PublicKey
     tag: int
     caller: str
     nonce: int
@@ -106,10 +109,10 @@ class StorageAccountInfo(NamedTuple):
     gas_used_and_paid: int
     number_of_payments: int
     sign: bytes
-    account_list: [str]
+    account_list: List[Tuple[bool, str]]
 
     @staticmethod
-    def frombytes(data) -> StorageAccountInfo:
+    def frombytes(storage_account: PublicKey, data: bytes) -> StorageAccountInfo:
         storage = STORAGE_ACCOUNT_INFO_LAYOUT.parse(data)
 
         account_list = []
@@ -118,12 +121,13 @@ class StorageAccountInfo(NamedTuple):
             writable = (data[offset] > 0)
             offset += 1
 
-            some_pubkey = PublicKey(data[offset:offset + 32])
-            offset += 32
+            some_pubkey = PublicKey(data[offset:offset + PublicKey.LENGTH])
+            offset += PublicKey.LENGTH
 
             account_list.append((writable, str(some_pubkey)))
 
         return StorageAccountInfo(
+            storage_account=storage_account,
             tag=storage.tag,
             caller=storage.caller.hex(),
             nonce=storage.nonce,
@@ -138,6 +142,45 @@ class StorageAccountInfo(NamedTuple):
             number_of_payments=storage.number_of_payments,
             sign=storage.sign,
             account_list=account_list
+        )
+
+
+class AddressLookupTableAccountInfo(NamedTuple):
+    type: int
+    table_account: PublicKey
+    deactivation_slot: int
+    last_extended_slot: int
+    last_extended_slot_start_index: int
+    authority: Optional[PublicKey]
+    account_key_list: List[PublicKey]
+
+    @staticmethod
+    def frombytes(table_account: PublicKey, data: bytes) -> Optional[AddressLookupTableAccountInfo]:
+        lookup = ACCOUNT_LOOKUP_TABLE_LAYOUT.parse(data)
+        if lookup.type != LOOKUP_ACCOUNT_TAG:
+            return None
+
+        offset = ACCOUNT_LOOKUP_TABLE_LAYOUT.sizeof()
+        if (len(data) - offset) % PublicKey.LENGTH:
+            return None
+
+        account_key_list = []
+        account_key_list_len = math.ceil((len(data) - offset) / PublicKey.LENGTH)
+        for _ in range(account_key_list_len):
+            some_pubkey = PublicKey(data[offset:offset + PublicKey.LENGTH])
+            offset += PublicKey.LENGTH
+            account_key_list.append(some_pubkey)
+
+        authority = PublicKey(lookup.authority) if lookup.has_authority else None
+
+        return AddressLookupTableAccountInfo(
+            type=lookup.type,
+            table_account=table_account,
+            deactivation_slot=lookup.deactivation_slot,
+            last_extended_slot=lookup.last_extended_slot,
+            last_extended_slot_start_index=lookup.last_extended_slot_start_index,
+            authority=authority,
+            account_key_list=account_key_list
         )
 
 
@@ -260,13 +303,13 @@ class SolanaInteractor:
 
         return self._send_rpc_request("getSignaturesForAddress", EVM_LOADER_ID, opts)
 
-    def get_slot(self, commitment='confirmed') -> RPCResponse:
+    def get_slot(self, commitment) -> RPCResponse:
         opts = {
             'commitment': commitment
         }
         return self._send_rpc_request('getSlot', opts)
 
-    def get_account_info(self, pubkey: PublicKey, length=256, commitment='confirmed') -> Optional[AccountInfo]:
+    def get_account_info(self, pubkey: PublicKey, length=256, commitment='processed') -> Optional[AccountInfo]:
         opts = {
             "encoding": "base64",
             "commitment": commitment,
@@ -290,11 +333,12 @@ class SolanaInteractor:
 
         account_tag = data[0]
         lamports = info['lamports']
-        owner = info['owner']
+        owner = PublicKey(info['owner'])
 
         return AccountInfo(account_tag, lamports, owner, data)
 
-    def get_account_info_list(self, src_account_list: List[PublicKey], length=256, commitment='confirmed') -> List[AccountInfo]:
+    def get_account_info_list(self, src_account_list: List[PublicKey], length=256,
+                              commitment='processed') -> List[AccountInfo]:
         opts = {
             "encoding": "base64",
             "commitment": commitment,
@@ -322,17 +366,19 @@ class SolanaInteractor:
                     account_info_list.append(None)
                 else:
                     data = base64.b64decode(info['data'][0])
-                    account = AccountInfo(tag=data[0], lamports=info['lamports'], owner=info['owner'], data=data)
-                    account_info_list.append(account)
+                    lamports = info['lamports']
+                    owner = PublicKey(info['owner'])
+                    account_info = AccountInfo(tag=data[0], lamports=lamports, owner=owner, data=data)
+                    account_info_list.append(account_info)
         return account_info_list
 
-    def get_sol_balance(self, account, commitment='confirmed') -> int:
+    def get_sol_balance(self, account, commitment='processed') -> int:
         opts = {
             "commitment": commitment
         }
         return self._send_rpc_request('getBalance', str(account), opts)['result']['value']
 
-    def get_sol_balance_list(self, accounts_list: List[Union[str, PublicKey]], commitment='confirmed') -> List[int]:
+    def get_sol_balance_list(self, accounts_list: List[Union[str, PublicKey]], commitment='processed') -> List[int]:
         opts = {
             'commitment': commitment
         }
@@ -349,7 +395,7 @@ class SolanaInteractor:
 
         return balances_list
 
-    def get_token_account_balance(self, pubkey: Union[str, PublicKey], commitment='confirmed') -> int:
+    def get_token_account_balance(self, pubkey: Union[str, PublicKey], commitment='processed') -> int:
         opts = {
             "commitment": commitment
         }
@@ -359,7 +405,8 @@ class SolanaInteractor:
             return 0
         return int(result['value']['amount'])
 
-    def get_token_account_balance_list(self, pubkey_list: [Union[str, PublicKey]], commitment: object = 'confirmed') -> [int]:
+    def get_token_account_balance_list(self, pubkey_list: List[Union[str, PublicKey]],
+                                       commitment: object = 'processed') -> List[int]:
         opts = {
             "commitment": commitment
         }
@@ -388,7 +435,7 @@ class SolanaInteractor:
         elif len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof():
             raise RuntimeError(f"Wrong data length for account data {account_sol}: " +
                                f"{len(info.data)} < {ACCOUNT_INFO_LAYOUT.sizeof()}")
-        return NeonAccountInfo.frombytes(PublicKey(account_sol), info.data)
+        return NeonAccountInfo.frombytes(account_sol, info.data)
 
     def get_neon_code_info(self, account: Union[str, EthereumAddress, NeonAccountInfo, PublicKey, None]) -> Optional[NeonCodeInfo]:
         if isinstance(account, str) or isinstance(account, EthereumAddress):
@@ -419,7 +466,7 @@ class SolanaInteractor:
             if info is None or len(info.data) < ACCOUNT_INFO_LAYOUT.sizeof() or info.tag != NEON_ACCOUNT_TAG:
                 accounts_list.append(None)
                 continue
-            accounts_list.append(NeonAccountInfo.frombytes(PublicKey(account_sol), info.data))
+            accounts_list.append(NeonAccountInfo.frombytes(account_sol, info.data))
         return accounts_list
 
     def get_storage_account_info(self, storage_account: PublicKey) -> Optional[StorageAccountInfo]:
@@ -430,11 +477,20 @@ class SolanaInteractor:
             self.debug(f'Storage account {str(storage_account)} has tag {info.tag}')
             return None
         elif len(info.data) < STORAGE_ACCOUNT_INFO_LAYOUT.sizeof():
-            raise RuntimeError(f"Wrong data length for storage data {storage_account}: " +
+            raise RuntimeError(f"Wrong data length for storage data {str(storage_account)}: " +
                                f"{len(info.data)} < {STORAGE_ACCOUNT_INFO_LAYOUT.sizeof()}")
-        return StorageAccountInfo.frombytes(info.data)
+        return StorageAccountInfo.frombytes(storage_account, info.data)
 
-    def get_multiple_rent_exempt_balances_for_size(self, size_list: [int], commitment='confirmed') -> [int]:
+    def get_account_lookup_table_info(self, table_account: PublicKey) -> Optional[AddressLookupTableAccountInfo]:
+        info = self.get_account_info(table_account, length=0)
+        if info is None:
+            return None
+        elif len(info.data) < ACCOUNT_LOOKUP_TABLE_LAYOUT.sizeof():
+            raise RuntimeError(f"Wrong data length for lookup table data {str(table_account)}: " +
+                               f"{len(info.data)} < {ACCOUNT_LOOKUP_TABLE_LAYOUT.sizeof()}")
+        return AddressLookupTableAccountInfo.frombytes(table_account, info.data)
+
+    def get_multiple_rent_exempt_balances_for_size(self, size_list: List[int], commitment='confirmed') -> List[int]:
         opts = {
             "commitment": commitment
         }
@@ -442,7 +498,7 @@ class SolanaInteractor:
         response_list = self._send_rpc_batch_request("getMinimumBalanceForRentExemption", request_list)
         return [r['result'] for r in response_list]
 
-    def get_block_slot_list(self, last_block_slot, limit: int, commitment='confirmed') -> [int]:
+    def get_block_slot_list(self, last_block_slot: int, limit: int, commitment='confirmed') -> [int]:
         opts = {
             "commitment": commitment,
             "enconding": "json",
@@ -471,7 +527,7 @@ class SolanaInteractor:
             signs=net_block['signatures']
         )
 
-    def get_block_info_list(self, block_slot_list: [int], commitment='confirmed') -> [SolanaBlockInfo]:
+    def get_block_info_list(self, block_slot_list: List[int], commitment='confirmed') -> List[SolanaBlockInfo]:
         block_list = []
         if not len(block_slot_list):
             return block_list
@@ -529,7 +585,16 @@ class SolanaInteractor:
         blockhash = blockhash_resp["result"]["value"]["blockhash"]
         return Blockhash(blockhash)
 
-    def _fuzzing_transactions(self, signer: SolanaAccount, tx_list, tx_opts, request_list):
+    def get_block_height(self, commitment='confirmed') -> int:
+        opts = {
+            'commitment': commitment
+        }
+        blockheight_resp = self._send_rpc_request('getBlockHeight', opts)
+        return blockheight_resp['result']
+
+    def _fuzzing_transactions(self, signer: SolanaAccount,
+                              tx_list: List[Transaction], tx_opts: Dict[str, str],
+                              request_list: List[Tuple[str, Dict[str, str]]]) -> List[Tuple[str, Dict[str, str]]]:
         """
         Make each second transaction a bad one.
         This is used to test a transaction sending on a live cluster (testnet/devnet).
@@ -564,8 +629,8 @@ class SolanaInteractor:
             request_list[idx] = (base64_tx, tx_opts)
         return request_list
 
-    def _send_multiple_transactions(self, signer: SolanaAccount, tx_list: [Transaction],
-                                    skip_preflight: bool, preflight_commitment: str) -> [str]:
+    def send_multiple_transactions(self, signer: SolanaAccount, tx_list: List[Transaction],
+                                   skip_preflight: bool, preflight_commitment: str) -> List[SendResult]:
         opts = {
             "skipPreflight": skip_preflight,
             "encoding": "base64",
@@ -616,74 +681,38 @@ class SolanaInteractor:
             result_list.append(SendResult(result=result, error=error))
         return result_list
 
-    def send_multiple_transactions(self, signer: SolanaAccount, tx_list: [], waiter,
-                                   skip_preflight: bool, preflight_commitment: str) -> [{}]:
-        send_result_list = self._send_multiple_transactions(signer, tx_list, skip_preflight, preflight_commitment)
-        # Filter good transactions and wait the confirmations for them
-        sign_list = [s.result for s in send_result_list if s.result]
-        self._confirm_multiple_transactions(sign_list, waiter)
-        # Get receipts for good transactions
-        confirmed_list = self.get_multiple_receipts(sign_list)
-        # Mix errors with receipts for good transactions
-        receipt_list = []
-        for s in send_result_list:
-            if s.error:
-                receipt_list.append(s.error)
-            else:
-                receipt_list.append(confirmed_list.pop(0))
-
-        return receipt_list
-
-    def _get_confirmed_slot_for_transactions(self, sign_list: [str]) -> (int, bool):
+    def get_confirmed_slot_for_multiple_transactions(self, sign_list: List[str]) -> Tuple[int, bool]:
         opts = {
             "searchTransactionHistory": False
         }
 
-        slot = 0
+        block_slot = 0
         while len(sign_list):
             (part_sign_list, sign_list) = (sign_list[:100], sign_list[100:])
             response = self._send_rpc_request("getSignatureStatuses", part_sign_list, opts)
 
             result = response.get('result', None)
             if not result:
-                return slot, False
+                return block_slot, False
 
-            slot = result['context']['slot']
+            block_slot = result['context']['slot']
 
             for status in result['value']:
                 if not status:
-                    return slot, False
+                    return block_slot, False
                 if status['confirmationStatus'] == 'processed':
-                    return slot, False
+                    return block_slot, False
 
-        return slot, (slot != 0)
+        return block_slot, (block_slot != 0)
 
-    def _confirm_multiple_transactions(self, sign_list: [str], waiter=None):
-        """Confirm a transaction."""
-        if not len(sign_list):
-            self.debug('No confirmations, because transaction list is empty')
-            return
-
-        elapsed_time = 0
-        while elapsed_time < CONFIRM_TIMEOUT:
-            if elapsed_time > 0:
-                time.sleep(CONFIRMATION_CHECK_DELAY)
-            elapsed_time += CONFIRMATION_CHECK_DELAY
-
-            slot, is_confirmed = self._get_confirmed_slot_for_transactions(sign_list)
-            if waiter:
-                waiter.on_wait_confirm(elapsed_time, slot)
-
-            if is_confirmed:
-                self.debug(f'Got confirmed status for transactions: {sign_list}')
-                return
-
-        self.warning(f'No confirmed status for transactions: {sign_list}')
-
-    def get_multiple_receipts(self, sign_list: [str], commitment='confirmed') -> List[Optional[Dict]]:
+    def get_multiple_receipts(self, sign_list: List[str], commitment='confirmed') -> List[Optional[Dict]]:
         if not len(sign_list):
             return []
-        opts = {"encoding": "json", "commitment": commitment}
+        opts = {
+            "encoding": "json",
+            "commitment": commitment,
+            "maxSupportedTransactionVersion": 0
+        }
         request_list = [(sign, opts) for sign in sign_list]
         response_list = self._send_rpc_batch_request("getTransaction", request_list)
         return [r.get('result') for r in response_list]

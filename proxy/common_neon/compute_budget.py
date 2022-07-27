@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from solana.transaction import TransactionInstruction, Transaction
 from .constants import COMPUTE_BUDGET_ID
 from ..common_neon.elf_params import ElfParams
@@ -25,9 +27,9 @@ class ComputeBudget:
 
 
 class TransactionWithComputeBudget(Transaction):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, compute_units: Optional[int] = None, *args, **kwargs):
         Transaction.__init__(self, *args, **kwargs)
-        compute_units = ElfParams().neon_compute_units
+        compute_units = compute_units if compute_units is not None else ElfParams().neon_compute_units
         additional_fee = ElfParams().neon_additional_fee
         self.instructions.append(ComputeBudget.requestUnits(compute_units, additional_fee))
         heap_frame = ElfParams().neon_heap_frame

@@ -14,7 +14,7 @@ from ..common_neon.elf_params import ElfParams
 from ..common_neon.environment_data import ACCOUNT_PERMISSION_UPDATE_INT, ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID
 
 from ..common_neon.emulator_interactor import call_trx_emulated
-from ..common_neon.types import NeonTxPrecheckResult, NeonEmulatingResult
+from ..common_neon.data import NeonTxExecCfg, NeonEmulatingResult
 
 
 @logged_group("neon.Proxy")
@@ -58,16 +58,19 @@ class NeonTxValidator:
             return False
         return (self._tx.gasPrice < self._min_gas_price) or (self._tx.gasLimit < self._estimated_gas)
 
-    def precheck(self) -> NeonTxPrecheckResult:
+    def precheck(self) -> NeonTxExecCfg:
         try:
             self._prevalidate_tx()
             emulating_result: NeonEmulatingResult = call_trx_emulated(self._tx)
             self._prevalidate_emulator(emulating_result)
 
-            is_underpriced_tx_without_chainid = self.is_underpriced_tx_without_chainid()
-            precheck_result = NeonTxPrecheckResult(emulating_result=emulating_result,
-                                                   is_underpriced_tx_without_chainid=is_underpriced_tx_without_chainid)
-            return precheck_result
+            is_underpriced_tx_wo_chainid = self.is_underpriced_tx_without_chainid()
+            steps_executed = emulating_result["steps_executed"]
+            accounts_data = {k: emulating_result[k] for k in ["accounts", "token_accounts", "solana_accounts"]}
+            neon_tx_exec_cfg = NeonTxExecCfg(steps_executed=steps_executed,
+                                             accounts_data=accounts_data,
+                                             is_underpriced_tx_wo_chainid=is_underpriced_tx_wo_chainid)
+            return neon_tx_exec_cfg
 
         except Exception as e:
             self.extract_ethereum_error(e)

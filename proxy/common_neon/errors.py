@@ -17,3 +17,8 @@ class InvalidParamError(EthereumError):
 
 class PendingTxError(Exception):
     pass
+
+
+class AddressLookupTableError(RuntimeError):
+    def __init__(self, *args) -> None:
+        RuntimeError.__init__(self, *args)
