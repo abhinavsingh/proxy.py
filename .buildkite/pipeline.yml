@@ -9,7 +9,7 @@ steps:
   - label: ":terraform: build infrastructure"
     key: "create_infrastructure"
     if: &is_fts_enabled |
-        (build.pull_request.base_branch == "develop" && !build.pull_request.draft && build.pull_request.base_branch == "feature/NDEV-368") ||
+        (!build.pull_request.draft && build.pull_request.base_branch == "feature/NDEV-368") ||
         (build.source == "trigger_job" && build.env("NEON_EVM_FULL_TEST_SUITE") == "true")
     agents:
       queue: "testing"
