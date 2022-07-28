@@ -1,4 +1,4 @@
-Python prototype for Solana MetaMask proxy. Builded on https://github.com/abhinavsingh/proxy.py.git.
+Python prototype for Solana MetaMask proxy. Builded on https://github.com/abhinavsingh/proxy.py.git
 
 Requirements (for Ubuntu 18.04):
 - python3
