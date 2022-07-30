@@ -40,7 +40,9 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
         self.choice: Optional[Url] = None
         self.plugins: List['ReverseProxyBasePlugin'] = []
         for klass in self.flags.plugins[b'ReverseProxyBasePlugin']:
-            plugin: 'ReverseProxyBasePlugin' = klass()
+            plugin: 'ReverseProxyBasePlugin' = klass(
+                self.uid, self.flags, self.client, self.event_queue, self.upstream_conn_pool,
+            )
             self.plugins.append(plugin)
 
     def handle_upstream_data(self, raw: memoryview) -> None:
