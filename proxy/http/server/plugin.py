@@ -128,6 +128,20 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
 class ReverseProxyBasePlugin(ABC):
     """ReverseProxy base plugin class."""
 
+    def __init__(
+            self,
+            uid: str,
+            flags: argparse.Namespace,
+            client: HttpClientConnection,
+            event_queue: EventQueue,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
+    ):
+        self.uid = uid
+        self.flags = flags
+        self.client = client
+        self.event_queue = event_queue
+        self.upstream_conn_pool = upstream_conn_pool
+
     @abstractmethod
     def routes(self) -> List[Union[str, Tuple[str, List[bytes]]]]:
         """List of routes registered by plugin.
