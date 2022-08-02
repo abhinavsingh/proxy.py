@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import abc
+import json
 
 from logged_groups import logged_group
 from typing import Optional, List, Dict, Any
@@ -95,12 +96,16 @@ class SolTxListSender:
                     self._bad_block_list.append(tx)
                 elif receipt_parser.check_if_accounts_blocked():
                     self._blocked_account_list.append(tx)
+                elif receipt_parser.check_if_account_already_exists():
+                    success_sig_list.append(b58encode(tx.signature()).decode("utf-8"))
+                    self.debug(f'skip create account error')
                 elif receipt_parser.check_if_budget_exceeded():
                     self._budget_exceeded_list.append(tx)
                     self._budget_exceeded_receipt = receipt
                 elif receipt_parser.check_if_error():
                     self._unknown_error_list.append(tx)
                     self._unknown_error_receipt = receipt
+                    self.debug(f'unknown_error_receipt: {json.dumps(receipt, sort_keys=True)}')
                 else:
                     success_sig_list.append(b58encode(tx.signature()).decode("utf-8"))
                     self._retry_idx = 0

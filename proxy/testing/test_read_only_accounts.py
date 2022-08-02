@@ -23,7 +23,7 @@ from .testing_helpers import request_airdrop
 proxy_url = os.environ.get('PROXY_URL', 'http://127.0.0.1:9090/solana')
 solana_url = os.environ.get("SOLANA_URL", "http://127.0.0.1:8899")
 proxy = Web3(Web3.HTTPProvider(proxy_url))
-admin = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197/admin')
+admin = proxy.eth.account.create('issues/neonlabsorg/proxy-model.py/197/readonly')
 proxy.eth.default_account = admin.address
 request_airdrop(proxy.eth.default_account)
 

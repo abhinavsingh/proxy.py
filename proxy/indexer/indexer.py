@@ -56,7 +56,7 @@ class SolanaIxInfo:
         return False
 
     def _get_neon_instruction(self) -> bool:
-        accounts = self._msg['accountKeys']
+        accounts = self._get_msg_account_key_list()
         if 'programIdIndex' not in self.ix:
             self.debug(f'{self} error: fail to get program id')
             return False
