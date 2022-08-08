@@ -20,6 +20,14 @@ class Neon(Module):
         mungers=[emulate_munger],
     )
 
+    neon_getEvmParams = RPCEndpoint("neon_getEvmParams")
+
+    getEvmParams = Method(
+        neon_getEvmParams,
+        mungers=[],
+    )
+
+
 class NeonWeb3(Web3):
     neon: Neon
 

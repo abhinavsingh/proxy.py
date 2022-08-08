@@ -2,8 +2,7 @@ import json
 import multiprocessing
 import traceback
 import eth_utils
-
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Dict, Any, Tuple
 
 import sha3
 from logged_groups import logged_group, LogMng
@@ -693,3 +692,8 @@ class NeonRpcApiWorker:
         eth_trx = EthTrx.fromString(bytearray.fromhex(raw_signed_trx))
         emulation_result = call_trx_emulated(eth_trx)
         return emulation_result
+
+    def neon_getEvmParams(self)-> Dict[str, Any]:
+        """Returns map of Neon-EVM parameters"""
+        self.debug(f"call neon_getEvmParams")
+        return ElfParams().get_params()
