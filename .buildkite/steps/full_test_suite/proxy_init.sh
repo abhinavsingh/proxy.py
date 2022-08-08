@@ -27,6 +27,7 @@ export REVISION=${proxy_model_commit}
 export SOLANA_URL=http:\/\/${solana_ip}:8899
 export NEON_EVM_COMMIT=${neon_evm_commit}
 export FAUCET_COMMIT=${faucet_model_commit}
+export CI_PP_SOLANA_URL=${ci_pp_solana_url}
 
 
 # Generate docker-compose override file

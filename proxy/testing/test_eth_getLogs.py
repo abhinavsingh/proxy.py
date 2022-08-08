@@ -46,6 +46,7 @@ contract ReturnsEvents {
 
 
 class Test_eth_getLogs(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         print("\n\n")
@@ -102,10 +103,9 @@ class Test_eth_getLogs(unittest.TestCase):
         self.commit_two_event_trx(self, 5, 6)
         self.commit_no_event_trx(self, 7, 8)
         self.commit_no_event_trx(self, 9, 0)
-        pass
 
     def commit_one_event_trx(self, x, y) -> None:
-        print("\ncommit_one_event_trx")
+        print(f"\ncommit_one_event_trx. x: {x}, y: {y}")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         trx_store = self.storage_contract.functions.addReturnEvent(x, y).buildTransaction({'nonce': right_nonce})
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
@@ -120,7 +120,7 @@ class Test_eth_getLogs(unittest.TestCase):
                 self.topics.append(topic.hex())
 
     def commit_two_event_trx(self, x, y) -> None:
-        print("\ncommit_two_event_trx")
+        print(f"\ncommit_two_event_trx. x: {x}, y: {y}")
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         trx_store = self.storage_contract.functions.addReturnEventTwice(x, y).buildTransaction({'nonce': right_nonce})
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
@@ -146,7 +146,6 @@ class Test_eth_getLogs(unittest.TestCase):
         self.block_hashes_no_event.append(trx_store_receipt['blockHash'].hex())
         self.block_numbers_no_event.append(hex(trx_store_receipt['blockNumber']))
 
-
     def test_get_logs_by_blockHash(self):
         print("\ntest_get_logs_by_blockHash")
         receipts = proxy.eth.get_logs({'blockHash': self.block_hashes[0]})
@@ -170,12 +169,10 @@ class Test_eth_getLogs(unittest.TestCase):
 
     def test_get_logs_complex_request(self):
         print("\ntest_get_logs_complex_request")
-        receipts = proxy.eth.get_logs({
-            'fromBlock': 0,
-            'toBlock': 'latest',
-            'address': self.storage_contract.address,
-            'topics': self.topics,
-        })
+        receipts = proxy.eth.get_logs({'fromBlock': 0,
+                                       'toBlock': 'latest',
+                                       'address': self.storage_contract.address,
+                                       'topics': self.topics})
         print('receipts: ', receipts)
         self.assertEqual(len(receipts), 6)
 
@@ -184,6 +181,7 @@ class Test_eth_getLogs(unittest.TestCase):
         receipts = proxy.eth.get_logs({'address': self.storage_contract.address})
         print('receipts: ', receipts)
         self.assertEqual(len(receipts), 6)
+
 
 if __name__ == '__main__':
     unittest.main()

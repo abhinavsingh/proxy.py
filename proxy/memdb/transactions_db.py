@@ -83,6 +83,8 @@ class MemTxsDB:
             return False
 
         result_list = []
+        indexed_logs = self._db.get_logs(from_block, to_block, addresses, topics, block_hash)
+
         with self._tx_slot.get_lock():
             for data in self._tx_by_neon_sign.values():
                 tx = pickle.loads(data)
@@ -97,9 +99,10 @@ class MemTxsDB:
                         continue
                     if len(topics) and (not _has_topics(topics, log['topics'])):
                         continue
+                    if log in indexed_logs:
+                        continue
                     result_list.append(log)
-
-        return result_list + self._db.get_logs(from_block, to_block, addresses, topics, block_hash)
+        return indexed_logs + result_list
 
     def get_sol_sign_list_by_neon_sign(self, neon_sign: str, is_pended_tx: bool, before_slot: int) -> [str]:
         if not is_pended_tx:

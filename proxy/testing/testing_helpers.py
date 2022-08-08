@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 import dataclasses
 import os
+import secrets
+import signal
 import requests
 import solcx
+from eth_account import Account
 from eth_account.account import LocalAccount
 from web3 import Web3, eth as web3_eth
 import eth_utils
@@ -43,9 +48,26 @@ class SolidityContractDeployer:
         contract = self._web3.eth.contract(address=trx_receipt.contractAddress, abi=contract.abi)
         return contract
 
+    def from_file(self, contract_file, signer):
+        with open(contract_file) as distributor_sol:
+            source = distributor_sol.read()
+        contract: ContractCompiledInfo = self.compile_and_deploy_contract(signer, source)
+        return contract
+
     @property
     def web3(self) -> Web3:
         return self._web3
+
+
+def create_account() -> LocalAccount:
+    private_key = "0x" + secrets.token_hex(32)
+    return Account.from_key(private_key)
+
+
+def create_signer_account() -> LocalAccount:
+    signer: LocalAccount = create_account()
+    request_airdrop(signer.address)
+    return signer
 
 
 def request_airdrop(address, amount: int = 10):
@@ -57,3 +79,49 @@ def request_airdrop(address, amount: int = 10):
         print()
         print('Bad response:', r)
     assert(r.ok)
+
+
+class TestTimeout(Exception):
+    pass
+
+
+class test_timeout:
+
+    def __init__(self, seconds, error_message=None):
+        if error_message is None:
+            error_message = 'test timed out after {}s.'.format(seconds)
+        self.seconds = seconds
+        self.error_message = error_message
+
+    def handle_timeout(self, signum, frame):
+        raise TestTimeout(self.error_message)
+
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        signal.alarm(0)
+
+
+class TestTimeout(Exception):
+    pass
+
+
+class test_timeout:
+
+    def __init__(self, seconds, error_message=None):
+        if error_message is None:
+            error_message = 'test timed out after {}s.'.format(seconds)
+        self.seconds = seconds
+        self.error_message = error_message
+
+    def handle_timeout(self, signum, frame):
+        raise TestTimeout(self.error_message)
+
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        signal.alarm(0)

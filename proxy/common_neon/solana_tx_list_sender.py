@@ -27,6 +27,11 @@ class IConfirmWaiter(abc.ABC):
         """Event on waiting of tx confirmation from Solana"""
 
 
+class BlockedAccountsError(Exception):
+    def __init__(self):
+        super().__init__(self)
+
+
 @logged_group("neon.Proxy")
 class SolTxListSender:
     ONE_BLOCK_TIME = 0.4
@@ -146,8 +151,9 @@ class SolTxListSender:
 
         if len(self._alt_invalid_index_list):
             time.sleep(self.ONE_BLOCK_TIME)
+            #TODO raise error and reschedule
         elif len(self._blocked_account_list):
-            time.sleep(self.ONE_BLOCK_TIME)  # one block time
+            raise BlockedAccountsError()
 
         # force changing of recent_blockhash if Solana doesn't accept the current one
         if len(self._bad_block_list):

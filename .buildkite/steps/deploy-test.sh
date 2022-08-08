@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+
 wait-for-proxy()
 {
   PROXY_URL="$1"
@@ -106,6 +107,7 @@ docker run --rm -ti --network=container:proxy \
      -e POSTGRES_USER=neon-proxy \
      -e POSTGRES_PASSWORD=neon-proxy-pass \
      -e POSTGRES_HOST=postgres \
+     -e UNITTEST_TESTPATH=${UNITTEST_TESTPATH:=} \
      --entrypoint ./proxy/deploy-test.sh \
      ${EXTRA_ARGS:-} \
      $PROXY_IMAGE

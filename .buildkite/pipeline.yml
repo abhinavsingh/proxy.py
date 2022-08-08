@@ -16,8 +16,6 @@ steps:
     command:
       - ".buildkite/steps/full_test_suite/terraform-build.sh"
 
-  - wait
-
   - label: ":cop::skin-tone-2: deploy check"
     command: ".buildkite/steps/deploy-test.sh"
     timeout: 90
@@ -33,6 +31,8 @@ steps:
       - "indexer.log"
       - "deploy_contracts.log"
       - "proxy_program_loader.log"
+#    env:
+#      UNITTEST_TESTPATH: proxy.testing.test_indexer_work.CancelTest.test_02_get_code_from_indexer
 
   - label: ":coverage: full test suite (FTS)"
     key: "full_test_suite"
@@ -55,6 +55,7 @@ steps:
       - allure-reports.tar.gz
       - fts_${BUILDKITE_BUILD_NUMBER}.log
       - "./logs/*"
+    depends_on: "create_infrastructure"
 
   - wait
 

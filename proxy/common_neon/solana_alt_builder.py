@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from solana.account import Account as SolanaAccount
 from solana.transaction import Transaction
@@ -96,28 +96,6 @@ class AddressLookupTableTxBuilder:
             extend_alt_tx_list=extend_alt_tx_list,
             deactivate_alt_tx_list=[deactivate_alt_tx]
         )
-
-    def prep_alt_list(self, alt_tx_list: AddressLookupTableTxList,
-                      tx_list_name: str = '', tx_list: Optional[List[Transaction]] = None,
-                      waiter: Optional[IConfirmWaiter] = None) -> List[str]:
-        if tx_list is None:
-            tx_list: List[Transaction] = []
-
-        cnt = len(alt_tx_list.create_alt_tx_list)
-        tx_list_name = ' + '.join([tx_list_name, f'CreateLookupTable({cnt})', f'ExtendLookupTable({cnt})'])
-        for tx in alt_tx_list.create_alt_tx_list:
-            tx_list.append(tx)
-
-        tx_sender = SolTxListSender(self._solana, self._signer)
-        tx_sender.send(tx_list_name, tx_list, waiter=waiter)
-        sig_list = tx_sender.success_sig_list
-
-        if len(alt_tx_list.extend_alt_tx_list):
-            tx_list_name = f'ExtendLookupTable({len(alt_tx_list.extend_alt_tx_list)})'
-            tx_sender.send(tx_list_name, alt_tx_list.extend_alt_tx_list, waiter=waiter)
-            sig_list += tx_sender.success_sig_list
-
-        return sig_list
 
     def update_alt_info_list(self, alt_info_list: List[AddressLookupTableInfo]) -> None:
         self._alt_close_queue.push_list(self._signer.public_key(), [a.table_account for a in alt_info_list])

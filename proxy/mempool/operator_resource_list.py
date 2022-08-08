@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import abc
 import ctypes
 import math
 import multiprocessing as mp
@@ -22,7 +25,7 @@ from ..common_neon.cancel_transaction_executor import CancelTxExecutor
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.neon_instruction import NeonIxBuilder
 
-from .neon_tx_stages import NeonCreateAccountTxStage, NeonCreateAccountWithSeedStage
+from ..mempool.neon_tx_stages import NeonCreateAccountTxStage, NeonCreateAccountWithSeedStage
 
 
 class OperatorResourceInfo:
@@ -46,7 +49,7 @@ class OperatorResourceInfo:
         return self.signer.secret_key()
 
 
-@logged_group("neon.Proxy")
+@logged_group("neon.MemPool")
 class OperatorResourceList:
     # These variables are global for class, they will be initialized one time
     _manager = mp.Manager()
@@ -59,6 +62,13 @@ class OperatorResourceList:
 
     def __init__(self, solana: SolanaInteractor):
         self._solana = solana
+
+    def __enter__(self):
+        self.resource = self.get_available_resource_info()
+        return self.resource
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.free_resource_info(self.resource)
 
     @staticmethod
     def _get_current_time() -> int:
@@ -128,6 +138,7 @@ class OperatorResourceList:
 
             with self._resource_list_len.get_lock():
                 if self._resource_list_len.value == 0:
+                    self.error(f"Failed to get active resource: resource list is empty")
                     raise RuntimeError('Operator has NO resources!')
                 elif len(self._free_resource_list) == 0:
                     continue
@@ -260,6 +271,7 @@ class OperatorResourceList:
         self._free_resource_list.append(resource.idx)
 
 
+@logged_group("neon.MemPool")
 class NeonCreatePermAccount(NeonCreateAccountWithSeedStage):
     NAME = 'createPermAccount'
 

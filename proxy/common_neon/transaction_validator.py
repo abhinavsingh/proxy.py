@@ -1,20 +1,19 @@
 from __future__ import annotations
-
 from logged_groups import logged_group
 
-from ..common_neon.eth_proto import Trx as EthTx
-from ..common_neon.address import EthereumAddress
-from ..common_neon.errors import EthereumError
-from ..common_neon.account_whitelist import AccountWhitelist
-from ..common_neon.solana_receipt_parser import SolReceiptParser
-from ..common_neon.solana_interactor import SolanaInteractor
-from ..common_neon.estimate import GasEstimate
+from .eth_proto import Trx as EthTx
+from .address import EthereumAddress
+from .errors import EthereumError
+from .account_whitelist import AccountWhitelist
+from .solana_receipt_parser import SolReceiptParser
+from .solana_interactor import SolanaInteractor
+from .estimate import GasEstimate
+from .emulator_interactor import call_trx_emulated
 
-from ..common_neon.elf_params import ElfParams
-from ..common_neon.environment_data import ACCOUNT_PERMISSION_UPDATE_INT, ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID
+from .elf_params import ElfParams
+from .environment_data import ACCOUNT_PERMISSION_UPDATE_INT, ALLOW_UNDERPRICED_TX_WITHOUT_CHAINID
 
-from ..common_neon.emulator_interactor import call_trx_emulated
-from ..common_neon.data import NeonTxExecCfg, NeonEmulatingResult
+from .data import NeonTxExecCfg, NeonEmulatingResult
 
 
 @logged_group("neon.Proxy")
@@ -62,32 +61,30 @@ class NeonTxValidator:
         try:
             self._prevalidate_tx()
             emulating_result: NeonEmulatingResult = call_trx_emulated(self._tx)
-            self._prevalidate_emulator(emulating_result)
+            self.prevalidate_emulator(emulating_result)
 
+            accounts_data = {k: emulating_result[k] for k in ["accounts", "token_accounts", "solana_accounts"]}
             is_underpriced_tx_wo_chainid = self.is_underpriced_tx_without_chainid()
             steps_executed = emulating_result["steps_executed"]
-            accounts_data = {k: emulating_result[k] for k in ["accounts", "token_accounts", "solana_accounts"]}
             neon_tx_exec_cfg = NeonTxExecCfg(steps_executed=steps_executed,
                                              accounts_data=accounts_data,
                                              is_underpriced_tx_wo_chainid=is_underpriced_tx_wo_chainid)
             return neon_tx_exec_cfg
-
         except Exception as e:
             self.extract_ethereum_error(e)
             raise
 
     def _prevalidate_tx(self):
         self._prevalidate_whitelist()
-        self._prevalidate_tx_nonce()
         self._prevalidate_tx_gas()
         self._prevalidate_tx_chain_id()
         self._prevalidate_tx_size()
         self._prevalidate_sender_balance()
+        self._prevalidate_underpriced_tx_without_chainid()
 
-    def _prevalidate_emulator(self, emulator_json: dict):
+    def prevalidate_emulator(self, emulator_json: dict):
         self._prevalidate_gas_usage(emulator_json)
         self._prevalidate_account_sizes(emulator_json)
-        self._prevalidate_underpriced_tx_without_chainid()
 
     def extract_ethereum_error(self, e: Exception):
         receipt_parser = SolReceiptParser(e)
@@ -110,6 +107,7 @@ class NeonTxValidator:
             raise EthereumError(message='gas uint64 overflow')
         if (self._tx_gas_limit * self._tx.gasPrice) > (self.MAX_U256 - 1):
             raise EthereumError(message='max fee per gas higher than 2^256-1')
+
         if self._tx.gasPrice >= self._min_gas_price:
             return
 
@@ -125,17 +123,6 @@ class NeonTxValidator:
     def _prevalidate_tx_size(self):
         if len(self._tx.callData) > (128 * 1024 - 1024):
             raise EthereumError(message='transaction size is too big')
-
-    def _prevalidate_tx_nonce(self):
-        if not self._neon_account_info:
-            return
-
-        tx_nonce = int(self._tx.nonce)
-        if self.MAX_U64 not in (self._neon_account_info.trx_count, tx_nonce):
-            if tx_nonce == self._neon_account_info.trx_count:
-                return
-
-        self._raise_nonce_error(self._neon_account_info.trx_count, tx_nonce)
 
     def _prevalidate_sender_eoa(self):
         if not self._neon_account_info:

@@ -23,6 +23,18 @@ data "aws_key_pair" "ci-stands" {
   key_name = "ci-stands"
 }
 
+data "aws_secretsmanager_secret" "ci_pp_solana_url" {
+  name = "CI_PP_SOLANA_URL"
+}
+
+data "aws_secretsmanager_secret_version" "ci_pp_solana_url" {
+  secret_id = data.aws_secretsmanager_secret.ci_pp_solana_url.id
+}
+
+locals {
+  ci_pp_solana_url = jsondecode(data.aws_secretsmanager_secret_version.ci_pp_solana_url.secret_string)
+}
+
 data "template_file" "solana_init" {
   template = file("solana_init.sh")
 
@@ -43,6 +55,7 @@ data "template_file" "proxy_init" {
     solana_ip           = aws_instance.solana.private_ip
     neon_evm_commit     = "${var.neon_evm_commit}"
     faucet_model_commit = "${var.faucet_model_commit}"
+    ci_pp_solana_url    = "${local.ci_pp_solana_url.url}"
   }
 }
 
