@@ -13,8 +13,8 @@ import mimetypes
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional
 
-from ...http.url import Url
 from ..parser import HttpParser
+from ...http.url import Url
 from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
 from ..websocket import WebsocketFrame
 from ..connection import HttpClientConnection
