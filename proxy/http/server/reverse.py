@@ -46,6 +46,8 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             self.plugins.append(plugin)
 
     def handle_upstream_data(self, raw: memoryview) -> None:
+        # TODO: Parse response and implement plugin hook per parsed response object
+        # This will give plugins a chance to modify the responses before dispatching to client
         self.client.queue(raw)
 
     def routes(self) -> List[Tuple[int, str]]:
@@ -57,6 +59,14 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
         return r
 
     def handle_request(self, request: HttpParser) -> None:
+        # before_routing
+        for plugin in self.plugins:
+            r = plugin.before_routing(request)
+            if r is None:
+                raise HttpProtocolException('before_routing closed connection')
+            request = r
+
+        # routes
         for plugin in self.plugins:
             for route in plugin.routes():
                 if isinstance(route, tuple):
@@ -73,6 +83,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                         break
                 else:
                     raise ValueError('Invalid route')
+
         assert self.choice and self.choice.hostname
         port = self.choice.port or \
             DEFAULT_HTTP_PORT \

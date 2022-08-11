@@ -13,7 +13,7 @@ import mimetypes
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional
 
-from proxy.http.url import Url
+from ...http.url import Url
 from ..parser import HttpParser
 from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
 from ..websocket import WebsocketFrame
@@ -160,6 +160,12 @@ class ReverseProxyBasePlugin(ABC):
         To handle dynamic routes, you must implement the `handle_route` method, which
         must return the url to serve."""
         raise NotImplementedError()     # pragma: no cover
+
+    def before_routing(self, request: HttpParser) -> Optional[HttpParser]:
+        """Plugins can modify request, return response, close connection.
+
+        If None is returned, request will be dropped and closed."""
+        return request  # pragma: no cover
 
     def handle_route(self, request: HttpParser, pattern: RePattern) -> Url:
         """Implement this method if you have configured dynamic routes."""
