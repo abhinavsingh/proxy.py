@@ -54,6 +54,7 @@
     - [Redirect To Custom Server Plugin](#redirecttocustomserverplugin)
     - [Filter By Upstream Host Plugin](#filterbyupstreamhostplugin)
     - [Cache Responses Plugin](#cacheresponsesplugin)
+    - [Cache By Response Type](#cachebyresponsetype)
     - [Man-In-The-Middle Plugin](#maninthemiddleplugin)
     - [Proxy Pool Plugin](#proxypoolplugin)
     - [Filter By Client IP Plugin](#filterbyclientipplugin)
@@ -777,6 +778,28 @@ Connection: keep-alive
   "url": "https://httpbin.org/get"
 }
 ```
+
+### CacheByResponseType
+
+`CacheResponsesPlugin` plugin can also automatically cache responses by `content-type`.
+To try this, you must be running under [TLS Interception](#tls-interception) mode
+and then pass `--cache-by-content-type` flag.  Example:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.CacheResponsesPlugin \
+    --cache-by-content-type \
+    --ca-key-file ca-key.pem \
+    --ca-cert-file ca-cert.pem \
+    --ca-signing-key ca-signing-key.pem
+```
+
+Make a few requests to the proxy server and you shall see data under `~/.proxy/cache` directory.
+
+You should see 2 folders:
+
+- `content`: Contains parsed `jpg`, `css`, `js`, `html`, `pdf` etc by content type
+- `responses`: Contains raw responses as received _(of-course decrypted because of interception)_
 
 ### ManInTheMiddlePlugin
 
