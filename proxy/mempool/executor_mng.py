@@ -3,13 +3,13 @@ import dataclasses
 import socket
 from abc import ABC, abstractmethod
 from collections import deque
-from typing import List, Tuple, Deque, Set
+from typing import List, Tuple, Deque, Set, cast
 from logged_groups import logged_group
 
 from ..common_neon.config import IConfig
 from ..common_neon.utils import PipePickableDataClient
 
-from .mempool_api import MPRequest, IMPExecutor
+from .mempool_api import MPRequest, IMPExecutor, MPRequestType, MPTxRequest
 from .mempool_executor import MPExecutor
 
 
@@ -53,11 +53,12 @@ class MPExecutorMng(IMPExecutor):
         for ex_info in self._executors:
             await ex_info.client.async_init()
 
-    def submit_mp_request(self, mp_reqeust: MPRequest) -> Tuple[int, asyncio.Task]:
+    def submit_mp_request(self, mp_request: MPRequest) -> Tuple[int, asyncio.Task]:
         executor_id, executor = self._get_executor()
-        tx_hash = "0x" + mp_reqeust.neon_tx.hash_signed().hex()
-        self.debug(f"Tx: {tx_hash} - scheduled on executor: {executor_id}")
-        task = asyncio.get_event_loop().create_task(executor.send_data_async(mp_reqeust))
+        if mp_request.type == MPRequestType.SendTransaction:
+            tx_hash = cast(MPTxRequest, mp_request).signature
+            self.debug(f"Tx: {tx_hash} - scheduled on executor: {executor_id}")
+        task = asyncio.get_event_loop().create_task(executor.send_data_async(mp_request))
         return executor_id, task
 
     def is_available(self) -> bool:

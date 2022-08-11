@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-. .buildkite/steps/revision.sh
+source .buildkite/steps/revision.sh
 
 docker images
 

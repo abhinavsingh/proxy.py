@@ -7,13 +7,13 @@ from abc import ABC, abstractmethod
 from asyncio import Task
 
 from ..common_neon.eth_proto import Trx as NeonTx
-from ..common_neon.data import NeonTxExecCfg, NeonEmulatingResult
+from ..common_neon.data import NeonTxExecCfg
 
 
 class IMPExecutor(ABC):
 
     @abstractmethod
-    def submit_mp_request(self, mp_reqeust: MPRequest) -> Tuple[int, Task]:
+    def submit_mp_request(self, mp_request: MPRequest) -> Tuple[int, Task]:
         pass
 
     @abstractmethod
@@ -32,13 +32,14 @@ class IMPExecutor(ABC):
 
 class MPRequestType(IntEnum):
     SendTransaction = 0,
-    GetTrxCount = 1,
+    GetLastTxNonce = 1,
+    GetTxByHash = 2,
     Dummy = -1
 
 
 @dataclass(order=True)
 class MPRequest:
-    req_id: int = field(compare=False)
+    req_id: str = field(compare=False)
     type: MPRequestType = field(compare=False, default=MPRequestType.Dummy)
 
 
@@ -47,7 +48,7 @@ class MPTxRequest(MPRequest):
     nonce: int = field(compare=True, default=None)
     signature: str = field(compare=False, default=None)
     neon_tx: NeonTx = field(compare=False, default=None)
-    neon_tx_exec_cfg: Optional[NeonTxExecCfg] = None
+    neon_tx_exec_cfg: Optional[NeonTxExecCfg] = field(compare=False, default=None)
     sender_address: str = field(compare=False, default=None)
     gas_price: int = field(compare=False, default=None)
 
@@ -56,23 +57,30 @@ class MPTxRequest(MPRequest):
         self.nonce = self.neon_tx.nonce
         self.sender_address = "0x" + self.neon_tx.sender()
         self.type = MPRequestType.SendTransaction
-        hash = "0x" + self.neon_tx.hash_signed().hex()
-        self.log_str = f"MPTxRequest(hash={hash[:10]}..., sender_address=0x{self.sender_address[:10]}..., nonce={self.nonce}, gas_price={self.gas_price})"
+        tx_hash = self.signature
+        self.log_str = f"MPTxRequest(hash={tx_hash[:10]}..., sender_address=0x{self.sender_address[:10]}..., nonce={self.nonce}, gas_price={self.gas_price})"
 
 @dataclass
-class MPPendingTxCountReq(MPRequest):
+class MPPendingTxNonceReq(MPRequest):
 
     sender: str = None
 
     def __post_init__(self):
-        self.type = MPRequestType.GetTrxCount
+        self.type = MPRequestType.GetLastTxNonce
+
+
+@dataclass
+class MPPendingTxByHashReq(MPRequest):
+    tx_hash: str = None
+
+    def __post_init__(self):
+        self.type = MPRequestType.GetTxByHash
 
 
 class MPResultCode(IntEnum):
     Done = 0
     BlockedAccount = 1,
     SolanaUnavailable = 2,
-    PendingTxError = 3,
     Unspecified = 4,
     Dummy = -1
 
@@ -81,3 +89,9 @@ class MPResultCode(IntEnum):
 class MPTxResult:
     code: MPResultCode
     data: Any
+
+
+@dataclass
+class MPSendTxResult:
+    success: bool
+    last_nonce: int

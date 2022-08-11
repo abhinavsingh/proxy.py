@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from ..common_neon.data import NeonTxStatData
 
 
-class IIndexerUser(ABC):
+class IIndexerStatExporter(ABC):
 
     @abstractmethod
     def on_neon_tx_result(self, result: NeonTxStatData):

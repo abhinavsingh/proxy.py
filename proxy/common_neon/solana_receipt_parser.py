@@ -7,6 +7,8 @@ from logged_groups import logged_group
 from typing import Union, Optional, Any, Tuple
 from .utils import get_from_dict
 
+from ..common_neon.environment_data import EVM_LOADER_ID
+
 
 class SolTxError(Exception):
     def __init__(self, receipt: dict):
@@ -34,6 +36,7 @@ class SolTxError(Exception):
         return False
 
 
+# TODO: rename SolErrorParser
 @logged_group("neon.Proxy")
 class SolReceiptParser:
     COMPUTATION_BUDGET_EXCEEDED = 'ComputationalBudgetExceeded'
@@ -47,7 +50,7 @@ class SolReceiptParser:
     NUMSLOTS_BEHIND = 'numSlotsBehind'
 
     CREATE_ACCOUNT_RE = re.compile(r'Create Account: account Address { address: (\w+), base: Some\((\w+)\) } already in use')
-    NONCE_RE = re.compile(r'Program log: [a-z/.]+:\d+ : Invalid Ethereum transaction nonce: acc (\d+), trx (\d+)')
+    NONCE_RE = re.compile(f'Program log: {EVM_LOADER_ID}:\d+ : Invalid Ethereum transaction nonce: acc (\d+), trx (\d+)')
 
     def __init__(self, receipt: Union[dict, Exception, str]):
         if isinstance(receipt, SolTxError):

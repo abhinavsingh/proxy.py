@@ -32,7 +32,7 @@ steps:
       - "deploy_contracts.log"
       - "proxy_program_loader.log"
 #    env:
-#      UNITTEST_TESTPATH: proxy.testing.test_indexer_work.CancelTest.test_02_get_code_from_indexer
+#      UNITTEST_TESTNAME: indexer_work
 
   - label: ":coverage: full test suite (FTS)"
     key: "full_test_suite"

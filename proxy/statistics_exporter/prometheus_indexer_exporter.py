@@ -43,15 +43,13 @@ class IndexerStatistics(StatisticsExporter):
             start_http_server(8887, registry=self.registry)
 
     def on_neon_tx_result(self, tx_stat: NeonTxStatData):
-        for instruction_info in tx_stat.instructions:
-            sol_tx_hash, sol_spent, steps, bpf = instruction_info
-            self.stat_commit_tx_sol_spent(tx_stat.neon_tx_hash, sol_tx_hash, sol_spent)
-            self.stat_commit_tx_steps_bpf(tx_stat.neon_tx_hash, sol_tx_hash, steps, bpf)
         self.stat_commit_tx_count(tx_stat.is_canceled)
         self.stat_commit_tx_neon_income(tx_stat.neon_tx_hash, tx_stat.neon_income)
-        self.stat_commit_count_sol_tx_per_neon_tx(tx_stat.tx_type, len(tx_stat.instructions))
+        self.stat_commit_tx_sol_spent(tx_stat.neon_tx_hash, tx_stat.sol_spent)
+        self.stat_commit_tx_steps_bpf(tx_stat.neon_tx_hash, tx_stat.neon_step_cnt, tx_stat.bpf_cycle_cnt)
+        self.stat_commit_count_sol_tx_per_neon_tx(tx_stat.tx_type, tx_stat.sol_tx_cnt)
 
-    def stat_commit_tx_sol_spent(self, neon_tx_hash: str, sol_tx_hash: str, sol_spent: int):
+    def stat_commit_tx_sol_spent(self, neon_tx_hash: str, sol_spent: int):
         if self.do_work:
             self.TX_SOL_SPENT.observe(sol_spent)
 
@@ -59,7 +57,7 @@ class IndexerStatistics(StatisticsExporter):
         if self.do_work:
             self.TX_NEON_INCOME.observe(neon_income)
 
-    def stat_commit_tx_steps_bpf(self, neon_tx_hash: str, sol_tx_hash: str, steps: int, bpf: int):
+    def stat_commit_tx_steps_bpf(self, neon_tx_hash: str, steps: int, bpf: int):
         if self.do_work:
             if bpf:
                 self.TX_BPF_PER_ITERATION.observe(bpf)

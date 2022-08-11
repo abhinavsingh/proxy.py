@@ -10,11 +10,11 @@ from ..common_neon.environment_data import MAX_EVM_STEPS_TO_EXECUTE
 
 from .environment_utils import neon_cli
 from .errors import EthereumError
-from .data import NeonEmulatingResult
+from .data import NeonEmulatedResult
 
 
 @logged_group("neon.Proxy")
-def call_emulated(contract_id, caller_id, data=None, value=None, *, logger) -> NeonEmulatingResult:
+def call_emulated(contract_id, caller_id, data=None, value=None, *, logger) -> NeonEmulatedResult:
     output = emulator(contract_id, caller_id, data, value)
     logger.debug(f"Call emulated. contract_id: {contract_id}, caller_id: {caller_id}, data: {data}, value: {value}, return: {output}")
     result = json.loads(output)
@@ -23,7 +23,7 @@ def call_emulated(contract_id, caller_id, data=None, value=None, *, logger) -> N
 
 
 @logged_group("neon.Proxy")
-def call_trx_emulated(neon_trx: NeonTrx, *, logger) -> NeonEmulatingResult:
+def call_trx_emulated(neon_trx: NeonTrx, *, logger) -> NeonEmulatedResult:
     neon_sender_acc = neon_trx.sender()
     contract = neon_trx.contract()
     logger.debug(f'sender address: 0x{neon_sender_acc}')

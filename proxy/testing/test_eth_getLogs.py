@@ -148,22 +148,28 @@ class Test_eth_getLogs(unittest.TestCase):
 
     def test_get_logs_by_blockHash(self):
         print("\ntest_get_logs_by_blockHash")
-        receipts = proxy.eth.get_logs({'blockHash': self.block_hashes[0]})
-        receipts = list(filter(lambda r: r['address'] == self.storage_contract.address, receipts))
+        receipts = proxy.eth.get_logs({
+            'blockHash': self.block_hashes[0],
+            'address': self.storage_contract.address
+        })
         print('receipts: ', receipts)
         self.assertEqual(len(receipts), 1)
 
     def test_get_no_logs_by_blockHash(self):
         print("\ntest_get_no_logs_by_blockHash")
-        receipts = proxy.eth.get_logs({'blockHash': self.block_hashes_no_event[0]})
-        receipts = list(filter(lambda r: r['address'] == self.storage_contract.address, receipts))
+        receipts = proxy.eth.get_logs({
+            'blockHash': self.block_hashes_no_event[0],
+            'address': self.storage_contract.address
+        })
         print('receipts: ', receipts)
         self.assertEqual(len(receipts), 0)
 
     def test_get_logs_by_fromBlock(self):
         print("\ntest_get_logs_by_fromBlock")
-        receipts = proxy.eth.get_logs({'fromBlock': self.block_numbers[2]})
-        receipts = list(filter(lambda r: r['address'] == self.storage_contract.address, receipts))
+        receipts = proxy.eth.get_logs({
+            'fromBlock': self.block_numbers[2],
+            'address': self.storage_contract.address
+        })
         print('receipts: ', receipts)
         self.assertEqual(len(receipts), 4)
 

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import time
-import abc
 import json
 
 from logged_groups import logged_group
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, NamedTuple
 from base58 import b58encode
 
 from solana.transaction import Transaction
@@ -18,13 +17,13 @@ from .errors import EthereumError
 from .environment_data import SKIP_PREFLIGHT, CONFIRMATION_CHECK_DELAY, RETRY_ON_FAIL, CONFIRM_TIMEOUT
 
 
-class IConfirmWaiter(abc.ABC):
-    def __init__(self):
-        pass
+class SolTxListInfo(NamedTuple):
+    name_list: List[str]
+    tx_list: List[Transaction]
 
-    @abc.abstractmethod
-    def on_wait_confirm(self, elapsed_time: int, block_slot: int, is_confirmed: bool) -> None:
-        """Event on waiting of tx confirmation from Solana"""
+    def extend(self, src: SolTxListInfo) -> None:
+        self.name_list.extend(src.name_list)
+        self.tx_list.extend(src.tx_list)
 
 
 class BlockedAccountsError(Exception):
@@ -74,19 +73,18 @@ class SolTxListSender:
     def _get_full_tx_list(self):
         return [tx for lst in self._all_tx_list for tx in lst]
 
-    def send(self, name: str, tx_list: List[Transaction],
-             skip_preflight=SKIP_PREFLIGHT, preflight_commitment='processed',
-             waiter: Optional[IConfirmWaiter] = None) -> SolTxListSender:
-        self.debug(f'start transactions sending: {name.strip(" +")}')
+    def send(self, tx_list_info: SolTxListInfo,
+             skip_preflight=SKIP_PREFLIGHT, preflight_commitment='processed') -> SolTxListSender:
+        self.debug(f'start transactions sending: {" + ".join(tx_list_info.name_list)}')
 
         self.clear()
-        self._tx_list = tx_list
+        self._tx_list = tx_list_info.tx_list
 
         while (self._retry_idx < RETRY_ON_FAIL) and len(self._tx_list):
             self._retry_idx += 1
             self._slots_behind = 0
 
-            receipt_list = self._send_tx_list(skip_preflight, preflight_commitment, waiter)
+            receipt_list = self._send_tx_list(skip_preflight, preflight_commitment)
 
             success_sig_list = []
             for receipt, tx in zip(receipt_list, self._tx_list):
@@ -151,7 +149,6 @@ class SolTxListSender:
 
         if len(self._alt_invalid_index_list):
             time.sleep(self.ONE_BLOCK_TIME)
-            #TODO raise error and reschedule
         elif len(self._blocked_account_list):
             raise BlockedAccountsError()
 
@@ -181,15 +178,14 @@ class SolTxListSender:
             raise SolTxError(self._budget_exceeded_receipt)
         SolReceiptParser.raise_budget_exceeded()
 
-    def _send_tx_list(self, skip_preflight: bool, preflight_commitment: str,
-                      waiter: Optional[IConfirmWaiter]) -> List[Dict[str, Any]]:
+    def _send_tx_list(self, skip_preflight: bool, preflight_commitment: str) -> List[Dict[str, Any]]:
 
         send_result_list = self._solana.send_multiple_transactions(
             self._signer, self._tx_list, skip_preflight, preflight_commitment
         )
         # Filter good transactions and wait the confirmations for them
         sig_list = [s.result for s in send_result_list if s.result]
-        self._confirm_tx_list(sig_list, waiter)
+        self._confirm_tx_list(sig_list)
 
         # Get receipts for good transactions
         confirmed_list = self._solana.get_multiple_receipts(sig_list)
@@ -203,7 +199,7 @@ class SolTxListSender:
 
         return receipt_list
 
-    def _confirm_tx_list(self, sig_list: List[str], waiter: Optional[IConfirmWaiter]) -> None:
+    def _confirm_tx_list(self, sig_list: List[str]) -> None:
         """Confirm a transaction."""
         if not len(sig_list):
             self.debug('No confirmations, because transaction list is empty')
@@ -216,8 +212,6 @@ class SolTxListSender:
             elapsed_time += CONFIRMATION_CHECK_DELAY
 
             block_slot, is_confirmed = self._solana.get_confirmed_slot_for_multiple_transactions(sig_list)
-            if waiter is not None:
-                waiter.on_wait_confirm(elapsed_time, block_slot, is_confirmed)
 
             if is_confirmed:
                 self.debug(f'Got confirmed status for transactions: {sig_list}')

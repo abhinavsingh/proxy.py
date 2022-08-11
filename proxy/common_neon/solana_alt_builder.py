@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from typing import Optional, List, Tuple
+from typing import Optional, List
 
 from solana.account import Account as SolanaAccount
 from solana.transaction import Transaction
@@ -12,10 +12,10 @@ from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.solana_alt import AddressLookupTableInfo
 from ..common_neon.solana_alt_close_queue import AddressLookupTableCloseQueue
 from ..common_neon.neon_instruction import NeonIxBuilder
-from ..common_neon.solana_tx_list_sender import SolTxListSender, IConfirmWaiter
+from ..common_neon.solana_tx_list_sender import SolTxListInfo
 
 
-class AddressLookupTableTxList:
+class AddressLookupTableTxSet:
     def __init__(self, create_alt_tx_list: Optional[List[Transaction]] = None,
                  extend_alt_tx_list: Optional[List[Transaction]] = None,
                  deactivate_alt_tx_list: Optional[List[Transaction]] = None) -> None:
@@ -23,7 +23,7 @@ class AddressLookupTableTxList:
         self.extend_alt_tx_list = extend_alt_tx_list if extend_alt_tx_list is not None else []
         self.deactivate_alt_tx_list = deactivate_alt_tx_list if deactivate_alt_tx_list is not None else []
 
-    def append(self, tx_list: AddressLookupTableTxList) -> AddressLookupTableTxList:
+    def extend(self, tx_list: AddressLookupTableTxSet) -> AddressLookupTableTxSet:
         self.create_alt_tx_list.extend(tx_list.create_alt_tx_list)
         self.extend_alt_tx_list.extend(tx_list.extend_alt_tx_list)
         self.deactivate_alt_tx_list.extend(tx_list.deactivate_alt_tx_list)
@@ -66,7 +66,7 @@ class AddressLookupTableTxBuilder:
         alt_info.init_from_legacy_tx(legacy_tx)
         return alt_info
 
-    def build_alt_tx_list(self, alt_info: AddressLookupTableInfo) -> AddressLookupTableTxList:
+    def build_alt_tx_set(self, alt_info: AddressLookupTableInfo) -> AddressLookupTableTxSet:
         # Tx to create an Account Lookup Table
         create_alt_tx = Transaction().add(self._builder.make_create_lookup_table_instruction(
             alt_info.table_account, alt_info.recent_block_slot, alt_info.nonce
@@ -91,11 +91,30 @@ class AddressLookupTableTxBuilder:
         create_alt_tx.add(extend_alt_tx_list[0])
         extend_alt_tx_list = extend_alt_tx_list[1:]
 
-        return AddressLookupTableTxList(
+        return AddressLookupTableTxSet(
             create_alt_tx_list=[create_alt_tx],
             extend_alt_tx_list=extend_alt_tx_list,
             deactivate_alt_tx_list=[deactivate_alt_tx]
         )
+
+    @staticmethod
+    def build_prep_alt_list(alt_tx_set: AddressLookupTableTxSet) -> List[SolTxListInfo]:
+        tx_list_info_list: List[SolTxListInfo] = []
+
+        tx_list_info = SolTxListInfo(
+            name_list=['CreateLookupTable:ExtendLookupTable' for _ in alt_tx_set.create_alt_tx_list],
+            tx_list= alt_tx_set.create_alt_tx_list
+        )
+        tx_list_info_list.append(tx_list_info)
+
+        if len(alt_tx_set.extend_alt_tx_list) > 0:
+            tx_list_info = SolTxListInfo(
+                name_list=['ExtendLookupTable' for _ in alt_tx_set.extend_alt_tx_list],
+                tx_list=alt_tx_set.extend_alt_tx_list
+            )
+            tx_list_info_list.append(tx_list_info)
+
+        return tx_list_info_list
 
     def update_alt_info_list(self, alt_info_list: List[AddressLookupTableInfo]) -> None:
         self._alt_close_queue.push_list(self._signer.public_key(), [a.table_account for a in alt_info_list])
@@ -107,11 +126,10 @@ class AddressLookupTableTxBuilder:
                 raise AddressLookupTableError(f'Cannot read lookup table {str(alt_info.table_account)}')
             alt_info.update_from_account(alt_acct_info)
 
-    def done_alt_list(self, alt_tx_list: AddressLookupTableTxList,
-                      waiter: Optional[IConfirmWaiter] = None) -> List[str]:
-        tx_list_name = f'DeactivateLookupTable({len(alt_tx_list.deactivate_alt_tx_list)})'
-        tx_list = alt_tx_list.deactivate_alt_tx_list
-
-        tx_sender = SolTxListSender(self._solana, self._signer)
-        tx_sender.send(tx_list_name, tx_list, waiter=waiter)
-        return tx_sender.success_sig_list
+    @staticmethod
+    def build_done_alt_tx_set(alt_tx_set: AddressLookupTableTxSet) -> List[SolTxListInfo]:
+        tx_list_info = SolTxListInfo(
+            name_list=['DeactivateLookupTable' for _ in alt_tx_set.deactivate_alt_tx_list],
+            tx_list=alt_tx_set.deactivate_alt_tx_list
+        )
+        return [tx_list_info]

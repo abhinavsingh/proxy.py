@@ -1,6 +1,8 @@
+import psycopg2.extensions
+
 from collections.abc import MutableMapping
-from proxy.indexer.pg_common import encode, decode, dummy
-from proxy.indexer.base_db import BaseDB
+from ..indexer.pg_common import encode, decode, dummy
+from ..indexer.base_db import BaseDB
 
 
 class SQLDict(MutableMapping, BaseDB):
@@ -11,7 +13,8 @@ class SQLDict(MutableMapping, BaseDB):
         self.decode = decode
         self.key_encode = dummy
         self.key_decode = dummy
-        BaseDB.__init__(self, tablename)
+        super().__init__(tablename)
+        self._conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
     def __len__(self):
         with self._conn.cursor() as cur:
@@ -69,10 +72,12 @@ class SQLDict(MutableMapping, BaseDB):
         bin_value = self.encode(value)
         with self._conn.cursor() as cur:
             cur.execute(f'''
-                    INSERT INTO {self._table_name} (key, value)
-                    VALUES (%s,%s)
-                    ON CONFLICT (key)
-                    DO UPDATE SET
+                INSERT INTO {self._table_name}
+                    (key, value)
+                VALUES
+                    (%s,%s)
+                ON CONFLICT (key)
+                DO UPDATE SET
                     value = EXCLUDED.value
                 ''',
                 (bin_key, bin_value)

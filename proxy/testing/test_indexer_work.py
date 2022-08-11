@@ -223,11 +223,17 @@ class CancelTest(unittest.TestCase):
             program_id=proxy_program
         )
 
+        solana = SolanaClient(solana_url)
+
         tx.add(noniterative_transaction)
+        blockhash_resp = solana.get_recent_blockhash()
+        tx.recent_blockhash = blockhash_resp["result"]["value"]["blockhash"]
+        tx.sign(self.acc)
 
         print(tx.__dict__)
+        print(f'invoke signature: {b58encode(tx.signature()).decode("utf-8")}')
 
-        SolanaClient(solana_url).send_transaction(tx, self.acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
+        solana.send_transaction(tx, self.acc, opts=TxOpts(skip_preflight=False, skip_confirmation=False))
 
     def create_invoked_transaction_combined(self):
         print("\ncreate_invoked_transaction_combined")

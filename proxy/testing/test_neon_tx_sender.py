@@ -7,6 +7,8 @@ from unittest.mock import Mock
 from ..common_neon.eth_proto import Trx as EthTrx
 from ..common_neon.solana_interactor import SolanaInteractor
 
+from ..indexer.indexer_db import IndexerDB
+
 from ..mempool.operator_resource_list import OperatorResourceList
 
 

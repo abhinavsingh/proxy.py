@@ -8,14 +8,14 @@ STORAGE_ACCOUNT_INFO_LAYOUT = Struct(
     "nonce" / Int64ul,
     "gas_limit" / Bytes(32),
     "gas_price" / Bytes(32),
-    "slot" / Int64ul,
+    "block_slot" / Int64ul,
     "operator" / Bytes(32),
     "account_list_len" / Int64ul,
     "executor_data_size" / Int64ul,
     "evm_data_size" / Int64ul,
     "gas_used_and_paid" / Bytes(32),
     "number_of_payments" / Int64ul,
-    "sign" / Bytes(65),
+    "sig" / Bytes(65),
 )
 
 ACCOUNT_INFO_LAYOUT = Struct(

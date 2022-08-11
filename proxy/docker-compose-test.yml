@@ -29,7 +29,7 @@ services:
     container_name: proxy_program_loader
     image: neonlabsorg/evm_loader:ci-proxy-caller-program
     environment:
-      - SOLANA_URL=http://solana:8899
+      SOLANA_URL: http://solana:8899
     networks:
       - net
     depends_on:
@@ -82,11 +82,13 @@ services:
     environment:
       SOLANA_URL: http://solana:8899
       FAUCET_URL: http://faucet:3333
+      PROXY_URL: http://proxy:9090/solana
       POSTGRES_DB: neon-db
       POSTGRES_USER: neon-proxy
       POSTGRES_PASSWORD: neon-proxy-pass
+      POSTGRES_HOST: postgres
       LOG_NEON_CLI_DEBUG: "YES"
-      FUZZING_BLOCKHASH: "YES"
+      FUZZING_BLOCKHASH: "NO"
       CONFIG: ci
       PP_SOLANA_URL: ${CI_PP_SOLANA_URL:-https://api.devnet.solana.com}
       PYTH_MAPPING_ACCOUNT: ${CI_PYTH_MAPPING_ACCOUNT:-BmA9Z6FjioHJPpjT39QazZyhDRUdZy2ezwx4GiDdE2u2}
@@ -122,8 +124,8 @@ services:
     container_name: deploy_contracts
     image: neonlabsorg/evm_loader:${NEON_EVM_COMMIT}
     environment:
-      - SOLANA_URL=http://solana:8899
-      - SPL_TOKEN_AUTHORITY=/opt/contracts/ci-tokens/owner-keypair.json
+      SOLANA_URL: http://solana:8899
+      SPL_TOKEN_AUTHORITY: /opt/contracts/ci-tokens/owner-keypair.json
     networks:
       - net
     depends_on:
@@ -203,8 +205,9 @@ services:
       POSTGRES_DB: neon-db
       POSTGRES_USER: neon-proxy
       POSTGRES_PASSWORD: neon-proxy-pass
+      POSTGRES_HOST: postgres
       GATHER_STATISTICS: "YES"
-      LOG_FULL_OBJECT_INFO: "YES"
+      LOG_FULL_OBJECT_INFO: "NO"
       CONFIG: ci
       EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
     hostname: indexer

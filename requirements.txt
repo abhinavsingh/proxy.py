@@ -8,6 +8,6 @@ solana==0.10.0
 psycopg2-binary
 ethereum
 py-solc-x==1.1.0
-flask
+flask==2.0.1
 prometheus_client==0.13.1
 git+https://github.com/neonlabsorg/python-logged-groups.git@2.1.5

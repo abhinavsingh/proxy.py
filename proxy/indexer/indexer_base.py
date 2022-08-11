@@ -1,43 +1,20 @@
 import os
 import time
 import traceback
-from multiprocessing.dummy import Pool as ThreadPool
 from logged_groups import logged_group
-from typing import List, Optional, Tuple
 
-from .trx_receipts_storage import TxReceiptsStorage
-from .utils import MetricsToLogBuff
 from ..common_neon.solana_interactor import SolanaInteractor
-from ..indexer.sql_dict import SQLDict
 
-from ..common_neon.environment_data import INDEXER_POLL_COUNT, RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION, \
-                                           HISTORY_START, PARALLEL_REQUESTS, FINALIZED, EVM_LOADER_ID
+from ..common_neon.environment_data import FINALIZED
 
 
 @logged_group("neon.Indexer")
 class IndexerBase:
-    def __init__(self,
-                 solana: SolanaInteractor,
-                 last_slot: int):
-        self.solana = solana
-        self.transaction_receipts = TxReceiptsStorage('solana_transaction_receipts')
-        self.last_slot = self._init_last_slot('receipt', last_slot)
-        self.current_slot = 0
-        self.counter_ = 0
-        self.count_log = MetricsToLogBuff()
-        self._constants = SQLDict(tablename="constants")
-        self._maximum_tx = self._get_maximum_tx()
+    def __init__(self, solana: SolanaInteractor, last_slot: int):
+        self._solana = solana
+        self._last_slot = self._init_last_slot('receipt', last_slot)
 
-    def _get_maximum_tx(self) -> str:
-        if "maximum_tx" in self._constants:
-            return self._constants["maximum_tx"]
-        return ""
-
-    def _set_maximum_tx(self, tx: str):
-        self._maximum_tx = tx
-        self._constants["maximum_tx"] = tx
-
-    def _init_last_slot(self, name: str, last_known_slot: int):
+    def _init_last_slot(self, name: str, last_known_slot: int) -> int:
         """
         This function allow to skip some part of history.
         - LATEST - start from the last block slot from Solana
@@ -45,7 +22,7 @@ class IndexerBase:
         - NUMBER - first start from the number, then continue from last parsed slot
         """
         last_known_slot = 0 if not isinstance(last_known_slot, int) else last_known_slot
-        latest_slot = self.solana.get_slot(FINALIZED)["result"]
+        latest_slot = self._solana.get_block_slot(FINALIZED)
         start_int_slot = 0
         name = f'{name} slot'
 
@@ -54,7 +31,7 @@ class IndexerBase:
         if start_slot not in ['CONTINUE', 'LATEST']:
             try:
                 start_int_slot = min(int(start_slot), latest_slot)
-            except Exception:
+            except (Exception,):
                 start_int_slot = 0
 
         if start_slot == 'CONTINUE':
@@ -85,130 +62,7 @@ class IndexerBase:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
                 self.warning('Exception on transactions processing. ' +
                              f'Type(err): {type(err)}, Error: {err}, Traceback: {err_tb}')
-            time.sleep(1.0)
+            time.sleep(0.05)
 
-    def process_functions(self):
-        self.gather_unknown_transactions()
-
-    def gather_unknown_transactions(self):
-        start_time = time.time()
-        poll_txs = []
-        tx_list = []
-
-        minimal_tx = None
-        maximum_tx = None
-        maximum_slot = None
-        continue_flag = True
-        current_slot = self.solana.get_slot(commitment=FINALIZED)["result"]
-        tx_per_request = 20
-
-        counter = 0
-        gathered_signatures = 0
-        while continue_flag:
-            results = self._get_signatures(minimal_tx, 1000)
-            len_results = len(results)
-            if len_results == 0:
-                break
-
-            minimal_tx = results[-1]["signature"]
-            if maximum_tx is None:
-                tx = results[0]
-                maximum_tx = tx["signature"]
-                maximum_slot = tx["slot"]
-
-            gathered_signatures += len_results
-            counter += 1
-
-            tx_idx = 0
-            prev_slot = 0
-
-            for tx in results:
-                sol_sign = tx["signature"]
-                slot = tx["slot"]
-
-                if slot != prev_slot:
-                    tx_idx = 0
-                prev_slot = slot
-
-                if slot < self.last_slot:
-                    continue_flag = False
-                    break
-
-                if sol_sign in [HISTORY_START, self._maximum_tx]:
-                    continue_flag = False
-                    break
-
-                tx_list.append((sol_sign, slot, tx_idx))
-                if len(tx_list) >= tx_per_request:
-                    poll_txs.append(tx_list)
-                    tx_list = []
-                    if len(poll_txs) >= INDEXER_POLL_COUNT / tx_per_request:
-                        self._get_txs(poll_txs)
-
-                tx_idx += 1
-
-        if len(tx_list) > 0:
-            poll_txs.append(tx_list)
-        if len(poll_txs) > 0:
-            self._get_txs(poll_txs)
-
-        self.current_slot = current_slot
-        self.counter_ = 0
-        self._set_maximum_tx(maximum_tx)
-
-        get_history_ms = (time.time() - start_time) * 1000  # convert this into milliseconds
-        self.count_log.print(
-            self.debug,
-            list_params={"get_history_ms": get_history_ms, "gathered_signatures": gathered_signatures, "counter": counter},
-            latest_params={"maximum_tx": maximum_tx, "maximum_slot": maximum_slot}
-        )
-
-    def _get_signatures(self, before: Optional[str], limit: int) -> List:
-        response = self.solana.get_signatures_for_address(before, limit, FINALIZED)
-        error = response.get('error')
-        result = response.get('result', [])
-        if error:
-            self.warning(f'Fail to get signatures: {error}')
-        return result
-
-    def _get_txs(self, poll_txs: List[List[Tuple[str, int, int]]]) -> None:
-        pool = ThreadPool(PARALLEL_REQUESTS)
-        pool.map(self._get_tx_receipts, poll_txs)
-        poll_txs.clear()
-
-    def _get_tx_receipts(self, full_list: List[Tuple[str, int, int]]) -> None:
-        sign_list = []
-        filtered_list = []
-        for sol_sign, slot, tx_idx in full_list:
-            if not self.transaction_receipts.contains(slot, sol_sign):
-                sign_list.append(sol_sign)
-                filtered_list.append((sol_sign, slot, tx_idx))
-        if len(sign_list) == 0:
-            return
-
-        retry = RETRY_ON_FAIL_ON_GETTING_CONFIRMED_TRANSACTION
-        while retry > 0:
-            try:
-                tx_list = self.solana.get_multiple_receipts(sign_list)
-                for tx_info, tx in zip(filtered_list, tx_list):
-                    sol_sign, slot, tx_idx = tx_info
-                    self._add_tx(sol_sign, tx, slot, tx_idx)
-                retry = 0
-            except Exception as err:
-                retry -= 1
-                if retry == 0:
-                    self.error(f'Fail to get solana receipts: "{err}"')
-                else:
-                    self.debug(f'Fail to get solana receipts: "{err}"')
-                    time.sleep(3)
-
-        self.counter_ += 1
-        if self.counter_ % 100 == 0:
-            self.debug(f"Acquired {self.counter_} receipts")
-
-    def _add_tx(self, sol_sign, tx, slot, tx_idx):
-        if tx is not None:
-            self.debug(f'{(slot, tx_idx, sol_sign)}')
-            self.transaction_receipts.add_tx(slot, tx_idx, sol_sign, tx)
-        else:
-            self.debug(f"trx is None {sol_sign}")
+    def process_functions(self) -> None:
+        pass

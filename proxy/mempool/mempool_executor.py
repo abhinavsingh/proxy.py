@@ -4,26 +4,22 @@ import socket
 import traceback
 
 from logged_groups import logged_group, logging_context
+from typing import Optional
 
-from ..common_neon.data import NeonEmulatingResult, NeonAccountsData
-from ..common_neon.emulator_interactor import call_trx_emulated
-from ..common_neon.errors import PendingTxError
 from ..common_neon.gas_price_calculator import GasPriceCalculator
 from ..common_neon.solana_tx_list_sender import BlockedAccountsError
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.config import IConfig
 from ..common_neon.utils import PipePickableDataSrv, IPickableDataServerUser, Any
 from ..common_neon.config import Config
-from ..memdb.memdb import MemDB
-from ..common_neon.eth_proto import Trx as NeonTx
 
-from .transaction_sender import NeonTxSendStrategySelector, IStrategySelectorUser
+from .transaction_sender import NeonTxSendStrategyExecutor
 from .operator_resource_list import OperatorResourceList
 from .mempool_api import MPTxRequest, MPTxResult, MPResultCode
 
 
 @logged_group("neon.MemPool")
-class MPExecutor(mp.Process, IPickableDataServerUser, IStrategySelectorUser):
+class MPExecutor(mp.Process, IPickableDataServerUser):
 
     def __init__(self, executor_id: int, srv_sock: socket.socket, config: IConfig):
         self.info(f"Initialize mempool_executor: {executor_id}")
@@ -32,10 +28,9 @@ class MPExecutor(mp.Process, IPickableDataServerUser, IStrategySelectorUser):
         self._config = config
         self.info(f"Config: {self._config}")
         self._event_loop: asyncio.BaseEventLoop
-        self._solana_interactor: SolanaInteractor = None
-        self._gas_price_calculator: GasPriceCalculator = None
-        self._mem_db: MemDB
-        self._pickable_data_srv = None
+        self._solana_interactor: Optional[SolanaInteractor] = None
+        self._gas_price_calculator: Optional[GasPriceCalculator] = None
+        self._pickable_data_srv: Optional[PipePickableDataSrv] = None
         mp.Process.__init__(self)
 
     def _init_in_proc(self):
@@ -44,7 +39,6 @@ class MPExecutor(mp.Process, IPickableDataServerUser, IStrategySelectorUser):
         asyncio.set_event_loop(self._event_loop)
         self._pickable_data_srv = PipePickableDataSrv(user=self, srv_sock=self._srv_sock)
         self._solana_interactor = SolanaInteractor(self._config.get_solana_url())
-        self._mem_db = MemDB(self._solana_interactor)
 
         self._init_gas_price_calculator()
 
@@ -64,9 +58,6 @@ class MPExecutor(mp.Process, IPickableDataServerUser, IStrategySelectorUser):
             except BlockedAccountsError:
                 self.debug(f"Failed to execute neon_tx: {mp_tx_request.log_str}, got blocked accounts result")
                 return MPTxResult(MPResultCode.BlockedAccount, None)
-            except PendingTxError:
-                self.debug(f"Failed to execute neon_tx: {mp_tx_request.log_str}, got pending tx error")
-                return MPTxResult(MPResultCode.PendingTxError, None)
             except Exception as err:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
                 self.error(f"Failed to execute neon_tx: {mp_tx_request.log_str}, got error: {err}: {err_tb}")
@@ -79,14 +70,14 @@ class MPExecutor(mp.Process, IPickableDataServerUser, IStrategySelectorUser):
         if neon_tx_exec_cfg is None:
             self.error("Failed to process mp_tx_request, neon_tx_exec_cfg is not set")
             return
-        with OperatorResourceList(self._solana_interactor) as resource:
-            strategy_selector = NeonTxSendStrategySelector(self, self._mem_db, self._solana_interactor, resource, neon_tx)
-            strategy_selector.execute(neon_tx_exec_cfg)
 
-    def update_tx_accounts_data(self, neon_tx: NeonTx, accounts_data: NeonAccountsData):
-        emulating_result: NeonEmulatingResult = call_trx_emulated(neon_tx)
-        for k in ["accounts", "token_accounts", "solana_accounts"]:
-            accounts_data.update({k: emulating_result[k]})
+        resource_list = OperatorResourceList(self._solana_interactor)
+        resource = resource_list.get_available_resource_info()
+        try:
+            strategy_executor = NeonTxSendStrategyExecutor(self._solana_interactor, resource, neon_tx)
+            strategy_executor.execute(neon_tx_exec_cfg)
+        finally:
+            resource_list.free_resource_info(resource)
 
     async def on_data_received(self, data: Any) -> Any:
         return self.execute_neon_tx(data)

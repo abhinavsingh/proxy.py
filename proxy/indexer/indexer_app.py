@@ -4,11 +4,11 @@ from ..common_neon.environment_data import EVM_LOADER_ID, SOLANA_URL, GATHER_STA
 from ..statistics_exporter.prometheus_indexer_exporter import IndexerStatistics
 from ..common_neon.data import NeonTxStatData
 from .indexer import Indexer
-from .i_inidexer_user import IIndexerUser
+from .i_indexer_stat_exporter import IIndexerStatExporter
 
 
 @logged_group("neon.Indexer")
-class IndexerApp(IIndexerUser):
+class IndexerApp(IIndexerStatExporter):
 
     def __init__(self, solana_url: str):
         self.neon_statistics = IndexerStatistics(GATHER_STATISTICS)
