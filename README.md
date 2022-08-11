@@ -2261,7 +2261,7 @@ To manage global states, you have a couple of options:
 Sometimes, a plugin may need to pass additional context to other plugins after them in the processing chain.  Example, this additional
 context can also be dumped as part of access logs.
 
-To pass processing context, make use of plugin's `on_access_log` method.  See how [Program Name](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/plugin/program_name.py#L63-L65) plugin modifies default `client_ip` key in the context and updates it to detected program name.
+To pass processing context, make use of plugin's `on_access_log` method.  See how [Program Name](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/plugin/program_name.py) plugin modifies default `client_ip` key in the context and updates it to detected program name.
 
 As a result, when we enable [Program Name Plugin](#programnameplugin), we see local client program name instead of IP address in the access logs.
 
