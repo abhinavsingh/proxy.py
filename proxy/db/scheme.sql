@@ -10,11 +10,26 @@
         SELECT COUNT(t.column_name)
           INTO column_count
           FROM information_schema.columns AS t
-         WHERE t.table_name=t_name and t.column_name=c_name;
+         WHERE t.table_name=t_name AND t.column_name=c_name;
         RETURN column_count > 0;
     END;
     $$;
 
+    CREATE OR REPLACE FUNCTION does_table_exist(t_name TEXT)
+        RETURNS BOOLEAN
+        LANGUAGE plpgsql
+    AS
+    $$
+    DECLARE
+        column_count INT;
+    BEGIN
+        SELECT COUNT(t.column_name)
+          INTO column_count
+          FROM information_schema.columns AS t
+         WHERE t.table_name=t_name;
+        RETURN column_count > 0;
+    END;
+    $$;
 
     DO $$
     DECLARE
@@ -28,7 +43,7 @@
             ALTER TABLE neon_transactions RENAME TO oldv1_neon_transactions;
         END IF;
 
-        IF does_table_have_column('neon_transaction_logs', 'blockNumber') THEN
+        IF does_table_have_column('neon_transaction_logs', 'blocknumber') THEN
             ALTER TABLE neon_transaction_logs RENAME TO oldv1_neon_transaction_logs;
         END IF;
 
@@ -36,6 +51,10 @@
             DROP TABLE solana_neon_transactions;
         END IF;
     END $$;
+
+    DROP TABLE IF EXISTS solana_neon_transactions_costs;
+    DROP TABLE IF EXISTS solana_transaction_receipts;
+    DROP TABLE IF EXISTS test_storage;
 
     --- Initialize stage
 
@@ -170,7 +189,7 @@
     DECLARE
         ----------
     BEGIN
-        IF does_table_have_column('oldv1_solana_blocks', 'slot') THEN
+        IF does_table_exist('oldv1_solana_blocks') THEN
             INSERT INTO solana_blocks(
                 block_slot, block_hash, block_time,
                 parent_block_slot, is_finalized, is_active)
@@ -182,7 +201,7 @@
             DROP TABLE oldv1_solana_blocks;
         END IF;
 
-        IF does_table_have_column('oldv1_neon_transactions', 'neon_sign') THEN
+        IF does_table_exist('oldv1_neon_transactions') THEN
             INSERT INTO neon_transactions(
                 neon_sig, from_addr,
                 sol_sig, sol_ix_idx, sol_ix_inner_idx,
@@ -203,7 +222,7 @@
             DROP TABLE oldv1_neon_transactions;
         END IF;
 
-        IF does_table_have_column('oldv1_neon_transaction_logs', 'blockNumber') THEN
+        IF does_table_exist('oldv1_neon_transaction_logs') THEN
             INSERT INTO neon_transaction_logs(
                 address,
                 block_slot, tx_hash, tx_idx, tx_log_idx, log_idx,
@@ -218,7 +237,3 @@
             DROP TABLE oldv1_neon_transaction_logs;
         END IF;
     END $$;
-
-    DROP TABLE IF EXISTS solana_neon_transactions_costs;
-    DROP TABLE IF EXISTS solana_transaction_receipts;
-    DROP TABLE IF EXISTS test_storage;
