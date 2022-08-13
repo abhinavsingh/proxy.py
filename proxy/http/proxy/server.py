@@ -673,6 +673,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 public_key_path=public_key_path, private_key_path=private_key_path,
                 private_key_password=private_key_password, subject=subject, alt_subj_names=alt_subj_names,
                 validity_in_days=validity_in_days, timeout=timeout,
+                openssl=self.flags.openssl,
             )
             assert(resp is True)
 
@@ -687,6 +688,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             resp = gen_csr(
                 csr_path=csr_path, key_path=private_key_path, password=private_key_password,
                 crt_path=public_key_path, timeout=timeout,
+                openssl=self.flags.openssl,
             )
             assert(resp is True)
 
@@ -703,6 +705,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 ca_key_password=ca_key_password, ca_crt_path=ca_crt_path,
                 serial=str(serial), alt_subj_names=alt_subj_names,
                 validity_in_days=validity_in_days, timeout=timeout,
+                openssl=self.flags.openssl,
             )
             assert(resp is True)
 

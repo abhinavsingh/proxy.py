@@ -279,6 +279,13 @@ class FlagParser:
                 args.ca_file,
             ),
         )
+        args.openssl = cast(
+            Optional[str],
+            opts.get(
+                'openssl',
+                args.openssl,
+            )
+        )
 
         args.hostname = cast(
             IpAddress,
