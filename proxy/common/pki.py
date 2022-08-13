@@ -321,8 +321,10 @@ if __name__ == '__main__':
 
     # Execute
     if args.action == 'gen_private_key':
-        gen_private_key(args.private_key_path,
-                        args.password, openssl=args.openssl)
+        gen_private_key(
+            args.private_key_path,
+            args.password, openssl=args.openssl,
+        )
     elif args.action == 'gen_public_key':
         gen_public_key(
             args.public_key_path, args.private_key_path,

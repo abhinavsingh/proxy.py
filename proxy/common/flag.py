@@ -284,7 +284,7 @@ class FlagParser:
             opts.get(
                 'openssl',
                 args.openssl,
-            )
+            ),
         )
 
         args.hostname = cast(
