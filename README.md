@@ -1719,26 +1719,28 @@ Use `proxy.common.pki` module for:
 3. Signing CSR requests using custom CA.
 
 ```console
-python -m proxy.common.pki -h
-usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
-              [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
+❯ python -m proxy.common.pki -h
+usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH] [--public-key-path PUBLIC_KEY_PATH]
+              [--subject SUBJECT] [--csr-path CSR_PATH] [--crt-path CRT_PATH] [--hostname HOSTNAME] [--openssl OPENSSL]
               action
 
-proxy.py v2.2.0 : PKI Utility
+proxy.py v2.4.4rc2.dev12+gdc06ea4 : PKI Utility
 
 positional arguments:
-  action                Valid actions: remove_passphrase, gen_private_key,
-                        gen_public_key, gen_csr, sign_csr
+  action                Valid actions: remove_passphrase, gen_private_key, gen_public_key, gen_csr, sign_csr
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --password PASSWORD   Password to use for encryption. Default: proxy.py
   --private-key-path PRIVATE_KEY_PATH
                         Private key path
   --public-key-path PUBLIC_KEY_PATH
                         Public key path
-  --subject SUBJECT     Subject to use for public key generation. Default:
-                        /CN=example.com
+  --subject SUBJECT     Subject to use for public key generation. Default: /CN=localhost
+  --csr-path CSR_PATH   CSR file path. Use with gen_csr and sign_csr action.
+  --crt-path CRT_PATH   Signed certificate path. Use with sign_csr action.
+  --hostname HOSTNAME   Alternative subject names to use during CSR signing.
+  --openssl OPENSSL     Path to openssl binary. By default, we assume openssl is in your PATH
 ```
 
 ## Internal Documentation
